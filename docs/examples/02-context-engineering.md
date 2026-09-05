@@ -65,12 +65,13 @@
 | `conversationMemoryIds` | string[] | 装配器 | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 装配器 | 项目记忆；没有就 `[]` |
 | `mcpIds` | string[] | 装配器 | 本轮 MCP；没有就 `[]` |
-| `currentPage` | object \| null | 装配器 | 没有就 `null`。有则 `tab` ≥ 1，带 `url`、`title` |
+| `currentPage` | object \| null | 装配器 | 没有就 `null`。有则带 `description`、`tab` ≥ 1、`url`、`title` |
 
 `currentPage` 有值时：
 
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
+| `description` | string | 这块环境是什么，给人/模型认 |
 | `tab` | number | Chrome tabId，≥ 1 |
 | `url` | string | 当前页 URL |
 | `title` | string | 当前页标题 |
@@ -96,6 +97,7 @@
   "projectMemoryIds": [],
   "mcpIds": [],
   "currentPage": {
+    "description": "当前页面信息",
     "tab": 12,
     "url": "https://item.jd.com/100012345678.html",
     "title": "罗技 MX Master 3S 无线鼠标"

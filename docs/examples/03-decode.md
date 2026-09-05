@@ -29,6 +29,7 @@
   "projectMemoryIds": [],
   "mcpIds": [],
   "currentPage": {
+    "description": "当前页面信息",
     "tab": 12,
     "url": "https://item.jd.com/100012345678.html",
     "title": "罗技 MX Master 3S 无线鼠标"
@@ -151,7 +152,7 @@ contextSummary：user 里带给下一轮的汇总，排除三层记忆。
 
 ```json
 {
-  "description": "当前网页信息",
+  "description": "当前页面信息",
   "tab": 12,
   "url": "https://item.jd.com/100012345678.html",
   "title": "罗技 MX Master 3S 无线鼠标"
@@ -195,6 +196,7 @@ contextSummary：user 里带给下一轮的汇总，排除三层记忆。
   "projectMemoryIds": [],
   "mcpIds": [],
   "currentPage": {
+    "description": "当前页面信息",
     "tab": 12,
     "url": "https://item.jd.com/100012345678.html",
     "title": "罗技 MX Master 3S 无线鼠标"
