@@ -16,24 +16,24 @@
 }
 ```
 
-| 谁 | 写什么 |
-|---|---|
-| 01（原样带上） | `conversationId` `turnId` `userInput` `submittedAt` |
-| 本环节 | `stage` 改成 `context-engineering-input`；追加 `systemIds` `skillIds` `sopIds` `toolIds` `memoryIds` `mcpIds` `currentPage` |
+| 谁             | 写什么                                                                                                                      |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| 01（原样带上） | `conversationId` `turnId` `userInput` `submittedAt`                                                                         |
+| 本环节         | `stage` 改成 `context-engineering-input`；追加 `systemIds` `skillIds` `sopIds` `toolIds` `memoryIds` `mcpIds` `currentPage` |
 
 ## 配方（intake）
 
 图上 CE#1：组装 system / skill / tool / memory / SOP。本环节只选出 ID。
 
-| 选什么 | 干什么 | 本轮选中 |
-|---|---|---|
-| `systemIds` | 本轮 Pack | `pack.agent` → `catalog/packs/pack.agent.md` |
-| `skillIds` | 索引进 system 的章节 | `skill.web` → `catalog/skills/skill.web.md` |
-| `sopIds` | 索引进 system 的章节 | `sop.browse` → `catalog/sops/sop.browse.md` |
-| `toolIds` | 本轮工具面 | `continueTask` `askUser` 内置；`web.search` → `catalog/tools/` |
-| `memoryIds` | 本会话记忆 | 新会话空 |
-| `mcpIds` | 本轮 MCP | 空 |
-| `currentPage` | 当前页 | 京东商品页 |
+| 选什么        | 干什么               | 本轮选中                                                       |
+| ------------- | -------------------- | -------------------------------------------------------------- |
+| `systemIds`   | 本轮 Pack            | `pack.agent` → `catalog/packs/pack.agent.md`                   |
+| `skillIds`    | 索引进 system 的章节 | `skill.web` → `catalog/skills/skill.web.md`                    |
+| `sopIds`      | 索引进 system 的章节 | `sop.browse` → `catalog/sops/sop.browse.md`                    |
+| `toolIds`     | 本轮工具面           | `continueTask` `askUser` 内置；`web.search` → `catalog/tools/` |
+| `memoryIds`   | 本会话记忆           | 新会话空                                                       |
+| `mcpIds`      | 本轮 MCP             | 空                                                             |
+| `currentPage` | 当前页               | 京东商品页                                                     |
 
 本轮没有 task，不选 goal / action / observation。work 配方在建了 task 之后另开。
 
@@ -41,33 +41,33 @@
 
 上一份已有、本份原样带上：
 
-| 字段 | 类型 | 谁填 | 怎么填 |
-|---|---|---|---|
-| `conversationId` | string | 01 | 原样 |
-| `turnId` | string | 01 | 原样 |
-| `userInput` | string | 01 | 原样 |
-| `submittedAt` | string | 01 | 原样 |
+| 字段             | 类型   | 谁填 | 怎么填 |
+| ---------------- | ------ | ---- | ------ |
+| `conversationId` | string | 01   | 原样   |
+| `turnId`         | string | 01   | 原样   |
+| `userInput`      | string | 01   | 原样   |
+| `submittedAt`    | string | 01   | 原样   |
 
 本环节新增 / 改写：
 
-| 字段 | 类型 | 谁填 | 怎么填 |
-|---|---|---|---|
-| `stage` | string | 固定 | `context-engineering-input` |
-| `systemIds` | string[] | 装配器 | 本轮 Pack，对应 `catalog/packs/<id>.md` |
-| `skillIds` | string[] | 装配器 | 本轮 skill，对应 `catalog/skills/<id>.md` |
-| `sopIds` | string[] | 装配器 | 本轮 SOP，对应 `catalog/sops/<id>.md` |
-| `toolIds` | string[] | 装配器 | 本轮工具，对应 `catalog/tools/<id>.json` |
-| `memoryIds` | string[] | 装配器 | 本会话记忆；没有就 `[]` |
-| `mcpIds` | string[] | 装配器 | 本轮 MCP；没有就 `[]` |
+| 字段          | 类型           | 谁填   | 怎么填                                           |
+| ------------- | -------------- | ------ | ------------------------------------------------ |
+| `stage`       | string         | 固定   | `context-engineering-input`                      |
+| `systemIds`   | string[]       | 装配器 | 本轮 Pack，对应 `catalog/packs/<id>.md`          |
+| `skillIds`    | string[]       | 装配器 | 本轮 skill，对应 `catalog/skills/<id>.md`        |
+| `sopIds`      | string[]       | 装配器 | 本轮 SOP，对应 `catalog/sops/<id>.md`            |
+| `toolIds`     | string[]       | 装配器 | 本轮工具，对应 `catalog/tools/<id>.json`         |
+| `memoryIds`   | string[]       | 装配器 | 本会话记忆；没有就 `[]`                          |
+| `mcpIds`      | string[]       | 装配器 | 本轮 MCP；没有就 `[]`                            |
 | `currentPage` | object \| null | 装配器 | 没有就 `null`。有则 `tab` ≥ 1，带 `url`、`title` |
 
 `currentPage` 有值时：
 
-| 字段 | 类型 | 怎么填 |
-|---|---|---|
-| `tab` | number | Chrome tabId，≥ 1 |
-| `url` | string | 当前页 URL |
-| `title` | string | 当前页标题 |
+| 字段    | 类型   | 怎么填            |
+| ------- | ------ | ----------------- |
+| `tab`   | number | Chrome tabId，≥ 1 |
+| `url`   | string | 当前页 URL        |
+| `title` | string | 当前页标题        |
 
 ## 写出的
 

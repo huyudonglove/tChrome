@@ -1,14 +1,14 @@
 # 03 解码
 
-读 02 的写出。按 `catalog/` 把 ID 展开成**插槽**。JSON 里不写带换行的长字符串。
+读 02 的写出。按 `catalog/` 把 ID 展开成**插槽**。JSON 里只留插槽名列表和 `tools[]`，不写带换行的长字符串。
 
 怎么看：
 
 - 「读到的」是 02 写出的原样
 - 「system 插槽」每个 `#标题` 单独一段，正文来自 catalog
-- 「user 插槽」每个 `#块` 单独一段
-- 「写出的」JSON 只留插槽名、短值和 `tools[]`（薄 schema，用法在 Pack）
-- 出网时 Runtime 按插槽顺序拼成 `system` / `user` 字符串；文档里不写那份难读的串
+- 「user 插槽」每个 `#块` 单独一段，正文在这一页
+- 「写出的」JSON：`systemSlots` / `userSlots` 都是名数组；`tools[]` 是薄 schema
+- 出网时 Runtime 按名列表取正文，拼成 `system` / `user` 字符串
 
 ## 读到的（02 写出的）
 
@@ -37,14 +37,14 @@
 
 | ID             | 文件                              | 贡献的插槽                                                                    |
 | -------------- | --------------------------------- | ----------------------------------------------------------------------------- |
-| `pack.agent`   | `catalog/packs/pack.agent.md`     | `#身份`, `#记忆`, `#环境`, `#原则`, `#传入参数`, `#内置工具`, `#user字段说明` |
-| `skill.web`    | `catalog/skills/skill.web.md`     | `#skill.web`                                                                  |
-| `sop.browse`   | `catalog/sops/sop.browse.md`      | `#sop.browse`                                                                 |
+| `pack.agent`   | `catalog/packs/pack.agent.md`     | `#身份`, `#记忆`, `#环境`, `#原则`, `#参数说明`, `#内置工具`, `#user字段说明` |
+| `skill.web`    | `catalog/skills/skill.web.md`     | `#skill`                                                                      |
+| `sop.browse`   | `catalog/sops/sop.browse.md`      | `#sop`                                                                        |
 | `continueTask` | `catalog/tools/continueTask.json` | `tools[]` 薄 schema                                                           |
 | `askUser`      | `catalog/tools/askUser.json`      | `tools[]` 薄 schema                                                           |
 | `web.search`   | `catalog/tools/web.search.json`   | `tools[]` 薄 schema                                                           |
 
-`memoryIds` / `mcpIds` 空，不加插槽。`tools[]` 只留 `name`、类型、`required`。何时用写在 Pack `#原则` / `#传入参数`。
+`memoryIds` / `mcpIds` 空，不加插槽。`tools[]` 只留 `name`、类型、`required`。何时用写在 Pack `#原则` / `#参数说明`。
 
 ## system 插槽
 
@@ -66,7 +66,7 @@ Chrome、JavaScript、HTML、CSS。
 
 查看输入信息是否完整。完整就调用 continueTask。不完整就调用 askUser。两个方法互斥。搜集相关信息直到不影响下一步。
 
-### `#传入参数`
+### `#参数说明`
 
 task：任务；askUser 时为空。
 choice：askUser 时的选项。
@@ -100,11 +100,11 @@ contextSummary：user 里带给下一轮的汇总，排除记忆。
 
 报错说明：提示格式错误时，检查工具调用格式。
 
-### `#skill.web`
+### `#skill`
 
 查网页价格时，打开商品页，核对官网价和当前页标价。
 
-### `#sop.browse`
+### `#sop`
 
 1. 认当前页是不是目标商品
 2. 打开官网或权威标价页
@@ -112,7 +112,9 @@ contextSummary：user 里带给下一轮的汇总，排除记忆。
 
 ## user 插槽
 
-顺序 = `userSlots` 的键序。intake 还没有独立 task，`#currentTask` 空；用户原话进 `#userInput`；当前页进 `#currentEnvironment`。`#tools` 只写本轮额外要点，本轮空。
+顺序 = `userSlots` 数组。intake 还没有独立 task，`#currentTask` 空；用户原话进 `#userInput`；当前页进 `#currentEnvironment`。
+
+常驻工具用法在 system（Pack）。动态工具用法在 `#tools`。本轮 `web.search` 的用法在 `#skill` / `#sop`，`#tools` 空。
 
 ### `#projectMemory`
 
@@ -142,6 +144,7 @@ contextSummary：user 里带给下一轮的汇总，排除记忆。
 
 ```json
 {
+  "description": "当前网页信息",
   "tab": 12,
   "url": "https://item.jd.com/100012345678.html",
   "title": "罗技 MX Master 3S 无线鼠标"
@@ -158,14 +161,14 @@ contextSummary：user 里带给下一轮的汇总，排除记忆。
 
 本环节新增 / 改写：
 
-| 字段          | 类型     | 谁填      | 怎么填                                         |
-| ------------- | -------- | --------- | ---------------------------------------------- |
-| `stage`       | string   | 固定      | `context-engineering-decode`                   |
-| `systemSlots` | string[] | 装配器    | system 插槽名，按这个顺序拼                    |
-| `userSlots`   | object   | 装配器    | key 是 `#块` 名；值是短字符串或对象；空块 `""` |
-| `tools`       | object[] | 工具 JSON | 薄 schema，与 `toolIds` 各文件一致             |
+| 字段          | 类型     | 谁填      | 怎么填                             |
+| ------------- | -------- | --------- | ---------------------------------- |
+| `stage`       | string   | 固定      | `context-engineering-decode`       |
+| `systemSlots` | string[] | 装配器    | system 插槽名，按这个顺序拼        |
+| `userSlots`   | string[] | 装配器    | user 插槽名，按这个顺序拼          |
+| `tools`       | object[] | 工具 JSON | 薄 schema，与 `toolIds` 各文件一致 |
 
-出网拼法：`system` = 各 system 插槽「`#名` + 正文」按序拼接；`user` = 每个 `#块名` + 换行 + 正文（对象先格式化成行）。
+出网拼法：按名列表取各插槽正文，拼成 `system` / `user`。对象先格式化成行。
 
 ## 写出的（累积快照）
 
@@ -195,23 +198,19 @@ contextSummary：user 里带给下一轮的汇总，排除记忆。
     "#参数说明",
     "#内置工具",
     "#user字段说明",
-    "#skill.web",
-    "#sop.browse"
+    "#skill",
+    "#sop"
   ],
-  "userSlots": {
-    "#projectMemory": "",
-    "#conversationMemory": "",
-    "#turnMemory": "",
-    "#contextSummary": "",
-    "#currentTask": "",
-    "#userInput": "帮我查这款鼠标官网价",
-    "#currentEnvironment": {
-      "tab": 12,
-      "url": "https://item.jd.com/100012345678.html",
-      "title": "罗技 MX Master 3S 无线鼠标"
-    },
-    "#tools": ""
-  },
+  "userSlots": [
+    "#projectMemory",
+    "#conversationMemory",
+    "#turnMemory",
+    "#contextSummary",
+    "#currentTask",
+    "#userInput",
+    "#currentEnvironment",
+    "#tools"
+  ],
   "tools": [
     {
       "type": "function",

@@ -15,7 +15,7 @@ memory/<memoryId>.json
 
 Pack / skill / sop / tool / mcp 的定义在仓里 `catalog/`，会话只引用 ID。
 
-样例按环节拆开。每份 md：**读到的** = 上一份「写出的」原样；**写出的** = 累积快照（上一份全部键 + 本环节新键，`stage` 改成本环节名）。解码按 catalog 展开成插槽：`systemSlots`（名列表）+ `userSlots`（块名 → 短值）+ `tools`。正文写在 md 分段和 catalog 文件里，JSON 不塞带换行的长字符串。出网时 Runtime 按插槽顺序拼 `system` / `user`。
+样例按环节拆开。每份 md：**读到的** = 上一份「写出的」原样；**写出的** = 累积快照（上一份全部键 + 本环节新键，`stage` 改成本环节名）。解码按 catalog 展开成插槽：`systemSlots` / `userSlots` 都是名数组，正文在 md 分段和 catalog 文件里。`tools[]` 薄 schema。出网时 Runtime 按名列表拼 `system` / `user`。
 
 | 文件 | 环节 | 本份新增 / 改写 |
 |---|---|---|

@@ -10,7 +10,7 @@ Chrome、JavaScript、HTML、CSS。
 #原则
 查看输入信息是否完整。完整就调用 continueTask。不完整就调用 askUser。两个方法互斥。搜集相关信息直到不影响下一步。
 
-#传入参数
+#参数说明
 task：任务；askUser 时为空。
 choice：askUser 时的选项。
 turnMemory：这一轮要存下的记忆。
@@ -37,6 +37,6 @@ contextSummary：user 里带给下一轮的汇总，排除记忆。
 当前任务写在 `#currentTask`。
 当前用户输入写在 `#userInput`。
 当前环境写在 `#currentEnvironment`。
-`#tools` 只写本轮额外要点。常驻工具 continueTask / askUser 的用法在本 Pack。
+常驻工具 continueTask / askUser 的用法写在本 Pack。动态工具的用法写在 user `#tools`。
 
 报错说明：提示格式错误时，检查工具调用格式。
