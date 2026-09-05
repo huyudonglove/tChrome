@@ -112,13 +112,15 @@ data: [DONE]
 
 分两条线。Provider **不替模型改 JSON**（不是代码补全）。
 
+校验对象只有 **`tool_calls[].function.arguments`**（工具提交）。`content` 是给人看的正文，不 parse、不进 Ajv。`finish=stop` 且没有 `tool_calls` 时，跳过 B，直接把 `content` 交给 Runtime。
+
 ### A. 线路失败（同一 body 再打，最多 3 次）
 
 网络 / 超时 / 5xx / 429 / 流被掐 / SSE 某条 `data:` 不是 JSON。不经过模型。
 
-### B. 交口失败（把错误类型回给模型再交，同一 turn 最多 3 次）
+### B. 工具提交失败（把错误类型回给模型再交，同一 turn 最多 3 次）
 
-`arguments` 不是 JSON、缺 required、未知工具、常驻互斥。判定之后写成一条 **tool 结果** 再出网，让模型按 `faultCode` 重交。3 次仍坏才 `finish=error`。
+只在有 `tool_calls` 时走。`arguments` 不是 JSON、缺 required、未知工具、常驻互斥。判定之后写成一条 **tool 结果** 再出网，让模型按 `faultCode` 重交。3 次仍坏才 `finish=error`。
 
 `faultCode`：
 
