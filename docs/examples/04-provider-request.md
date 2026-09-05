@@ -1,11 +1,11 @@
-# 04 Provider
+# 04 Provider 入参
 
 读 03 的写出。Provider 把插槽拼成 **Chat Completions POST body**，转发 UUAPI。传出另见 `05-provider-response.md`。
 
 怎么看：
 - 「读到的」是 03 写出的原样
-- 「怎么拼」是这一次真正发出去的参数：`model` + `messages` 两段正文 + `tools` schema
-- 「写出的」累积快照追加 `provider` `model`。交口在下一份
+- 「怎么拼」是这一次真正发出去的参数：`model` + `messages` + `tools` + `stream`
+- 「写出的」累积快照追加 `provider` `model` `stream` `maxAttempts`。交口在下一份
 
 作者是 Provider。不装配、不跑工具、不落盘。key 在请求头，不进 body。
 
@@ -78,11 +78,12 @@ Authorization: Bearer $UUAPI_API_KEY
 Content-Type: application/json
 ```
 
-body 三个键：`model`、`messages`、`tools`。
+body 四个键：`model`、`messages`、`tools`、`stream`。
 
 ```json
 {
   "model": "gemini-3.7-flash",
+  "stream": true,
   "messages": [
     { "role": "system", "content": "<下面 system 正文>" },
     { "role": "user", "content": "<下面 user 正文>" }
@@ -91,7 +92,23 @@ body 三个键：`model`、`messages`、`tools`。
 }
 ```
 
-SDK 写法：`client.chat.completions.create({ model, messages, tools })`。不是 Responses，不是扩展直连 UUAPI。
+SDK 写法：`client.chat.completions.create({ model, messages, tools, stream: true })`。不是 Responses，不是扩展直连 UUAPI。
+
+## 流式
+
+`stream: true`。响应是 SSE：每行 `data: {chunk}`，最后 `data: [DONE]`。Provider 把分片拼成一份交口，字段见 05。中途断了当这次失败，整单重试，不从半截续。
+
+## 兜底重试
+
+同一份 body 最多打 **3 次**（含第一次）。
+
+| | |
+|---|---|
+| 重试 | 网络断开、超时、5xx、429 |
+| 不重试 | 4xx（除 429）、key 无效、请求体不合法 |
+| 间隔 | 失败后等 1s 再打；第 3 次仍失败 → `finish=error` 交给 Runtime |
+
+已收到完整 `[DONE]` 不算失败，不重试。
 
 ### `messages[0]` system
 
@@ -313,6 +330,8 @@ contextSummary：user 里带给下一轮的汇总，排除三层记忆。
 | `stage` | string | 固定 | `provider-request` |
 | `provider` | string | 配置 | `uuapi` |
 | `model` | string | 配置 | `gemini-3.7-flash` |
+| `stream` | boolean | 固定 | `true`，SSE |
+| `maxAttempts` | number | 固定 | `3`（含首次） |
 
 ## 写出的（累积快照）
 
@@ -371,7 +390,9 @@ contextSummary：user 里带给下一轮的汇总，排除三层记忆。
     "#tools"
   ],
   "provider": "uuapi",
-  "model": "gemini-3.7-flash"
+  "model": "gemini-3.7-flash",
+  "stream": true,
+  "maxAttempts": 3
 }
 ```
 

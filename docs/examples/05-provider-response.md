@@ -1,16 +1,16 @@
 # 05 Provider 传出
 
-读 04 的写出。记录这一次 UUAPI **传出**：先原文，再收成 Runtime 认的交口。
+读 04 的写出。记录这一次 UUAPI **传出**：先 SSE 原文，再收成 Runtime 认的交口。
 
 怎么看：
-- 「读到的」是 04 写出的原样（已经拼好要发给谁）
-- 「UUAPI 原文」是 `POST /v1/chat/completions` 的响应 body
-- 「模型交口」是 Provider 解析后、Runtime 只认的那份
-- 「写出的」累积快照追加 `finish` `content` `toolCalls`
+- 「读到的」是 04 写出的原样（`stream=true`，最多 3 次）
+- 「SSE 原文」是 `stream: true` 时一行行 `data:`
+- 「模型交口」是 Provider 把分片拼完、JSON.parse 参数之后，Runtime 只认这份
+- 「写出的」累积快照追加 `finish` `content` `toolCalls` `attempts`
 
 作者是 Provider。不跑工具、不落盘。`usage` / 响应 `id` / `object` 不进交口。
 
-本轮 intake 材料够，交 `continueTask`，不交 `askUser`。
+本轮第 1 次就收到完整 `[DONE]`，交 `continueTask`，不交 `askUser`。
 
 ## 读到的（04 写出的）
 
@@ -69,59 +69,54 @@
     "#tools"
   ],
   "provider": "uuapi",
-  "model": "gemini-3.7-flash"
-}
-```
-
-## UUAPI 原文
-
-`function.arguments` 在电线上是 **JSON 字符串**，还没 parse。
-
-```json
-{
-  "id": "chatcmpl_01",
-  "object": "chat.completion",
   "model": "gemini-3.7-flash",
-  "choices": [
-    {
-      "index": 0,
-      "finish_reason": "tool_calls",
-      "message": {
-        "role": "assistant",
-        "content": null,
-        "tool_calls": [
-          {
-            "id": "call_01",
-            "type": "function",
-            "function": {
-              "name": "continueTask",
-              "arguments": "{\"task\":\"查当前页这款罗技 MX Master 3S 的官网价，并和当前页标价核对。\",\"choice\":[],\"turnMemory\":[\"用户要查当前页鼠标的官网价\"],\"conversationMemory\":[],\"projectMemory\":[],\"contextSummary\":{\"page\":\"罗技 MX Master 3S 无线鼠标\",\"url\":\"https://item.jd.com/100012345678.html\"}}"
-            }
-          }
-        ]
-      }
-    }
-  ]
+  "stream": true,
+  "maxAttempts": 3
 }
 ```
 
-| 电线字段 | 值（本轮） |
+## SSE 原文
+
+`stream: true` 时没有整份 JSON body，是：
+
+```
+data: {chunk}
+
+data: {chunk}
+
+data: [DONE]
+```
+
+本轮三次分片（工具名 → 参数字符串 → finish），然后 DONE：
+
+```
+data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":0,"id":"call_01","type":"function","function":{"name":"continueTask","arguments":""}}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"task\":\"查当前页这款罗技 MX Master 3S 的官网价，并和当前页标价核对。\",\"choice\":[],\"turnMemory\":[\"用户要查当前页鼠标的官网价\"],\"conversationMemory\":[],\"projectMemory\":[],\"contextSummary\":{\"page\":\"罗技 MX Master 3S 无线鼠标\",\"url\":\"https://item.jd.com/100012345678.html\"}}"}}]},"finish_reason":null}]}
+
+data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
+
+data: [DONE]
+```
+
+| 分片 | 带来什么 |
 |---|---|
-| `choices[0].finish_reason` | `tool_calls`（纯正文是 `stop`） |
-| `choices[0].message.content` | `null`（有 tool_calls 时） |
-| `choices[0].message.tool_calls[0].id` | `call_01` |
-| `choices[0].message.tool_calls[0].function.name` | `continueTask` |
-| `choices[0].message.tool_calls[0].function.arguments` | JSON **字符串** |
+| 第 1 片 | `delta.tool_calls[0].id` = `call_01`，`function.name` = `continueTask` |
+| 第 2 片 | `delta.tool_calls[0].function.arguments` 追加 JSON **字符串** |
+| 第 3 片 | `finish_reason` = `tool_calls` |
+| `[DONE]` | 流结束。没收到这一行 = 这次失败，整单重试 |
+
+中途断开不当半截成功。拼起来的 `arguments` 字符串再 `JSON.parse` 成对象。
 
 ## 模型交口（解析后）
 
-| 电线 | → 交口 |
+| SSE | → 交口 |
 |---|---|
-| `choices[0].finish_reason` | `finish` |
-| `choices[0].message.content` | `content` |
-| `tool_calls[].id` | `toolCalls[].id` |
-| `tool_calls[].function.name` | `toolCalls[].name` |
-| `tool_calls[].function.arguments` 字符串 JSON.parse | `toolCalls[].arguments` 对象 |
+| 最后一片 `finish_reason` | `finish` |
+| 各片 `delta.content` 拼起来；本轮没有 | `content` = `null` |
+| 第 1 片 `tool_calls[].id` | `toolCalls[].id` |
+| 第 1 片 `function.name` | `toolCalls[].name` |
+| 各片 `function.arguments` 字符串拼接后 JSON.parse | `toolCalls[].arguments` 对象 |
 
 ```json
 {
@@ -174,9 +169,11 @@
 | `projectMemory` | string[] | `[]` |
 | `contextSummary` | object | 排除三层记忆的汇总 |
 
+3 次都失败时交口是 `finish=error`，`content` 写失败原因，`toolCalls=[]`。本轮不是这种情况。
+
 ## 字段
 
-上一份已有、本份原样带上：04 写出的全部键。
+上一份已有、本份原样带上：04 写出的全部键（含 `stream` `maxAttempts`）。
 
 本环节新增 / 改写：
 
@@ -186,6 +183,7 @@
 | `finish` | string | Provider | 见上 |
 | `content` | string \| null | 模型 | 见上 |
 | `toolCalls` | object[] | Provider | 见上 |
+| `attempts` | number | Provider | 实际打了几次，本轮 `1` |
 
 ## 写出的（累积快照）
 
@@ -245,6 +243,8 @@
   ],
   "provider": "uuapi",
   "model": "gemini-3.7-flash",
+  "stream": true,
+  "maxAttempts": 3,
   "finish": "tool_calls",
   "content": null,
   "toolCalls": [
@@ -265,7 +265,8 @@
         }
       }
     }
-  ]
+  ],
+  "attempts": 1
 }
 ```
 
