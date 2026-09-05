@@ -1,16 +1,15 @@
 # 04 Provider
 
-读 03 的写出。Provider 把插槽拼成 **Chat Completions POST body**，转发 UUAPI，把回来的 `tool_calls` 收成 Runtime 认的结构。
+读 03 的写出。Provider 把插槽拼成 **Chat Completions POST body**，转发 UUAPI。传出另见 `05-provider-response.md`。
 
 怎么看：
 - 「读到的」是 03 写出的原样
 - 「怎么拼」是这一次真正发出去的参数：`model` + `messages` 两段正文 + `tools` schema
-- 「模型交口」是认过的结构
-- 「写出的」累积快照只追加本环节键
+- 「写出的」累积快照追加 `provider` `model`。交口在下一份
 
 作者是 Provider。不装配、不跑工具、不落盘。key 在请求头，不进 body。
 
-本轮 intake 材料够，模拟交 `continueTask`。
+本轮 intake 材料够，预期模型交 `continueTask`。传出字段在 05。
 
 ## 读到的（03 写出的）
 
@@ -303,50 +302,6 @@ contextSummary：user 里带给下一轮的汇总，排除三层记忆。
 
 顺序：`continueTask`、`askUser`（常驻）、`web.search`（动态）。description 不写，用法在 system Pack。
 
-## 模型交口
-
-UUAPI 回来是 `choices[0].message.tool_calls`。`function.arguments` 是 JSON 字符串，Provider 解析后再交给 Runtime。
-
-```json
-{
-  "stage": "provider-response",
-  "conversationId": "cv_01",
-  "turnId": "tn_01",
-  "provider": "uuapi",
-  "model": "gemini-3.7-flash",
-  "finish": "tool_calls",
-  "content": null,
-  "toolCalls": [
-    {
-      "id": "call_01",
-      "name": "continueTask",
-      "arguments": {
-        "task": "查当前页这款罗技 MX Master 3S 的官网价，并和当前页标价核对。",
-        "choice": [],
-        "turnMemory": [
-          "用户要查当前页鼠标的官网价"
-        ],
-        "conversationMemory": [],
-        "projectMemory": [],
-        "contextSummary": {
-          "page": "罗技 MX Master 3S 无线鼠标",
-          "url": "https://item.jd.com/100012345678.html"
-        }
-      }
-    }
-  ]
-}
-```
-
-| 字段 | 类型 | 谁填 | 怎么填 |
-|---|---|---|---|
-| `stage` | string | 固定 | `provider-response` |
-| `finish` | string | Provider | `tool_calls` / `stop` / `error` |
-| `content` | string \| null | 模型 | 有 tool_calls 时为 `null` |
-| `toolCalls` | object[] | Provider | `id` `name` `arguments`（已 parse） |
-
-`continueTask` 必须有 `task`。`askUser` 必须有 `choice`。本轮只交一个常驻工具。
-
 ## 字段
 
 上一份已有、本份原样带上：03 写出的全部键。
@@ -355,18 +310,15 @@ UUAPI 回来是 `choices[0].message.tool_calls`。`function.arguments` 是 JSON 
 
 | 字段 | 类型 | 谁填 | 怎么填 |
 |---|---|---|---|
-| `stage` | string | 固定 | `provider` |
+| `stage` | string | 固定 | `provider-request` |
 | `provider` | string | 配置 | `uuapi` |
 | `model` | string | 配置 | `gemini-3.7-flash` |
-| `finish` | string | Provider | 见上 |
-| `content` | string \| null | 模型 | 见上 |
-| `toolCalls` | object[] | Provider | 见上 |
 
 ## 写出的（累积快照）
 
 ```json
 {
-  "stage": "provider",
+  "stage": "provider-request",
   "conversationId": "cv_01",
   "turnId": "tn_01",
   "userInput": "帮我查这款鼠标官网价",
@@ -419,29 +371,8 @@ UUAPI 回来是 `choices[0].message.tool_calls`。`function.arguments` 是 JSON 
     "#tools"
   ],
   "provider": "uuapi",
-  "model": "gemini-3.7-flash",
-  "finish": "tool_calls",
-  "content": null,
-  "toolCalls": [
-    {
-      "id": "call_01",
-      "name": "continueTask",
-      "arguments": {
-        "task": "查当前页这款罗技 MX Master 3S 的官网价，并和当前页标价核对。",
-        "choice": [],
-        "turnMemory": [
-          "用户要查当前页鼠标的官网价"
-        ],
-        "conversationMemory": [],
-        "projectMemory": [],
-        "contextSummary": {
-          "page": "罗技 MX Master 3S 无线鼠标",
-          "url": "https://item.jd.com/100012345678.html"
-        }
-      }
-    }
-  ]
+  "model": "gemini-3.7-flash"
 }
 ```
 
-下一份：Runtime 按 `toolCalls[0].name` 执行。本轮是 `continueTask`，落 goal/task，进 LOOP。
+下一份 `05-provider-response.md`：UUAPI 原文 + 解析后的交口。
