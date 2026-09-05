@@ -6,7 +6,7 @@
 - 「读到的」是 04 写出的原样（`stream=true`，最多 3 次）
 - 「SSE 原文」是 `stream: true` 时一行行 `data:`
 - 「模型交口」是 Provider 把分片拼完、JSON.parse 参数之后，Runtime 只认这份
-- 「写出的」累积快照追加 `finish` `content` `toolCalls` `attempts` `parseOk` `schemaOk` `missing`
+- 「写出的」累积快照追加 `finish` `content` `toolCalls` `attempts` `parseOk` `schemaOk` `faultCode` `missing`
 
 作者是 Provider。不跑工具、不落盘。`usage` / 响应 `id` / `object` 不进交口。
 
@@ -110,46 +110,54 @@ data: [DONE]
 
 ## 容错
 
-两步，都过了才把交口交给 Runtime。
+分两条线。Provider **不替模型改 JSON**（不是代码补全）。
 
-### 1. 快速解析
+### A. 线路失败（同一 body 再打，最多 3 次）
 
-| 解析什么 | 怎么判 | 失败 |
-|---|---|---|
-| 每条 `data:`（除 `[DONE]`） | `JSON.parse` 成 chunk | 这趟失败 |
-| 拼好的 `function.arguments` | `JSON.parse` 成对象 | 这趟失败 |
+网络 / 超时 / 5xx / 429 / 流被掐 / SSE 某条 `data:` 不是 JSON。不经过模型。
 
-Bun 自带 `JSON.parse`，不另装解析库。chunk 不是对象、没有 `choices[0]`，也算解析失败。
+### B. 交口失败（把错误类型回给模型再交，同一 turn 最多 3 次）
 
-这类失败（坏 JSON、流被掐）和网络失败一样：**同一 body 再打**，计入 `attempts`，最多 3 次。
+`arguments` 不是 JSON、缺 required、未知工具、常驻互斥。判定之后写成一条 **tool 结果** 再出网，让模型按 `faultCode` 重交。3 次仍坏才 `finish=error`。
 
-### 2. 查缺（对照 catalog schema）
+`faultCode`：
 
-解析成功之后，用这次调用的工具名去读 `catalog/tools/<name>.json` 的 `function.parameters`。
+| `faultCode` | 何时 |
+|---|---|
+| `arguments_not_json` | 拼好的 `function.arguments` 字符串 `JSON.parse` 失败 |
+| `unknown_tool` | `name` 不在 `baseToolsIds` + `toolIds` |
+| `missing_required` | catalog `required` 缺或空；`missing` 列出字段名 |
+| `wrong_type` | Ajv：类型对不上 schema |
+| `exclusive_resident` | `continueTask` 和 `askUser` 同时交 |
 
-落地时用 **Ajv** 校验这份 JSON Schema（telanceChrome 已用，不新写校验器）。文档层先做两件：
+回给模型的 tool 结果（`role=tool`，`tool_call_id` 用这次的 `call_01`）：
 
-| 查 | 本轮 `continueTask` | 失败 |
-|---|---|---|
-| `name` 在不在 `baseToolsIds` + `toolIds` | `continueTask` 在 | 未知工具 |
-| `required` 都有且非空 | `required: ["task"]`，`task` 非空字符串 | 缺字段 |
-| 常驻互斥 | 只有 `continueTask`，没有 `askUser` | 两个常驻都交了 |
+```json
+{
+  "ok": false,
+  "faultCode": "missing_required",
+  "missing": ["task"],
+  "toolName": "continueTask"
+}
+```
 
-`askUser` 查的是 `required: ["choice"]`，且 `choice` 长度 ≥ 1。`web.search` 查 `query`。
+`arguments_not_json` 时没有对象可查缺，`missing` 为 `[]`，`detail` 写 parse 报错原文。
 
-schema / 缺字段 / 未知工具是**模型交口坏了**，不是线路坏了：**不重试**，`finish=error`，`content` 写缺了什么，`toolCalls=[]`。
+落地查缺用 **Ajv** 对 `catalog/tools/<name>.json` 的 `function.parameters`。解析用 Bun `JSON.parse`。
 
-本轮结果：
+本轮一次过：
 
 ```json
 {
   "parseOk": true,
   "schemaOk": true,
+  "faultCode": null,
   "toolName": "continueTask",
   "required": ["task"],
   "missing": []
 }
 ```
+
 
 ## 模型交口（解析后）
 
@@ -227,9 +235,10 @@ schema / 缺字段 / 未知工具是**模型交口坏了**，不是线路坏了�
 | `content` | string \| null | 模型 | 见上 |
 | `toolCalls` | object[] | Provider | 见上 |
 | `attempts` | number | Provider | 实际打了几次，本轮 `1` |
-| `parseOk` | boolean | Provider | SSE / arguments 是否都 JSON.parse 成功 |
-| `schemaOk` | boolean | Provider | required / 白名单 / 互斥是否过 |
-| `missing` | string[] | Provider | 缺的 required 字段名；本轮 `[]` |
+| `parseOk` | boolean | Provider | SSE chunk 和 `arguments` 字符串是否都 parse 成功 |
+| `schemaOk` | boolean | Provider | required / 白名单 / 互斥 / 类型是否过 |
+| `faultCode` | string \| null | Provider | 交口失败的精确类型；本轮 `null` |
+| `missing` | string[] | Provider | `missing_required` 时的字段名；本轮 `[]` |
 
 ## 写出的（累积快照）
 
@@ -315,6 +324,7 @@ schema / 缺字段 / 未知工具是**模型交口坏了**，不是线路坏了�
   "attempts": 1,
   "parseOk": true,
   "schemaOk": true,
+  "faultCode": null,
   "missing": []
 }
 ```
