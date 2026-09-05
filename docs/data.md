@@ -23,7 +23,7 @@ Pack / skill / sop / tool / mcp 的定义在仓里 `catalog/`，会话只引用 
 | `docs/examples/02-context-engineering.md` | intake 点名 | 带上 01；改 `stage`；追加 `systemIds` `skillIds` `sopIds` `baseToolsIds` `toolIds` `turnMemoryIds` `conversationMemoryIds` `projectMemoryIds` `mcpIds` `currentPage` |
 | `docs/examples/03-decode.md` | 解码 | 带上 02；改 `stage`；追加 `systemSlots` `userSlots`。出网 `tools[]` 由 Runtime 按 `baseToolsIds` + `toolIds` 取 schema |
 | `docs/examples/04-provider-request.md` | Provider 入参 | 带上 03；改 `stage` 为 `provider-request`；追加 `provider` `model` `stream` `maxAttempts`。`stream: true` SSE，同一 body 最多 3 次 |
-| `docs/examples/05-provider-response.md` | Provider 传出 | 带上 04；改 `stage` 为 `provider-response`；追加 `finish` `content` `toolCalls` `attempts`。先 SSE 原文，再解析后的交口 |
+| `docs/examples/05-provider-response.md` | Provider 传出 | 带上 04；改 `stage` 为 `provider-response`；追加 `finish` `content` `toolCalls` `attempts` `parseOk` `schemaOk` `missing`。SSE 原文 + 解析查缺；落地 Ajv 对 catalog schema |
 | `docs/examples/session-snapshot.json` | 全貌对照 | 多环节摊在一份里 |
 
 ## 作者
