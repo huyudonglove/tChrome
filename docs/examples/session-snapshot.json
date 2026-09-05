@@ -1,0 +1,121 @@
+{
+  "ledger": {
+    "schemaVersion": 1,
+    "conversationId": "cv_01",
+    "createdAt": "2026-09-05T08:00:00.000Z",
+    "updatedAt": "2026-09-05T08:01:20.000Z",
+    "status": "running",
+    "active": {
+      "turnId": "tn_02",
+      "taskId": "tk_01",
+      "goalId": "gl_01"
+    },
+    "pendingAsk": null,
+    "turnIds": ["tn_01", "tn_02"],
+    "taskIds": ["tk_01"],
+    "goalIds": ["gl_01"],
+    "observationIds": ["ob_01"],
+    "memoryIds": ["mm_01"],
+    "toolIds": ["web.search"],
+    "sopIds": ["sop.browse"],
+    "skillIds": ["skill.web"],
+    "mcpIds": []
+  },
+  "records": {
+    "memory": [
+      {
+        "memoryId": "mm_01",
+        "conversationId": "cv_01",
+        "text": "用户在对比两款鼠标，只要官网价",
+        "createdAt": "2026-09-05T08:00:00.000Z"
+      }
+    ],
+    "turns": [
+      {
+        "turnId": "tn_01",
+        "conversationId": "cv_01",
+        "mode": "intake",
+        "status": "completed",
+        "createdAt": "2026-09-05T08:00:01.000Z",
+        "completedAt": "2026-09-05T08:00:08.000Z",
+        "taskId": null,
+        "input": { "text": "帮我查这款鼠标官网价" },
+        "assembled": {
+          "packIds": ["pack.agent"],
+          "skillIds": ["skill.web"],
+          "toolIds": ["web.search"],
+          "sopIds": ["sop.browse"],
+          "memoryIds": ["mm_01"],
+          "blocks": ["#用户", "#上下文"]
+        },
+        "delivery": {
+          "kind": "goal",
+          "taskId": "tk_01",
+          "goalId": "gl_01"
+        }
+      },
+      {
+        "turnId": "tn_02",
+        "conversationId": "cv_01",
+        "mode": "work",
+        "status": "completed",
+        "createdAt": "2026-09-05T08:01:00.000Z",
+        "completedAt": "2026-09-05T08:01:20.000Z",
+        "taskId": "tk_01",
+        "input": { "text": null },
+        "assembled": {
+          "packIds": ["pack.agent"],
+          "skillIds": ["skill.web"],
+          "toolIds": ["web.search"],
+          "sopIds": ["sop.browse"],
+          "memoryIds": ["mm_01"],
+          "goalId": "gl_01",
+          "observationIds": [],
+          "blocks": ["#当前任务", "#goal", "#action", "#observation", "#上下文"]
+        },
+        "delivery": {
+          "kind": "tool",
+          "name": "web.search",
+          "arguments": { "query": "鼠标 官网 价格" },
+          "observationId": "ob_01"
+        }
+      }
+    ],
+    "tasks": [
+      {
+        "taskId": "tk_01",
+        "conversationId": "cv_01",
+        "createdAt": "2026-09-05T08:00:08.000Z",
+        "status": "running",
+        "title": "查鼠标官网价",
+        "goalIds": ["gl_01"],
+        "currentGoalId": "gl_01"
+      }
+    ],
+    "goals": [
+      {
+        "goalId": "gl_01",
+        "conversationId": "cv_01",
+        "taskId": "tk_01",
+        "turnId": "tn_01",
+        "goal": "拿到该型号官网标价",
+        "reason": "用户要和电商页对比",
+        "action": "打开官网商品页并读取价格",
+        "status": "active"
+      }
+    ],
+    "observations": [
+      {
+        "observationId": "ob_01",
+        "conversationId": "cv_01",
+        "taskId": "tk_01",
+        "goalId": "gl_01",
+        "turnId": "tn_02",
+        "source": "tool",
+        "toolName": "web.search",
+        "content": "官网标价 199",
+        "createdAt": "2026-09-05T08:01:20.000Z"
+      }
+    ]
+  }
+}

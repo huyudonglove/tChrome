@@ -1,0 +1,13 @@
+{
+  "type": "function",
+  "function": {
+    "name": "web.search",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "query": { "type": "string" }
+      },
+      "required": ["query"]
+    }
+  }
+}

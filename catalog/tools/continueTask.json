@@ -1,0 +1,18 @@
+{
+  "type": "function",
+  "function": {
+    "name": "continueTask",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "task": { "type": "string" },
+        "choice": { "type": "array", "items": { "type": "string" } },
+        "turnMemory": { "type": "array", "items": { "type": "string" } },
+        "conversationMemory": { "type": "array", "items": { "type": "string" } },
+        "projectMemory": { "type": "array", "items": { "type": "string" } },
+        "contextSummary": { "type": "object" }
+      },
+      "required": ["task"]
+    }
+  }
+}
