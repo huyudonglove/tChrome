@@ -1,14 +1,14 @@
 # 03 解码
 
-读 02 的写出。按 `catalog/` 把 ID 展开成**插槽**。JSON 里只留插槽名列表和 `tools[]`，不写带换行的长字符串。
+读 02 的写出。按 `catalog/` 把 ID 展开成**插槽**。JSON 里只留插槽名列表，不写带换行的长字符串，也不塞 tools schema。
 
 怎么看：
 
 - 「读到的」是 02 写出的原样
 - 「system 插槽」每个 `#标题` 单独一段，正文来自 catalog
 - 「user 插槽」每个 `#块` 单独一段，正文在这一页
-- 「写出的」JSON：`systemSlots` / `userSlots` 都是名数组；`tools[]` 是薄 schema
-- 出网时 Runtime 按名列表取正文，拼成 `system` / `user` 字符串
+- 「写出的」JSON：`systemSlots` / `userSlots` 都是名数组
+- 出网时 Runtime 按名列表拼 `system` / `user`；按 `baseToolsIds` + `toolIds` 取 `catalog/tools/<id>.json` 填请求的 `tools[]`
 
 ## 读到的（02 写出的）
 
@@ -22,8 +22,11 @@
   "systemIds": ["pack.agent"],
   "skillIds": ["skill.web"],
   "sopIds": ["sop.browse"],
-  "toolIds": ["continueTask", "askUser", "web.search"],
-  "memoryIds": [],
+  "baseToolsIds": ["continueTask", "askUser"],
+  "toolIds": ["web.search"],
+  "turnMemoryIds": [],
+  "conversationMemoryIds": [],
+  "projectMemoryIds": [],
   "mcpIds": [],
   "currentPage": {
     "tab": 12,
@@ -35,20 +38,19 @@
 
 ## catalog 取出
 
-| ID             | 文件                              | 贡献的插槽                                                                    |
-| -------------- | --------------------------------- | ----------------------------------------------------------------------------- |
-| `pack.agent`   | `catalog/packs/pack.agent.md`     | `#身份`, `#记忆`, `#环境`, `#原则`, `#参数说明`, `#内置工具`, `#user字段说明` |
-| `skill.web`    | `catalog/skills/skill.web.md`     | `#skill`                                                                      |
-| `sop.browse`   | `catalog/sops/sop.browse.md`      | `#sop`                                                                        |
-| `continueTask` | `catalog/tools/continueTask.json` | `tools[]` 薄 schema                                                           |
-| `askUser`      | `catalog/tools/askUser.json`      | `tools[]` 薄 schema                                                           |
-| `web.search`   | `catalog/tools/web.search.json`   | `tools[]` 薄 schema                                                           |
+| ID                       | 文件                            | 贡献                                                                          |
+| ------------------------ | ------------------------------- | ----------------------------------------------------------------------------- |
+| `pack.agent`             | `catalog/packs/pack.agent.md`   | `#身份`, `#记忆`, `#环境`, `#原则`, `#参数说明`, `#内置工具`, `#user字段说明` |
+| `skill.web`              | `catalog/skills/skill.web.md`   | `#skill`                                                                      |
+| `sop.browse`             | `catalog/sops/sop.browse.md`    | `#sop`                                                                        |
+| `continueTask` `askUser` | `catalog/tools/`                | 常驻，出网 tools[]                                                            |
+| `web.search`             | `catalog/tools/web.search.json` | 动态，出网 tools[]                                                            |
 
-`memoryIds` / `mcpIds` 空，不加插槽。`tools[]` 只留 `name`、类型、`required`。何时用写在 Pack `#原则` / `#参数说明`。
+三层记忆 ID 空，对应 user 三个记忆槽空。schema 不写进这份 JSON。
 
 ## system 插槽
 
-顺序 = `systemSlots` 数组。改正文去改 catalog 文件。
+顺序 = `systemSlots` 数组。改正文去改 catalog 文件。常驻工具用法在 Pack。
 
 ### `#身份`
 
@@ -56,7 +58,12 @@
 
 ### `#记忆`
 
-三层记忆：turnMemory、conversationMemory、projectMemory。
+三层记忆，从稳到新：projectMemory → conversationMemory → turnMemory。
+projectMemory：整个项目共用，跨会话仍在。
+conversationMemory：这一次会话里确认过的事实。
+turnMemory：这一轮刚记下的，下一轮并进 conversationMemory。
+读：user 的 `#projectMemory` `#conversationMemory` `#turnMemory`。
+写：通过 continueTask / askUser 的同名参数交回来，Runtime 落盘。
 
 ### `#环境`
 
@@ -68,12 +75,12 @@ Chrome、JavaScript、HTML、CSS。
 
 ### `#参数说明`
 
-task：任务；askUser 时为空。
-choice：askUser 时的选项。
+task：当前任务；askUser 时为空。
+choice：askUser 时给用户的选项；continueTask 时为空。
 turnMemory：这一轮要存下的记忆。
-conversationMemory：整个会话记忆。
-projectMemory：项目记忆。
-contextSummary：user 里带给下一轮的汇总，排除记忆。
+conversationMemory：要写入会话层的记忆。
+projectMemory：要写入项目层的记忆。
+contextSummary：user 里带给下一轮的汇总，排除三层记忆。
 
     {
       "task": "",
@@ -86,8 +93,8 @@ contextSummary：user 里带给下一轮的汇总，排除记忆。
 
 ### `#内置工具`
 
-规划。
-本地文件操作：读取目录。
+常驻：continueTask、askUser。每轮都在出网 tools[] 里。用法见 #原则、#参数说明。
+动态工具本轮才挂上，用法写在 user `#tools`。
 
 ### `#user字段说明`
 
@@ -96,7 +103,7 @@ contextSummary：user 里带给下一轮的汇总，排除记忆。
 当前任务写在 `#currentTask`。
 当前用户输入写在 `#userInput`。
 当前环境写在 `#currentEnvironment`。
-`#tools` 只写本轮额外要点。常驻工具 continueTask / askUser 的用法在本 Pack。
+常驻工具 continueTask / askUser 的用法写在本 Pack。动态工具的用法写在 user `#tools`。
 
 报错说明：提示格式错误时，检查工具调用格式。
 
@@ -157,18 +164,17 @@ contextSummary：user 里带给下一轮的汇总，排除记忆。
 
 ## 字段
 
-上一份已有、本份原样带上：`conversationId` `turnId` `userInput` `submittedAt` `systemIds` `skillIds` `sopIds` `toolIds` `memoryIds` `mcpIds` `currentPage`。
+上一份已有、本份原样带上：`conversationId` `turnId` `userInput` `submittedAt` `systemIds` `skillIds` `sopIds` `baseToolsIds` `toolIds` `turnMemoryIds` `conversationMemoryIds` `projectMemoryIds` `mcpIds` `currentPage`。
 
 本环节新增 / 改写：
 
-| 字段          | 类型     | 谁填      | 怎么填                             |
-| ------------- | -------- | --------- | ---------------------------------- |
-| `stage`       | string   | 固定      | `context-engineering-decode`       |
-| `systemSlots` | string[] | 装配器    | system 插槽名，按这个顺序拼        |
-| `userSlots`   | string[] | 装配器    | user 插槽名，按这个顺序拼          |
-| `tools`       | object[] | 工具 JSON | 薄 schema，与 `toolIds` 各文件一致 |
+| 字段          | 类型     | 谁填   | 怎么填                       |
+| ------------- | -------- | ------ | ---------------------------- |
+| `stage`       | string   | 固定   | `context-engineering-decode` |
+| `systemSlots` | string[] | 装配器 | system 插槽名，按这个顺序拼  |
+| `userSlots`   | string[] | 装配器 | user 插槽名，按这个顺序拼    |
 
-出网拼法：按名列表取各插槽正文，拼成 `system` / `user`。对象先格式化成行。
+出网拼法：按名列表取各插槽正文，拼成 `system` / `user`。出网 `tools[]` = `baseToolsIds` + `toolIds` 对应的 catalog schema。
 
 ## 写出的（累积快照）
 
@@ -182,8 +188,11 @@ contextSummary：user 里带给下一轮的汇总，排除记忆。
   "systemIds": ["pack.agent"],
   "skillIds": ["skill.web"],
   "sopIds": ["sop.browse"],
-  "toolIds": ["continueTask", "askUser", "web.search"],
-  "memoryIds": [],
+  "baseToolsIds": ["continueTask", "askUser"],
+  "toolIds": ["web.search"],
+  "turnMemoryIds": [],
+  "conversationMemoryIds": [],
+  "projectMemoryIds": [],
   "mcpIds": [],
   "currentPage": {
     "tab": 12,
@@ -210,107 +219,6 @@ contextSummary：user 里带给下一轮的汇总，排除记忆。
     "#userInput",
     "#currentEnvironment",
     "#tools"
-  ],
-  "tools": [
-    {
-      "type": "function",
-      "function": {
-        "name": "continueTask",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "task": {
-              "type": "string"
-            },
-            "choice": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "turnMemory": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "conversationMemory": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "projectMemory": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "contextSummary": {
-              "type": "object"
-            }
-          },
-          "required": ["task"]
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "askUser",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "task": {
-              "type": "string"
-            },
-            "choice": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "turnMemory": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "conversationMemory": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "projectMemory": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "contextSummary": {
-              "type": "object"
-            }
-          },
-          "required": ["choice"]
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "web.search",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "query": {
-              "type": "string"
-            }
-          },
-          "required": ["query"]
-        }
-      }
-    }
   ]
 }
 ```

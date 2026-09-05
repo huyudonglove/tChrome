@@ -20,8 +20,8 @@ Pack / skill / sop / tool / mcp 的定义在仓里 `catalog/`，会话只引用 
 | 文件 | 环节 | 本份新增 / 改写 |
 |---|---|---|
 | `docs/examples/01-normalize.md` | 归一化 | `stage` `conversationId` `turnId` `userInput` `submittedAt` |
-| `docs/examples/02-context-engineering.md` | intake 点名 | 带上 01；改 `stage`；追加 `systemIds` `skillIds` `sopIds` `toolIds` `memoryIds` `mcpIds` `currentPage` |
-| `docs/examples/03-decode.md` | 解码 | 带上 02；改 `stage`；追加 `systemSlots` `userSlots` `tools` |
+| `docs/examples/02-context-engineering.md` | intake 点名 | 带上 01；改 `stage`；追加 `systemIds` `skillIds` `sopIds` `baseToolsIds` `toolIds` `turnMemoryIds` `conversationMemoryIds` `projectMemoryIds` `mcpIds` `currentPage` |
+| `docs/examples/03-decode.md` | 解码 | 带上 02；改 `stage`；追加 `systemSlots` `userSlots`。出网 `tools[]` 由 Runtime 按 `baseToolsIds` + `toolIds` 取 schema |
 | `docs/examples/session-snapshot.json` | 全貌对照 | 多环节摊在一份里 |
 
 ## 作者
