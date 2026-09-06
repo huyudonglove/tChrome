@@ -33,7 +33,8 @@
   ],
   "baseToolsIds": [
     "askUser",
-    "finishTurn"
+    "finishTurn",
+    "tool.detail"
   ],
   "toolIds": [
     "web.search"
@@ -68,6 +69,7 @@
     "#userInputHistory",
     "#userInput",
     "#currentEnvironment",
+    "#toolIO",
     "#tools"
   ],
   "provider": "uuapi",
@@ -135,7 +137,7 @@ data: [DONE]
 | `unknown_tool` | `name` 不在 `baseToolsIds` + `toolIds` |
 | `missing_required` | catalog `required` 缺或空；`missing` 列出字段名 |
 | `wrong_type` | Ajv：类型对不上 schema |
-| `exclusive_resident` | `askUser` / `finishTurn` / 动态工具同时交超过一类 |
+| `exclusive_resident` | `askUser` / `finishTurn` / `tool.detail` / 动态工具同时交超过一类 |
 
 回给模型的 tool 结果（`role=tool`，`tool_call_id` 用这次的 `call_01`）：
 
@@ -260,7 +262,8 @@ data: [DONE]
   ],
   "baseToolsIds": [
     "askUser",
-    "finishTurn"
+    "finishTurn",
+    "tool.detail"
   ],
   "toolIds": [
     "web.search"
@@ -295,6 +298,7 @@ data: [DONE]
     "#userInputHistory",
     "#userInput",
     "#currentEnvironment",
+    "#toolIO",
     "#tools"
   ],
   "provider": "uuapi",
@@ -321,4 +325,4 @@ data: [DONE]
 }
 ```
 
-下一份：Runtime 按 `toolCalls[0].name` 执行。本轮是 `web.search`，写 Observation，进 LOOP。
+下一份 `06-tool-execute.md`：Runtime 执行 `web.search`，写入 `#toolIO`，进 LOOP。

@@ -68,7 +68,7 @@ Runtime 独占维护。当前会话指针。
     "systemIds": ["pack.agent"],
     "skillIds": ["skill.web"],
     "sopIds": ["sop.browse"],
-    "baseToolsIds": ["askUser", "finishTurn"],
+    "baseToolsIds": ["askUser", "finishTurn", "tool.detail"],
     "toolIds": ["web.search"],
     "turnMemoryIds": [],
     "conversationMemoryIds": [],
@@ -98,28 +98,33 @@ Runtime 独占维护。当前会话指针。
 
 `output`：
 
-- `tool` → `{kind, name, callId}`（动态工具）
+- `tool` → `{kind, name, callId}`（动态工具 / `tool.detail`）
 - `ask` → `{kind, question}`（`askUser`）
 - `reply` → `{kind, text}`（`finishTurn`，`text` 取 content 的 action）
 - `error` → `{kind, faultCode}`
 
 ## Observation
 
-工具跑完写下的事实。
+工具跑完写下的事实。窗口里给模型看的是 `#toolIO` 对应条目的 `return`（最多 2000 字）。全文另存，`tool.detail` 按 `callId` 取。
 
 ```json
 {
   "observationId": "ob_01",
   "conversationId": "cv_01",
   "turnId": "tn_01",
+  "callId": "call_01",
   "source": "tool",
   "toolName": "web.search",
   "text": "罗技官网 MX Master 3S 标价 999 元",
+  "stage": "complete",
+  "totalChars": 22,
   "createdAt": "2026-09-05T08:00:12.000Z"
 }
 ```
 
 `source`：`tool` / `user` / `page`。
+
+`stage`：`complete` 全文 ≤ 2000 字；`truncated` 超出，`text` 只留前 2000 字，`totalChars` 写全文长度。
 
 ## Memory
 
@@ -127,7 +132,7 @@ Runtime 独占维护。当前会话指针。
 
 ## 装配
 
-每轮同一套：system Pack + 本会话 `skillIds` / `toolIds` / `sopIds` / `mcpIds` + user 记忆槽 + `#userInputHistory` + `#userInput` + `#currentEnvironment`。
+每轮同一套：system Pack + 本会话 `skillIds` / `toolIds` / `sopIds` / `mcpIds` + user 记忆槽 + `#userInputHistory` + `#userInput` + `#currentEnvironment` + `#toolIO`。
 
 user 文档块：
 
@@ -139,16 +144,19 @@ user 文档块：
 #userInputHistory
 #userInput
 #currentEnvironment
+#toolIO
 #tools
 ```
 
-常驻工具 `askUser` / `finishTurn` 的用法在 Pack（system）。动态工具用法在 user `#tools`。出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。每个工具 `arguments` 都带 `reason`。
+常驻工具 `askUser` / `finishTurn` / `tool.detail` 的用法在 Pack（system）。动态工具用法在 user `#tools`。出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。每个工具 `arguments` 都带 `reason`。
+
+`#toolIO` 是 object，key = `callId`，value = `{name, arguments, return}`。`return.text` 最多 2000 字；超出 `return.stage=truncated`，`return.totalChars` 写全文长度。要全文调 `tool.detail`，参数 `callId`。
 
 ## 循环
 
-1. 用户一句话 → 新 Turn。装配时从 ledger 读 `userInputHistory`（不含本轮）。CE 装配，LLM 交 `askUser`、`finishTurn` 或动态工具。
+1. 用户一句话 → 新 Turn。装配时从 ledger 读 `userInputHistory`（不含本轮），`#toolIO` 带上本会话已执行过的工具条目。CE 装配，LLM 交 `askUser`、`finishTurn`、`tool.detail` 或动态工具。
 2. `askUser` → 本轮 `userInput` 追加进 ledger.`userInputHistory`，ledger.`status=waiting_human`，等人答，答文写进下一 Turn `input`。
-3. 动态工具 → 本轮 `userInput` 追加进 ledger.`userInputHistory`，执行，写 Observation，新 Turn 把观察带进窗口再出网。
-4. `finishTurn` → 本轮 `userInput` 追加进 ledger.`userInputHistory`，回复用户，ledger.`status=idle`，`active=null`。
+3. 动态工具 / `tool.detail` → 执行，写 Observation，把 `{name, arguments, return}` 写入 `#toolIO[callId]`（窗口截到 2000 字），新 Turn 再出网。`userInputHistory` 在用户这句话第一次结束时追加一次。
+4. `finishTurn` → 回复用户。Runtime 把本句 `userInput` 写入 `userInputHistory`（每句一次）。ledger.`status=idle`，`active=null`。
 
-分阶段模拟：`docs/examples/01-normalize.md` → `02-context-engineering.md` → `03-decode.md` → `04-provider-request.md` → `05-provider-response.md`。
+分阶段模拟：`docs/examples/01-normalize.md` → `02-context-engineering.md` → `03-decode.md` → `04-provider-request.md` → `05-provider-response.md` → `06-tool-execute.md`。

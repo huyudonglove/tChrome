@@ -33,7 +33,8 @@
   ],
   "baseToolsIds": [
     "askUser",
-    "finishTurn"
+    "finishTurn",
+    "tool.detail"
   ],
   "toolIds": [
     "web.search"
@@ -68,6 +69,7 @@
     "#userInputHistory",
     "#userInput",
     "#currentEnvironment",
+    "#toolIO",
     "#tools"
   ]
 }
@@ -140,10 +142,12 @@ Chrome、JavaScript、HTML、CSS。
 
 #原则
 查看输入信息是否能支持后续判断。无意义就 finishTurn。信息不完整就 askUser。材料够就调动态工具干活。askUser、finishTurn、动态工具本轮只交一类。搜集相关信息直到不影响下一步。
+`#toolIO` 里某条 return.stage=truncated 时，调 tool.detail，callId 用那条的 key，拿全文。
 
 #参数说明
 每个工具调用必须带 reason：这次为什么调这个工具。
 choice：askUser 时给用户的选项。
+callId：tool.detail 时，要展开全文的那次工具调用 id，对应 `#toolIO` 的 key。
 turnMemory：这一轮要存下的记忆。
 conversationMemory：要写入会话层的记忆。
 projectMemory：要写入项目层的记忆。
@@ -152,6 +156,7 @@ contextSummary：user 里带给下一轮的汇总，排除三层记忆。
     {
       "reason": "",
       "choice": [],
+      "callId": "",
       "turnMemory": [],
       "conversationMemory": [],
       "projectMemory": [],
@@ -159,7 +164,7 @@ contextSummary：user 里带给下一轮的汇总，排除三层记忆。
     }
 
 #内置工具
-常驻：askUser、finishTurn。每轮都在出网 tools[] 里。用法见 #原则、#参数说明。
+常驻：askUser、finishTurn、tool.detail。每轮都在出网 tools[] 里。用法见 #原则、#参数说明。
 动态工具本轮才挂上，用法写在 user `#tools`。
 每个工具的 arguments 都带 reason。
 
@@ -183,7 +188,9 @@ action
 当前用户输入写在 `#userInput`。
 历史用户输入写在 `#userInputHistory`。
 当前环境写在 `#currentEnvironment`。
-常驻工具 askUser / finishTurn 的用法写在本 Pack。动态工具的用法写在 user `#tools`。
+工具调用和返回写在 `#toolIO`：key 是 callId，value 是这次的 name、arguments、return。
+return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，totalChars 写全文长度。要全文时调 tool.detail，参数 callId。
+常驻工具 askUser / finishTurn / tool.detail 的用法写在本 Pack。动态工具的用法写在 user `#tools`。
 
 报错说明：提示格式错误时，检查工具调用格式。
 
@@ -223,6 +230,8 @@ action
   "url": "https://item.jd.com/100012345678.html",
   "title": "罗技 MX Master 3S 无线鼠标"
 }
+
+#toolIO
 
 #tools
 ```
@@ -319,6 +328,27 @@ action
   {
     "type": "function",
     "function": {
+      "name": "tool.detail",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "callId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "callId"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "web.search",
       "parameters": {
         "type": "object",
@@ -340,7 +370,7 @@ action
 ]
 ```
 
-顺序：`askUser` `finishTurn`（常驻）、`web.search`（动态）。每个工具 `required` 都含 `reason`。description 不写，用法在 system Pack。
+顺序：`askUser` `finishTurn` `tool.detail`（常驻）、`web.search`（动态）。每个工具 `required` 都含 `reason`。description 不写，用法在 system Pack。
 
 ## 字段
 
@@ -377,7 +407,8 @@ action
   ],
   "baseToolsIds": [
     "askUser",
-    "finishTurn"
+    "finishTurn",
+    "tool.detail"
   ],
   "toolIds": [
     "web.search"
@@ -412,6 +443,7 @@ action
     "#userInputHistory",
     "#userInput",
     "#currentEnvironment",
+    "#toolIO",
     "#tools"
   ],
   "provider": "uuapi",

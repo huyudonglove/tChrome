@@ -31,7 +31,7 @@
 | `systemIds` | 本轮 Pack | `pack.agent` → `catalog/packs/pack.agent.md` |
 | `skillIds` | 索引进 system 的章节 | `skill.web` → `catalog/skills/skill.web.md` |
 | `sopIds` | 索引进 system 的章节 | `sop.browse` → `catalog/sops/sop.browse.md` |
-| `baseToolsIds` | 常驻工具，每轮都出网 | `askUser` `finishTurn` |
+| `baseToolsIds` | 常驻工具，每轮都出网 | `askUser` `finishTurn` `tool.detail` |
 | `toolIds` | 动态工具，本轮才挂 | `web.search` |
 | `turnMemoryIds` | 这一轮记忆 | 新会话空 |
 | `conversationMemoryIds` | 这一次会话记忆 | 新会话空 |
@@ -61,7 +61,7 @@
 | `systemIds` | string[] | 装配器 | 本轮 Pack，对应 `catalog/packs/<id>.md` |
 | `skillIds` | string[] | 装配器 | 本轮 skill，对应 `catalog/skills/<id>.md` |
 | `sopIds` | string[] | 装配器 | 本轮 SOP，对应 `catalog/sops/<id>.md` |
-| `baseToolsIds` | string[] | 装配器 | 常驻工具，对应 `catalog/tools/<id>.json`。本轮固定 `askUser` `finishTurn` |
+| `baseToolsIds` | string[] | 装配器 | 常驻工具，对应 `catalog/tools/<id>.json`。本轮固定 `askUser` `finishTurn` `tool.detail` |
 | `toolIds` | string[] | 装配器 | 动态工具，对应 `catalog/tools/<id>.json`。没有就 `[]` |
 | `turnMemoryIds` | string[] | 装配器 | 这一轮记忆；没有就 `[]` |
 | `conversationMemoryIds` | string[] | 装配器 | 这一次会话记忆；没有就 `[]` |
@@ -101,7 +101,8 @@
   ],
   "baseToolsIds": [
     "askUser",
-    "finishTurn"
+    "finishTurn",
+    "tool.detail"
   ],
   "toolIds": [
     "web.search"

@@ -1,0 +1,14 @@
+{
+  "type": "function",
+  "function": {
+    "name": "tool.detail",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "callId": { "type": "string" }
+      },
+      "required": ["reason", "callId"]
+    }
+  }
+}
