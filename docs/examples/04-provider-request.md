@@ -193,11 +193,261 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
 常驻工具 askUser / finishTurn / tool.detail 的用法写在本 Pack。动态工具的用法写在 user `#tools`。
 
 报错说明：提示格式错误时，检查工具调用格式。
+
 #skill
 查网页价格时，打开商品页，核对官网价和当前页标价。
 
 #sop
 1. 认当前页是不是目标商品
 2. 打开官网或权威标价页
-3. 把价格写进观察
+3. 把价格写入 #toolIO
 ```
+
+### `messages[1]` user
+
+按 `userSlots` 顺序。空槽只留标题。`#currentEnvironment` 是 `currentPage` 格式化后的 JSON。`#toolIO` 本轮还没有执行过的工具，写 `[]`。
+
+```
+#projectMemory
+
+#conversationMemory
+
+#turnMemory
+
+#contextSummary
+
+#userInputHistory
+
+#userInput
+帮我查这款鼠标官网价
+
+#currentEnvironment
+{
+  "description": "当前页面信息",
+  "tab": 12,
+  "url": "https://item.jd.com/100012345678.html",
+  "title": "罗技 MX Master 3S 无线鼠标"
+}
+
+#toolIO
+[]
+
+#tools
+```
+
+### `tools`
+
+出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。Chat Completions 要完整 schema。每个工具 `arguments` 都带 `reason`。
+
+```json
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "askUser",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "choice": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "turnMemory": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "conversationMemory": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "projectMemory": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "contextSummary": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "reason",
+          "choice"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "finishTurn",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "turnMemory": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "conversationMemory": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "projectMemory": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "contextSummary": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "tool.detail",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "callId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "callId"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "web.search",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "query"
+        ]
+      }
+    }
+  }
+]
+```
+
+## 字段
+
+上一份已有、本份原样带上：`conversationId` `turnId` `userInput` `userInputHistory` `submittedAt` `systemIds` `skillIds` `sopIds` `baseToolsIds` `toolIds` `turnMemoryIds` `conversationMemoryIds` `projectMemoryIds` `mcpIds` `currentPage` `systemSlots` `userSlots`。
+
+本环节新增 / 改写：
+
+| 字段 | 类型 | 谁填 | 怎么填 |
+|---|---|---|---|
+| `stage` | string | 固定 | `provider-request` |
+| `provider` | string | Provider | `uuapi` |
+| `model` | string | Provider | `gemini-3.7-flash` |
+| `stream` | bool | Provider | `true`，SSE |
+| `maxAttempts` | number | Provider | 线路失败同一 body 最多 3 次 |
+
+## 写出的（累积快照）
+
+```json
+{
+  "stage": "provider-request",
+  "conversationId": "cv_01",
+  "turnId": "tn_01",
+  "userInput": "帮我查这款鼠标官网价",
+  "userInputHistory": [],
+  "submittedAt": "2026-09-05T08:00:01.000Z",
+  "systemIds": [
+    "pack.agent"
+  ],
+  "skillIds": [
+    "skill.web"
+  ],
+  "sopIds": [
+    "sop.browse"
+  ],
+  "baseToolsIds": [
+    "askUser",
+    "finishTurn",
+    "tool.detail"
+  ],
+  "toolIds": [
+    "web.search"
+  ],
+  "turnMemoryIds": [],
+  "conversationMemoryIds": [],
+  "projectMemoryIds": [],
+  "mcpIds": [],
+  "currentPage": {
+    "description": "当前页面信息",
+    "tab": 12,
+    "url": "https://item.jd.com/100012345678.html",
+    "title": "罗技 MX Master 3S 无线鼠标"
+  },
+  "systemSlots": [
+    "#身份",
+    "#记忆",
+    "#环境",
+    "#原则",
+    "#参数说明",
+    "#内置工具",
+    "#输出",
+    "#user字段说明",
+    "#skill",
+    "#sop"
+  ],
+  "userSlots": [
+    "#projectMemory",
+    "#conversationMemory",
+    "#turnMemory",
+    "#contextSummary",
+    "#userInputHistory",
+    "#userInput",
+    "#currentEnvironment",
+    "#toolIO",
+    "#tools"
+  ],
+  "provider": "uuapi",
+  "model": "gemini-3.7-flash",
+  "stream": true,
+  "maxAttempts": 3
+}
+```
+
+下一份 `05-provider-response.md`：UUAPI 原文 + 解析后的交口。
