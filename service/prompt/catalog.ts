@@ -37,6 +37,13 @@ export const BASE_TOOLS_IDS = [
   "memory.write",
 ] as const;
 
+export const DYNAMIC_TOOLS_IDS = [
+  "page.current",
+  "page.read",
+  "page.open",
+  "web.search",
+] as const;
+
 export type Catalog = {
   pack: Record<string, string>;
   skill: string;
@@ -69,7 +76,7 @@ export function loadCatalog(root: string): Catalog {
   const skill = readFileSync(join(catalog, "skills", "skill.web.md"), "utf8").replace(/^#skill\n?/, "").trim();
   const sop = readFileSync(join(catalog, "sops", "sop.browse.md"), "utf8").replace(/^#sop\n?/, "").trim();
   const tools: Record<string, ChatTool> = {};
-  for (const id of [...BASE_TOOLS_IDS, "web.search"]) {
+  for (const id of [...BASE_TOOLS_IDS, ...DYNAMIC_TOOLS_IDS]) {
     tools[id] = JSON.parse(readFileSync(join(catalog, "tools", `${id}.json`), "utf8")) as ChatTool;
   }
   return { pack, skill, sop, tools };

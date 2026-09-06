@@ -23,12 +23,14 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 
 ## 本机 HTTP
 
-第一期两条。面板长请求直连 `http://127.0.0.1:18788`。
+第一期四条。面板长请求直连 `http://127.0.0.1:18788`。浏览器工具由 background 泵：面板每秒 `ping` worker，worker 拉 `/tool-request`，跑完交 `/tool-result`。
 
 | 方法 | 路径 | 体 | 回 |
 |---|---|---|---|
 | GET | `/health` | 无 | `{ok:true}` |
 | POST | `/turn` | `{userInput, submittedAt}` | `{conversationId, turnId, output}` |
+| GET | `/tool-request` | 无 | `{request}`，没有就 `request=null`。`request` 是 `{id, name, input}` |
+| POST | `/tool-result` | `{id, result}` | `{ok:true}` |
 
 `output` 见「output」。整轮收口再回一次。工具循环不推到面板。
 
@@ -105,7 +107,7 @@ Runtime 独占维护。当前会话指针。
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
 | `mcpIds` | string[] | 本轮 MCP；没有就 `[]` |
-| `currentPage` | object \| null | 没有就 `null`。第一期 Runtime 写 `null`。background 泵页后再填 `description` `tab` `url` `title` |
+| `currentPage` | object \| null | 没有就 `null`。开 Turn 时 Runtime 经浏览器桥调 `page.current` 填 `description` `tab` `url` `title`。没有桥就 `null` |
 
 `currentPage`：
 
@@ -242,6 +244,9 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | `tool.detail` | `callId` | `#toolIO` 该项的 `callId` |
 | `observation.detail` | `observationId` | `#observation` 该项的 `id` |
 | `memory.write` | （无） | `turnMemory` `conversationMemory` `projectMemory` `contextSummary` 有则写 |
-| `web.search` | `query` | 检索词 |
+| `web.search` | `query` | 检索词。打开搜索页并读结果 |
+| `page.current` | （无） | 当前活动页 tab / url / title |
+| `page.read` | （无） | 当前页正文 |
+| `page.open` | `url` | 在当前标签打开 |
 
-常驻：`askUser` `finishTurn` `tool.detail` `observation.detail` `memory.write`。动态本轮才挂，如 `web.search`。
+常驻：`askUser` `finishTurn` `tool.detail` `observation.detail` `memory.write`。动态本轮才挂：`page.current` `page.read` `page.open` `web.search`。浏览器工具经 `/tool-request` 泵到 background。

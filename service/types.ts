@@ -148,6 +148,20 @@ export type Provider = {
   }): Promise<CompletionResult>;
 };
 
+export type BrowserResult = {
+  ok: boolean;
+  error?: string;
+  tab?: number | null;
+  url?: string;
+  title?: string;
+  description?: string;
+  text?: string;
+};
+
+export type BrowserHost = {
+  execute(name: string, input: Record<string, unknown>): Promise<BrowserResult>;
+};
+
 export type TurnReply = {
   conversationId: string;
   turnId: string;

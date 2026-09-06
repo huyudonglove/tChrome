@@ -3,6 +3,8 @@ import { join } from "node:path";
 import { handleTurn, type LoopDeps } from "./runtime/loop.ts";
 import { createProvider } from "./provider/uuapi.ts";
 import { defaultDataDir } from "./runtime/store.ts";
+import { createToolBridge, type ToolBridge } from "./runtime/bridge.ts";
+import type { BrowserResult } from "./types.ts";
 
 const loadEnv = () => {
   const envPath = join(import.meta.dir, ".env");
@@ -23,6 +25,8 @@ export type ServeOptions = {
   dataDir?: string;
   repoRoot?: string;
   provider?: LoopDeps["provider"];
+  host?: LoopDeps["host"];
+  bridge?: ToolBridge;
   port?: number;
   hostname?: string;
 };
@@ -40,9 +44,12 @@ export function createServer(options: ServeOptions = {}) {
   const repoRoot = options.repoRoot ?? process.cwd();
   const dataDir = options.dataDir ?? defaultDataDir();
   const provider = options.provider ?? createProvider();
-  const deps: LoopDeps = { dataDir, repoRoot, provider };
+  const bridge = options.bridge ?? createToolBridge();
+  const host = options.host ?? bridge;
+  const deps: LoopDeps = { dataDir, repoRoot, provider, host };
   return {
     dataDir,
+    bridge,
     fetch: async (request: Request) => {
       const url = new URL(request.url);
       if (request.method === "OPTIONS") {
@@ -55,6 +62,15 @@ export function createServer(options: ServeOptions = {}) {
         });
       }
       if (request.method === "GET" && url.pathname === "/health") {
+        return json({ ok: true });
+      }
+      if (request.method === "GET" && url.pathname === "/tool-request") {
+        return json({ request: bridge.current() });
+      }
+      if (request.method === "POST" && url.pathname === "/tool-result") {
+        const body = (await request.json()) as { id?: string; result?: BrowserResult };
+        if (!body.id || !body.result) return json({ ok: false, error: "缺 id 或 result" }, 400);
+        if (!bridge.resolve(body.id, body.result)) return json({ ok: false, error: "没有这个工具请求" }, 404);
         return json({ ok: true });
       }
       if (request.method === "POST" && url.pathname === "/turn") {

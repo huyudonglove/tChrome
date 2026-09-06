@@ -1,6 +1,7 @@
-import type { ToolArguments, ToolIOItem, ToolReturn } from "../types.ts";
+import type { BrowserHost, CurrentPage, ToolArguments, ToolIOItem, ToolReturn } from "../types.ts";
 
 export const WINDOW_TEXT_LIMIT = 2000;
+export const BROWSER_TOOLS = ["page.current", "page.read", "page.open", "web.search"] as const;
 
 export function clipReturn(full: string): ToolReturn {
   const totalChars = full.length;
@@ -33,15 +34,35 @@ export function asObject(value: unknown): Record<string, unknown> | null {
 
 export function toolUsageFor(ids: string[]): string {
   const usage: Record<string, string> = {
-    "web.search": "web.search：检索网页。query 是检索词。",
+    "page.current": "page.current：读当前活动页的 tab / url / title。affectsPage=false。",
+    "page.read": "page.read：读当前页正文。affectsPage=false。",
+    "page.open": "page.open：在当前标签打开 url。affectsPage=true。",
+    "web.search": "web.search：用检索词打开搜索页并读结果。query 是检索词。affectsPage=true。",
   };
   return ids.map((id) => usage[id] ?? "").filter(Boolean).join("\n");
 }
+
+export const pageFromBrowser = (result: {
+  ok?: boolean;
+  tab?: number | null;
+  url?: string;
+  title?: string;
+  description?: string;
+}): CurrentPage | null => {
+  if (!result.ok || !result.tab) return null;
+  return {
+    description: result.description || "当前页面信息",
+    tab: Number(result.tab),
+    url: String(result.url ?? ""),
+    title: String(result.title ?? ""),
+  };
+};
 
 export type ExecuteInput = {
   name: string;
   arguments: ToolArguments;
   content: string;
+  host?: BrowserHost;
   lookup: {
     toolIO: ToolIOItem[];
     fullReturn: (callId: string) => string | null;
@@ -49,8 +70,8 @@ export type ExecuteInput = {
   };
 };
 
-export function executeTool(input: ExecuteInput): string {
-  const { name, arguments: args, content, lookup } = input;
+export async function executeTool(input: ExecuteInput): Promise<string> {
+  const { name, arguments: args, content, lookup, host } = input;
   if (name === "finishTurn") return actionFromContent(content);
   if (name === "askUser") return questionFromContent(content, asStringArray(args.choice));
   if (name === "memory.write") {
@@ -70,8 +91,13 @@ export function executeTool(input: ExecuteInput): string {
     const observationId = String(args.observationId ?? "");
     return lookup.observationFull(observationId) ?? `没有 ${observationId}`;
   }
-  if (name === "web.search") {
-    return `web.search 第一期未接检索源。query=${String(args.query ?? "")}`;
+  if ((BROWSER_TOOLS as readonly string[]).includes(name)) {
+    if (!host) return `${name} 没有浏览器桥`;
+    const extra: Record<string, unknown> = {};
+    if (name === "page.open") extra.url = String(args.url ?? "");
+    if (name === "web.search") extra.query = String(args.query ?? "");
+    const result = await host.execute(name, extra);
+    return JSON.stringify(result);
   }
-  return `${name} 第一期未接`;
+  return `${name} 未接`;
 }

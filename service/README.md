@@ -4,11 +4,11 @@
 
 | 目录 | 层 |
 |---|---|
-| `runtime/` | 账本、循环、压缩、`session.json` |
+| `runtime/` | 账本、循环、压缩、`session.json`、浏览器桥 |
 | `prompt/` | Pack |
 | `context/` | 当轮窗口 |
 | `tools/` | 工具 schema 与执行 |
 | `subagent/` | 第一期空着 |
 | `provider/` | 转发 UUAPI |
 
-第一期 HTTP：`GET /health`，`POST /turn`。密钥在本目录 `.env`。落盘在 `~/Library/Application Support/tChrome/`（`session.json` + `conversations/<cvId>/`）。
+HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`。密钥在本目录 `.env`。落盘在 `~/Library/Application Support/tChrome/`（`session.json` + `conversations/<cvId>/`）。

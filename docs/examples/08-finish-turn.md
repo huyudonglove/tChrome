@@ -112,6 +112,9 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "memory.write"
   ],
   "toolIds": [
+    "page.current",
+    "page.read",
+    "page.open",
     "web.search"
   ],
   "turnMemoryIds": [],

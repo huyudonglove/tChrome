@@ -33,12 +33,17 @@ conversationMemory：memory.write 时，要写入会话层的记忆。
 projectMemory：memory.write 时，要写入项目层的记忆。
 contextSummary：memory.write 时，user 里带给下一轮的汇总，排除三层记忆。
 
+query：web.search 的检索词。
+url：page.open 要打开的地址。
+
     {
       "reason": "",
       "affectsPage": false,
       "choice": [],
       "callId": "",
       "observationId": "",
+      "query": "",
+      "url": "",
       "turnMemory": [],
       "conversationMemory": [],
       "projectMemory": [],

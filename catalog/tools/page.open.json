@@ -1,0 +1,15 @@
+{
+  "type": "function",
+  "function": {
+    "name": "page.open",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean" },
+        "url": { "type": "string" }
+      },
+      "required": ["reason", "affectsPage", "url"]
+    }
+  }
+}

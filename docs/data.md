@@ -132,7 +132,7 @@ Runtime 独占维护。当前会话指针。字段见 schema「ledger.json」。
 
 ## 循环
 
-1. 用户一句话 → `POST /turn` `{userInput, submittedAt}`。Runtime 读 `session.json`，没有 `conversationId` 就建 `cv_` 并写入。新 Turn。Runtime 把上一 Turn 的 `userInput` 追加进 ledger.`userInputHistory`。CE 装配一次。第一期 `currentPage=null`。LLM 交工具。
+1. 用户一句话 → `POST /turn` `{userInput, submittedAt}`。Runtime 读 `session.json`，没有 `conversationId` 就建 `cv_` 并写入。新 Turn。Runtime 把上一 Turn 的 `userInput` 追加进 ledger.`userInputHistory`。CE 装配一次。有浏览器桥就调 `page.current` 填 `currentPage`。LLM 交工具。
 2. 模型一次出网可交多个 `toolCalls`。Runtime 按数组顺序写入 ledger.`toolQueue`。任务队列按这个顺序执行。
 3. 队列每跑完一条，把 `{callId, name, arguments, return}` 追加到 ledger.`toolIO` 末尾，并从队列弹出。
 4. `askUser` → ledger.`status=waiting_human`。用户下一条输入开新 Turn（走步骤 1）。

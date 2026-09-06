@@ -39,6 +39,9 @@
     "memory.write"
   ],
   "toolIds": [
+    "page.current",
+    "page.read",
+    "page.open",
     "web.search"
   ],
   "turnMemoryIds": [],
@@ -251,6 +254,10 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
 []
 
 #tools
+page.current：读当前活动页的 tab / url / title。affectsPage=false。
+page.read：读当前页正文。affectsPage=false。
+page.open：在当前标签打开 url。affectsPage=true。
+web.search：用检索词打开搜索页并读结果。query 是检索词。affectsPage=true。
 ```
 
 ### `tools`
@@ -403,6 +410,73 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
   {
     "type": "function",
     "function": {
+      "name": "page.current",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "affectsPage": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "reason",
+          "affectsPage"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "page.read",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "affectsPage": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "reason",
+          "affectsPage"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "page.open",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "affectsPage": {
+            "type": "boolean"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "affectsPage",
+          "url"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "web.search",
       "parameters": {
         "type": "object",
@@ -459,6 +533,9 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
     "memory.write"
   ],
   "toolIds": [
+    "page.current",
+    "page.read",
+    "page.open",
     "web.search"
   ],
   "turnMemoryIds": [],

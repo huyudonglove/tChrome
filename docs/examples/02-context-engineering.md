@@ -74,6 +74,9 @@
     "memory.write"
   ],
   "toolIds": [
+    "page.current",
+    "page.read",
+    "page.open",
     "web.search"
   ],
   "turnMemoryIds": [],

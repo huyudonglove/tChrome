@@ -1,8 +1,9 @@
 import { systemText, userText, windowChars } from "../context/window.ts";
-import { BASE_TOOLS_IDS, loadCatalog, toolSchemas, type Catalog } from "../prompt/catalog.ts";
-import { asObject, asStringArray, clipReturn, executeTool, toolUsageFor } from "../tools/execute.ts";
+import { BASE_TOOLS_IDS, DYNAMIC_TOOLS_IDS, loadCatalog, toolSchemas, type Catalog } from "../prompt/catalog.ts";
+import { asObject, asStringArray, clipReturn, executeTool, pageFromBrowser, toolUsageFor } from "../tools/execute.ts";
 import type {
   Assembled,
+  BrowserHost,
   ChatMessage,
   CompletionResult,
   Ledger,
@@ -36,6 +37,7 @@ export type LoopDeps = {
   dataDir: string;
   repoRoot: string;
   provider: Provider;
+  host?: BrowserHost;
 };
 
 const assemble = (): Assembled => ({
@@ -43,7 +45,7 @@ const assemble = (): Assembled => ({
   skillIds: ["skill.web"],
   sopIds: ["sop.browse"],
   baseToolsIds: [...BASE_TOOLS_IDS],
-  toolIds: ["web.search"],
+  toolIds: [...DYNAMIC_TOOLS_IDS],
   turnMemoryIds: [],
   conversationMemoryIds: [],
   projectMemoryIds: [],
@@ -129,20 +131,22 @@ const persistMemory = (dataDir: string, ledger: Ledger, call: ToolCall) => {
   if (summary) ledger.contextSummary = summary;
 };
 
-const runQueue = (input: {
+const runQueue = async (input: {
   dataDir: string;
   ledger: Ledger;
   turn: Turn;
   content: string;
-}): TurnOutput | null => {
-  const { dataDir, ledger, turn, content } = input;
+  host?: BrowserHost;
+}): Promise<TurnOutput | null> => {
+  const { dataDir, ledger, turn, content, host } = input;
   while (ledger.toolQueue.length) {
     const item = ledger.toolQueue.shift();
     if (!item) break;
-    const full = executeTool({
+    const full = await executeTool({
       name: item.name,
       arguments: item.arguments,
       content,
+      host,
       lookup: {
         toolIO: ledger.toolIO,
         fullReturn: (callId) => loadFullReturn(dataDir, ledger.conversationId, callId),
@@ -156,6 +160,13 @@ const runQueue = (input: {
       return: clipReturn(full),
     };
     ledger.toolIO.push(row);
+    try {
+      const parsed = JSON.parse(full) as { ok?: boolean; tab?: number; url?: string; title?: string; description?: string };
+      const page = pageFromBrowser(parsed);
+      if (page) turn.assembled.currentPage = page;
+    } catch {
+      // resident tools return plain text
+    }
     if (item.name === "memory.write") {
       persistMemory(dataDir, ledger, { id: item.callId, name: item.name, arguments: item.arguments });
     }
@@ -215,6 +226,10 @@ export async function handleTurn(
   turn.assembled.turnMemoryIds = [...ledger.memoryIds.turn];
   turn.assembled.conversationMemoryIds = [...ledger.memoryIds.conversation];
   turn.assembled.projectMemoryIds = [...ledger.memoryIds.project];
+  if (deps.host) {
+    const page = await deps.host.execute("page.current", {});
+    turn.assembled.currentPage = pageFromBrowser(page);
+  }
   ledger.turnIds.push(turnId);
   ledger.status = "running";
   ledger.active = { turnId };
@@ -288,7 +303,7 @@ export async function handleTurn(
       name: call.name,
       arguments: call.arguments,
     }));
-    const closed = runQueue({ dataDir: deps.dataDir, ledger, turn, content: result.content });
+    const closed = await runQueue({ dataDir: deps.dataDir, ledger, turn, content: result.content, host: deps.host });
     saveTurn(deps.dataDir, turn);
     saveLedger(deps.dataDir, ledger);
     if (closed) {

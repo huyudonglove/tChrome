@@ -4,8 +4,8 @@
   "description": "Chrome extension.",
   "version": "0.1.0",
   "minimum_chrome_version": "135",
-  "permissions": ["sidePanel"],
-  "host_permissions": ["http://127.0.0.1:18788/*"],
+  "permissions": ["sidePanel", "tabs", "scripting"],
+  "host_permissions": ["http://127.0.0.1:18788/*", "http://*/*", "https://*/*"],
   "background": {
     "service_worker": "background.js",
     "type": "module"

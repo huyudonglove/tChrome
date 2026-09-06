@@ -37,6 +37,9 @@
     "memory.write"
   ],
   "toolIds": [
+    "page.current",
+    "page.read",
+    "page.open",
     "web.search"
   ],
   "turnMemoryIds": [],
@@ -175,7 +178,7 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
 
 顺序 = `userSlots` 数组。历史用户输入进 `#userInputHistory`；本轮原话进 `#userInput`；当前页进 `#currentEnvironment`；工具调用和返回进 `#toolIO`（数组，最新在最下面）。
 
-常驻工具用法在 system（Pack）。动态工具用法在 `#tools`。本轮 `web.search` 的用法在 `#skill` / `#sop`，`#tools` 空。
+常驻工具用法在 system（Pack）。动态工具用法在 `#tools`。本轮 `page.current` `page.read` `page.open` `web.search` 的用法在 `#tools`。
 
 ### `#projectMemory`
 
@@ -222,7 +225,10 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
 
 ### `#tools`
 
-（空）
+page.current：读当前活动页的 tab / url / title。affectsPage=false。
+page.read：读当前页正文。affectsPage=false。
+page.open：在当前标签打开 url。affectsPage=true。
+web.search：用检索词打开搜索页并读结果。query 是检索词。affectsPage=true。
 
 ## 字段
 
@@ -255,6 +261,9 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
     "memory.write"
   ],
   "toolIds": [
+    "page.current",
+    "page.read",
+    "page.open",
     "web.search"
   ],
   "turnMemoryIds": [],

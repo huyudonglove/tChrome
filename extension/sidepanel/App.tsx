@@ -48,6 +48,9 @@ export function App() {
     setSending(true);
     const local: Message = { id: `u-${Date.now()}`, role: "user", text };
     setMessages((current) => [...current, local]);
+    const ping = setInterval(() => {
+      chrome.runtime.sendMessage({ type: "ping" }).catch(() => {});
+    }, 1000);
     try {
       const response = await fetch(`${SERVICE}/turn`, {
         method: "POST",
@@ -70,6 +73,7 @@ export function App() {
     } catch {
       setStatus(DOWN);
     } finally {
+      clearInterval(ping);
       setSending(false);
     }
   };
