@@ -1,7 +1,7 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, appendFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import type { Ledger, MemoryRecord, ObservationRecord, Session, Turn } from "../types.ts";
+import type { Ledger, LogEvent, MemoryRecord, ObservationRecord, Session, Turn } from "../types.ts";
 import { nextId, nowIso } from "./ids.ts";
 
 export function defaultDataDir(): string {
@@ -26,6 +26,7 @@ export const paths = (dataDir: string, cvId?: string) => {
     session: join(root, "session.json"),
     conv,
     ledger: join(conv, "ledger.json"),
+    events: join(conv, "events.jsonl"),
     turns: join(conv, "turns"),
     memory: join(conv, "memory"),
     observations: join(conv, "observations"),
@@ -116,6 +117,22 @@ export function loadFullReturn(dataDir: string, cvId: string, callId: string): s
   return readFileSync(path, "utf8");
 }
 
+export function appendEvent(dataDir: string, cvId: string, event: Omit<LogEvent, "at"> & { at?: string }): void {
+  const line: LogEvent = { at: event.at ?? nowIso(), kind: event.kind, turnId: event.turnId, data: event.data };
+  const path = paths(dataDir, cvId).events;
+  mkdirSync(dirname(path), { recursive: true });
+  appendFileSync(path, `${JSON.stringify(line)}\n`);
+}
+
+export function loadEvents(dataDir: string, cvId: string): LogEvent[] {
+  const path = paths(dataDir, cvId).events;
+  if (!existsSync(path)) return [];
+  return readFileSync(path, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as LogEvent);
+}
+
 export function ensureSession(dataDir: string): Session {
   const existing = loadSession(dataDir);
   if (existing?.conversationId) return existing;
@@ -123,5 +140,6 @@ export function ensureSession(dataDir: string): Session {
   const session = { conversationId };
   saveSession(dataDir, session);
   saveLedger(dataDir, emptyLedger(conversationId));
+  appendEvent(dataDir, conversationId, { kind: "session", data: { conversationId } });
   return session;
 }

@@ -41,12 +41,37 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 ```text
 session.json
 conversations/<cvId>/ledger.json
+conversations/<cvId>/events.jsonl
 conversations/<cvId>/turns/<turnId>.json
 conversations/<cvId>/memory/<memoryId>.json
 conversations/<cvId>/observations/<observationId>.json
+conversations/<cvId>/returns/<callId>.txt
 ```
 
+JSON 快照覆盖写。流水只追加，不改已经写下的行。
+
 前缀：`cv_` 会话 · `tn_` 回合 · `mm_` 记忆 · `ob_` 压缩事实 · `call_` 工具调用。
+
+## events.jsonl
+
+每次数据产生追加一行，不覆盖。一行一个 JSON 对象。
+
+| 字段 | 类型 | 怎么填 |
+|---|---|---|
+| `at` | string | ISO-8601 |
+| `kind` | string | `session` 建会话 / `normalize` 用户输入开 Turn / `assemble` 装配 / `provider-request` 出网前 / `provider-response` 模型交口 / `tool` 工具跑完 / `memory` 落下一条记忆 / `compress` 压缩 / `turn-output` 本 Turn 收口 |
+| `turnId` | string | 有回合就写 `tn_`；建会话没有 |
+| `data` | object | 这一次产出的正文 |
+
+`kind=normalize` 的 `data`：`userInput` `submittedAt` `userInputHistory`。
+`kind=assemble` 的 `data`：`assembled`。
+`kind=provider-request` 的 `data`：`windowChars` `toolIds`。
+`kind=provider-response` 的 `data`：`finish` `content` `toolCalls` `attempts` `parseOk` `schemaOk` `faultCode` `missing`。
+`kind=tool` 的 `data`：`callId` `name` `arguments` `return`。
+`kind=memory` 的 `data`：`memoryId` `layer` `sourceCallId`。
+`kind=compress` 的 `data`：`observationId` `windowChars` `sourceCallIds`。
+`kind=turn-output` 的 `data`：`output`。
+`kind=session` 的 `data`：`conversationId`。
 
 ## session.json
 

@@ -6,7 +6,7 @@ import { handleTurn } from "./runtime/loop.ts";
 import { createServer } from "./server.ts";
 import { createProvider } from "./provider/uuapi.ts";
 import { createToolBridge } from "./runtime/bridge.ts";
-import { loadLedger, loadSession, loadTurn } from "./runtime/store.ts";
+import { loadEvents, loadLedger, loadSession, loadTurn } from "./runtime/store.ts";
 import type { CompletionResult, Provider } from "./types.ts";
 
 const repoRoot = join(import.meta.dir, "..");
@@ -68,6 +68,18 @@ test("finishTurn 收口回复", async () => {
   expect(ledger.userInputHistory).toEqual([]);
   const turn = loadTurn(dir, "cv_01", reply.turnId);
   expect(turn.assembled.currentPage).toBeNull();
+  const events = loadEvents(dir, "cv_01");
+  expect(events.map((row) => row.kind)).toEqual([
+    "session",
+    "normalize",
+    "assemble",
+    "provider-request",
+    "provider-response",
+    "tool",
+    "turn-output",
+  ]);
+  expect(events[1]?.data.userInput).toBe("你好");
+  expect(events.at(-1)?.data.output).toEqual({ kind: "reply", text: "你好" });
   rmSync(dir, { recursive: true, force: true });
 });
 

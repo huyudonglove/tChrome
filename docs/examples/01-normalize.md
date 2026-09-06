@@ -1,6 +1,6 @@
 # 01 归一化
 
-面板交上一句话。Runtime 补 `conversationId` / `turnId`，写成 jsonl 一行。这份是底。后面环节的「写出的」把这六个键原样带上，再追加本环节字段。
+面板交上一句话。Runtime 补 `conversationId` / `turnId`，JSON 快照写 `turns/<turnId>.json`，同时往 `events.jsonl` 追加 `kind=normalize` 一行。这份是底。后面环节的「写出的」把这六个键原样带上，再追加本环节字段。
 
 怎么看：上面「面板交上来的」是入口；下面「写出的」是落盘，也是 02 要整份拷走的快照。
 

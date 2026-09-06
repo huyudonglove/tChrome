@@ -1,6 +1,6 @@
 import type { Ledger, ObservationItem, ObservationRecord } from "../types.ts";
 import { nextId, nowIso } from "./ids.ts";
-import { saveObservation } from "./store.ts";
+import { appendEvent, saveObservation } from "./store.ts";
 
 export function maybeCompress(input: {
   dataDir: string;
@@ -32,4 +32,8 @@ export function maybeCompress(input: {
   };
   ledger.observation.push(item);
   ledger.toolIO = keep;
+  appendEvent(dataDir, ledger.conversationId, {
+    kind: "compress",
+    data: { observationId, windowChars: ledger.windowChars, sourceCallIds: record.sourceCallIds },
+  });
 }

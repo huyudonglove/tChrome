@@ -7,12 +7,14 @@
 ```text
 session.json
 conversations/<cvId>/ledger.json
+conversations/<cvId>/events.jsonl
 conversations/<cvId>/turns/<turnId>.json
 conversations/<cvId>/memory/<memoryId>.json
 conversations/<cvId>/observations/<observationId>.json
+conversations/<cvId>/returns/<callId>.txt
 ```
 
-前缀见 schema。HTTP 见 schema「本机 HTTP」。
+JSON 快照覆盖写。流水见 schema「events.jsonl」。前缀见 schema。HTTP 见 schema「本机 HTTP」。
 
 ## session.json
 

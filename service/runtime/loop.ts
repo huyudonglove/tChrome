@@ -28,6 +28,7 @@ import {
   saveLedger,
   saveMemory,
   saveTurn,
+  appendEvent,
 } from "./store.ts";
 
 const MAX_OUTBOUNDS = 20;
@@ -122,6 +123,10 @@ const persistMemory = (dataDir: string, ledger: Ledger, call: ToolCall) => {
       };
       saveMemory(dataDir, ledger.conversationId, record);
       ledger.memoryIds[layer].push(memoryId);
+      appendEvent(dataDir, ledger.conversationId, {
+        kind: "memory",
+        data: { memoryId, layer, sourceCallId: call.id },
+      });
     }
   };
   writeLayer("turn", asStringArray(call.arguments.turnMemory));
@@ -160,6 +165,11 @@ const runQueue = async (input: {
       return: clipReturn(full),
     };
     ledger.toolIO.push(row);
+    appendEvent(dataDir, ledger.conversationId, {
+      kind: "tool",
+      turnId: turn.turnId,
+      data: { callId: item.callId, name: item.name, arguments: item.arguments, return: row.return },
+    });
     try {
       const parsed = JSON.parse(full) as { ok?: boolean; tab?: number; url?: string; title?: string; description?: string };
       const page = pageFromBrowser(parsed);
@@ -238,16 +248,44 @@ export async function handleTurn(
   turn.status = "inferring";
   saveTurn(deps.dataDir, turn);
   saveLedger(deps.dataDir, ledger);
-
+  appendEvent(deps.dataDir, ledger.conversationId, {
+    kind: "normalize",
+    turnId,
+    data: { userInput: body.userInput, submittedAt: body.submittedAt, userInputHistory: ledger.userInputHistory },
+  });
+  appendEvent(deps.dataDir, ledger.conversationId, {
+    kind: "assemble",
+    turnId,
+    data: { assembled: turn.assembled },
+  });
   let submitFails = 0;
   for (let i = 0; i < MAX_OUTBOUNDS; i++) {
     const messages = messagesOf(catalog, ledger, turn, deps.dataDir);
     const tools = toolSchemas(catalog, [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds]);
+    appendEvent(deps.dataDir, ledger.conversationId, {
+      kind: "provider-request",
+      turnId,
+      data: { windowChars: ledger.windowChars, toolIds: [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds] },
+    });
     const result = await deps.provider.complete({
       messages,
       tools,
       baseToolsIds: turn.assembled.baseToolsIds,
       toolIds: turn.assembled.toolIds,
+    });
+    appendEvent(deps.dataDir, ledger.conversationId, {
+      kind: "provider-response",
+      turnId,
+      data: {
+        finish: result.finish,
+        content: result.content,
+        toolCalls: result.toolCalls,
+        attempts: result.attempts,
+        parseOk: result.parseOk,
+        schemaOk: result.schemaOk,
+        faultCode: result.faultCode,
+        missing: result.missing,
+      },
     });
     if (result.finish === "error") {
       turn.status = "failed";
@@ -257,6 +295,11 @@ export async function handleTurn(
       ledger.active = null;
       saveTurn(deps.dataDir, turn);
       saveLedger(deps.dataDir, ledger);
+      appendEvent(deps.dataDir, ledger.conversationId, {
+        kind: "turn-output",
+        turnId,
+        data: { output: turn.output },
+      });
       return { conversationId: ledger.conversationId, turnId, output: turn.output };
     }
     if (!result.parseOk || !result.schemaOk) {
@@ -270,6 +313,11 @@ export async function handleTurn(
         ledger.active = null;
         saveTurn(deps.dataDir, turn);
         saveLedger(deps.dataDir, ledger);
+        appendEvent(deps.dataDir, ledger.conversationId, {
+          kind: "turn-output",
+          turnId,
+          data: { output: turn.output },
+        });
         return { conversationId: ledger.conversationId, turnId, output: turn.output };
       }
       saveTurn(deps.dataDir, turn);
@@ -292,6 +340,11 @@ export async function handleTurn(
         ledger.active = null;
         saveTurn(deps.dataDir, turn);
         saveLedger(deps.dataDir, ledger);
+        appendEvent(deps.dataDir, ledger.conversationId, {
+          kind: "turn-output",
+          turnId,
+          data: { output: turn.output },
+        });
         return { conversationId: ledger.conversationId, turnId, output: turn.output };
       }
       saveTurn(deps.dataDir, turn);
@@ -307,6 +360,11 @@ export async function handleTurn(
     saveTurn(deps.dataDir, turn);
     saveLedger(deps.dataDir, ledger);
     if (closed) {
+      appendEvent(deps.dataDir, ledger.conversationId, {
+        kind: "turn-output",
+        turnId,
+        data: { output: closed },
+      });
       return { conversationId: ledger.conversationId, turnId, output: closed };
     }
   }
@@ -317,5 +375,10 @@ export async function handleTurn(
   ledger.active = null;
   saveTurn(deps.dataDir, turn);
   saveLedger(deps.dataDir, ledger);
+  appendEvent(deps.dataDir, ledger.conversationId, {
+    kind: "turn-output",
+    turnId,
+    data: { output: turn.output },
+  });
   return { conversationId: ledger.conversationId, turnId, output: turn.output };
 }

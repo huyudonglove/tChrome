@@ -162,6 +162,13 @@ export type BrowserHost = {
   execute(name: string, input: Record<string, unknown>): Promise<BrowserResult>;
 };
 
+export type LogEvent = {
+  at: string;
+  kind: string;
+  turnId?: string;
+  data: Record<string, unknown>;
+};
+
 export type TurnReply = {
   conversationId: string;
   turnId: string;
