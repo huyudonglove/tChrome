@@ -30,9 +30,7 @@
   "sopIds": [
     "sop.browse"
   ],
-  "baseToolsIds": [
-    "askUser"
-  ],
+  "baseToolsIds": ["askUser", "finishTurn"],
   "toolIds": [
     "web.search"
   ],
@@ -132,7 +130,7 @@ data: [DONE]
 | `unknown_tool` | `name` 不在 `baseToolsIds` + `toolIds` |
 | `missing_required` | catalog `required` 缺或空；`missing` 列出字段名 |
 | `wrong_type` | Ajv：类型对不上 schema |
-| `exclusive_resident` | `askUser` 和动态工具同时交 |
+| `exclusive_resident` | `askUser` / `finishTurn` / 动态工具同时交超过一类 |
 
 回给模型的 tool 结果（`role=tool`，`tool_call_id` 用这次的 `call_01`）：
 
@@ -249,9 +247,7 @@ data: [DONE]
   "sopIds": [
     "sop.browse"
   ],
-  "baseToolsIds": [
-    "askUser"
-  ],
+  "baseToolsIds": ["askUser", "finishTurn"],
   "toolIds": [
     "web.search"
   ],

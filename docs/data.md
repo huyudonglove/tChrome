@@ -66,7 +66,7 @@ Runtime 独占维护。当前会话指针。
     "systemIds": ["pack.agent"],
     "skillIds": ["skill.web"],
     "sopIds": ["sop.browse"],
-    "baseToolsIds": ["askUser"],
+    "baseToolsIds": ["askUser", "finishTurn"],
     "toolIds": ["web.search"],
     "turnMemoryIds": [],
     "conversationMemoryIds": [],
@@ -96,9 +96,9 @@ Runtime 独占维护。当前会话指针。
 
 `output`：
 
-- `tool` → `{kind, name, callId}`
-- `ask` → `{kind, question}`
-- `reply` → `{kind, text}`
+- `tool` → `{kind, name, callId}`（动态工具）
+- `ask` → `{kind, question}`（`askUser`）
+- `reply` → `{kind, text}`（`finishTurn`，`text` 取 content 的 action）
 - `error` → `{kind, faultCode}`
 
 ## Observation
@@ -139,13 +139,13 @@ user 文档块：
 #tools
 ```
 
-常驻工具 `askUser` 的用法在 Pack（system）。动态工具用法在 user `#tools`。出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。每个工具 `arguments` 都带 `reason`。
+常驻工具 `askUser` / `finishTurn` 的用法在 Pack（system）。动态工具用法在 user `#tools`。出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。每个工具 `arguments` 都带 `reason`。
 
 ## 循环
 
-1. 用户一句话 → 新 Turn，CE 装配，LLM 交 `askUser` 或动态工具，或 `finish=stop` 直接回复。
+1. 用户一句话 → 新 Turn，CE 装配，LLM 交 `askUser`、`finishTurn` 或动态工具。
 2. `askUser` → ledger.`status=waiting_human`，等人答，答文写进下一 Turn `input`。
 3. 动态工具 → 执行，写 Observation，新 Turn 把观察带进窗口再出网。
-4. `finish=stop` 无 `tool_calls` → 回复用户，ledger.`status=idle`，`active=null`。
+4. `finishTurn` → 回复用户，ledger.`status=idle`，`active=null`。
 
 分阶段模拟：`docs/examples/01-normalize.md` → `02-context-engineering.md` → `03-decode.md` → `04-provider-request.md` → `05-provider-response.md`。
