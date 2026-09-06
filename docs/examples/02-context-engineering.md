@@ -61,7 +61,7 @@
 | `systemIds` | string[] | 装配器 | 本轮 Pack，对应 `catalog/packs/<id>.md` |
 | `skillIds` | string[] | 装配器 | 本轮 skill，对应 `catalog/skills/<id>.md` |
 | `sopIds` | string[] | 装配器 | 本轮 SOP，对应 `catalog/sops/<id>.md` |
-| `baseToolsIds` | string[] | 装配器 | 常驻工具，对应 `catalog/tools/<id>.json`。本轮固定 `askUser` `finishTurn` `tool.detail` `observation.detail` `memory.write` `memory.write` |
+| `baseToolsIds` | string[] | 装配器 | 常驻工具，对应 `catalog/tools/<id>.json`。本轮固定 `askUser` `finishTurn` `tool.detail` `observation.detail` `memory.write` |
 | `toolIds` | string[] | 装配器 | 动态工具，对应 `catalog/tools/<id>.json`。没有就 `[]` |
 | `turnMemoryIds` | string[] | 装配器 | 这一轮记忆；没有就 `[]` |
 | `conversationMemoryIds` | string[] | 装配器 | 这一次会话记忆；没有就 `[]` |

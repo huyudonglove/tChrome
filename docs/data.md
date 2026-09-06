@@ -147,7 +147,9 @@ Runtime 独占维护。当前会话指针。
 
 ## 装配
 
-每轮同一套：system Pack + 本会话 `skillIds` / `toolIds` / `sopIds` / `mcpIds` + user 记忆槽 + `#observation` + `#userInputHistory` + `#userInput` + `#currentEnvironment` + `#toolIO`。
+用户一条输入开一个 Turn，CE 装配一次：system Pack + 本会话 `skillIds` / `toolIds` / `sopIds` / `mcpIds` + user 记忆槽 + `#observation` + `#userInputHistory` + `#userInput` + `#currentEnvironment` + `#toolIO`。
+
+本 Turn 内工具循环不再走 CE。Runtime 只改 `#toolIO`（以及刚落下的记忆槽 / `#observation`），用同一套插槽再出网。
 
 user 文档块：
 
@@ -174,13 +176,13 @@ user 文档块：
 
 ## 循环
 
-1. 用户一句话 → 新 Turn。Runtime 把上一 Turn 的 `userInput` 追加进 ledger.`userInputHistory`。装配：`#userInputHistory` 是已结束回合的原话，`#userInput` 是本轮原话，`#toolIO` 带上本会话未压缩的工具条目（最新在最下面），`#observation` 带上已压缩的事实，记忆槽带上此前 `memory.write` 落下的内容（已压缩的层用摘要）。CE 装配，LLM 交工具。
+1. 用户一句话 → 新 Turn。Runtime 把上一 Turn 的 `userInput` 追加进 ledger.`userInputHistory`。CE 装配一次：`#userInputHistory` 是已结束回合的原话，`#userInput` 是本轮原话，`#toolIO` 带上本会话未压缩的工具条目（最新在最下面），`#observation` 带上已压缩的事实，记忆槽带上此前 `memory.write` 落下的内容（已压缩的层用摘要）。LLM 交工具。
 2. 模型一次出网可交多个 `toolCalls`。Runtime 按数组顺序写入 ledger.`toolQueue`。任务队列按这个顺序执行。
 3. 队列每跑完一条，把 `{callId, name, arguments, return}` 追加到 ledger.`toolIO` 末尾，并从队列弹出。
 4. `askUser` → `return.text` 是问题和选项，ledger.`status=waiting_human`，等人答。用户下一条输入开新 Turn（走步骤 1）。
-5. 动态工具 / `tool.detail` / `observation.detail` → `return.text` 是工具正文（窗口截到 2000 字）。队列清空后还在本 Turn 里再出网。
-6. `memory.write` → Runtime 按 arguments 落盘三层记忆和 `contextSummary`，ID 挂到 ledger.`memoryIds`。队列清空后再出网时，对应 user 槽带上刚落下的内容。
-7. `finishTurn` → `return.text` 是回复用户的正文。本 Turn `status=completed`，ledger.`status=idle`，`active=null`。本轮 `userInput` 仍在 Turn.`input`。用户下一句话开新 Turn 时写入 `userInputHistory`。记忆槽在下一次出网继续带上。
-8. 每次装配后 Runtime 计 `windowChars`。到 `compressAt`（200000）就压缩：较早的 `toolIO` 收成 `observation` 条目（摘要进窗口，全文另存）；`turn` / `conversation` 记忆槽改用 `summary`。然后用压缩后的窗口再出网。
+5. 动态工具 / `tool.detail` / `observation.detail` → `return.text` 是工具正文（窗口截到 2000 字）。队列清空后还在本 Turn 里再出网：插槽沿用这次装配，只更新 `#toolIO`。
+6. `memory.write` → Runtime 按 arguments 落盘三层记忆和 `contextSummary`，ID 挂到 ledger.`memoryIds`。队列清空后再出网时，对应 user 槽带上刚落下的内容。不重新点名 catalog。
+7. `finishTurn` → `return.text` 是回复用户的正文。本 Turn `status=completed`，ledger.`status=idle`，`active=null`。本轮 `userInput` 仍在 Turn.`input`。用户下一句话开新 Turn 时写入 `userInputHistory`，走步骤 1。
+8. 开 Turn 装配后、以及本 Turn 每次出网前，Runtime 计 `windowChars`。到 `compressAt`（200000）就压缩：较早的 `toolIO` 收成 `observation` 条目（摘要进窗口，全文另存）；`turn` / `conversation` 记忆槽改用 `summary`。然后用压缩后的窗口再出网。
 
 分阶段模拟：`docs/examples/01-normalize.md` → `02-context-engineering.md` → `03-decode.md` → `04-provider-request.md` → `05-provider-response.md` → `06-tool-execute.md` → `07-compress.md`。

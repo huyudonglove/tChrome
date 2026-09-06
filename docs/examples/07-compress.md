@@ -1,6 +1,6 @@
 # 07 压缩
 
-读 06 的写出。Runtime 装配后计 `windowChars`。到 `compressAt`（200000）就把较早的 `#toolIO` 收成 `#observation`，并压缩 turn / conversation 记忆。
+读 06 的写出。Runtime 出网前计 `windowChars`。到 `compressAt`（200000）就把较早的 `#toolIO` 收成 `#observation`，并压缩 turn / conversation 记忆。
 
 本文件是压缩能力的样例：假设窗口已经到 200K（主链 01–06 的窗口还远没到，不压）。作者是 Runtime。
 
@@ -143,6 +143,6 @@
 }
 ```
 
-`windowChars=18420` 是本样例压缩后的窗口，低于 200000，继续出网。实际数字由 Runtime 装配后写入。
+`windowChars=18420` 是本样例压缩后的窗口，低于 200000，继续出网。实际数字由 Runtime 出网前写入。
 
-下一份：还在 `tn_01`。装配带上 `#observation` 的 `ob_01`，`#toolIO` 空。模型要看 `call_01` 全文时交 `observation.detail`。
+下一份：还在 `tn_01`。窗口带上 `#observation` 的 `ob_01`，`#toolIO` 空，用这次 Turn 已有的插槽再出网。模型要看 `call_01` 全文时交 `observation.detail`。用户下一句话才开新 Turn。
