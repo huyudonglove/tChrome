@@ -10,6 +10,7 @@ export type ProviderConfig = {
   apiKey?: string;
   baseURL?: string;
   model?: string;
+  proxy?: string;
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -83,8 +84,18 @@ export function createProvider(config: ProviderConfig = {}) {
   const apiKey = config.apiKey ?? Bun.env.UUAPI_API_KEY;
   const baseURL = config.baseURL ?? "https://uuapi.net/v1";
   const model = config.model ?? MODEL;
+  const proxy = config.proxy ?? Bun.env.HTTPS_PROXY ?? Bun.env.HTTP_PROXY ?? Bun.env.ALL_PROXY;
   if (!apiKey) return { complete: async () => keyMissing() };
-  const client = new OpenAI({ apiKey, baseURL });
+  const client = new OpenAI({
+    apiKey,
+    baseURL,
+    ...(proxy
+      ? {
+          fetch: (url: RequestInfo | URL, init?: RequestInit) =>
+            fetch(url, { ...init, proxy } as RequestInit),
+        }
+      : {}),
+  });
 
   const once = async (messages: ChatMessage[], tools: ChatTool[]) => {
     const stream = await client.chat.completions.create({
