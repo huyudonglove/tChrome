@@ -2,7 +2,7 @@
 
 读 01 的写出。本环节点名：用哪些 Pack / skill / SOP / 常驻工具 / 动态工具 / 三层记忆 / MCP，以及当前页。正文留给 03 解码展开。
 
-怎么看：上面「读到的」是 01 写出的原样。下面「写出的」是累积快照：01 五个键 + 本环节新增的键。对照仓里 `catalog/`：这些 ID 都有对应文件。
+怎么看：上面「读到的」是 01 写出的原样。下面「写出的」是累积快照：01 六个键 + 本环节新增的键。对照仓里 `catalog/`：这些 ID 都有对应文件。
 
 ## 读到的（01 写出的）
 
@@ -12,13 +12,14 @@
   "conversationId": "cv_01",
   "turnId": "tn_01",
   "userInput": "帮我查这款鼠标官网价",
+  "userInputHistory": [],
   "submittedAt": "2026-09-05T08:00:01.000Z"
 }
 ```
 
 | 谁 | 写什么 |
 |---|---|
-| 01（原样带上） | `conversationId` `turnId` `userInput` `submittedAt` |
+| 01（原样带上） | `conversationId` `turnId` `userInput` `userInputHistory` `submittedAt` |
 | 本环节 | `stage` 改成 `context-engineering-input`；追加下面点名键 |
 
 ## 配方
@@ -49,6 +50,7 @@
 | `conversationId` | string | 01 | 原样 |
 | `turnId` | string | 01 | 原样 |
 | `userInput` | string | 01 | 原样 |
+| `userInputHistory` | string[] | 01 | 原样，首回合 `[]` |
 | `submittedAt` | string | 01 | 原样 |
 
 本环节新增 / 改写：
@@ -86,12 +88,24 @@
   "conversationId": "cv_01",
   "turnId": "tn_01",
   "userInput": "帮我查这款鼠标官网价",
+  "userInputHistory": [],
   "submittedAt": "2026-09-05T08:00:01.000Z",
-  "systemIds": ["pack.agent"],
-  "skillIds": ["skill.web"],
-  "sopIds": ["sop.browse"],
-  "baseToolsIds": ["askUser", "finishTurn"],
-  "toolIds": ["web.search"],
+  "systemIds": [
+    "pack.agent"
+  ],
+  "skillIds": [
+    "skill.web"
+  ],
+  "sopIds": [
+    "sop.browse"
+  ],
+  "baseToolsIds": [
+    "askUser",
+    "finishTurn"
+  ],
+  "toolIds": [
+    "web.search"
+  ],
   "turnMemoryIds": [],
   "conversationMemoryIds": [],
   "projectMemoryIds": [],

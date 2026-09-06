@@ -18,12 +18,24 @@
   "conversationId": "cv_01",
   "turnId": "tn_01",
   "userInput": "帮我查这款鼠标官网价",
+  "userInputHistory": [],
   "submittedAt": "2026-09-05T08:00:01.000Z",
-  "systemIds": ["pack.agent"],
-  "skillIds": ["skill.web"],
-  "sopIds": ["sop.browse"],
-  "baseToolsIds": ["askUser", "finishTurn"],
-  "toolIds": ["web.search"],
+  "systemIds": [
+    "pack.agent"
+  ],
+  "skillIds": [
+    "skill.web"
+  ],
+  "sopIds": [
+    "sop.browse"
+  ],
+  "baseToolsIds": [
+    "askUser",
+    "finishTurn"
+  ],
+  "toolIds": [
+    "web.search"
+  ],
   "turnMemoryIds": [],
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
@@ -110,6 +122,7 @@ action
 记忆写在 `#projectMemory` `#conversationMemory` `#turnMemory`。
 上次会话总结写在 `#contextSummary`。
 当前用户输入写在 `#userInput`。
+历史用户输入写在 `#userInputHistory`。
 当前环境写在 `#currentEnvironment`。
 常驻工具 askUser / finishTurn 的用法写在本 Pack。动态工具的用法写在 user `#tools`。
 
@@ -128,7 +141,7 @@ action
 
 ## user 插槽
 
-顺序 = `userSlots` 数组。用户原话进 `#userInput`；当前页进 `#currentEnvironment`。
+顺序 = `userSlots` 数组。历史用户输入进 `#userInputHistory`；本轮原话进 `#userInput`；当前页进 `#currentEnvironment`。
 
 常驻工具用法在 system（Pack）。动态工具用法在 `#tools`。本轮 `web.search` 的用法在 `#skill` / `#sop`，`#tools` 空。
 
@@ -145,6 +158,10 @@ action
 （空）
 
 ### `#contextSummary`
+
+（空）
+
+### `#userInputHistory`
 
 （空）
 
@@ -169,7 +186,7 @@ action
 
 ## 字段
 
-上一份已有、本份原样带上：`conversationId` `turnId` `userInput` `submittedAt` `systemIds` `skillIds` `sopIds` `baseToolsIds` `toolIds` `turnMemoryIds` `conversationMemoryIds` `projectMemoryIds` `mcpIds` `currentPage`。
+上一份已有、本份原样带上：`conversationId` `turnId` `userInput` `userInputHistory` `submittedAt` `systemIds` `skillIds` `sopIds` `baseToolsIds` `toolIds` `turnMemoryIds` `conversationMemoryIds` `projectMemoryIds` `mcpIds` `currentPage`。
 
 本环节新增 / 改写：
 
@@ -189,12 +206,24 @@ action
   "conversationId": "cv_01",
   "turnId": "tn_01",
   "userInput": "帮我查这款鼠标官网价",
+  "userInputHistory": [],
   "submittedAt": "2026-09-05T08:00:01.000Z",
-  "systemIds": ["pack.agent"],
-  "skillIds": ["skill.web"],
-  "sopIds": ["sop.browse"],
-  "baseToolsIds": ["askUser", "finishTurn"],
-  "toolIds": ["web.search"],
+  "systemIds": [
+    "pack.agent"
+  ],
+  "skillIds": [
+    "skill.web"
+  ],
+  "sopIds": [
+    "sop.browse"
+  ],
+  "baseToolsIds": [
+    "askUser",
+    "finishTurn"
+  ],
+  "toolIds": [
+    "web.search"
+  ],
   "turnMemoryIds": [],
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
@@ -222,6 +251,7 @@ action
     "#conversationMemory",
     "#turnMemory",
     "#contextSummary",
+    "#userInputHistory",
     "#userInput",
     "#currentEnvironment",
     "#tools"

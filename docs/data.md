@@ -29,6 +29,7 @@ Runtime 独占维护。当前会话指针。
   },
   "pendingAsk": null,
   "turnIds": ["tn_01"],
+  "userInputHistory": [],
   "observationIds": [],
   "memoryIds": {
     "turn": [],
@@ -44,6 +45,7 @@ Runtime 独占维护。当前会话指针。
 | `active` | 当前 `turnId`；没有就 `null` |
 | `pendingAsk` | `waiting_human` 时：`{turnId, question}`；否则 `null` |
 | `turnIds` | 已建的回合，按时间 |
+| `userInputHistory` | 已结束回合的用户原话，按时间。新会话 `[]`。turn 结束时 Runtime 把本轮 `userInput` 追加进去 |
 | `observationIds` | 工具结果写下的观察 |
 | `memoryIds` | 三层记忆 ID |
 
@@ -125,7 +127,7 @@ Runtime 独占维护。当前会话指针。
 
 ## 装配
 
-每轮同一套：system Pack + 本会话 `skillIds` / `toolIds` / `sopIds` / `mcpIds` + user 记忆槽 + `#userInput` + `#currentEnvironment`。
+每轮同一套：system Pack + 本会话 `skillIds` / `toolIds` / `sopIds` / `mcpIds` + user 记忆槽 + `#userInputHistory` + `#userInput` + `#currentEnvironment`。
 
 user 文档块：
 
@@ -134,6 +136,7 @@ user 文档块：
 #conversationMemory
 #turnMemory
 #contextSummary
+#userInputHistory
 #userInput
 #currentEnvironment
 #tools
@@ -143,9 +146,9 @@ user 文档块：
 
 ## 循环
 
-1. 用户一句话 → 新 Turn，CE 装配，LLM 交 `askUser`、`finishTurn` 或动态工具。
-2. `askUser` → ledger.`status=waiting_human`，等人答，答文写进下一 Turn `input`。
-3. 动态工具 → 执行，写 Observation，新 Turn 把观察带进窗口再出网。
-4. `finishTurn` → 回复用户，ledger.`status=idle`，`active=null`。
+1. 用户一句话 → 新 Turn。装配时从 ledger 读 `userInputHistory`（不含本轮）。CE 装配，LLM 交 `askUser`、`finishTurn` 或动态工具。
+2. `askUser` → 本轮 `userInput` 追加进 ledger.`userInputHistory`，ledger.`status=waiting_human`，等人答，答文写进下一 Turn `input`。
+3. 动态工具 → 本轮 `userInput` 追加进 ledger.`userInputHistory`，执行，写 Observation，新 Turn 把观察带进窗口再出网。
+4. `finishTurn` → 本轮 `userInput` 追加进 ledger.`userInputHistory`，回复用户，ledger.`status=idle`，`active=null`。
 
 分阶段模拟：`docs/examples/01-normalize.md` → `02-context-engineering.md` → `03-decode.md` → `04-provider-request.md` → `05-provider-response.md`。

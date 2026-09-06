@@ -20,12 +20,24 @@
   "conversationId": "cv_01",
   "turnId": "tn_01",
   "userInput": "帮我查这款鼠标官网价",
+  "userInputHistory": [],
   "submittedAt": "2026-09-05T08:00:01.000Z",
-  "systemIds": ["pack.agent"],
-  "skillIds": ["skill.web"],
-  "sopIds": ["sop.browse"],
-  "baseToolsIds": ["askUser", "finishTurn"],
-  "toolIds": ["web.search"],
+  "systemIds": [
+    "pack.agent"
+  ],
+  "skillIds": [
+    "skill.web"
+  ],
+  "sopIds": [
+    "sop.browse"
+  ],
+  "baseToolsIds": [
+    "askUser",
+    "finishTurn"
+  ],
+  "toolIds": [
+    "web.search"
+  ],
   "turnMemoryIds": [],
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
@@ -53,6 +65,7 @@
     "#conversationMemory",
     "#turnMemory",
     "#contextSummary",
+    "#userInputHistory",
     "#userInput",
     "#currentEnvironment",
     "#tools"
@@ -75,8 +88,14 @@ body 四个键：`model`、`messages`、`tools`、`stream`。
   "model": "gemini-3.7-flash",
   "stream": true,
   "messages": [
-    { "role": "system", "content": "<下面 system 正文>" },
-    { "role": "user", "content": "<下面 user 正文>" }
+    {
+      "role": "system",
+      "content": "<下面 system 正文>"
+    },
+    {
+      "role": "user",
+      "content": "<下面 user 正文>"
+    }
   ],
   "tools": "<下面 tools 数组>"
 }
@@ -162,6 +181,7 @@ action
 记忆写在 `#projectMemory` `#conversationMemory` `#turnMemory`。
 上次会话总结写在 `#contextSummary`。
 当前用户输入写在 `#userInput`。
+历史用户输入写在 `#userInputHistory`。
 当前环境写在 `#currentEnvironment`。
 常驻工具 askUser / finishTurn 的用法写在本 Pack。动态工具的用法写在 user `#tools`。
 
@@ -190,6 +210,8 @@ action
 #turnMemory
 
 #contextSummary
+
+#userInputHistory
 
 #userInput
 帮我查这款鼠标官网价
@@ -342,12 +364,24 @@ action
   "conversationId": "cv_01",
   "turnId": "tn_01",
   "userInput": "帮我查这款鼠标官网价",
+  "userInputHistory": [],
   "submittedAt": "2026-09-05T08:00:01.000Z",
-  "systemIds": ["pack.agent"],
-  "skillIds": ["skill.web"],
-  "sopIds": ["sop.browse"],
-  "baseToolsIds": ["askUser", "finishTurn"],
-  "toolIds": ["web.search"],
+  "systemIds": [
+    "pack.agent"
+  ],
+  "skillIds": [
+    "skill.web"
+  ],
+  "sopIds": [
+    "sop.browse"
+  ],
+  "baseToolsIds": [
+    "askUser",
+    "finishTurn"
+  ],
+  "toolIds": [
+    "web.search"
+  ],
   "turnMemoryIds": [],
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
@@ -375,6 +409,7 @@ action
     "#conversationMemory",
     "#turnMemory",
     "#contextSummary",
+    "#userInputHistory",
     "#userInput",
     "#currentEnvironment",
     "#tools"

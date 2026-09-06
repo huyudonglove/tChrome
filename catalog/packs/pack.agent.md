@@ -55,6 +55,7 @@ action
 记忆写在 `#projectMemory` `#conversationMemory` `#turnMemory`。
 上次会话总结写在 `#contextSummary`。
 当前用户输入写在 `#userInput`。
+历史用户输入写在 `#userInputHistory`。
 当前环境写在 `#currentEnvironment`。
 常驻工具 askUser / finishTurn 的用法写在本 Pack。动态工具的用法写在 user `#tools`。
 

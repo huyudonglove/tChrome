@@ -20,6 +20,7 @@
   "conversationId": "cv_01",
   "turnId": "tn_01",
   "userInput": "帮我查这款鼠标官网价",
+  "userInputHistory": [],
   "submittedAt": "2026-09-05T08:00:01.000Z",
   "systemIds": [
     "pack.agent"
@@ -30,7 +31,10 @@
   "sopIds": [
     "sop.browse"
   ],
-  "baseToolsIds": ["askUser", "finishTurn"],
+  "baseToolsIds": [
+    "askUser",
+    "finishTurn"
+  ],
   "toolIds": [
     "web.search"
   ],
@@ -61,6 +65,7 @@
     "#conversationMemory",
     "#turnMemory",
     "#contextSummary",
+    "#userInputHistory",
     "#userInput",
     "#currentEnvironment",
     "#tools"
@@ -138,7 +143,9 @@ data: [DONE]
 {
   "ok": false,
   "faultCode": "missing_required",
-  "missing": ["reason"],
+  "missing": [
+    "reason"
+  ],
   "toolName": "web.search"
 }
 ```
@@ -155,7 +162,10 @@ data: [DONE]
   "schemaOk": true,
   "faultCode": null,
   "toolName": "web.search",
-  "required": ["reason", "query"],
+  "required": [
+    "reason",
+    "query"
+  ],
   "missing": []
 }
 ```
@@ -237,6 +247,7 @@ data: [DONE]
   "conversationId": "cv_01",
   "turnId": "tn_01",
   "userInput": "帮我查这款鼠标官网价",
+  "userInputHistory": [],
   "submittedAt": "2026-09-05T08:00:01.000Z",
   "systemIds": [
     "pack.agent"
@@ -247,7 +258,10 @@ data: [DONE]
   "sopIds": [
     "sop.browse"
   ],
-  "baseToolsIds": ["askUser", "finishTurn"],
+  "baseToolsIds": [
+    "askUser",
+    "finishTurn"
+  ],
   "toolIds": [
     "web.search"
   ],
@@ -278,6 +292,7 @@ data: [DONE]
     "#conversationMemory",
     "#turnMemory",
     "#contextSummary",
+    "#userInputHistory",
     "#userInput",
     "#currentEnvironment",
     "#tools"
