@@ -76,6 +76,45 @@ Runtime 按 `name=web.search` 跑，拿到全文：
 
 观察就是这些工具返回。Runtime 把本条追加到 ledger.`toolIO` 末尾。窗口只带 `return`（最多 2000 字）；全文按 `callId` 另存，模型要全文时交 `tool.detail`。
 
+askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮主链是 `web.search`，这两条不进本轮写出的）。
+
+`askUser`：`return.text` 是展示给用户的问题和选项。ledger.`status=waiting_human`。
+
+```json
+{
+  "callId": "call_ask",
+  "name": "askUser",
+  "arguments": {
+    "reason": "当前页型号看不清，要用户确认查哪一款。",
+    "choice": ["MX Master 3S", "MX Master 3"]
+  },
+  "return": {
+    "stage": "complete",
+    "totalChars": 44,
+    "text": "当前页型号看不清，要查哪一款？\n- MX Master 3S\n- MX Master 3"
+  }
+}
+```
+
+`finishTurn`：`return.text` 是回复用户的正文（取 content 的 action）。本 Turn `status=completed`。
+
+```json
+{
+  "callId": "call_fin",
+  "name": "finishTurn",
+  "arguments": {
+    "reason": "官网价已核对，回复用户。"
+  },
+  "return": {
+    "stage": "complete",
+    "totalChars": 34,
+    "text": "罗技官网 MX Master 3S 标价 999 元，和当前页一致。"
+  }
+}
+```
+
+本轮样例记忆三层和 `contextSummary` 空。工具 arguments 交了这些字段，Runtime 才落盘。
+
 ## 字段
 
 上一份已有、本份原样带上：05 写出的全部键。

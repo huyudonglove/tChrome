@@ -45,7 +45,7 @@ Runtime 独占维护。当前会话指针。
 | `pendingAsk` | `waiting_human` 时：`{turnId, question}`；否则 `null` |
 | `turnIds` | 已建的回合，按时间 |
 | `userInputHistory` | 上一轮及更早的用户原话，按时间。新会话 `[]`。用户下一条输入开新 Turn 时，Runtime 把刚结束那一轮的 `userInput` 追加进去 |
-| `toolIO` | 本会话已执行的工具调用，数组。新会话 `[]`。每次跑完追加一条，最新在最下面 |
+| `toolIO` | 本会话已执行的工具调用，数组。新会话 `[]`。模型交的每一次工具（含 `askUser` / `finishTurn` / `tool.detail` / 动态工具）跑完追加一条，最新在最下面 |
 | `memoryIds` | 三层记忆 ID |
 
 ## Turn
@@ -126,13 +126,18 @@ user 文档块：
 
 常驻工具 `askUser` / `finishTurn` / `tool.detail` 的用法在 Pack（system）。动态工具用法在 user `#tools`。出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。每个工具 `arguments` 都带 `reason`。
 
-`#toolIO` 是数组，每项 `{callId, name, arguments, return}`。同一工具可出现多次。最新的在最下面。`return.text` 最多 2000 字；超出 `return.stage=truncated`，`return.totalChars` 写全文长度。要全文调 `tool.detail`，参数 `callId`。
+`#toolIO` 是数组，每项 `{callId, name, arguments, return}`。模型交的每一次工具都进这里，含 `askUser` / `finishTurn` / `tool.detail` / 动态工具。同一工具可出现多次。最新的在最下面。`return.text` 最多 2000 字；超出 `return.stage=truncated`，`return.totalChars` 写全文长度。要全文调 `tool.detail`，参数 `callId`。
+
+`askUser` 的 `return.text` 是展示给用户的问题和选项。`finishTurn` 的 `return.text` 是回复用户的正文（取 content 的 action）。动态工具 / `tool.detail` 的 `return.text` 是工具跑出来的正文。
 
 ## 循环
 
-1. 用户一句话 → 新 Turn。Runtime 把上一 Turn 的 `userInput` 追加进 ledger.`userInputHistory`。装配：`#userInputHistory` 是已结束回合的原话，`#userInput` 是本轮原话，`#toolIO` 带上本会话已执行过的工具条目（最新在最下面）。CE 装配，LLM 交 `askUser`、`finishTurn`、`tool.detail` 或动态工具。
-2. `askUser` → ledger.`status=waiting_human`，等人答。用户下一条输入开新 Turn（走步骤 1）。
-3. 动态工具 / `tool.detail` → 执行，把 `{callId, name, arguments, return}` 追加到 ledger.`toolIO` 末尾（窗口 `return.text` 截到 2000 字）。还在本 Turn 里再出网。
-4. `finishTurn` → 回复用户。本 Turn `status=completed`，ledger.`status=idle`，`active=null`。本轮 `userInput` 仍在 Turn.`input`。用户下一句话开新 Turn 时写入 `userInputHistory`。
+1. 用户一句话 → 新 Turn。Runtime 把上一 Turn 的 `userInput` 追加进 ledger.`userInputHistory`。装配：`#userInputHistory` 是已结束回合的原话，`#userInput` 是本轮原话，`#toolIO` 带上本会话已执行过的工具条目（最新在最下面）。CE 装配，LLM 交工具。
+2. 模型交的每一次工具，Runtime 都执行并把 `{callId, name, arguments, return}` 追加到 ledger.`toolIO` 末尾。
+3. `askUser` → `return.text` 是问题和选项，ledger.`status=waiting_human`，等人答。用户下一条输入开新 Turn（走步骤 1）。
+4. 动态工具 / `tool.detail` → `return.text` 是工具正文（窗口截到 2000 字）。还在本 Turn 里再出网。
+5. `finishTurn` → `return.text` 是回复用户的正文。本 Turn `status=completed`，ledger.`status=idle`，`active=null`。本轮 `userInput` 仍在 Turn.`input`。用户下一句话开新 Turn 时写入 `userInputHistory`。
+
+工具 arguments 里的 `turnMemory` / `conversationMemory` / `projectMemory` / `contextSummary` 有内容时，Runtime 落盘并挂到对应 user 槽。本轮样例这些字段空。
 
 分阶段模拟：`docs/examples/01-normalize.md` → `02-context-engineering.md` → `03-decode.md` → `04-provider-request.md` → `05-provider-response.md` → `06-tool-execute.md`。

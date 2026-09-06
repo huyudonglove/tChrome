@@ -137,7 +137,7 @@ action
 当前用户输入写在 `#userInput`。
 历史用户输入写在 `#userInputHistory`。
 当前环境写在 `#currentEnvironment`。
-工具调用和返回写在 `#toolIO`：数组，每项是一次调用的 callId、name、arguments、return。同一工具可出现多次。最新的在最下面。
+工具调用和返回写在 `#toolIO`：数组，每项是一次调用的 callId、name、arguments、return。askUser、finishTurn、tool.detail、动态工具都进这里。同一工具可出现多次。最新的在最下面。
 return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，totalChars 写全文长度。要全文时调 tool.detail，参数 callId。
 常驻工具 askUser / finishTurn / tool.detail 的用法写在本 Pack。动态工具的用法写在 user `#tools`。
 
