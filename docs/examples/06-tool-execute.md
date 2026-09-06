@@ -193,6 +193,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "askUser",
     "finishTurn",
     "tool.detail",
+    "observation.detail",
     "memory.write"
   ],
   "toolIds": [
@@ -211,6 +212,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   "systemSlots": [
     "#身份",
     "#记忆",
+    "#观察",
     "#环境",
     "#原则",
     "#参数说明",
@@ -225,6 +227,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "#conversationMemory",
     "#turnMemory",
     "#contextSummary",
+    "#observation",
     "#userInputHistory",
     "#userInput",
     "#currentEnvironment",
@@ -269,8 +272,11 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
         "text": "罗技官网 MX Master 3S 标价 999 元"
       }
     }
-  ]
+  ],
+  "observation": [],
+  "windowChars": 0,
+  "compressAt": 200000
 }
 ```
 
-下一份：还在 `tn_01`。队列已空。本 Turn 再装配，`#toolIO` 带上 `call_01`，再出网。用户下一句话才开新 Turn，那时才把本轮 `userInput` 写入 `userInputHistory`。
+下一份：还在 `tn_01`。队列已空。本 Turn 再装配，`#toolIO` 带上 `call_01`，再出网。窗口到 200K 时走 `07-compress.md`。用户下一句话才开新 Turn，那时才把本轮 `userInput` 写入 `userInputHistory`。

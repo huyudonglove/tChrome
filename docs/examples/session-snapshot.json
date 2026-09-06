@@ -30,6 +30,9 @@
         }
       }
     ],
+    "observation": [],
+    "windowChars": 0,
+    "compressAt": 200000,
     "memoryIds": {
       "turn": [],
       "conversation": [],
@@ -61,6 +64,7 @@
           "askUser",
           "finishTurn",
           "tool.detail",
+          "observation.detail",
           "memory.write"
         ],
         "toolIds": [

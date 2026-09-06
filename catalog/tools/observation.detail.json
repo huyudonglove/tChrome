@@ -1,0 +1,15 @@
+{
+  "type": "function",
+  "function": {
+    "name": "observation.detail",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean" },
+        "observationId": { "type": "string" }
+      },
+      "required": ["reason", "affectsPage", "observationId"]
+    }
+  }
+}

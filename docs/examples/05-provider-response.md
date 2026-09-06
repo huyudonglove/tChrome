@@ -35,6 +35,7 @@
     "askUser",
     "finishTurn",
     "tool.detail",
+    "observation.detail",
     "memory.write"
   ],
   "toolIds": [
@@ -53,6 +54,7 @@
   "systemSlots": [
     "#身份",
     "#记忆",
+    "#观察",
     "#环境",
     "#原则",
     "#参数说明",
@@ -67,6 +69,7 @@
     "#conversationMemory",
     "#turnMemory",
     "#contextSummary",
+    "#observation",
     "#userInputHistory",
     "#userInput",
     "#currentEnvironment",
@@ -267,6 +270,7 @@ data: [DONE]
     "askUser",
     "finishTurn",
     "tool.detail",
+    "observation.detail",
     "memory.write"
   ],
   "toolIds": [
@@ -285,6 +289,7 @@ data: [DONE]
   "systemSlots": [
     "#身份",
     "#记忆",
+    "#观察",
     "#环境",
     "#原则",
     "#参数说明",
@@ -299,6 +304,7 @@ data: [DONE]
     "#conversationMemory",
     "#turnMemory",
     "#contextSummary",
+    "#observation",
     "#userInputHistory",
     "#userInput",
     "#currentEnvironment",
