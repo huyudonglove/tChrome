@@ -1,0 +1,88 @@
+:root {
+  color-scheme: light dark;
+  --bg: #111;
+  --fg: #f3f3f3;
+  --muted: #9a9a9a;
+  --line: #2a2a2a;
+  --accent: #6ea8fe;
+  --user: #1d4ed8;
+  --assistant: #1f1f1f;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+html, body, #root {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.banner {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #fca5a5;
+  border-bottom: 1px solid var(--line);
+}
+
+.messages {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.row {
+  max-width: 92%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  font-size: 14px;
+}
+
+.row.user {
+  align-self: flex-end;
+  background: var(--user);
+}
+
+.row.assistant {
+  align-self: flex-start;
+  background: var(--assistant);
+  border: 1px solid var(--line);
+}
+
+.composer {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.composer textarea {
+  flex: 1;
+  resize: none;
+  min-height: 44px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #181818;
+  color: var(--fg);
+  padding: 8px;
+  font: inherit;
+}
+
+.composer button {
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #111;
+  padding: 0 14px;
+  font-weight: 600;
+}
