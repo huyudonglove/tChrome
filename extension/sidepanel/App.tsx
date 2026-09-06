@@ -9,14 +9,51 @@ type Output =
   | { kind: "error"; faultCode: string }
   | { kind: "tool"; name: string; callId: string };
 
-type Message = { id: string; role: "user" | "assistant"; text: string };
+type Message = { turnId?: string; role: "user" | "assistant"; text: string };
+
+type SessionView = {
+  conversationId: string | null;
+  status: string;
+  pendingAsk: { turnId: string; question: string; choice: string[] } | null;
+  messages: Message[];
+};
+
+type ConversationItem = {
+  conversationId: string;
+  updatedAt: string;
+  status: string;
+  preview: string;
+};
+
+const emptySession = (): SessionView => ({ conversationId: null, status: "idle", pendingAsk: null, messages: [] });
+
+const outputText = (output?: Output) => {
+  if (!output) return "服务无响应";
+  if (output.kind === "reply") return output.text;
+  if (output.kind === "ask") return output.question;
+  if (output.kind === "error") return `失败：${output.faultCode}`;
+  return `${output.name} ${output.callId}`;
+};
 
 export function App() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [session, setSession] = useState<SessionView>(emptySession());
+  const [items, setItems] = useState<ConversationItem[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState("");
+  const [listOpen, setListOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+
+  const loadAll = async () => {
+    const [sessionRes, listRes] = await Promise.all([
+      fetch(`${SERVICE}/session`),
+      fetch(`${SERVICE}/conversations`),
+    ]);
+    const next = await sessionRes.json() as SessionView;
+    const listed = await listRes.json() as { items: ConversationItem[] };
+    setSession(next);
+    setItems(listed.items ?? []);
+  };
 
   useEffect(() => {
     let alive = true;
@@ -29,6 +66,7 @@ export function App() {
         if (alive) setStatus(DOWN);
       }
     };
+    void loadAll().catch(() => setStatus(DOWN));
     probe();
     const timer = setInterval(probe, 3000);
     return () => {
@@ -39,15 +77,16 @@ export function App() {
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
-  }, [messages]);
+  }, [session.messages]);
 
-  const send = async () => {
-    const text = draft.trim();
+  const sendText = async (text: string) => {
     if (!text || sending) return;
     setDraft("");
     setSending(true);
-    const local: Message = { id: `u-${Date.now()}`, role: "user", text };
-    setMessages((current) => [...current, local]);
+    setSession((current) => ({
+      ...current,
+      messages: [...current.messages, { role: "user", text }],
+    }));
     const ping = setInterval(() => {
       chrome.runtime.sendMessage({ type: "ping" }).catch(() => {});
     }, 1000);
@@ -58,17 +97,11 @@ export function App() {
         body: JSON.stringify({ userInput: text, submittedAt: new Date().toISOString() }),
       });
       const body = await response.json() as { output?: Output };
-      const output = body.output;
-      const reply = !output
-        ? "服务无响应"
-        : output.kind === "reply"
-          ? output.text
-          : output.kind === "ask"
-            ? output.question
-            : output.kind === "error"
-              ? `失败：${output.faultCode}`
-              : `${output.name} ${output.callId}`;
-      setMessages((current) => [...current, { id: `a-${Date.now()}`, role: "assistant", text: reply }]);
+      setSession((current) => ({
+        ...current,
+        messages: [...current.messages, { role: "assistant", text: outputText(body.output) }],
+      }));
+      await loadAll();
       setStatus("");
     } catch {
       setStatus(DOWN);
@@ -78,19 +111,67 @@ export function App() {
     }
   };
 
+  const openConversation = async (conversationId: string) => {
+    const response = await fetch(`${SERVICE}/conversations/open`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ conversationId }),
+    });
+    setSession(await response.json() as SessionView);
+    setListOpen(false);
+    const listed = await fetch(`${SERVICE}/conversations`);
+    setItems(((await listed.json()) as { items: ConversationItem[] }).items ?? []);
+  };
+
+  const startNew = async () => {
+    const response = await fetch(`${SERVICE}/conversations/new`, { method: "POST" });
+    setSession(await response.json() as SessionView);
+    setListOpen(false);
+    const listed = await fetch(`${SERVICE}/conversations`);
+    setItems(((await listed.json()) as { items: ConversationItem[] }).items ?? []);
+  };
+
   return (
     <div className="app">
+      <header className="bar">
+        <button type="button" className="ghost" onClick={() => setListOpen((open) => !open)}>
+          {session.conversationId ?? "新会话"}
+        </button>
+        <button type="button" className="ghost" onClick={() => void startNew()}>新建</button>
+      </header>
+      {listOpen ? (
+        <div className="drawer">
+          {items.map((item) => (
+            <button
+              key={item.conversationId}
+              type="button"
+              className={item.conversationId === session.conversationId ? "item active" : "item"}
+              onClick={() => void openConversation(item.conversationId)}
+            >
+              <span>{item.conversationId}</span>
+              <span className="muted">{item.preview}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
       {status ? <div className="banner">{status}</div> : null}
       <div className="messages" ref={listRef}>
-        {messages.map((message) => (
-          <div key={message.id} className={`row ${message.role}`}>{message.text}</div>
+        {session.messages.map((message, index) => (
+          <div key={`${message.turnId ?? "local"}-${index}`} className={`row ${message.role}`}>{message.text}</div>
         ))}
       </div>
+      {session.pendingAsk?.choice.length ? (
+        <div className="choices">
+          {session.pendingAsk.choice.map((choice) => (
+            <button key={choice} type="button" disabled={sending} onClick={() => void sendText(choice)}>{choice}</button>
+          ))}
+        </div>
+      ) : null}
       <form
         className="composer"
         onSubmit={(event) => {
           event.preventDefault();
-          void send();
+          void sendText(draft.trim());
         }}
       >
         <textarea
@@ -99,7 +180,7 @@ export function App() {
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
-              void send();
+              void sendText(draft.trim());
             }
           }}
           placeholder="说一句"

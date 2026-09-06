@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { handleTurn, type LoopDeps } from "./runtime/loop.ts";
 import { createProvider } from "./provider/uuapi.ts";
-import { defaultDataDir } from "./runtime/store.ts";
+import { defaultDataDir, currentSessionView, listConversations, openConversation, newConversation } from "./runtime/store.ts";
 import { createToolBridge, type ToolBridge } from "./runtime/bridge.ts";
 import type { BrowserResult } from "./types.ts";
 
@@ -72,6 +72,25 @@ export function createServer(options: ServeOptions = {}) {
         if (!body.id || !body.result) return json({ ok: false, error: "缺 id 或 result" }, 400);
         if (!bridge.resolve(body.id, body.result)) return json({ ok: false, error: "没有这个工具请求" }, 404);
         return json({ ok: true });
+      }
+      if (request.method === "GET" && url.pathname === "/session") {
+        return json(currentSessionView(dataDir));
+      }
+      if (request.method === "GET" && url.pathname === "/conversations") {
+        return json({ items: listConversations(dataDir) });
+      }
+      if (request.method === "POST" && url.pathname === "/conversations/open") {
+        const body = (await request.json()) as { conversationId?: string };
+        const conversationId = String(body.conversationId ?? "");
+        if (!conversationId) return json({ error: "缺 conversationId" }, 400);
+        try {
+          return json(openConversation(dataDir, conversationId));
+        } catch (error) {
+          return json({ error: error instanceof Error ? error.message : String(error) }, 404);
+        }
+      }
+      if (request.method === "POST" && url.pathname === "/conversations/new") {
+        return json(newConversation(dataDir));
       }
       if (request.method === "POST" && url.pathname === "/turn") {
         const body = (await request.json()) as { userInput?: string; submittedAt?: string };

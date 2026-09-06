@@ -23,16 +23,20 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 
 ## 本机 HTTP
 
-第一期四条。面板长请求直连 `http://127.0.0.1:18788`。浏览器工具由 background 泵：面板每秒 `ping` worker，worker 拉 `/tool-request`，跑完交 `/tool-result`。
+第一期七条。面板长请求直连 `http://127.0.0.1:18788`。浏览器工具由 background 泵：面板每秒 `ping` worker，worker 拉 `/tool-request`，跑完交 `/tool-result`。
 
 | 方法 | 路径 | 体 | 回 |
 |---|---|---|---|
 | GET | `/health` | 无 | `{ok:true}` |
 | POST | `/turn` | `{userInput, submittedAt}` | `{conversationId, turnId, output}` |
+| GET | `/session` | 无 | 当前 `session.json` 指向的会话投影：`{conversationId, status, pendingAsk, messages}` |
+| GET | `/conversations` | 无 | `{items:[{conversationId, updatedAt, status, preview}]}` |
+| POST | `/conversations/open` | `{conversationId}` | 该会话投影，并写入 `session.json` |
+| POST | `/conversations/new` | 无 | 新建空 `cv_`，写入 `session.json`，回空投影 |
 | GET | `/tool-request` | 无 | `{request}`，没有就 `request=null`。`request` 是 `{id, name, input}` |
 | POST | `/tool-result` | `{id, result}` | `{ok:true}` |
 
-`output` 见「output」。整轮收口再回一次。工具循环不推到面板。
+`output` 见「output」。整轮收口再回一次。工具循环不推到面板。面板读账本：`messages` 按 `turnIds` 展开，每轮用户句 + 助手 `output`。`pendingAsk.choice` 取最近一次 `askUser` 的 `choice`。`/turn` 仍不带 id，用当前 `session.json`。
 
 ## 落盘文件
 
@@ -71,7 +75,7 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。
 `kind=memory` 的 `data`：`memoryId` `layer` `sourceCallId`。
 `kind=compress` 的 `data`：`observationId` `windowChars` `sourceCallIds`。
 `kind=turn-output` 的 `data`：`output`。
-`kind=session` 的 `data`：`conversationId`。
+`kind=session` 的 `data`：`conversationId`，可选 `action`=`new`/`open`。
 
 ## session.json
 
@@ -79,7 +83,7 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。
 
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
-| `conversationId` | string | `cv_`。第一次没有就建一个，写进这里。换会话以后再做 |
+| `conversationId` | string | `cv_`。第一次没有就建一个，写进这里。切会话走 `POST /conversations/open`，新建走 `POST /conversations/new` |
 
 ## ledger.json
 

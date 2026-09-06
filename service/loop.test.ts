@@ -240,3 +240,39 @@ test("GET /tool-request 和 POST /tool-result 对上", async () => {
   expect(await pending).toEqual({ ok: true, tab: 3, url: "https://example.com", title: "ex" });
   rmSync(dir, { recursive: true, force: true });
 });
+
+test("GET /session 还原消息，切会话改 session.json", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-session-"));
+  const provider = mock([
+    ok({
+      finish: "tool_calls",
+      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
+    }),
+  ]);
+  const server = createServer({ dataDir: dir, repoRoot, provider, host: { execute: async () => ({ ok: false }) } });
+  await server.fetch(new Request("http://127.0.0.1:18788/turn", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userInput: "你好", submittedAt: "2026-09-06T00:00:00.000Z" }),
+  }));
+  const session = await (await server.fetch(new Request("http://127.0.0.1:18788/session"))).json();
+  expect(session.conversationId).toBe("cv_01");
+  expect(session.messages).toEqual([
+    { turnId: "tn_01", role: "user", text: "你好" },
+    { turnId: "tn_01", role: "assistant", text: "你好" },
+  ]);
+  const created = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations/new", { method: "POST" }))).json();
+  expect(created.conversationId).toBe("cv_02");
+  expect(created.messages).toEqual([]);
+  expect(JSON.parse(readFileSync(join(dir, "session.json"), "utf8")).conversationId).toBe("cv_02");
+  const opened = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations/open", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ conversationId: "cv_01" }),
+  }))).json();
+  expect(opened.conversationId).toBe("cv_01");
+  expect(opened.messages[0].text).toBe("你好");
+  const listed = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations"))).json();
+  expect(listed.items.map((item: { conversationId: string }) => item.conversationId)).toEqual(["cv_02", "cv_01"]);
+  rmSync(dir, { recursive: true, force: true });
+});

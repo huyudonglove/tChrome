@@ -1,5 +1,5 @@
 # sidepanel
 
-面板入口。页面拼 `ui/` 的组件。第一期：输入框 + 消息列表。
+面板入口。页面拼 `ui/` 的组件：输入框 + 消息列表 + 会话抽屉。
 
-`POST /turn` 体 `{userInput, submittedAt}`。回复吃 `{conversationId, turnId, output}`。
+打开时 `GET /session` 还原当前会话消息。`POST /turn` 体仍是 `{userInput, submittedAt}`。切会话 `POST /conversations/open`，新建 `POST /conversations/new`。

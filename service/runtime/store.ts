@@ -133,6 +133,95 @@ export function loadEvents(dataDir: string, cvId: string): LogEvent[] {
     .map((line) => JSON.parse(line) as LogEvent);
 }
 
+const outputText = (output: Turn["output"]): string => {
+  if (!output) return "";
+  if (output.kind === "reply") return output.text;
+  if (output.kind === "ask") return output.question;
+  if (output.kind === "error") return `失败：${output.faultCode}`;
+  return `${output.name} ${output.callId}`;
+};
+
+export type SessionMessage = {
+  turnId: string;
+  role: "user" | "assistant";
+  text: string;
+};
+
+export type SessionView = {
+  conversationId: string | null;
+  status: Ledger["status"] | "idle";
+  pendingAsk: { turnId: string; question: string; choice: string[] } | null;
+  messages: SessionMessage[];
+};
+
+export type ConversationItem = {
+  conversationId: string;
+  updatedAt: string;
+  status: Ledger["status"];
+  preview: string;
+};
+
+export function sessionView(dataDir: string, cvId: string): SessionView {
+  const ledger = loadLedger(dataDir, cvId);
+  const messages: SessionMessage[] = [];
+  for (const turnId of ledger.turnIds) {
+    const turn = loadTurn(dataDir, cvId, turnId);
+    messages.push({ turnId, role: "user", text: turn.input.text });
+    if (turn.output) messages.push({ turnId, role: "assistant", text: outputText(turn.output) });
+  }
+  let pendingAsk: SessionView["pendingAsk"] = null;
+  if (ledger.pendingAsk) {
+    const lastAsk = [...ledger.toolIO].reverse().find((row) => row.name === "askUser");
+    const raw = lastAsk?.arguments.choice;
+    const choice = Array.isArray(raw) ? raw.filter((item): item is string => typeof item === "string") : [];
+    pendingAsk = { turnId: ledger.pendingAsk.turnId, question: ledger.pendingAsk.question, choice };
+  }
+  return { conversationId: cvId, status: ledger.status, pendingAsk, messages };
+}
+
+export function currentSessionView(dataDir: string): SessionView {
+  const session = loadSession(dataDir);
+  if (!session?.conversationId) {
+    return { conversationId: null, status: "idle", pendingAsk: null, messages: [] };
+  }
+  return sessionView(dataDir, session.conversationId);
+}
+
+export function listConversations(dataDir: string): ConversationItem[] {
+  return listConversationIds(dataDir)
+    .map((id) => {
+      const ledger = loadLedger(dataDir, id);
+      const lastTurnId = ledger.turnIds.at(-1);
+      let preview = id;
+      if (lastTurnId) preview = loadTurn(dataDir, id, lastTurnId).input.text;
+      else if (ledger.userInputHistory.at(-1)) preview = ledger.userInputHistory.at(-1) ?? id;
+      return {
+        conversationId: id,
+        updatedAt: ledger.updatedAt,
+        status: ledger.status,
+        preview: preview.slice(0, 40),
+      };
+    })
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+}
+
+export function openConversation(dataDir: string, conversationId: string): SessionView {
+  if (!listConversationIds(dataDir).includes(conversationId)) {
+    throw new Error("没有这个会话");
+  }
+  saveSession(dataDir, { conversationId });
+  appendEvent(dataDir, conversationId, { kind: "session", data: { conversationId, action: "open" } });
+  return sessionView(dataDir, conversationId);
+}
+
+export function newConversation(dataDir: string): SessionView {
+  const conversationId = nextId("cv_", listConversationIds(dataDir));
+  saveSession(dataDir, { conversationId });
+  saveLedger(dataDir, emptyLedger(conversationId));
+  appendEvent(dataDir, conversationId, { kind: "session", data: { conversationId, action: "new" } });
+  return sessionView(dataDir, conversationId);
+}
+
 export function ensureSession(dataDir: string): Session {
   const existing = loadSession(dataDir);
   if (existing?.conversationId) return existing;
