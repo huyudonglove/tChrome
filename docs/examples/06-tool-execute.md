@@ -1,13 +1,14 @@
 # 06 工具执行
 
-读 05 的写出。Runtime 按 `toolCalls[0]` 跑工具，把调用和返回追加进 `#toolIO`。
+读 05 的写出。Runtime 把 `toolCalls` 按数组顺序写入 `toolQueue`，任务队列按这个顺序跑。跑完追加进 `#toolIO`。
 
 怎么看：
 
 - 「读到的」是 05 写出的原样
-- 「执行」是 Runtime 跑 `web.search`
+- 「队列」是本次出网入队的工具，顺序 = `toolCalls` 数组
+- 「执行」是 Runtime 按队列跑 `web.search`
 - 「`#toolIO`」是本 Turn 下一轮出网时 user 槽里给模型看的数组，最新在最下面
-- 「写出的」累积快照追加 `toolIO`
+- 「写出的」累积快照追加 `toolQueue` `toolIO`
 
 作者是 Runtime。本轮返回 26 字，`stage=complete`，不到 2000，不调 `tool.detail`。
 
@@ -24,6 +25,7 @@
       "name": "web.search",
       "arguments": {
         "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
+        "affectsPage": false,
         "query": "罗技 MX Master 3S 官网 价格"
       }
     }
@@ -33,7 +35,23 @@
 
 ## 执行
 
-Runtime 按 `name=web.search` 跑，拿到全文：
+本次出网 `toolCalls` 一条，入队后队列是：
+
+```json
+[
+  {
+    "callId": "call_01",
+    "name": "web.search",
+    "arguments": {
+      "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
+      "affectsPage": false,
+      "query": "罗技 MX Master 3S 官网 价格"
+    }
+  }
+]
+```
+
+`affectsPage=false`，不改当前页。Runtime 按队列第一条 `name=web.search` 跑，拿到全文：
 
 ```
 罗技官网 MX Master 3S 标价 999 元
@@ -54,6 +72,7 @@ Runtime 按 `name=web.search` 跑，拿到全文：
     "name": "web.search",
     "arguments": {
       "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
+      "affectsPage": false,
       "query": "罗技 MX Master 3S 官网 价格"
     },
     "return": {
@@ -86,6 +105,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   "name": "askUser",
   "arguments": {
     "reason": "当前页型号看不清，要用户确认查哪一款。",
+    "affectsPage": false,
     "choice": [
       "MX Master 3S",
       "MX Master 3"
@@ -106,7 +126,8 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   "callId": "call_fin",
   "name": "finishTurn",
   "arguments": {
-    "reason": "官网价已核对，回复用户。"
+    "reason": "官网价已核对，回复用户。",
+    "affectsPage": false
   },
   "return": {
     "stage": "complete",
@@ -124,7 +145,10 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   "name": "memory.write",
   "arguments": {
     "reason": "记下当前页型号，下一轮核对官网价时用。",
-    "turnMemory": ["当前页是罗技 MX Master 3S，京东标价待核官网。"]
+    "affectsPage": false,
+    "turnMemory": [
+      "当前页是罗技 MX Master 3S，京东标价待核官网。"
+    ]
   },
   "return": {
     "stage": "complete",
@@ -143,6 +167,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
 | 字段 | 类型 | 谁填 | 怎么填 |
 |---|---|---|---|
 | `stage` | string | 固定 | `tool-execute` |
+| `toolQueue` | array | Runtime | 本次出网入队、尚未跑完的工具。跑完为空 |
 | `toolIO` | array | Runtime | 每项 `{callId, name, arguments, return}`，最新在最下面 |
 
 ## 写出的（累积快照）
@@ -218,6 +243,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
       "name": "web.search",
       "arguments": {
         "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
+        "affectsPage": false,
         "query": "罗技 MX Master 3S 官网 价格"
       }
     }
@@ -227,12 +253,14 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   "schemaOk": true,
   "faultCode": null,
   "missing": [],
+  "toolQueue": [],
   "toolIO": [
     {
       "callId": "call_01",
       "name": "web.search",
       "arguments": {
         "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
+        "affectsPage": false,
         "query": "罗技 MX Master 3S 官网 价格"
       },
       "return": {
@@ -245,4 +273,4 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
 }
 ```
 
-下一份：还在 `tn_01`。本 Turn 再装配，`#toolIO` 带上 `call_01`，再出网。用户下一句话才开新 Turn，那时才把本轮 `userInput` 写入 `userInputHistory`。
+下一份：还在 `tn_01`。队列已空。本 Turn 再装配，`#toolIO` 带上 `call_01`，再出网。用户下一句话才开新 Turn，那时才把本轮 `userInput` 写入 `userInputHistory`。

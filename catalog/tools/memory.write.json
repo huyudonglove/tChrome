@@ -6,12 +6,13 @@
       "type": "object",
       "properties": {
         "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean" },
         "turnMemory": { "type": "array", "items": { "type": "string" } },
         "conversationMemory": { "type": "array", "items": { "type": "string" } },
         "projectMemory": { "type": "array", "items": { "type": "string" } },
         "contextSummary": { "type": "object" }
       },
-      "required": ["reason"]
+      "required": ["reason", "affectsPage"]
     }
   }
 }

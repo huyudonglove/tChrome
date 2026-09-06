@@ -6,9 +6,10 @@
       "type": "object",
       "properties": {
         "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean" },
         "choice": { "type": "array", "items": { "type": "string" } }
       },
-      "required": ["reason", "choice"]
+      "required": ["reason", "affectsPage", "choice"]
     }
   }
 }

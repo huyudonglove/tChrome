@@ -13,12 +13,14 @@
       "tn_01"
     ],
     "userInputHistory": [],
+    "toolQueue": [],
     "toolIO": [
       {
         "callId": "call_01",
         "name": "web.search",
         "arguments": {
           "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
+          "affectsPage": false,
           "query": "罗技 MX Master 3S 官网 价格"
         },
         "return": {

@@ -99,7 +99,7 @@ data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-f
 
 data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_01","type":"function","function":{"name":"web.search","arguments":""}}]},"finish_reason":null}]}
 
-data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"reason\": \"当前页已确认是目标商品，需要官网价来核对标价。\", \"query\": \"罗技 MX Master 3S 官网 价格\"}"}}]},"finish_reason":null}]}
+data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"reason\": \"当前页已确认是目标商品，需要官网价来核对标价。\", \"affectsPage\": false, \"query\": \"罗技 MX Master 3S 官网 价格\"}"}}]},"finish_reason":null}]}
 
 data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
 
@@ -138,7 +138,7 @@ data: [DONE]
 | `unknown_tool` | `name` 不在 `baseToolsIds` + `toolIds` |
 | `missing_required` | catalog `required` 缺或空；`missing` 列出字段名 |
 | `wrong_type` | Ajv：类型对不上 schema |
-| `exclusive_resident` | `askUser` / `finishTurn` / 动态工具同一次出网交超过一类。`memory.write` / `tool.detail` 可与那一类同一次出网一起交 |
+| `exclusive_resident` | 同一次出网里 `finishTurn` 不在最后一条 |
 
 回给模型的 tool 结果（`role=tool`，`tool_call_id` 用这次的 `call_01`）：
 
@@ -199,6 +199,7 @@ data: [DONE]
       "name": "web.search",
       "arguments": {
         "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
+        "affectsPage": false,
         "query": "罗技 MX Master 3S 官网 价格"
       }
     }
@@ -213,13 +214,14 @@ data: [DONE]
 | `content` | string | 模型 | Pack `#输出`：observation / reason / action；有 tool_calls 时也写 |
 | `toolCalls` | object[] | Provider | `id` `name` `arguments`（已 parse） |
 
-每个工具 `arguments` 必须有 `reason`。`askUser.arguments` 还必须有 `choice`。`web.search.arguments` 还必须有 `query`。本轮交动态工具 `web.search`。
+每个工具 `arguments` 必须有 `reason` 和 `affectsPage`。`askUser.arguments` 还必须有 `choice`。`web.search.arguments` 还必须有 `query`。本轮交动态工具 `web.search`。一次出网可交多个工具，按 `toolCalls` 数组顺序入 `toolQueue`。
 
 `toolCalls[0].arguments` 本轮字段：
 
 | 字段 | 类型 | 本轮 |
 |---|---|---|
 | `reason` | string | 当前页已确认是目标商品，需要官网价来核对标价。 |
+| `affectsPage` | boolean | false，这次不改当前页 |
 | `query` | string | 罗技 MX Master 3S 官网 价格 |
 
 3 次都失败时交口是 `finish=error`，`content` 写失败原因，`toolCalls=[]`。本轮不是这种情况。
@@ -315,6 +317,7 @@ data: [DONE]
       "name": "web.search",
       "arguments": {
         "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
+        "affectsPage": false,
         "query": "罗技 MX Master 3S 官网 价格"
       }
     }

@@ -142,11 +142,13 @@ turnMemory：这一轮刚记下的，下一轮并进 conversationMemory。
 Chrome、JavaScript、HTML、CSS。
 
 #原则
-查看输入信息是否能支持后续判断。无意义就 finishTurn。信息不完整就 askUser。材料够就调动态工具干活。要存记忆就调 memory.write。askUser、finishTurn、动态工具本次出网只交一类。memory.write 可与那一类同一次出网一起交。搜集相关信息直到不影响下一步。
+查看输入信息是否能支持后续判断。无意义就 finishTurn。信息不完整就 askUser。材料够就调动态工具干活。要存记忆就调 memory.write。
+一次出网可交多个工具。交出去的顺序就是执行顺序，进任务队列按这个顺序跑。每个工具都标 affectsPage：这次会不会改当前页（跳转、点击、输入）。会改当前页的排在不会改的后面，避免后面的调用还对着旧页。finishTurn 放在本次出网最后一条。
 `#toolIO` 某条 return.stage=truncated 时，调 tool.detail，callId 用那条的 callId，拿全文。
 
 #参数说明
 每个工具调用必须带 reason：这次为什么调这个工具。
+affectsPage：这次会不会改当前页。true 会改（跳转、点击、输入）；false 只读。按这个排执行顺序。
 choice：askUser 时给用户的选项。
 callId：tool.detail 时，要展开全文的那次工具调用 id，对应 `#toolIO` 该项的 callId。
 turnMemory：memory.write 时，这一轮要存下的记忆。
@@ -156,6 +158,7 @@ contextSummary：memory.write 时，user 里带给下一轮的汇总，排除三
 
     {
       "reason": "",
+      "affectsPage": false,
       "choice": [],
       "callId": "",
       "turnMemory": [],
@@ -167,7 +170,7 @@ contextSummary：memory.write 时，user 里带给下一轮的汇总，排除三
 #内置工具
 常驻：askUser、finishTurn、tool.detail、memory.write。每轮都在出网 tools[] 里。用法见 #原则、#参数说明。
 动态工具本轮才挂上，用法写在 user `#tools`。
-每个工具的 arguments 都带 reason。
+每个工具的 arguments 都带 reason 和 affectsPage。
 
 #输出
 每次都写 `content`，三段，标题固定：
@@ -238,7 +241,7 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
 
 ### `tools`
 
-出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。Chat Completions 要完整 schema。每个工具 `arguments` 都带 `reason`。
+出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。Chat Completions 要完整 schema。每个工具 `arguments` 都带 `reason` 和 `affectsPage`。
 
 ```json
 [
@@ -252,6 +255,9 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
           "reason": {
             "type": "string"
           },
+          "affectsPage": {
+            "type": "boolean"
+          },
           "choice": {
             "type": "array",
             "items": {
@@ -261,6 +267,7 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
         },
         "required": [
           "reason",
+          "affectsPage",
           "choice"
         ]
       }
@@ -275,10 +282,14 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
         "properties": {
           "reason": {
             "type": "string"
+          },
+          "affectsPage": {
+            "type": "boolean"
           }
         },
         "required": [
-          "reason"
+          "reason",
+          "affectsPage"
         ]
       }
     }
@@ -293,12 +304,16 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
           "reason": {
             "type": "string"
           },
+          "affectsPage": {
+            "type": "boolean"
+          },
           "callId": {
             "type": "string"
           }
         },
         "required": [
           "reason",
+          "affectsPage",
           "callId"
         ]
       }
@@ -313,6 +328,9 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
         "properties": {
           "reason": {
             "type": "string"
+          },
+          "affectsPage": {
+            "type": "boolean"
           },
           "turnMemory": {
             "type": "array",
@@ -337,7 +355,8 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
           }
         },
         "required": [
-          "reason"
+          "reason",
+          "affectsPage"
         ]
       }
     }
@@ -352,12 +371,16 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
           "reason": {
             "type": "string"
           },
+          "affectsPage": {
+            "type": "boolean"
+          },
           "query": {
             "type": "string"
           }
         },
         "required": [
           "reason",
+          "affectsPage",
           "query"
         ]
       }
