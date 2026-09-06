@@ -1,0 +1,28 @@
+{
+  "type": "function",
+  "function": {
+    "name": "switch_tab",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "tab": {
+          "type": "number",
+          "description": "标签 id，也可传 tabId"
+        },
+        "tabId": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage"
+      ]
+    }
+  }
+}

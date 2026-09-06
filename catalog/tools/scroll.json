@@ -1,0 +1,28 @@
+{
+  "type": "function",
+  "function": {
+    "name": "scroll",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "number",
+          "description": "像素，负数向上"
+        },
+        "tab": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage"
+      ]
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "type": "function",
+  "function": {
+    "name": "press",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage",
+        "key"
+      ]
+    }
+  }
+}

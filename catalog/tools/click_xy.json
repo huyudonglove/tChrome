@@ -1,0 +1,44 @@
+{
+  "type": "function",
+  "function": {
+    "name": "click_xy",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "point": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number"
+          },
+          "description": "视口坐标 [x,y]"
+        },
+        "x": {
+          "type": "number",
+          "description": "没有 point 时的横坐标"
+        },
+        "y": {
+          "type": "number",
+          "description": "没有 point 时的纵坐标"
+        },
+        "tab": {
+          "type": "number"
+        },
+        "tabId": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage"
+      ]
+    }
+  }
+}

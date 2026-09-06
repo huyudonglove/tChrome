@@ -1,0 +1,25 @@
+{
+  "type": "function",
+  "function": {
+    "name": "send_http_batch",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "tab": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

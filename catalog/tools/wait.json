@@ -1,0 +1,27 @@
+{
+  "type": "function",
+  "function": {
+    "name": "wait",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "ms": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage"
+      ]
+    }
+  }
+}

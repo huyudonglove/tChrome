@@ -1,0 +1,28 @@
+{
+  "type": "function",
+  "function": {
+    "name": "select",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string",
+          "description": "要选中的值或文字"
+        },
+        "tab": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage"
+      ]
+    }
+  }
+}

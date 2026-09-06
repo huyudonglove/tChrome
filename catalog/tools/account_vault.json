@@ -1,0 +1,53 @@
+{
+  "type": "function",
+  "function": {
+    "name": "account_vault",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "list",
+            "get",
+            "save",
+            "delete"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "site": {
+          "type": "string",
+          "description": "站点域名或 URL"
+        },
+        "username": {
+          "type": "string",
+          "description": "邮箱、用户名或手机号"
+        },
+        "password": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "reveal": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage"
+      ]
+    }
+  }
+}

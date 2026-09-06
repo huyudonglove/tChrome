@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ChatTool } from "../types.ts";
 
@@ -37,18 +37,19 @@ export const BASE_TOOLS_IDS = [
   "memory.write",
 ] as const;
 
-export const DYNAMIC_TOOLS_IDS = [
-  "page.current",
-  "page.read",
-  "page.open",
-  "web.search",
-] as const;
+export type ToolIndex = {
+  browser: string[];
+  service: string[];
+  affectsPage: Record<string, boolean>;
+  usage: Record<string, string>;
+};
 
 export type Catalog = {
   pack: Record<string, string>;
   skill: string;
   sop: string;
   tools: Record<string, ChatTool>;
+  index: ToolIndex;
 };
 
 const splitHeadings = (text: string): Record<string, string> => {
@@ -75,11 +76,19 @@ export function loadCatalog(root: string): Catalog {
   const pack = splitHeadings(readFileSync(join(catalog, "packs", "pack.agent.md"), "utf8"));
   const skill = readFileSync(join(catalog, "skills", "skill.web.md"), "utf8").replace(/^#skill\n?/, "").trim();
   const sop = readFileSync(join(catalog, "sops", "sop.browse.md"), "utf8").replace(/^#sop\n?/, "").trim();
+  const index = JSON.parse(readFileSync(join(catalog, "tools", "index.json"), "utf8")) as ToolIndex;
   const tools: Record<string, ChatTool> = {};
-  for (const id of [...BASE_TOOLS_IDS, ...DYNAMIC_TOOLS_IDS]) {
-    tools[id] = JSON.parse(readFileSync(join(catalog, "tools", `${id}.json`), "utf8")) as ChatTool;
+  for (const file of readdirSync(join(catalog, "tools"))) {
+    if (!file.endsWith(".json") || file === "index.json") continue;
+    const tool = JSON.parse(readFileSync(join(catalog, "tools", file), "utf8")) as ChatTool;
+    const name = tool.function?.name;
+    if (name) tools[name] = tool;
   }
-  return { pack, skill, sop, tools };
+  return { pack, skill, sop, tools, index };
+}
+
+export function dynamicToolIds(catalog: Catalog): string[] {
+  return [...catalog.index.browser, ...catalog.index.service];
 }
 
 export function toolSchemas(catalog: Catalog, ids: string[]): ChatTool[] {
@@ -88,4 +97,16 @@ export function toolSchemas(catalog: Catalog, ids: string[]): ChatTool[] {
     if (!tool) throw new Error(`unknown tool ${id}`);
     return tool;
   });
+}
+
+export function toolUsageFor(catalog: Catalog, ids: string[]): string {
+  return ids
+    .map((id) => {
+      const line = catalog.index.usage[id];
+      if (!line) return "";
+      const affects = catalog.index.affectsPage[id] ? "true" : "false";
+      return `${id}：${line} affectsPage=${affects}。`;
+    })
+    .filter(Boolean)
+    .join("\n");
 }

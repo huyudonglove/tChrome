@@ -37,10 +37,9 @@
     "memory.write"
   ],
   "toolIds": [
-    "page.current",
-    "page.read",
-    "page.open",
-    "web.search"
+    "see_page",
+    "open_url",
+    "web_search"
   ],
   "turnMemoryIds": [],
   "conversationMemoryIds": [],
@@ -65,7 +64,7 @@
 | `askUser`                | `catalog/tools/askUser.json`    | 常驻，出网 tools[]                                                                     |
 | `finishTurn`             | `catalog/tools/finishTurn.json` | 常驻，出网 tools[]                                                                     |
 | `tool.detail`            | `catalog/tools/tool.detail.json` | 常驻，出网 tools[]                                                                    |
-| `web.search`             | `catalog/tools/web.search.json` | 动态，出网 tools[]                                                                     |
+| `web_search`             | `catalog/tools/web_search.json` | 动态，出网 tools[]                                                                     |
 
 三层记忆 ID 空，对应 user 三个记忆槽空。schema 不写进这份 JSON。
 
@@ -178,7 +177,7 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
 
 顺序 = `userSlots` 数组。历史用户输入进 `#userInputHistory`；本轮原话进 `#userInput`；当前页进 `#currentEnvironment`；工具调用和返回进 `#toolIO`（数组，最新在最下面）。
 
-常驻工具用法在 system（Pack）。动态工具用法在 `#tools`。本轮 `page.current` `page.read` `page.open` `web.search` 的用法在 `#tools`。
+常驻工具用法在 system（Pack）。动态工具用法在 `#tools`。本轮 `see_page` `open_url` `web_search` 的用法在 `#tools`，全表见 `catalog/tools/index.json`。
 
 ### `#projectMemory`
 
@@ -225,10 +224,10 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
 
 ### `#tools`
 
-page.current：读当前活动页的 tab / url / title。affectsPage=false。
-page.read：读当前页正文。affectsPage=false。
-page.open：在当前标签打开 url。affectsPage=true。
-web.search：用检索词打开搜索页并读结果。query 是检索词。affectsPage=true。
+see_page：读当前页标题、地址和可见正文。affectsPage=false。
+open_url：打开指定网址并读回标题正文。affectsPage=true。
+web_search：搜索公开网页。affectsPage=false。
+其余动态工具见 `catalog/tools/index.json`。
 
 ## 字段
 
@@ -261,10 +260,9 @@ web.search：用检索词打开搜索页并读结果。query 是检索词。affe
     "memory.write"
   ],
   "toolIds": [
-    "page.current",
-    "page.read",
-    "page.open",
-    "web.search"
+    "see_page",
+    "open_url",
+    "web_search"
   ],
   "turnMemoryIds": [],
   "conversationMemoryIds": [],

@@ -15,7 +15,7 @@
     "toolIO": [
       {
         "callId": "call_01",
-        "name": "web.search",
+        "name": "web_search",
         "arguments": {
           "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
           "affectsPage": false,
@@ -79,10 +79,9 @@
           "memory.write"
         ],
         "toolIds": [
-          "page.current",
-          "page.read",
-          "page.open",
-          "web.search"
+          "see_page",
+          "open_url",
+          "web_search"
         ],
         "turnMemoryIds": [],
         "conversationMemoryIds": [],

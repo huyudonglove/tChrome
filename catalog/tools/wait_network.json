@@ -1,0 +1,28 @@
+{
+  "type": "function",
+  "function": {
+    "name": "wait_network",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "ms": {
+          "type": "number",
+          "description": "连续安静多久算就绪"
+        },
+        "tab": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage"
+      ]
+    }
+  }
+}

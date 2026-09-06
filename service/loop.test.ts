@@ -149,7 +149,7 @@ test("POST /turn 走完 mock 收口", async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("有浏览器桥时 currentPage 由 page.current 填", async () => {
+test("有浏览器桥时 currentPage 由 see_page 填", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-page-"));
   const provider = mock([
     ok({
@@ -177,13 +177,13 @@ test("有浏览器桥时 currentPage 由 page.current 填", async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("web.search 经泵通道执行", async () => {
+test("web_search 走服务端执行", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-search-"));
   const provider = mock([
     ok({
       finish: "tool_calls",
-      content: "observation\n要搜价\nreason\n搜官网\naction\nweb.search",
-      toolCalls: [{ id: "call_01", name: "web.search", arguments: { reason: "搜价", affectsPage: true, query: "罗技 MX Master 3S" } }],
+      content: "observation\n要搜价\nreason\n搜官网\naction\nweb_search",
+      toolCalls: [{ id: "call_01", name: "web_search", arguments: { reason: "搜价", affectsPage: false, query: "罗技 MX Master 3S" } }],
     }),
     ok({
       finish: "tool_calls",
@@ -192,21 +192,33 @@ test("web.search 经泵通道执行", async () => {
     }),
   ]);
   const host = {
-    execute: async (name: string, input: Record<string, unknown>) => {
-      if (name === "page.current") return { ok: true, tab: 12, url: "https://item.jd.com/x", title: "罗技", description: "当前页面信息" };
-      if (name === "web.search") return { ok: true, tab: 12, url: `https://www.google.com/search?q=${input.query}`, title: "search", text: "官价 699" };
+    execute: async (name: string) => {
+      if (name === "see_page") return { ok: true, tab: 12, url: "https://item.jd.com/x", title: "罗技", description: "当前页面信息" };
       return { ok: false, error: name };
     },
   };
-  const reply = await handleTurn({ dataDir: dir, repoRoot, provider, host }, { userInput: "这鼠标官网多少钱", submittedAt: "2026-09-06T00:00:00.000Z" });
-  expect(reply.output).toEqual({ kind: "reply", text: "官价 699" });
-  const turn = loadTurn(dir, "cv_01", reply.turnId);
-  expect(turn.assembled.toolIds).toEqual(["page.current", "page.read", "page.open", "web.search"]);
-  expect(turn.assembled.currentPage?.tab).toBe(12);
-  const ledger = loadLedger(dir, "cv_01");
-  const search = ledger.toolIO.find((row) => row.name === "web.search");
-  expect(search?.return.text).toContain("官价 699");
-  rmSync(dir, { recursive: true, force: true });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes("duckduckgo")) {
+      return new Response('<a href="https://html.duckduckgo.com/html/?uddg=https%3A%2F%2Fwww.logitech.com">hit</a>', { status: 200 });
+    }
+    return originalFetch(input);
+  }) as typeof fetch;
+  try {
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider, host }, { userInput: "这鼠标官网多少钱", submittedAt: "2026-09-06T00:00:00.000Z" });
+    expect(reply.output).toEqual({ kind: "reply", text: "官价 699" });
+    const turn = loadTurn(dir, "cv_01", reply.turnId);
+    expect(turn.assembled.toolIds).toContain("see_page");
+    expect(turn.assembled.toolIds).toContain("web_search");
+    expect(turn.assembled.currentPage?.tab).toBe(12);
+    const ledger = loadLedger(dir, "cv_01");
+    const search = ledger.toolIO.find((row) => row.name === "web_search");
+    expect(search?.return.text).toContain("logitech.com");
+  } finally {
+    globalThis.fetch = originalFetch;
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("GET /tool-request 和 POST /tool-result 对上", async () => {
@@ -215,10 +227,10 @@ test("GET /tool-request 和 POST /tool-result 对上", async () => {
   const server = createServer({ dataDir: dir, repoRoot, provider: mock([]), bridge });
   const empty = await server.fetch(new Request("http://127.0.0.1:18788/tool-request"));
   expect(await empty.json()).toEqual({ request: null });
-  const pending = bridge.execute("page.current", {});
+  const pending = bridge.execute("see_page", {});
   const listed = await server.fetch(new Request("http://127.0.0.1:18788/tool-request"));
   const body = await listed.json() as { request: { id: string; name: string } };
-  expect(body.request.name).toBe("page.current");
+  expect(body.request.name).toBe("see_page");
   const posted = await server.fetch(new Request("http://127.0.0.1:18788/tool-result", {
     method: "POST",
     headers: { "content-type": "application/json" },

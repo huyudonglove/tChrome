@@ -1,0 +1,36 @@
+{
+  "type": "function",
+  "function": {
+    "name": "type",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "ref": {
+          "type": "string",
+          "description": "snapshot_page 返回的输入框 ref；有 ref 时优先使用"
+        },
+        "target": {
+          "type": "string",
+          "description": "没有 ref 时按 name/placeholder/aria-label/label 文字定位"
+        },
+        "tab": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage",
+        "text"
+      ]
+    }
+  }
+}

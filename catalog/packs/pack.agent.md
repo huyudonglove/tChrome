@@ -33,8 +33,10 @@ conversationMemory：memory.write 时，要写入会话层的记忆。
 projectMemory：memory.write 时，要写入项目层的记忆。
 contextSummary：memory.write 时，user 里带给下一轮的汇总，排除三层记忆。
 
-query：web.search 的检索词。
-url：page.open 要打开的地址。
+query：web_search 的检索词，也可写 text。
+url：open_url 要打开的地址。
+text：点选、输入、查找时的可见文字。
+tab：可选，指定标签 id。
 
     {
       "reason": "",
@@ -44,6 +46,8 @@ url：page.open 要打开的地址。
       "observationId": "",
       "query": "",
       "url": "",
+      "text": "",
+      "tab": 0,
       "turnMemory": [],
       "conversationMemory": [],
       "projectMemory": [],

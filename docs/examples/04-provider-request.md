@@ -10,7 +10,7 @@
 
 作者是 Provider。不装配、不跑工具、不落盘。key 在请求头，不进 body。
 
-本轮材料够，预期模型交 `web.search`。传出字段在 05。
+本轮材料够，预期模型交 `web_search`。传出字段在 05。
 
 ## 读到的（03 写出的）
 
@@ -39,10 +39,9 @@
     "memory.write"
   ],
   "toolIds": [
-    "page.current",
-    "page.read",
-    "page.open",
-    "web.search"
+    "see_page",
+    "open_url",
+    "web_search"
   ],
   "turnMemoryIds": [],
   "conversationMemoryIds": [],
@@ -254,15 +253,15 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
 []
 
 #tools
-page.current：读当前活动页的 tab / url / title。affectsPage=false。
-page.read：读当前页正文。affectsPage=false。
-page.open：在当前标签打开 url。affectsPage=true。
-web.search：用检索词打开搜索页并读结果。query 是检索词。affectsPage=true。
+see_page：读当前页标题、地址和可见正文。affectsPage=false。
+open_url：打开指定网址并读回标题正文。affectsPage=true。
+web_search：搜索公开网页。affectsPage=false。
+其余动态工具见 `catalog/tools/index.json`。
 ```
 
 ### `tools`
 
-出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。Chat Completions 要完整 schema。每个工具 `arguments` 都带 `reason` 和 `affectsPage`。
+出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。Chat Completions 要完整 schema。每个工具 `arguments` 都带 `reason` 和 `affectsPage`。本轮动态工具全表在 `catalog/tools/index.json`，下面只列本样例用到的 `see_page` `open_url` `web_search`。
 
 ```json
 [
@@ -410,7 +409,7 @@ web.search：用检索词打开搜索页并读结果。query 是检索词。affe
   {
     "type": "function",
     "function": {
-      "name": "page.current",
+      "name": "see_page",
       "parameters": {
         "type": "object",
         "properties": {
@@ -431,28 +430,7 @@ web.search：用检索词打开搜索页并读结果。query 是检索词。affe
   {
     "type": "function",
     "function": {
-      "name": "page.read",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string"
-          },
-          "affectsPage": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "reason",
-          "affectsPage"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "page.open",
+      "name": "open_url",
       "parameters": {
         "type": "object",
         "properties": {
@@ -477,7 +455,7 @@ web.search：用检索词打开搜索页并读结果。query 是检索词。affe
   {
     "type": "function",
     "function": {
-      "name": "web.search",
+      "name": "web_search",
       "parameters": {
         "type": "object",
         "properties": {
@@ -533,10 +511,9 @@ web.search：用检索词打开搜索页并读结果。query 是检索词。affe
     "memory.write"
   ],
   "toolIds": [
-    "page.current",
-    "page.read",
-    "page.open",
-    "web.search"
+    "see_page",
+    "open_url",
+    "web_search"
   ],
   "turnMemoryIds": [],
   "conversationMemoryIds": [],

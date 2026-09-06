@@ -6,7 +6,7 @@
 
 - 「读到的」是 05 写出的原样
 - 「队列」是本次出网入队的工具，顺序 = `toolCalls` 数组
-- 「执行」是 Runtime 按队列跑 `web.search`
+- 「执行」是 Runtime 按队列跑 `web_search`
 - 「`#toolIO`」是本 Turn 下一轮出网时 user 槽里给模型看的数组，最新在最下面
 - 「写出的」累积快照追加 `toolQueue` `toolIO`
 
@@ -22,7 +22,7 @@
   "toolCalls": [
     {
       "id": "call_01",
-      "name": "web.search",
+      "name": "web_search",
       "arguments": {
         "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
         "affectsPage": false,
@@ -41,7 +41,7 @@
 [
   {
     "callId": "call_01",
-    "name": "web.search",
+    "name": "web_search",
     "arguments": {
       "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
       "affectsPage": false,
@@ -51,7 +51,7 @@
 ]
 ```
 
-`affectsPage=false`，不改当前页。Runtime 按队列第一条 `name=web.search` 跑，拿到全文：
+`affectsPage=false`，不改当前页。Runtime 按队列第一条 `name=web_search` 跑，拿到全文：
 
 ```
 罗技官网 MX Master 3S 标价 999 元
@@ -69,7 +69,7 @@
 [
   {
     "callId": "call_01",
-    "name": "web.search",
+    "name": "web_search",
     "arguments": {
       "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
       "affectsPage": false,
@@ -90,7 +90,7 @@
 
 观察就是这些工具返回。Runtime 把本条追加到 ledger.`toolIO` 末尾。窗口只带 `return`（最多 2000 字）；全文按 `callId` 另存，模型要全文时交 `tool.detail`。
 
-askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮主链是 `web.search`，这两条不进本轮写出的）。
+askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮主链是 `web_search`，这两条不进本轮写出的）。
 
 `askUser`：`return.text` 是展示给用户的问题和选项。ledger.`status=waiting_human`。
 
@@ -132,7 +132,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
 }
 ```
 
-本轮样例记忆三层和 `contextSummary` 空，直到模型交 `memory.write`。形状如下（本轮主链是 `web.search`，这条不进本轮写出的）。Runtime 落盘后，下一次出网把正文带进 `#turnMemory` / `#conversationMemory` / `#projectMemory` / `#contextSummary`。
+本轮样例记忆三层和 `contextSummary` 空，直到模型交 `memory.write`。形状如下（本轮主链是 `web_search`，这条不进本轮写出的）。Runtime 落盘后，下一次出网把正文带进 `#turnMemory` / `#conversationMemory` / `#projectMemory` / `#contextSummary`。
 
 ```json
 {
@@ -184,10 +184,9 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "memory.write"
   ],
   "toolIds": [
-    "page.current",
-    "page.read",
-    "page.open",
-    "web.search"
+    "see_page",
+    "open_url",
+    "web_search"
   ],
   "turnMemoryIds": [],
   "conversationMemoryIds": [],
@@ -229,11 +228,11 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   "stream": true,
   "maxAttempts": 3,
   "finish": "tool_calls",
-  "content": "observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web.search，查询罗技 MX Master 3S 官网价。",
+  "content": "observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web_search，查询罗技 MX Master 3S 官网价。",
   "toolCalls": [
     {
       "id": "call_01",
-      "name": "web.search",
+      "name": "web_search",
       "arguments": {
         "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
         "affectsPage": false,
@@ -250,7 +249,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   "toolIO": [
     {
       "callId": "call_01",
-      "name": "web.search",
+      "name": "web_search",
       "arguments": {
         "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
         "affectsPage": false,

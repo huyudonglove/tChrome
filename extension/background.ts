@@ -1,4 +1,4 @@
-import { runBrowserTool } from "./browser.ts";
+import { runBrowserTool } from "./browser-tools.js";
 
 const SERVICE = "http://127.0.0.1:18788";
 let pumping = false;

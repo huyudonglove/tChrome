@@ -19,7 +19,7 @@
 [
   {
     "callId": "call_01",
-    "name": "web.search",
+    "name": "web_search",
     "arguments": {
       "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
       "affectsPage": false,
@@ -112,10 +112,9 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "memory.write"
   ],
   "toolIds": [
-    "page.current",
-    "page.read",
-    "page.open",
-    "web.search"
+    "see_page",
+    "open_url",
+    "web_search"
   ],
   "turnMemoryIds": [],
   "conversationMemoryIds": [],
@@ -177,7 +176,7 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
   "toolIO": [
     {
       "callId": "call_01",
-      "name": "web.search",
+      "name": "web_search",
       "arguments": {
         "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
         "affectsPage": false,

@@ -1,0 +1,32 @@
+{
+  "type": "function",
+  "function": {
+    "name": "focus",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "snapshot_page 返回的元素 ref；有 ref 时优先使用"
+        },
+        "text": {
+          "type": "string",
+          "description": "没有 ref 时按控件可见文字、value 或 aria-label 定位"
+        },
+        "tab": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage"
+      ]
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "type": "function",
+  "function": {
+    "name": "probe_dns",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "port": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage"
+      ]
+    }
+  }
+}

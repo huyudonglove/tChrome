@@ -1,6 +1,6 @@
 import { systemText, userText, windowChars } from "../context/window.ts";
-import { BASE_TOOLS_IDS, DYNAMIC_TOOLS_IDS, loadCatalog, toolSchemas, type Catalog } from "../prompt/catalog.ts";
-import { asObject, asStringArray, clipReturn, executeTool, pageFromBrowser, toolUsageFor } from "../tools/execute.ts";
+import { BASE_TOOLS_IDS, dynamicToolIds, loadCatalog, toolSchemas, toolUsageFor, type Catalog } from "../prompt/catalog.ts";
+import { asObject, asStringArray, clipReturn, executeTool, pageFromBrowser } from "../tools/execute.ts";
 import type {
   Assembled,
   BrowserHost,
@@ -41,12 +41,12 @@ export type LoopDeps = {
   host?: BrowserHost;
 };
 
-const assemble = (): Assembled => ({
+const assemble = (catalog: Catalog): Assembled => ({
   systemIds: ["pack.agent"],
   skillIds: ["skill.web"],
   sopIds: ["sop.browse"],
   baseToolsIds: [...BASE_TOOLS_IDS],
-  toolIds: [...DYNAMIC_TOOLS_IDS],
+  toolIds: dynamicToolIds(catalog),
   turnMemoryIds: [],
   conversationMemoryIds: [],
   projectMemoryIds: [],
@@ -69,14 +69,14 @@ const messagesOf = (catalog: Catalog, ledger: Ledger, turn: Turn, dataDir: strin
     ledger,
     turn,
     memories: loadMemories(dataDir, ledger),
-    toolUsage: toolUsageFor(turn.assembled.toolIds),
+    toolUsage: toolUsageFor(catalog, turn.assembled.toolIds),
   });
   maybeCompress({ dataDir, ledger, windowChars: windowChars(system, user) });
   const userAfter = userText({
     ledger,
     turn,
     memories: loadMemories(dataDir, ledger),
-    toolUsage: toolUsageFor(turn.assembled.toolIds),
+    toolUsage: toolUsageFor(catalog, turn.assembled.toolIds),
   });
   return [
     { role: "system", content: system },
@@ -141,9 +141,10 @@ const runQueue = async (input: {
   ledger: Ledger;
   turn: Turn;
   content: string;
+  browserNames: string[];
   host?: BrowserHost;
 }): Promise<TurnOutput | null> => {
-  const { dataDir, ledger, turn, content, host } = input;
+  const { dataDir, ledger, turn, content, host, browserNames } = input;
   while (ledger.toolQueue.length) {
     const item = ledger.toolQueue.shift();
     if (!item) break;
@@ -151,6 +152,8 @@ const runQueue = async (input: {
       name: item.name,
       arguments: item.arguments,
       content,
+      dataDir,
+      browserNames,
       host,
       lookup: {
         toolIO: ledger.toolIO,
@@ -230,14 +233,14 @@ export async function handleTurn(
     createdAt: nowIso(),
     completedAt: null,
     input: { text: body.userInput, submittedAt: body.submittedAt },
-    assembled: assemble(),
+    assembled: assemble(catalog),
     output: null,
   };
   turn.assembled.turnMemoryIds = [...ledger.memoryIds.turn];
   turn.assembled.conversationMemoryIds = [...ledger.memoryIds.conversation];
   turn.assembled.projectMemoryIds = [...ledger.memoryIds.project];
   if (deps.host) {
-    const page = await deps.host.execute("page.current", {});
+    const page = await deps.host.execute("see_page", {});
     turn.assembled.currentPage = pageFromBrowser(page);
   }
   ledger.turnIds.push(turnId);
@@ -356,7 +359,14 @@ export async function handleTurn(
       name: call.name,
       arguments: call.arguments,
     }));
-    const closed = await runQueue({ dataDir: deps.dataDir, ledger, turn, content: result.content, host: deps.host });
+    const closed = await runQueue({
+      dataDir: deps.dataDir,
+      ledger,
+      turn,
+      content: result.content,
+      browserNames: catalog.index.browser,
+      host: deps.host,
+    });
     saveTurn(deps.dataDir, turn);
     saveLedger(deps.dataDir, ledger);
     if (closed) {

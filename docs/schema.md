@@ -132,7 +132,7 @@ Runtime 独占维护。当前会话指针。
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
 | `mcpIds` | string[] | 本轮 MCP；没有就 `[]` |
-| `currentPage` | object \| null | 没有就 `null`。开 Turn 时 Runtime 经浏览器桥调 `page.current` 填 `description` `tab` `url` `title`。没有桥就 `null` |
+| `currentPage` | object \| null | 没有就 `null`。开 Turn 时 Runtime 经浏览器桥调 `see_page` 填 `description` `tab` `url` `title`。没有桥就 `null` |
 
 `currentPage`：
 
@@ -260,7 +260,7 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 
 ## 工具参数
 
-每个工具 `arguments` 都有 `reason`（string）和 `affectsPage`（boolean）。其余按 `catalog/tools/<id>.json`。
+每个工具 `arguments` 都有 `reason`（string）和 `affectsPage`（boolean）。其余按 `catalog/tools/<id>.json`。动态工具名单和用法在 `catalog/tools/index.json`。
 
 | 工具 | required 其余 | 谁填其余 |
 |---|---|---|
@@ -269,9 +269,16 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | `tool.detail` | `callId` | `#toolIO` 该项的 `callId` |
 | `observation.detail` | `observationId` | `#observation` 该项的 `id` |
 | `memory.write` | （无） | `turnMemory` `conversationMemory` `projectMemory` `contextSummary` 有则写 |
-| `web.search` | `query` | 检索词。打开搜索页并读结果 |
-| `page.current` | （无） | 当前活动页 tab / url / title |
-| `page.read` | （无） | 当前页正文 |
-| `page.open` | `url` | 在当前标签打开 |
 
-常驻：`askUser` `finishTurn` `tool.detail` `observation.detail` `memory.write`。动态本轮才挂：`page.current` `page.read` `page.open` `web.search`。浏览器工具经 `/tool-request` 泵到 background。
+常驻：`askUser` `finishTurn` `tool.detail` `observation.detail` `memory.write`。动态本轮才挂：telance 浏览器 89 + 服务端 15（`see_page` `open_url` `click` `web_search` …），schema 在 `catalog/tools/`，用法在 `index.json`。浏览器工具经 `/tool-request` 泵到 background。
+
+没迁、原因：
+
+| 工具 | 原因 |
+|---|---|
+| Planner / Task / Review / Memory / Compress / Evolve 岗工具（`submit_plan` `submit_split` `ask_choice` `continue_task` `stop` `use_skill` …） | tChrome 单 Agent，没有这套岗 |
+| `native_host` `port_scan` `dns_enum` `proxy_chain` `code_runner` `use_host` `local_workspace` `project_storage` | 没有 Native Messaging / 本机宿主 |
+| `request_tool_service` `request_memory_service` | 挂在岗流水线上，tChrome 没有对应岗 |
+
+`api_discover` / `api_manage` 迁了 schema 和执行入口，登记表第一期空数组。
+

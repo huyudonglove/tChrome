@@ -10,7 +10,7 @@
 
 作者是 Provider。不跑工具、不落盘。`usage` / 响应 `id` / `object` 不进交口。
 
-本轮第 1 次就收到完整 `[DONE]`，交 `web.search`，不交 `askUser`。
+本轮第 1 次就收到完整 `[DONE]`，交 `web_search`，不交 `askUser`。
 
 ## 读到的（04 写出的）
 
@@ -39,10 +39,9 @@
     "memory.write"
   ],
   "toolIds": [
-    "page.current",
-    "page.read",
-    "page.open",
-    "web.search"
+    "see_page",
+    "open_url",
+    "web_search"
   ],
   "turnMemoryIds": [],
   "conversationMemoryIds": [],
@@ -101,9 +100,9 @@ data: [DONE]
 本轮四次分片（content 三段 → 工具名 → 参数字符串 → finish），然后 DONE：
 
 ```
-data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web.search，查询罗技 MX Master 3S 官网价。"},"finish_reason":null}]}
+data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web_search，查询罗技 MX Master 3S 官网价。"},"finish_reason":null}]}
 
-data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_01","type":"function","function":{"name":"web.search","arguments":""}}]},"finish_reason":null}]}
+data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_01","type":"function","function":{"name":"web_search","arguments":""}}]},"finish_reason":null}]}
 
 data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"reason\": \"当前页已确认是目标商品，需要官网价来核对标价。\", \"affectsPage\": false, \"query\": \"罗技 MX Master 3S 官网 价格\"}"}}]},"finish_reason":null}]}
 
@@ -115,7 +114,7 @@ data: [DONE]
 | 分片 | 带来什么 |
 |---|---|
 | 第 1 片 | `delta.content` = observation / reason / action 三段 |
-| 第 2 片 | `tool_calls[0].id` = `call_01`，`function.name` = `web.search` |
+| 第 2 片 | `tool_calls[0].id` = `call_01`，`function.name` = `web_search` |
 | 第 3 片 | `function.arguments` 追加 JSON **字符串** |
 | 第 4 片 | `finish_reason` = `tool_calls` |
 | `[DONE]` | 流结束。没收到这一行 = 这次失败，整单重试 |
@@ -155,7 +154,7 @@ data: [DONE]
   "missing": [
     "reason"
   ],
-  "toolName": "web.search"
+  "toolName": "web_search"
 }
 ```
 
@@ -170,7 +169,7 @@ data: [DONE]
   "parseOk": true,
   "schemaOk": true,
   "faultCode": null,
-  "toolName": "web.search",
+  "toolName": "web_search",
   "required": [
     "reason",
     "query"
@@ -198,11 +197,11 @@ data: [DONE]
   "provider": "uuapi",
   "model": "gemini-3.7-flash",
   "finish": "tool_calls",
-  "content": "observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web.search，查询罗技 MX Master 3S 官网价。",
+  "content": "observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web_search，查询罗技 MX Master 3S 官网价。",
   "toolCalls": [
     {
       "id": "call_01",
-      "name": "web.search",
+      "name": "web_search",
       "arguments": {
         "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
         "affectsPage": false,
@@ -254,10 +253,9 @@ data: [DONE]
     "memory.write"
   ],
   "toolIds": [
-    "page.current",
-    "page.read",
-    "page.open",
-    "web.search"
+    "see_page",
+    "open_url",
+    "web_search"
   ],
   "turnMemoryIds": [],
   "conversationMemoryIds": [],
@@ -299,11 +297,11 @@ data: [DONE]
   "stream": true,
   "maxAttempts": 3,
   "finish": "tool_calls",
-  "content": "observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web.search，查询罗技 MX Master 3S 官网价。",
+  "content": "observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web_search，查询罗技 MX Master 3S 官网价。",
   "toolCalls": [
     {
       "id": "call_01",
-      "name": "web.search",
+      "name": "web_search",
       "arguments": {
         "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
         "affectsPage": false,
@@ -319,4 +317,4 @@ data: [DONE]
 }
 ```
 
-下一份 `06-tool-execute.md`：Runtime 执行 `web.search`，写入 `#toolIO`，进 LOOP。
+下一份 `06-tool-execute.md`：Runtime 执行 `web_search`，写入 `#toolIO`，进 LOOP。

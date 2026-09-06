@@ -25,7 +25,7 @@
   "toolIO": [
     {
       "callId": "call_01",
-      "name": "web.search",
+      "name": "web_search",
       "arguments": {
         "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
         "affectsPage": false,
@@ -61,7 +61,7 @@
 [
   {
     "id": "ob_01",
-    "text": "web.search 查到罗技官网 MX Master 3S 标价 999 元。",
+    "text": "web_search 查到罗技官网 MX Master 3S 标价 999 元。",
     "sourceCallIds": ["call_01"]
   }
 ]
@@ -86,13 +86,13 @@
 ```json
 {
   "observationId": "ob_01",
-  "text": "web.search 查到罗技官网 MX Master 3S 标价 999 元。",
+  "text": "web_search 查到罗技官网 MX Master 3S 标价 999 元。",
   "sourceCallIds": ["call_01"],
   "totalChars": 26,
   "createdAt": "2026-09-05T08:00:20.000Z",
   "full": {
     "callId": "call_01",
-    "name": "web.search",
+    "name": "web_search",
     "arguments": {
       "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
       "affectsPage": false,
@@ -128,7 +128,7 @@
   "observation": [
     {
       "id": "ob_01",
-      "text": "web.search 查到罗技官网 MX Master 3S 标价 999 元。",
+      "text": "web_search 查到罗技官网 MX Master 3S 标价 999 元。",
       "sourceCallIds": ["call_01"]
     }
   ],
