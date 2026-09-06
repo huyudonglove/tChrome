@@ -34,7 +34,8 @@
   "baseToolsIds": [
     "askUser",
     "finishTurn",
-    "tool.detail"
+    "tool.detail",
+    "memory.write"
   ],
   "toolIds": [
     "web.search"
@@ -137,7 +138,7 @@ data: [DONE]
 | `unknown_tool` | `name` 不在 `baseToolsIds` + `toolIds` |
 | `missing_required` | catalog `required` 缺或空；`missing` 列出字段名 |
 | `wrong_type` | Ajv：类型对不上 schema |
-| `exclusive_resident` | `askUser` / `finishTurn` / `tool.detail` / 动态工具同一次出网交超过一类 |
+| `exclusive_resident` | `askUser` / `finishTurn` / 动态工具同一次出网交超过一类。`memory.write` / `tool.detail` 可与那一类同一次出网一起交 |
 
 回给模型的 tool 结果（`role=tool`，`tool_call_id` 用这次的 `call_01`）：
 
@@ -263,7 +264,8 @@ data: [DONE]
   "baseToolsIds": [
     "askUser",
     "finishTurn",
-    "tool.detail"
+    "tool.detail",
+    "memory.write"
   ],
   "toolIds": [
     "web.search"

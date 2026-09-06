@@ -58,7 +58,8 @@
         "baseToolsIds": [
           "askUser",
           "finishTurn",
-          "tool.detail"
+          "tool.detail",
+          "memory.write"
         ],
         "toolIds": [
           "web.search"

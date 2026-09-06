@@ -67,7 +67,7 @@ Runtime 独占维护。当前会话指针。
     "systemIds": ["pack.agent"],
     "skillIds": ["skill.web"],
     "sopIds": ["sop.browse"],
-    "baseToolsIds": ["askUser", "finishTurn", "tool.detail"],
+    "baseToolsIds": ["askUser", "finishTurn", "tool.detail", "memory.write"],
     "toolIds": ["web.search"],
     "turnMemoryIds": [],
     "conversationMemoryIds": [],
@@ -97,14 +97,24 @@ Runtime 独占维护。当前会话指针。
 
 `output`：
 
-- `tool` → `{kind, name, callId}`（动态工具 / `tool.detail`）
+- `tool` → `{kind, name, callId}`（动态工具 / `tool.detail` / `memory.write`）
 - `ask` → `{kind, question}`（`askUser`）
 - `reply` → `{kind, text}`（`finishTurn`，`text` 取 content 的 action）
 - `error` → `{kind, faultCode}`
 
 ## Memory
 
-三层，从稳到新：project → conversation → turn。正文在 `catalog` 之外，按 ID 挂到 user 槽。
+三层，从稳到新：project → conversation → turn。模型调 `memory.write` 提交。Runtime 落盘 `memory/<memoryId>.json`，ID 挂到 ledger.`memoryIds`。下一次出网装配进 `#projectMemory` `#conversationMemory` `#turnMemory` `#contextSummary`。
+
+```json
+{
+  "memoryId": "mm_01",
+  "layer": "turn",
+  "text": "当前页是罗技 MX Master 3S，京东标价待核官网。",
+  "createdAt": "2026-09-05T08:00:12.000Z",
+  "sourceCallId": "call_mem"
+}
+```
 
 ## 装配
 
@@ -124,20 +134,19 @@ user 文档块：
 #tools
 ```
 
-常驻工具 `askUser` / `finishTurn` / `tool.detail` 的用法在 Pack（system）。动态工具用法在 user `#tools`。出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。每个工具 `arguments` 都带 `reason`。
+常驻工具 `askUser` / `finishTurn` / `tool.detail` / `memory.write` 的用法在 Pack（system）。动态工具用法在 user `#tools`。出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。每个工具 `arguments` 都带 `reason`。
 
-`#toolIO` 是数组，每项 `{callId, name, arguments, return}`。模型交的每一次工具都进这里，含 `askUser` / `finishTurn` / `tool.detail` / 动态工具。同一工具可出现多次。最新的在最下面。`return.text` 最多 2000 字；超出 `return.stage=truncated`，`return.totalChars` 写全文长度。要全文调 `tool.detail`，参数 `callId`。
+`#toolIO` 是数组，每项 `{callId, name, arguments, return}`。模型交的每一次工具都进这里，含 `askUser` / `finishTurn` / `tool.detail` / `memory.write` / 动态工具。同一工具可出现多次。最新的在最下面。`return.text` 最多 2000 字；超出 `return.stage=truncated`，`return.totalChars` 写全文长度。要全文调 `tool.detail`，参数 `callId`。
 
-`askUser` 的 `return.text` 是展示给用户的问题和选项。`finishTurn` 的 `return.text` 是回复用户的正文（取 content 的 action）。动态工具 / `tool.detail` 的 `return.text` 是工具跑出来的正文。
+`askUser` 的 `return.text` 是展示给用户的问题和选项。`finishTurn` 的 `return.text` 是回复用户的正文（取 content 的 action）。动态工具 / `tool.detail` 的 `return.text` 是工具跑出来的正文。`memory.write` 的 `return.text` 是落下的层和条数。
 
 ## 循环
 
-1. 用户一句话 → 新 Turn。Runtime 把上一 Turn 的 `userInput` 追加进 ledger.`userInputHistory`。装配：`#userInputHistory` 是已结束回合的原话，`#userInput` 是本轮原话，`#toolIO` 带上本会话已执行过的工具条目（最新在最下面）。CE 装配，LLM 交工具。
+1. 用户一句话 → 新 Turn。Runtime 把上一 Turn 的 `userInput` 追加进 ledger.`userInputHistory`。装配：`#userInputHistory` 是已结束回合的原话，`#userInput` 是本轮原话，`#toolIO` 带上本会话已执行过的工具条目（最新在最下面），记忆槽带上此前 `memory.write` 落下的内容。CE 装配，LLM 交工具。
 2. 模型交的每一次工具，Runtime 都执行并把 `{callId, name, arguments, return}` 追加到 ledger.`toolIO` 末尾。
 3. `askUser` → `return.text` 是问题和选项，ledger.`status=waiting_human`，等人答。用户下一条输入开新 Turn（走步骤 1）。
 4. 动态工具 / `tool.detail` → `return.text` 是工具正文（窗口截到 2000 字）。还在本 Turn 里再出网。
-5. `finishTurn` → `return.text` 是回复用户的正文。本 Turn `status=completed`，ledger.`status=idle`，`active=null`。本轮 `userInput` 仍在 Turn.`input`。用户下一句话开新 Turn 时写入 `userInputHistory`。
-
-工具 arguments 里的 `turnMemory` / `conversationMemory` / `projectMemory` / `contextSummary` 有内容时，Runtime 落盘并挂到对应 user 槽。本轮样例这些字段空。
+5. `memory.write` → Runtime 按 arguments 落盘三层记忆和 `contextSummary`，ID 挂到 ledger.`memoryIds`。还在本 Turn 里再出网时，对应 user 槽带上刚落下的内容。
+6. `finishTurn` → `return.text` 是回复用户的正文。本 Turn `status=completed`，ledger.`status=idle`，`active=null`。本轮 `userInput` 仍在 Turn.`input`。用户下一句话开新 Turn 时写入 `userInputHistory`。记忆槽在下一次出网继续带上。
 
 分阶段模拟：`docs/examples/01-normalize.md` → `02-context-engineering.md` → `03-decode.md` → `04-provider-request.md` → `05-provider-response.md` → `06-tool-execute.md`。

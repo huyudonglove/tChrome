@@ -6,11 +6,7 @@
       "type": "object",
       "properties": {
         "reason": { "type": "string" },
-        "choice": { "type": "array", "items": { "type": "string" } },
-        "turnMemory": { "type": "array", "items": { "type": "string" } },
-        "conversationMemory": { "type": "array", "items": { "type": "string" } },
-        "projectMemory": { "type": "array", "items": { "type": "string" } },
-        "contextSummary": { "type": "object" }
+        "choice": { "type": "array", "items": { "type": "string" } }
       },
       "required": ["reason", "choice"]
     }

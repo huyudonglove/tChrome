@@ -86,7 +86,10 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   "name": "askUser",
   "arguments": {
     "reason": "当前页型号看不清，要用户确认查哪一款。",
-    "choice": ["MX Master 3S", "MX Master 3"]
+    "choice": [
+      "MX Master 3S",
+      "MX Master 3"
+    ]
   },
   "return": {
     "stage": "complete",
@@ -113,7 +116,23 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
 }
 ```
 
-本轮样例记忆三层和 `contextSummary` 空。工具 arguments 交了这些字段，Runtime 才落盘。
+本轮样例记忆三层和 `contextSummary` 空，直到模型交 `memory.write`。形状如下（本轮主链是 `web.search`，这条不进本轮写出的）。Runtime 落盘后，下一次出网把正文带进 `#turnMemory` / `#conversationMemory` / `#projectMemory` / `#contextSummary`。
+
+```json
+{
+  "callId": "call_mem",
+  "name": "memory.write",
+  "arguments": {
+    "reason": "记下当前页型号，下一轮核对官网价时用。",
+    "turnMemory": ["当前页是罗技 MX Master 3S，京东标价待核官网。"]
+  },
+  "return": {
+    "stage": "complete",
+    "totalChars": 19,
+    "text": "已写入 turnMemory 1 条。"
+  }
+}
+```
 
 ## 字段
 
@@ -148,7 +167,8 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   "baseToolsIds": [
     "askUser",
     "finishTurn",
-    "tool.detail"
+    "tool.detail",
+    "memory.write"
   ],
   "toolIds": [
     "web.search"

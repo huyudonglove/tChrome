@@ -5,11 +5,7 @@
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "turnMemory": { "type": "array", "items": { "type": "string" } },
-        "conversationMemory": { "type": "array", "items": { "type": "string" } },
-        "projectMemory": { "type": "array", "items": { "type": "string" } },
-        "contextSummary": { "type": "object" }
+        "reason": { "type": "string" }
       },
       "required": ["reason"]
     }
