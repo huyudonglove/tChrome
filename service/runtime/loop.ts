@@ -257,10 +257,6 @@ export async function handleTurn(
   turn.assembled.turnMemoryIds = [...ledger.memoryIds.turn];
   turn.assembled.conversationMemoryIds = [...ledger.memoryIds.conversation];
   turn.assembled.projectMemoryIds = [...ledger.memoryIds.project];
-  if (deps.host) {
-    const page = await deps.host.execute("see_page", {});
-    turn.assembled.currentPage = pageFromBrowser(page);
-  }
   ledger.turnIds.push(turnId);
   ledger.status = "running";
   ledger.active = { turnId };

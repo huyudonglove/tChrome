@@ -137,7 +137,7 @@ Runtime 独占维护。当前会话指针。
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
 | `mcpIds` | string[] | 本轮 MCP；没有就 `[]` |
-| `currentPage` | object \| null | 没有就 `null`。开 Turn 时 Runtime 经浏览器桥调 `see_page` 填 `description` `tab` `url` `title`。没有桥就 `null` |
+| `currentPage` | object \| null | 开 Turn 为 `null`。模型调 `see_page`（或其它会改当前页的工具）跑完后，Runtime 用返回填 `description` `tab` `url` `title` |
 
 `currentPage`：
 

@@ -165,24 +165,34 @@ test("POST /turn 走完 mock 收口", async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("有浏览器桥时 currentPage 由 see_page 填", async () => {
+test("开 Turn 不读页，模型 see_page 后才填 currentPage", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-page-"));
   const provider = mock([
     ok({
       finish: "tool_calls",
-      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
+      content: "observation\n要看当前页\nreason\n先读页\naction\nsee_page",
+      toolCalls: [{ id: "call_01", name: "see_page", arguments: { reason: "看当前页", affectsPage: false } }],
+    }),
+    ok({
+      finish: "tool_calls",
+      content: "observation\n已看到页\nreason\n收口\naction\n在看罗技",
+      toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
     }),
   ]);
   const host = {
-    execute: async () => ({
-      ok: true,
-      tab: 12,
-      url: "https://item.jd.com/100012345678.html",
-      title: "罗技 MX Master 3S 无线鼠标",
-      description: "当前页面信息",
-    }),
+    execute: async (name: string) => {
+      if (name !== "see_page") return { ok: false, error: name };
+      return {
+        ok: true,
+        tab: 12,
+        url: "https://item.jd.com/100012345678.html",
+        title: "罗技 MX Master 3S 无线鼠标",
+        description: "当前页面信息",
+      };
+    },
   };
-  const reply = await handleTurn({ dataDir: dir, repoRoot, provider, host }, { userInput: "你好", submittedAt: "2026-09-06T00:00:00.000Z" });
+  const reply = await handleTurn({ dataDir: dir, repoRoot, provider, host }, { userInput: "这是什么页", submittedAt: "2026-09-06T00:00:00.000Z" });
+  expect(reply.output).toEqual({ kind: "reply", text: "在看罗技" });
   const turn = loadTurn(dir, "cv_01", reply.turnId);
   expect(turn.assembled.currentPage).toEqual({
     description: "当前页面信息",
@@ -190,6 +200,8 @@ test("有浏览器桥时 currentPage 由 see_page 填", async () => {
     url: "https://item.jd.com/100012345678.html",
     title: "罗技 MX Master 3S 无线鼠标",
   });
+  const ledger = loadLedger(dir, "cv_01");
+  expect(ledger.toolIO[0]?.name).toBe("see_page");
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -207,12 +219,6 @@ test("web_search 走服务端执行", async () => {
       toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "有价了", affectsPage: false } }],
     }),
   ]);
-  const host = {
-    execute: async (name: string) => {
-      if (name === "see_page") return { ok: true, tab: 12, url: "https://item.jd.com/x", title: "罗技", description: "当前页面信息" };
-      return { ok: false, error: name };
-    },
-  };
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const url = String(input);
@@ -222,12 +228,12 @@ test("web_search 走服务端执行", async () => {
     return originalFetch(input);
   }) as typeof fetch;
   try {
-    const reply = await handleTurn({ dataDir: dir, repoRoot, provider, host }, { userInput: "这鼠标官网多少钱", submittedAt: "2026-09-06T00:00:00.000Z" });
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "这鼠标官网多少钱", submittedAt: "2026-09-06T00:00:00.000Z" });
     expect(reply.output).toEqual({ kind: "reply", text: "官价 699" });
     const turn = loadTurn(dir, "cv_01", reply.turnId);
     expect(turn.assembled.toolIds).toContain("see_page");
     expect(turn.assembled.toolIds).toContain("web_search");
-    expect(turn.assembled.currentPage?.tab).toBe(12);
+    expect(turn.assembled.currentPage).toBeNull();
     const ledger = loadLedger(dir, "cv_01");
     const search = ledger.toolIO.find((row) => row.name === "web_search");
     expect(search?.return.text).toContain("logitech.com");
