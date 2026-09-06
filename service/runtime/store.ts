@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, appendFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, appendFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type { Ledger, LogEvent, MemoryRecord, ObservationRecord, Session, Turn } from "../types.ts";
@@ -223,6 +223,18 @@ export function newConversation(dataDir: string): SessionView {
   saveLedger(dataDir, emptyLedger(conversationId));
   appendEvent(dataDir, conversationId, { kind: "session", data: { conversationId, action: "new" } });
   return sessionView(dataDir, conversationId);
+}
+
+export function deleteConversation(dataDir: string, conversationId: string): SessionView {
+  if (!listConversationIds(dataDir).includes(conversationId)) {
+    throw new Error("没有这个会话");
+  }
+  const current = loadSession(dataDir)?.conversationId;
+  rmSync(paths(dataDir, conversationId).conv, { recursive: true, force: true });
+  if (current !== conversationId) return currentSessionView(dataDir);
+  const remaining = listConversations(dataDir);
+  if (remaining[0]) return openConversation(dataDir, remaining[0].conversationId);
+  return newConversation(dataDir);
 }
 
 export function ensureSession(dataDir: string): Session {

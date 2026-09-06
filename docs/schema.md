@@ -33,6 +33,7 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 | GET | `/conversations` | 无 | `{items:[{conversationId, updatedAt, status, preview}]}` |
 | POST | `/conversations/open` | `{conversationId}` | 该会话投影，并写入 `session.json` |
 | POST | `/conversations/new` | 无 | 新建空 `cv_`，写入 `session.json`，回空投影 |
+| POST | `/conversations/delete` | `{conversationId}` | 删掉该会话目录。若删的是当前会话，切到最近一条或新建 |
 | GET | `/tool-request` | 无 | `{request}`，没有就 `request=null`。`request` 是 `{id, name, input}` |
 | POST | `/tool-result` | `{id, result}` | `{ok:true}` |
 

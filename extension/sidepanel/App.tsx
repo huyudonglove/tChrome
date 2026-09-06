@@ -27,12 +27,105 @@ type ConversationItem = {
 
 const emptySession = (): SessionView => ({ conversationId: null, status: "idle", pendingAsk: null, messages: [] });
 
+const SUGGESTIONS = [
+  { label: "看当前页", text: "当前页标题是什么" },
+  { label: "打开网页", text: "打开 https://" },
+  { label: "梳理想法", text: "帮我梳理一下当前想法和下一步" },
+  { label: "对比页面", text: "对比两边标题" },
+];
+
 const outputText = (output?: Output) => {
   if (!output) return "服务无响应";
   if (output.kind === "reply") return output.text;
   if (output.kind === "ask") return output.question;
   if (output.kind === "error") return `失败：${output.faultCode}`;
   return `${output.name} ${output.callId}`;
+};
+
+const escapeHtml = (text: string) =>
+  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+const renderMarkdown = (text: string) => {
+  if (!text) return "";
+  const lines = text.split("\n");
+  const result: string[] = [];
+  let inCodeBlock = false;
+  let codeContent: string[] = [];
+  let inUl = false;
+  let inOl = false;
+  const closeLists = () => {
+    if (inUl) { result.push("</ul>"); inUl = false; }
+    if (inOl) { result.push("</ol>"); inOl = false; }
+  };
+  for (const line of lines) {
+    if (line.trim().startsWith("```")) {
+      closeLists();
+      if (inCodeBlock) {
+        result.push(`<pre><code>${escapeHtml(codeContent.join("\n"))}</code></pre>`);
+        codeContent = [];
+        inCodeBlock = false;
+      } else {
+        inCodeBlock = true;
+      }
+      continue;
+    }
+    if (inCodeBlock) {
+      codeContent.push(line);
+      continue;
+    }
+    let processed = escapeHtml(line);
+    if (!processed.trim()) { closeLists(); result.push(""); continue; }
+    if (processed.startsWith("### ")) { closeLists(); result.push(`<h3>${processed.slice(4)}</h3>`); continue; }
+    if (processed.startsWith("## ")) { closeLists(); result.push(`<h2>${processed.slice(3)}</h2>`); continue; }
+    if (processed.startsWith("# ")) { closeLists(); result.push(`<h1>${processed.slice(2)}</h1>`); continue; }
+    if (/^[\s]*[-*•]\s/.test(processed)) {
+      if (!inUl) { closeLists(); result.push("<ul>"); inUl = true; }
+      result.push(`<li>${processed.replace(/^[\s]*[-*•]\s/, "")}</li>`);
+      continue;
+    }
+    if (/^[\s]*\d+[.)]\s/.test(processed)) {
+      if (!inOl) { closeLists(); result.push("<ol>"); inOl = true; }
+      result.push(`<li>${processed.replace(/^[\s]*\d+[.)]\s/, "")}</li>`);
+      continue;
+    }
+    closeLists();
+    processed = processed.replace(/`([^`]+)`/g, "<code>$1</code>");
+    processed = processed.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    processed = processed.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, "<em>$1</em>");
+    processed = processed.replace(/~~(.+?)~~/g, "<del>$1</del>");
+    processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    result.push(`<p>${processed}</p>`);
+  }
+  closeLists();
+  if (inCodeBlock && codeContent.length) {
+    result.push(`<pre><code>${escapeHtml(codeContent.join("\n"))}</code></pre>`);
+  }
+  return result.join("\n");
+};
+
+const Icon = ({ path }: { path: string }) => (
+  <svg viewBox="0 0 24 24"><path d={path} /></svg>
+);
+
+const Avatar = ({ who }: { who: "user" | "assistant" }) => (
+  who === "user"
+    ? (
+      <div className="message-avatar user">
+        <svg className="face" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="9" r="3.2" />
+          <path d="M6.2 18.6c.7-2.3 2.8-3.6 5.8-3.6s5.1 1.3 5.8 3.6" />
+        </svg>
+      </div>
+    )
+    : <div className="message-avatar">t</div>
+);
+
+const MdContent = ({ text }: { text: string }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.innerHTML = renderMarkdown(text);
+  }, [text]);
+  return <div className="message-content" ref={ref} />;
 };
 
 export function App() {
@@ -42,7 +135,12 @@ export function App() {
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState("");
   const [listOpen, setListOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<{ conversationId: string; preview: string } | null>(null);
+  const [showJump, setShowJump] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const followBottom = useRef(true);
+  const sendingRef = useRef(false);
 
   const loadAll = async () => {
     const [sessionRes, listRes] = await Promise.all([
@@ -50,9 +148,9 @@ export function App() {
       fetch(`${SERVICE}/conversations`),
     ]);
     const next = await sessionRes.json() as SessionView;
-    const listed = await listRes.json() as { items: ConversationItem[] };
     setSession(next);
-    setItems(listed.items ?? []);
+    setItems(((await listRes.json()) as { items: ConversationItem[] }).items ?? []);
+    return next;
   };
 
   useEffect(() => {
@@ -76,12 +174,39 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
-  }, [session.messages]);
+    if (!sending) return undefined;
+    let alive = true;
+    const tick = async () => {
+      try {
+        const next = await fetch(`${SERVICE}/session`);
+        if (alive) setSession(await next.json() as SessionView);
+      } catch {}
+    };
+    const timer = setInterval(tick, 700);
+    tick();
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [sending]);
+
+  const scrollToBottom = (behavior: ScrollBehavior = "auto") => {
+    const list = listRef.current;
+    if (!list) return;
+    followBottom.current = true;
+    setShowJump(false);
+    list.scrollTo({ top: list.scrollHeight, behavior });
+  };
+
+  useEffect(() => {
+    if (!followBottom.current) return;
+    requestAnimationFrame(() => scrollToBottom());
+  }, [session.messages, sending]);
 
   const sendText = async (text: string) => {
-    if (!text || sending) return;
+    if (!text || sendingRef.current) return;
     setDraft("");
+    sendingRef.current = true;
     setSending(true);
     setSession((current) => ({
       ...current,
@@ -107,6 +232,7 @@ export function App() {
       setStatus(DOWN);
     } finally {
       clearInterval(ping);
+      sendingRef.current = false;
       setSending(false);
     }
   };
@@ -119,6 +245,7 @@ export function App() {
     });
     setSession(await response.json() as SessionView);
     setListOpen(false);
+    followBottom.current = true;
     const listed = await fetch(`${SERVICE}/conversations`);
     setItems(((await listed.json()) as { items: ConversationItem[] }).items ?? []);
   };
@@ -127,67 +254,189 @@ export function App() {
     const response = await fetch(`${SERVICE}/conversations/new`, { method: "POST" });
     setSession(await response.json() as SessionView);
     setListOpen(false);
+    followBottom.current = true;
     const listed = await fetch(`${SERVICE}/conversations`);
     setItems(((await listed.json()) as { items: ConversationItem[] }).items ?? []);
   };
 
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    const id = pendingDelete.conversationId;
+    setPendingDelete(null);
+    const response = await fetch(`${SERVICE}/conversations/delete`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ conversationId: id }),
+    });
+    setSession(await response.json() as SessionView);
+    const listed = await fetch(`${SERVICE}/conversations`);
+    setItems(((await listed.json()) as { items: ConversationItem[] }).items ?? []);
+  };
+
+  const filtered = items.filter((item) =>
+    !query.trim() || item.conversationId.includes(query) || item.preview.includes(query)
+  );
+
   return (
-    <div className="app">
-      <header className="bar">
-        <button type="button" className="ghost" onClick={() => setListOpen((open) => !open)}>
-          {session.conversationId ?? "新会话"}
-        </button>
-        <button type="button" className="ghost" onClick={() => void startNew()}>新建</button>
-      </header>
-      {listOpen ? (
-        <div className="drawer">
-          {items.map((item) => (
-            <button
-              key={item.conversationId}
-              type="button"
-              className={item.conversationId === session.conversationId ? "item active" : "item"}
-              onClick={() => void openConversation(item.conversationId)}
-            >
-              <span>{item.conversationId}</span>
-              <span className="muted">{item.preview}</span>
+    <div className={`workspace-shell${listOpen ? " sessions-open" : ""}`}>
+      <div className="chrome-top">
+        <header className="app-bar">
+          <div className="brand-mark">t</div>
+          <div className="app-identity">
+            <strong>{session.conversationId ?? "tChrome"}</strong>
+            <small>{sending ? "在想" : session.status}</small>
+          </div>
+          <div className="app-actions">
+            <button className="icon-button" type="button" title="会话" onClick={() => setListOpen((open) => !open)}>
+              <Icon path="M4 6h16M4 12h16M4 18h10" />
             </button>
-          ))}
-        </div>
-      ) : null}
-      {status ? <div className="banner">{status}</div> : null}
-      <div className="messages" ref={listRef}>
-        {session.messages.map((message, index) => (
-          <div key={`${message.turnId ?? "local"}-${index}`} className={`row ${message.role}`}>{message.text || "…"}</div>
-        ))}
-        {sending ? <div className="row assistant muted">在想</div> : null}
+            <button className="icon-button accent" type="button" title="新会话" onClick={() => void startNew()}>
+              <Icon path="M12 5v14M5 12h14" />
+            </button>
+          </div>
+        </header>
+        {status ? <div className={`status ${status === DOWN ? "down" : ""}`}>{status}</div> : null}
       </div>
-      {session.pendingAsk?.choice.length ? (
-        <div className="choices">
-          {session.pendingAsk.choice.map((choice) => (
-            <button key={choice} type="button" disabled={sending} onClick={() => void sendText(choice)}>{choice}</button>
+
+      <div className="conversation-pane">
+        <div
+          className="messages"
+          ref={listRef}
+          onScroll={(event) => {
+            const list = event.currentTarget;
+            const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight <= 48;
+            followBottom.current = nearBottom;
+            setShowJump(!nearBottom);
+          }}
+        >
+          {session.messages.length === 0 && !sending ? (
+            <div className="welcome">
+              <div className="welcome-mark">t</div>
+              <h1>今天想做<em>什么？</em></h1>
+              <div className="quick-actions">
+                {SUGGESTIONS.map((item) => (
+                  <button key={item.label} type="button" onClick={() => setDraft(item.text)}>
+                    <strong>{item.label}</strong>
+                    <Icon path="M7 17L17 7M9 7h8v8" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : session.messages.map((message, index) => (
+            <article key={`${message.turnId ?? "local"}-${index}`} className={`message-row ${message.role}`}>
+              <Avatar who={message.role} />
+              <div className="message-body">
+                {message.role === "assistant" && message.text
+                  ? <MdContent text={message.text} />
+                  : message.text ? <p>{message.text}</p> : null}
+              </div>
+            </article>
           ))}
+          {sending ? (
+            <article className="message-row assistant muted">
+              <Avatar who="assistant" />
+              <div className="message-body"><p>在想</p></div>
+            </article>
+          ) : null}
+        </div>
+        {showJump ? (
+          <button className="jump-to-bottom" type="button" onClick={() => scrollToBottom("smooth")}>
+            <Icon path="M6 9l6 6 6-6" />
+            <span>回到底部</span>
+          </button>
+        ) : null}
+      </div>
+
+      {session.pendingAsk ? (
+        <section className="review-card interaction-card">
+          <strong>{session.pendingAsk.question}</strong>
+          {session.pendingAsk.choice.length ? (
+            <div className="interaction-items">
+              {session.pendingAsk.choice.map((choice) => (
+                <button key={choice} type="button" disabled={sending} onClick={() => void sendText(choice)}>
+                  <strong>{choice}</strong>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      <div className="composer-wrap">
+        <form
+          className="composer"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void sendText(draft.trim());
+          }}
+        >
+          <textarea
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                void sendText(draft.trim());
+              }
+            }}
+            placeholder="说一句"
+          />
+          <button type="submit" disabled={sending} title="发送">
+            <Icon path="M5 12h14M13 6l6 6-6 6" />
+          </button>
+        </form>
+      </div>
+
+      {listOpen ? (
+        <>
+          <button className="drawer-backdrop" type="button" onClick={() => setListOpen(false)} />
+          <aside className="history-drawer">
+            <div className="pane-header">
+              <div>
+                <strong>会话</strong>
+                <span>history</span>
+              </div>
+            </div>
+            <div className="session-search">
+              <Icon path="M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16zM21 21l-4.3-4.3" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索" />
+            </div>
+            <ul className="conversation-list">
+              {filtered.map((item) => (
+                <li
+                  key={item.conversationId}
+                  className={item.conversationId === session.conversationId ? "conversation-item active" : "conversation-item"}
+                >
+                  <button type="button" onClick={() => void openConversation(item.conversationId)}>
+                    {item.preview || item.conversationId}
+                  </button>
+                  <button
+                    type="button"
+                    className="delete"
+                    onClick={() => setPendingDelete({ conversationId: item.conversationId, preview: item.preview || item.conversationId })}
+                  >
+                    删
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </aside>
+        </>
+      ) : null}
+
+      {pendingDelete ? (
+        <div className="confirm-layer">
+          <button className="confirm-backdrop" type="button" onClick={() => setPendingDelete(null)} />
+          <div className="confirm-card">
+            <strong>删除会话</strong>
+            <p>删掉「{pendingDelete.preview}」？落盘一并清掉。</p>
+            <div>
+              <button type="button" onClick={() => setPendingDelete(null)}>取消</button>
+              <button type="button" className="danger" onClick={() => void confirmDelete()}>删除</button>
+            </div>
+          </div>
         </div>
       ) : null}
-      <form
-        className="composer"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void sendText(draft.trim());
-        }}
-      >
-        <textarea
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              void sendText(draft.trim());
-            }
-          }}
-          placeholder="说一句"
-        />
-        <button type="submit" disabled={sending}>发送</button>
-      </form>
     </div>
   );
 }

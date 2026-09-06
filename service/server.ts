@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { handleTurn, type LoopDeps } from "./runtime/loop.ts";
 import { createProvider } from "./provider/uuapi.ts";
-import { defaultDataDir, currentSessionView, listConversations, openConversation, newConversation } from "./runtime/store.ts";
+import { defaultDataDir, currentSessionView, listConversations, openConversation, newConversation, deleteConversation } from "./runtime/store.ts";
 import { createToolBridge, type ToolBridge } from "./runtime/bridge.ts";
 import type { BrowserResult } from "./types.ts";
 
@@ -91,6 +91,16 @@ export function createServer(options: ServeOptions = {}) {
       }
       if (request.method === "POST" && url.pathname === "/conversations/new") {
         return json(newConversation(dataDir));
+      }
+      if (request.method === "POST" && url.pathname === "/conversations/delete") {
+        const body = (await request.json()) as { conversationId?: string };
+        const conversationId = String(body.conversationId ?? "");
+        if (!conversationId) return json({ error: "缺 conversationId" }, 400);
+        try {
+          return json(deleteConversation(dataDir, conversationId));
+        } catch (error) {
+          return json({ error: error instanceof Error ? error.message : String(error) }, 404);
+        }
       }
       if (request.method === "POST" && url.pathname === "/turn") {
         const body = (await request.json()) as { userInput?: string; submittedAt?: string };
