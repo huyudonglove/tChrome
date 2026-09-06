@@ -54,6 +54,7 @@
     "#原则",
     "#参数说明",
     "#内置工具",
+    "#输出",
     "#user字段说明",
     "#skill",
     "#sop"
@@ -87,10 +88,12 @@ data: {chunk}
 data: [DONE]
 ```
 
-本轮三次分片（工具名 → 参数字符串 → finish），然后 DONE：
+本轮四次分片（content 三段 → 工具名 → 参数字符串 → finish），然后 DONE：
 
 ```
-data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":0,"id":"call_01","type":"function","function":{"name":"continueTask","arguments":""}}]},"finish_reason":null}]}
+data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，可以建任务。\n\naction\n调用 continueTask，目标是查官网价并和当前页标价核对。"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_01","type":"function","function":{"name":"continueTask","arguments":""}}]},"finish_reason":null}]}
 
 data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"task\":\"查当前页这款罗技 MX Master 3S 的官网价，并和当前页标价核对。\",\"choice\":[],\"turnMemory\":[\"用户要查当前页鼠标的官网价\"],\"conversationMemory\":[],\"projectMemory\":[],\"contextSummary\":{\"page\":\"罗技 MX Master 3S 无线鼠标\",\"url\":\"https://item.jd.com/100012345678.html\"}}"}}]},"finish_reason":null}]}
 
@@ -101,12 +104,13 @@ data: [DONE]
 
 | 分片 | 带来什么 |
 |---|---|
-| 第 1 片 | `delta.tool_calls[0].id` = `call_01`，`function.name` = `continueTask` |
-| 第 2 片 | `delta.tool_calls[0].function.arguments` 追加 JSON **字符串** |
-| 第 3 片 | `finish_reason` = `tool_calls` |
+| 第 1 片 | `delta.content` = observation / reason / action 三段 |
+| 第 2 片 | `tool_calls[0].id` = `call_01`，`function.name` = `continueTask` |
+| 第 3 片 | `function.arguments` 追加 JSON **字符串** |
+| 第 4 片 | `finish_reason` = `tool_calls` |
 | `[DONE]` | 流结束。没收到这一行 = 这次失败，整单重试 |
 
-中途断开不当半截成功。拼起来的 `arguments` 字符串再 `JSON.parse` 成对象。
+中途断开不当半截成功。拼起来的 `arguments` 字符串再 `JSON.parse` 成对象。`content` 按 Pack `#输出` 拼三段，不进 Ajv。
 
 ## 容错
 
@@ -166,7 +170,7 @@ data: [DONE]
 | SSE | → 交口 |
 |---|---|
 | 最后一片 `finish_reason` | `finish` |
-| 各片 `delta.content` 拼起来；本轮没有 | `content` = `null` |
+| 各片 `delta.content` 拼起来 | `content` = observation / reason / action 三段 |
 | 第 1 片 `tool_calls[].id` | `toolCalls[].id` |
 | 第 1 片 `function.name` | `toolCalls[].name` |
 | 各片 `function.arguments` 字符串拼接后 JSON.parse | `toolCalls[].arguments` 对象 |
@@ -179,7 +183,7 @@ data: [DONE]
   "provider": "uuapi",
   "model": "gemini-3.7-flash",
   "finish": "tool_calls",
-  "content": null,
+  "content": "observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，可以建任务。\n\naction\n调用 continueTask，目标是查官网价并和当前页标价核对。",
   "toolCalls": [
     {
       "id": "call_01",
@@ -206,7 +210,7 @@ data: [DONE]
 |---|---|---|---|
 | `stage` | string | 固定 | `provider-response` |
 | `finish` | string | Provider | `tool_calls` / `stop` / `error` |
-| `content` | string \| null | 模型 | 有 tool_calls 时为 `null` |
+| `content` | string | 模型 | Pack `#输出`：observation / reason / action；有 tool_calls 时也写 |
 | `toolCalls` | object[] | Provider | `id` `name` `arguments`（已 parse） |
 
 `continueTask.arguments` 必须有 `task`。`askUser.arguments` 必须有 `choice`。本轮只交一个常驻工具。
@@ -284,6 +288,7 @@ data: [DONE]
     "#原则",
     "#参数说明",
     "#内置工具",
+    "#输出",
     "#user字段说明",
     "#skill",
     "#sop"
@@ -303,7 +308,7 @@ data: [DONE]
   "stream": true,
   "maxAttempts": 3,
   "finish": "tool_calls",
-  "content": null,
+  "content": "observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，可以建任务。\n\naction\n调用 continueTask，目标是查官网价并和当前页标价核对。",
   "toolCalls": [
     {
       "id": "call_01",

@@ -41,7 +41,7 @@
 
 | ID                       | 文件                            | 贡献                                                                          |
 | ------------------------ | ------------------------------- | ----------------------------------------------------------------------------- |
-| `pack.agent`             | `catalog/packs/pack.agent.md`   | `#身份`, `#记忆`, `#环境`, `#原则`, `#参数说明`, `#内置工具`, `#user字段说明` |
+| `pack.agent`             | `catalog/packs/pack.agent.md`   | `#身份`, `#记忆`, `#环境`, `#原则`, `#参数说明`, `#内置工具`, `#输出`, `#user字段说明` |
 | `skill.web`              | `catalog/skills/skill.web.md`   | `#skill`                                                                      |
 | `sop.browse`             | `catalog/sops/sop.browse.md`    | `#sop`                                                                        |
 | `continueTask` `askUser` | `catalog/tools/`                | 常驻，出网 tools[]                                                            |
@@ -96,6 +96,21 @@ contextSummary：user 里带给下一轮的汇总，排除三层记忆。
 
 常驻：continueTask、askUser。每轮都在出网 tools[] 里。用法见 #原则、#参数说明。
 动态工具本轮才挂上，用法写在 user `#tools`。
+
+### `#输出`
+
+每次都写 `content`，三段，标题固定：
+
+observation
+<看见了什么>
+
+reason
+<为什么这么做>
+
+action
+<下一步：调哪个工具，或对用户说什么>
+
+有 `tool_calls` 时这三段也要写。Runtime 不校验这段正文。
 
 ### `#user字段说明`
 
@@ -208,6 +223,7 @@ contextSummary：user 里带给下一轮的汇总，排除三层记忆。
     "#原则",
     "#参数说明",
     "#内置工具",
+    "#输出",
     "#user字段说明",
     "#skill",
     "#sop"
