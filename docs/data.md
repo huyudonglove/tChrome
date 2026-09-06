@@ -5,9 +5,8 @@
 磁盘：`~/Library/Application Support/tChrome/conversations/<conversationId>/`
 
 ```text
-ledger.json              会话账本（便利贴那份）
+ledger.json              会话账本
 turns/<turnId>.json
-tasks/<taskId>.json
 goals/<goalId>.json
 observations/<observationId>.json
 memory/<memoryId>.json
@@ -50,12 +49,10 @@ Pack / skill / sop / tool / mcp 的定义在仓里 `catalog/`，会话只引用 
   "status": "running",
   "active": {
     "turnId": "tn_02",
-    "taskId": "tk_01",
     "goalId": "gl_01"
   },
   "pendingAsk": null,
   "turnIds": ["tn_01", "tn_02"],
-  "taskIds": ["tk_01"],
   "goalIds": ["gl_01"],
   "observationIds": ["ob_01"],
   "memoryIds": ["mm_01"],
@@ -68,17 +65,16 @@ Pack / skill / sop / tool / mcp 的定义在仓里 `catalog/`，会话只引用 
 
 | 字段 | 内容 |
 |---|---|
-| `status` | `idle` 无活动任务 / `running` 在转 / `waiting_human` 冻在追问 / `paused` / `failed` |
-| `active` | 当前 turn / task / goal；没有就 `null` |
+| `status` | `idle` 无活动 goal / `running` 在转 / `waiting_human` 冻在追问 / `paused` / `failed` |
+| `active` | 当前 turn / goal；没有就 `null` |
 | `pendingAsk` | `waiting_human` 时：`{turnId, question}`；否则 `null` |
 | `turnIds` | 本会话所有回合，含闲聊 |
-| `taskIds` | 已建的任务 |
 | `goalIds` | 已建的 goal |
-| `observationIds` | 已写入的观察（图上 CE#2 要装 `#observation`，账本补这一列） |
+| `observationIds` | 已写入的观察 |
 | `memoryIds` | 会话共享记忆 |
 | `toolIds` `sopIds` `skillIds` `mcpIds` | 本会话启用的 catalog ID，装配时按这个选 |
 
-ID 前缀：`cv_` 会话 / `tn_` 回合 / `tk_` 任务 / `gl_` goal / `ob_` 观察 / `mm_` 记忆。catalog 用点号名，如 `skill.web`。
+ID 前缀：`cv_` 会话 / `tn_` 回合 / `gl_` goal / `ob_` 观察 / `mm_` 记忆。catalog 用点号名，如 `skill.web`。
 
 ## Turn
 
@@ -92,7 +88,7 @@ ID 前缀：`cv_` 会话 / `tn_` 回合 / `tk_` 任务 / `gl_` goal / `ob_` 观�
   "status": "completed",
   "createdAt": "2026-09-05T08:00:01.000Z",
   "completedAt": "2026-09-05T08:00:08.000Z",
-  "taskId": null,
+  "goalId": null,
   "input": { "text": "帮我查这款鼠标官网价" },
   "assembled": {
     "packIds": ["pack.agent"],
@@ -104,7 +100,6 @@ ID 前缀：`cv_` 会话 / `tn_` 回合 / `tk_` 任务 / `gl_` goal / `ob_` 观�
   },
   "delivery": {
     "kind": "goal",
-    "taskId": "tk_01",
     "goalId": "gl_01"
   }
 }
@@ -112,48 +107,27 @@ ID 前缀：`cv_` 会话 / `tn_` 回合 / `tk_` 任务 / `gl_` goal / `ob_` 观�
 
 | 字段 | 内容 |
 |---|---|
-| `mode` | `intake` 图上 LLM#1：够不够建任务 / `work` 图上 LLM#2：对着 `#goal #action #observation` 干活 |
+| `mode` | `intake`：够不够建 goal / `work`：对着 `#currentGoal` 干活 |
 | `status` | `assembling` → `inferring` → `completed` / `waiting_human` / `failed` |
 | `input.text` | 本轮用户原话；续问时是人审答复 |
 | `assembled` | 这一步实际塞进窗口的 ID 和块名，回放用，不出网原文 |
-| `delivery.kind` | 模型这一交：`reply` 说完 / `ask` 追问 / `goal` 产出 `{goal,reason,action}` / `tool` 点名工具 |
+| `delivery.kind` | 模型这一交：`reply` 说完 / `ask` 追问 / `goal` 产出 goal / `tool` 点名工具 |
 
 `delivery` 按 kind 带指针：
 
 - `reply` → `{kind, text}`
 - `ask` → `{kind, question}`，同时 ledger.`pendingAsk` 写同一份
-- `goal` → `{kind, taskId, goalId}`
+- `goal` → `{kind, goalId}`
 - `tool` → `{kind, name, arguments, observationId}`（工具跑完才有 observationId）
-
-## Task
-
-「是否足够产生 task」通过之后建。窗口 chevron 里的 `current task` 指向 `active.taskId`。
-
-```json
-{
-  "taskId": "tk_01",
-  "conversationId": "cv_01",
-  "createdAt": "2026-09-05T08:00:08.000Z",
-  "status": "running",
-  "title": "查鼠标官网价",
-  "goalIds": ["gl_01"],
-  "currentGoalId": "gl_01"
-}
-```
-
-`status`：`running` / `waiting_human` / `completed` / `failed`。
-
-闲聊不建 task。一个会话可以先后多个 task；同一时刻最多一个 `active.taskId`。
 
 ## Goal
 
-图上 `{goal, reason, action}`。`action` 是打算做的下一步，还没执行。
+干活的单位。`continueGoal` 交来的 `goal` 字符串，Runtime 落盘赋 `gl_`。`action` 是打算做的下一步，还没执行。
 
 ```json
 {
   "goalId": "gl_01",
   "conversationId": "cv_01",
-  "taskId": "tk_01",
   "turnId": "tn_01",
   "goal": "拿到该型号官网标价",
   "reason": "用户要和电商页对比",
@@ -162,7 +136,7 @@ ID 前缀：`cv_` 会话 / `tn_` 回合 / `tk_` 任务 / `gl_` goal / `ob_` 观�
 }
 ```
 
-`status`：`active` / `done` / `abandoned`。新的 goal 追加到 `task.goalIds`，`currentGoalId` 指向正在干的那个。
+`status`：`active` / `done` / `abandoned`。同一时刻最多一个 `active.goalId`。闲聊不建 goal。
 
 ## Observation
 
@@ -172,7 +146,6 @@ ID 前缀：`cv_` 会话 / `tn_` 回合 / `tk_` 任务 / `gl_` goal / `ob_` 观�
 {
   "observationId": "ob_01",
   "conversationId": "cv_01",
-  "taskId": "tk_01",
   "goalId": "gl_01",
   "turnId": "tn_02",
   "source": "tool",
@@ -203,15 +176,13 @@ ID 前缀：`cv_` 会话 / `tn_` 回合 / `tk_` 任务 / `gl_` goal / `ob_` 观�
 
 **intake（CE#1）** 装：system Pack + 本会话 `skillIds` / `toolIds` / `sopIds` / `mcpIds` + `#用户` + `#上下文`（memory）。
 
-**work（CE#2）** 装：同一 Pack + `#当前任务` + `#goal` + `#action` + `#observation`。chevron 上的 `system / context / current task` 就是这三块：Pack、`#上下文`、`active.taskId` 对应的 Task。
+**work** 装：同一 Pack + `#currentGoal` + `#observation`。
 
 user 文档块：
 
 ```text
 #用户
-#当前任务
-#goal
-#action
+#currentGoal
 #observation
 #上下文
 ```
@@ -222,12 +193,12 @@ Provider 电线：`{system, user, tools}` 由装配器现渲染，用完即扔�
 
 ## LOOP 时数据怎么走
 
-1. 用户一句话 → 新 Turn `mode=intake`，CE#1 装配，LLM 交 `ask` 或 `goal`。
+1. 用户一句话 → 新 Turn `mode=intake`，CE 装配，LLM 交 `ask` 或 `continueGoal`。
 2. `ask` → ledger.`status=waiting_human`，等人答，答文写进下一 Turn `input`，还是 `intake`。
-3. `goal` → 新建 Task + Goal，ledger.`active` 指向它们。
-4. 新 Turn `mode=work`，CE#2 装 `#goal #action #observation`，LLM 交 `tool` / `reply` / `ask`。
-5. `tool` → Runtime 执行 → 写 Observation → 再开 `work` Turn（LOOP）。
-6. `reply` 且任务收口 → Task `completed`，ledger.`status=idle`，`active.taskId=null`。
+3. `continueGoal` → 新建 Goal，ledger.`active.goalId` 指向它。
+4. 新 Turn `mode=work`，装 `#currentGoal` `#observation`，LLM 交动态工具 / `reply` / `ask`。
+5. 动态工具 → Runtime 执行 → 写 Observation → 再开 `work` Turn（LOOP）。
+6. `reply` 且 goal 收口 → Goal `done`，ledger.`status=idle`，`active.goalId=null`。
 
 回流画到哪还没钉：数据上 LOOP 就是再写一条 `work` Turn，读同一批 records。
 

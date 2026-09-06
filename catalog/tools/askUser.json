@@ -5,7 +5,7 @@
     "parameters": {
       "type": "object",
       "properties": {
-        "task": { "type": "string" },
+        "goal": { "type": "string" },
         "choice": { "type": "array", "items": { "type": "string" } },
         "turnMemory": { "type": "array", "items": { "type": "string" } },
         "conversationMemory": { "type": "array", "items": { "type": "string" } },
