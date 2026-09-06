@@ -1,6 +1,6 @@
 # 数据
 
-会话账本 + 记录。字段声明在 `docs/schema.md`。扩展不直连 UUAPI，请求走本机 Bun 服务 `127.0.0.1:18788`。密钥只在服务端 `.env`。
+会话账本 + 记录。字段声明在 `docs/schema.md`。扩展不直连 UUAPI，请求走本机 Bun 服务 `127.0.0.1:18788`。密钥只在服务端 `.env`。运行时数据在 `~/Library/Application Support/tChrome/conversations/<cvId>/`。
 
 ## 目录
 

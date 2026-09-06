@@ -2,7 +2,28 @@
 
 数据声明只写这里。`docs/data.md` 是账本形状和循环。`docs/examples/` 是阶段样例，字段怎么填看本文件。工具参数形状看 `catalog/tools/<id>.json`。Pack 用法看 `catalog/packs/pack.agent.md`。
 
+## 仓目录
+
+```text
+extension/          GUI：Side Panel + background。常规通用 UI 组件和样式
+  ui/               通用组件、样式
+  sidepanel/        面板入口
+service/            后端：Bun.serve 127.0.0.1:18788。按模块分
+  runtime/
+  prompt/
+  context/
+  tools/
+  subagent/         第一期空着
+  provider/
+catalog/            Pack / skill / SOP / tools schema
+docs/               schema、账本、阶段样例
+```
+
+Load unpacked 的 `background.js` / `sidepanel.html` 由 `extension/` 打出来，路径写在 `manifest.json`。GUI 只跟本机服务说话。密钥、落盘、出网 UUAPI 在 `service/`。
+
 ## 落盘文件
+
+运行时数据在 `~/Library/Application Support/tChrome/conversations/<cvId>/`：
 
 ```text
 ledger.json
