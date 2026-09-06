@@ -142,12 +142,12 @@ Chrome、JavaScript、HTML、CSS。
 
 #原则
 查看输入信息是否能支持后续判断。无意义就 finishTurn。信息不完整就 askUser。材料够就调动态工具干活。askUser、finishTurn、动态工具本轮只交一类。搜集相关信息直到不影响下一步。
-`#toolIO` 里某条 return.stage=truncated 时，调 tool.detail，callId 用那条的 key，拿全文。
+`#toolIO` 某条 return.stage=truncated 时，调 tool.detail，callId 用那条的 callId，拿全文。
 
 #参数说明
 每个工具调用必须带 reason：这次为什么调这个工具。
 choice：askUser 时给用户的选项。
-callId：tool.detail 时，要展开全文的那次工具调用 id，对应 `#toolIO` 的 key。
+callId：tool.detail 时，要展开全文的那次工具调用 id，对应 `#toolIO` 该项的 callId。
 turnMemory：这一轮要存下的记忆。
 conversationMemory：要写入会话层的记忆。
 projectMemory：要写入项目层的记忆。
@@ -188,12 +188,11 @@ action
 当前用户输入写在 `#userInput`。
 历史用户输入写在 `#userInputHistory`。
 当前环境写在 `#currentEnvironment`。
-工具调用和返回写在 `#toolIO`：key 是 callId，value 是这次的 name、arguments、return。
+工具调用和返回写在 `#toolIO`：数组，每项是一次调用的 callId、name、arguments、return。同一工具可出现多次。最新的在最下面。
 return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，totalChars 写全文长度。要全文时调 tool.detail，参数 callId。
 常驻工具 askUser / finishTurn / tool.detail 的用法写在本 Pack。动态工具的用法写在 user `#tools`。
 
 报错说明：提示格式错误时，检查工具调用格式。
-
 #skill
 查网页价格时，打开商品页，核对官网价和当前页标价。
 
@@ -202,255 +201,3 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
 2. 打开官网或权威标价页
 3. 把价格写进观察
 ```
-
-来源：`#身份`…`#输出` `#user字段说明` ← `catalog/packs/pack.agent.md`；`#skill` ← `catalog/skills/skill.web.md`；`#sop` ← `catalog/sops/sop.browse.md`。
-
-### `messages[1]` user
-
-按 `userSlots` 顺序。空槽只留标题。`#currentEnvironment` 是 `currentPage` 格式化后的 JSON。
-
-```
-#projectMemory
-
-#conversationMemory
-
-#turnMemory
-
-#contextSummary
-
-#userInputHistory
-
-#userInput
-帮我查这款鼠标官网价
-
-#currentEnvironment
-{
-  "description": "当前页面信息",
-  "tab": 12,
-  "url": "https://item.jd.com/100012345678.html",
-  "title": "罗技 MX Master 3S 无线鼠标"
-}
-
-#toolIO
-
-#tools
-```
-
-### `tools`
-
-`baseToolsIds` + `toolIds` → 按名读 `catalog/tools/<id>.json`，原样放进数组。协议要完整 schema，不能只传名字。
-
-```json
-[
-  {
-    "type": "function",
-    "function": {
-      "name": "askUser",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string"
-          },
-          "choice": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "turnMemory": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "conversationMemory": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "projectMemory": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "contextSummary": {
-            "type": "object"
-          }
-        },
-        "required": [
-          "reason",
-          "choice"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "finishTurn",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string"
-          },
-          "turnMemory": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "conversationMemory": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "projectMemory": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "contextSummary": {
-            "type": "object"
-          }
-        },
-        "required": [
-          "reason"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "tool.detail",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string"
-          },
-          "callId": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "reason",
-          "callId"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "web.search",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string"
-          },
-          "query": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "reason",
-          "query"
-        ]
-      }
-    }
-  }
-]
-```
-
-顺序：`askUser` `finishTurn` `tool.detail`（常驻）、`web.search`（动态）。每个工具 `required` 都含 `reason`。description 不写，用法在 system Pack。
-
-## 字段
-
-上一份已有、本份原样带上：03 写出的全部键。
-
-本环节新增 / 改写：
-
-| 字段          | 类型    | 谁填 | 怎么填             |
-| ------------- | ------- | ---- | ------------------ |
-| `stage`       | string  | 固定 | `provider-request` |
-| `provider`    | string  | 配置 | `uuapi`            |
-| `model`       | string  | 配置 | `gemini-3.7-flash` |
-| `stream`      | boolean | 固定 | `true`，SSE        |
-| `maxAttempts` | number  | 固定 | `3`（含首次）      |
-
-## 写出的（累积快照）
-
-```json
-{
-  "stage": "provider-request",
-  "conversationId": "cv_01",
-  "turnId": "tn_01",
-  "userInput": "帮我查这款鼠标官网价",
-  "userInputHistory": [],
-  "submittedAt": "2026-09-05T08:00:01.000Z",
-  "systemIds": [
-    "pack.agent"
-  ],
-  "skillIds": [
-    "skill.web"
-  ],
-  "sopIds": [
-    "sop.browse"
-  ],
-  "baseToolsIds": [
-    "askUser",
-    "finishTurn",
-    "tool.detail"
-  ],
-  "toolIds": [
-    "web.search"
-  ],
-  "turnMemoryIds": [],
-  "conversationMemoryIds": [],
-  "projectMemoryIds": [],
-  "mcpIds": [],
-  "currentPage": {
-    "description": "当前页面信息",
-    "tab": 12,
-    "url": "https://item.jd.com/100012345678.html",
-    "title": "罗技 MX Master 3S 无线鼠标"
-  },
-  "systemSlots": [
-    "#身份",
-    "#记忆",
-    "#环境",
-    "#原则",
-    "#参数说明",
-    "#内置工具",
-    "#输出",
-    "#user字段说明",
-    "#skill",
-    "#sop"
-  ],
-  "userSlots": [
-    "#projectMemory",
-    "#conversationMemory",
-    "#turnMemory",
-    "#contextSummary",
-    "#userInputHistory",
-    "#userInput",
-    "#currentEnvironment",
-    "#toolIO",
-    "#tools"
-  ],
-  "provider": "uuapi",
-  "model": "gemini-3.7-flash",
-  "stream": true,
-  "maxAttempts": 3
-}
-```
-
-下一份 `05-provider-response.md`：UUAPI 原文 + 解析后的交口。

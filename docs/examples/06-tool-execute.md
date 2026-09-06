@@ -1,15 +1,15 @@
 # 06 工具执行
 
-读 05 的写出。Runtime 按 `toolCalls[0]` 跑工具，把调用和返回写进 `#toolIO`，落 Observation。
+读 05 的写出。Runtime 按 `toolCalls[0]` 跑工具，把调用和返回追加进 `#toolIO`。
 
 怎么看：
 
 - 「读到的」是 05 写出的原样
 - 「执行」是 Runtime 跑 `web.search`
-- 「`#toolIO`」是下一轮 user 槽里给模型看的 key-value
-- 「写出的」累积快照追加 `toolIO` `observationId`
+- 「`#toolIO`」是下一轮 user 槽里给模型看的数组，最新在最下面
+- 「写出的」累积快照追加 `toolIO`
 
-作者是 Runtime。本轮返回 22 字，`stage=complete`，不到 2000，不调 `tool.detail`。
+作者是 Runtime。本轮返回 26 字，`stage=complete`，不到 2000，不调 `tool.detail`。
 
 ## 读到的（05 写出的）
 
@@ -45,11 +45,12 @@ Runtime 按 `name=web.search` 跑，拿到全文：
 
 ## `#toolIO`
 
-key = `callId`。value = 这次的 name、arguments、return。
+数组。每项一次调用。同一工具可出现多次。最新的在最下面。
 
 ```json
-{
-  "call_01": {
+[
+  {
+    "callId": "call_01",
     "name": "web.search",
     "arguments": {
       "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
@@ -61,36 +62,19 @@ key = `callId`。value = 这次的 name、arguments、return。
       "text": "罗技官网 MX Master 3S 标价 999 元"
     }
   }
-}
+]
 ```
 
 | 字段 | 怎么填 |
 |---|---|
-| key | `toolCalls[].id` |
+| `callId` | `toolCalls[].id` |
 | `name` | 工具名 |
 | `arguments` | 模型交的参数（已 parse） |
 | `return.stage` | `complete` / `truncated` |
 | `return.totalChars` | 全文长度 |
 | `return.text` | 窗口正文，最多 2000 字 |
 
-## Observation
-
-```json
-{
-  "observationId": "ob_01",
-  "conversationId": "cv_01",
-  "turnId": "tn_01",
-  "callId": "call_01",
-  "source": "tool",
-  "toolName": "web.search",
-  "text": "罗技官网 MX Master 3S 标价 999 元",
-  "stage": "complete",
-  "totalChars": 26,
-  "createdAt": "2026-09-05T08:00:12.000Z"
-}
-```
-
-全文在 Observation。窗口只带 `#toolIO` 的 `return`。
+观察就是这些工具返回。Runtime 把本条追加到 ledger.`toolIO` 末尾。窗口只带 `return`（最多 2000 字）；全文按 `callId` 另存，模型要全文时交 `tool.detail`。
 
 ## 字段
 
@@ -101,8 +85,7 @@ key = `callId`。value = 这次的 name、arguments、return。
 | 字段 | 类型 | 谁填 | 怎么填 |
 |---|---|---|---|
 | `stage` | string | 固定 | `tool-execute` |
-| `toolIO` | object | Runtime | key=`callId`，value=`{name, arguments, return}` |
-| `observationId` | string | Runtime | 现发 `ob_` |
+| `toolIO` | array | Runtime | 每项 `{callId, name, arguments, return}`，最新在最下面 |
 
 ## 写出的（累积快照）
 
@@ -185,8 +168,9 @@ key = `callId`。value = 这次的 name、arguments、return。
   "schemaOk": true,
   "faultCode": null,
   "missing": [],
-  "toolIO": {
-    "call_01": {
+  "toolIO": [
+    {
+      "callId": "call_01",
       "name": "web.search",
       "arguments": {
         "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
@@ -198,8 +182,7 @@ key = `callId`。value = 这次的 name、arguments、return。
         "text": "罗技官网 MX Master 3S 标价 999 元"
       }
     }
-  },
-  "observationId": "ob_01"
+  ]
 }
 ```
 
