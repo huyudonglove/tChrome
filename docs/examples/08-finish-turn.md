@@ -83,18 +83,7 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
 
 ## 字段
 
-上一份已有、本份原样带上：06 写出的全部键。
-
-本环节新增 / 改写：
-
-| 字段 | 类型 | 谁填 | 怎么填 |
-|---|---|---|---|
-| `stage` | string | 固定 | `finish-turn` |
-| `finish` | string | Provider | 这次出网 `tool_calls` |
-| `content` | string | 模型 | observation / reason / action |
-| `toolCalls` | array | Provider | 本轮交口，一条 `finishTurn` |
-| `toolQueue` | array | Runtime | 跑完为空 |
-| `toolIO` | array | Runtime | 追加 `call_02`，最新在最下面 |
+见 `docs/schema.md`「阶段快照」`finish-turn`。
 
 ## 写出的（累积快照）
 

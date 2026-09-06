@@ -226,17 +226,7 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
 
 ## 字段
 
-上一份已有、本份原样带上：`conversationId` `turnId` `userInput` `userInputHistory` `submittedAt` `systemIds` `skillIds` `sopIds` `baseToolsIds` `toolIds` `turnMemoryIds` `conversationMemoryIds` `projectMemoryIds` `mcpIds` `currentPage`。
-
-本环节新增 / 改写：
-
-| 字段          | 类型     | 谁填   | 怎么填                       |
-| ------------- | -------- | ------ | ---------------------------- |
-| `stage`       | string   | 固定   | `context-engineering-decode` |
-| `systemSlots` | string[] | 装配器 | system 插槽名，按这个顺序拼  |
-| `userSlots`   | string[] | 装配器 | user 插槽名，按这个顺序拼    |
-
-出网拼法：按名列表取各插槽正文，拼成 `system` / `user`。出网 `tools[]` = `baseToolsIds` + `toolIds` 对应的 catalog schema。
+见 `docs/schema.md`「阶段快照」`context-engineering-decode` 和「窗口插槽」。
 
 ## 写出的（累积快照）
 

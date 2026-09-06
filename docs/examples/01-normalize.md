@@ -20,14 +20,9 @@
 
 ## 字段
 
-| 字段 | 类型 | 谁填 | 怎么填 |
-|---|---|---|---|
-| `stage` | string | 固定 | `normalize` |
-| `conversationId` | string | Runtime | 新会话现发 `cv_`；续聊用已有 |
-| `turnId` | string | Runtime | 现发 `tn_` |
-| `userInput` | string | 面板 | 用户原话，非空 |
-| `userInputHistory` | string[] | Runtime | 上一轮及更早的用户原话。用户开新 Turn 时追加上一轮。新会话 / 首回合 `[]` |
-| `submittedAt` | string | 面板 | ISO-8601，面板提交时间 |
+见 `docs/schema.md`「阶段快照」`normalize`。
+
+面板写 `userInput` `submittedAt`。Runtime 写 `conversationId` `turnId` `userInputHistory`。
 
 ## 写出的
 

@@ -43,42 +43,9 @@
 
 ## 字段
 
-上一份已有、本份原样带上：
+见 `docs/schema.md`「阶段快照」`context-engineering-input` 和「assembled」。
 
-| 字段 | 类型 | 谁填 | 怎么填 |
-|---|---|---|---|
-| `conversationId` | string | 01 | 原样 |
-| `turnId` | string | 01 | 原样 |
-| `userInput` | string | 01 | 原样 |
-| `userInputHistory` | string[] | 01 | 原样，首回合 `[]` |
-| `submittedAt` | string | 01 | 原样 |
-
-本环节新增 / 改写：
-
-| 字段 | 类型 | 谁填 | 怎么填 |
-|---|---|---|---|
-| `stage` | string | 固定 | `context-engineering-input` |
-| `systemIds` | string[] | 装配器 | 本轮 Pack，对应 `catalog/packs/<id>.md` |
-| `skillIds` | string[] | 装配器 | 本轮 skill，对应 `catalog/skills/<id>.md` |
-| `sopIds` | string[] | 装配器 | 本轮 SOP，对应 `catalog/sops/<id>.md` |
-| `baseToolsIds` | string[] | 装配器 | 常驻工具，对应 `catalog/tools/<id>.json`。本轮固定 `askUser` `finishTurn` `tool.detail` `observation.detail` `memory.write` |
-| `toolIds` | string[] | 装配器 | 动态工具，对应 `catalog/tools/<id>.json`。没有就 `[]` |
-| `turnMemoryIds` | string[] | 装配器 | 这一轮记忆；没有就 `[]` |
-| `conversationMemoryIds` | string[] | 装配器 | 这一次会话记忆；没有就 `[]` |
-| `projectMemoryIds` | string[] | 装配器 | 项目记忆；没有就 `[]` |
-| `mcpIds` | string[] | 装配器 | 本轮 MCP；没有就 `[]` |
-| `currentPage` | object \| null | 装配器 | 没有就 `null`。有则带 `description`、`tab` ≥ 1、`url`、`title` |
-
-`currentPage` 有值时：
-
-| 字段 | 类型 | 怎么填 |
-|---|---|---|
-| `description` | string | 这块环境是什么，给人/模型认 |
-| `tab` | number | Chrome tabId，≥ 1 |
-| `url` | string | 当前页 URL |
-| `title` | string | 当前页标题 |
-
-出网 tools[] = `baseToolsIds` + `toolIds`，按名取 `catalog/tools/<id>.json` 的 schema。
+出网 `tools[]` = `baseToolsIds` + `toolIds`，按名取 `catalog/tools/<id>.json`。
 
 ## 写出的
 

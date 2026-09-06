@@ -84,14 +84,9 @@
 ]
 ```
 
-| 字段 | 怎么填 |
-|---|---|
-| `callId` | `toolCalls[].id` |
-| `name` | 工具名 |
-| `arguments` | 模型交的参数（已 parse） |
-| `return.stage` | `complete` / `truncated` |
-| `return.totalChars` | 全文长度 |
-| `return.text` | 窗口正文，最多 2000 字 |
+项字段见 `docs/schema.md`「toolIO 项」。
+
+`totalChars=26` ≤ 2000，`stage=complete`。窗口 `return.text` = 全文。
 
 观察就是这些工具返回。Runtime 把本条追加到 ledger.`toolIO` 末尾。窗口只带 `return`（最多 2000 字）；全文按 `callId` 另存，模型要全文时交 `tool.detail`。
 
@@ -160,15 +155,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
 
 ## 字段
 
-上一份已有、本份原样带上：05 写出的全部键。
-
-本环节新增 / 改写：
-
-| 字段 | 类型 | 谁填 | 怎么填 |
-|---|---|---|---|
-| `stage` | string | 固定 | `tool-execute` |
-| `toolQueue` | array | Runtime | 本次出网入队、尚未跑完的工具。跑完为空 |
-| `toolIO` | array | Runtime | 每项 `{callId, name, arguments, return}`，最新在最下面 |
+见 `docs/schema.md`「阶段快照」`tool-execute` 和「toolIO 项」。
 
 ## 写出的（累积快照）
 

@@ -111,13 +111,7 @@
 
 ## 字段
 
-| 字段 | 类型 | 谁填 | 怎么填 |
-|---|---|---|---|
-| `stage` | string | 固定 | `compress` |
-| `observation` | array | Runtime | 压缩过的事实，每项 `{id, text, sourceCallIds}` |
-| `toolIO` | array | Runtime | 未压缩的最近调用。本样例已全部收走，`[]` |
-| `windowChars` | number | Runtime | 压缩后的窗口字符数 |
-| `compressAt` | number | Runtime | 200000 |
+见 `docs/schema.md`「阶段快照」`compress`。
 
 ## 写出的（累积快照）
 

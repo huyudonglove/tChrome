@@ -430,17 +430,7 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
 
 ## 字段
 
-上一份已有、本份原样带上：`conversationId` `turnId` `userInput` `userInputHistory` `submittedAt` `systemIds` `skillIds` `sopIds` `baseToolsIds` `toolIds` `turnMemoryIds` `conversationMemoryIds` `projectMemoryIds` `mcpIds` `currentPage` `systemSlots` `userSlots`。
-
-本环节新增 / 改写：
-
-| 字段 | 类型 | 谁填 | 怎么填 |
-|---|---|---|---|
-| `stage` | string | 固定 | `provider-request` |
-| `provider` | string | Provider | `uuapi` |
-| `model` | string | Provider | `gemini-3.7-flash` |
-| `stream` | bool | Provider | `true`，SSE |
-| `maxAttempts` | number | Provider | 线路失败同一 body 最多 3 次 |
+见 `docs/schema.md`「阶段快照」`provider-request`。
 
 ## 写出的（累积快照）
 

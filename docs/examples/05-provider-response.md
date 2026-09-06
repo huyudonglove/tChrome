@@ -210,15 +210,6 @@ data: [DONE]
 }
 ```
 
-| 字段 | 类型 | 谁填 | 怎么填 |
-|---|---|---|---|
-| `stage` | string | 固定 | `provider-response` |
-| `finish` | string | Provider | `tool_calls` / `stop` / `error` |
-| `content` | string | 模型 | Pack `#输出`：observation / reason / action；有 tool_calls 时也写 |
-| `toolCalls` | object[] | Provider | `id` `name` `arguments`（已 parse） |
-
-每个工具 `arguments` 必须有 `reason` 和 `affectsPage`。`askUser.arguments` 还必须有 `choice`。`web.search.arguments` 还必须有 `query`。本轮交动态工具 `web.search`。一次出网可交多个工具，按 `toolCalls` 数组顺序入 `toolQueue`。
-
 `toolCalls[0].arguments` 本轮字段：
 
 | 字段 | 类型 | 本轮 |
@@ -231,21 +222,7 @@ data: [DONE]
 
 ## 字段
 
-上一份已有、本份原样带上：04 写出的全部键（含 `stream` `maxAttempts`）。
-
-本环节新增 / 改写：
-
-| 字段 | 类型 | 谁填 | 怎么填 |
-|---|---|---|---|
-| `stage` | string | 固定 | `provider-response` |
-| `finish` | string | Provider | 见上 |
-| `content` | string \| null | 模型 | 见上 |
-| `toolCalls` | object[] | Provider | 见上 |
-| `attempts` | number | Provider | 实际打了几次，本轮 `1` |
-| `parseOk` | boolean | Provider | SSE chunk 和 `arguments` 字符串是否都 parse 成功 |
-| `schemaOk` | boolean | Provider | required / 白名单 / 互斥 / 类型是否过 |
-| `faultCode` | string \| null | Provider | 交口失败的精确类型；本轮 `null` |
-| `missing` | string[] | Provider | `missing_required` 时的字段名；本轮 `[]` |
+见 `docs/schema.md`「阶段快照」`provider-response` 和 `faultCode`。本轮交口值见上面那张本轮表。
 
 ## 写出的（累积快照）
 
