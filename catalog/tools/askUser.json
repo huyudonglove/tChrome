@@ -5,14 +5,14 @@
     "parameters": {
       "type": "object",
       "properties": {
-        "goal": { "type": "string" },
+        "reason": { "type": "string" },
         "choice": { "type": "array", "items": { "type": "string" } },
         "turnMemory": { "type": "array", "items": { "type": "string" } },
         "conversationMemory": { "type": "array", "items": { "type": "string" } },
         "projectMemory": { "type": "array", "items": { "type": "string" } },
         "contextSummary": { "type": "object" }
       },
-      "required": ["choice"]
+      "required": ["reason", "choice"]
     }
   }
 }

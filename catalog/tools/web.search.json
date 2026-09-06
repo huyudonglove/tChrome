@@ -5,9 +5,10 @@
     "parameters": {
       "type": "object",
       "properties": {
+        "reason": { "type": "string" },
         "query": { "type": "string" }
       },
-      "required": ["query"]
+      "required": ["reason", "query"]
     }
   }
 }

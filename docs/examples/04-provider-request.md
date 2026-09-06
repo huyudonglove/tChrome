@@ -3,13 +3,14 @@
 读 03 的写出。Provider 把插槽拼成 **Chat Completions POST body**，转发 UUAPI。传出另见 `05-provider-response.md`。
 
 怎么看：
+
 - 「读到的」是 03 写出的原样
 - 「怎么拼」是这一次真正发出去的参数：`model` + `messages` + `tools` + `stream`
 - 「写出的」累积快照追加 `provider` `model` `stream` `maxAttempts`。交口在下一份
 
 作者是 Provider。不装配、不跑工具、不落盘。key 在请求头，不进 body。
 
-本轮 intake 材料够，预期模型交 `continueGoal`。传出字段在 05。
+本轮材料够，预期模型交 `web.search`。传出字段在 05。
 
 ## 读到的（03 写出的）
 
@@ -20,22 +21,11 @@
   "turnId": "tn_01",
   "userInput": "帮我查这款鼠标官网价",
   "submittedAt": "2026-09-05T08:00:01.000Z",
-  "systemIds": [
-    "pack.agent"
-  ],
-  "skillIds": [
-    "skill.web"
-  ],
-  "sopIds": [
-    "sop.browse"
-  ],
-  "baseToolsIds": [
-    "continueGoal",
-    "askUser"
-  ],
-  "toolIds": [
-    "web.search"
-  ],
+  "systemIds": ["pack.agent"],
+  "skillIds": ["skill.web"],
+  "sopIds": ["sop.browse"],
+  "baseToolsIds": ["askUser"],
+  "toolIds": ["web.search"],
   "turnMemoryIds": [],
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
@@ -63,7 +53,6 @@
     "#conversationMemory",
     "#turnMemory",
     "#contextSummary",
-    "#currentGoal",
     "#userInput",
     "#currentEnvironment",
     "#tools"
@@ -103,11 +92,11 @@ SDK 写法：`client.chat.completions.create({ model, messages, tools, stream: t
 
 同一份 body 最多打 **3 次**（含第一次）。
 
-| | |
-|---|---|
-| 重试 | 网络断开、超时、5xx、429 |
-| 不重试 | 4xx（除 429）、key 无效、请求体不合法 |
-| 间隔 | 失败后等 1s 再打；第 3 次仍失败 → `finish=error` 交给 Runtime |
+|        |                                                               |
+| ------ | ------------------------------------------------------------- |
+| 重试   | 网络断开、超时、5xx、429                                      |
+| 不重试 | 4xx（除 429）、key 无效、请求体不合法                         |
+| 间隔   | 失败后等 1s 再打；第 3 次仍失败 → `finish=error` 交给 Runtime |
 
 已收到完整 `[DONE]` 不算失败，不重试。
 
@@ -117,7 +106,7 @@ SDK 写法：`client.chat.completions.create({ model, messages, tools, stream: t
 
 ```
 #身份
-你是 tChrome 浏览器助手。当前在一个会话窗口里。层级：project → conversation → turn。
+你是 tChrome 浏览器助手。当前在一个会话窗口里。层级：project → conversation → turn。结合内容和记忆，判断工具调用。
 
 #记忆
 三层记忆，从稳到新：projectMemory → conversationMemory → turnMemory。
@@ -125,24 +114,24 @@ projectMemory：整个项目共用，跨会话仍在。
 conversationMemory：这一次会话里确认过的事实。
 turnMemory：这一轮刚记下的，下一轮并进 conversationMemory。
 读：user 的 `#projectMemory` `#conversationMemory` `#turnMemory`。
-写：通过 continueGoal / askUser 的同名参数交回来，Runtime 落盘。
+写：通过工具同名参数交回来，Runtime 落盘。
 
 #环境
 Chrome、JavaScript、HTML、CSS。
 
 #原则
-查看输入信息是否完整。完整就调用 continueGoal。不完整就调用 askUser。两个方法互斥。搜集相关信息直到不影响下一步。
+查看输入信息是否能支持后续判断。信息不够就调用 askUser。材料够就调动态工具干活。askUser 和动态工具本轮只交一类。搜集相关信息直到不影响下一步。
 
 #参数说明
-task：当前目标；askUser 时为空。
-choice：askUser 时给用户的选项；continueGoal 时为空。
+每个工具调用必须带 reason：这次为什么调这个工具。
+choice：askUser 时给用户的选项。
 turnMemory：这一轮要存下的记忆。
 conversationMemory：要写入会话层的记忆。
 projectMemory：要写入项目层的记忆。
 contextSummary：user 里带给下一轮的汇总，排除三层记忆。
 
     {
-      "goal": "",
+      "reason": "",
       "choice": [],
       "turnMemory": [],
       "conversationMemory": [],
@@ -151,8 +140,9 @@ contextSummary：user 里带给下一轮的汇总，排除三层记忆。
     }
 
 #内置工具
-常驻：continueGoal、askUser。每轮都在出网 tools[] 里。用法见 #原则、#参数说明。
+常驻：askUser。每轮都在出网 tools[] 里。用法见 #原则、#参数说明。
 动态工具本轮才挂上，用法写在 user `#tools`。
+每个工具的 arguments 都带 reason。
 
 #输出
 每次都写 `content`，三段，标题固定：
@@ -171,10 +161,9 @@ action
 #user字段说明
 记忆写在 `#projectMemory` `#conversationMemory` `#turnMemory`。
 上次会话总结写在 `#contextSummary`。
-当前目标写在 `#currentGoal`。
 当前用户输入写在 `#userInput`。
 当前环境写在 `#currentEnvironment`。
-常驻工具 continueGoal / askUser 的用法写在本 Pack。动态工具的用法写在 user `#tools`。
+常驻工具 askUser 的用法写在本 Pack。动态工具的用法写在 user `#tools`。
 
 报错说明：提示格式错误时，检查工具调用格式。
 
@@ -202,8 +191,6 @@ action
 
 #contextSummary
 
-#currentGoal
-
 #userInput
 帮我查这款鼠标官网价
 
@@ -227,55 +214,11 @@ action
   {
     "type": "function",
     "function": {
-      "name": "continueGoal",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "goal": {
-            "type": "string"
-          },
-          "choice": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "turnMemory": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "conversationMemory": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "projectMemory": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "contextSummary": {
-            "type": "object"
-          }
-        },
-        "required": [
-          "goal"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
       "name": "askUser",
       "parameters": {
         "type": "object",
         "properties": {
-          "goal": {
+          "reason": {
             "type": "string"
           },
           "choice": {
@@ -307,6 +250,7 @@ action
           }
         },
         "required": [
+          "reason",
           "choice"
         ]
       }
@@ -319,11 +263,15 @@ action
       "parameters": {
         "type": "object",
         "properties": {
+          "reason": {
+            "type": "string"
+          },
           "query": {
             "type": "string"
           }
         },
         "required": [
+          "reason",
           "query"
         ]
       }
@@ -332,7 +280,7 @@ action
 ]
 ```
 
-顺序：`continueGoal`、`askUser`（常驻）、`web.search`（动态）。description 不写，用法在 system Pack。
+顺序：`askUser`（常驻）、`web.search`（动态）。每个工具 `required` 都含 `reason`。description 不写，用法在 system Pack。
 
 ## 字段
 
@@ -340,13 +288,13 @@ action
 
 本环节新增 / 改写：
 
-| 字段 | 类型 | 谁填 | 怎么填 |
-|---|---|---|---|
-| `stage` | string | 固定 | `provider-request` |
-| `provider` | string | 配置 | `uuapi` |
-| `model` | string | 配置 | `gemini-3.7-flash` |
-| `stream` | boolean | 固定 | `true`，SSE |
-| `maxAttempts` | number | 固定 | `3`（含首次） |
+| 字段          | 类型    | 谁填 | 怎么填             |
+| ------------- | ------- | ---- | ------------------ |
+| `stage`       | string  | 固定 | `provider-request` |
+| `provider`    | string  | 配置 | `uuapi`            |
+| `model`       | string  | 配置 | `gemini-3.7-flash` |
+| `stream`      | boolean | 固定 | `true`，SSE        |
+| `maxAttempts` | number  | 固定 | `3`（含首次）      |
 
 ## 写出的（累积快照）
 
@@ -357,22 +305,11 @@ action
   "turnId": "tn_01",
   "userInput": "帮我查这款鼠标官网价",
   "submittedAt": "2026-09-05T08:00:01.000Z",
-  "systemIds": [
-    "pack.agent"
-  ],
-  "skillIds": [
-    "skill.web"
-  ],
-  "sopIds": [
-    "sop.browse"
-  ],
-  "baseToolsIds": [
-    "continueGoal",
-    "askUser"
-  ],
-  "toolIds": [
-    "web.search"
-  ],
+  "systemIds": ["pack.agent"],
+  "skillIds": ["skill.web"],
+  "sopIds": ["sop.browse"],
+  "baseToolsIds": ["askUser"],
+  "toolIds": ["web.search"],
   "turnMemoryIds": [],
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
@@ -400,7 +337,6 @@ action
     "#conversationMemory",
     "#turnMemory",
     "#contextSummary",
-    "#currentGoal",
     "#userInput",
     "#currentEnvironment",
     "#tools"

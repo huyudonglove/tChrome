@@ -21,16 +21,16 @@
 | 01（原样带上） | `conversationId` `turnId` `userInput` `submittedAt` |
 | 本环节 | `stage` 改成 `context-engineering-input`；追加下面点名键 |
 
-## 配方（intake）
+## 配方
 
-图上 CE#1：组装 system / skill / tool / memory / SOP。本环节只选出 ID。
+组装 system / skill / tool / memory / SOP。本环节只选出 ID。
 
 | 选什么 | 干什么 | 本轮选中 |
 |---|---|---|
 | `systemIds` | 本轮 Pack | `pack.agent` → `catalog/packs/pack.agent.md` |
 | `skillIds` | 索引进 system 的章节 | `skill.web` → `catalog/skills/skill.web.md` |
 | `sopIds` | 索引进 system 的章节 | `sop.browse` → `catalog/sops/sop.browse.md` |
-| `baseToolsIds` | 常驻工具，每轮都出网 | `continueGoal` `askUser` |
+| `baseToolsIds` | 常驻工具，每轮都出网 | `askUser` |
 | `toolIds` | 动态工具，本轮才挂 | `web.search` |
 | `turnMemoryIds` | 这一轮记忆 | 新会话空 |
 | `conversationMemoryIds` | 这一次会话记忆 | 新会话空 |
@@ -38,7 +38,7 @@
 | `mcpIds` | 本轮 MCP | 空 |
 | `currentPage` | 当前页 | 京东商品页 |
 
-本轮没有独立 goal。intake 只点名 catalog 和当前页。work 配方在 `continueGoal` 交了 goal 之后另开。
+本轮只点名 catalog 和当前页。材料够就调动态工具。
 
 ## 字段
 
@@ -59,7 +59,7 @@
 | `systemIds` | string[] | 装配器 | 本轮 Pack，对应 `catalog/packs/<id>.md` |
 | `skillIds` | string[] | 装配器 | 本轮 skill，对应 `catalog/skills/<id>.md` |
 | `sopIds` | string[] | 装配器 | 本轮 SOP，对应 `catalog/sops/<id>.md` |
-| `baseToolsIds` | string[] | 装配器 | 常驻工具，对应 `catalog/tools/<id>.json`。本轮固定 `continueGoal` `askUser` |
+| `baseToolsIds` | string[] | 装配器 | 常驻工具，对应 `catalog/tools/<id>.json`。本轮固定 `askUser` |
 | `toolIds` | string[] | 装配器 | 动态工具，对应 `catalog/tools/<id>.json`。没有就 `[]` |
 | `turnMemoryIds` | string[] | 装配器 | 这一轮记忆；没有就 `[]` |
 | `conversationMemoryIds` | string[] | 装配器 | 这一次会话记忆；没有就 `[]` |
@@ -90,7 +90,7 @@
   "systemIds": ["pack.agent"],
   "skillIds": ["skill.web"],
   "sopIds": ["sop.browse"],
-  "baseToolsIds": ["continueGoal", "askUser"],
+  "baseToolsIds": ["askUser"],
   "toolIds": ["web.search"],
   "turnMemoryIds": [],
   "conversationMemoryIds": [],

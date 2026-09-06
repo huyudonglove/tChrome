@@ -10,7 +10,7 @@
 
 作者是 Provider。不跑工具、不落盘。`usage` / 响应 `id` / `object` 不进交口。
 
-本轮第 1 次就收到完整 `[DONE]`，交 `continueGoal`，不交 `askUser`。
+本轮第 1 次就收到完整 `[DONE]`，交 `web.search`，不交 `askUser`。
 
 ## 读到的（04 写出的）
 
@@ -31,7 +31,6 @@
     "sop.browse"
   ],
   "baseToolsIds": [
-    "continueGoal",
     "askUser"
   ],
   "toolIds": [
@@ -64,7 +63,6 @@
     "#conversationMemory",
     "#turnMemory",
     "#contextSummary",
-    "#currentGoal",
     "#userInput",
     "#currentEnvironment",
     "#tools"
@@ -91,11 +89,11 @@ data: [DONE]
 本轮四次分片（content 三段 → 工具名 → 参数字符串 → finish），然后 DONE：
 
 ```
-data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，可以建任务。\n\naction\n调用 continueGoal，目标是查官网价并和当前页标价核对。"},"finish_reason":null}]}
+data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web.search，查询罗技 MX Master 3S 官网价。"},"finish_reason":null}]}
 
-data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_01","type":"function","function":{"name":"continueGoal","arguments":""}}]},"finish_reason":null}]}
+data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_01","type":"function","function":{"name":"web.search","arguments":""}}]},"finish_reason":null}]}
 
-data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"goal\":\"查当前页这款罗技 MX Master 3S 的官网价，并和当前页标价核对。\",\"choice\":[],\"turnMemory\":[\"用户要查当前页鼠标的官网价\"],\"conversationMemory\":[],\"projectMemory\":[],\"contextSummary\":{\"page\":\"罗技 MX Master 3S 无线鼠标\",\"url\":\"https://item.jd.com/100012345678.html\"}}"}}]},"finish_reason":null}]}
+data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"reason\": \"当前页已确认是目标商品，需要官网价来核对标价。\", \"query\": \"罗技 MX Master 3S 官网 价格\"}"}}]},"finish_reason":null}]}
 
 data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
 
@@ -105,7 +103,7 @@ data: [DONE]
 | 分片 | 带来什么 |
 |---|---|
 | 第 1 片 | `delta.content` = observation / reason / action 三段 |
-| 第 2 片 | `tool_calls[0].id` = `call_01`，`function.name` = `continueGoal` |
+| 第 2 片 | `tool_calls[0].id` = `call_01`，`function.name` = `web.search` |
 | 第 3 片 | `function.arguments` 追加 JSON **字符串** |
 | 第 4 片 | `finish_reason` = `tool_calls` |
 | `[DONE]` | 流结束。没收到这一行 = 这次失败，整单重试 |
@@ -134,7 +132,7 @@ data: [DONE]
 | `unknown_tool` | `name` 不在 `baseToolsIds` + `toolIds` |
 | `missing_required` | catalog `required` 缺或空；`missing` 列出字段名 |
 | `wrong_type` | Ajv：类型对不上 schema |
-| `exclusive_resident` | `continueGoal` 和 `askUser` 同时交 |
+| `exclusive_resident` | `askUser` 和动态工具同时交 |
 
 回给模型的 tool 结果（`role=tool`，`tool_call_id` 用这次的 `call_01`）：
 
@@ -142,8 +140,8 @@ data: [DONE]
 {
   "ok": false,
   "faultCode": "missing_required",
-  "missing": ["goal"],
-  "toolName": "continueGoal"
+  "missing": ["reason"],
+  "toolName": "web.search"
 }
 ```
 
@@ -158,8 +156,8 @@ data: [DONE]
   "parseOk": true,
   "schemaOk": true,
   "faultCode": null,
-  "toolName": "continueGoal",
-  "required": ["goal"],
+  "toolName": "web.search",
+  "required": ["reason", "query"],
   "missing": []
 }
 ```
@@ -183,23 +181,14 @@ data: [DONE]
   "provider": "uuapi",
   "model": "gemini-3.7-flash",
   "finish": "tool_calls",
-  "content": "observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，可以建任务。\n\naction\n调用 continueGoal，目标是查官网价并和当前页标价核对。",
+  "content": "observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web.search，查询罗技 MX Master 3S 官网价。",
   "toolCalls": [
     {
       "id": "call_01",
-      "name": "continueGoal",
+      "name": "web.search",
       "arguments": {
-        "goal": "查当前页这款罗技 MX Master 3S 的官网价，并和当前页标价核对。",
-        "choice": [],
-        "turnMemory": [
-          "用户要查当前页鼠标的官网价"
-        ],
-        "conversationMemory": [],
-        "projectMemory": [],
-        "contextSummary": {
-          "page": "罗技 MX Master 3S 无线鼠标",
-          "url": "https://item.jd.com/100012345678.html"
-        }
+        "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
+        "query": "罗技 MX Master 3S 官网 价格"
       }
     }
   ]
@@ -213,18 +202,14 @@ data: [DONE]
 | `content` | string | 模型 | Pack `#输出`：observation / reason / action；有 tool_calls 时也写 |
 | `toolCalls` | object[] | Provider | `id` `name` `arguments`（已 parse） |
 
-`continueGoal.arguments` 必须有 `goal`。`askUser.arguments` 必须有 `choice`。本轮只交一个常驻工具。
+每个工具 `arguments` 必须有 `reason`。`askUser.arguments` 还必须有 `choice`。`web.search.arguments` 还必须有 `query`。本轮交动态工具 `web.search`。
 
 `toolCalls[0].arguments` 本轮字段：
 
 | 字段 | 类型 | 本轮 |
 |---|---|---|
-| `goal` | string | 查当前页这款罗技 MX Master 3S 的官网价，并和当前页标价核对。 |
-| `choice` | string[] | `[]`（continueGoal 时空） |
-| `turnMemory` | string[] | 这一轮要记下的 |
-| `conversationMemory` | string[] | `[]` |
-| `projectMemory` | string[] | `[]` |
-| `contextSummary` | object | 排除三层记忆的汇总 |
+| `reason` | string | 当前页已确认是目标商品，需要官网价来核对标价。 |
+| `query` | string | 罗技 MX Master 3S 官网 价格 |
 
 3 次都失败时交口是 `finish=error`，`content` 写失败原因，`toolCalls=[]`。本轮不是这种情况。
 
@@ -265,7 +250,6 @@ data: [DONE]
     "sop.browse"
   ],
   "baseToolsIds": [
-    "continueGoal",
     "askUser"
   ],
   "toolIds": [
@@ -298,7 +282,6 @@ data: [DONE]
     "#conversationMemory",
     "#turnMemory",
     "#contextSummary",
-    "#currentGoal",
     "#userInput",
     "#currentEnvironment",
     "#tools"
@@ -308,23 +291,14 @@ data: [DONE]
   "stream": true,
   "maxAttempts": 3,
   "finish": "tool_calls",
-  "content": "observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，可以建任务。\n\naction\n调用 continueGoal，目标是查官网价并和当前页标价核对。",
+  "content": "observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web.search，查询罗技 MX Master 3S 官网价。",
   "toolCalls": [
     {
       "id": "call_01",
-      "name": "continueGoal",
+      "name": "web.search",
       "arguments": {
-        "goal": "查当前页这款罗技 MX Master 3S 的官网价，并和当前页标价核对。",
-        "choice": [],
-        "turnMemory": [
-          "用户要查当前页鼠标的官网价"
-        ],
-        "conversationMemory": [],
-        "projectMemory": [],
-        "contextSummary": {
-          "page": "罗技 MX Master 3S 无线鼠标",
-          "url": "https://item.jd.com/100012345678.html"
-        }
+        "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
+        "query": "罗技 MX Master 3S 官网 价格"
       }
     }
   ],
@@ -336,4 +310,4 @@ data: [DONE]
 }
 ```
 
-下一份：Runtime 按 `toolCalls[0].name` 执行。本轮是 `continueGoal`，落 Goal，进 LOOP。
+下一份：Runtime 按 `toolCalls[0].name` 执行。本轮是 `web.search`，写 Observation，进 LOOP。
