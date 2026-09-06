@@ -19,20 +19,40 @@ catalog/            Pack / skill / SOP / tools schema
 docs/               schema、账本、阶段样例
 ```
 
-Load unpacked 的 `background.js` / `sidepanel.html` 由 `extension/` 打出来，路径写在 `manifest.json`。GUI 只跟本机服务说话。密钥、落盘、出网 UUAPI 在 `service/`。
+Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.json` 拷进 `dist/`。Chrome 加载 `dist/`。`dist/` 已 gitignore。产物路径仍是 `background.js` / `sidepanel.html`。GUI 只跟本机服务说话。密钥、落盘、出网 UUAPI 在 `service/`。
+
+## 本机 HTTP
+
+第一期两条。面板长请求直连 `http://127.0.0.1:18788`。
+
+| 方法 | 路径 | 体 | 回 |
+|---|---|---|---|
+| GET | `/health` | 无 | `{ok:true}` |
+| POST | `/turn` | `{userInput, submittedAt}` | `{conversationId, turnId, output}` |
+
+`output` 见「output」。整轮收口再回一次。工具循环不推到面板。
 
 ## 落盘文件
 
-运行时数据在 `~/Library/Application Support/tChrome/conversations/<cvId>/`：
+运行时数据在 `~/Library/Application Support/tChrome/`：
 
 ```text
-ledger.json
-turns/<turnId>.json
-memory/<memoryId>.json
-observations/<observationId>.json
+session.json
+conversations/<cvId>/ledger.json
+conversations/<cvId>/turns/<turnId>.json
+conversations/<cvId>/memory/<memoryId>.json
+conversations/<cvId>/observations/<observationId>.json
 ```
 
 前缀：`cv_` 会话 · `tn_` 回合 · `mm_` 记忆 · `ob_` 压缩事实 · `call_` 工具调用。
+
+## session.json
+
+当前打开的会话。Runtime 独占维护。面板不带 id。
+
+| 字段 | 类型 | 怎么填 |
+|---|---|---|
+| `conversationId` | string | `cv_`。第一次没有就建一个，写进这里。换会话以后再做 |
 
 ## ledger.json
 
@@ -85,7 +105,7 @@ Runtime 独占维护。当前会话指针。
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
 | `mcpIds` | string[] | 本轮 MCP；没有就 `[]` |
-| `currentPage` | object \| null | 没有就 `null`。有则 `description` `tab` `url` `title` |
+| `currentPage` | object \| null | 没有就 `null`。第一期 Runtime 写 `null`。background 泵页后再填 `description` `tab` `url` `title` |
 
 `currentPage`：
 

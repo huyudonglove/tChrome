@@ -1,17 +1,28 @@
 # 数据
 
-会话账本 + 记录。字段声明在 `docs/schema.md`。扩展不直连 UUAPI，请求走本机 Bun 服务 `127.0.0.1:18788`。密钥只在服务端 `.env`。运行时数据在 `~/Library/Application Support/tChrome/conversations/<cvId>/`。
+会话账本 + 记录。字段声明在 `docs/schema.md`。扩展不直连 UUAPI，请求走本机 Bun 服务 `127.0.0.1:18788`。密钥只在服务端 `.env`。运行时数据在 `~/Library/Application Support/tChrome/`。
 
 ## 目录
 
 ```text
-ledger.json
-turns/<turnId>.json
-memory/<memoryId>.json
-observations/<observationId>.json
+session.json
+conversations/<cvId>/ledger.json
+conversations/<cvId>/turns/<turnId>.json
+conversations/<cvId>/memory/<memoryId>.json
+conversations/<cvId>/observations/<observationId>.json
 ```
 
-前缀见 schema。
+前缀见 schema。HTTP 见 schema「本机 HTTP」。
+
+## session.json
+
+当前打开的会话。字段见 schema「session.json」。
+
+```json
+{
+  "conversationId": "cv_01"
+}
+```
 
 ## ledger.json
 
@@ -51,7 +62,7 @@ Runtime 独占维护。当前会话指针。字段见 schema「ledger.json」。
 {
   "turnId": "tn_01",
   "conversationId": "cv_01",
-  "status": "running",
+  "status": "inferring",
   "createdAt": "2026-09-05T08:00:01.000Z",
   "completedAt": null,
   "input": {
@@ -121,7 +132,7 @@ Runtime 独占维护。当前会话指针。字段见 schema「ledger.json」。
 
 ## 循环
 
-1. 用户一句话 → 新 Turn。Runtime 把上一 Turn 的 `userInput` 追加进 ledger.`userInputHistory`。CE 装配一次。LLM 交工具。
+1. 用户一句话 → `POST /turn` `{userInput, submittedAt}`。Runtime 读 `session.json`，没有 `conversationId` 就建 `cv_` 并写入。新 Turn。Runtime 把上一 Turn 的 `userInput` 追加进 ledger.`userInputHistory`。CE 装配一次。第一期 `currentPage=null`。LLM 交工具。
 2. 模型一次出网可交多个 `toolCalls`。Runtime 按数组顺序写入 ledger.`toolQueue`。任务队列按这个顺序执行。
 3. 队列每跑完一条，把 `{callId, name, arguments, return}` 追加到 ledger.`toolIO` 末尾，并从队列弹出。
 4. `askUser` → ledger.`status=waiting_human`。用户下一条输入开新 Turn（走步骤 1）。
