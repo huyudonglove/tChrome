@@ -11,10 +11,9 @@ export function clipReturn(full: string): ToolReturn {
   return { stage: "truncated", totalChars, text: full.slice(0, WINDOW_TEXT_LIMIT) };
 }
 
-export function actionFromContent(content: string, fallback = ""): string {
+export function actionFromContent(content: string): string {
   const match = content.match(/(?:^|\n)action\n([\s\S]*)$/i);
-  const action = (match?.[1] ?? content).trim();
-  return action || fallback.trim();
+  return (match?.[1] ?? "").trim();
 }
 
 export function questionFromContent(content: string, choice: string[]): string {
@@ -75,7 +74,7 @@ export type ExecuteInput = {
 
 export async function executeTool(input: ExecuteInput): Promise<string> {
   const { name, arguments: args, content, lookup, host, dataDir, browserNames } = input;
-  if (name === "finishTurn") return actionFromContent(content, String(args.reason ?? ""));
+  if (name === "finishTurn") return actionFromContent(content);
   if (name === "askUser") return questionFromContent(content, asStringArray(args.choice));
   if (name === "catalog.add") {
     const names = asStringArray(args.names);

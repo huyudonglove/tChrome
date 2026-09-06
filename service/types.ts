@@ -82,6 +82,7 @@ export type Ledger = {
   turnIds: string[];
   userInputHistory: string[];
   toolQueue: ToolQueueItem[];
+  liveTool: { name: string; callId: string } | null;
   toolIO: ToolIOItem[];
   observation: ObservationItem[];
   windowChars: number;

@@ -15,6 +15,7 @@ type SessionView = {
   conversationId: string | null;
   status: string;
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
+  liveTool: { name: string; callId: string } | null;
   messages: Message[];
 };
 
@@ -25,7 +26,7 @@ type ConversationItem = {
   preview: string;
 };
 
-const emptySession = (): SessionView => ({ conversationId: null, status: "idle", pendingAsk: null, messages: [] });
+const emptySession = (): SessionView => ({ conversationId: null, status: "idle", pendingAsk: null, liveTool: null, messages: [] });
 
 const SUGGESTIONS = [
   { label: "看当前页", text: "当前页标题是什么" },
@@ -284,7 +285,7 @@ export function App() {
           <div className="brand-mark">t</div>
           <div className="app-identity">
             <strong>{session.conversationId ?? "tChrome"}</strong>
-            <small>{sending ? "在想" : session.status}</small>
+            <small>{sending ? (session.liveTool ? session.liveTool.name : "在想") : session.status}</small>
           </div>
           <div className="app-actions">
             <button className="icon-button" type="button" title="会话" onClick={() => setListOpen((open) => !open)}>
@@ -335,7 +336,7 @@ export function App() {
           {sending ? (
             <article className="message-row assistant muted">
               <Avatar who="assistant" />
-              <div className="message-body"><p>在想</p></div>
+              <div className="message-body"><p>{session.liveTool ? session.liveTool.name : "在想"}</p></div>
             </article>
           ) : null}
         </div>

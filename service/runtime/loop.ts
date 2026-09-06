@@ -156,6 +156,8 @@ const runQueue = async (input: {
   while (ledger.toolQueue.length) {
     const item = ledger.toolQueue.shift();
     if (!item) break;
+    ledger.liveTool = { name: item.name, callId: item.callId };
+    saveLedger(dataDir, ledger);
     const full = await executeTool({
       name: item.name,
       arguments: item.arguments,
@@ -208,6 +210,7 @@ const runQueue = async (input: {
       ledger.status = "waiting_human";
       ledger.pendingAsk = { turnId: turn.turnId, question: full };
       ledger.active = { turnId: turn.turnId };
+      ledger.liveTool = null;
       return turn.output;
     }
     if (item.name === "finishTurn") {
@@ -218,6 +221,7 @@ const runQueue = async (input: {
       ledger.active = null;
       ledger.pendingAsk = null;
       ledger.toolQueue = [];
+      ledger.liveTool = null;
       return turn.output;
     }
   }
@@ -310,6 +314,7 @@ export async function handleTurn(
       turn.output = { kind: "error", faultCode: result.faultCode ?? "provider_error" };
       ledger.status = "failed";
       ledger.active = null;
+      ledger.liveTool = null;
       saveTurn(deps.dataDir, turn);
       saveLedger(deps.dataDir, ledger);
       appendEvent(deps.dataDir, ledger.conversationId, {
@@ -328,6 +333,7 @@ export async function handleTurn(
         turn.output = { kind: "error", faultCode: result.faultCode ?? "missing_required" };
         ledger.status = "failed";
         ledger.active = null;
+        ledger.liveTool = null;
         saveTurn(deps.dataDir, turn);
         saveLedger(deps.dataDir, ledger);
         appendEvent(deps.dataDir, ledger.conversationId, {
@@ -355,6 +361,7 @@ export async function handleTurn(
         turn.output = { kind: "error", faultCode: "missing_required" };
         ledger.status = "failed";
         ledger.active = null;
+        ledger.liveTool = null;
         saveTurn(deps.dataDir, turn);
         saveLedger(deps.dataDir, ledger);
         appendEvent(deps.dataDir, ledger.conversationId, {
@@ -398,6 +405,7 @@ export async function handleTurn(
   turn.output = { kind: "error", faultCode: "max_outbounds" };
   ledger.status = "failed";
   ledger.active = null;
+  ledger.liveTool = null;
   saveTurn(deps.dataDir, turn);
   saveLedger(deps.dataDir, ledger);
   appendEvent(deps.dataDir, ledger.conversationId, {

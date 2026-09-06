@@ -61,6 +61,7 @@ export function emptyLedger(conversationId: string): Ledger {
     turnIds: [],
     userInputHistory: [],
     toolQueue: [],
+    liveTool: null,
     toolIO: [],
     observation: [],
     windowChars: 0,
@@ -151,6 +152,7 @@ export type SessionView = {
   conversationId: string | null;
   status: Ledger["status"] | "idle";
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
+  liveTool: { name: string; callId: string } | null;
   messages: SessionMessage[];
 };
 
@@ -176,13 +178,13 @@ export function sessionView(dataDir: string, cvId: string): SessionView {
     const choice = Array.isArray(raw) ? raw.filter((item): item is string => typeof item === "string") : [];
     pendingAsk = { turnId: ledger.pendingAsk.turnId, question: ledger.pendingAsk.question, choice };
   }
-  return { conversationId: cvId, status: ledger.status, pendingAsk, messages };
+  return { conversationId: cvId, status: ledger.status, pendingAsk, liveTool: ledger.liveTool, messages };
 }
 
 export function currentSessionView(dataDir: string): SessionView {
   const session = loadSession(dataDir);
   if (!session?.conversationId) {
-    return { conversationId: null, status: "idle", pendingAsk: null, messages: [] };
+    return { conversationId: null, status: "idle", pendingAsk: null, liveTool: null, messages: [] };
   }
   return sessionView(dataDir, session.conversationId);
 }

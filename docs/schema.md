@@ -102,6 +102,7 @@ Runtime 独占维护。当前会话指针。
 | `turnIds` | string[] | 已建的回合，按时间 |
 | `userInputHistory` | string[] | 上一轮及更早的用户原话，按时间。新会话 `[]`。用户下一条输入开新 Turn 时，Runtime 把刚结束那一轮的 `userInput` 追加进去 |
 | `toolQueue` | object[] | 本 Turn 待执行的工具。模型一次出网交的 `toolCalls` 按数组顺序入队。任务队列按这个顺序跑。跑完一条弹出，写入 `toolIO`。新会话 / 新出网前空。每项 `{callId, name, arguments}` |
+| `liveTool` | object \| null | 正在跑的那条 `{name, callId}`。空闲 / 追问 / 失败为 `null` |
 | `toolIO` | object[] | 本会话已执行、窗口里还带着的工具调用。新会话 `[]`。队列里跑完一条追加一条，最新在最下面。窗口到 200K 时较早的条目收进 `observation`。每项见「toolIO 项」 |
 | `observation` | object[] | 压缩过的事实。新会话 `[]`。每项 `{id, text, sourceCallIds}`。`text` 是摘要。全文在 `observations/<id>.json`，用 `observation.detail` 取 |
 | `windowChars` | number | 本轮出网窗口已用字符数。开 Turn 装配后、以及本 Turn 每次出网前，Runtime 写入 |
@@ -154,7 +155,7 @@ Runtime 独占维护。当前会话指针。
 
 - `tool` → `{kind, name, callId}`（动态工具 / `tool.detail` / `observation.detail` / `memory.write`）
 - `ask` → `{kind, question}`（`askUser`）
-- `reply` → `{kind, text}`（`finishTurn`，`text` 取 content 的 action）
+- `reply` → `{kind, text}`（`finishTurn`，`text` 只取 content 的 action。没有 action 就空着，不用 reason 顶）
 - `error` → `{kind, faultCode}`
 
 ## memory/<memoryId>.json
@@ -226,7 +227,7 @@ user 顺序 = `userSlots`：
 | `totalChars` | number | 全文长度（JS `string.length` / Python `len`） |
 | `text` | string | 窗口正文，最多 2000 字 |
 
-`askUser` 的 `text` 是问题和选项。`finishTurn` 的 `text` 是回复用户的正文（取 content 的 action）。动态工具 / `tool.detail` / `observation.detail` 的 `text` 是工具跑出来的正文。`memory.write` 的 `text` 是落下的层和条数。
+`askUser` 的 `text` 是问题和选项。`finishTurn` 的 `text` 是回复用户的正文（只取 content 的 action）。动态工具 / `tool.detail` / `observation.detail` 的 `text` 是工具跑出来的正文。`memory.write` 的 `text` 是落下的层和条数。
 
 要全文调 `tool.detail`，参数 `callId`。要看压缩事实调 `observation.detail`，参数 `observationId`。
 
@@ -270,7 +271,7 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | 工具 | required 其余 | 谁填其余 |
 |---|---|---|
 | `askUser` | `choice` | 给用户的选项 |
-| `finishTurn` | （无） | 回复正文在 content 的 action |
+| `finishTurn` | （无） | 回复正文在 content 的 action。没有 action 就空着 |
 | `tool.detail` | `callId` | `#toolIO` 该项的 `callId` |
 | `observation.detail` | `observationId` | `#observation` 该项的 `id` |
 | `memory.write` | （无） | `turnMemory` `conversationMemory` `projectMemory` `contextSummary` 有则写 |

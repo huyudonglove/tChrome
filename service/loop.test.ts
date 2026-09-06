@@ -67,6 +67,7 @@ test("finishTurn 收口回复", async () => {
   expect(session?.conversationId).toBe("cv_01");
   const ledger = loadLedger(dir, "cv_01");
   expect(ledger.status).toBe("idle");
+  expect(ledger.liveTool).toBeNull();
   expect(ledger.userInputHistory).toEqual([]);
   const turn = loadTurn(dir, "cv_01", reply.turnId);
   expect(turn.assembled.currentPage).toBeNull();
@@ -85,7 +86,7 @@ test("finishTurn 收口回复", async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("finishTurn 空 content 回退到 reason", async () => {
+test("finishTurn 空 content 不对用户回 reason", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-empty-"));
   const provider = mock([
     ok({
@@ -95,7 +96,7 @@ test("finishTurn 空 content 回退到 reason", async () => {
     }),
   ]);
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "你好啊", submittedAt: "2026-09-06T00:00:00.000Z" });
-  expect(reply.output).toEqual({ kind: "reply", text: "用户问候，无需浏览器操作，结束本轮对话。" });
+  expect(reply.output).toEqual({ kind: "reply", text: "" });
   rmSync(dir, { recursive: true, force: true });
 });
 
