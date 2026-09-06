@@ -79,7 +79,7 @@
 
 ### `#turnMemory` / `#conversationMemory`
 
-本样例压缩前这两槽是空的。有内容时 Runtime 把槽改成 `summary`，`memory.compressed=true`。原文仍在 `memory/<id>.json`。
+本样例压缩前这两槽是空的。有内容时 Runtime 把槽改成 `summary`，`memory.compressed=true`。原文仍在 `memory/<id>.json`。`projectMemory` 不压。流水 `kind=compress` 带 `compressedMemoryIds`。
 
 ### 全文另存
 

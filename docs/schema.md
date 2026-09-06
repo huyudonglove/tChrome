@@ -73,7 +73,7 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。
 `kind=provider-response` 的 `data`：`finish` `content` `toolCalls` `attempts` `parseOk` `schemaOk` `faultCode` `missing`。
 `kind=tool` 的 `data`：`callId` `name` `arguments` `return`。
 `kind=memory` 的 `data`：`memoryId` `layer` `sourceCallId`。
-`kind=compress` 的 `data`：`observationId` `windowChars` `sourceCallIds`。
+`kind=compress` 的 `data`：`observationId` `windowChars` `sourceCallIds` `compressedMemoryIds`。`observationId` 没有折 toolIO 时为 `null`。
 `kind=turn-output` 的 `data`：`output`。
 `kind=session` 的 `data`：`conversationId`，可选 `action`=`new`/`open`。
 

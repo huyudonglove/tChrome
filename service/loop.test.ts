@@ -6,7 +6,8 @@ import { handleTurn } from "./runtime/loop.ts";
 import { createServer } from "./server.ts";
 import { createProvider } from "./provider/uuapi.ts";
 import { createToolBridge } from "./runtime/bridge.ts";
-import { loadEvents, loadLedger, loadSession, loadTurn } from "./runtime/store.ts";
+import { loadEvents, loadLedger, loadMemory, loadSession, loadTurn } from "./runtime/store.ts";
+import { maybeCompress } from "./runtime/compress.ts";
 import type { CompletionResult, Provider } from "./types.ts";
 
 const repoRoot = join(import.meta.dir, "..");
@@ -274,5 +275,46 @@ test("GET /session 还原消息，切会话改 session.json", async () => {
   expect(opened.messages[0].text).toBe("你好");
   const listed = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations"))).json();
   expect(listed.items.map((item: { conversationId: string }) => item.conversationId).sort()).toEqual(["cv_01", "cv_02"]);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("到门槛时压缩 toolIO 和 turn/conversation 记忆", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-compress-"));
+  const provider = mock([
+    ok({
+      finish: "tool_calls",
+      content: "observation\n记下\nreason\n写记忆并收口\naction\n记下了",
+      toolCalls: [
+        {
+          id: "call_01",
+          name: "memory.write",
+          arguments: {
+            reason: "记下",
+            affectsPage: false,
+            turnMemory: ["本轮用户要查鼠标价"],
+            conversationMemory: ["用户在核对罗技 MX Master 3S"],
+            projectMemory: ["项目偏好：查官网价"],
+          },
+        },
+        { id: "call_02", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } },
+      ],
+    }),
+  ]);
+  await handleTurn({ dataDir: dir, repoRoot, provider, host: { execute: async () => ({ ok: false }) } }, {
+    userInput: "查价",
+    submittedAt: "2026-09-06T00:00:00.000Z",
+  });
+  const ledger = loadLedger(dir, "cv_01");
+  expect(ledger.memoryIds.turn).toHaveLength(1);
+  expect(loadMemory(dir, "cv_01", ledger.memoryIds.turn[0]!).compressed).toBe(false);
+  expect(loadMemory(dir, "cv_01", ledger.memoryIds.project[0]!).compressed).toBe(false);
+  ledger.compressAt = 1;
+  maybeCompress({ dataDir: dir, ledger, windowChars: 200000 });
+  expect(loadMemory(dir, "cv_01", ledger.memoryIds.turn[0]!).compressed).toBe(true);
+  expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).compressed).toBe(true);
+  expect(loadMemory(dir, "cv_01", ledger.memoryIds.project[0]!).compressed).toBe(false);
+  expect(loadMemory(dir, "cv_01", ledger.memoryIds.turn[0]!).text).toBe("本轮用户要查鼠标价");
+  const events = loadEvents(dir, "cv_01");
+  expect(events.some((row) => row.kind === "compress")).toBe(true);
   rmSync(dir, { recursive: true, force: true });
 });
