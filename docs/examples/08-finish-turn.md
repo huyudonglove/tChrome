@@ -1,0 +1,220 @@
+# 08 收口
+
+读 06 的写出。还在 `tn_01`。不再走 CE。Runtime 用这次装配的插槽再出网，`#toolIO` 带上 `call_01`。模型交 `finishTurn`，回合结束。
+
+怎么看：
+
+- 「读到的」是 06 写出的原样
+- 「再出网」是同一套 `systemSlots` / `userSlots`，只更新 `#toolIO`
+- 「交口」是模型交 `finishTurn`
+- 「执行」是 Runtime 跑队列，把 `finishTurn` 追加进 `#toolIO`，Turn `completed`
+
+作者是 Runtime。07 是压缩能力样例，本轮窗口没到 200K，不走 07。
+
+## 读到的（06 写出的）
+
+见上一份「写出的」。本轮窗口 `#toolIO`：
+
+```json
+[
+  {
+    "callId": "call_01",
+    "name": "web.search",
+    "arguments": {
+      "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
+      "affectsPage": false,
+      "query": "罗技 MX Master 3S 官网 价格"
+    },
+    "return": {
+      "stage": "complete",
+      "totalChars": 26,
+      "text": "罗技官网 MX Master 3S 标价 999 元"
+    }
+  }
+]
+```
+
+插槽沿用 03 的 `systemSlots` / `userSlots`。`#userInput` 仍是「帮我查这款鼠标官网价」。`userInputHistory` 仍是 `[]`。
+
+## 再出网
+
+Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交：
+
+```json
+{
+  "finish": "tool_calls",
+  "content": "observation\n官网价 999 元，当前页是同一款 MX Master 3S。\n\nreason\n官网价已经查到，和当前页标价核对完，可以回复用户。\n\naction\n罗技官网 MX Master 3S 标价 999 元，和当前页一致。",
+  "toolCalls": [
+    {
+      "id": "call_02",
+      "name": "finishTurn",
+      "arguments": {
+        "reason": "官网价已经查到，和当前页标价核对完，可以回复用户。",
+        "affectsPage": false
+      }
+    }
+  ]
+}
+```
+
+`finishTurn` 是本次出网唯一一条，排在最后。`affectsPage=false`，不改当前页。
+
+## 执行
+
+入队后队列一条。Runtime 跑完，`return.text` 取 content 的 action：
+
+```json
+{
+  "callId": "call_02",
+  "name": "finishTurn",
+  "arguments": {
+    "reason": "官网价已经查到，和当前页标价核对完，可以回复用户。",
+    "affectsPage": false
+  },
+  "return": {
+    "stage": "complete",
+    "totalChars": 34,
+    "text": "罗技官网 MX Master 3S 标价 999 元，和当前页一致。"
+  }
+}
+```
+
+`totalChars=34`。Turn `status=completed`。ledger.`status=idle`，`active=null`。`userInputHistory` 仍是 `[]`：用户下一句话开新 Turn 时才追加上这一句。
+
+## 字段
+
+上一份已有、本份原样带上：06 写出的全部键。
+
+本环节新增 / 改写：
+
+| 字段 | 类型 | 谁填 | 怎么填 |
+|---|---|---|---|
+| `stage` | string | 固定 | `finish-turn` |
+| `finish` | string | Provider | 这次出网 `tool_calls` |
+| `content` | string | 模型 | observation / reason / action |
+| `toolCalls` | array | Provider | 本轮交口，一条 `finishTurn` |
+| `toolQueue` | array | Runtime | 跑完为空 |
+| `toolIO` | array | Runtime | 追加 `call_02`，最新在最下面 |
+
+## 写出的（累积快照）
+
+```json
+{
+  "stage": "finish-turn",
+  "conversationId": "cv_01",
+  "turnId": "tn_01",
+  "userInput": "帮我查这款鼠标官网价",
+  "userInputHistory": [],
+  "submittedAt": "2026-09-05T08:00:01.000Z",
+  "systemIds": [
+    "pack.agent"
+  ],
+  "skillIds": [
+    "skill.web"
+  ],
+  "sopIds": [
+    "sop.browse"
+  ],
+  "baseToolsIds": [
+    "askUser",
+    "finishTurn",
+    "tool.detail",
+    "observation.detail",
+    "memory.write"
+  ],
+  "toolIds": [
+    "web.search"
+  ],
+  "turnMemoryIds": [],
+  "conversationMemoryIds": [],
+  "projectMemoryIds": [],
+  "mcpIds": [],
+  "currentPage": {
+    "description": "当前页面信息",
+    "tab": 12,
+    "url": "https://item.jd.com/100012345678.html",
+    "title": "罗技 MX Master 3S 无线鼠标"
+  },
+  "systemSlots": [
+    "#身份",
+    "#记忆",
+    "#观察",
+    "#环境",
+    "#原则",
+    "#参数说明",
+    "#内置工具",
+    "#输出",
+    "#user字段说明",
+    "#skill",
+    "#sop"
+  ],
+  "userSlots": [
+    "#projectMemory",
+    "#conversationMemory",
+    "#turnMemory",
+    "#contextSummary",
+    "#observation",
+    "#userInputHistory",
+    "#userInput",
+    "#currentEnvironment",
+    "#toolIO",
+    "#tools"
+  ],
+  "provider": "uuapi",
+  "model": "gemini-3.7-flash",
+  "stream": true,
+  "maxAttempts": 3,
+  "finish": "tool_calls",
+  "content": "observation\n官网价 999 元，当前页是同一款 MX Master 3S。\n\nreason\n官网价已经查到，和当前页标价核对完，可以回复用户。\n\naction\n罗技官网 MX Master 3S 标价 999 元，和当前页一致。",
+  "toolCalls": [
+    {
+      "id": "call_02",
+      "name": "finishTurn",
+      "arguments": {
+        "reason": "官网价已经查到，和当前页标价核对完，可以回复用户。",
+        "affectsPage": false
+      }
+    }
+  ],
+  "attempts": 1,
+  "parseOk": true,
+  "schemaOk": true,
+  "faultCode": null,
+  "missing": [],
+  "toolQueue": [],
+  "toolIO": [
+    {
+      "callId": "call_01",
+      "name": "web.search",
+      "arguments": {
+        "reason": "当前页已确认是目标商品，需要官网价来核对标价。",
+        "affectsPage": false,
+        "query": "罗技 MX Master 3S 官网 价格"
+      },
+      "return": {
+        "stage": "complete",
+        "totalChars": 26,
+        "text": "罗技官网 MX Master 3S 标价 999 元"
+      }
+    },
+    {
+      "callId": "call_02",
+      "name": "finishTurn",
+      "arguments": {
+        "reason": "官网价已经查到，和当前页标价核对完，可以回复用户。",
+        "affectsPage": false
+      },
+      "return": {
+        "stage": "complete",
+        "totalChars": 34,
+        "text": "罗技官网 MX Master 3S 标价 999 元，和当前页一致。"
+      }
+    }
+  ],
+  "observation": [],
+  "windowChars": 0,
+  "compressAt": 200000
+}
+```
+
+用户下一句话开 `tn_02`，走 01。那时 Runtime 把「帮我查这款鼠标官网价」写入 `userInputHistory`。

@@ -3,11 +3,9 @@
     "schemaVersion": 1,
     "conversationId": "cv_01",
     "createdAt": "2026-09-05T08:00:00.000Z",
-    "updatedAt": "2026-09-05T08:00:12.000Z",
-    "status": "running",
-    "active": {
-      "turnId": "tn_01"
-    },
+    "updatedAt": "2026-09-05T08:00:20.000Z",
+    "status": "idle",
+    "active": null,
     "pendingAsk": null,
     "turnIds": [
       "tn_01"
@@ -28,6 +26,19 @@
           "totalChars": 26,
           "text": "罗技官网 MX Master 3S 标价 999 元"
         }
+      },
+      {
+        "callId": "call_02",
+        "name": "finishTurn",
+        "arguments": {
+          "reason": "官网价已经查到，和当前页标价核对完，可以回复用户。",
+          "affectsPage": false
+        },
+        "return": {
+          "stage": "complete",
+          "totalChars": 34,
+          "text": "罗技官网 MX Master 3S 标价 999 元，和当前页一致。"
+        }
       }
     ],
     "observation": [],
@@ -43,9 +54,9 @@
     {
       "turnId": "tn_01",
       "conversationId": "cv_01",
-      "status": "running",
+      "status": "completed",
       "createdAt": "2026-09-05T08:00:01.000Z",
-      "completedAt": null,
+      "completedAt": "2026-09-05T08:00:20.000Z",
       "input": {
         "text": "帮我查这款鼠标官网价",
         "submittedAt": "2026-09-05T08:00:01.000Z"
@@ -82,9 +93,8 @@
         }
       },
       "output": {
-        "kind": "tool",
-        "name": "web.search",
-        "callId": "call_01"
+        "kind": "reply",
+        "text": "罗技官网 MX Master 3S 标价 999 元，和当前页一致。"
       }
     }
   ],
