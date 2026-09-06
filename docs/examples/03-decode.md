@@ -86,7 +86,7 @@ Chrome、JavaScript、HTML、CSS。
 
 
 ### `#原则`
-查看输入信息是否能支持后续判断。无意义就 finishTurn。信息不完整就 askUser。材料够就调动态工具干活。askUser、finishTurn、动态工具本轮只交一类。搜集相关信息直到不影响下一步。
+查看输入信息是否能支持后续判断。无意义就 finishTurn。信息不完整就 askUser。材料够就调动态工具干活。askUser、finishTurn、动态工具本次出网只交一类。搜集相关信息直到不影响下一步。
 `#toolIO` 某条 return.stage=truncated 时，调 tool.detail，callId 用那条的 callId，拿全文。
 
 

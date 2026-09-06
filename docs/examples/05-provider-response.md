@@ -137,7 +137,7 @@ data: [DONE]
 | `unknown_tool` | `name` 不在 `baseToolsIds` + `toolIds` |
 | `missing_required` | catalog `required` 缺或空；`missing` 列出字段名 |
 | `wrong_type` | Ajv：类型对不上 schema |
-| `exclusive_resident` | `askUser` / `finishTurn` / `tool.detail` / 动态工具同时交超过一类 |
+| `exclusive_resident` | `askUser` / `finishTurn` / `tool.detail` / 动态工具同一次出网交超过一类 |
 
 回给模型的 tool 结果（`role=tool`，`tool_call_id` 用这次的 `call_01`）：
 

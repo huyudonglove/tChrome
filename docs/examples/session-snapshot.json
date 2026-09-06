@@ -38,9 +38,9 @@
     {
       "turnId": "tn_01",
       "conversationId": "cv_01",
-      "status": "completed",
+      "status": "running",
       "createdAt": "2026-09-05T08:00:01.000Z",
-      "completedAt": "2026-09-05T08:00:12.000Z",
+      "completedAt": null,
       "input": {
         "text": "帮我查这款鼠标官网价",
         "submittedAt": "2026-09-05T08:00:01.000Z"

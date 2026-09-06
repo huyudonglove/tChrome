@@ -44,21 +44,21 @@ Runtime 独占维护。当前会话指针。
 | `active` | 当前 `turnId`；没有就 `null` |
 | `pendingAsk` | `waiting_human` 时：`{turnId, question}`；否则 `null` |
 | `turnIds` | 已建的回合，按时间 |
-| `userInputHistory` | 已结束回合的用户原话，按时间。新会话 `[]`。turn 结束时 Runtime 把本轮 `userInput` 追加进去 |
+| `userInputHistory` | 上一轮及更早的用户原话，按时间。新会话 `[]`。用户下一条输入开新 Turn 时，Runtime 把刚结束那一轮的 `userInput` 追加进去 |
 | `toolIO` | 本会话已执行的工具调用，数组。新会话 `[]`。每次跑完追加一条，最新在最下面 |
 | `memoryIds` | 三层记忆 ID |
 
 ## Turn
 
-一次出网。装配 → 推理 → 工具或回复。
+用户一轮对话。用户一条输入开一个 Turn。本 Turn 内可多次出网（工具循环还在这个 Turn 里）。
 
 ```json
 {
   "turnId": "tn_01",
   "conversationId": "cv_01",
-  "status": "completed",
+  "status": "running",
   "createdAt": "2026-09-05T08:00:01.000Z",
-  "completedAt": "2026-09-05T08:00:08.000Z",
+  "completedAt": null,
   "input": {
     "text": "帮我查这款鼠标官网价",
     "submittedAt": "2026-09-05T08:00:01.000Z"
@@ -90,8 +90,8 @@ Runtime 独占维护。当前会话指针。
 
 | 字段 | 怎么填 |
 |---|---|
-| `status` | `assembling` → `inferring` → `completed` / `waiting_human` / `failed` |
-| `input.text` | 本轮用户原话；续问时是人审答复 |
+| `status` | `assembling` → `inferring` → `completed` / `waiting_human` / `failed`。工具循环时停在 `inferring` |
+| `input.text` | 本轮用户原话。用户下一条输入才开新 Turn |
 | `assembled` | 这一轮点名的 catalog IDs + 当前页 |
 | `output.kind` | `tool` / `ask` / `reply` / `error` |
 
@@ -130,9 +130,9 @@ user 文档块：
 
 ## 循环
 
-1. 用户一句话 → 新 Turn。装配时从 ledger 读 `userInputHistory`（不含本轮），`#toolIO` 带上本会话已执行过的工具条目（最新在最下面）。CE 装配，LLM 交 `askUser`、`finishTurn`、`tool.detail` 或动态工具。
-2. `askUser` → 本轮 `userInput` 追加进 ledger.`userInputHistory`，ledger.`status=waiting_human`，等人答，答文写进下一 Turn `input`。
-3. 动态工具 / `tool.detail` → 执行，把 `{callId, name, arguments, return}` 追加到 ledger.`toolIO` 末尾（窗口 `return.text` 截到 2000 字），新 Turn 再出网。`userInputHistory` 在用户这句话第一次结束时追加一次。
-4. `finishTurn` → 回复用户。Runtime 把本句 `userInput` 写入 `userInputHistory`（每句一次）。ledger.`status=idle`，`active=null`。
+1. 用户一句话 → 新 Turn。Runtime 把上一 Turn 的 `userInput` 追加进 ledger.`userInputHistory`。装配：`#userInputHistory` 是已结束回合的原话，`#userInput` 是本轮原话，`#toolIO` 带上本会话已执行过的工具条目（最新在最下面）。CE 装配，LLM 交 `askUser`、`finishTurn`、`tool.detail` 或动态工具。
+2. `askUser` → ledger.`status=waiting_human`，等人答。用户下一条输入开新 Turn（走步骤 1）。
+3. 动态工具 / `tool.detail` → 执行，把 `{callId, name, arguments, return}` 追加到 ledger.`toolIO` 末尾（窗口 `return.text` 截到 2000 字）。还在本 Turn 里再出网。
+4. `finishTurn` → 回复用户。本 Turn `status=completed`，ledger.`status=idle`，`active=null`。本轮 `userInput` 仍在 Turn.`input`。用户下一句话开新 Turn 时写入 `userInputHistory`。
 
 分阶段模拟：`docs/examples/01-normalize.md` → `02-context-engineering.md` → `03-decode.md` → `04-provider-request.md` → `05-provider-response.md` → `06-tool-execute.md`。

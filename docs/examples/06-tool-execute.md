@@ -6,7 +6,7 @@
 
 - 「读到的」是 05 写出的原样
 - 「执行」是 Runtime 跑 `web.search`
-- 「`#toolIO`」是下一轮 user 槽里给模型看的数组，最新在最下面
+- 「`#toolIO`」是本 Turn 下一轮出网时 user 槽里给模型看的数组，最新在最下面
 - 「写出的」累积快照追加 `toolIO`
 
 作者是 Runtime。本轮返回 26 字，`stage=complete`，不到 2000，不调 `tool.detail`。
@@ -186,4 +186,4 @@ Runtime 按 `name=web.search` 跑，拿到全文：
 }
 ```
 
-下一份：新 Turn 装配，`#toolIO` 带上 `call_01`，模型接着交 `finishTurn` 或下一个工具。
+下一份：还在 `tn_01`。本 Turn 再装配，`#toolIO` 带上 `call_01`，再出网。用户下一句话才开新 Turn，那时才把本轮 `userInput` 写入 `userInputHistory`。
