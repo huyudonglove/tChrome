@@ -73,7 +73,7 @@ reason
 action
 <下一步：调哪个工具，或对用户说什么>
 
-有 `tool_calls` 时这三段也要写。Runtime 不校验这段正文。
+有 `tool_calls` 时这三段也要写。`finishTurn` 时 action 就是对用户说的话。Runtime 不校验这段正文。
 
 #user字段说明
 记忆写在 `#projectMemory` `#conversationMemory` `#turnMemory`。这些槽来自此前 memory.write 落下的内容。下一次出网带上。窗口到 200K 时 Runtime 压缩 turnMemory 和 conversationMemory，槽里只留摘要。

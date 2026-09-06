@@ -85,6 +85,20 @@ test("finishTurn 收口回复", async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
+test("finishTurn 空 content 回退到 reason", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-empty-"));
+  const provider = mock([
+    ok({
+      finish: "tool_calls",
+      content: "",
+      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { reason: "用户问候，无需浏览器操作，结束本轮对话。", affectsPage: false } }],
+    }),
+  ]);
+  const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "你好啊", submittedAt: "2026-09-06T00:00:00.000Z" });
+  expect(reply.output).toEqual({ kind: "reply", text: "用户问候，无需浏览器操作，结束本轮对话。" });
+  rmSync(dir, { recursive: true, force: true });
+});
+
 test("askUser 冻在追问", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-ask-"));
   const provider = mock([

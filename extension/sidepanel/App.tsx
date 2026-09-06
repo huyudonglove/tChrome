@@ -157,8 +157,9 @@ export function App() {
       {status ? <div className="banner">{status}</div> : null}
       <div className="messages" ref={listRef}>
         {session.messages.map((message, index) => (
-          <div key={`${message.turnId ?? "local"}-${index}`} className={`row ${message.role}`}>{message.text}</div>
+          <div key={`${message.turnId ?? "local"}-${index}`} className={`row ${message.role}`}>{message.text || "…"}</div>
         ))}
+        {sending ? <div className="row assistant muted">在想</div> : null}
       </div>
       {session.pendingAsk?.choice.length ? (
         <div className="choices">
