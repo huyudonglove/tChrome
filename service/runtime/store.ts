@@ -202,7 +202,10 @@ export function listConversations(dataDir: string): ConversationItem[] {
         preview: preview.slice(0, 40),
       };
     })
-    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+    .sort((a, b) => {
+      if (a.updatedAt !== b.updatedAt) return a.updatedAt < b.updatedAt ? 1 : -1;
+      return a.conversationId < b.conversationId ? 1 : -1;
+    });
 }
 
 export function openConversation(dataDir: string, conversationId: string): SessionView {

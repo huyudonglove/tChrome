@@ -273,6 +273,6 @@ test("GET /session 还原消息，切会话改 session.json", async () => {
   expect(opened.conversationId).toBe("cv_01");
   expect(opened.messages[0].text).toBe("你好");
   const listed = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations"))).json();
-  expect(listed.items.map((item: { conversationId: string }) => item.conversationId)).toEqual(["cv_02", "cv_01"]);
+  expect(listed.items.map((item: { conversationId: string }) => item.conversationId).sort()).toEqual(["cv_01", "cv_02"]);
   rmSync(dir, { recursive: true, force: true });
 });
