@@ -37,6 +37,7 @@ query：web_search 的检索词，也可写 text。
 url：open_url 要打开的地址。
 text：点选、输入、查找时的可见文字。
 tab：可选，指定标签 id。
+names：catalog.add 时，要把哪些动态工具挂进本轮。
 
     {
       "reason": "",
@@ -48,6 +49,7 @@ tab：可选，指定标签 id。
       "url": "",
       "text": "",
       "tab": 0,
+      "names": [],
       "turnMemory": [],
       "conversationMemory": [],
       "projectMemory": [],
@@ -56,7 +58,7 @@ tab：可选，指定标签 id。
 
 #内置工具
 常驻：askUser、finishTurn、tool.detail、observation.detail、memory.write。每轮都在出网 tools[] 里。用法见 #原则、#参数说明。
-动态工具本轮才挂上，用法写在 user `#tools`。
+动态工具本轮才挂上。开 Turn 先挂常用的一撮（see_page、open_url、click、web_search、list_browser_tools、catalog.add 等）。缺了先 list_browser_tools 看全表，再 catalog.add 把 names 补进本轮。用法写在 user `#tools`。
 每个工具的 arguments 都带 reason 和 affectsPage。
 
 #输出

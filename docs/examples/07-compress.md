@@ -79,7 +79,7 @@
 
 ### `#turnMemory` / `#conversationMemory`
 
-本样例压缩前这两槽是空的。有内容时 Runtime 把槽改成 `summary`，`memory.compressed=true`。原文仍在 `memory/<id>.json`。`projectMemory` 不压。流水 `kind=compress` 带 `compressedMemoryIds`。
+本样例压缩前这两槽是空的。到门槛时 Runtime 先裁：`toolIds` 留下 core + 本轮已用过的；记忆窗口每层只带最近 8 条。然后再把 turn/conversation 改成 `summary`，`memory.compressed=true`。原文仍在 `memory/<id>.json`。`projectMemory` 不压。流水 `kind=compress` 带 `compressedMemoryIds` `prunedToolIds`。
 
 ### 全文另存
 

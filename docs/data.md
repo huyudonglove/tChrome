@@ -141,6 +141,6 @@ Runtime 独占维护。当前会话指针。字段见 schema「ledger.json」。
 5. 动态工具 / `tool.detail` / `observation.detail` → 队列清空后还在本 Turn 里再出网：插槽沿用这次装配，只更新 `#toolIO`。
 6. `memory.write` → Runtime 落盘，ID 挂到 ledger.`memoryIds`。队列清空后再出网时，对应 user 槽带上刚落下的内容。
 7. `finishTurn` → 本 Turn `status=completed`，ledger.`status=idle`，`active=null`。用户下一句话开新 Turn 时写入 `userInputHistory`，走步骤 1。
-8. 开 Turn 装配后、以及本 Turn 每次出网前，Runtime 计 `windowChars`。到 `compressAt`（200000）就压缩，然后用压缩后的窗口再出网。
+8. 开 Turn 装配后、以及本 Turn 每次出网前，Runtime 计 `windowChars`。到 `compressAt`（200000）先裁 `toolIds`（留下 core + 本轮已用过的）和记忆窗口（每层最近 8 条），再把较早 toolIO / turn+conversation 记忆收成摘要，然后用压缩后的窗口再出网。
 
 分阶段模拟：`docs/examples/01-normalize.md` → `02-context-engineering.md` → `03-decode.md` → `04-provider-request.md` → `05-provider-response.md` → `06-tool-execute.md` → `08-finish-turn.md`。窗口到 200K 时插 `07-compress.md`。

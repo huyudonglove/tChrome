@@ -1,0 +1,15 @@
+{
+  "type": "function",
+  "function": {
+    "name": "catalog.add",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean" },
+        "names": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["reason", "affectsPage", "names"]
+    }
+  }
+}

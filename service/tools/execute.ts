@@ -68,6 +68,7 @@ export type ExecuteInput = {
     toolIO: ToolIOItem[];
     fullReturn: (callId: string) => string | null;
     observationFull: (observationId: string) => string | null;
+    unusedTools: string[];
   };
 };
 
@@ -75,6 +76,13 @@ export async function executeTool(input: ExecuteInput): Promise<string> {
   const { name, arguments: args, content, lookup, host, dataDir, browserNames } = input;
   if (name === "finishTurn") return actionFromContent(content);
   if (name === "askUser") return questionFromContent(content, asStringArray(args.choice));
+  if (name === "catalog.add") {
+    const names = asStringArray(args.names);
+    return `补上 ${names.join(" ")}`.trim();
+  }
+  if (name === "list_browser_tools") {
+    return JSON.stringify({ ok: true, tools: lookup.unusedTools });
+  }
   if (name === "memory.write") {
     const turn = asStringArray(args.turnMemory).length;
     const conversation = asStringArray(args.conversationMemory).length;

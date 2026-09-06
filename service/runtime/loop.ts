@@ -1,5 +1,5 @@
 import { systemText, userText, windowChars } from "../context/window.ts";
-import { BASE_TOOLS_IDS, dynamicToolIds, loadCatalog, toolSchemas, toolUsageFor, type Catalog } from "../prompt/catalog.ts";
+import { BASE_TOOLS_IDS, coreToolIds, dynamicToolIds, loadCatalog, toolSchemas, toolUsageFor, type Catalog } from "../prompt/catalog.ts";
 import { asObject, asStringArray, clipReturn, executeTool, pageFromBrowser } from "../tools/execute.ts";
 import type {
   Assembled,
@@ -46,7 +46,7 @@ const assemble = (catalog: Catalog): Assembled => ({
   skillIds: ["skill.web"],
   sopIds: ["sop.browse"],
   baseToolsIds: [...BASE_TOOLS_IDS],
-  toolIds: dynamicToolIds(catalog),
+  toolIds: coreToolIds(catalog),
   turnMemoryIds: [],
   conversationMemoryIds: [],
   projectMemoryIds: [],
@@ -71,7 +71,14 @@ const messagesOf = (catalog: Catalog, ledger: Ledger, turn: Turn, dataDir: strin
     memories: loadMemories(dataDir, ledger),
     toolUsage: toolUsageFor(catalog, turn.assembled.toolIds),
   });
-  maybeCompress({ dataDir, ledger, windowChars: windowChars(system, user) });
+  maybeCompress({
+    dataDir,
+    ledger,
+    turn,
+    catalog,
+    coreToolIds: coreToolIds(catalog),
+    windowChars: windowChars(system, user),
+  });
   const userAfter = userText({
     ledger,
     turn,
@@ -140,11 +147,12 @@ const runQueue = async (input: {
   dataDir: string;
   ledger: Ledger;
   turn: Turn;
+  catalog: Catalog;
   content: string;
   browserNames: string[];
   host?: BrowserHost;
 }): Promise<TurnOutput | null> => {
-  const { dataDir, ledger, turn, content, host, browserNames } = input;
+  const { dataDir, ledger, turn, catalog, content, host, browserNames } = input;
   while (ledger.toolQueue.length) {
     const item = ledger.toolQueue.shift();
     if (!item) break;
@@ -160,6 +168,7 @@ const runQueue = async (input: {
         fullReturn: (callId) => loadFullReturn(dataDir, ledger.conversationId, callId),
         observationFull: (observationId) =>
           loadObservation(dataDir, ledger.conversationId, observationId)?.full ?? null,
+        unusedTools: dynamicToolIds(catalog).filter((id) => !turn.assembled.toolIds.includes(id)),
       },
     });
     saveFullReturn(dataDir, ledger.conversationId, item.callId, full);
@@ -182,6 +191,15 @@ const runQueue = async (input: {
     }
     if (item.name === "memory.write") {
       persistMemory(dataDir, ledger, { id: item.callId, name: item.name, arguments: item.arguments });
+    }
+    if (item.name === "catalog.add") {
+      const names = asStringArray(item.arguments.names);
+      for (const name of names) {
+        if (turn.assembled.toolIds.includes(name)) continue;
+        if (!catalog.tools[name]) continue;
+        if ((BASE_TOOLS_IDS as readonly string[]).includes(name)) continue;
+        turn.assembled.toolIds.push(name);
+      }
     }
     if (item.name === "askUser") {
       turn.status = "waiting_human";
@@ -363,6 +381,7 @@ export async function handleTurn(
       dataDir: deps.dataDir,
       ledger,
       turn,
+      catalog,
       content: result.content,
       browserNames: catalog.index.browser,
       host: deps.host,

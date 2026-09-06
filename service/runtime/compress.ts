@@ -1,4 +1,6 @@
-import type { Ledger, MemoryRecord, ObservationItem, ObservationRecord } from "../types.ts";
+import { MEMORY_WINDOW } from "../context/window.ts";
+import type { Catalog } from "../prompt/catalog.ts";
+import type { Ledger, MemoryRecord, ObservationItem, ObservationRecord, Turn } from "../types.ts";
 import { nextId, nowIso } from "./ids.ts";
 import { appendEvent, loadMemory, saveMemory, saveObservation } from "./store.ts";
 
@@ -8,34 +10,43 @@ const compressLayer = (input: {
   dataDir: string;
   ledger: Ledger;
   layer: "turn" | "conversation";
-}): void => {
-  const ids = input.ledger.memoryIds[input.layer];
-  for (const memoryId of ids) {
+}): string[] => {
+  const compressed: string[] = [];
+  for (const memoryId of input.ledger.memoryIds[input.layer]) {
     const record: MemoryRecord = loadMemory(input.dataDir, input.ledger.conversationId, memoryId);
     if (record.compressed) continue;
     record.summary = record.summary || summarize(record.text);
     record.compressed = true;
     saveMemory(input.dataDir, input.ledger.conversationId, record);
+    compressed.push(memoryId);
   }
+  return compressed;
 };
 
 export function maybeCompress(input: {
   dataDir: string;
   ledger: Ledger;
+  turn: Turn;
+  catalog: Catalog;
+  coreToolIds: string[];
   windowChars: number;
 }): void {
-  const { dataDir, ledger } = input;
+  const { dataDir, ledger, turn, catalog, coreToolIds } = input;
   ledger.windowChars = input.windowChars;
   if (ledger.windowChars < ledger.compressAt) return;
-  const compressedMemoryIds: string[] = [];
-  for (const layer of ["turn", "conversation"] as const) {
-    const before = ledger.memoryIds[layer]
-      .map((id) => loadMemory(dataDir, ledger.conversationId, id))
-      .filter((record) => !record.compressed)
-      .map((record) => record.memoryId);
-    compressLayer({ dataDir, ledger, layer });
-    compressedMemoryIds.push(...before);
-  }
+
+  const used = new Set(ledger.toolIO.map((row) => row.name));
+  const keptTools = turn.assembled.toolIds.filter((id) => coreToolIds.includes(id) || used.has(id));
+  const prunedToolIds = turn.assembled.toolIds.filter((id) => !keptTools.includes(id) && catalog.tools[id]);
+  turn.assembled.toolIds = keptTools;
+  ledger.memoryIds.turn = ledger.memoryIds.turn.slice(-MEMORY_WINDOW);
+  ledger.memoryIds.conversation = ledger.memoryIds.conversation.slice(-MEMORY_WINDOW);
+
+  const compressedMemoryIds = [
+    ...compressLayer({ dataDir, ledger, layer: "turn" }),
+    ...compressLayer({ dataDir, ledger, layer: "conversation" }),
+  ];
+
   let observationId: string | null = null;
   if (ledger.toolIO.length > 2) {
     const keep = ledger.toolIO.slice(-2);
@@ -67,6 +78,7 @@ export function maybeCompress(input: {
       windowChars: ledger.windowChars,
       sourceCallIds: observationId ? ledger.observation.at(-1)?.sourceCallIds ?? [] : [],
       compressedMemoryIds,
+      prunedToolIds,
     },
   });
 }

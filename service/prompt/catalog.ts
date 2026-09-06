@@ -37,6 +37,22 @@ export const BASE_TOOLS_IDS = [
   "memory.write",
 ] as const;
 
+export const CORE_TOOL_IDS = [
+  "see_page",
+  "find_on_page",
+  "snapshot_page",
+  "click",
+  "type",
+  "open_url",
+  "list_tabs",
+  "wait",
+  "scroll",
+  "press",
+  "web_search",
+  "list_browser_tools",
+  "catalog.add",
+] as const;
+
 export type ToolIndex = {
   browser: string[];
   service: string[];
@@ -89,6 +105,10 @@ export function loadCatalog(root: string): Catalog {
 
 export function dynamicToolIds(catalog: Catalog): string[] {
   return [...catalog.index.browser, ...catalog.index.service];
+}
+
+export function coreToolIds(catalog: Catalog): string[] {
+  return CORE_TOOL_IDS.filter((id) => Boolean(catalog.tools[id]));
 }
 
 export function toolSchemas(catalog: Catalog, ids: string[]): ChatTool[] {

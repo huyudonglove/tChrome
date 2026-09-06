@@ -1,6 +1,8 @@
 import type { Ledger, MemoryRecord, Turn } from "../types.ts";
 import { SYSTEM_SLOTS, USER_SLOTS, type Catalog } from "../prompt/catalog.ts";
 
+export const MEMORY_WINDOW = 8;
+
 const slotBlock = (name: string, body: string) => (body ? `${name}\n${body}` : name);
 
 const jsonBody = (value: unknown) => JSON.stringify(value, null, 2);
@@ -13,6 +15,13 @@ export function systemText(catalog: Catalog): string {
   }).join("\n\n");
 }
 
+const memoryBody = (items: MemoryRecord[]) =>
+  items
+    .slice(-MEMORY_WINDOW)
+    .map((item) => (item.compressed ? item.summary : item.text))
+    .filter(Boolean)
+    .join("\n");
+
 export function userText(input: {
   ledger: Ledger;
   turn: Turn;
@@ -20,11 +29,6 @@ export function userText(input: {
   toolUsage: string;
 }): string {
   const { ledger, turn, memories, toolUsage } = input;
-  const memoryBody = (items: MemoryRecord[]) =>
-    items
-      .map((item) => (item.compressed ? item.summary : item.text))
-      .filter(Boolean)
-      .join("\n");
   const bodies: Record<(typeof USER_SLOTS)[number], string> = {
     "#projectMemory": memoryBody(memories.project),
     "#conversationMemory": memoryBody(memories.conversation),

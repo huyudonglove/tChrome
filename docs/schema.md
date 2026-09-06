@@ -73,7 +73,7 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。
 `kind=provider-response` 的 `data`：`finish` `content` `toolCalls` `attempts` `parseOk` `schemaOk` `faultCode` `missing`。
 `kind=tool` 的 `data`：`callId` `name` `arguments` `return`。
 `kind=memory` 的 `data`：`memoryId` `layer` `sourceCallId`。
-`kind=compress` 的 `data`：`observationId` `windowChars` `sourceCallIds` `compressedMemoryIds`。`observationId` 没有折 toolIO 时为 `null`。
+`kind=compress` 的 `data`：`observationId` `windowChars` `sourceCallIds` `compressedMemoryIds` `prunedToolIds`。`observationId` 没有折 toolIO 时为 `null`。压缩先裁 `toolIds`（留下 core + 本轮已用过的）和记忆窗口（每层最近 8 条），再把 turn/conversation 收成 `summary`。
 `kind=turn-output` 的 `data`：`output`。
 `kind=session` 的 `data`：`conversationId`，可选 `action`=`new`/`open`。
 
@@ -131,7 +131,7 @@ Runtime 独占维护。当前会话指针。
 | `skillIds` | string[] | 本轮 skill，对应 `catalog/skills/<id>.md` |
 | `sopIds` | string[] | 本轮 SOP，对应 `catalog/sops/<id>.md` |
 | `baseToolsIds` | string[] | 常驻工具，对应 `catalog/tools/<id>.json`。固定 `askUser` `finishTurn` `tool.detail` `observation.detail` `memory.write` |
-| `toolIds` | string[] | 动态工具，对应 `catalog/tools/<id>.json`。没有就 `[]` |
+| `toolIds` | string[] | 动态工具，对应 `catalog/tools/<id>.json`。开 Turn 先挂 core（`see_page` `open_url` `click` `web_search` `list_browser_tools` `catalog.add` 等）。缺了 `catalog.add` 再补。压缩时先裁回 core + 本轮已用过的 |
 | `turnMemoryIds` | string[] | 这一轮记忆；没有就 `[]` |
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
@@ -195,9 +195,9 @@ user 顺序 = `userSlots`：
 
 | 槽 | 正文来自 |
 |---|---|
-| `#projectMemory` | ledger.`memoryIds.project` 对应文件。窗口到 200K 仍用全文 |
-| `#conversationMemory` | ledger.`memoryIds.conversation`。压缩后用 `summary` |
-| `#turnMemory` | ledger.`memoryIds.turn`。压缩后用 `summary` |
+| `#projectMemory` | ledger.`memoryIds.project` 对应文件。窗口只带最近 8 条，到 200K 仍用全文 |
+| `#conversationMemory` | ledger.`memoryIds.conversation`。窗口只带最近 8 条，压缩后用 `summary` |
+| `#turnMemory` | ledger.`memoryIds.turn`。窗口只带最近 8 条，压缩后用 `summary` |
 | `#contextSummary` | 最近一次 `memory.write` 的 `contextSummary` |
 | `#observation` | ledger.`observation` |
 | `#userInputHistory` | ledger.`userInputHistory`（不含本轮） |
@@ -273,8 +273,9 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | `tool.detail` | `callId` | `#toolIO` 该项的 `callId` |
 | `observation.detail` | `observationId` | `#observation` 该项的 `id` |
 | `memory.write` | （无） | `turnMemory` `conversationMemory` `projectMemory` `contextSummary` 有则写 |
+| `catalog.add` | `names` | 把缺的动态工具挂进本轮 |
 
-常驻：`askUser` `finishTurn` `tool.detail` `observation.detail` `memory.write`。动态本轮才挂：telance 浏览器 89 + 服务端 15（`see_page` `open_url` `click` `web_search` …），schema 在 `catalog/tools/`，用法在 `index.json`。浏览器工具经 `/tool-request` 泵到 background。
+常驻：`askUser` `finishTurn` `tool.detail` `observation.detail` `memory.write`。动态开 Turn 先挂 core（`see_page` `open_url` `click` `web_search` `list_browser_tools` `catalog.add` 等）。全表 89+15 在 `catalog/tools/index.json`，缺了 `catalog.add`。浏览器工具经 `/tool-request` 泵到 background。
 
 没迁、原因：
 

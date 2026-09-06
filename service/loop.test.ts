@@ -7,6 +7,7 @@ import { createServer } from "./server.ts";
 import { createProvider } from "./provider/uuapi.ts";
 import { createToolBridge } from "./runtime/bridge.ts";
 import { loadEvents, loadLedger, loadMemory, loadSession, loadTurn } from "./runtime/store.ts";
+import { loadCatalog } from "./prompt/catalog.ts";
 import { maybeCompress } from "./runtime/compress.ts";
 import type { CompletionResult, Provider } from "./types.ts";
 
@@ -278,7 +279,32 @@ test("GET /session 还原消息，切会话改 session.json", async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("到门槛时压缩 toolIO 和 turn/conversation 记忆", async () => {
+test("catalog.add 把缺的工具挂进本轮", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-add-"));
+  const provider = mock([
+    ok({
+      finish: "tool_calls",
+      content: "observation\n缺截图\nreason\n补工具\naction\ncatalog.add",
+      toolCalls: [{ id: "call_01", name: "catalog.add", arguments: { reason: "要截图", affectsPage: false, names: ["screenshot"] } }],
+    }),
+    ok({
+      finish: "tool_calls",
+      content: "observation\n已补上\nreason\n收口\naction\n补上了",
+      toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "补完", affectsPage: false } }],
+    }),
+  ]);
+  const reply = await handleTurn(
+    { dataDir: dir, repoRoot, provider, host: { execute: async () => ({ ok: false }) } },
+    { userInput: "截一张", submittedAt: "2026-09-06T00:00:00.000Z" },
+  );
+  expect(reply.output).toEqual({ kind: "reply", text: "补上了" });
+  const turn = loadTurn(dir, "cv_01", reply.turnId);
+  expect(turn.assembled.toolIds).toContain("screenshot");
+  expect(turn.assembled.toolIds).toContain("see_page");
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("到门槛时先裁 toolIds 再压缩记忆", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-compress-"));
   const provider = mock([
     ok({
@@ -300,7 +326,7 @@ test("到门槛时压缩 toolIO 和 turn/conversation 记忆", async () => {
       ],
     }),
   ]);
-  await handleTurn({ dataDir: dir, repoRoot, provider, host: { execute: async () => ({ ok: false }) } }, {
+  const reply = await handleTurn({ dataDir: dir, repoRoot, provider, host: { execute: async () => ({ ok: false }) } }, {
     userInput: "查价",
     submittedAt: "2026-09-06T00:00:00.000Z",
   });
@@ -308,8 +334,18 @@ test("到门槛时压缩 toolIO 和 turn/conversation 记忆", async () => {
   expect(ledger.memoryIds.turn).toHaveLength(1);
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.turn[0]!).compressed).toBe(false);
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.project[0]!).compressed).toBe(false);
+  const turn = loadTurn(dir, "cv_01", reply.turnId);
+  turn.assembled.toolIds = ["see_page", "web_search", "screenshot", "cookies_get"];
   ledger.compressAt = 1;
-  maybeCompress({ dataDir: dir, ledger, windowChars: 200000 });
+  maybeCompress({
+    dataDir: dir,
+    ledger,
+    turn,
+    catalog: loadCatalog(repoRoot),
+    coreToolIds: ["see_page", "web_search"],
+    windowChars: 200000,
+  });
+  expect(turn.assembled.toolIds).toEqual(["see_page", "web_search"]);
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.turn[0]!).compressed).toBe(true);
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).compressed).toBe(true);
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.project[0]!).compressed).toBe(false);
