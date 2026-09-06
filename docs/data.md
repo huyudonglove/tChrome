@@ -117,7 +117,7 @@ Runtime 独占维护。当前会话指针。
   "toolName": "web.search",
   "text": "罗技官网 MX Master 3S 标价 999 元",
   "stage": "complete",
-  "totalChars": 22,
+  "totalChars": 26,
   "createdAt": "2026-09-05T08:00:12.000Z"
 }
 ```

@@ -39,7 +39,7 @@ Runtime 按 `name=web.search` 跑，拿到全文：
 罗技官网 MX Master 3S 标价 999 元
 ```
 
-`totalChars=22` ≤ 2000，`stage=complete`。窗口 `return.text` = 全文。
+`totalChars=26` ≤ 2000，`stage=complete`。窗口 `return.text` = 全文。
 
 超出 2000 时：`stage=truncated`，窗口只留前 2000 字，`totalChars` 写全文长度。模型要全文时交 `tool.detail`，`callId=call_01`。
 
@@ -57,7 +57,7 @@ key = `callId`。value = 这次的 name、arguments、return。
     },
     "return": {
       "stage": "complete",
-      "totalChars": 22,
+      "totalChars": 26,
       "text": "罗技官网 MX Master 3S 标价 999 元"
     }
   }
@@ -85,7 +85,7 @@ key = `callId`。value = 这次的 name、arguments、return。
   "toolName": "web.search",
   "text": "罗技官网 MX Master 3S 标价 999 元",
   "stage": "complete",
-  "totalChars": 22,
+  "totalChars": 26,
   "createdAt": "2026-09-05T08:00:12.000Z"
 }
 ```
@@ -194,7 +194,7 @@ key = `callId`。value = 这次的 name、arguments、return。
       },
       "return": {
         "stage": "complete",
-        "totalChars": 22,
+        "totalChars": 26,
         "text": "罗技官网 MX Master 3S 标价 999 元"
       }
     }
