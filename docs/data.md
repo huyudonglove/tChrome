@@ -75,18 +75,14 @@ Runtime 独占维护。当前会话指针。字段见 schema「ledger.json」。
     "systemIds": ["pack.agent"],
     "skillIds": ["skill.web"],
     "sopIds": ["sop.browse"],
-    "baseToolsIds": ["askUser", "finishTurn", "tool.detail", "observation.detail", "memory.write"],
+    "baseToolsIds": ["askUser", "finishTurn", "submitGoal", "tool.detail", "observation.detail", "memory.write"],
     "toolIds": ["see_page", "open_url", "web_search"],
     "turnMemoryIds": [],
     "conversationMemoryIds": [],
     "projectMemoryIds": [],
     "mcpIds": [],
-    "currentPage": {
-      "description": "当前页面信息",
-      "tab": 12,
-      "url": "https://item.jd.com/100012345678.html",
-      "title": "罗技 MX Master 3S 无线鼠标"
-    }
+    "currentTab": null,
+    "currentPage": null
   },
   "output": {
     "kind": "tool",

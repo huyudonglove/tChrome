@@ -15,10 +15,11 @@ service/            后端：Bun.serve 127.0.0.1:18788。按模块分
   tools/
   subagent/         第一期空着
   provider/
-catalog/            Pack / skill / SOP / tools schema / 窗口模板
+catalog/            Pack / skill / SOP / 参考 / tools schema / 窗口模板
   assemble.json     本轮点哪些 pack / skill / sop / 常驻工具 / 核心工具
-  window.system.md  system 插槽模板，`{{#身份}}` 这类占位
-  window.user.md    user 插槽模板
+  advice.md         user `#参考`
+  window.system.md  system 插槽：事实
+  window.user.md    user 插槽：参考材料
 docs/               schema、账本、阶段样例
 ```
 
@@ -105,7 +106,7 @@ Runtime 独占维护。当前会话指针。
 | `pendingAsk` | object \| null | `waiting_human` 时 `{turnId, question}`；否则 `null` |
 | `turnIds` | string[] | 已建的回合，按时间 |
 | `userInputHistory` | string[] | 上一轮及更早的用户原话，按时间。新会话 `[]`。用户下一条输入开新 Turn 时，Runtime 把刚结束那一轮的 `userInput` 追加进去 |
-| `goal` | string | 当前目标。新会话 `""`。模型调 `submitGoal` 写入。空着时建议先提交，不锁路径 |
+| `goal` | string | 当前目标。新会话 `""`。模型调 `submitGoal` 写入。空着也能干活 |
 | `goalHistory` | string[] | 旧目标。Runtime 在 `submitGoal` 改写且新值和旧值不同时，把旧目标追加进去。模型不要写 |
 | `toolQueue` | object[] | 本 Turn 待执行的工具。模型一次出网交的 `toolCalls` 按数组顺序入队。任务队列按这个顺序跑。跑完一条弹出，写入 `toolIO`。新会话 / 新出网前空。每项 `{callId, name, arguments}` |
 | `liveTool` | object \| null | 正在跑的那条 `{name, callId}`。空闲 / 追问 / 失败为 `null` |
@@ -136,8 +137,8 @@ Runtime 独占维护。当前会话指针。
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
 | `systemIds` | string[] | 本轮 Pack，对应 `catalog/packs/<id>.md` |
-| `skillIds` | string[] | 本轮 skill，对应 `catalog/skills/<id>.md` |
-| `sopIds` | string[] | 本轮 SOP，对应 `catalog/sops/<id>.md` |
+| `skillIds` | string[] | 本轮 skill，对应 `catalog/skills/<id>.md`，进 user `#skill` |
+| `sopIds` | string[] | 本轮 SOP，对应 `catalog/sops/<id>.md`，进 user `#sop` |
 | `baseToolsIds` | string[] | 常驻工具，对应 `catalog/tools/<id>.json`。固定 `askUser` `finishTurn` `submitGoal` `tool.detail` `observation.detail` `memory.write` |
 | `toolIds` | string[] | 动态工具，对应 `catalog/tools/<id>.json`。开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.click` `open_url` `web_search` `list_browser_tools` `catalog.add` 等）。缺了 `catalog.add` 再补。压缩时先裁回 core + 本轮已用过的 |
 | `turnMemoryIds` | string[] | 这一轮记忆；没有就 `[]` |
@@ -198,12 +199,14 @@ Runtime 独占维护。当前会话指针。
 
 用户一条输入开一个 Turn，CE 装配一次。本 Turn 内工具循环不再走 CE。
 
-system 顺序 = `catalog/window.system.md` 里的 `#标题`。user 顺序 = `catalog/window.user.md`。改正文改 catalog 文件。出网时 Runtime 按模板 `{{槽名}}` 插值拼 `system` / `user`。
-
-user 顺序 = `userSlots`：
+system 顺序 = `catalog/window.system.md`：身份、记忆、观察、环境、协议、参数、内置工具、输出、user槽说明。都是事实。
+user 顺序 = `catalog/window.user.md`：参考 / skill / sop / 记忆 / 输入 / 目标 / 当前页 / toolIO / tools。都是参考材料，按需取用。
 
 | 槽 | 正文来自 |
 |---|---|
+| `#参考` | `catalog/advice.md` |
+| `#skill` | `catalog/skills/` |
+| `#sop` | `catalog/sops/` |
 | `#projectMemory` | ledger.`memoryIds.project` 对应文件。窗口只带最近 8 条，到 200K 仍用全文 |
 | `#conversationMemory` | ledger.`memoryIds.conversation`。窗口只带最近 8 条，压缩后用 `summary` |
 | `#turnMemory` | ledger.`memoryIds.turn`。窗口只带最近 8 条，压缩后用 `summary` |

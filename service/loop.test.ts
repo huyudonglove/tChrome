@@ -8,7 +8,7 @@ import { createProvider } from "./provider/uuapi.ts";
 import { createToolBridge } from "./runtime/bridge.ts";
 import { emptyLedger, loadEvents, loadLedger, loadMemory, loadSession, loadTurn, saveLedger, saveTurn, sessionView } from "./runtime/store.ts";
 import { loadCatalog } from "./prompt/catalog.ts";
-import { systemText } from "./context/window.ts";
+import { systemText, userText } from "./context/window.ts";
 import { maybeCompress } from "./runtime/compress.ts";
 import type { CompletionResult, Provider } from "./types.ts";
 
@@ -43,15 +43,51 @@ test("窗口按 catalog 模板插值", async () => {
   expect(catalog.userTemplate).toContain("{{#goal}}");
   expect(catalog.userTemplate).toContain("{{#goalHistory}}");
   expect(catalog.assemble.coreToolIds).toContain("page.get_summary");
-  expect(catalog.systemTemplate).toContain("{{#身份}}");
-  expect(catalog.userTemplate).toContain("{{#currentPage}}");
+  expect(catalog.userTemplate).toContain("{{#参考}}");
+  expect(catalog.userTemplate).toContain("{{#skill}}");
+  expect(catalog.systemTemplate).not.toContain("{{#skill}}");
   const system = systemText(catalog);
   expect(system).toContain("#身份");
   expect(system).toContain("tChrome");
-  expect(system).toContain("对用户说完再 finishTurn");
+  expect(system).toContain("参考材料");
   expect(system).toContain("submitGoal");
-  expect(system).toContain("自己选路径");
   expect(system).not.toContain("{{");
+  expect(system).not.toContain("探索型可以由大到小");
+  expect(system).not.toContain("#skill");
+  const user = userText({
+    catalog,
+    ledger: emptyLedger("cv_01"),
+    turn: {
+      turnId: "tn_01",
+      conversationId: "cv_01",
+      status: "inferring",
+      createdAt: "2026-09-06T00:00:00.000Z",
+      completedAt: null,
+      input: { text: "帮我查这款鼠标官网价", submittedAt: "2026-09-06T00:00:00.000Z" },
+      assembled: {
+        systemIds: [],
+        skillIds: [],
+        sopIds: [],
+        baseToolsIds: [],
+        toolIds: [],
+        turnMemoryIds: [],
+        conversationMemoryIds: [],
+        projectMemoryIds: [],
+        mcpIds: [],
+        currentTab: null,
+        currentPage: null,
+      },
+      output: { kind: "tool", name: "", callId: "" },
+    },
+    memories: { project: [], conversation: [], turn: [] },
+    toolUsage: "web_search：搜索公开网页。",
+  });
+  expect(user).toContain("#参考");
+  expect(user).toContain("#skill");
+  expect(user).toContain("#sop");
+  expect(user).toContain("探索型可以由大到小");
+  expect(user).toContain("帮我查这款鼠标官网价");
+  expect(user).not.toContain("{{");
 });
 
 test("开 Turn 写入 currentTab，不调 page 工具", async () => {

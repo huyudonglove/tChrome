@@ -131,15 +131,16 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "#记忆",
     "#观察",
     "#环境",
-    "#原则",
+    "#协议",
     "#参数说明",
     "#内置工具",
     "#输出",
-    "#user字段说明",
-    "#skill",
-    "#sop"
+    "#user槽"
   ],
   "userSlots": [
+    "#参考",
+    "#skill",
+    "#sop",
     "#projectMemory",
     "#conversationMemory",
     "#turnMemory",
@@ -147,6 +148,9 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "#observation",
     "#userInputHistory",
     "#userInput",
+    "#goal",
+    "#goalHistory",
+    "#currentPage",
     "#currentEnvironment",
     "#toolIO",
     "#tools"

@@ -8,9 +8,7 @@ const jsonBody = (value: unknown) => JSON.stringify(value, null, 2);
 export function systemText(catalog: Catalog): string {
   const slots: Record<string, string> = {};
   for (const name of slotNames(catalog.systemTemplate)) {
-    if (name === "#skill") slots[name] = catalog.skill;
-    else if (name === "#sop") slots[name] = catalog.sop;
-    else slots[name] = catalog.pack[name] ?? "";
+    slots[name] = catalog.pack[name] ?? "";
   }
   return interpolate(catalog.systemTemplate, slots);
 }
@@ -31,6 +29,9 @@ export function userText(input: {
 }): string {
   const { catalog, ledger, turn, memories, toolUsage } = input;
   return interpolate(catalog.userTemplate, {
+    "#参考": catalog.advice,
+    "#skill": catalog.skill,
+    "#sop": catalog.sop,
     "#projectMemory": memoryBody(memories.project),
     "#conversationMemory": memoryBody(memories.conversation),
     "#turnMemory": memoryBody(memories.turn),

@@ -203,15 +203,16 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "#记忆",
     "#观察",
     "#环境",
-    "#原则",
+    "#协议",
     "#参数说明",
     "#内置工具",
     "#输出",
-    "#user字段说明",
-    "#skill",
-    "#sop"
+    "#user槽"
   ],
   "userSlots": [
+    "#参考",
+    "#skill",
+    "#sop",
     "#projectMemory",
     "#conversationMemory",
     "#turnMemory",
@@ -219,6 +220,9 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "#observation",
     "#userInputHistory",
     "#userInput",
+    "#goal",
+    "#goalHistory",
+    "#currentPage",
     "#currentEnvironment",
     "#toolIO",
     "#tools"

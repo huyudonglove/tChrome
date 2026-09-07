@@ -1,3 +1,12 @@
+#参考
+{{#参考}}
+
+#skill
+{{#skill}}
+
+#sop
+{{#sop}}
+
 #projectMemory
 {{#projectMemory}}
 

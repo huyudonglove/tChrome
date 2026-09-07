@@ -58,9 +58,9 @@
 
 | ID                       | 文件                            | 贡献                                                                                   |
 | ------------------------ | ------------------------------- | -------------------------------------------------------------------------------------- |
-| `pack.agent`             | `catalog/packs/pack.agent.md`   | `#身份`, `#记忆`, `#环境`, `#原则`, `#参数说明`, `#内置工具`, `#输出`, `#user字段说明` |
-| `skill.web`              | `catalog/skills/skill.web.md`   | `#skill`                                                                               |
-| `sop.browse`             | `catalog/sops/sop.browse.md`    | `#sop`                                                                                 |
+| `pack.agent`             | `catalog/packs/pack.agent.md`   | `#身份`, `#记忆`, `#观察`, `#环境`, `#协议`, `#参数说明`, `#内置工具`, `#输出`, `#user槽` |
+| `skill.web`              | `catalog/skills/skill.web.md`   | user `#skill`                                                                          |
+| `sop.browse`             | `catalog/sops/sop.browse.md`    | user `#sop`                                                                            |
 | `askUser`                | `catalog/tools/askUser.json`    | 常驻，出网 tools[]                                                                     |
 | `finishTurn`             | `catalog/tools/finishTurn.json` | 常驻，出网 tools[]                                                                     |
 | `tool.detail`            | `catalog/tools/tool.detail.json` | 常驻，出网 tools[]                                                                    |
@@ -94,12 +94,13 @@ turnMemory：这一轮刚记下的，下一轮并进 conversationMemory。
 
 Chrome、JavaScript、HTML、CSS。
 
-### `#原则`
+### `#协议`
 
-查看输入信息是否能支持后续判断。无意义就 finishTurn。信息不完整就 askUser。材料够就调动态工具干活。要存记忆就调 memory.write。
-一次出网可交多个工具。交出去的顺序就是执行顺序，进任务队列按这个顺序跑。每个工具都标 affectsPage：这次会不会改当前页（跳转、点击、输入）。会改当前页的排在不会改的后面，避免后面的调用还对着旧页。finishTurn 放在本次出网最后一条。
-`#toolIO` 某条 return.stage=truncated 时，调 tool.detail，callId 用那条的 callId，拿全文。
+一次出网可交多个工具。Runtime 按交出去的顺序执行。affectsPage 标这次会不会改当前页。finishTurn 一执行本轮就收口，同一次出网里其它工具要先跑完才轮到它。
+`#toolIO` 某条 return.stage=truncated 时，调 tool.detail，callId 用那条的 callId。
 `#observation` 某条要展开时，调 observation.detail，observationId 用那条的 id。
+`#goalHistory` 由 Runtime 拼，模型写了也不会进这个槽。
+user 里的槽是参考材料，按需取用。
 
 ### `#参数说明`
 
@@ -127,7 +128,7 @@ contextSummary：memory.write 时，user 里带给下一轮的汇总，排除三
 
 ### `#内置工具`
 
-常驻：askUser、finishTurn、tool.detail、observation.detail、memory.write。每轮都在出网 tools[] 里。用法见 #原则、#参数说明。
+常驻：askUser、finishTurn、submitGoal、tool.detail、observation.detail、memory.write。每轮都在出网 tools[] 里。用法见 #协议、#参数说明。
 动态工具本轮才挂上，用法写在 user `#tools`。
 每个工具的 arguments 都带 reason 和 affectsPage。
 
@@ -146,38 +147,25 @@ action
 
 有 `tool_calls` 时这三段也要写。Runtime 不校验这段正文。
 
-### `#user字段说明`
+### `#user槽`
 
-记忆写在 `#projectMemory` `#conversationMemory` `#turnMemory`。这些槽来自此前 memory.write 落下的内容。下一次出网带上。窗口到 200K 时 Runtime 压缩 turnMemory 和 conversationMemory，槽里只留摘要。
-上次会话总结写在 `#contextSummary`。
-当前用户输入写在 `#userInput`。
-历史用户输入写在 `#userInputHistory`。
-当前环境写在 `#currentEnvironment`。
-压缩过的事实写在 `#observation`：数组，每项 `{id, text, sourceCallIds}`。这是 Runtime 把较早的 tool history 收成的摘要。要看具体事实，调 observation.detail，observationId 用该项的 id。
-工具调用和返回写在 `#toolIO`：数组，每项是一次调用的 callId、name、arguments、return。askUser、finishTurn、tool.detail、observation.detail、memory.write、动态工具都进这里。同一工具可出现多次。最新的在最下面。窗口到 200K 时较早的条目收进 `#observation`，`#toolIO` 只留最近未压缩的。
-return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，totalChars 写全文长度。要全文时调 tool.detail，参数 callId。
-常驻工具 askUser / finishTurn / tool.detail / observation.detail / memory.write 的用法写在本 Pack。动态工具的用法写在 user `#tools`。
-
-报错说明：提示格式错误时，检查工具调用格式。
-
-
-### `#skill`
-
-查网页价格时，打开商品页，核对官网价和当前页标价。
-
-
-### `#sop`
-
-1. 认当前页是不是目标商品
-2. 打开官网或权威标价页
-3. 把价格写入 #toolIO
-
+user 各槽是参考。`#userInput` 是本轮用户原话。其余（记忆、目标、当前页、工具返回、skill、sop）按需取用。
 
 ## user 插槽
 
-顺序 = `userSlots` 数组。历史用户输入进 `#userInputHistory`；本轮原话进 `#userInput`；当前页进 `#currentEnvironment`；工具调用和返回进 `#toolIO`（数组，最新在最下面）。
+顺序 = `userSlots` 数组。都是参考材料，按需取用。skill / sop / 建议路径在 user，不进 system。
 
-常驻工具用法在 system（Pack）。动态工具用法在 `#tools`。本轮 `see_page` `open_url` `web_search` 的用法在 `#tools`，全表见 `catalog/tools/index.json`。
+### `#参考`
+
+这些槽是材料，按需取用，不是清单。`#goal` 空着时可用 submitGoal，也可先干活再立。探索型可以由大到小；确定型可以直接调对应工具。
+
+### `#skill`
+
+查网页：探索型可以由大到小。确定型已经知道要点哪、要打开哪，直接调对应工具。
+
+### `#sop`
+
+探索型可以由大到小。确定型可以直接 open_url / click / type / finishTurn。
 
 ### `#projectMemory`
 
@@ -206,6 +194,18 @@ return.text 最多 2000 字。超出时 stage=truncated，只留前 2000 字，t
 ### `#userInput`
 
 帮我查这款鼠标官网价
+
+### `#goal`
+
+（空）
+
+### `#goalHistory`
+
+[]
+
+### `#currentPage`
+
+（空）
 
 ### `#currentEnvironment`
 
@@ -279,15 +279,16 @@ web_search：搜索公开网页。affectsPage=false。
     "#记忆",
     "#观察",
     "#环境",
-    "#原则",
+    "#协议",
     "#参数说明",
     "#内置工具",
     "#输出",
-    "#user字段说明",
-    "#skill",
-    "#sop"
+    "#user槽"
   ],
   "userSlots": [
+    "#参考",
+    "#skill",
+    "#sop",
     "#projectMemory",
     "#conversationMemory",
     "#turnMemory",
@@ -295,6 +296,9 @@ web_search：搜索公开网页。affectsPage=false。
     "#observation",
     "#userInputHistory",
     "#userInput",
+    "#goal",
+    "#goalHistory",
+    "#currentPage",
     "#currentEnvironment",
     "#toolIO",
     "#tools"
