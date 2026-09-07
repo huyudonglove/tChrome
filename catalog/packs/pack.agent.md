@@ -36,6 +36,8 @@ choice：askUser 给用户的选项。
 goal：submitGoal 写入 ledger.goal。
 callId：tool.detail 展开全文，等于 `#toolIO` 该项的 callId。
 observationId：observation.detail 展开全文，等于 `#observation` 该项的 id。
+key：notes.write / notes.delete 的键。模型自定。
+value：notes.write 写入 ledger.notes[key] 的正文。
 turnMemory / conversationMemory / projectMemory：memory.write 写入对应层。
 contextSummary：memory.write 写入 ledger.contextSummary。
 query：web_search 的检索词。
@@ -53,6 +55,8 @@ names：catalog.add 写入 ledger.toolIds 的动态工具名。
       "goal": "",
       "callId": "",
       "observationId": "",
+      "key": "",
+      "value": "",
       "query": "",
       "url": "",
       "text": "",
@@ -67,7 +71,7 @@ names：catalog.add 写入 ledger.toolIds 的动态工具名。
     }
 
 #内置工具
-baseToolsIds 每轮出网：askUser、finishTurn、submitGoal、tool.detail、observation.detail、memory.write。
+baseToolsIds 每轮出网：askUser、finishTurn、submitGoal、tool.detail、observation.detail、memory.write、notes.write、notes.delete。
 coreToolIds 开 Turn 挂上：page.get_summary、page.list_regions、page.list_interactive_elements、page.inspect_region、page.inspect_element、page.click、page.type、open_url、web_search、list_browser_tools、catalog.add。
 list_browser_tools 返回未进入 ledger.toolIds 的动态工具名。catalog.add 的 names 写入 ledger.toolIds，随后出网的 tools[] 带这些工具的 schema。
 page.click 和 page.type 的 id 来自 page.list_regions、page.list_interactive_elements、page.inspect_region、page.inspect_element 的返回。
@@ -103,6 +107,7 @@ user 按层装配。空槽只留标题。
 `#turnMemory`：memory.write 的 turnMemory。本 Turn 写下的记忆。窗口最近 8 条。windowChars 达到 compressAt（200000）时槽写入 summary。
 `#contextSummary`：memory.write 的 contextSummary。给后续 Turn 的汇总。
 `#observation`：ledger.observation。Runtime 在 windowChars 达到 compressAt（200000）时从 toolIO 收成的摘要。observation.detail 的 observationId 等于该项 id。
+`#notes`：ledger.notes。模型自管的 key/value。notes.write 的 key 写入或覆盖 value。notes.delete 的 key 删除该项。模型决定 key 怎么用。
 
 ##输入
 `#userInputHistory`：ledger.userInputHistory。此前 Turn 的用户原话，不含本 Turn。

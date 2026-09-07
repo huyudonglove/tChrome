@@ -39,7 +39,9 @@ const mock = (results: CompletionResult[]): Provider => {
 
 test("窗口按 catalog 模板插值", async () => {
   const catalog = loadCatalog(repoRoot);
-  expect(catalog.assemble.baseToolsIds).toContain("submitGoal");
+  expect(catalog.assemble.baseToolsIds).toContain("notes.write");
+  expect(catalog.assemble.baseToolsIds).toContain("notes.delete");
+  expect(catalog.userTemplate).toContain("{{#notes}}");
   expect(catalog.userTemplate).toContain("{{#goal}}");
   expect(catalog.userTemplate).toContain("{{#goalHistory}}");
   expect(catalog.assemble.coreToolIds).toContain("page.get_summary");
@@ -77,7 +79,8 @@ test("窗口按 catalog 模板插值", async () => {
   expect(system).toContain("`#skill`：catalog/skills/");
   expect(system).toContain("`#sop`：catalog/sops/");
   expect(system).toContain("`#baseTools`：assemble.baseToolsIds");
-  expect(system).toContain("`#tools`：ledger.toolIds");
+  expect(system).toContain("`#notes`：ledger.notes");
+  expect(system).toContain("notes.write");
   expect(system).toContain("content 的 seen");
   expect(system).toContain("`#currentTab`：Turn.assembled.currentTab");
   expect(system).toContain("`#currentPage`：Turn.assembled.currentPage");
@@ -126,6 +129,8 @@ test("窗口按 catalog 模板插值", async () => {
   expect(user).toContain("##页面");
   expect(user).toContain("##过程");
   expect(user).toContain("##工具");
+  expect(user).toContain("#notes");
+  expect(user).toContain("{}");
     expect(user).toContain("#skill");
   expect(user).toContain("#sop");
   expect(user).toContain("page.get_summary 读摘要");
@@ -736,5 +741,37 @@ test("submitGoal 写入当前目标，再交一次旧目标进 history", async (
   const ledger = loadLedger(dir, "cv_01");
   expect(ledger.goal).toBe("测登录页");
   expect(ledger.goalHistory).toEqual(["测这个站点"]);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("notes.write 按 key 写入，notes.delete 删除", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-notes-"));
+  const provider = mock([
+    ok({
+      finish: "tool_calls",
+      content: "seen\n记下候选\nreason\n自管\naction\nnotes.write",
+      toolCalls: [{ id: "call_01", name: "notes.write", arguments: { reason: "记下", affectsPage: false, key: "candidate", value: "罗技 MX Master 3S" } }],
+    }),
+    ok({
+      finish: "tool_calls",
+      content: "seen\n改候选\nreason\n覆盖\naction\nnotes.write",
+      toolCalls: [{ id: "call_02", name: "notes.write", arguments: { reason: "改", affectsPage: false, key: "candidate", value: "MX Master 3S 黑" } }],
+    }),
+    ok({
+      finish: "tool_calls",
+      content: "seen\n删掉\nreason\n不用了\naction\nnotes.delete",
+      toolCalls: [{ id: "call_03", name: "notes.delete", arguments: { reason: "删", affectsPage: false, key: "candidate" } }],
+    }),
+    ok({
+      finish: "tool_calls",
+      content: "seen\n已空\nreason\n收口\naction\n笔记已删",
+      toolCalls: [{ id: "call_04", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
+    }),
+  ]);
+  const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "先记下再删", submittedAt: "2026-09-06T00:00:00.000Z" });
+  expect(reply.output).toEqual({ kind: "reply", text: "笔记已删" });
+  const ledger = loadLedger(dir, "cv_01");
+  expect(ledger.notes).toEqual({});
+  expect(ledger.toolIO.map((row) => row.name)).toEqual(["notes.write", "notes.write", "notes.delete", "finishTurn"]);
   rmSync(dir, { recursive: true, force: true });
 });

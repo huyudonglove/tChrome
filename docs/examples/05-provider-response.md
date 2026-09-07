@@ -37,7 +37,9 @@
     "submitGoal",
     "tool.detail",
     "observation.detail",
-    "memory.write"
+    "memory.write",
+    "notes.write",
+    "notes.delete"
   ],
   "toolIds": [
     "page.get_summary",
@@ -74,6 +76,7 @@
     "#turnMemory",
     "#contextSummary",
     "#observation",
+    "#notes",
     "#userInputHistory",
     "#userInput",
     "#goal",
@@ -257,7 +260,9 @@ data: [DONE]
     "submitGoal",
     "tool.detail",
     "observation.detail",
-    "memory.write"
+    "memory.write",
+    "notes.write",
+    "notes.delete"
   ],
   "toolIds": [
     "page.get_summary",
@@ -294,6 +299,7 @@ data: [DONE]
     "#turnMemory",
     "#contextSummary",
     "#observation",
+    "#notes",
     "#userInputHistory",
     "#userInput",
     "#goal",

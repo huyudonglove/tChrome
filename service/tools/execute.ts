@@ -80,6 +80,14 @@ export async function executeTool(input: ExecuteInput): Promise<string> {
     const goal = String(args.goal ?? "").trim();
     return goal ? `当前目标：${goal}` : "goal 空着";
   }
+  if (name === "notes.write") {
+    const key = String(args.key ?? "").trim();
+    return key ? `notes[${key}]=${String(args.value ?? "")}` : "key 空着";
+  }
+  if (name === "notes.delete") {
+    const key = String(args.key ?? "").trim();
+    return key ? `deleted notes[${key}]` : "key 空着";
+  }
   if (name === "catalog.add") {
     const names = asStringArray(args.names);
     return `补上 ${names.join(" ")}`.trim();

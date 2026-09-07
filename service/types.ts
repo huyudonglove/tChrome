@@ -92,6 +92,7 @@ export type Ledger = {
   liveTool: { name: string; callId: string } | null;
   toolIO: ToolIOItem[];
   observation: ObservationItem[];
+  notes: Record<string, string>;
   windowChars: number;
   compressAt: number;
   memoryIds: { turn: string[]; conversation: string[]; project: string[] };

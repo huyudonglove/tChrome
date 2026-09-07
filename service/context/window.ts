@@ -37,6 +37,7 @@ export function userText(input: {
     "#turnMemory": memoryBody(memories.turn),
     "#contextSummary": ledger.contextSummary ? jsonBody(ledger.contextSummary) : "",
     "#observation": jsonBody(ledger.observation),
+    "#notes": jsonBody(ledger.notes),
     "#userInputHistory": ledger.userInputHistory.join("\n"),
     "#userInput": turn.input.text,
     "#goal": ledger.goal,

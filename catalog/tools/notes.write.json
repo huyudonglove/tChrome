@@ -1,0 +1,16 @@
+{
+  "type": "function",
+  "function": {
+    "name": "notes.write",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean" },
+        "key": { "type": "string" },
+        "value": { "type": "string" }
+      },
+      "required": ["reason", "affectsPage", "key", "value"]
+    }
+  }
+}

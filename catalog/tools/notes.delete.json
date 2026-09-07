@@ -1,0 +1,15 @@
+{
+  "type": "function",
+  "function": {
+    "name": "notes.delete",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean" },
+        "key": { "type": "string" }
+      },
+      "required": ["reason", "affectsPage", "key"]
+    }
+  }
+}

@@ -21,6 +21,9 @@
 #observation
 {{#observation}}
 
+#notes
+{{#notes}}
+
 ##输入
 #userInputHistory
 {{#userInputHistory}}

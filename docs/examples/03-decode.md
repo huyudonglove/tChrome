@@ -35,7 +35,9 @@
     "submitGoal",
     "tool.detail",
     "observation.detail",
-    "memory.write"
+    "memory.write",
+    "notes.write",
+    "notes.delete"
   ],
   "toolIds": [
     "page.get_summary",
@@ -158,7 +160,7 @@ action
 
 user 按层装配。空槽只留标题。
 ##方法：`#skill` `#sop`
-##记忆：`#projectMemory` `#conversationMemory` `#turnMemory` `#contextSummary` `#observation`
+##记忆：`#projectMemory` `#conversationMemory` `#turnMemory` `#contextSummary` `#observation` `#notes`
 ##输入：`#userInputHistory` `#userInput`
 ##目标：`#goal` `#goalHistory`
 ##页面：`#currentTab` `#currentPage`
@@ -201,6 +203,10 @@ user 按层装配。空槽只留标题。
 ### `#observation`
 
 （空）
+
+### `#notes`
+
+{}
 
 ### `##输入`
 
@@ -255,6 +261,8 @@ submitGoal：写入 ledger.goal。入参：goal。返回：当前目标。affect
 tool.detail：展开 toolIO 截断全文。入参：callId。affectsPage=false。
 observation.detail：展开 observation 全文。入参：observationId。affectsPage=false。
 memory.write：写入记忆。入参：可选 turnMemory、conversationMemory、projectMemory、contextSummary。affectsPage=false。
+notes.write：写入或覆盖 ledger.notes[key]。入参：key、value。affectsPage=false。
+notes.delete：删除 ledger.notes[key]。入参：key。affectsPage=false。
 
 ### `#tools`
 
@@ -292,7 +300,9 @@ web_search：搜索公开网页。affectsPage=false。
     "submitGoal",
     "tool.detail",
     "observation.detail",
-    "memory.write"
+    "memory.write",
+    "notes.write",
+    "notes.delete"
   ],
   "toolIds": [
     "page.get_summary",
@@ -329,6 +339,7 @@ web_search：搜索公开网页。affectsPage=false。
     "#turnMemory",
     "#contextSummary",
     "#observation",
+    "#notes",
     "#userInputHistory",
     "#userInput",
     "#goal",

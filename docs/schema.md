@@ -129,6 +129,7 @@ Runtime 独占维护。当前会话指针。
 | `liveTool` | object \| null | 正在跑的那条 `{name, callId}`。空闲 / 追问 / 失败为 `null` |
 | `toolIO` | object[] | 本会话已执行、窗口里还带着的工具调用。新会话 `[]`。队列里跑完一条追加一条，最新在最下面。窗口到 200K 时较早的条目收进 `observation`。每项见「toolIO 项」 |
 | `observation` | object[] | 压缩过的事实。新会话 `[]`。每项 `{id, text, sourceCallIds}`。`text` 是摘要。全文在 `observations/<id>.json`，用 `observation.detail` 取 |
+| `notes` | object | 模型自管的 key/value。新会话 `{}`。`notes.write` 写入或覆盖 `notes[key]`。`notes.delete` 删除 `notes[key]`。进 user `#notes` |
 | `windowChars` | number | 本轮出网窗口已用字符数。开 Turn 装配后、以及本 Turn 每次出网前，Runtime 写入 |
 | `compressAt` | number | 压缩门槛，固定 `200000` |
 | `memoryIds` | object | `{turn, conversation, project}`，各是 string[] |
@@ -228,6 +229,7 @@ user 顺序 = `catalog/window.user.md`，层标题 `##方法` `##记忆` `##输�
 | `#turnMemory` | ledger.`memoryIds.turn`。窗口只带最近 8 条，压缩后用 `summary` |
 | `#contextSummary` | 最近一次 `memory.write` 的 `contextSummary` |
 | `#observation` | ledger.`observation` |
+| `#notes` | ledger.`notes`。模型自管 key/value |
 | `#userInputHistory` | ledger.`userInputHistory`（不含本轮） |
 | `#userInput` | Turn.`input.text` |
 | `#goal` | ledger.`goal` |
@@ -307,6 +309,8 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | `finishTurn` | （无） | 回复正文在 content 的 action。没有 action 就空着 |
 | `tool.detail` | `callId` | `#toolIO` 该项的 `callId` |
 | `observation.detail` | `observationId` | `#observation` 该项的 `id` |
+| `notes.write` | `key` `value` | 写入或覆盖 `ledger.notes[key]`。模型自定 key |
+| `notes.delete` | `key` | 删除 `ledger.notes[key]` |
 | `memory.write` | （无） | `turnMemory` `conversationMemory` `projectMemory` `contextSummary` 有则写 |
 | `catalog.add` | `names` | 把缺的动态工具挂进本轮 |
 

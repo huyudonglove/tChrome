@@ -239,6 +239,8 @@
     "tool.detail": false,
     "observation.detail": false,
     "memory.write": false,
+    "notes.write": false,
+    "notes.delete": false,
     "catalog.add": false
   },
   "usage": {
@@ -326,6 +328,8 @@
     "tool.detail": "展开 toolIO 截断全文。入参：callId。返回：该条 return 全文",
     "observation.detail": "展开 observation 全文。入参：observationId。返回：该项 full",
     "memory.write": "写入记忆。入参：可选 turnMemory、conversationMemory、projectMemory、contextSummary。返回：写入的层",
+    "notes.write": "写入或覆盖 ledger.notes[key]。入参：key、value。返回：当前该项",
+    "notes.delete": "删除 ledger.notes[key]。入参：key。返回：已删的 key",
     "catalog.add": "把缺的动态工具挂进本轮 tools[]。入参：names。返回：补上的工具名。下一轮出网才带 schema",
     "measure_timing": "测当前页 TTFB、DOMContentLoaded、load。入参：可选 tab。返回：ok、ttfbMs、domContentLoadedMs、loadMs、url",
     "measure_paint": "测当前页绘制时间。入参：可选 tab。返回：ok、firstPaintMs、firstContentfulPaintMs、largestContentfulPaintMs",

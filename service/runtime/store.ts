@@ -67,6 +67,7 @@ export function emptyLedger(conversationId: string): Ledger {
     liveTool: null,
     toolIO: [],
     observation: [],
+    notes: {},
     windowChars: 0,
     compressAt: 200000,
     memoryIds: { turn: [], conversation: [], project: [] },
@@ -78,6 +79,7 @@ export function loadLedger(dataDir: string, cvId: string): Ledger {
   const ledger = readJson(paths(dataDir, cvId).ledger, emptyLedger(cvId));
   ledger.goal ??= "";
   ledger.goalHistory ??= [];
+  ledger.notes ??= {};
   return ledger;
 }
 

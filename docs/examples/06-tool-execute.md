@@ -182,7 +182,9 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "submitGoal",
     "tool.detail",
     "observation.detail",
-    "memory.write"
+    "memory.write",
+    "notes.write",
+    "notes.delete"
   ],
   "toolIds": [
     "page.get_summary",
@@ -219,6 +221,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "#turnMemory",
     "#contextSummary",
     "#observation",
+    "#notes",
     "#userInputHistory",
     "#userInput",
     "#goal",

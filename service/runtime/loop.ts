@@ -246,6 +246,14 @@ const runQueue = async (input: {
         ledger.goal = goal;
       }
     }
+    if (item.name === "notes.write") {
+      const key = String(item.arguments.key ?? "").trim();
+      if (key) ledger.notes[key] = String(item.arguments.value ?? "");
+    }
+    if (item.name === "notes.delete") {
+      const key = String(item.arguments.key ?? "").trim();
+      if (key) delete ledger.notes[key];
+    }
     if (item.name === "catalog.add") {
       const names = asStringArray(item.arguments.names);
       for (const name of names) {

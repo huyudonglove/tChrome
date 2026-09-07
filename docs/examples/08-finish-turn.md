@@ -110,7 +110,9 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "submitGoal",
     "tool.detail",
     "observation.detail",
-    "memory.write"
+    "memory.write",
+    "notes.write",
+    "notes.delete"
   ],
   "toolIds": [
     "page.get_summary",
@@ -147,6 +149,7 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "#turnMemory",
     "#contextSummary",
     "#observation",
+    "#notes",
     "#userInputHistory",
     "#userInput",
     "#goal",

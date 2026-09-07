@@ -8,7 +8,9 @@
     "submitGoal",
     "tool.detail",
     "observation.detail",
-    "memory.write"
+    "memory.write",
+    "notes.write",
+    "notes.delete"
   ],
   "coreToolIds": [
     "page.get_summary",
