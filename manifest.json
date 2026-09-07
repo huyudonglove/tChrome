@@ -6,6 +6,8 @@
   "minimum_chrome_version": "135",
   "permissions": [
     "sidePanel",
+    "storage",
+    "alarms",
     "tabs",
     "scripting",
     "activeTab",

@@ -950,10 +950,10 @@ export const runBrowserTool = async (name, input = {}) => {
     // 通过downloads API下载数据
     const {data, filename} = input;
     if (!data) return {ok: false, error: '缺 data'};
-    const blob = new Blob([typeof data === 'string' ? data : JSON.stringify(data, null, 2)], {type: 'text/plain'});
-    const url = URL.createObjectURL(blob);
+    const text = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+    // MV3 Service Worker 不提供 createObjectURL；data URL 可直接交给下载 API。
+    const url = `data:text/plain;charset=utf-8,${encodeURIComponent(text)}`;
     const id = await chrome.downloads.download({url, filename: filename || 'export.txt'});
-    URL.revokeObjectURL(url);
     return {ok: true, downloadId: id};
   }
   if (name === 'cookies') {
@@ -988,7 +988,7 @@ export const runBrowserTool = async (name, input = {}) => {
             return resolve({ok: true, stores});
           }
           try {
-            const tx = database.transaction(storeName, act === 'write' ? 'readwrite' : 'readonly');
+            const tx = database.transaction(storeName, act === 'write' || act === 'delete' ? 'readwrite' : 'readonly');
             const store = tx.objectStore(storeName);
             if (act === 'read' && k) {
               const req = store.get(k);
@@ -1071,7 +1071,7 @@ export const runBrowserTool = async (name, input = {}) => {
     });
   }
   if (name === 'profile_vault') {
-    // profile_vault 通过 chrome.storage 存储配置
+    // profile_vault 通过 chrome.storage 存储配置，manifest 必须声明 storage 权限。
     const {action, profileId, data} = input;
     if (action === 'save' && profileId && data) {
       const storage = await chrome.storage.local.get('profiles');
@@ -1310,7 +1310,7 @@ export const runBrowserTool = async (name, input = {}) => {
       path: path || '/',
       domain: domain,
       secure: secure || false,
-      sameSite: sameSite || 'Lax',
+      sameSite: sameSite ? (String(sameSite).toLowerCase() === 'none' ? 'no_restriction' : String(sameSite).toLowerCase()) : 'lax',
       expirationDate: expires ? Math.floor(Date.now() / 1000) + expires : undefined,
     });
     return {ok: true, name: cookieName, value};
@@ -1323,7 +1323,7 @@ export const runBrowserTool = async (name, input = {}) => {
   }
   if (name === 'clear_cookies') {
     const {origin} = input;
-    const cookies = await chrome.cookies.getAll(origin ? {origin} : {});
+    const cookies = await chrome.cookies.getAll(origin ? {url: origin} : {});
     for (const cookie of cookies) {
       await chrome.cookies.remove({url: `http${cookie.secure ? 's' : ''}://${cookie.domain}${cookie.path}`, name: cookie.name});
     }

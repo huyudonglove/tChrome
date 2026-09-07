@@ -29,6 +29,7 @@ export type ServeOptions = {
   bridge?: ToolBridge;
   port?: number;
   hostname?: string;
+  extensionOrigin?: string;
 };
 
 const json = (body: unknown, status = 200) =>
@@ -36,7 +37,7 @@ const json = (body: unknown, status = 200) =>
     status,
     headers: {
       "content-type": "application/json",
-      "access-control-allow-origin": "*",
+      "vary": "Origin",
     },
   });
 
@@ -47,74 +48,92 @@ export function createServer(options: ServeOptions = {}) {
   const bridge = options.bridge ?? createToolBridge();
   const host = options.host ?? bridge;
   const deps: LoopDeps = { dataDir, repoRoot, provider, host };
+  const extensionOrigin = options.extensionOrigin ?? Bun.env.TCHROME_EXTENSION_ORIGIN;
+  const trustedOrigin = (origin: string, url: URL) =>
+    origin === url.origin || (extensionOrigin
+      ? origin === extensionOrigin
+      : /^chrome-extension:\/\/[a-p]{32}$/.test(origin));
   return {
     dataDir,
     bridge,
     fetch: async (request: Request) => {
       const url = new URL(request.url);
+      const origin = request.headers.get("origin");
+      // Check before routing: omitting CORS headers alone cannot prevent writes.
+      if (!["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)
+        || (origin !== null && !trustedOrigin(origin, url))
+        || (origin === null && ["cross-site", "same-site"].includes(request.headers.get("sec-fetch-site") ?? ""))) {
+        return json({ error: "forbidden origin" }, 403);
+      }
+      const respond = (body: unknown, status = 200) => {
+        const response = json(body, status);
+        if (origin) response.headers.set("access-control-allow-origin", origin);
+        return response;
+      };
       if (request.method === "OPTIONS") {
         return new Response(null, {
           headers: {
-            "access-control-allow-origin": "*",
+            ...(origin ? { "access-control-allow-origin": origin } : {}),
+            "vary": "Origin",
             "access-control-allow-methods": "GET,POST,OPTIONS",
             "access-control-allow-headers": "content-type",
           },
         });
       }
       if (request.method === "GET" && url.pathname === "/health") {
-        return json({ ok: true });
+        return respond({ ok: true });
       }
       if (request.method === "GET" && url.pathname === "/tool-request") {
-        return json({ request: bridge.current() });
+        return respond({ request: bridge.current() });
       }
       if (request.method === "POST" && url.pathname === "/tool-result") {
         const body = (await request.json()) as { id?: string; result?: BrowserResult };
-        if (!body.id || !body.result) return json({ ok: false, error: "缺 id 或 result" }, 400);
-        if (!bridge.resolve(body.id, body.result)) return json({ ok: false, error: "没有这个工具请求" }, 404);
-        return json({ ok: true });
+        if (!body.id || !body.result) return respond({ ok: false, error: "缺 id 或 result" }, 400);
+        if (!bridge.resolve(body.id, body.result)) return respond({ ok: false, error: "没有这个工具请求" }, 404);
+        return respond({ ok: true });
       }
       if (request.method === "GET" && url.pathname === "/session") {
-        return json(currentSessionView(dataDir));
+        return respond(currentSessionView(dataDir));
       }
       if (request.method === "GET" && url.pathname === "/conversations") {
-        return json({ items: listConversations(dataDir) });
+        return respond({ items: listConversations(dataDir) });
       }
       if (request.method === "POST" && url.pathname === "/conversations/open") {
         const body = (await request.json()) as { conversationId?: string };
         const conversationId = String(body.conversationId ?? "");
-        if (!conversationId) return json({ error: "缺 conversationId" }, 400);
+        if (!conversationId) return respond({ error: "缺 conversationId" }, 400);
         try {
-          return json(openConversation(dataDir, conversationId));
+          return respond(openConversation(dataDir, conversationId));
         } catch (error) {
-          return json({ error: error instanceof Error ? error.message : String(error) }, 404);
+          return respond({ error: error instanceof Error ? error.message : String(error) }, 404);
         }
       }
       if (request.method === "POST" && url.pathname === "/conversations/new") {
-        return json(newConversation(dataDir));
+        return respond(newConversation(dataDir));
       }
       if (request.method === "POST" && url.pathname === "/conversations/delete") {
         const body = (await request.json()) as { conversationId?: string };
         const conversationId = String(body.conversationId ?? "");
-        if (!conversationId) return json({ error: "缺 conversationId" }, 400);
+        if (!conversationId) return respond({ error: "缺 conversationId" }, 400);
         try {
-          return json(deleteConversation(dataDir, conversationId));
+          return respond(deleteConversation(dataDir, conversationId));
         } catch (error) {
-          return json({ error: error instanceof Error ? error.message : String(error) }, 404);
+          return respond({ error: error instanceof Error ? error.message : String(error) }, 404);
         }
       }
       if (request.method === "POST" && url.pathname === "/turn") {
         const body = (await request.json()) as { userInput?: string; submittedAt?: string; currentTab?: { tab?: number; url?: string; title?: string } | null };
         const userInput = String(body.userInput ?? "").trim();
-        if (!userInput) return json({ conversationId: "", turnId: "", output: { kind: "error", faultCode: "empty_input" } }, 400);
+        if (!userInput) return respond({ conversationId: "", turnId: "", output: { kind: "error", faultCode: "empty_input" } }, 400);
         const submittedAt = body.submittedAt || new Date().toISOString();
         const reply = await handleTurn(deps, { userInput, submittedAt, currentTab: body.currentTab ?? null });
-        return json(reply);
+        return respond(reply);
       }
       if (request.method === "POST" && url.pathname === "/stop") {
         host.abort?.();
-        return json(stopTurn(dataDir));
+        return respond(stopTurn(dataDir));
       }
-      return json({ error: "not found" }, 404);
+      return respond({ error: "not found" }, 404);
     },
   };
 }

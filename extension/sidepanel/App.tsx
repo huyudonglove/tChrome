@@ -142,6 +142,8 @@ export function App() {
   const listRef = useRef<HTMLDivElement>(null);
   const followBottom = useRef(true);
   const sendingRef = useRef(false);
+  const submission = useRef(0);
+  const running = sending || session.status === "running";
 
   const loadAll = async () => {
     const [sessionRes, listRes] = await Promise.all([
@@ -175,7 +177,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (!sending) return undefined;
+    if (!running) return undefined;
     let alive = true;
     const tick = async () => {
       try {
@@ -189,7 +191,7 @@ export function App() {
       alive = false;
       clearInterval(timer);
     };
-  }, [sending]);
+  }, [running]);
 
   const scrollToBottom = (behavior: ScrollBehavior = "auto") => {
     const list = listRef.current;
@@ -205,7 +207,8 @@ export function App() {
   }, [session.messages, sending]);
 
   const sendText = async (text: string) => {
-    if (!text || sendingRef.current) return;
+    if (!text || sendingRef.current || session.status === "running") return;
+    const currentSubmission = ++submission.current;
     setDraft("");
     sendingRef.current = true;
     setSending(true);
@@ -213,9 +216,7 @@ export function App() {
       ...current,
       messages: [...current.messages, { role: "user", text }],
     }));
-    const ping = setInterval(() => {
-      chrome.runtime.sendMessage({ type: "ping" }).catch(() => {});
-    }, 1000);
+    void chrome.runtime.sendMessage({ type: "ping" }).catch(() => {});
     try {
       const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
       const currentTab = tab?.id
@@ -227,6 +228,7 @@ export function App() {
         body: JSON.stringify({ userInput: text, submittedAt: new Date().toISOString(), currentTab }),
       });
       const body = await response.json() as { output?: Output };
+      if (submission.current !== currentSubmission) return;
       setSession((current) => ({
         ...current,
         messages: [...current.messages, { role: "assistant", text: outputText(body.output) }],
@@ -234,18 +236,21 @@ export function App() {
       await loadAll();
       setStatus("");
     } catch {
-      setStatus(DOWN);
+      if (submission.current === currentSubmission) setStatus(DOWN);
     } finally {
-      clearInterval(ping);
-      sendingRef.current = false;
-      setSending(false);
+      if (submission.current === currentSubmission) {
+        sendingRef.current = false;
+        setSending(false);
+      }
     }
   };
 
   const stopRun = async () => {
     try {
       const response = await fetch(`${SERVICE}/stop`, { method: "POST" });
-      setSession(await response.json() as SessionView);
+      const stopped = await response.json() as SessionView;
+      submission.current++;
+      setSession(stopped);
       sendingRef.current = false;
       setSending(false);
     } catch {
@@ -300,7 +305,7 @@ export function App() {
           <div className="brand-mark">t</div>
           <div className="app-identity">
             <strong>{session.conversationId ?? "tChrome"}</strong>
-            <small>{sending ? (session.liveTool ? session.liveTool.name : "在想") : session.status}</small>
+            <small>{running ? (session.liveTool ? session.liveTool.name : "在想") : session.status}</small>
           </div>
           <div className="app-actions">
             <button className="icon-button" type="button" title="会话" onClick={() => setListOpen((open) => !open)}>
@@ -325,7 +330,7 @@ export function App() {
             setShowJump(!nearBottom);
           }}
         >
-          {session.messages.length === 0 && !sending ? (
+          {session.messages.length === 0 && !running ? (
             <div className="welcome">
               <div className="welcome-mark">t</div>
               <h1>今天想做<em>什么？</em></h1>
@@ -354,7 +359,7 @@ export function App() {
               </div>
             </article>
           ))}
-          {sending && !session.liveTool && session.messages.at(-1)?.role === "user" ? (
+          {running && !session.liveTool && session.messages.at(-1)?.role === "user" ? (
             <article className="message-row assistant muted">
               <Avatar who="assistant" />
               <div className="message-body"><p>在想</p></div>
@@ -375,7 +380,7 @@ export function App() {
           {session.pendingAsk.choice.length ? (
             <div className="interaction-items">
               {session.pendingAsk.choice.map((choice) => (
-                <button key={choice} type="button" disabled={sending} onClick={() => void sendText(choice)}>
+                <button key={choice} type="button" disabled={running} onClick={() => void sendText(choice)}>
                   <strong>{choice}</strong>
                 </button>
               ))}
@@ -404,12 +409,12 @@ export function App() {
             placeholder="说一句"
           />
           <button
-            type={sending ? "button" : "submit"}
-            className={sending ? "stop" : ""}
-            title={sending ? "停止" : "发送"}
-            onClick={sending ? () => void stopRun() : undefined}
+            type={running ? "button" : "submit"}
+            className={running ? "stop" : ""}
+            title={running ? "停止" : "发送"}
+            onClick={running ? () => void stopRun() : undefined}
           >
-            {sending ? <Icon path="M7 7h10v10H7z" /> : <Icon path="M5 12h14M13 6l6 6-6 6" />}
+            {running ? <Icon path="M7 7h10v10H7z" /> : <Icon path="M5 12h14M13 6l6 6-6 6" />}
           </button>
         </form>
       </div>

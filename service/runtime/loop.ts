@@ -15,6 +15,7 @@ import type {
   TurnOutput,
   TurnReply,
 } from "../types.ts";
+import { checkToolCalls } from "../tools/schema.ts";
 import { maybeCompress } from "./compress.ts";
 import { nextId, nowIso } from "./ids.ts";
 import {
@@ -32,26 +33,18 @@ import {
   appendProviderExchange,
 } from "./store.ts";
 
-const stoppedReply = (dataDir: string, ledger: Ledger, turn: Turn): TurnReply => {
-  turn.status = "failed";
-  turn.completedAt = nowIso();
-  turn.output = { kind: "error", faultCode: "stopped" };
-  ledger.status = "paused";
-  ledger.active = null;
-  ledger.liveTool = null;
-  ledger.toolQueue = [];
-  saveTurn(dataDir, turn);
-  saveLedger(dataDir, ledger);
-  appendEvent(dataDir, ledger.conversationId, {
-    kind: "turn-output",
-    turnId: turn.turnId,
-    data: { output: turn.output },
-  });
-  return { conversationId: ledger.conversationId, turnId: turn.turnId, output: turn.output };
-};
+// stopTurn already persists cancellation. A superseded worker must never write
+// its stale ledger back over a newer turn (or recreate a deleted conversation).
+const stoppedReply = (ledger: Ledger, turn: Turn): TurnReply => ({
+  conversationId: ledger.conversationId,
+  turnId: turn.turnId,
+  output: { kind: "error", faultCode: "stopped" },
+});
 
-const wasStopped = (dataDir: string, conversationId: string) =>
-  loadLedger(dataDir, conversationId).status === "paused";
+const wasStopped = (dataDir: string, conversationId: string, turnId: string) => {
+  const current = loadLedger(dataDir, conversationId);
+  return current.status !== "running" || current.active?.turnId !== turnId;
+};
 
 const MAX_OUTBOUNDS = 20;
 const MAX_SUBMIT = 3;
@@ -182,14 +175,8 @@ const runQueue = async (input: {
   while (ledger.toolQueue.length) {
     const item = ledger.toolQueue.shift();
     if (!item) break;
-    if (wasStopped(dataDir, ledger.conversationId)) {
-      ledger.status = "paused";
-      ledger.toolQueue = [];
-      ledger.liveTool = null;
-      turn.status = "failed";
-      turn.completedAt = nowIso();
-      turn.output = { kind: "error", faultCode: "stopped" };
-      return turn.output;
+    if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
+      return { kind: "error", faultCode: "stopped" };
     }
     ledger.liveTool = { name: item.name, callId: item.callId };
     saveLedger(dataDir, ledger);
@@ -208,6 +195,9 @@ const runQueue = async (input: {
         unusedTools: dynamicToolIds(catalog).filter((id) => !turn.assembled.toolIds.includes(id)),
       },
     });
+    if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
+      return { kind: "error", faultCode: "stopped" };
+    }
     saveFullReturn(dataDir, ledger.conversationId, item.callId, full);
     const row: ToolIOItem = {
       ...item,
@@ -226,15 +216,6 @@ const runQueue = async (input: {
       if (page) turn.assembled.currentPage = page;
     } catch {
       // resident tools return plain text
-    }
-    if (wasStopped(dataDir, ledger.conversationId)) {
-      ledger.status = "paused";
-      ledger.toolQueue = [];
-      ledger.liveTool = null;
-      turn.status = "failed";
-      turn.completedAt = nowIso();
-      turn.output = { kind: "error", faultCode: "stopped" };
-      return turn.output;
     }
     if (item.name === "memory.write") {
       persistMemory(dataDir, ledger, { id: item.callId, name: item.name, arguments: item.arguments });
@@ -360,7 +341,7 @@ export async function handleTurn(
   });
   let submitFails = 0;
   for (let i = 0; i < MAX_OUTBOUNDS; i++) {
-    if (wasStopped(deps.dataDir, ledger.conversationId)) return stoppedReply(deps.dataDir, ledger, turn);
+    if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
     const messages = messagesOf(catalog, ledger, turn, deps.dataDir);
     const tools = toolSchemas(catalog, [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds]);
     appendEvent(deps.dataDir, ledger.conversationId, {
@@ -374,7 +355,7 @@ export async function handleTurn(
       baseToolsIds: turn.assembled.baseToolsIds,
       toolIds: turn.assembled.toolIds,
     });
-    if (wasStopped(deps.dataDir, ledger.conversationId)) return stoppedReply(deps.dataDir, ledger, turn);
+    if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
     const toolIds = [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds];
     appendProviderExchange(deps.dataDir, ledger.conversationId, {
       turnId,
@@ -427,7 +408,13 @@ export async function handleTurn(
     if (!result.parseOk || !result.schemaOk) {
       submitFails += 1;
       writeFault(ledger, turnId, result);
-      if (!result.parseOk && result.toolCalls.length) {
+      const prefixCheck = !result.parseOk && result.toolCalls.length
+        ? checkToolCalls(result.toolCalls, tools, turn.assembled.baseToolsIds, turn.assembled.toolIds)
+        : null;
+      if (prefixCheck && !prefixCheck.schemaOk) {
+        writeFault(ledger, turnId, { ...result, ...prefixCheck });
+      }
+      if (prefixCheck?.schemaOk) {
         ledger.toolQueue = result.toolCalls.map((call) => ({
           callId: call.id,
           name: call.name,
@@ -442,7 +429,7 @@ export async function handleTurn(
           browserNames: catalog.index.browser,
           host: deps.host,
         });
-        if (wasStopped(deps.dataDir, ledger.conversationId)) return stoppedReply(deps.dataDir, ledger, turn);
+        if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
         saveTurn(deps.dataDir, turn);
         saveLedger(deps.dataDir, ledger);
         if (closed) {
@@ -517,7 +504,7 @@ export async function handleTurn(
       browserNames: catalog.index.browser,
       host: deps.host,
     });
-    if (wasStopped(deps.dataDir, ledger.conversationId)) return stoppedReply(deps.dataDir, ledger, turn);
+    if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
     saveTurn(deps.dataDir, turn);
     saveLedger(deps.dataDir, ledger);
     if (closed) {

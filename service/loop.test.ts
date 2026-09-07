@@ -6,7 +6,7 @@ import { handleTurn } from "./runtime/loop.ts";
 import { createServer } from "./server.ts";
 import { createProvider } from "./provider/uuapi.ts";
 import { createToolBridge } from "./runtime/bridge.ts";
-import { emptyLedger, loadEvents, loadLedger, loadMemory, loadProviderLog, loadSession, loadTurn, saveLedger, saveTurn, sessionView } from "./runtime/store.ts";
+import { stopTurn, emptyLedger, loadEvents, loadLedger, loadMemory, loadProviderLog, loadSession, loadTurn, saveLedger, saveTurn, sessionView } from "./runtime/store.ts";
 import { loadCatalog } from "./prompt/catalog.ts";
 import { systemText, userText } from "./context/window.ts";
 import { maybeCompress } from "./runtime/compress.ts";
@@ -131,10 +131,10 @@ test("窗口按 catalog 模板插值", async () => {
   expect(user).toContain("##工具");
   expect(user).toContain("#notes");
   expect(user).toContain("{}");
-    expect(user).toContain("#skill");
+  expect(user).toContain("#skill");
   expect(user).toContain("#sop");
-  expect(user).toContain("page.get_summary 读摘要");
-  expect(user).toContain("探索型：page.get_summary");
+  expect(user).toContain(catalog.skill);
+  expect(user).toContain(catalog.sop);
   expect(user).toContain("#baseTools");
   expect(user).toContain("askUser：向用户提问");
   expect(user).toContain("finishTurn：结束本 Turn");
@@ -778,4 +778,72 @@ test("notes.write 按 key 写入，notes.delete 删除", async () => {
   expect(ledger.notes).toEqual({});
   expect(ledger.toolIO.map((row) => row.name)).toEqual(["notes.write", "notes.write", "notes.delete", "finishTurn"]);
   rmSync(dir, { recursive: true, force: true });
+});
+
+
+test.each(["provider", "browser"])("停止后启动新轮，旧 %s 返回不会覆盖新轮", async (waitingOn) => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-stop-restart-"));
+  const finish = ok({ finish: "tool_calls", content: "action\n完成", toolCalls: [
+    { id: "finish", name: "finishTurn", arguments: { reason: "完成", affectsPage: false } },
+  ] });
+  let releaseOld!: () => void;
+  let releaseNew!: (value: CompletionResult) => void;
+  let started!: () => void;
+  const waiting = new Promise<void>((resolve) => { started = resolve; });
+  let calls = 0;
+  const provider: Provider = { complete: () => {
+    if (calls++ > 0) return new Promise((resolve) => { releaseNew = resolve; });
+    if (waitingOn === "browser") return Promise.resolve(ok({ finish: "tool_calls", toolCalls: [
+      { id: "page", name: "page.get_summary", arguments: { reason: "读取", affectsPage: false } },
+    ] }));
+    return new Promise((resolve) => { releaseOld = () => resolve(finish); started(); });
+  } };
+  const deps = { dataDir: dir, repoRoot, provider, host: { execute: () => new Promise<{ ok: boolean }>((resolve) => {
+    releaseOld = () => resolve({ ok: true });
+    started();
+  }) } };
+  try {
+    const oldTurn = handleTurn(deps, { userInput: "旧轮", submittedAt: "now" });
+    await waiting;
+    stopTurn(dir);
+    const newTurn = handleTurn(deps, { userInput: "新轮", submittedAt: "now" });
+    const before = loadLedger(dir, "cv_01");
+    const eventsBefore = loadEvents(dir, "cv_01");
+    releaseOld();
+    expect((await oldTurn).output).toEqual({ kind: "error", faultCode: "stopped" });
+    expect(loadLedger(dir, "cv_01")).toEqual(before);
+    expect(loadEvents(dir, "cv_01")).toEqual(eventsBefore);
+    expect(loadTurn(dir, "cv_01", "tn_01").output).toEqual({ kind: "error", faultCode: "stopped" });
+    releaseNew(finish);
+    expect((await newTurn).output).toEqual({ kind: "reply", text: "完成" });
+    expect(loadLedger(dir, "cv_01").turnIds).toEqual(["tn_01", "tn_02"]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test.each([
+  { name: "page.get_dom", arguments: {}, faultCode: "unknown_tool" },
+  { name: "page.get_summary", arguments: {}, faultCode: "missing_required" },
+])("坏 JSON 前缀也校验 $faultCode", async (invalid) => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-prefix-schema-"));
+  const executed: string[] = [];
+  try {
+    const provider = mock([
+      ok({ finish: "tool_calls", parseOk: false, schemaOk: false, faultCode: "arguments_not_json",
+        badName: "page.type", toolCalls: [{ id: "bad-prefix", name: invalid.name, arguments: invalid.arguments }] }),
+      ok({ finish: "tool_calls", content: "action\n结束", toolCalls: [
+        { id: "finish", name: "finishTurn", arguments: { reason: "完成", affectsPage: false } },
+      ] }),
+    ]);
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider, host: { execute: async (name) => {
+      executed.push(name);
+      return { ok: true };
+    } } }, { userInput: "测试", submittedAt: "now" });
+    expect(reply.output).toEqual({ kind: "reply", text: "结束" });
+    expect(executed).toEqual([]);
+    expect(loadLedger(dir, "cv_01").toolIO.some((row) => row.return.text.includes(invalid.faultCode))).toBe(true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
