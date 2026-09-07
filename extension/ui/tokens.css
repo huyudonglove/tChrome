@@ -143,6 +143,21 @@ svg { width: 17px; height: 17px; stroke-width: 1.8; fill: none; stroke: currentC
   background: var(--white);
   border-left: 3px solid var(--purple);
 }
+.message-row.tool {
+  padding: 2px 16px 2px 52px;
+}
+.message-row.tool .message-body {
+  max-width: 100%;
+}
+.tool-step {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.tool-step span {
+  color: var(--purple);
+  font-family: var(--mono);
+}
 .message-row.muted p { color: var(--muted); }
 
 .welcome { padding: 20px 8px 12px; }

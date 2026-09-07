@@ -62,6 +62,7 @@ export type ToolQueueItem = {
 };
 
 export type ToolIOItem = ToolQueueItem & {
+  turnId: string;
   return: ToolReturn;
 };
 

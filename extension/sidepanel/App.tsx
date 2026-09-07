@@ -9,7 +9,7 @@ type Output =
   | { kind: "error"; faultCode: string }
   | { kind: "tool"; name: string; callId: string };
 
-type Message = { turnId?: string; role: "user" | "assistant"; text: string };
+type Message = { turnId?: string; role: "user" | "assistant" | "tool"; text: string; name?: string };
 
 type SessionView = {
   conversationId: string | null;
@@ -325,9 +325,11 @@ export function App() {
             </div>
           ) : session.messages.map((message, index) => (
             <article key={`${message.turnId ?? "local"}-${index}`} className={`message-row ${message.role}`}>
-              <Avatar who={message.role} />
+              {message.role === "tool" ? null : <Avatar who={message.role === "user" ? "user" : "assistant"} />}
               <div className="message-body">
-                {message.role === "assistant" && message.text
+                {message.role === "tool" ? (
+                  <p className="tool-step"><span>{message.name}</span>{message.text && message.text !== message.name ? ` ${message.text}` : ""}</p>
+                ) : message.role === "assistant" && message.text
                   ? <MdContent text={message.text} />
                   : message.text ? <p>{message.text}</p> : null}
               </div>

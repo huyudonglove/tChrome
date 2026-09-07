@@ -144,8 +144,9 @@ const outputText = (output: Turn["output"]): string => {
 
 export type SessionMessage = {
   turnId: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "tool";
   text: string;
+  name?: string;
 };
 
 export type SessionView = {
@@ -169,6 +170,11 @@ export function sessionView(dataDir: string, cvId: string): SessionView {
   for (const turnId of ledger.turnIds) {
     const turn = loadTurn(dataDir, cvId, turnId);
     messages.push({ turnId, role: "user", text: turn.input.text });
+    for (const row of ledger.toolIO) {
+      if (row.turnId !== turnId) continue;
+      if (row.name === "finishTurn" || row.name === "askUser") continue;
+      messages.push({ turnId, role: "tool", text: row.arguments.reason || row.name, name: row.name });
+    }
     if (turn.output) messages.push({ turnId, role: "assistant", text: outputText(turn.output) });
   }
   let pendingAsk: SessionView["pendingAsk"] = null;

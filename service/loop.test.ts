@@ -86,7 +86,7 @@ test("finishTurn 收口回复", async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("finishTurn 空 content 不对用户回 reason", async () => {
+test("finishTurn 没有 action 就再出网一次", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-empty-"));
   const provider = mock([
     ok({
@@ -94,9 +94,14 @@ test("finishTurn 空 content 不对用户回 reason", async () => {
       content: "",
       toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { reason: "用户问候，无需浏览器操作，结束本轮对话。", affectsPage: false } }],
     }),
+    ok({
+      finish: "tool_calls",
+      content: "observation\n已问好\nreason\n收口\naction\n你好",
+      toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "补 action", affectsPage: false } }],
+    }),
   ]);
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "你好啊", submittedAt: "2026-09-06T00:00:00.000Z" });
-  expect(reply.output).toEqual({ kind: "reply", text: "" });
+  expect(reply.output).toEqual({ kind: "reply", text: "你好" });
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -203,6 +208,10 @@ test("开 Turn 不读页，模型 see_page 后才填 currentPage", async () => {
   });
   const ledger = loadLedger(dir, "cv_01");
   expect(ledger.toolIO[0]?.name).toBe("see_page");
+  expect(ledger.toolIO[0]?.turnId).toBe(reply.turnId);
+  const session = await (await createServer({ dataDir: dir, repoRoot, provider: mock([]) }).fetch(new Request("http://127.0.0.1:18788/session"))).json() as { messages: { role: string; name?: string }[] };
+  expect(session.messages.map((row) => row.role)).toEqual(["user", "tool", "assistant"]);
+  expect(session.messages[1]?.name).toBe("see_page");
   rmSync(dir, { recursive: true, force: true });
 });
 

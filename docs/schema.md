@@ -216,6 +216,7 @@ user 顺序 = `userSlots`：
 |---|---|---|
 | `callId` | string | `call_`。模型 `tool_calls[].id` |
 | `name` | string | 工具名，必须在 `baseToolsIds` + `toolIds` |
+| `turnId` | string | 这条工具属于哪一轮。`GET /session` 按这个把过程挂到对话里 |
 | `arguments` | object | 已 parse。每个工具都有 `reason` `affectsPage`，其余按 catalog `required` |
 | `return` | object | 队列跑完才有。`{stage, totalChars, text}` |
 

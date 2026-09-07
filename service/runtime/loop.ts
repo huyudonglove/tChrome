@@ -91,7 +91,7 @@ const messagesOf = (catalog: Catalog, ledger: Ledger, turn: Turn, dataDir: strin
   ];
 };
 
-const writeFault = (ledger: Ledger, result: CompletionResult) => {
+const writeFault = (ledger: Ledger, turnId: string, result: CompletionResult) => {
   const calls = result.toolCalls.length
     ? result.toolCalls
     : [{ id: "call_fault", name: "unknown", arguments: { reason: "", affectsPage: false } }];
@@ -105,6 +105,7 @@ const writeFault = (ledger: Ledger, result: CompletionResult) => {
     ledger.toolIO.push({
       callId: call.id,
       name: call.name,
+      turnId,
       arguments: call.arguments,
       return: clipReturn(text),
     });
@@ -176,6 +177,7 @@ const runQueue = async (input: {
     saveFullReturn(dataDir, ledger.conversationId, item.callId, full);
     const row: ToolIOItem = {
       ...item,
+      turnId: turn.turnId,
       return: clipReturn(full),
     };
     ledger.toolIO.push(row);
@@ -214,6 +216,16 @@ const runQueue = async (input: {
       return turn.output;
     }
     if (item.name === "finishTurn") {
+      if (!full.trim()) {
+        ledger.toolQueue = [];
+        ledger.liveTool = null;
+        ledger.toolIO.push({
+          ...item,
+          turnId: turn.turnId,
+          return: clipReturn("finishTurn 没有 action。对用户说的话写在 content 的 action，再调 finishTurn。"),
+        });
+        return null;
+      }
       turn.status = "completed";
       turn.completedAt = nowIso();
       turn.output = { kind: "reply", text: full };
@@ -326,7 +338,7 @@ export async function handleTurn(
     }
     if (!result.parseOk || !result.schemaOk) {
       submitFails += 1;
-      writeFault(ledger, result);
+      writeFault(ledger, turnId, result);
       if (submitFails >= MAX_SUBMIT) {
         turn.status = "failed";
         turn.completedAt = nowIso();
@@ -349,7 +361,7 @@ export async function handleTurn(
     }
     if (result.finish === "stop" && result.toolCalls.length === 0) {
       submitFails += 1;
-      writeFault(ledger, {
+      writeFault(ledger, turnId, {
         ...result,
         finish: "error",
         faultCode: "missing_required",
