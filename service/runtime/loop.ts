@@ -93,7 +93,8 @@ const messagesOf = (catalog: Catalog, ledger: Ledger, turn: Turn, dataDir: strin
     ledger,
     turn,
     memories: loadMemories(dataDir, ledger),
-    toolUsage: toolUsageFor(catalog, [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds]),
+    baseToolUsage: toolUsageFor(catalog, turn.assembled.baseToolsIds),
+    toolUsage: toolUsageFor(catalog, turn.assembled.toolIds),
   });
   maybeCompress({
     dataDir,
@@ -108,7 +109,8 @@ const messagesOf = (catalog: Catalog, ledger: Ledger, turn: Turn, dataDir: strin
     ledger,
     turn,
     memories: loadMemories(dataDir, ledger),
-    toolUsage: toolUsageFor(catalog, [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds]),
+    baseToolUsage: toolUsageFor(catalog, turn.assembled.baseToolsIds),
+    toolUsage: toolUsageFor(catalog, turn.assembled.toolIds),
   });
   return [
     { role: "system", content: system },

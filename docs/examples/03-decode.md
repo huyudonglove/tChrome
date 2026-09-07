@@ -156,7 +156,7 @@ action
 
 ### `#user槽`
 
-user 槽是参考材料。`#userInput` 是本 Turn 的用户原话。其余槽：`#参考` `#skill` `#sop` `#projectMemory` `#conversationMemory` `#turnMemory` `#contextSummary` `#observation` `#userInputHistory` `#goal` `#goalHistory` `#currentPage` `#currentEnvironment` `#toolIO` `#tools`。
+user 槽是参考材料。`#userInput` 是本 Turn 的用户原话。其余槽：`#参考` `#skill` `#sop` `#projectMemory` `#conversationMemory` `#turnMemory` `#contextSummary` `#observation` `#userInputHistory` `#goal` `#goalHistory` `#currentPage` `#currentEnvironment` `#toolIO` `#baseTools` `#tools`。
 
 ## user 插槽
 
@@ -230,7 +230,7 @@ user 槽是参考材料。`#userInput` 是本 Turn 的用户原话。其余槽�
 
 （空）
 
-### `#tools`
+### `#baseTools`
 
 askUser：向用户提问。入参：choice。返回：用户选项。affectsPage=false。
 finishTurn：结束本 Turn。入参：无。content 的 action 是对用户说的话。affectsPage=false。
@@ -238,6 +238,9 @@ submitGoal：写入 ledger.goal。入参：goal。返回：当前目标。affect
 tool.detail：展开 toolIO 截断全文。入参：callId。affectsPage=false。
 observation.detail：展开 observation 全文。入参：observationId。affectsPage=false。
 memory.write：写入记忆。入参：可选 turnMemory、conversationMemory、projectMemory、contextSummary。affectsPage=false。
+
+### `#tools`
+
 page.get_summary：读当前页摘要：标题、地址、区域数、可交互数、标题列表。affectsPage=false。
 open_url：打开指定网址并读回标题正文。affectsPage=true。
 web_search：搜索公开网页。affectsPage=false。

@@ -25,9 +25,10 @@ export function userText(input: {
   ledger: Ledger;
   turn: Turn;
   memories: { project: MemoryRecord[]; conversation: MemoryRecord[]; turn: MemoryRecord[] };
+  baseToolUsage: string;
   toolUsage: string;
 }): string {
-  const { catalog, ledger, turn, memories, toolUsage } = input;
+  const { catalog, ledger, turn, memories, baseToolUsage, toolUsage } = input;
   return interpolate(catalog.userTemplate, {
     "#参考": catalog.advice,
     "#skill": catalog.skill,
@@ -44,6 +45,7 @@ export function userText(input: {
     "#currentPage": turn.assembled.currentTab ? jsonBody(turn.assembled.currentTab) : "",
     "#currentEnvironment": turn.assembled.currentPage ? jsonBody(turn.assembled.currentPage) : "",
     "#toolIO": jsonBody(ledger.toolIO),
+    "#baseTools": baseToolUsage,
     "#tools": toolUsage,
   });
 }

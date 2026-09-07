@@ -43,5 +43,8 @@
 #toolIO
 {{#toolIO}}
 
+#baseTools
+{{#baseTools}}
+
 #tools
 {{#tools}}

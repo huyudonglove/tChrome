@@ -73,7 +73,7 @@ list_browser_tools 返回未进入 ledger.toolIds 的动态工具名。catalog.a
 page.click 和 page.type 的 id 来自 page.list_regions、page.list_interactive_elements、page.inspect_region、page.inspect_element 的返回。
 click 和 type 按可见文字或 ref 定位。click 和 type 不在 coreToolIds。
 每个工具 arguments 含 reason 和 affectsPage。
-user `#tools` 写 baseToolsIds 和 toolIds 的用法。
+user `#baseTools` 写 baseToolsIds 的用法。user `#tools` 写 toolIds 的用法。
 
 #输出
 每次写 `content`，三段标题固定：
@@ -90,4 +90,4 @@ action
 有 `tool_calls` 时这三段也写。finishTurn 的 action 是对用户说的话。action 为空时 Runtime 不把本 Turn 标 completed，继续出网。
 
 #user槽
-user 槽是参考材料。`#userInput` 是本 Turn 的用户原话。其余槽：`#参考` `#skill` `#sop` `#projectMemory` `#conversationMemory` `#turnMemory` `#contextSummary` `#observation` `#userInputHistory` `#goal` `#goalHistory` `#currentPage` `#currentEnvironment` `#toolIO` `#tools`。`#tools` 含 baseToolsIds 和 toolIds。
+user 槽是参考材料。`#userInput` 是本 Turn 的用户原话。其余槽：`#参考` `#skill` `#sop` `#projectMemory` `#conversationMemory` `#turnMemory` `#contextSummary` `#observation` `#userInputHistory` `#goal` `#goalHistory` `#currentPage` `#currentEnvironment` `#toolIO` `#baseTools` `#tools`。`#baseTools` 是 baseToolsIds。`#tools` 是 toolIds。
