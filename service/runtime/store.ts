@@ -227,35 +227,67 @@ export type ConversationItem = {
   preview: string;
 };
 
+const toolText = (row: { name: string; arguments?: { reason?: string }; return?: { text?: string } }): string =>
+  row.return?.text || row.arguments?.reason || row.name;
+
+const pushLiveTools = (input: {
+  messages: SessionMessage[];
+  ledger: Ledger;
+  turnId: string;
+}) => {
+  const { messages, ledger, turnId } = input;
+  if (ledger.active?.turnId !== turnId) return;
+  if (ledger.liveTool && ledger.liveTool.name !== "finishTurn" && ledger.liveTool.name !== "askUser") {
+    const queued = ledger.toolQueue.find((item) => item.callId === ledger.liveTool?.callId);
+    messages.push({
+      turnId,
+      role: "tool",
+      text: queued?.arguments.reason || ledger.liveTool.name,
+      name: ledger.liveTool.name,
+      live: true,
+    });
+  }
+  for (const item of ledger.toolQueue) {
+    if (item.callId === ledger.liveTool?.callId) continue;
+    if (item.name === "finishTurn" || item.name === "askUser") continue;
+    messages.push({ turnId, role: "tool", text: item.arguments.reason || item.name, name: item.name });
+  }
+};
+
 export function sessionView(dataDir: string, cvId: string): SessionView {
   const ledger = loadLedger(dataDir, cvId);
+  const events = loadEvents(dataDir, cvId);
   const messages: SessionMessage[] = [];
   for (const turnId of ledger.turnIds) {
     const turn = loadTurn(dataDir, cvId, turnId);
     messages.push({ turnId, role: "user", text: turn.input.text });
-    for (const row of ledger.toolIO) {
-      if (row.turnId !== turnId) continue;
-      if (row.name === "finishTurn" || row.name === "askUser") continue;
-      messages.push({ turnId, role: "tool", text: row.arguments.reason || row.name, name: row.name });
-    }
-    if (ledger.active?.turnId === turnId) {
-      if (ledger.liveTool && ledger.liveTool.name !== "finishTurn" && ledger.liveTool.name !== "askUser") {
-        const queued = ledger.toolQueue.find((item) => item.callId === ledger.liveTool?.callId);
-        messages.push({
-          turnId,
-          role: "tool",
-          text: queued?.arguments.reason || ledger.liveTool.name,
-          name: ledger.liveTool.name,
-          live: true,
-        });
+    const turnEvents = events.filter((event) => event.turnId === turnId);
+    let sawAssistant = false;
+    if (turnEvents.some((event) => event.kind === "provider-response" || event.kind === "tool")) {
+      for (const event of turnEvents) {
+        if (event.kind === "provider-response") {
+          const content = String(event.data.content ?? "");
+          if (!content) continue;
+          messages.push({ turnId, role: "assistant", text: content });
+          sawAssistant = true;
+        }
+        if (event.kind !== "tool") continue;
+        const name = String(event.data.name ?? "");
+        if (name === "finishTurn" || name === "askUser") continue;
+        const row = event.data as { name?: string; arguments?: { reason?: string }; return?: { text?: string } };
+        messages.push({ turnId, role: "tool", text: toolText({ name, arguments: row.arguments, return: row.return }), name });
       }
-      for (const item of ledger.toolQueue) {
-        if (item.callId === ledger.liveTool?.callId) continue;
-        if (item.name === "finishTurn" || item.name === "askUser") continue;
-        messages.push({ turnId, role: "tool", text: item.arguments.reason || item.name, name: item.name });
+    } else {
+      for (const row of ledger.toolIO) {
+        if (row.turnId !== turnId) continue;
+        if (row.name === "finishTurn" || row.name === "askUser") continue;
+        messages.push({ turnId, role: "tool", text: toolText(row), name: row.name });
       }
     }
-    if (turn.output) messages.push({ turnId, role: "assistant", text: outputText(turn.output) });
+    pushLiveTools({ messages, ledger, turnId });
+    if (turn.output && (turn.output.kind === "error" || !sawAssistant)) {
+      messages.push({ turnId, role: "assistant", text: outputText(turn.output) });
+    }
   }
   let pendingAsk: SessionView["pendingAsk"] = null;
   if (ledger.pendingAsk) {

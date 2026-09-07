@@ -357,9 +357,12 @@ test("开 Turn 不读页，模型 page.get_summary 后才填 currentPage", async
   const ledger = loadLedger(dir, "cv_01");
   expect(ledger.toolIO[0]?.name).toBe("page.get_summary");
   expect(ledger.toolIO[0]?.turnId).toBe(reply.turnId);
-  const session = await (await createServer({ dataDir: dir, repoRoot, provider: mock([]) }).fetch(new Request("http://127.0.0.1:18788/session"))).json() as { messages: { role: string; name?: string }[] };
-  expect(session.messages.map((row) => row.role)).toEqual(["user", "tool", "assistant"]);
-  expect(session.messages[1]?.name).toBe("page.get_summary");
+  const session = await (await createServer({ dataDir: dir, repoRoot, provider: mock([]) }).fetch(new Request("http://127.0.0.1:18788/session"))).json() as { messages: { role: string; name?: string; text: string }[] };
+  expect(session.messages.map((row) => row.role)).toEqual(["user", "assistant", "tool", "assistant"]);
+  expect(session.messages[1]?.text).toContain("seen");
+  expect(session.messages[2]?.name).toBe("page.get_summary");
+  expect(session.messages[2]?.text).toContain("罗技 MX Master 3S");
+  expect(session.messages[3]?.text).toContain("已看到页");
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -439,7 +442,7 @@ test("GET /session 还原消息，切会话改 session.json", async () => {
   expect(session.conversationId).toBe("cv_01");
   expect(session.messages).toEqual([
     { turnId: "tn_01", role: "user", text: "你好" },
-    { turnId: "tn_01", role: "assistant", text: "你好" },
+    { turnId: "tn_01", role: "assistant", text: "seen\n已收到\nreason\n收口\naction\n你好" },
   ]);
   const created = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations/new", { method: "POST" }))).json();
   expect(created.conversationId).toBe("cv_02");
@@ -590,6 +593,7 @@ test("队列和正在跑的工具出现在 /session", () => {
     { role: "tool", name: "see_page", live: true },
     { role: "tool", name: "click", live: undefined },
   ]);
+  expect(view.messages[1]?.text).toBe("ok");
   rmSync(dir, { recursive: true, force: true });
 });
 

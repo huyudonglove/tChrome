@@ -354,7 +354,7 @@ export function App() {
               </div>
             </article>
           ))}
-          {sending && !session.liveTool && !session.messages.some((row) => row.role === "tool") ? (
+          {sending && !session.liveTool && session.messages.at(-1)?.role === "user" ? (
             <article className="message-row assistant muted">
               <Avatar who="assistant" />
               <div className="message-body"><p>在想</p></div>

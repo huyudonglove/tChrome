@@ -153,6 +153,8 @@ svg { width: 17px; height: 17px; stroke-width: 1.8; fill: none; stroke: currentC
   margin: 0;
   color: var(--muted);
   font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .tool-step span {
   color: var(--purple);

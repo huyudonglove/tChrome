@@ -34,7 +34,7 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 | GET | `/health` | 无 | `{ok:true}` |
 | POST | `/turn` | `{userInput, submittedAt, currentTab?}` | `{conversationId, turnId, output}`。`currentTab` 是 `{tab, url, title}`，开 Turn 写入 `#currentTab`。没有就槽空着 |
 | POST | `/stop` | 无 | 停当前 Turn。账本 `paused`，投影回 `{conversationId, status, pendingAsk, liveTool, messages}`。下一句可再开 Turn |
-| GET | `/session` | 无 | 当前 `session.json` 指向的会话投影：`{conversationId, status, pendingAsk, liveTool, messages}`。`messages` 含 user / 已跑工具 / 正在跑（`live:true`）/ 排队工具 / assistant |
+| GET | `/session` | 无 | 当前 `session.json` 指向的会话投影：`{conversationId, status, pendingAsk, liveTool, messages}`。`messages` 按流水：user / 每次出网的 `content` / 已跑工具的 `return` / 正在跑（`live:true`）/ 排队工具。没有 `content` 时才用收口 `output` |
 | GET | `/conversations` | 无 | `{items:[{conversationId, updatedAt, status, preview}]}`。当前 `session.json` 指向的排第一，其余按 `updatedAt` 新到旧。空会话 preview 是「新会话」 |
 | POST | `/conversations/open` | `{conversationId}` | 该会话投影，并写入 `session.json` |
 | POST | `/conversations/new` | 无 | 新建空 `cv_`，写入 `session.json`，回空投影 |
@@ -42,7 +42,7 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 | GET | `/tool-request` | 无 | `{request}`，没有就 `request=null`。`request` 是 `{id, name, input}` |
 | POST | `/tool-result` | `{id, result}` | `{ok:true}` |
 
-`output` 见「output」。整轮收口再回一次。工具循环不推到面板。面板读账本：`messages` 按 `turnIds` 展开，每轮用户句 + 助手 `output`。`pendingAsk.choice` 取最近一次 `askUser` 的 `choice`。`/turn` 仍不带 id，用当前 `session.json`。
+`output` 见「output」。整轮收口再回一次。面板读 `/session`：每次出网的 `content` 原样进 assistant，工具 `return` 原样进 tool 行。`pendingAsk.choice` 取最近一次 `askUser` 的 `choice`。`/turn` 仍不带 id，用当前 `session.json`。
 
 ## 落盘文件
 
