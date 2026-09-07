@@ -270,7 +270,7 @@ user 顺序 = `catalog/window.user.md`：参考 / skill / sop / 记忆 / 输入 
 
 | 值 | 何时 |
 |---|---|
-| `arguments_not_json` | `function.arguments` 解析失败。对象原样用；字符串 `JSON.parse`；围栏、尾逗号、单引号会修。好的 `toolCalls` 照跑，坏的那条写进 `#toolIO` 再出网。同一 Turn 最多 3 次 |
+| `arguments_not_json` | `function.arguments` 解析失败。对象原样用；字符串 `JSON.parse`；围栏、尾逗号、单引号只修外壳。不补字段。好的 `toolCalls` 照跑，坏的那条写进 `#toolIO` 再出网。同一 Turn 最多 3 次 |
 | `unknown_tool` | `name` 不在 `baseToolsIds` + `toolIds` |
 | `missing_required` | catalog `required` 缺或空；`missing` 列出字段名 |
 | `wrong_type` | Ajv：类型对不上 schema |

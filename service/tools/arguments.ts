@@ -44,7 +44,7 @@ const tryParse = (raw: string): Record<string, unknown> | null => {
 
 export const parseToolArguments = (raw: unknown): { ok: true; value: ToolArguments } | { ok: false; detail: string } => {
   if (raw == null || raw === "") {
-    return { ok: true, value: { reason: "", affectsPage: false } };
+    return { ok: true, value: {} as ToolArguments };
   }
   if (typeof raw === "object") {
     const object = asObject(raw);

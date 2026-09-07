@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
 import { join } from "node:path";
-import { loadCatalog } from "../prompt/catalog.ts";
+import { loadCatalog, toolSchemas } from "../prompt/catalog.ts";
+import { parseToolArguments } from "./arguments.ts";
+import { checkToolCalls } from "./schema.ts";
 
 const repoRoot = join(import.meta.dir, "../..");
 
@@ -42,4 +44,33 @@ test("core 工具 schema 带上用法里的必填入参", () => {
   expect(requiredOf("submitGoal")).toContain("goal");
   expect(requiredOf("catalog.add")).toContain("names");
   expect(requiredOf("askUser")).toContain("choice");
+});
+
+test("缺字段和类型错走 Ajv，不补齐", () => {
+  const catalog = loadCatalog(repoRoot);
+  const ids = ["page.type", "finishTurn"];
+  const tools = toolSchemas(catalog, ids);
+  const parsed = parseToolArguments('{"id":"e1","text":"a@b.com",}');
+  expect(parsed.ok).toBe(true);
+  if (!parsed.ok) return;
+  const missing = checkToolCalls(
+    [{ id: "call_01", name: "page.type", arguments: parsed.value }],
+    tools,
+    catalog.assemble.baseToolsIds,
+    ids,
+  );
+  expect(missing).toEqual({
+    parseOk: true,
+    schemaOk: false,
+    faultCode: "missing_required",
+    missing: expect.arrayContaining(["reason", "affectsPage"]),
+  });
+  const wrong = checkToolCalls(
+    [{ id: "call_02", name: "page.type", arguments: { reason: "填", affectsPage: true, id: "e1", text: 12 as unknown as string } }],
+    tools,
+    catalog.assemble.baseToolsIds,
+    ids,
+  );
+  expect(wrong.faultCode).toBe("wrong_type");
+  expect(wrong.schemaOk).toBe(false);
 });
