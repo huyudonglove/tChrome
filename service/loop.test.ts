@@ -6,7 +6,7 @@ import { handleTurn } from "./runtime/loop.ts";
 import { createServer } from "./server.ts";
 import { createProvider } from "./provider/uuapi.ts";
 import { createToolBridge } from "./runtime/bridge.ts";
-import { loadEvents, loadLedger, loadMemory, loadSession, loadTurn } from "./runtime/store.ts";
+import { emptyLedger, loadEvents, loadLedger, loadMemory, loadSession, loadTurn, saveLedger, saveTurn, sessionView } from "./runtime/store.ts";
 import { loadCatalog } from "./prompt/catalog.ts";
 import { systemText } from "./context/window.ts";
 import { maybeCompress } from "./runtime/compress.ts";
@@ -403,5 +403,51 @@ test("到门槛时先裁 toolIds 再压缩记忆", async () => {
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.turn[0]!).text).toBe("本轮用户要查鼠标价");
   const events = loadEvents(dir, "cv_01");
   expect(events.some((row) => row.kind === "compress")).toBe(true);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("队列和正在跑的工具出现在 /session", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-live-"));
+  const ledger = emptyLedger("cv_01");
+  ledger.status = "running";
+  ledger.active = { turnId: "tn_01" };
+  ledger.turnIds = ["tn_01"];
+  ledger.liveTool = { name: "see_page", callId: "call_01" };
+  ledger.toolQueue = [
+    { callId: "call_01", name: "see_page", arguments: { reason: "看当前页", affectsPage: false } },
+    { callId: "call_02", name: "click", arguments: { reason: "点分类", affectsPage: true } },
+  ];
+  ledger.toolIO = [
+    { callId: "call_00", name: "open_url", turnId: "tn_01", arguments: { reason: "打开站点", affectsPage: true }, return: { stage: "complete", totalChars: 2, text: "ok" } },
+  ];
+  saveLedger(dir, ledger);
+  saveTurn(dir, {
+    turnId: "tn_01",
+    conversationId: "cv_01",
+    status: "inferring",
+    createdAt: "2026-09-06T00:00:00.000Z",
+    completedAt: null,
+    input: { text: "测这个站", submittedAt: "2026-09-06T00:00:00.000Z" },
+    assembled: {
+      systemIds: [],
+      skillIds: [],
+      sopIds: [],
+      baseToolsIds: [],
+      toolIds: [],
+      turnMemoryIds: [],
+      conversationMemoryIds: [],
+      projectMemoryIds: [],
+      mcpIds: [],
+      currentPage: null,
+    },
+    output: null,
+  });
+  const view = sessionView(dir, "cv_01");
+  expect(view.messages.map((row) => ({ role: row.role, name: row.name, live: row.live }))).toEqual([
+    { role: "user", name: undefined, live: undefined },
+    { role: "tool", name: "open_url", live: undefined },
+    { role: "tool", name: "see_page", live: true },
+    { role: "tool", name: "click", live: undefined },
+  ]);
   rmSync(dir, { recursive: true, force: true });
 });

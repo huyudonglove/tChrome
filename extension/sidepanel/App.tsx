@@ -9,7 +9,7 @@ type Output =
   | { kind: "error"; faultCode: string }
   | { kind: "tool"; name: string; callId: string };
 
-type Message = { turnId?: string; role: "user" | "assistant" | "tool"; text: string; name?: string };
+type Message = { turnId?: string; role: "user" | "assistant" | "tool"; text: string; name?: string; live?: boolean };
 
 type SessionView = {
   conversationId: string | null;
@@ -328,17 +328,21 @@ export function App() {
               {message.role === "tool" ? null : <Avatar who={message.role === "user" ? "user" : "assistant"} />}
               <div className="message-body">
                 {message.role === "tool" ? (
-                  <p className="tool-step"><span>{message.name}</span>{message.text && message.text !== message.name ? ` ${message.text}` : ""}</p>
+                  <p className={`tool-step${message.live ? " live" : ""}`}>
+                    <span>{message.name}</span>
+                    {message.text && message.text !== message.name ? ` ${message.text}` : ""}
+                    {message.live ? " …" : ""}
+                  </p>
                 ) : message.role === "assistant" && message.text
                   ? <MdContent text={message.text} />
                   : message.text ? <p>{message.text}</p> : null}
               </div>
             </article>
           ))}
-          {sending ? (
+          {sending && !session.liveTool && !session.messages.some((row) => row.role === "tool") ? (
             <article className="message-row assistant muted">
               <Avatar who="assistant" />
-              <div className="message-body"><p>{session.liveTool ? session.liveTool.name : "在想"}</p></div>
+              <div className="message-body"><p>在想</p></div>
             </article>
           ) : null}
         </div>

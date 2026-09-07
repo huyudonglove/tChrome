@@ -147,6 +147,7 @@ export type SessionMessage = {
   role: "user" | "assistant" | "tool";
   text: string;
   name?: string;
+  live?: boolean;
 };
 
 export type SessionView = {
@@ -174,6 +175,23 @@ export function sessionView(dataDir: string, cvId: string): SessionView {
       if (row.turnId !== turnId) continue;
       if (row.name === "finishTurn" || row.name === "askUser") continue;
       messages.push({ turnId, role: "tool", text: row.arguments.reason || row.name, name: row.name });
+    }
+    if (ledger.active?.turnId === turnId) {
+      if (ledger.liveTool && ledger.liveTool.name !== "finishTurn" && ledger.liveTool.name !== "askUser") {
+        const queued = ledger.toolQueue.find((item) => item.callId === ledger.liveTool?.callId);
+        messages.push({
+          turnId,
+          role: "tool",
+          text: queued?.arguments.reason || ledger.liveTool.name,
+          name: ledger.liveTool.name,
+          live: true,
+        });
+      }
+      for (const item of ledger.toolQueue) {
+        if (item.callId === ledger.liveTool?.callId) continue;
+        if (item.name === "finishTurn" || item.name === "askUser") continue;
+        messages.push({ turnId, role: "tool", text: item.arguments.reason || item.name, name: item.name });
+      }
     }
     if (turn.output) messages.push({ turnId, role: "assistant", text: outputText(turn.output) });
   }

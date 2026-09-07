@@ -32,7 +32,7 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 |---|---|---|---|
 | GET | `/health` | 无 | `{ok:true}` |
 | POST | `/turn` | `{userInput, submittedAt}` | `{conversationId, turnId, output}` |
-| GET | `/session` | 无 | 当前 `session.json` 指向的会话投影：`{conversationId, status, pendingAsk, messages}` |
+| GET | `/session` | 无 | 当前 `session.json` 指向的会话投影：`{conversationId, status, pendingAsk, liveTool, messages}`。`messages` 含 user / 已跑工具 / 正在跑（`live:true`）/ 排队工具 / assistant |
 | GET | `/conversations` | 无 | `{items:[{conversationId, updatedAt, status, preview}]}` |
 | POST | `/conversations/open` | `{conversationId}` | 该会话投影，并写入 `session.json` |
 | POST | `/conversations/new` | 无 | 新建空 `cv_`，写入 `session.json`，回空投影 |
