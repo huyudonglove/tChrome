@@ -56,6 +56,12 @@ test("窗口按 catalog 模板插值", async () => {
   expect(system).toContain("#目标");
   expect(system).toContain("ledger.goal");
   expect(system).toContain("ledger.goalHistory");
+  expect(system).toContain("`#skill`：catalog/skills/");
+  expect(system).toContain("`#sop`：catalog/sops/");
+  expect(system).toContain("`#baseTools`：assemble.baseToolsIds");
+  expect(system).toContain("`#tools`：ledger.toolIds");
+  expect(system).toContain("`#currentPage`：Turn.assembled.currentTab");
+  expect(system).toContain("`#currentEnvironment`：Turn.assembled.currentPage");
   expect(system).toContain("baseToolsIds");
   expect(system).toContain("coreToolIds");
   expect(system).not.toContain("从稳到新");

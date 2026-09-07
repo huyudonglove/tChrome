@@ -216,7 +216,7 @@ Runtime 独占维护。当前会话指针。
 
 用户一条输入开一个 Turn，CE 装配一次。本 Turn 内工具循环不再走 CE。
 
-system 顺序 = `catalog/window.system.md`：身份、记忆、观察、环境、协议、目标、参数、内置工具、输出、user槽说明。都是事实。
+system 顺序 = `catalog/window.system.md`：身份、记忆、观察、环境、协议、目标、参数、内置工具、输出、user槽说明。都是事实。`#user槽` 写每个 user 槽是什么、谁写、干什么，含 `#skill` `#sop` `#baseTools` `#tools`。
 user 顺序 = `catalog/window.user.md`：参考 / skill / sop / 记忆 / 输入 / 目标值 / 当前页 / toolIO / baseTools / tools。都是参考材料。skill 写网页工具能力。sop 写浏览步骤。
 
 | 槽 | 正文来自 |

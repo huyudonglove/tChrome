@@ -166,7 +166,17 @@ baseToolsIds：askUser、finishTurn、submitGoal、tool.detail、observation.det
 content 三段：observation / reason / action。
 
 #user槽
-user 槽是参考材料。`#userInput` 是本 Turn 的用户原话。
+user 各槽是 Runtime 装配的参考材料。空槽只留标题。
+`#参考`：catalog/advice.md。槽之间怎么配合。
+`#skill`：catalog/skills/。网页工具能力。
+`#sop`：catalog/sops/。浏览步骤。
+`#projectMemory` / `#conversationMemory` / `#turnMemory`：对应层记忆。
+`#contextSummary`：memory.write 的 contextSummary。
+`#observation`：ledger.observation。
+`#userInputHistory`：此前 Turn 的用户原话。`#userInput`：本 Turn 的用户原话。
+`#goal`：ledger.goal。`#goalHistory`：ledger.goalHistory。
+`#currentPage`：Turn.assembled.currentTab。`#currentEnvironment`：Turn.assembled.currentPage。
+`#toolIO`：ledger.toolIO。`#baseTools`：assemble.baseToolsIds 的 usage。`#tools`：ledger.toolIds 的 usage。
 ```
 
 正文以 `catalog/packs/pack.agent.md` 为准。skill / sop / 建议路径不进 system。
@@ -177,7 +187,7 @@ user 槽是参考材料。`#userInput` 是本 Turn 的用户原话。
 
 ```
 #参考
-这些槽是材料。skill 写网页工具能力。sop 写浏览步骤。
+`#skill` 是网页工具能力。`#sop` 是浏览步骤。`#baseTools` 是常驻工具用法。`#tools` 是本 Turn 动态工具用法。
 
 #skill
 网页工具：page.get_summary 读摘要；page.list_regions 列区域；page.list_interactive_elements 列可交互元素；page.click / page.type 用返回的 id；open_url 打开网址；web_search 检索。
