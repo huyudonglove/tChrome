@@ -236,6 +236,13 @@ const runQueue = async (input: {
     if (item.name === "memory.write") {
       persistMemory(dataDir, ledger, { id: item.callId, name: item.name, arguments: item.arguments });
     }
+    if (item.name === "submitGoal") {
+      const goal = String(item.arguments.goal ?? "").trim();
+      if (goal && goal !== ledger.goal) {
+        if (ledger.goal) ledger.goalHistory.push(ledger.goal);
+        ledger.goal = goal;
+      }
+    }
     if (item.name === "catalog.add") {
       const names = asStringArray(item.arguments.names);
       for (const name of names) {

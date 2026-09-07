@@ -76,6 +76,10 @@ export async function executeTool(input: ExecuteInput): Promise<string> {
   const { name, arguments: args, content, lookup, host, dataDir, browserNames } = input;
   if (name === "finishTurn") return actionFromContent(content);
   if (name === "askUser") return questionFromContent(content, asStringArray(args.choice));
+  if (name === "submitGoal") {
+    const goal = String(args.goal ?? "").trim();
+    return goal ? `当前目标：${goal}` : "goal 空着";
+  }
   if (name === "catalog.add") {
     const names = asStringArray(args.names);
     return `补上 ${names.join(" ")}`.trim();

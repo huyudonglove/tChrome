@@ -105,6 +105,8 @@ Runtime 独占维护。当前会话指针。
 | `pendingAsk` | object \| null | `waiting_human` 时 `{turnId, question}`；否则 `null` |
 | `turnIds` | string[] | 已建的回合，按时间 |
 | `userInputHistory` | string[] | 上一轮及更早的用户原话，按时间。新会话 `[]`。用户下一条输入开新 Turn 时，Runtime 把刚结束那一轮的 `userInput` 追加进去 |
+| `goal` | string | 当前目标。新会话 `""`。模型调 `submitGoal` 写入。空着时 Pack 要求先提交 |
+| `goalHistory` | string[] | 旧目标。Runtime 在 `submitGoal` 改写且新值和旧值不同时，把旧目标追加进去。模型不要写 |
 | `toolQueue` | object[] | 本 Turn 待执行的工具。模型一次出网交的 `toolCalls` 按数组顺序入队。任务队列按这个顺序跑。跑完一条弹出，写入 `toolIO`。新会话 / 新出网前空。每项 `{callId, name, arguments}` |
 | `liveTool` | object \| null | 正在跑的那条 `{name, callId}`。空闲 / 追问 / 失败为 `null` |
 | `toolIO` | object[] | 本会话已执行、窗口里还带着的工具调用。新会话 `[]`。队列里跑完一条追加一条，最新在最下面。窗口到 200K 时较早的条目收进 `observation`。每项见「toolIO 项」 |
@@ -136,7 +138,7 @@ Runtime 独占维护。当前会话指针。
 | `systemIds` | string[] | 本轮 Pack，对应 `catalog/packs/<id>.md` |
 | `skillIds` | string[] | 本轮 skill，对应 `catalog/skills/<id>.md` |
 | `sopIds` | string[] | 本轮 SOP，对应 `catalog/sops/<id>.md` |
-| `baseToolsIds` | string[] | 常驻工具，对应 `catalog/tools/<id>.json`。固定 `askUser` `finishTurn` `tool.detail` `observation.detail` `memory.write` |
+| `baseToolsIds` | string[] | 常驻工具，对应 `catalog/tools/<id>.json`。固定 `askUser` `finishTurn` `submitGoal` `tool.detail` `observation.detail` `memory.write` |
 | `toolIds` | string[] | 动态工具，对应 `catalog/tools/<id>.json`。开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.click` `open_url` `web_search` `list_browser_tools` `catalog.add` 等）。缺了 `catalog.add` 再补。压缩时先裁回 core + 本轮已用过的 |
 | `turnMemoryIds` | string[] | 这一轮记忆；没有就 `[]` |
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
@@ -209,6 +211,8 @@ user 顺序 = `userSlots`：
 | `#observation` | ledger.`observation` |
 | `#userInputHistory` | ledger.`userInputHistory`（不含本轮） |
 | `#userInput` | Turn.`input.text` |
+| `#goal` | ledger.`goal` |
+| `#goalHistory` | ledger.`goalHistory`。Runtime 组装 |
 | `#currentPage` | Turn.`assembled.currentTab`。开 Turn 写入，只有 tab / url / title |
 | `#currentEnvironment` | Turn.`assembled.currentPage` |
 | `#toolIO` | ledger.`toolIO` |
@@ -278,6 +282,7 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | 工具 | required 其余 | 谁填其余 |
 |---|---|---|
 | `askUser` | `choice` | 给用户的选项 |
+| `submitGoal` | `goal` | 当前目标。空着先交；改写时 Runtime 把旧值追加进 `goalHistory` |
 | `finishTurn` | （无） | 回复正文在 content 的 action。没有 action 就空着 |
 | `tool.detail` | `callId` | `#toolIO` 该项的 `callId` |
 | `observation.detail` | `observationId` | `#observation` 该项的 `id` |

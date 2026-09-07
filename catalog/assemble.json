@@ -5,6 +5,7 @@
   "baseToolsIds": [
     "askUser",
     "finishTurn",
+    "submitGoal",
     "tool.detail",
     "observation.detail",
     "memory.write"

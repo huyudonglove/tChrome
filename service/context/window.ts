@@ -38,6 +38,8 @@ export function userText(input: {
     "#observation": jsonBody(ledger.observation),
     "#userInputHistory": ledger.userInputHistory.join("\n"),
     "#userInput": turn.input.text,
+    "#goal": ledger.goal,
+    "#goalHistory": jsonBody(ledger.goalHistory),
     "#currentPage": turn.assembled.currentTab ? jsonBody(turn.assembled.currentTab) : "",
     "#currentEnvironment": turn.assembled.currentPage ? jsonBody(turn.assembled.currentPage) : "",
     "#toolIO": jsonBody(ledger.toolIO),

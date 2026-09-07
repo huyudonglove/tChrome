@@ -86,6 +86,8 @@ export type Ledger = {
   pendingAsk: { turnId: string; question: string } | null;
   turnIds: string[];
   userInputHistory: string[];
+  goal: string;
+  goalHistory: string[];
   toolQueue: ToolQueueItem[];
   liveTool: { name: string; callId: string } | null;
   toolIO: ToolIOItem[];

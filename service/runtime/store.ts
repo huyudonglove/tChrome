@@ -60,6 +60,8 @@ export function emptyLedger(conversationId: string): Ledger {
     pendingAsk: null,
     turnIds: [],
     userInputHistory: [],
+    goal: "",
+    goalHistory: [],
     toolQueue: [],
     liveTool: null,
     toolIO: [],
@@ -72,7 +74,10 @@ export function emptyLedger(conversationId: string): Ledger {
 }
 
 export function loadLedger(dataDir: string, cvId: string): Ledger {
-  return readJson(paths(dataDir, cvId).ledger, emptyLedger(cvId));
+  const ledger = readJson(paths(dataDir, cvId).ledger, emptyLedger(cvId));
+  ledger.goal ??= "";
+  ledger.goalHistory ??= [];
+  return ledger;
 }
 
 export function saveLedger(dataDir: string, ledger: Ledger): void {

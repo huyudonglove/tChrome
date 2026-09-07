@@ -1,0 +1,15 @@
+{
+  "type": "function",
+  "function": {
+    "name": "submitGoal",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean" },
+        "goal": { "type": "string" }
+      },
+      "required": ["reason", "affectsPage", "goal"]
+    }
+  }
+}

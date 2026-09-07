@@ -19,6 +19,12 @@
 #userInput
 {{#userInput}}
 
+#goal
+{{#goal}}
+
+#goalHistory
+{{#goalHistory}}
+
 #currentPage
 {{#currentPage}}
 

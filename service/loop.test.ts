@@ -39,7 +39,9 @@ const mock = (results: CompletionResult[]): Provider => {
 
 test("窗口按 catalog 模板插值", async () => {
   const catalog = loadCatalog(repoRoot);
-  expect(catalog.assemble.baseToolsIds).toContain("finishTurn");
+  expect(catalog.assemble.baseToolsIds).toContain("submitGoal");
+  expect(catalog.userTemplate).toContain("{{#goal}}");
+  expect(catalog.userTemplate).toContain("{{#goalHistory}}");
   expect(catalog.assemble.coreToolIds).toContain("page.get_summary");
   expect(catalog.systemTemplate).toContain("{{#身份}}");
   expect(catalog.userTemplate).toContain("{{#currentPage}}");
@@ -47,6 +49,7 @@ test("窗口按 catalog 模板插值", async () => {
   expect(system).toContain("#身份");
   expect(system).toContain("tChrome");
   expect(system).toContain("对用户说完再 finishTurn");
+  expect(system).toContain("submitGoal");
   expect(system).not.toContain("{{");
 });
 
@@ -547,5 +550,32 @@ test("arguments 不是 JSON 时好的工具照跑，坏的退回再出网", asyn
   expect(ledger.status).toBe("idle");
   expect(ledger.toolIO.map((row) => row.name)).toEqual(["page.type", "page.get_summary", "finishTurn"]);
   expect(JSON.parse(ledger.toolIO[0]!.return.text).faultCode).toBe("arguments_not_json");
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("submitGoal 写入当前目标，再交一次旧目标进 history", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-goal-"));
+  const provider = mock([
+    ok({
+      finish: "tool_calls",
+      content: "observation\n空目标\nreason\n先交目标\naction\nsubmitGoal",
+      toolCalls: [{ id: "call_01", name: "submitGoal", arguments: { reason: "立目标", affectsPage: false, goal: "测这个站点" } }],
+    }),
+    ok({
+      finish: "tool_calls",
+      content: "observation\n目标改了\nreason\n收窄\naction\nsubmitGoal",
+      toolCalls: [{ id: "call_02", name: "submitGoal", arguments: { reason: "改目标", affectsPage: false, goal: "测登录页" } }],
+    }),
+    ok({
+      finish: "tool_calls",
+      content: "observation\n已记下\nreason\n收口\naction\n目标改成测登录页",
+      toolCalls: [{ id: "call_03", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
+    }),
+  ]);
+  const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "测这个站点", submittedAt: "2026-09-06T00:00:00.000Z" });
+  expect(reply.output).toEqual({ kind: "reply", text: "目标改成测登录页" });
+  const ledger = loadLedger(dir, "cv_01");
+  expect(ledger.goal).toBe("测登录页");
+  expect(ledger.goalHistory).toEqual(["测这个站点"]);
   rmSync(dir, { recursive: true, force: true });
 });
