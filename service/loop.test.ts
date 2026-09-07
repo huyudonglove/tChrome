@@ -44,8 +44,9 @@ test("窗口按 catalog 模板插值", async () => {
   expect(catalog.userTemplate).toContain("{{#goalHistory}}");
   expect(catalog.assemble.coreToolIds).toContain("page.get_summary");
   expect(catalog.userTemplate).toContain("{{#参考}}");
-  expect(catalog.userTemplate).toContain("{{#skill}}");
+  expect(catalog.userTemplate).toContain("{{#sop}}");
   expect(catalog.systemTemplate).not.toContain("{{#skill}}");
+  expect(catalog.systemTemplate).not.toContain("{{#sop}}");
   const system = systemText(catalog);
   expect(system).toContain("#身份");
   expect(system).toContain("tChrome");
@@ -54,6 +55,7 @@ test("窗口按 catalog 模板插值", async () => {
   expect(system).not.toContain("{{");
   expect(system).not.toContain("探索型可以由大到小");
   expect(system).not.toContain("#skill");
+  expect(system).not.toContain("#sop");
   const user = userText({
     catalog,
     ledger: emptyLedger("cv_01"),
@@ -85,6 +87,7 @@ test("窗口按 catalog 模板插值", async () => {
   expect(user).toContain("#参考");
   expect(user).toContain("#skill");
   expect(user).toContain("#sop");
+  expect(user).toContain("page.get_summary → list_regions");
   expect(user).toContain("探索型可以由大到小");
   expect(user).toContain("帮我查这款鼠标官网价");
   expect(user).not.toContain("{{");
