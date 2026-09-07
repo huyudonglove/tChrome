@@ -1,0 +1,27 @@
+{
+  "type": "function",
+  "function": {
+    "name": "page.list_interactive_elements",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        },
+        "tab": {
+          "type": "number"
+        },
+        "regionId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage"
+      ]
+    }
+  }
+}

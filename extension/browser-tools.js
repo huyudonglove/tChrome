@@ -1,4 +1,8 @@
 export const BROWSER_TOOL_NAMES = [
+  'page.get_summary', 'page.list_regions', 'page.list_interactive_elements',
+  'page.inspect_region', 'page.inspect_element', 'page.get_dom',
+  'page.get_accessibility_tree', 'page.get_element_state',
+  'page.click', 'page.type',
   'see_page', 'find_on_page', 'extract_table', 'check_page',
   'snapshot_page', 'watch_page', 'see_page_info',
   'click', 'double_click', 'focus', 'hover',
@@ -241,6 +245,207 @@ const inspectTab = async (tabId) => {
   }
 };
 
+const runPageTool = async (name, input = {}) => {
+  const tabId = input.tab ?? input.tabId;
+  const tab = await inspectTab(tabId);
+  if (!tab.ok) return tab;
+  try {
+    const [{result}] = await withTimeout(chrome.scripting.executeScript({
+      target: {tabId: tab.tab},
+      args: [name, {
+        id: String(input.id || ''),
+        regionId: String(input.regionId || ''),
+        text: String(input.text ?? ''),
+      }],
+      func: (toolName, payload) => {
+        const visible = (node) => {
+          if (!(node instanceof Element)) return false;
+          const style = getComputedStyle(node);
+          if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false;
+          const rect = node.getBoundingClientRect();
+          return rect.width >= 4 && rect.height >= 4;
+        };
+        const clip = (value, n = 80) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, n);
+        const roleOf = (node) => node.getAttribute('role') || node.tagName.toLowerCase();
+        const labelOf = (node) => {
+          const explicit = node.id ? document.querySelector(`label[for="${CSS.escape(node.id)}"]`)?.innerText : '';
+          return clip(explicit || node.closest('label')?.innerText || node.getAttribute('aria-label') || node.getAttribute('placeholder') || node.getAttribute('title') || node.innerText || node.value || node.alt || node.name);
+        };
+        const regionRoots = [...document.querySelectorAll('header,nav,main,aside,footer,section,article,form,[role="banner"],[role="navigation"],[role="main"],[role="complementary"],[role="contentinfo"],[role="region"],[role="search"]')].filter(visible);
+        const used = new Set();
+        const regions = [];
+        for (const node of regionRoots) {
+          if ([...used].some((item) => item.contains(node) && item !== node)) continue;
+          used.add(node);
+          const rect = node.getBoundingClientRect();
+          regions.push({
+            id: `r${regions.length + 1}`,
+            role: roleOf(node),
+            tag: node.tagName.toLowerCase(),
+            name: labelOf(node) || clip(node.innerText, 40),
+            heading: clip((node.querySelector('h1,h2,h3,[role="heading"]') || {}).innerText, 60),
+            rect: {x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height)},
+            node,
+          });
+        }
+        if (regions.length === 0 && document.body) {
+          const rect = document.body.getBoundingClientRect();
+          regions.push({id: 'r1', role: 'document', tag: 'body', name: clip(document.title, 40), heading: '', rect: {x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height)}, node: document.body});
+        }
+        const elements = [];
+        for (const node of document.querySelectorAll('a[href],button,input:not([type=hidden]),textarea,select,[role="button"],[role="link"],[role="tab"],[role="menuitem"],[role="checkbox"],[role="radio"],[role="textbox"],[contenteditable="true"],summary')) {
+          if (!visible(node)) continue;
+          const region = regions.find((item) => item.node.contains(node)) || regions[0];
+          const rect = node.getBoundingClientRect();
+          const inView = rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
+          elements.push({
+            id: `e${elements.length + 1}`,
+            regionId: region?.id || 'r1',
+            tag: node.tagName.toLowerCase(),
+            role: roleOf(node),
+            type: node.getAttribute('type') || '',
+            name: labelOf(node),
+            value: 'value' in node ? clip(node.value, 40) : '',
+            href: node.href || '',
+            disabled: Boolean(node.disabled || node.getAttribute('aria-disabled') === 'true'),
+            required: Boolean(node.required || node.getAttribute('aria-required') === 'true'),
+            inView,
+            rect: {x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height)},
+            node,
+          });
+          if (elements.length >= 80) break;
+        }
+        const findRegion = (nid) => regions.find((item) => item.id === nid);
+        const findElement = (nid) => elements.find((item) => item.id === nid);
+        const strip = (item) => {
+          const {node, ...rest} = item;
+          return rest;
+        };
+        const axNode = (node, depth) => {
+          if (!node || depth > 4) return null;
+          const kids = [...node.children].filter(visible).slice(0, 12).map((child) => axNode(child, depth + 1)).filter(Boolean);
+          return {role: roleOf(node), name: labelOf(node), tag: node.tagName.toLowerCase(), children: kids};
+        };
+        const id = payload.id;
+        if (toolName === 'page.get_summary') {
+          const headings = [...document.querySelectorAll('h1,h2,h3,[role="heading"]')].slice(0, 8)
+            .map((node) => clip(node.innerText, 80)).filter(Boolean);
+          return {
+            ok: true,
+            title: document.title,
+            url: location.href,
+            lang: document.documentElement.lang || '',
+            regionCount: regions.length,
+            interactiveCount: elements.length,
+            headings,
+            landmarkNames: regions.slice(0, 8).map((item) => `${item.id} ${item.role} ${item.name}`.trim()),
+          };
+        }
+        if (toolName === 'page.list_regions') {
+          return {
+            ok: true,
+            regions: regions.map((item) => ({
+              id: item.id,
+              role: item.role,
+              name: item.name,
+              heading: item.heading,
+              interactiveCount: elements.filter((el) => el.regionId === item.id).length,
+            })),
+          };
+        }
+        if (toolName === 'page.list_interactive_elements') {
+          const rid = payload.regionId || id;
+          const rows = elements.filter((item) => !rid || item.regionId === rid || item.id === rid);
+          return {
+            ok: true,
+            regionId: rid || null,
+            elements: rows.map((item) => ({id: item.id, regionId: item.regionId, role: item.role, tag: item.tag, name: item.name, inView: item.inView, disabled: item.disabled})),
+          };
+        }
+        if (toolName === 'page.inspect_region') {
+          if (!id) return {ok: false, error: 'page.inspect_region 需要 id'};
+          const region = findRegion(id);
+          if (!region) return {ok: false, error: `没有区域 ${id}`};
+          const kids = elements.filter((item) => item.regionId === id).slice(0, 20);
+          return {
+            ok: true,
+            region: {id: region.id, role: region.role, name: region.name, heading: region.heading, rect: region.rect},
+            elements: kids.map((item) => ({id: item.id, role: item.role, name: item.name, tag: item.tag})),
+            text: clip(region.node.innerText, 400),
+          };
+        }
+        if (toolName === 'page.inspect_element') {
+          if (!id) return {ok: false, error: 'page.inspect_element 需要 id'};
+          const el = findElement(id);
+          if (!el) return {ok: false, error: `没有元素 ${id}`};
+          return {ok: true, element: strip(el)};
+        }
+        if (toolName === 'page.get_dom') {
+          if (!id) return {ok: false, error: 'page.get_dom 需要 id'};
+          const hit = findElement(id) || findRegion(id);
+          if (!hit) return {ok: false, error: `没有 ${id}`};
+          const html = hit.node.outerHTML || '';
+          return {ok: true, id, tag: hit.tag, html: html.slice(0, 4000), truncated: html.length > 4000};
+        }
+        if (toolName === 'page.get_accessibility_tree') {
+          if (!id) return {ok: false, error: 'page.get_accessibility_tree 需要 id'};
+          const hit = findElement(id) || findRegion(id);
+          if (!hit) return {ok: false, error: `没有 ${id}`};
+          return {ok: true, id, tree: axNode(hit.node, 0)};
+        }
+        if (toolName === 'page.get_element_state') {
+          if (!id) return {ok: false, error: 'page.get_element_state 需要 id'};
+          const el = findElement(id);
+          if (!el) return {ok: false, error: `没有元素 ${id}`};
+          const node = el.node;
+          return {
+            ok: true,
+            id,
+            focused: document.activeElement === node,
+            disabled: el.disabled,
+            required: el.required,
+            checked: 'checked' in node ? Boolean(node.checked) : undefined,
+            value: el.value,
+            inView: el.inView,
+            rect: el.rect,
+          };
+        }
+        if (toolName === 'page.click') {
+          if (!id) return {ok: false, error: 'page.click 需要 id'};
+          const el = findElement(id);
+          if (!el) return {ok: false, error: `没有元素 ${id}`};
+          if (el.disabled) return {ok: false, error: `${id} 不可点`};
+          el.node.click();
+          return {ok: true, clicked: el.name || id, id};
+        }
+        if (toolName === 'page.type') {
+          if (!id) return {ok: false, error: 'page.type 需要 id'};
+          const el = findElement(id);
+          if (!el) return {ok: false, error: `没有元素 ${id}`};
+          const node = el.node;
+          const value = payload.text;
+          node.focus();
+          if ('value' in node) {
+            const proto = node instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+            const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+            if (setter) setter.call(node, value);
+            else node.value = value;
+          } else node.textContent = value;
+          node.dispatchEvent(new Event('input', {bubbles: true}));
+          node.dispatchEvent(new Event('change', {bubbles: true}));
+          return {ok: true, id, value: 'value' in node ? node.value : node.textContent};
+        }
+        return {ok: false, error: `${toolName} 未接`};
+      },
+    }));
+    const out = {tab: tab.tab, title: tab.title, url: tab.url, ...result};
+    if (out.ok && (name === 'page.click' || name === 'page.type')) await afterPageAction(tabId);
+    return out;
+  } catch (error) {
+    return {ok: false, tab: tab.tab, error: error instanceof Error ? error.message : String(error)};
+  }
+};
+
 const runOnTab = async (tabId, args, func) => {
   const tab = await inspectTab(tabId);
   if (!tab.ok) return tab;
@@ -258,6 +463,7 @@ const runOnTab = async (tabId, args, func) => {
 
 export const runBrowserTool = async (name, input = {}) => {
   const tabId = input.tab ?? input.tabId;
+  if (name.startsWith('page.')) return runPageTool(name, input);
   if (name === 'see_page' || name === 'watch_page') return inspectTab(tabId);
   if (name === 'snapshot_page' || name === 'find_on_page') {
     const page = await inspectTab(tabId);

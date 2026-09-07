@@ -137,12 +137,12 @@ Runtime 独占维护。当前会话指针。
 | `skillIds` | string[] | 本轮 skill，对应 `catalog/skills/<id>.md` |
 | `sopIds` | string[] | 本轮 SOP，对应 `catalog/sops/<id>.md` |
 | `baseToolsIds` | string[] | 常驻工具，对应 `catalog/tools/<id>.json`。固定 `askUser` `finishTurn` `tool.detail` `observation.detail` `memory.write` |
-| `toolIds` | string[] | 动态工具，对应 `catalog/tools/<id>.json`。开 Turn 先挂 core（`see_page` `open_url` `click` `web_search` `list_browser_tools` `catalog.add` 等）。缺了 `catalog.add` 再补。压缩时先裁回 core + 本轮已用过的 |
+| `toolIds` | string[] | 动态工具，对应 `catalog/tools/<id>.json`。开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.click` `open_url` `web_search` `list_browser_tools` `catalog.add` 等）。缺了 `catalog.add` 再补。压缩时先裁回 core + 本轮已用过的 |
 | `turnMemoryIds` | string[] | 这一轮记忆；没有就 `[]` |
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
 | `mcpIds` | string[] | 本轮 MCP；没有就 `[]` |
-| `currentPage` | object \| null | 开 Turn 为 `null`。模型调 `see_page`（或其它会改当前页的工具）跑完后，Runtime 用返回填 `description` `tab` `url` `title` |
+| `currentPage` | object \| null | 开 Turn 为 `null`。模型调 `page.get_summary` / `see_page`（或其它会改当前页的工具）跑完后，Runtime 用返回填 `description` `tab` `url` `title` |
 
 `currentPage`：
 

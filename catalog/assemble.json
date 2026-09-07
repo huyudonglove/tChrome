@@ -10,16 +10,14 @@
     "memory.write"
   ],
   "coreToolIds": [
-    "see_page",
-    "find_on_page",
-    "snapshot_page",
-    "click",
-    "type",
+    "page.get_summary",
+    "page.list_regions",
+    "page.list_interactive_elements",
+    "page.inspect_region",
+    "page.inspect_element",
+    "page.click",
+    "page.type",
     "open_url",
-    "list_tabs",
-    "wait",
-    "scroll",
-    "press",
     "web_search",
     "list_browser_tools",
     "catalog.add"

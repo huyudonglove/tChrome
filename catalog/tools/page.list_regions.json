@@ -1,0 +1,24 @@
+{
+  "type": "function",
+  "function": {
+    "name": "page.list_regions",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        },
+        "tab": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage"
+      ]
+    }
+  }
+}

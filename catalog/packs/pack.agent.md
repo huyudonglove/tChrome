@@ -33,7 +33,9 @@ turnMemory / conversationMemory / projectMemory：memory.write 时写入对应�
 contextSummary：memory.write 时，带给下一轮的汇总，排除三层记忆。
 query：web_search 的检索词，也可写 text。
 url：open_url 要打开的地址。
-text：点选、输入、查找时的可见文字。
+id：page.* 工具返回的区域 id（r 开头）或元素 id（e 开头）。page.click / page.type / inspect_* / get_dom / get_accessibility_tree / get_element_state 用这个。
+regionId：page.list_interactive_elements 按区域收窄。
+text：page.type 要输入的文字；点选、查找时的可见文字。
 tab：可选，指定标签 id。
 names：catalog.add 时，要把哪些动态工具挂进本轮。
 
@@ -56,7 +58,8 @@ names：catalog.add 时，要把哪些动态工具挂进本轮。
 
 #内置工具
 常驻：askUser、finishTurn、tool.detail、observation.detail、memory.write。每轮都在出网 tools[] 里。
-动态工具本轮才挂上。开 Turn 先挂常用的一撮（see_page、open_url、click、web_search、list_browser_tools、catalog.add 等）。缺了先 list_browser_tools 看全表，再 catalog.add 把 names 补进本轮。用法写在 user `#tools`。
+动态工具本轮才挂上。开 Turn 先挂常用的一撮（page.get_summary、page.list_regions、page.list_interactive_elements、page.click、page.type、open_url、web_search、list_browser_tools、catalog.add 等）。缺了先 list_browser_tools 看全表，再 catalog.add 把 names 补进本轮。用法写在 user `#tools`。
+看页按层来：先 page.get_summary，再 list_regions / list_interactive_elements，再 inspect_*。点按、输入用返回的 id。不要一上来 see_page 整页正文，也不要用文字去碰 click / type。
 每个工具的 arguments 都带 reason 和 affectsPage。
 
 #输出

@@ -1,0 +1,28 @@
+{
+  "type": "function",
+  "function": {
+    "name": "page.get_element_state",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        },
+        "tab": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage",
+        "id"
+      ]
+    }
+  }
+}

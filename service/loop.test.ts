@@ -40,7 +40,7 @@ const mock = (results: CompletionResult[]): Provider => {
 test("窗口按 catalog 模板插值", async () => {
   const catalog = loadCatalog(repoRoot);
   expect(catalog.assemble.baseToolsIds).toContain("finishTurn");
-  expect(catalog.assemble.coreToolIds).toContain("see_page");
+  expect(catalog.assemble.coreToolIds).toContain("page.get_summary");
   expect(catalog.systemTemplate).toContain("{{#身份}}");
   expect(catalog.userTemplate).toContain("{{#userInput}}");
   const system = systemText(catalog);
@@ -185,13 +185,13 @@ test("POST /turn 走完 mock 收口", async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("开 Turn 不读页，模型 see_page 后才填 currentPage", async () => {
+test("开 Turn 不读页，模型 page.get_summary 后才填 currentPage", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-page-"));
   const provider = mock([
     ok({
       finish: "tool_calls",
-      content: "observation\n要看当前页\nreason\n先读页\naction\nsee_page",
-      toolCalls: [{ id: "call_01", name: "see_page", arguments: { reason: "看当前页", affectsPage: false } }],
+      content: "observation\n要看当前页\nreason\n先摘要\naction\npage.get_summary",
+      toolCalls: [{ id: "call_01", name: "page.get_summary", arguments: { reason: "看当前页", affectsPage: false } }],
     }),
     ok({
       finish: "tool_calls",
@@ -201,7 +201,7 @@ test("开 Turn 不读页，模型 see_page 后才填 currentPage", async () => {
   ]);
   const host = {
     execute: async (name: string) => {
-      if (name !== "see_page") return { ok: false, error: name };
+      if (name !== "page.get_summary") return { ok: false, error: name };
       return {
         ok: true,
         tab: 12,
@@ -221,11 +221,11 @@ test("开 Turn 不读页，模型 see_page 后才填 currentPage", async () => {
     title: "罗技 MX Master 3S 无线鼠标",
   });
   const ledger = loadLedger(dir, "cv_01");
-  expect(ledger.toolIO[0]?.name).toBe("see_page");
+  expect(ledger.toolIO[0]?.name).toBe("page.get_summary");
   expect(ledger.toolIO[0]?.turnId).toBe(reply.turnId);
   const session = await (await createServer({ dataDir: dir, repoRoot, provider: mock([]) }).fetch(new Request("http://127.0.0.1:18788/session"))).json() as { messages: { role: string; name?: string }[] };
   expect(session.messages.map((row) => row.role)).toEqual(["user", "tool", "assistant"]);
-  expect(session.messages[1]?.name).toBe("see_page");
+  expect(session.messages[1]?.name).toBe("page.get_summary");
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -255,7 +255,7 @@ test("web_search 走服务端执行", async () => {
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "这鼠标官网多少钱", submittedAt: "2026-09-06T00:00:00.000Z" });
     expect(reply.output).toEqual({ kind: "reply", text: "官价 699" });
     const turn = loadTurn(dir, "cv_01", reply.turnId);
-    expect(turn.assembled.toolIds).toContain("see_page");
+    expect(turn.assembled.toolIds).toContain("page.get_summary");
     expect(turn.assembled.toolIds).toContain("web_search");
     expect(turn.assembled.currentPage).toBeNull();
     const ledger = loadLedger(dir, "cv_01");
@@ -357,7 +357,7 @@ test("catalog.add 把缺的工具挂进本轮", async () => {
   expect(reply.output).toEqual({ kind: "reply", text: "补上了" });
   const turn = loadTurn(dir, "cv_01", reply.turnId);
   expect(turn.assembled.toolIds).toContain("screenshot");
-  expect(turn.assembled.toolIds).toContain("see_page");
+  expect(turn.assembled.toolIds).toContain("page.get_summary");
   rmSync(dir, { recursive: true, force: true });
 });
 

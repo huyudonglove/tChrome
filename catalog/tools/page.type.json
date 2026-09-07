@@ -1,0 +1,32 @@
+{
+  "type": "function",
+  "function": {
+    "name": "page.type",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        },
+        "tab": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage",
+        "id",
+        "text"
+      ]
+    }
+  }
+}
