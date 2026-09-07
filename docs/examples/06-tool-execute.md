@@ -205,13 +205,13 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "#观察",
     "#环境",
     "#协议",
+    "#目标",
     "#参数说明",
     "#内置工具",
     "#输出",
     "#user槽"
   ],
   "userSlots": [
-    "#参考",
     "#skill",
     "#sop",
     "#projectMemory",
@@ -223,9 +223,10 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "#userInput",
     "#goal",
     "#goalHistory",
+    "#currentTab",
     "#currentPage",
-    "#currentEnvironment",
     "#toolIO",
+    "#baseTools",
     "#tools"
   ],
   "provider": "uuapi",
@@ -233,7 +234,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   "stream": true,
   "maxAttempts": 3,
   "finish": "tool_calls",
-  "content": "observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web_search，查询罗技 MX Master 3S 官网价。",
+  "content": "seen\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web_search，查询罗技 MX Master 3S 官网价。",
   "toolCalls": [
     {
       "id": "call_01",

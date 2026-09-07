@@ -60,13 +60,13 @@
     "#观察",
     "#环境",
     "#协议",
+    "#目标",
     "#参数说明",
     "#内置工具",
     "#输出",
     "#user槽"
   ],
   "userSlots": [
-    "#参考",
     "#skill",
     "#sop",
     "#projectMemory",
@@ -78,9 +78,10 @@
     "#userInput",
     "#goal",
     "#goalHistory",
+    "#currentTab",
     "#currentPage",
-    "#currentEnvironment",
     "#toolIO",
+    "#baseTools",
     "#tools"
   ]
 }
@@ -163,15 +164,15 @@ ledger.goal 是当前目标。submitGoal 的 goal 写入 ledger.goal。ledger.go
 baseToolsIds：askUser、finishTurn、submitGoal、tool.detail、observation.detail、memory.write。coreToolIds 开 Turn 挂上。user `#baseTools` 写 baseToolsIds 的用法。user `#tools` 写 toolIds 的用法。
 
 #输出
-content 三段：observation / reason / action。
+content 三段：seen / reason / action。
 
 #user槽
 user 按层装配。空槽只留标题。
-##方法：`#参考` `#skill` `#sop`
+##方法：`#skill` `#sop`
 ##记忆：`#projectMemory` `#conversationMemory` `#turnMemory` `#contextSummary` `#observation`
 ##输入：`#userInputHistory` `#userInput`
 ##目标：`#goal` `#goalHistory`
-##页面：`#currentPage` `#currentEnvironment`
+##页面：`#currentTab` `#currentPage`
 ##过程：`#toolIO`
 ##工具：`#baseTools` `#tools`
 ```
@@ -184,9 +185,6 @@ user 按层装配。空槽只留标题。
 
 ```
 ##方法
-#参考
-`#skill` 是网页工具能力。`#sop` 是浏览步骤。`#baseTools` 是常驻工具用法。`#tools` 是本 Turn 动态工具用法。
-
 #skill
 网页工具：page.get_summary 读摘要；page.list_regions 列区域；page.list_interactive_elements 列可交互元素；page.click / page.type 用返回的 id；open_url 打开网址；web_search 检索。
 
@@ -219,9 +217,9 @@ user 按层装配。空槽只留标题。
 []
 
 ##页面
-#currentPage
+#currentTab
 
-#currentEnvironment
+#currentPage
 
 ##过程
 #toolIO
@@ -516,13 +514,13 @@ web_search：搜索公开网页。affectsPage=false。
     "#观察",
     "#环境",
     "#协议",
+    "#目标",
     "#参数说明",
     "#内置工具",
     "#输出",
     "#user槽"
   ],
   "userSlots": [
-    "#参考",
     "#skill",
     "#sop",
     "#projectMemory",
@@ -534,9 +532,10 @@ web_search：搜索公开网页。affectsPage=false。
     "#userInput",
     "#goal",
     "#goalHistory",
+    "#currentTab",
     "#currentPage",
-    "#currentEnvironment",
     "#toolIO",
+    "#baseTools",
     "#tools"
   ],
   "provider": "uuapi",

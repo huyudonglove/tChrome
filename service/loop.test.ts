@@ -15,7 +15,7 @@ import type { CompletionResult, Provider } from "./types.ts";
 const repoRoot = join(import.meta.dir, "..");
 
 const ok = (partial: Partial<CompletionResult> & Pick<CompletionResult, "finish">): CompletionResult => ({
-  content: "observation\n已收到\nreason\n收口\naction\n你好",
+  content: "seen\n已收到\nreason\n收口\naction\n你好",
   toolCalls: [],
   attempts: 1,
   parseOk: true,
@@ -53,6 +53,10 @@ test("窗口按 catalog 模板插值", async () => {
   expect(catalog.userTemplate).toContain("{{#baseTools}}");
   expect(catalog.userTemplate).toContain("{{#tools}}");
   expect(catalog.userTemplate).toContain("{{#sop}}");
+  expect(catalog.userTemplate).toContain("{{#currentTab}}");
+  expect(catalog.userTemplate).toContain("{{#currentPage}}");
+  expect(catalog.userTemplate).not.toContain("{{#参考}}");
+  expect(catalog.userTemplate).not.toContain("{{#currentEnvironment}}");
   expect(catalog.systemTemplate).not.toContain("{{#skill}}");
   expect(catalog.systemTemplate).not.toContain("{{#sop}}");
   const system = systemText(catalog);
@@ -74,8 +78,9 @@ test("窗口按 catalog 模板插值", async () => {
   expect(system).toContain("`#sop`：catalog/sops/");
   expect(system).toContain("`#baseTools`：assemble.baseToolsIds");
   expect(system).toContain("`#tools`：ledger.toolIds");
-  expect(system).toContain("`#currentPage`：Turn.assembled.currentTab");
-  expect(system).toContain("`#currentEnvironment`：Turn.assembled.currentPage");
+  expect(system).toContain("content 的 seen");
+  expect(system).toContain("`#currentTab`：Turn.assembled.currentTab");
+  expect(system).toContain("`#currentPage`：Turn.assembled.currentPage");
   expect(system).toContain("baseToolsIds");
   expect(system).toContain("coreToolIds");
   expect(system).not.toContain("从稳到新");
@@ -121,8 +126,7 @@ test("窗口按 catalog 模板插值", async () => {
   expect(user).toContain("##页面");
   expect(user).toContain("##过程");
   expect(user).toContain("##工具");
-  expect(user).toContain("#参考");
-  expect(user).toContain("#skill");
+    expect(user).toContain("#skill");
   expect(user).toContain("#sop");
   expect(user).toContain("page.get_summary 读摘要");
   expect(user).toContain("探索型：page.get_summary");
@@ -140,7 +144,7 @@ test("开 Turn 写入 currentTab，不调 page 工具", async () => {
   const provider = mock([
     ok({
       finish: "tool_calls",
-      content: "observation\n看到标题\nreason\n收口\naction\n当前是京东",
+      content: "seen\n看到标题\nreason\n收口\naction\n当前是京东",
       toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
     }),
   ]);
@@ -235,7 +239,7 @@ test("finishTurn 没有 action 就再出网一次", async () => {
     }),
     ok({
       finish: "tool_calls",
-      content: "observation\n已问好\nreason\n收口\naction\n你好",
+      content: "seen\n已问好\nreason\n收口\naction\n你好",
       toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "补 action", affectsPage: false } }],
     }),
   ]);
@@ -249,7 +253,7 @@ test("askUser 冻在追问", async () => {
   const provider = mock([
     ok({
       finish: "tool_calls",
-      content: "observation\n缺尺码\nreason\n问用户\naction\n要哪个尺码",
+      content: "seen\n缺尺码\nreason\n问用户\naction\n要哪个尺码",
       toolCalls: [{ id: "call_02", name: "askUser", arguments: { reason: "缺尺码", affectsPage: false, choice: ["S", "M"] } }],
     }),
   ]);
@@ -270,7 +274,7 @@ test("下一句开新 Turn 并追加 userInputHistory", async () => {
     }),
     ok({
       finish: "tool_calls",
-      content: "observation\n第二句\nreason\n收口\naction\n第二回",
+      content: "seen\n第二句\nreason\n收口\naction\n第二回",
       toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "再回", affectsPage: false } }],
     }),
   ]);
@@ -315,12 +319,12 @@ test("开 Turn 不读页，模型 page.get_summary 后才填 currentPage", async
   const provider = mock([
     ok({
       finish: "tool_calls",
-      content: "observation\n要看当前页\nreason\n先摘要\naction\npage.get_summary",
+      content: "seen\n要看当前页\nreason\n先摘要\naction\npage.get_summary",
       toolCalls: [{ id: "call_01", name: "page.get_summary", arguments: { reason: "看当前页", affectsPage: false } }],
     }),
     ok({
       finish: "tool_calls",
-      content: "observation\n已看到页\nreason\n收口\naction\n在看罗技",
+      content: "seen\n已看到页\nreason\n收口\naction\n在看罗技",
       toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
     }),
   ]);
@@ -359,12 +363,12 @@ test("web_search 走服务端执行", async () => {
   const provider = mock([
     ok({
       finish: "tool_calls",
-      content: "observation\n要搜价\nreason\n搜官网\naction\nweb_search",
+      content: "seen\n要搜价\nreason\n搜官网\naction\nweb_search",
       toolCalls: [{ id: "call_01", name: "web_search", arguments: { reason: "搜价", affectsPage: false, query: "罗技 MX Master 3S" } }],
     }),
     ok({
       finish: "tool_calls",
-      content: "observation\n搜到了\nreason\n收口\naction\n官价 699",
+      content: "seen\n搜到了\nreason\n收口\naction\n官价 699",
       toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "有价了", affectsPage: false } }],
     }),
   ]);
@@ -466,12 +470,12 @@ test("catalog.add 把缺的工具挂进本轮", async () => {
   const provider = mock([
     ok({
       finish: "tool_calls",
-      content: "observation\n缺截图\nreason\n补工具\naction\ncatalog.add",
+      content: "seen\n缺截图\nreason\n补工具\naction\ncatalog.add",
       toolCalls: [{ id: "call_01", name: "catalog.add", arguments: { reason: "要截图", affectsPage: false, names: ["screenshot"] } }],
     }),
     ok({
       finish: "tool_calls",
-      content: "observation\n已补上\nreason\n收口\naction\n补上了",
+      content: "seen\n已补上\nreason\n收口\naction\n补上了",
       toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "补完", affectsPage: false } }],
     }),
   ]);
@@ -491,7 +495,7 @@ test("到门槛时先裁 toolIds 再压缩记忆", async () => {
   const provider = mock([
     ok({
       finish: "tool_calls",
-      content: "observation\n记下\nreason\n写记忆并收口\naction\n记下了",
+      content: "seen\n记下\nreason\n写记忆并收口\naction\n记下了",
       toolCalls: [
         {
           id: "call_01",
@@ -595,7 +599,7 @@ test("POST /stop 把 running 标成 paused", async () => {
   const provider = mock([
     ok({
       finish: "tool_calls",
-      content: "observation\n读页\nreason\n看\naction\nsee_page",
+      content: "seen\n读页\nreason\n看\naction\nsee_page",
       toolCalls: [{ id: "call_01", name: "see_page", arguments: { reason: "看当前页", affectsPage: false } }],
     }),
   ]);
@@ -627,12 +631,12 @@ test("arguments 不是 JSON 时好的工具照跑，坏的退回再出网", asyn
       faultCode: "arguments_not_json",
       detail: "page.type: Unexpected token",
       badName: "page.type",
-      content: "observation\n输入\nreason\n填邮箱\naction\npage.type",
+      content: "seen\n输入\nreason\n填邮箱\naction\npage.type",
       toolCalls: [{ id: "call_01", name: "page.get_summary", arguments: { reason: "看页", affectsPage: false } }],
     }),
     ok({
       finish: "tool_calls",
-      content: "observation\n已看到\nreason\n收口\naction\n注册页在",
+      content: "seen\n已看到\nreason\n收口\naction\n注册页在",
       toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
     }),
   ]);
@@ -662,12 +666,12 @@ test("缺字段写进 toolIO 再出网，不补齐", async () => {
       missing: ["reason", "affectsPage"],
       badName: "page.type",
       detail: "page.type missing required: reason, affectsPage",
-      content: "observation\n填邮箱\nreason\n输入\naction\npage.type",
+      content: "seen\n填邮箱\nreason\n输入\naction\npage.type",
       toolCalls: [{ id: "call_01", name: "page.type", arguments: { id: "e1", text: "a@b.com" } }],
     }),
     ok({
       finish: "tool_calls",
-      content: "observation\n已记下缺字段\nreason\n收口\naction\n缺 reason 和 affectsPage",
+      content: "seen\n已记下缺字段\nreason\n收口\naction\n缺 reason 和 affectsPage",
       toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
     }),
   ]);
@@ -691,12 +695,12 @@ test("stop 没有 tool_calls 就写 needFinishTurn 再出网", async () => {
   const provider = mock([
     ok({
       finish: "stop",
-      content: "observation\n说完了\nreason\n收口\naction\n测完了",
+      content: "seen\n说完了\nreason\n收口\naction\n测完了",
       toolCalls: [],
     }),
     ok({
       finish: "tool_calls",
-      content: "observation\n已看到提示\nreason\n收口\naction\n测完了",
+      content: "seen\n已看到提示\nreason\n收口\naction\n测完了",
       toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
     }),
   ]);
@@ -713,17 +717,17 @@ test("submitGoal 写入当前目标，再交一次旧目标进 history", async (
   const provider = mock([
     ok({
       finish: "tool_calls",
-      content: "observation\n空目标\nreason\n先交目标\naction\nsubmitGoal",
+      content: "seen\n空目标\nreason\n先交目标\naction\nsubmitGoal",
       toolCalls: [{ id: "call_01", name: "submitGoal", arguments: { reason: "立目标", affectsPage: false, goal: "测这个站点" } }],
     }),
     ok({
       finish: "tool_calls",
-      content: "observation\n目标改了\nreason\n收窄\naction\nsubmitGoal",
+      content: "seen\n目标改了\nreason\n收窄\naction\nsubmitGoal",
       toolCalls: [{ id: "call_02", name: "submitGoal", arguments: { reason: "改目标", affectsPage: false, goal: "测登录页" } }],
     }),
     ok({
       finish: "tool_calls",
-      content: "observation\n已记下\nreason\n收口\naction\n目标改成测登录页",
+      content: "seen\n已记下\nreason\n收口\naction\n目标改成测登录页",
       toolCalls: [{ id: "call_03", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
     }),
   ]);

@@ -78,7 +78,7 @@ user `#baseTools` 写 baseToolsIds 的用法。user `#tools` 写 toolIds 的用�
 #输出
 每次写 `content`，三段标题固定：
 
-observation
+seen
 <看见了什么>
 
 reason
@@ -87,13 +87,13 @@ reason
 action
 <调哪个工具，或对用户说什么>
 
+content 的 seen 是本 Turn 看见了什么。user `#observation` 是压缩过的 toolIO。
 有 `tool_calls` 时这三段也写。finishTurn 的 action 是对用户说的话。action 为空时 Runtime 不把本 Turn 标 completed，继续出网。
 
 #user槽
 user 按层装配。空槽只留标题。
 
 ##方法
-`#参考`：catalog/advice.md。槽之间怎么配合。
 `#skill`：catalog/skills/。网页工具能力：每个工具做什么。
 `#sop`：catalog/sops/。浏览步骤：探索型路径和确定型路径。
 
@@ -113,8 +113,8 @@ user 按层装配。空槽只留标题。
 `#goalHistory`：ledger.goalHistory。被替换掉的旧 goal 数组。Runtime 组装。
 
 ##页面
-`#currentPage`：Turn.assembled.currentTab。开 Turn 由面板 POST /turn 的 currentTab 写入，字段 tab / url / title。
-`#currentEnvironment`：Turn.assembled.currentPage。page.get_summary 或其它会改当前页的工具跑完后，Runtime 写入 description / tab / url / title。
+`#currentTab`：Turn.assembled.currentTab。开 Turn 由面板 POST /turn 的 currentTab 写入，字段 tab / url / title。
+`#currentPage`：Turn.assembled.currentPage。page.get_summary 或其它会改当前页的工具跑完后，Runtime 写入 description / tab / url / title。
 
 ##过程
 `#toolIO`：ledger.toolIO。本 Turn 已执行的工具调用，含 arguments 和 return。return.stage=truncated 时 tool.detail 的 callId 等于该项 callId。

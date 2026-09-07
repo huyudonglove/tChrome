@@ -30,7 +30,6 @@ export function userText(input: {
 }): string {
   const { catalog, ledger, turn, memories, baseToolUsage, toolUsage } = input;
   return interpolate(catalog.userTemplate, {
-    "#参考": catalog.advice,
     "#skill": catalog.skill,
     "#sop": catalog.sop,
     "#projectMemory": memoryBody(memories.project),
@@ -42,8 +41,8 @@ export function userText(input: {
     "#userInput": turn.input.text,
     "#goal": ledger.goal,
     "#goalHistory": jsonBody(ledger.goalHistory),
-    "#currentPage": turn.assembled.currentTab ? jsonBody(turn.assembled.currentTab) : "",
-    "#currentEnvironment": turn.assembled.currentPage ? jsonBody(turn.assembled.currentPage) : "",
+    "#currentTab": turn.assembled.currentTab ? jsonBody(turn.assembled.currentTab) : "",
+    "#currentPage": turn.assembled.currentPage ? jsonBody(turn.assembled.currentPage) : "",
     "#toolIO": jsonBody(ledger.toolIO),
     "#baseTools": baseToolUsage,
     "#tools": toolUsage,

@@ -1,7 +1,4 @@
 ##方法
-#参考
-{{#参考}}
-
 #skill
 {{#skill}}
 
@@ -39,11 +36,11 @@
 {{#goalHistory}}
 
 ##页面
+#currentTab
+{{#currentTab}}
+
 #currentPage
 {{#currentPage}}
-
-#currentEnvironment
-{{#currentEnvironment}}
 
 ##过程
 #toolIO

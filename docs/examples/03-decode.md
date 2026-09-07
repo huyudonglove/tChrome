@@ -143,7 +143,7 @@ coreToolIds 开 Turn 挂上：page.get_summary、page.list_regions、page.list_i
 
 每次都写 `content`，三段，标题固定：
 
-observation
+seen
 <看见了什么>
 
 reason
@@ -157,11 +157,11 @@ action
 ### `#user槽`
 
 user 按层装配。空槽只留标题。
-##方法：`#参考` `#skill` `#sop`
+##方法：`#skill` `#sop`
 ##记忆：`#projectMemory` `#conversationMemory` `#turnMemory` `#contextSummary` `#observation`
 ##输入：`#userInputHistory` `#userInput`
 ##目标：`#goal` `#goalHistory`
-##页面：`#currentPage` `#currentEnvironment`
+##页面：`#currentTab` `#currentPage`
 ##过程：`#toolIO`
 ##工具：`#baseTools` `#tools`
 
@@ -170,10 +170,6 @@ user 按层装配。空槽只留标题。
 顺序 = `window.user.md`。层标题 `##方法` `##记忆` `##输入` `##目标` `##页面` `##过程` `##工具`。层内是参考槽。
 
 ### `##方法`
-
-### `#参考`
-
-这些槽是材料。`#skill` 是网页工具能力。`#sop` 是浏览步骤。`#baseTools` 是常驻工具用法。`#tools` 是本 Turn 动态工具用法。
 
 ### `#skill`
 
@@ -228,11 +224,11 @@ user 按层装配。空槽只留标题。
 
 ### `##页面`
 
-### `#currentPage`
+### `#currentTab`
 
 （空）
 
-### `#currentEnvironment`
+### `#currentPage`
 
 ```json
 {
@@ -319,13 +315,13 @@ web_search：搜索公开网页。affectsPage=false。
     "#观察",
     "#环境",
     "#协议",
+    "#目标",
     "#参数说明",
     "#内置工具",
     "#输出",
     "#user槽"
   ],
   "userSlots": [
-    "#参考",
     "#skill",
     "#sop",
     "#projectMemory",
@@ -337,9 +333,10 @@ web_search：搜索公开网页。affectsPage=false。
     "#userInput",
     "#goal",
     "#goalHistory",
+    "#currentTab",
     "#currentPage",
-    "#currentEnvironment",
     "#toolIO",
+    "#baseTools",
     "#tools"
   ]
 }

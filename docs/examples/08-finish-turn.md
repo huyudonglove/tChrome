@@ -43,7 +43,7 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
 ```json
 {
   "finish": "tool_calls",
-  "content": "observation\n官网价 999 元，当前页是同一款 MX Master 3S。\n\nreason\n官网价已经查到，和当前页标价核对完，可以回复用户。\n\naction\n罗技官网 MX Master 3S 标价 999 元，和当前页一致。",
+  "content": "seen\n官网价 999 元，当前页是同一款 MX Master 3S。\n\nreason\n官网价已经查到，和当前页标价核对完，可以回复用户。\n\naction\n罗技官网 MX Master 3S 标价 999 元，和当前页一致。",
   "toolCalls": [
     {
       "id": "call_02",
@@ -133,13 +133,13 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "#观察",
     "#环境",
     "#协议",
+    "#目标",
     "#参数说明",
     "#内置工具",
     "#输出",
     "#user槽"
   ],
   "userSlots": [
-    "#参考",
     "#skill",
     "#sop",
     "#projectMemory",
@@ -151,9 +151,10 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "#userInput",
     "#goal",
     "#goalHistory",
+    "#currentTab",
     "#currentPage",
-    "#currentEnvironment",
     "#toolIO",
+    "#baseTools",
     "#tools"
   ],
   "provider": "uuapi",
@@ -161,7 +162,7 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
   "stream": true,
   "maxAttempts": 3,
   "finish": "tool_calls",
-  "content": "observation\n官网价 999 元，当前页是同一款 MX Master 3S。\n\nreason\n官网价已经查到，和当前页标价核对完，可以回复用户。\n\naction\n罗技官网 MX Master 3S 标价 999 元，和当前页一致。",
+  "content": "seen\n官网价 999 元，当前页是同一款 MX Master 3S。\n\nreason\n官网价已经查到，和当前页标价核对完，可以回复用户。\n\naction\n罗技官网 MX Master 3S 标价 999 元，和当前页一致。",
   "toolCalls": [
     {
       "id": "call_02",

@@ -60,13 +60,13 @@
     "#观察",
     "#环境",
     "#协议",
+    "#目标",
     "#参数说明",
     "#内置工具",
     "#输出",
     "#user槽"
   ],
   "userSlots": [
-    "#参考",
     "#skill",
     "#sop",
     "#projectMemory",
@@ -78,9 +78,10 @@
     "#userInput",
     "#goal",
     "#goalHistory",
+    "#currentTab",
     "#currentPage",
-    "#currentEnvironment",
     "#toolIO",
+    "#baseTools",
     "#tools"
   ],
   "provider": "uuapi",
@@ -105,7 +106,7 @@ data: [DONE]
 本轮四次分片（content 三段 → 工具名 → 参数字符串 → finish），然后 DONE：
 
 ```
-data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web_search，查询罗技 MX Master 3S 官网价。"},"finish_reason":null}]}
+data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"seen\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web_search，查询罗技 MX Master 3S 官网价。"},"finish_reason":null}]}
 
 data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_01","type":"function","function":{"name":"web_search","arguments":""}}]},"finish_reason":null}]}
 
@@ -202,7 +203,7 @@ data: [DONE]
   "provider": "uuapi",
   "model": "gemini-3.7-flash",
   "finish": "tool_calls",
-  "content": "observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web_search，查询罗技 MX Master 3S 官网价。",
+  "content": "seen\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web_search，查询罗技 MX Master 3S 官网价。",
   "toolCalls": [
     {
       "id": "call_01",
@@ -279,13 +280,13 @@ data: [DONE]
     "#观察",
     "#环境",
     "#协议",
+    "#目标",
     "#参数说明",
     "#内置工具",
     "#输出",
     "#user槽"
   ],
   "userSlots": [
-    "#参考",
     "#skill",
     "#sop",
     "#projectMemory",
@@ -297,9 +298,10 @@ data: [DONE]
     "#userInput",
     "#goal",
     "#goalHistory",
+    "#currentTab",
     "#currentPage",
-    "#currentEnvironment",
     "#toolIO",
+    "#baseTools",
     "#tools"
   ],
   "provider": "uuapi",
@@ -307,7 +309,7 @@ data: [DONE]
   "stream": true,
   "maxAttempts": 3,
   "finish": "tool_calls",
-  "content": "observation\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web_search，查询罗技 MX Master 3S 官网价。",
+  "content": "seen\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web_search，查询罗技 MX Master 3S 官网价。",
   "toolCalls": [
     {
       "id": "call_01",

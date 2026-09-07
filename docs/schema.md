@@ -15,9 +15,9 @@ service/            后端：Bun.serve 127.0.0.1:18788。按模块分
   tools/
   subagent/         第一期空着
   provider/
-catalog/            Pack / skill / SOP / 参考 / tools schema / 窗口模板
+catalog/            Pack / skill / SOP / tools schema / 窗口模板
   assemble.json     本轮点哪些 pack / skill / sop / 常驻工具 / 核心工具
-  advice.md         user `#参考`
+
   window.system.md  system 插槽：事实
   window.user.md    user 插槽：参考材料
 docs/               schema、账本、阶段样例
@@ -32,7 +32,7 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 | 方法 | 路径 | 体 | 回 |
 |---|---|---|---|
 | GET | `/health` | 无 | `{ok:true}` |
-| POST | `/turn` | `{userInput, submittedAt, currentTab?}` | `{conversationId, turnId, output}`。`currentTab` 是 `{tab, url, title}`，开 Turn 写入 `#currentPage`。没有就槽空着 |
+| POST | `/turn` | `{userInput, submittedAt, currentTab?}` | `{conversationId, turnId, output}`。`currentTab` 是 `{tab, url, title}`，开 Turn 写入 `#currentTab`。没有就槽空着 |
 | POST | `/stop` | 无 | 停当前 Turn。账本 `paused`，投影回 `{conversationId, status, pendingAsk, liveTool, messages}`。下一句可再开 Turn |
 | GET | `/session` | 无 | 当前 `session.json` 指向的会话投影：`{conversationId, status, pendingAsk, liveTool, messages}`。`messages` 含 user / 已跑工具 / 正在跑（`live:true`）/ 排队工具 / assistant |
 | GET | `/conversations` | 无 | `{items:[{conversationId, updatedAt, status, preview}]}`。当前 `session.json` 指向的排第一，其余按 `updatedAt` 新到旧。空会话 preview 是「新会话」 |
@@ -162,8 +162,8 @@ Runtime 独占维护。当前会话指针。
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
 | `mcpIds` | string[] | 本轮 MCP；没有就 `[]` |
-| `currentTab` | object \| null | 开 Turn 由 Runtime 写入。面板 `POST /turn` 带当前标签 `{tab, url, title}`。没有就 `null`。进 user `#currentPage` |
-| `currentPage` | object \| null | 开 Turn 为 `null`。模型调 `page.get_summary`（或其它会改当前页的工具）跑完后，Runtime 用返回填 `description` `tab` `url` `title`。进 user `#currentEnvironment` |
+| `currentTab` | object \| null | 开 Turn 由 Runtime 写入。面板 `POST /turn` 带当前标签 `{tab, url, title}`。没有就 `null`。进 user `#currentTab` |
+| `currentPage` | object \| null | 开 Turn 为 `null`。模型调 `page.get_summary`（或其它会改当前页的工具）跑完后，Runtime 用返回填 `description` `tab` `url` `title`。进 user `#currentPage` |
 
 `currentPage`：
 
@@ -217,11 +217,10 @@ Runtime 独占维护。当前会话指针。
 用户一条输入开一个 Turn，CE 装配一次。本 Turn 内工具循环不再走 CE。
 
 system 顺序 = `catalog/window.system.md`：身份、记忆、观察、环境、协议、目标、参数、内置工具、输出、user槽说明。都是事实。`#user槽` 按 user 层介绍：方法 / 记忆 / 输入 / 目标 / 页面 / 过程 / 工具。每层写槽是什么、谁写、干什么。
-user 顺序 = `catalog/window.user.md`，层标题 `##方法` `##记忆` `##输入` `##目标` `##页面` `##过程` `##工具`。层内是参考槽。skill 写网页工具能力。sop 写浏览步骤。
+user 顺序 = `catalog/window.user.md`，层标题 `##方法` `##记忆` `##输入` `##目标` `##页面` `##过程` `##工具`。方法层是 `#skill` `#sop`。页面层是 `#currentTab` `#currentPage`。content 三段是 seen / reason / action。
 
 | 槽 | 正文来自 |
 |---|---|
-| `#参考` | `catalog/advice.md` |
 | `#skill` | `catalog/skills/` |
 | `#sop` | `catalog/sops/` |
 | `#projectMemory` | ledger.`memoryIds.project` 对应文件。窗口只带最近 8 条，到 200K 仍用全文 |
@@ -233,8 +232,8 @@ user 顺序 = `catalog/window.user.md`，层标题 `##方法` `##记忆` `##输�
 | `#userInput` | Turn.`input.text` |
 | `#goal` | ledger.`goal` |
 | `#goalHistory` | ledger.`goalHistory`。Runtime 组装 |
-| `#currentPage` | Turn.`assembled.currentTab`。开 Turn 写入，只有 tab / url / title |
-| `#currentEnvironment` | Turn.`assembled.currentPage` |
+| `#currentTab` | Turn.`assembled.currentTab`。开 Turn 写入，只有 tab / url / title |
+| `#currentPage` | Turn.`assembled.currentPage`。page 工具跑完后填 |
 | `#toolIO` | ledger.`toolIO` |
 | `#baseTools` | `baseToolsIds` 的 usage。Runtime 按 assemble.baseToolsIds 组装 |
 | `#tools` | `toolIds` 的 usage。本轮动态工具 |
