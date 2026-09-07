@@ -32,11 +32,11 @@ callId：tool.detail 时，要展开全文的那次调用 id，对应 `#toolIO` 
 observationId：observation.detail 时，要展开的那条压缩事实 id，对应 `#observation` 该项的 id。
 turnMemory / conversationMemory / projectMemory：memory.write 时写入对应层。
 contextSummary：memory.write 时，带给下一轮的汇总，排除三层记忆。
-query：web_search 的检索词，也可写 text。
+query：web_search 的检索词。
 url：open_url 要打开的地址。
-id：page.* 工具返回的区域 id（r 开头）或元素 id（e 开头）。page.click / page.type / inspect_* / get_dom / get_accessibility_tree / get_element_state 用这个。
+id：page.* 工具返回的区域 id（r 开头）或元素 id（e 开头）。page.click / page.type / page.inspect_region / page.inspect_element / page.get_dom / page.get_accessibility_tree / page.get_element_state 用这个。
 regionId：page.list_interactive_elements 按区域收窄。
-text：page.type 要输入的文字；点选、查找时的可见文字。
+text：page.type 要输入的文字；click / find_on_page 时的可见文字。
 tab：可选，指定标签 id。
 names：catalog.add 时，要把哪些动态工具挂进本轮。
 
@@ -50,6 +50,8 @@ names：catalog.add 时，要把哪些动态工具挂进本轮。
       "query": "",
       "url": "",
       "text": "",
+      "id": "",
+      "regionId": "",
       "tab": 0,
       "names": [],
       "turnMemory": [],
@@ -60,8 +62,8 @@ names：catalog.add 时，要把哪些动态工具挂进本轮。
 
 #内置工具
 常驻：askUser、finishTurn、submitGoal、tool.detail、observation.detail、memory.write。每轮都在出网 tools[] 里。
-动态工具本轮才挂上。开 Turn 先挂常用的一撮（page.get_summary、page.list_regions、page.list_interactive_elements、page.click、page.type、open_url、web_search、list_browser_tools、catalog.add 等）。缺了 list_browser_tools 看全表，再 catalog.add 把 names 补进本轮。用法写在 user `#tools`。
-page.click / page.type 用 page.* 返回的 id。也可用旧的 click / type（文字或 ref）。
+动态工具本轮才挂上。开 Turn 先挂常用的一撮（page.get_summary、page.list_regions、page.list_interactive_elements、page.click、page.type、open_url、web_search、list_browser_tools、catalog.add）。缺了 list_browser_tools 看全表，再 catalog.add 把 names 补进本轮。用法写在 user `#tools`。
+page.click / page.type 用 page.* 返回的 id。click / type 是按可见文字定位的另一套工具，不在开 Turn 那撮里。
 每个工具的 arguments 都带 reason 和 affectsPage。
 
 #输出

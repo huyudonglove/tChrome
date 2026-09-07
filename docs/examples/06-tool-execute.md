@@ -179,12 +179,13 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   "baseToolsIds": [
     "askUser",
     "finishTurn",
+    "submitGoal",
     "tool.detail",
     "observation.detail",
     "memory.write"
   ],
   "toolIds": [
-    "see_page",
+    "page.get_summary",
     "open_url",
     "web_search"
   ],

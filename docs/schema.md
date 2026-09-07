@@ -140,13 +140,13 @@ Runtime 独占维护。当前会话指针。
 | `skillIds` | string[] | 本轮 skill，对应 `catalog/skills/<id>.md`，进 user `#skill` |
 | `sopIds` | string[] | 本轮 SOP，对应 `catalog/sops/<id>.md`，进 user `#sop` |
 | `baseToolsIds` | string[] | 常驻工具，对应 `catalog/tools/<id>.json`。固定 `askUser` `finishTurn` `submitGoal` `tool.detail` `observation.detail` `memory.write` |
-| `toolIds` | string[] | 动态工具，对应 `catalog/tools/<id>.json`。开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.click` `open_url` `web_search` `list_browser_tools` `catalog.add` 等）。缺了 `catalog.add` 再补。压缩时先裁回 core + 本轮已用过的 |
+| `toolIds` | string[] | 动态工具，对应 `catalog/tools/<id>.json`。开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.list_interactive_elements` `page.click` `page.type` `open_url` `web_search` `list_browser_tools` `catalog.add`）。缺了 `catalog.add` 再补。压缩时先裁回 core + 本轮已用过的 |
 | `turnMemoryIds` | string[] | 这一轮记忆；没有就 `[]` |
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
 | `mcpIds` | string[] | 本轮 MCP；没有就 `[]` |
 | `currentTab` | object \| null | 开 Turn 由 Runtime 写入。面板 `POST /turn` 带当前标签 `{tab, url, title}`。没有就 `null`。进 user `#currentPage` |
-| `currentPage` | object \| null | 开 Turn 为 `null`。模型调 `page.get_summary` / `see_page`（或其它会改当前页的工具）跑完后，Runtime 用返回填 `description` `tab` `url` `title`。进 user `#currentEnvironment` |
+| `currentPage` | object \| null | 开 Turn 为 `null`。模型调 `page.get_summary`（或其它会改当前页的工具）跑完后，Runtime 用返回填 `description` `tab` `url` `title`。进 user `#currentEnvironment` |
 
 `currentPage`：
 
@@ -285,14 +285,14 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | 工具 | required 其余 | 谁填其余 |
 |---|---|---|
 | `askUser` | `choice` | 给用户的选项 |
-| `submitGoal` | `goal` | 当前目标。空着先交；改写时 Runtime 把旧值追加进 `goalHistory` |
+| `submitGoal` | `goal` | 当前目标。改写时 Runtime 把旧值追加进 `goalHistory` |
 | `finishTurn` | （无） | 回复正文在 content 的 action。没有 action 就空着 |
 | `tool.detail` | `callId` | `#toolIO` 该项的 `callId` |
 | `observation.detail` | `observationId` | `#observation` 该项的 `id` |
 | `memory.write` | （无） | `turnMemory` `conversationMemory` `projectMemory` `contextSummary` 有则写 |
 | `catalog.add` | `names` | 把缺的动态工具挂进本轮 |
 
-常驻：`askUser` `finishTurn` `tool.detail` `observation.detail` `memory.write`。动态开 Turn 先挂 core（`see_page` `open_url` `click` `web_search` `list_browser_tools` `catalog.add` 等）。全表 89+15 在 `catalog/tools/index.json`，缺了 `catalog.add`。浏览器工具经 `/tool-request` 泵到 background。
+常驻：`askUser` `finishTurn` `submitGoal` `tool.detail` `observation.detail` `memory.write`。动态开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.list_interactive_elements` `page.click` `page.type` `open_url` `web_search` `list_browser_tools` `catalog.add`）。全表见 `catalog/tools/index.json`，缺了 `catalog.add`。浏览器工具经 `/tool-request` 泵到 background。
 
 没迁、原因：
 

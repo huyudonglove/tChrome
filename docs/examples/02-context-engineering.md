@@ -31,8 +31,8 @@
 | `systemIds` | 本轮 Pack，进 system | `pack.agent` → `catalog/packs/pack.agent.md` |
 | `skillIds` | 进 user `#skill` | `skill.web` → `catalog/skills/skill.web.md` |
 | `sopIds` | 进 user `#sop` | `sop.browse` → `catalog/sops/sop.browse.md` |
-| `baseToolsIds` | 常驻工具，每轮都出网 | `askUser` `finishTurn` `tool.detail` `observation.detail` `memory.write` |
-| `toolIds` | 动态工具，本轮才挂 | 开 Turn 先挂 core。本样例：`see_page` `open_url` `web_search`。全表见 `catalog/tools/index.json`，缺了 `catalog.add` |
+| `baseToolsIds` | 常驻工具，每轮都出网 | `askUser` `finishTurn` `submitGoal` `tool.detail` `observation.detail` `memory.write` |
+| `toolIds` | 动态工具，本轮才挂 | 开 Turn 先挂 core。本样例：`page.get_summary` `open_url` `web_search`。全表见 `catalog/tools/index.json`，缺了 `catalog.add` |
 | `turnMemoryIds` | 这一轮记忆 | 新会话空 |
 | `conversationMemoryIds` | 这一次会话记忆 | 新会话空 |
 | `projectMemoryIds` | 项目记忆 | 新会话空 |
@@ -69,12 +69,13 @@
   "baseToolsIds": [
     "askUser",
     "finishTurn",
+    "submitGoal",
     "tool.detail",
     "observation.detail",
     "memory.write"
   ],
   "toolIds": [
-    "see_page",
+    "page.get_summary",
     "open_url",
     "web_search"
   ],

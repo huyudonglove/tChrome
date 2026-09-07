@@ -34,12 +34,13 @@
   "baseToolsIds": [
     "askUser",
     "finishTurn",
+    "submitGoal",
     "tool.detail",
     "observation.detail",
     "memory.write"
   ],
   "toolIds": [
-    "see_page",
+    "page.get_summary",
     "open_url",
     "web_search"
   ],
@@ -252,12 +253,13 @@ data: [DONE]
   "baseToolsIds": [
     "askUser",
     "finishTurn",
+    "submitGoal",
     "tool.detail",
     "observation.detail",
     "memory.write"
   ],
   "toolIds": [
-    "see_page",
+    "page.get_summary",
     "open_url",
     "web_search"
   ],

@@ -107,12 +107,13 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
   "baseToolsIds": [
     "askUser",
     "finishTurn",
+    "submitGoal",
     "tool.detail",
     "observation.detail",
     "memory.write"
   ],
   "toolIds": [
-    "see_page",
+    "page.get_summary",
     "open_url",
     "web_search"
   ],

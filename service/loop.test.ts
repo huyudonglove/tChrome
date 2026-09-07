@@ -87,7 +87,7 @@ test("窗口按 catalog 模板插值", async () => {
   expect(user).toContain("#参考");
   expect(user).toContain("#skill");
   expect(user).toContain("#sop");
-  expect(user).toContain("page.get_summary → list_regions");
+  expect(user).toContain("page.get_summary → page.list_regions");
   expect(user).toContain("探索型可以由大到小");
   expect(user).toContain("帮我查这款鼠标官网价");
   expect(user).not.toContain("{{");

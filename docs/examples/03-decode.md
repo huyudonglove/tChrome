@@ -32,12 +32,13 @@
   "baseToolsIds": [
     "askUser",
     "finishTurn",
+    "submitGoal",
     "tool.detail",
     "observation.detail",
     "memory.write"
   ],
   "toolIds": [
-    "see_page",
+    "page.get_summary",
     "open_url",
     "web_search"
   ],
@@ -224,7 +225,7 @@ user 各槽是参考。`#userInput` 是本轮用户原话。其余（记忆、�
 
 ### `#tools`
 
-see_page：读当前页标题、地址和可见正文。affectsPage=false。
+page.get_summary：读当前页摘要：标题、地址、区域数、可交互数、标题列表。affectsPage=false。
 open_url：打开指定网址并读回标题正文。affectsPage=true。
 web_search：搜索公开网页。affectsPage=false。
 其余动态工具见 `catalog/tools/index.json`。
@@ -255,12 +256,13 @@ web_search：搜索公开网页。affectsPage=false。
   "baseToolsIds": [
     "askUser",
     "finishTurn",
+    "submitGoal",
     "tool.detail",
     "observation.detail",
     "memory.write"
   ],
   "toolIds": [
-    "see_page",
+    "page.get_summary",
     "open_url",
     "web_search"
   ],
