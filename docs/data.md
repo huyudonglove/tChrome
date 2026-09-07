@@ -8,7 +8,7 @@
 session.json
 conversations/<cvId>/ledger.json
 conversations/<cvId>/events.jsonl
-conversations/<cvId>/provider.json
+conversations/<cvId>/provider.md
 conversations/<cvId>/turns/<turnId>.json
 conversations/<cvId>/memory/<memoryId>.json
 conversations/<cvId>/observations/<observationId>.json

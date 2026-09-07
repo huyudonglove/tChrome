@@ -368,10 +368,11 @@ export async function handleTurn(
     const toolIds = [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds];
     appendProviderExchange(deps.dataDir, ledger.conversationId, {
       turnId,
-      request: { messages, toolIds },
+      messages,
+      content: result.content,
+      request: { toolIds },
       response: {
         finish: result.finish,
-        content: result.content,
         toolCalls: result.toolCalls,
         attempts: result.attempts,
         parseOk: result.parseOk,

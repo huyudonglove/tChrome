@@ -174,13 +174,17 @@ test("finishTurn 收口回复", async () => {
   expect(providerLog).toHaveLength(1);
   expect(providerLog[0]!.turnId).toBe(reply.turnId);
   expect(providerLog[0]!.outbound).toBe(1);
-  expect(providerLog[0]!.request.messages).toHaveLength(2);
-  expect(providerLog[0]!.request.messages[0]!.role).toBe("system");
-  expect(providerLog[0]!.request.messages[1]!.content).toContain("你好");
   expect(providerLog[0]!.request.toolIds).toContain("finishTurn");
   expect(providerLog[0]!.response.finish).toBe("tool_calls");
-  expect(providerLog[0]!.response.content).toContain("action");
   expect(providerLog[0]!.response.toolCalls[0]!.name).toBe("finishTurn");
+  const transcript = readFileSync(join(dir, "conversations", "cv_01", "provider.md"), "utf8");
+  expect(transcript).toContain(`## ${reply.turnId} / 1`);
+  expect(transcript).toContain("### system");
+  expect(transcript).toContain("### user");
+  expect(transcript).toContain("你好");
+  expect(transcript).toContain("### content");
+  expect(transcript).toContain("action");
+  expect(transcript).toContain("finishTurn");
   rmSync(dir, { recursive: true, force: true });
 });
 

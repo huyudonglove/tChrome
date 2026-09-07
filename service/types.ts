@@ -146,12 +146,10 @@ export type ProviderExchange = {
   turnId: string;
   outbound: number;
   request: {
-    messages: ChatMessage[];
     toolIds: string[];
   };
   response: {
     finish: CompletionResult["finish"];
-    content: string;
     toolCalls: ToolCall[];
     attempts: number;
     parseOk: boolean;

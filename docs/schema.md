@@ -52,7 +52,7 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 session.json
 conversations/<cvId>/ledger.json
 conversations/<cvId>/events.jsonl
-conversations/<cvId>/provider.json
+conversations/<cvId>/provider.md
 conversations/<cvId>/turns/<turnId>.json
 conversations/<cvId>/memory/<memoryId>.json
 conversations/<cvId>/observations/<observationId>.json
@@ -84,46 +84,19 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。
 `kind=turn-output` 的 `data`：`output`。
 `kind=session` 的 `data`：`conversationId`，可选 `action`=`new`/`open`。
 
-## provider.json
+## provider.md
 
-每个会话一份。每次出网追加一条，不覆盖前面的。看发给模型的窗口和模型交回的 content / toolCalls。
+每个会话一份。每次出网追加一节。发送和返回都留。正文用真换行，不塞进 JSON 字符串。
 
-```json
-[
-  {
-    "at": "2026-09-07T00:00:00.000Z",
-    "turnId": "tn_01",
-    "outbound": 1,
-    "request": {
-      "messages": [
-        { "role": "system", "content": "..." },
-        { "role": "user", "content": "..." }
-      ],
-      "toolIds": ["askUser", "finishTurn"]
-    },
-    "response": {
-      "finish": "tool_calls",
-      "content": "observation\n...\nreason\n...\naction\n...",
-      "toolCalls": [{ "id": "call_01", "name": "finishTurn", "arguments": { "reason": "答完", "affectsPage": false } }],
-      "attempts": 1,
-      "parseOk": true,
-      "schemaOk": true,
-      "faultCode": null,
-      "missing": [],
-      "detail": ""
-    }
-  }
-]
-```
+标题 `## tn_01 / 1`。json 围栏只放元数据。system / user / content / tool_calls 四个小节用普通围栏，正文真换行。
 
-| 字段 | 类型 | 怎么填 |
-|---|---|---|
-| `at` | string | ISO-8601 |
-| `turnId` | string | 这次出网所属 Turn |
-| `outbound` | number | 本 Turn 第几次出网，从 1 起 |
-| `request.messages` | array | 发给模型的 system / user 全文 |
-| `request.toolIds` | string[] | 这次 `tools[]` 的名字，schema 仍在 catalog |
-| `response` | object | 模型交口：`finish` `content` `toolCalls` `attempts` `parseOk` `schemaOk` `faultCode` `missing` `detail` |
+| 字段 | 怎么填 |
+|---|---|
+| 标题 `## tn_ / outbound` | 本 Turn 第几次出网 |
+| json 围栏 | 元数据：`at` `toolIds` `finish` `toolCalls` `faultCode` |
+| `### system` / `### user` | 发给模型的窗口，真换行 |
+| `### content` | 模型 content，真换行 |
+| `### tool_calls` | 模型交的工具，一行一个 |
 
 `events.jsonl` 的 `provider-request` / `provider-response` 仍只记元数据。完整窗口看这份。
 

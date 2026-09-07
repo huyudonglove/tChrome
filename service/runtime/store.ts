@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, appendFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import type { Ledger, LogEvent, MemoryRecord, ObservationRecord, ProviderExchange, Session, Turn } from "../types.ts";
+import type { Ledger, LogEvent, MemoryRecord, ObservationRecord, ChatMessage, ProviderExchange, Session, Turn } from "../types.ts";
 import { nextId, nowIso } from "./ids.ts";
 
 export function defaultDataDir(): string {
@@ -27,7 +27,7 @@ export const paths = (dataDir: string, cvId?: string) => {
     conv,
     ledger: join(conv, "ledger.json"),
     events: join(conv, "events.jsonl"),
-    provider: join(conv, "provider.json"),
+    provider: join(conv, "provider.md"),
     turns: join(conv, "turns"),
     memory: join(conv, "memory"),
     observations: join(conv, "observations"),
@@ -141,10 +141,43 @@ export function loadEvents(dataDir: string, cvId: string): LogEvent[] {
 }
 
 export function loadProviderLog(dataDir: string, cvId: string): ProviderExchange[] {
-  return readJson(paths(dataDir, cvId).provider, []);
+  const path = paths(dataDir, cvId).provider;
+  if (!existsSync(path)) return [];
+  const text = readFileSync(path, "utf8");
+  const rows: ProviderExchange[] = [];
+  for (const block of text.split(/\n(?=## )/)) {
+    const heading = block.match(/^## (tn_\S+) \/ (\d+)/);
+    if (!heading) continue;
+    const json = block.match(/```json\n([\s\S]*?)\n```/);
+    if (!json?.[1]) continue;
+    rows.push(JSON.parse(json[1]) as ProviderExchange);
+  }
+  return rows;
 }
 
-export function appendProviderExchange(dataDir: string, cvId: string, exchange: Omit<ProviderExchange, "at" | "outbound"> & { at?: string }): ProviderExchange {
+const fence = (label: string, body: string) => `### ${label}\n\n\`\`\`\n${body}\n\`\`\`\n`;
+
+const renderProviderExchange = (row: ProviderExchange, messages: ChatMessage[], content: string) => {
+  const calls = row.response.toolCalls.map((call) => `${call.name} ${JSON.stringify(call.arguments)}`).join("\n") || "(none)";
+  return [
+    `## ${row.turnId} / ${row.outbound}`,
+    "",
+    "```json",
+    JSON.stringify(row, null, 2),
+    "```",
+    "",
+    fence("system", messages.find((item) => item.role === "system")?.content ?? ""),
+    fence("user", messages.find((item) => item.role === "user")?.content ?? ""),
+    fence("content", content),
+    fence("tool_calls", calls),
+  ].join("\n");
+};
+
+export function appendProviderExchange(
+  dataDir: string,
+  cvId: string,
+  exchange: Omit<ProviderExchange, "at" | "outbound"> & { at?: string; messages: ChatMessage[]; content: string },
+): ProviderExchange {
   const log = loadProviderLog(dataDir, cvId);
   const row: ProviderExchange = {
     at: exchange.at ?? nowIso(),
@@ -153,8 +186,11 @@ export function appendProviderExchange(dataDir: string, cvId: string, exchange: 
     request: exchange.request,
     response: exchange.response,
   };
-  log.push(row);
-  writeJson(paths(dataDir, cvId).provider, log);
+  const path = paths(dataDir, cvId).provider;
+  mkdirSync(dirname(path), { recursive: true });
+  const chunk = `${renderProviderExchange(row, exchange.messages, exchange.content)}\n`;
+  if (existsSync(path)) appendFileSync(path, `\n${chunk}`);
+  else writeFileSync(path, chunk);
   return row;
 }
 
