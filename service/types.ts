@@ -162,6 +162,7 @@ export type BrowserResult = {
 
 export type BrowserHost = {
   execute(name: string, input: Record<string, unknown>): Promise<BrowserResult>;
+  abort?(): void;
 };
 
 export type LogEvent = {

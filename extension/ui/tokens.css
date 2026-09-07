@@ -225,6 +225,8 @@ svg { width: 17px; height: 17px; stroke-width: 1.8; fill: none; stroke: currentC
   border-radius: 50%;
 }
 .composer > button:hover { color: var(--acid); background: var(--ink); }
+.composer > button.stop { color: #fff; background: var(--danger); }
+.composer > button.stop:hover { color: #fff; background: #b54432; }
 
 .drawer-backdrop {
   position: absolute;

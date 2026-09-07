@@ -452,3 +452,36 @@ test("队列和正在跑的工具出现在 /session", () => {
   ]);
   rmSync(dir, { recursive: true, force: true });
 });
+
+test("POST /stop 把 running 标成 paused", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-stop-"));
+  let release!: (result: { ok: boolean }) => void;
+  const host = {
+    execute: () => new Promise<{ ok: boolean }>((resolve) => {
+      release = resolve;
+    }),
+  };
+  const provider = mock([
+    ok({
+      finish: "tool_calls",
+      content: "observation\n读页\nreason\n看\naction\nsee_page",
+      toolCalls: [{ id: "call_01", name: "see_page", arguments: { reason: "看当前页", affectsPage: false } }],
+    }),
+  ]);
+  const server = createServer({ dataDir: dir, repoRoot, provider, host });
+  const pending = server.fetch(new Request("http://127.0.0.1:18788/turn", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userInput: "看这页", submittedAt: "2026-09-06T00:00:00.000Z" }),
+  }));
+  await Bun.sleep(20);
+  const stopped = await (await server.fetch(new Request("http://127.0.0.1:18788/stop", { method: "POST" }))).json() as { status: string };
+  expect(stopped.status).toBe("paused");
+  release({ ok: true });
+  const reply = await pending.then((response) => response.json()) as { output: { kind: string; faultCode?: string } };
+  expect(reply.output).toEqual({ kind: "error", faultCode: "stopped" });
+  const session = await (await server.fetch(new Request("http://127.0.0.1:18788/session"))).json() as { status: string; messages: { text: string }[] };
+  expect(session.status).toBe("paused");
+  expect(session.messages.at(-1)?.text).toBe("已停止");
+  rmSync(dir, { recursive: true, force: true });
+});

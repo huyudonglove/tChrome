@@ -39,7 +39,7 @@ const outputText = (output?: Output) => {
   if (!output) return "服务无响应";
   if (output.kind === "reply") return output.text;
   if (output.kind === "ask") return output.question;
-  if (output.kind === "error") return `失败：${output.faultCode}`;
+  if (output.kind === "error") return output.faultCode === "stopped" ? "已停止" : `失败：${output.faultCode}`;
   return `${output.name} ${output.callId}`;
 };
 
@@ -238,6 +238,17 @@ export function App() {
     }
   };
 
+  const stopRun = async () => {
+    try {
+      const response = await fetch(`${SERVICE}/stop`, { method: "POST" });
+      setSession(await response.json() as SessionView);
+      sendingRef.current = false;
+      setSending(false);
+    } catch {
+      setStatus(DOWN);
+    }
+  };
+
   const openConversation = async (conversationId: string) => {
     const response = await fetch(`${SERVICE}/conversations/open`, {
       method: "POST",
@@ -388,8 +399,13 @@ export function App() {
             }}
             placeholder="说一句"
           />
-          <button type="submit" disabled={sending} title="发送">
-            <Icon path="M5 12h14M13 6l6 6-6 6" />
+          <button
+            type={sending ? "button" : "submit"}
+            className={sending ? "stop" : ""}
+            title={sending ? "停止" : "发送"}
+            onClick={sending ? () => void stopRun() : undefined}
+          >
+            {sending ? <Icon path="M7 7h10v10H7z" /> : <Icon path="M5 12h14M13 6l6 6-6 6" />}
           </button>
         </form>
       </div>

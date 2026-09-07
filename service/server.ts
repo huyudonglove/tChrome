@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { handleTurn, type LoopDeps } from "./runtime/loop.ts";
 import { createProvider } from "./provider/uuapi.ts";
-import { defaultDataDir, currentSessionView, listConversations, openConversation, newConversation, deleteConversation } from "./runtime/store.ts";
+import { defaultDataDir, currentSessionView, listConversations, openConversation, newConversation, deleteConversation, stopTurn } from "./runtime/store.ts";
 import { createToolBridge, type ToolBridge } from "./runtime/bridge.ts";
 import type { BrowserResult } from "./types.ts";
 
@@ -109,6 +109,10 @@ export function createServer(options: ServeOptions = {}) {
         const submittedAt = body.submittedAt || new Date().toISOString();
         const reply = await handleTurn(deps, { userInput, submittedAt });
         return json(reply);
+      }
+      if (request.method === "POST" && url.pathname === "/stop") {
+        host.abort?.();
+        return json(stopTurn(dataDir));
       }
       return json({ error: "not found" }, 404);
     },

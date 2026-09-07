@@ -138,7 +138,7 @@ const outputText = (output: Turn["output"]): string => {
   if (!output) return "";
   if (output.kind === "reply") return output.text;
   if (output.kind === "ask") return output.question;
-  if (output.kind === "error") return `失败：${output.faultCode}`;
+  if (output.kind === "error") return output.faultCode === "stopped" ? "已停止" : `失败：${output.faultCode}`;
   return `${output.name} ${output.callId}`;
 };
 
@@ -272,4 +272,28 @@ export function ensureSession(dataDir: string): Session {
   saveLedger(dataDir, emptyLedger(conversationId));
   appendEvent(dataDir, conversationId, { kind: "session", data: { conversationId } });
   return session;
+}
+
+export function stopTurn(dataDir: string): SessionView {
+  const session = loadSession(dataDir);
+  if (!session?.conversationId) return currentSessionView(dataDir);
+  const ledger = loadLedger(dataDir, session.conversationId);
+  if (ledger.status !== "running") return sessionView(dataDir, session.conversationId);
+  const turnId = ledger.active?.turnId;
+  if (turnId) {
+    const turn = loadTurn(dataDir, session.conversationId, turnId);
+    turn.status = "failed";
+    turn.completedAt = nowIso();
+    turn.output = { kind: "error", faultCode: "stopped" };
+    saveTurn(dataDir, turn);
+    appendEvent(dataDir, session.conversationId, { kind: "turn-output", turnId, data: { output: turn.output } });
+  }
+  ledger.status = "paused";
+  ledger.active = null;
+  ledger.pendingAsk = null;
+  ledger.toolQueue = [];
+  ledger.liveTool = null;
+  saveLedger(dataDir, ledger);
+  appendEvent(dataDir, session.conversationId, { kind: "session", data: { conversationId: session.conversationId, action: "stop" } });
+  return sessionView(dataDir, session.conversationId);
 }

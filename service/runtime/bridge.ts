@@ -9,6 +9,7 @@ export type ToolRequest = {
 export type ToolBridge = BrowserHost & {
   current(): ToolRequest | null;
   resolve(id: string, result: BrowserResult): boolean;
+  abort(): void;
 };
 
 export function createToolBridge(timeoutMs = 30000): ToolBridge {
@@ -16,17 +17,20 @@ export function createToolBridge(timeoutMs = 30000): ToolBridge {
   let current: ToolRequest | null = null;
   let seq = 0;
 
+  const fail = (id: string, error: string) => {
+    const done = pending.get(id);
+    if (!done) return;
+    pending.delete(id);
+    if (current?.id === id) current = null;
+    done({ ok: false, error });
+  };
+
   return {
     execute: (name, input) =>
       new Promise((resolve) => {
         const id = `br_${Date.now()}_${++seq}`;
         pending.set(id, resolve);
-        setTimeout(() => {
-          if (!pending.has(id)) return;
-          pending.delete(id);
-          if (current?.id === id) current = null;
-          resolve({ ok: false, error: "浏览器工具超时" });
-        }, timeoutMs);
+        setTimeout(() => fail(id, "浏览器工具超时"), timeoutMs);
         current = { id, name, input };
       }),
     current: () => current,
@@ -37,6 +41,9 @@ export function createToolBridge(timeoutMs = 30000): ToolBridge {
       if (current?.id === id) current = null;
       done(result);
       return true;
+    },
+    abort: () => {
+      for (const id of [...pending.keys()]) fail(id, "已停止");
     },
   };
 }

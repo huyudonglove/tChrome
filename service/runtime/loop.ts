@@ -31,6 +31,27 @@ import {
   appendEvent,
 } from "./store.ts";
 
+const stoppedReply = (dataDir: string, ledger: Ledger, turn: Turn): TurnReply => {
+  turn.status = "failed";
+  turn.completedAt = nowIso();
+  turn.output = { kind: "error", faultCode: "stopped" };
+  ledger.status = "paused";
+  ledger.active = null;
+  ledger.liveTool = null;
+  ledger.toolQueue = [];
+  saveTurn(dataDir, turn);
+  saveLedger(dataDir, ledger);
+  appendEvent(dataDir, ledger.conversationId, {
+    kind: "turn-output",
+    turnId: turn.turnId,
+    data: { output: turn.output },
+  });
+  return { conversationId: ledger.conversationId, turnId: turn.turnId, output: turn.output };
+};
+
+const wasStopped = (dataDir: string, conversationId: string) =>
+  loadLedger(dataDir, conversationId).status === "paused";
+
 const MAX_OUTBOUNDS = 20;
 const MAX_SUBMIT = 3;
 
@@ -159,6 +180,15 @@ const runQueue = async (input: {
   while (ledger.toolQueue.length) {
     const item = ledger.toolQueue.shift();
     if (!item) break;
+    if (wasStopped(dataDir, ledger.conversationId)) {
+      ledger.status = "paused";
+      ledger.toolQueue = [];
+      ledger.liveTool = null;
+      turn.status = "failed";
+      turn.completedAt = nowIso();
+      turn.output = { kind: "error", faultCode: "stopped" };
+      return turn.output;
+    }
     ledger.liveTool = { name: item.name, callId: item.callId };
     saveLedger(dataDir, ledger);
     const full = await executeTool({
@@ -194,6 +224,15 @@ const runQueue = async (input: {
       if (page) turn.assembled.currentPage = page;
     } catch {
       // resident tools return plain text
+    }
+    if (wasStopped(dataDir, ledger.conversationId)) {
+      ledger.status = "paused";
+      ledger.toolQueue = [];
+      ledger.liveTool = null;
+      turn.status = "failed";
+      turn.completedAt = nowIso();
+      turn.output = { kind: "error", faultCode: "stopped" };
+      return turn.output;
     }
     if (item.name === "memory.write") {
       persistMemory(dataDir, ledger, { id: item.callId, name: item.name, arguments: item.arguments });
@@ -295,6 +334,7 @@ export async function handleTurn(
   });
   let submitFails = 0;
   for (let i = 0; i < MAX_OUTBOUNDS; i++) {
+    if (wasStopped(deps.dataDir, ledger.conversationId)) return stoppedReply(deps.dataDir, ledger, turn);
     const messages = messagesOf(catalog, ledger, turn, deps.dataDir);
     const tools = toolSchemas(catalog, [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds]);
     appendEvent(deps.dataDir, ledger.conversationId, {
@@ -308,6 +348,7 @@ export async function handleTurn(
       baseToolsIds: turn.assembled.baseToolsIds,
       toolIds: turn.assembled.toolIds,
     });
+    if (wasStopped(deps.dataDir, ledger.conversationId)) return stoppedReply(deps.dataDir, ledger, turn);
     appendEvent(deps.dataDir, ledger.conversationId, {
       kind: "provider-response",
       turnId,
@@ -403,6 +444,7 @@ export async function handleTurn(
       browserNames: catalog.index.browser,
       host: deps.host,
     });
+    if (wasStopped(deps.dataDir, ledger.conversationId)) return stoppedReply(deps.dataDir, ledger, turn);
     saveTurn(deps.dataDir, turn);
     saveLedger(deps.dataDir, ledger);
     if (closed) {
