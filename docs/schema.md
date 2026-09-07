@@ -263,7 +263,7 @@ user 顺序 = `userSlots`：
 
 | 值 | 何时 |
 |---|---|
-| `arguments_not_json` | `function.arguments` 字符串 `JSON.parse` 失败 |
+| `arguments_not_json` | `function.arguments` 字符串 `JSON.parse` 失败。好的 `toolCalls` 照跑，坏的那条写进 `#toolIO` 再出网。同一 Turn 最多 3 次 |
 | `unknown_tool` | `name` 不在 `baseToolsIds` + `toolIds` |
 | `missing_required` | catalog `required` 缺或空；`missing` 列出字段名 |
 | `wrong_type` | Ajv：类型对不上 schema |

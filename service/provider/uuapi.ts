@@ -59,7 +59,7 @@ const mergeChunk = (
   return { content, finish: choice?.finish_reason ?? null };
 };
 
-const parseCalls = (calls: AccCall[]): { toolCalls: ToolCall[]; parseOk: boolean; detail: string } => {
+const parseCalls = (calls: AccCall[]): { toolCalls: ToolCall[]; parseOk: boolean; detail: string; badName: string } => {
   const toolCalls: ToolCall[] = [];
   for (const call of calls) {
     if (!call.id && !call.name) continue;
@@ -71,13 +71,14 @@ const parseCalls = (calls: AccCall[]): { toolCalls: ToolCall[]; parseOk: boolean
       });
     } catch (error) {
       return {
-        toolCalls: [],
+        toolCalls,
         parseOk: false,
         detail: error instanceof Error ? error.message : String(error),
+        badName: call.name || "unknown",
       };
     }
   }
-  return { toolCalls, parseOk: true, detail: "" };
+  return { toolCalls, parseOk: true, detail: "", badName: "" };
 };
 
 export function createProvider(config: ProviderConfig = {}) {
@@ -132,12 +133,13 @@ export function createProvider(config: ProviderConfig = {}) {
             return {
               finish: "tool_calls",
               content,
-              toolCalls: [],
+              toolCalls: parsed.toolCalls,
               attempts: attempt,
               parseOk: false,
               schemaOk: false,
               faultCode: "arguments_not_json",
               missing: [],
+              detail: `${parsed.badName}: ${parsed.detail}`,
             };
           }
           if (finish !== "tool_calls" || parsed.toolCalls.length === 0) {

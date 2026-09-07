@@ -116,24 +116,22 @@ const messagesOf = (catalog: Catalog, ledger: Ledger, turn: Turn, dataDir: strin
 };
 
 const writeFault = (ledger: Ledger, turnId: string, result: CompletionResult) => {
-  const calls = result.toolCalls.length
-    ? result.toolCalls
-    : [{ id: "call_fault", name: "unknown", arguments: { reason: "", affectsPage: false } }];
-  for (const call of calls) {
-    const text = JSON.stringify({
-      ok: false,
-      faultCode: result.faultCode,
-      missing: result.missing,
-      toolName: call.name,
-    });
-    ledger.toolIO.push({
-      callId: call.id,
-      name: call.name,
-      turnId,
-      arguments: call.arguments,
-      return: clipReturn(text),
-    });
-  }
+  const name = result.detail?.split(":")[0]?.trim() || (result.parseOk ? result.toolCalls.at(-1)?.name : "") || "unknown";
+  const call = result.toolCalls.at(-1);
+  const text = JSON.stringify({
+    ok: false,
+    faultCode: result.faultCode,
+    missing: result.missing,
+    toolName: name,
+    detail: result.detail ?? "",
+  });
+  ledger.toolIO.push({
+    callId: call?.id ?? "call_fault",
+    name,
+    turnId,
+    arguments: call?.arguments ?? { reason: "", affectsPage: false },
+    return: clipReturn(text),
+  });
 };
 
 const persistMemory = (dataDir: string, ledger: Ledger, call: ToolCall) => {
@@ -371,6 +369,7 @@ export async function handleTurn(
         schemaOk: result.schemaOk,
         faultCode: result.faultCode,
         missing: result.missing,
+        detail: result.detail ?? "",
       },
     });
     if (result.finish === "error") {
@@ -392,6 +391,33 @@ export async function handleTurn(
     if (!result.parseOk || !result.schemaOk) {
       submitFails += 1;
       writeFault(ledger, turnId, result);
+      if (result.toolCalls.length) {
+        ledger.toolQueue = result.toolCalls.map((call) => ({
+          callId: call.id,
+          name: call.name,
+          arguments: call.arguments,
+        }));
+        const closed = await runQueue({
+          dataDir: deps.dataDir,
+          ledger,
+          turn,
+          catalog,
+          content: result.content,
+          browserNames: catalog.index.browser,
+          host: deps.host,
+        });
+        if (wasStopped(deps.dataDir, ledger.conversationId)) return stoppedReply(deps.dataDir, ledger, turn);
+        saveTurn(deps.dataDir, turn);
+        saveLedger(deps.dataDir, ledger);
+        if (closed) {
+          appendEvent(deps.dataDir, ledger.conversationId, {
+            kind: "turn-output",
+            turnId,
+            data: { output: closed },
+          });
+          return { conversationId: ledger.conversationId, turnId, output: closed };
+        }
+      }
       if (submitFails >= MAX_SUBMIT) {
         turn.status = "failed";
         turn.completedAt = nowIso();

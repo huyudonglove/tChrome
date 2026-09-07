@@ -516,3 +516,36 @@ test("POST /stop 把 running 标成 paused", async () => {
   expect(session.messages.at(-1)?.text).toBe("已停止");
   rmSync(dir, { recursive: true, force: true });
 });
+
+test("arguments 不是 JSON 时好的工具照跑，坏的退回再出网", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-badjson-"));
+  const provider = mock([
+    ok({
+      finish: "tool_calls",
+      parseOk: false,
+      schemaOk: false,
+      faultCode: "arguments_not_json",
+      detail: "page.type: Unexpected token",
+      content: "observation\n输入\nreason\n填邮箱\naction\npage.type",
+      toolCalls: [{ id: "call_01", name: "page.get_summary", arguments: { reason: "看页", affectsPage: false } }],
+    }),
+    ok({
+      finish: "tool_calls",
+      content: "observation\n已看到\nreason\n收口\naction\n注册页在",
+      toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
+    }),
+  ]);
+  const host = {
+    execute: async (name: string) => {
+      if (name !== "page.get_summary") return { ok: false, error: name };
+      return { ok: true, tab: 1, url: "https://example.com", title: "注册", description: "注册页" };
+    },
+  };
+  const reply = await handleTurn({ dataDir: dir, repoRoot, provider, host }, { userInput: "测注册", submittedAt: "2026-09-06T00:00:00.000Z" });
+  expect(reply.output).toEqual({ kind: "reply", text: "注册页在" });
+  const ledger = loadLedger(dir, "cv_01");
+  expect(ledger.status).toBe("idle");
+  expect(ledger.toolIO.map((row) => row.name)).toEqual(["page.type", "page.get_summary", "finishTurn"]);
+  expect(JSON.parse(ledger.toolIO[0]!.return.text).faultCode).toBe("arguments_not_json");
+  rmSync(dir, { recursive: true, force: true });
+});

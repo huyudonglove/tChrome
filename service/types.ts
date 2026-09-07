@@ -130,6 +130,7 @@ export type CompletionResult = {
   schemaOk: boolean;
   faultCode: string | null;
   missing: string[];
+  detail?: string;
 };
 
 export type ChatMessage = {
