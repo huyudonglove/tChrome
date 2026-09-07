@@ -105,7 +105,7 @@ Runtime 独占维护。当前会话指针。
 | `pendingAsk` | object \| null | `waiting_human` 时 `{turnId, question}`；否则 `null` |
 | `turnIds` | string[] | 已建的回合，按时间 |
 | `userInputHistory` | string[] | 上一轮及更早的用户原话，按时间。新会话 `[]`。用户下一条输入开新 Turn 时，Runtime 把刚结束那一轮的 `userInput` 追加进去 |
-| `goal` | string | 当前目标。新会话 `""`。模型调 `submitGoal` 写入。空着时 Pack 要求先提交 |
+| `goal` | string | 当前目标。新会话 `""`。模型调 `submitGoal` 写入。空着时建议先提交，不锁路径 |
 | `goalHistory` | string[] | 旧目标。Runtime 在 `submitGoal` 改写且新值和旧值不同时，把旧目标追加进去。模型不要写 |
 | `toolQueue` | object[] | 本 Turn 待执行的工具。模型一次出网交的 `toolCalls` 按数组顺序入队。任务队列按这个顺序跑。跑完一条弹出，写入 `toolIO`。新会话 / 新出网前空。每项 `{callId, name, arguments}` |
 | `liveTool` | object \| null | 正在跑的那条 `{name, callId}`。空闲 / 追问 / 失败为 `null` |

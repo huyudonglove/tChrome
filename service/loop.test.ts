@@ -50,6 +50,7 @@ test("窗口按 catalog 模板插值", async () => {
   expect(system).toContain("tChrome");
   expect(system).toContain("对用户说完再 finishTurn");
   expect(system).toContain("submitGoal");
+  expect(system).toContain("自己选路径");
   expect(system).not.toContain("{{");
 });
 

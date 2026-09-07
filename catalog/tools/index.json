@@ -314,7 +314,7 @@
     "see_console": "读当前页 console 日志。入参：可选 level=error|warn|log|all、tab。返回：ok、count、items[{level,text}]",
     "wait_popup": "等待新弹窗。入参：可选 timeoutMs（超时毫秒，默认3000）。返回：ok、tab（新标签信息）或 error（超时）",
     "list_browser_tools": "列出 catalog 里还没挂上的动态工具。入参：无。返回：ok、tools。缺工具时再 catalog.add",
-    "submitGoal": "提交或改写当前目标。入参：goal。返回：当前目标。空目标时先交这个。觉得不合适再交一次，Runtime 把旧目标追加进 #goalHistory",
+    "submitGoal": "提交或改写当前目标。入参：goal。返回：当前目标。空着时建议先交；觉得不合适再交一次，Runtime 把旧目标追加进 #goalHistory",
     "catalog.add": "把缺的动态工具挂进本轮 tools[]。入参：names。返回：补上的工具名。下一轮出网才带 schema",
     "measure_timing": "测当前页 TTFB、DOMContentLoaded、load。入参：可选 tab。返回：ok、ttfbMs、domContentLoadedMs、loadMs、url",
     "measure_paint": "测当前页绘制时间。入参：可选 tab。返回：ok、firstPaintMs、firstContentfulPaintMs、largestContentfulPaintMs",

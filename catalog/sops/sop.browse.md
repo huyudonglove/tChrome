@@ -1,7 +1,6 @@
 #sop
-1. `#goal` 空着先 submitGoal
-2. page.get_summary 认当前页
-3. 要跳转就 open_url；要搜就 web_search
-4. 再 page.list_regions；看中一块 page.list_interactive_elements
-5. 要点按、输入用返回的 id 调 page.click / page.type
-6. 对用户交代看见了什么，action 写完整结果，再 finishTurn
+建议，按任务选，不是固定步骤。
+探索型可以由大到小：page.get_summary → list_regions → list_interactive_elements → 再用返回的 id 调 page.click / page.type。
+确定型可以直接 open_url / click / type / finishTurn。
+`#goal` 空着时建议先 submitGoal；目标随时可改。
+对用户交代看见了什么时，action 写完整结果，再 finishTurn。
