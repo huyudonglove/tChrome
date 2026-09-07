@@ -52,6 +52,9 @@ test("窗口按 catalog 模板插值", async () => {
   expect(system).toContain("tChrome");
   expect(system).toContain("参考材料");
   expect(system).toContain("windowChars 达到 compressAt");
+  expect(system).toContain("#目标");
+  expect(system).toContain("ledger.goal");
+  expect(system).toContain("ledger.goalHistory");
   expect(system).toContain("baseToolsIds");
   expect(system).toContain("coreToolIds");
   expect(system).not.toContain("从稳到新");
@@ -87,13 +90,15 @@ test("窗口按 catalog 模板插值", async () => {
       output: { kind: "tool", name: "", callId: "" },
     },
     memories: { project: [], conversation: [], turn: [] },
-    toolUsage: "web_search：搜索公开网页。",
+    toolUsage: "askUser：向用户提问。\nfinishTurn：结束本 Turn。\nweb_search：搜索公开网页。",
   });
   expect(user).toContain("#参考");
   expect(user).toContain("#skill");
   expect(user).toContain("#sop");
-  expect(user).toContain("page.get_summary → page.list_regions");
-  expect(user).toContain("探索型可以由大到小");
+  expect(user).toContain("page.get_summary 读摘要");
+  expect(user).toContain("探索型：page.get_summary");
+  expect(user).toContain("askUser：向用户提问");
+  expect(user).toContain("finishTurn：结束本 Turn");
   expect(user).toContain("帮我查这款鼠标官网价");
   expect(user).not.toContain("{{");
 });

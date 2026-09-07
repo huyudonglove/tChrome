@@ -24,7 +24,7 @@ test("每个工具有 schema，reason 和 affectsPage 都在 required", () => {
     expect(params.required ?? [], `${name} required`).toContain("reason");
     expect(params.required ?? [], `${name} required`).toContain("affectsPage");
     expect(tool.function.name).toBe(name);
-    expect(catalog.index.usage[name] || catalog.assemble.baseToolsIds.includes(name), `${name} usage`).toBeTruthy();
+    expect(catalog.index.usage[name], `${name} usage`).toBeTruthy();
   }
   for (const name of catalog.assemble.coreToolIds) {
     expect(catalog.tools[name], `core ${name}`).toBeTruthy();

@@ -1,2 +1,2 @@
 #skill
-查网页：探索型可以由大到小（page.get_summary → page.list_regions → page.list_interactive_elements → page.inspect_region / page.inspect_element / page.click / page.type）。确定型已经知道要点哪、要打开哪，直接调对应工具。page.get_dom / page.get_accessibility_tree / page.get_element_state 按需再调。
+网页工具：page.get_summary 读摘要；page.list_regions 列区域；page.list_interactive_elements 列可交互元素，可按 regionId 收窄；page.inspect_region / page.inspect_element 看细节；page.get_dom / page.get_accessibility_tree / page.get_element_state 读 DOM、无障碍树、元素状态；page.click / page.type 用返回的 id；open_url 打开网址；web_search 检索。click / type 按可见文字或 ref 定位，不在 coreToolIds。

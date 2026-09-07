@@ -22,8 +22,12 @@ finish=stop 且 tool_calls 为空时，Runtime 在 toolIO 写入 assemble.messag
 tool_calls 缺 catalog required 字段时，Runtime 在 toolIO 写入 faultCode=missing_required 和 missing 字段名，再次出网。不补字段。
 toolIO 某条 return.stage=truncated 时，tool.detail 的 callId 等于该条 callId。
 observation 某条需要全文时，observation.detail 的 observationId 等于该条 id。
-ledger.goalHistory 由 Runtime 在 submitGoal 改写 goal 且新值与旧值不同时追加旧 goal。
 user 槽是参考材料。
+
+#目标
+ledger.goal 是当前目标。submitGoal 的 goal 写入 ledger.goal。ledger.goal 初始值是空字符串。
+ledger.goalHistory 是被替换掉的旧 goal 数组。Runtime 在 submitGoal 的 goal 与当前 ledger.goal 不同时，把旧 ledger.goal 追加进 ledger.goalHistory。模型不写 ledger.goalHistory。
+user `#goal` 等于 ledger.goal。user `#goalHistory` 等于 ledger.goalHistory。
 
 #参数说明
 每个工具调用带 reason：该次调用的原因。
@@ -69,7 +73,7 @@ list_browser_tools 返回未进入 ledger.toolIds 的动态工具名。catalog.a
 page.click 和 page.type 的 id 来自 page.list_regions、page.list_interactive_elements、page.inspect_region、page.inspect_element 的返回。
 click 和 type 按可见文字或 ref 定位。click 和 type 不在 coreToolIds。
 每个工具 arguments 含 reason 和 affectsPage。
-动态工具用法写在 user `#tools`。
+user `#tools` 写 baseToolsIds 和 toolIds 的用法。
 
 #输出
 每次写 `content`，三段标题固定：
@@ -86,4 +90,4 @@ action
 有 `tool_calls` 时这三段也写。finishTurn 的 action 是对用户说的话。action 为空时 Runtime 不把本 Turn 标 completed，继续出网。
 
 #user槽
-user 槽是参考材料。`#userInput` 是本 Turn 的用户原话。其余槽：`#参考` `#skill` `#sop` `#projectMemory` `#conversationMemory` `#turnMemory` `#contextSummary` `#observation` `#userInputHistory` `#goal` `#goalHistory` `#currentPage` `#currentEnvironment` `#toolIO` `#tools`。
+user 槽是参考材料。`#userInput` 是本 Turn 的用户原话。其余槽：`#参考` `#skill` `#sop` `#projectMemory` `#conversationMemory` `#turnMemory` `#contextSummary` `#observation` `#userInputHistory` `#goal` `#goalHistory` `#currentPage` `#currentEnvironment` `#toolIO` `#tools`。`#tools` 含 baseToolsIds 和 toolIds。

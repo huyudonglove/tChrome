@@ -216,8 +216,8 @@ Runtime 独占维护。当前会话指针。
 
 用户一条输入开一个 Turn，CE 装配一次。本 Turn 内工具循环不再走 CE。
 
-system 顺序 = `catalog/window.system.md`：身份、记忆、观察、环境、协议、参数、内置工具、输出、user槽说明。都是事实。
-user 顺序 = `catalog/window.user.md`：参考 / skill / sop / 记忆 / 输入 / 目标 / 当前页 / toolIO / tools。都是参考材料，按需取用。
+system 顺序 = `catalog/window.system.md`：身份、记忆、观察、环境、协议、目标、参数、内置工具、输出、user槽说明。都是事实。
+user 顺序 = `catalog/window.user.md`：参考 / skill / sop / 记忆 / 输入 / 目标值 / 当前页 / toolIO / tools。都是参考材料。skill 写网页工具能力。sop 写浏览步骤。
 
 | 槽 | 正文来自 |
 |---|---|
@@ -236,7 +236,7 @@ user 顺序 = `catalog/window.user.md`：参考 / skill / sop / 记忆 / 输入 
 | `#currentPage` | Turn.`assembled.currentTab`。开 Turn 写入，只有 tab / url / title |
 | `#currentEnvironment` | Turn.`assembled.currentPage` |
 | `#toolIO` | ledger.`toolIO` |
-| `#tools` | 本轮动态工具用法。常驻用法在 Pack |
+| `#tools` | `baseToolsIds` + `toolIds` 的 usage。常驻和动态都在这里 |
 
 出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。
 

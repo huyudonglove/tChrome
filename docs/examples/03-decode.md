@@ -71,7 +71,7 @@
 
 ## system 插槽
 
-顺序 = `systemSlots` 数组。改正文去改 catalog 文件。常驻工具用法在 Pack。
+顺序 = `systemSlots` 数组。改正文去改 catalog 文件。
 
 ### `#身份`
 
@@ -100,8 +100,13 @@ affectsPage 为 true 时该调用改变当前页（跳转、点击、输入）�
 finishTurn 执行后本 Turn status=completed，ledger.status=idle。
 toolIO 某条 return.stage=truncated 时，tool.detail 的 callId 等于该条 callId。
 observation 某条需要全文时，observation.detail 的 observationId 等于该条 id。
-ledger.goalHistory 由 Runtime 在 submitGoal 改写 goal 且新值与旧值不同时追加旧 goal。
 user 槽是参考材料。
+
+### `#目标`
+
+ledger.goal 是当前目标。submitGoal 的 goal 写入 ledger.goal。ledger.goal 初始值是空字符串。
+ledger.goalHistory 是被替换掉的旧 goal 数组。Runtime 在 submitGoal 的 goal 与当前 ledger.goal 不同时，把旧 ledger.goal 追加进 ledger.goalHistory。模型不写 ledger.goalHistory。
+user `#goal` 等于 ledger.goal。user `#goalHistory` 等于 ledger.goalHistory。
 
 ### `#参数说明`
 
@@ -155,19 +160,20 @@ user 槽是参考材料。`#userInput` 是本 Turn 的用户原话。其余槽�
 
 ## user 插槽
 
-顺序 = `userSlots` 数组。都是参考材料，按需取用。skill / sop / 建议路径在 user，不进 system。
+顺序 = `userSlots` 数组。都是参考材料。skill 写网页工具能力。sop 写浏览步骤。
 
 ### `#参考`
 
-这些槽是材料，按需取用，不是清单。`#goal` 空着时可用 submitGoal，也可先干活再立。探索型可以由大到小；确定型可以直接调对应工具。
+这些槽是材料。skill 写网页工具能力。sop 写浏览步骤。
 
 ### `#skill`
 
-查网页：探索型可以由大到小。确定型已经知道要点哪、要打开哪，直接调对应工具。
+网页工具：page.get_summary 读摘要；page.list_regions 列区域；page.list_interactive_elements 列可交互元素；page.click / page.type 用返回的 id；open_url 打开网址；web_search 检索。
 
 ### `#sop`
 
-探索型可以由大到小。确定型可以直接 open_url / click / type / finishTurn。
+探索型：page.get_summary → page.list_regions → page.list_interactive_elements → 用返回的 id 调 page.click / page.type。
+确定型：直接调目标工具。对用户说完再 finishTurn。
 
 ### `#projectMemory`
 
@@ -226,6 +232,12 @@ user 槽是参考材料。`#userInput` 是本 Turn 的用户原话。其余槽�
 
 ### `#tools`
 
+askUser：向用户提问。入参：choice。返回：用户选项。affectsPage=false。
+finishTurn：结束本 Turn。入参：无。content 的 action 是对用户说的话。affectsPage=false。
+submitGoal：写入 ledger.goal。入参：goal。返回：当前目标。affectsPage=false。
+tool.detail：展开 toolIO 截断全文。入参：callId。affectsPage=false。
+observation.detail：展开 observation 全文。入参：observationId。affectsPage=false。
+memory.write：写入记忆。入参：可选 turnMemory、conversationMemory、projectMemory、contextSummary。affectsPage=false。
 page.get_summary：读当前页摘要：标题、地址、区域数、可交互数、标题列表。affectsPage=false。
 open_url：打开指定网址并读回标题正文。affectsPage=true。
 web_search：搜索公开网页。affectsPage=false。

@@ -153,11 +153,14 @@ user `#observation` 是 Runtime 在 windowChars 达到 compressAt（200000）时
 一次出网的 tool_calls 由 Runtime 按数组顺序执行。finishTurn 执行后本 Turn status=completed。
 user 槽是参考材料。
 
+#目标
+ledger.goal 是当前目标。submitGoal 的 goal 写入 ledger.goal。ledger.goalHistory 是被替换掉的旧 goal 数组。模型不写 ledger.goalHistory。
+
 #参数说明
 每个工具调用带 reason。affectsPage 为 true 时该调用改变当前页；为 false 时该调用只读。
 
 #内置工具
-baseToolsIds：askUser、finishTurn、submitGoal、tool.detail、observation.detail、memory.write。coreToolIds 开 Turn 挂上。用法写在 user `#tools`。
+baseToolsIds：askUser、finishTurn、submitGoal、tool.detail、observation.detail、memory.write。coreToolIds 开 Turn 挂上。user `#tools` 写 baseToolsIds 和 toolIds 的用法。
 
 #输出
 content 三段：observation / reason / action。
@@ -174,13 +177,14 @@ user 槽是参考材料。`#userInput` 是本 Turn 的用户原话。
 
 ```
 #参考
-这些槽是材料，按需取用，不是清单。`#goal` 空着时可用 submitGoal，也可先干活再立。探索型可以由大到小；确定型可以直接调对应工具。
+这些槽是材料。skill 写网页工具能力。sop 写浏览步骤。
 
 #skill
-查网页：探索型可以由大到小。确定型已经知道要点哪、要打开哪，直接调对应工具。
+网页工具：page.get_summary 读摘要；page.list_regions 列区域；page.list_interactive_elements 列可交互元素；page.click / page.type 用返回的 id；open_url 打开网址；web_search 检索。
 
 #sop
-探索型可以由大到小。确定型可以直接 open_url / click / type / finishTurn。
+探索型：page.get_summary → page.list_regions → page.list_interactive_elements → 用返回的 id 调 page.click / page.type。
+确定型：直接调目标工具。对用户说完再 finishTurn。
 
 #projectMemory
 
@@ -211,6 +215,12 @@ user 槽是参考材料。`#userInput` 是本 Turn 的用户原话。
 []
 
 #tools
+askUser：向用户提问。入参：choice。返回：用户选项。affectsPage=false。
+finishTurn：结束本 Turn。入参：无。content 的 action 是对用户说的话。affectsPage=false。
+submitGoal：写入 ledger.goal。入参：goal。返回：当前目标。affectsPage=false。
+tool.detail：展开 toolIO 截断全文。入参：callId。affectsPage=false。
+observation.detail：展开 observation 全文。入参：observationId。affectsPage=false。
+memory.write：写入记忆。入参：可选 turnMemory、conversationMemory、projectMemory、contextSummary。affectsPage=false。
 page.get_summary：读当前页摘要：标题、地址、区域数、可交互数、标题列表。affectsPage=false。
 open_url：打开指定网址并读回标题正文。affectsPage=true。
 web_search：搜索公开网页。affectsPage=false。
