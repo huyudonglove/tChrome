@@ -358,11 +358,12 @@ test("开 Turn 不读页，模型 page.get_summary 后才填 currentPage", async
   expect(ledger.toolIO[0]?.name).toBe("page.get_summary");
   expect(ledger.toolIO[0]?.turnId).toBe(reply.turnId);
   const session = await (await createServer({ dataDir: dir, repoRoot, provider: mock([]) }).fetch(new Request("http://127.0.0.1:18788/session"))).json() as { messages: { role: string; name?: string; text: string }[] };
-  expect(session.messages.map((row) => row.role)).toEqual(["user", "assistant", "tool", "assistant"]);
-  expect(session.messages[1]?.text).toContain("seen");
+  expect(session.messages.map((row) => row.role)).toEqual(["user", "tool", "tool", "tool", "assistant"]);
+  expect(session.messages[1]?.text).toBe("先摘要");
   expect(session.messages[2]?.name).toBe("page.get_summary");
-  expect(session.messages[2]?.text).toContain("罗技 MX Master 3S");
-  expect(session.messages[3]?.text).toContain("已看到页");
+  expect(session.messages[2]?.text).toBe("看当前页");
+  expect(session.messages[3]?.text).toBe("收口");
+  expect(session.messages[4]?.text).toBe("在看罗技");
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -442,7 +443,8 @@ test("GET /session 还原消息，切会话改 session.json", async () => {
   expect(session.conversationId).toBe("cv_01");
   expect(session.messages).toEqual([
     { turnId: "tn_01", role: "user", text: "你好" },
-    { turnId: "tn_01", role: "assistant", text: "seen\n已收到\nreason\n收口\naction\n你好" },
+    { turnId: "tn_01", role: "tool", text: "收口" },
+    { turnId: "tn_01", role: "assistant", text: "你好" },
   ]);
   const created = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations/new", { method: "POST" }))).json();
   expect(created.conversationId).toBe("cv_02");
@@ -593,7 +595,7 @@ test("队列和正在跑的工具出现在 /session", () => {
     { role: "tool", name: "see_page", live: true },
     { role: "tool", name: "click", live: undefined },
   ]);
-  expect(view.messages[1]?.text).toBe("ok");
+  expect(view.messages[1]?.text).toBe("打开站点");
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -846,4 +848,33 @@ test.each([
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("第20次出网 content 为空但 finishTurn.text 有正文时正常结束", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-last-finish-"));
+  try {
+    const steps = Array.from({ length: 19 }, (_, i) => ok({
+      finish: "tool_calls", content: "", toolCalls: [{
+        id: `note_${i}`, name: "notes.write", arguments: { reason: "记录已确认的进展", affectsPage: false, key: "progress", value: String(i) },
+      }],
+    }));
+    steps.push(ok({ finish: "tool_calls", content: "", toolCalls: [{
+      id: "final", name: "finishTurn", arguments: { reason: "已完成检查，可以报告结果", affectsPage: false, text: "检查完成，已确认搜索可用。" },
+    }] }));
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider: mock(steps) }, { userInput: "检查搜索", submittedAt: new Date().toISOString() });
+    expect(reply.output).toEqual({ kind: "reply", text: "检查完成，已确认搜索可用。" });
+    expect(loadLedger(dir, reply.conversationId).status).toBe("idle");
+    expect(loadEvents(dir, reply.conversationId).filter(e => e.kind === "provider-response")).toHaveLength(20);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("content 为空时 askUser.question 仍能展示问题和选项", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-question-"));
+  try {
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider: mock([ok({ finish: "tool_calls", content: "", toolCalls: [{
+      id: "ask", name: "askUser", arguments: { reason: "需要确定检查范围", affectsPage: false, question: "先检查哪个页面？", choice: ["首页", "搜索页"] },
+    }] })]) }, { userInput: "检查网站", submittedAt: new Date().toISOString() });
+    expect(reply.output).toEqual({ kind: "ask", question: "先检查哪个页面？\n选项：首页 / 搜索页" });
+    expect(sessionView(dir, reply.conversationId).pendingAsk).toMatchObject({ question: "先检查哪个页面？\n选项：首页 / 搜索页", choice: ["首页", "搜索页"] });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

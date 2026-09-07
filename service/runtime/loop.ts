@@ -46,7 +46,6 @@ const wasStopped = (dataDir: string, conversationId: string, turnId: string) => 
   return current.status !== "running" || current.active?.turnId !== turnId;
 };
 
-const MAX_OUTBOUNDS = 20;
 const MAX_SUBMIT = 3;
 
 export type LoopDeps = {
@@ -180,6 +179,9 @@ const runQueue = async (input: {
     }
     ledger.liveTool = { name: item.name, callId: item.callId };
     saveLedger(dataDir, ledger);
+    turn.usage ??= { modelRequests: 0, toolCalls: 0 };
+    turn.usage.toolCalls += 1;
+    saveTurn(dataDir, turn);
     const full = await executeTool({
       name: item.name,
       arguments: item.arguments,
@@ -308,6 +310,7 @@ export async function handleTurn(
     input: { text: body.userInput, submittedAt: body.submittedAt },
     assembled: assemble(catalog),
     output: null,
+    usage: { modelRequests: 0, toolCalls: 0 },
   };
   const tab = body.currentTab;
   const tabId = Number(tab?.tab);
@@ -340,14 +343,16 @@ export async function handleTurn(
     data: { assembled: turn.assembled },
   });
   let submitFails = 0;
-  for (let i = 0; i < MAX_OUTBOUNDS; i++) {
+  while (true) {
     if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
     const messages = messagesOf(catalog, ledger, turn, deps.dataDir);
     const tools = toolSchemas(catalog, [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds]);
+    turn.usage!.modelRequests += 1;
+    saveTurn(deps.dataDir, turn);
     appendEvent(deps.dataDir, ledger.conversationId, {
       kind: "provider-request",
       turnId,
-      data: { windowChars: ledger.windowChars, toolIds: [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds] },
+      data: { windowChars: ledger.windowChars, toolIds: [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds], usage: { ...turn.usage } },
     });
     const result = await deps.provider.complete({
       messages,
@@ -515,13 +520,22 @@ export async function handleTurn(
       });
       return { conversationId: ledger.conversationId, turnId, output: closed };
     }
+    // Successful tool batches are normal progress, not failed submissions.
+    // Empty legacy finishTurn calls must not create an unbounded retry loop.
+    if (result.toolCalls.some((call) => call.name !== "finishTurn" && call.name !== "askUser")) {
+      submitFails = 0;
+    } else {
+      submitFails += 1;
+      if (submitFails >= MAX_SUBMIT) break;
+    }
   }
   turn.status = "failed";
   turn.completedAt = nowIso();
-  turn.output = { kind: "error", faultCode: "max_outbounds" };
+  turn.output = { kind: "error", faultCode: "empty_finish_turn" };
   ledger.status = "failed";
   ledger.active = null;
   ledger.liveTool = null;
+  ledger.toolQueue = [];
   saveTurn(deps.dataDir, turn);
   saveLedger(deps.dataDir, ledger);
   appendEvent(deps.dataDir, ledger.conversationId, {

@@ -82,7 +82,25 @@ export function toolSchemas(catalog: Catalog, ids: string[]): ChatTool[] {
   return ids.map((id) => {
     const tool = catalog.tools[id];
     if (!tool) throw new Error(`unknown tool ${id}`);
-    return tool;
+    const parameters = tool.function.parameters;
+    const properties = parameters.properties as Record<string, Record<string, unknown>> | undefined;
+    if (!properties?.reason) return tool;
+    return {
+      ...tool,
+      function: {
+        ...tool.function,
+        parameters: {
+          ...parameters,
+          properties: {
+            ...properties,
+            reason: {
+              ...properties.reason,
+              description: "直接展示给用户的行动理由。用一两句日常语言说明为什么现在要做这一步、它与用户目标的关系；根据已有事实，不编造理由。不要只复述动作，也不要用元素 id、DOM 或工具函数名代替解释。",
+            },
+          },
+        },
+      },
+    };
   });
 }
 

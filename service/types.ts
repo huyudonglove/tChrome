@@ -45,6 +45,8 @@ export type Turn = {
   input: { text: string; submittedAt: string };
   assembled: Assembled;
   output: TurnOutput | null;
+  // Optional for conversations saved before usage counters were introduced.
+  usage?: { modelRequests: number; toolCalls: number };
 };
 
 export type ToolArguments = {

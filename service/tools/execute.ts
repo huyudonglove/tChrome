@@ -17,10 +17,14 @@ export function actionFromContent(content: string): string {
 }
 
 export function questionFromContent(content: string, choice: string[]): string {
-  const action = actionFromContent(content);
-  if (choice.length === 0) return action;
-  return `${action}\n选项：${choice.join(" / ")}`;
+  return questionWithChoices(actionFromContent(content), choice);
 }
+
+const questionWithChoices = (question: string, choice: string[]): string =>
+  choice.length === 0 ? question : `${question}\n选项：${choice.join(" / ")}`;
+
+const closingText = (value: unknown, content: string): string =>
+  typeof value === "string" && value.trim() ? value.trim() : actionFromContent(content);
 
 export function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -74,8 +78,8 @@ export type ExecuteInput = {
 
 export async function executeTool(input: ExecuteInput): Promise<string> {
   const { name, arguments: args, content, lookup, host, dataDir, browserNames } = input;
-  if (name === "finishTurn") return actionFromContent(content);
-  if (name === "askUser") return questionFromContent(content, asStringArray(args.choice));
+  if (name === "finishTurn") return closingText(args.text, content);
+  if (name === "askUser") return questionWithChoices(closingText(args.question, content), asStringArray(args.choice));
   if (name === "submitGoal") {
     const goal = String(args.goal ?? "").trim();
     return goal ? `当前目标：${goal}` : "goal 空着";

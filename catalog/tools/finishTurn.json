@@ -5,10 +5,11 @@
     "parameters": {
       "type": "object",
       "properties": {
+        "text": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "向用户展示的最终回复正文，说明已确认的结果或具体阻碍。" },
         "reason": { "type": "string" },
         "affectsPage": { "type": "boolean" }
       },
-      "required": ["reason", "affectsPage"]
+      "required": ["reason", "affectsPage", "text"]
     }
   }
 }

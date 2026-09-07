@@ -35,6 +35,10 @@ const SUGGESTIONS = [
   { label: "对比页面", text: "对比两边标题" },
 ];
 
+const statusText = (status: string) => ({
+  idle: "就绪", running: "正在处理", waiting_human: "等待你的回复", paused: "已停止", failed: "未完成",
+}[status] ?? "就绪");
+
 const outputText = (output?: Output) => {
   if (!output) return "服务无响应";
   if (output.kind === "reply") return output.text;
@@ -143,16 +147,21 @@ export function App() {
   const followBottom = useRef(true);
   const sendingRef = useRef(false);
   const submission = useRef(0);
+  const refreshVersion = useRef(0);
   const running = sending || session.status === "running";
 
   const loadAll = async () => {
+    const generation = submission.current;
     const [sessionRes, listRes] = await Promise.all([
       fetch(`${SERVICE}/session`),
       fetch(`${SERVICE}/conversations`),
     ]);
     const next = await sessionRes.json() as SessionView;
-    setSession(next);
-    setItems(((await listRes.json()) as { items: ConversationItem[] }).items ?? []);
+    const listed = await listRes.json() as { items: ConversationItem[] };
+    if (generation === submission.current) {
+      setSession(next);
+      setItems(listed.items ?? []);
+    }
     return next;
   };
 
@@ -181,8 +190,11 @@ export function App() {
     let alive = true;
     const tick = async () => {
       try {
-        const next = await fetch(`${SERVICE}/session`);
-        if (alive) setSession(await next.json() as SessionView);
+        const generation = submission.current;
+        const version = refreshVersion.current;
+        const response = await fetch(`${SERVICE}/session`);
+        const next = await response.json() as SessionView;
+        if (alive && generation === submission.current && version === refreshVersion.current) setSession(next);
       } catch {}
     };
     const timer = setInterval(tick, 700);
@@ -229,12 +241,13 @@ export function App() {
       });
       const body = await response.json() as { output?: Output };
       if (submission.current !== currentSubmission) return;
-      setSession((current) => ({
-        ...current,
-        messages: [...current.messages, { role: "assistant", text: outputText(body.output) }],
-      }));
+      // The persisted session owns chat messages; appending the POST reply here
+      // races with polling and briefly duplicates the final answer.
+      refreshVersion.current++;
       await loadAll();
-      setStatus("");
+      if (submission.current !== currentSubmission) return;
+      refreshVersion.current++;
+      setStatus(!response.ok ? outputText(body.output) : "");
     } catch {
       if (submission.current === currentSubmission) setStatus(DOWN);
     } finally {
@@ -305,7 +318,7 @@ export function App() {
           <div className="brand-mark">t</div>
           <div className="app-identity">
             <strong>{session.conversationId ?? "tChrome"}</strong>
-            <small>{running ? (session.liveTool ? session.liveTool.name : "在想") : session.status}</small>
+            <small>{running ? "正在处理" : statusText(session.status)}</small>
           </div>
           <div className="app-actions">
             <button className="icon-button" type="button" title="会话" onClick={() => setListOpen((open) => !open)}>
@@ -349,8 +362,7 @@ export function App() {
               <div className="message-body">
                 {message.role === "tool" ? (
                   <p className={`tool-step${message.live ? " live" : ""}`}>
-                    <span>{message.name}</span>
-                    {message.text && message.text !== message.name ? ` ${message.text}` : ""}
+                    {message.text || (message.live ? "正在处理" : "处理步骤")}
                     {message.live ? " …" : ""}
                   </p>
                 ) : message.role === "assistant" && message.text
@@ -376,7 +388,7 @@ export function App() {
 
       {session.pendingAsk ? (
         <section className="review-card interaction-card">
-          <strong>{session.pendingAsk.question}</strong>
+          <strong>{session.pendingAsk.choice.length ? "选择一项，或在下方输入回复" : "请在下方输入回复"}</strong>
           {session.pendingAsk.choice.length ? (
             <div className="interaction-items">
               {session.pendingAsk.choice.map((choice) => (

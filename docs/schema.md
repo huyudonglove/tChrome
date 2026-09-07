@@ -42,7 +42,7 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 | GET | `/tool-request` | 无 | `{request}`，没有就 `request=null`。`request` 是 `{id, name, input}` |
 | POST | `/tool-result` | `{id, result}` | `{ok:true}` |
 
-`output` 见「output」。整轮收口再回一次。面板读 `/session`：每次出网的 `content` 原样进 assistant，工具 `return` 原样进 tool 行。`pendingAsk.choice` 取最近一次 `askUser` 的 `choice`。`/turn` 仍不带 id，用当前 `session.json`。
+`output` 见「output」。整轮收口再回一次。面板读 `/session`：模型和工具的 reason 作为过程说明，Turn.output 作为助手回复；工具原始 return 不显示。`pendingAsk.choice` 取最近一次 `askUser` 的 `choice`。`/turn` 仍不带 id，用当前 `session.json`。
 
 ## 落盘文件
 
@@ -149,6 +149,7 @@ Runtime 独占维护。当前会话指针。
 | `input.submittedAt` | string | 面板提交时间，ISO-8601 |
 | `assembled` | object | 这一轮点名的 catalog IDs + 当前页，见「assembled」 |
 | `output` | object | 见「output」 |
+| `usage` | object，可选 | 新 Turn 分别记录 `modelRequests` 与 `toolCalls`。工具批次逐个计数，包含常驻与收口工具；未通过校验而未执行的调用不计入。旧 Turn 可缺省。统计不作为累计 20 次的停止条件。 |
 
 ### assembled
 
@@ -181,7 +182,7 @@ Runtime 独占维护。当前会话指针。
 
 - `tool` → `{kind, name, callId}`（动态工具 / `tool.detail` / `observation.detail` / `memory.write`）
 - `ask` → `{kind, question}`（`askUser`）
-- `reply` → `{kind, text}`（`finishTurn`，`text` 只取 content 的 action。没有 action 就空着，不用 reason 顶）
+- `reply` → `{kind, text}`（`finishTurn`，`text` 取 finishTurn.arguments.text；历史调用可回退 content.action，不用 reason 顶）
 - `error` → `{kind, faultCode}`
 
 ## memory/<memoryId>.json
@@ -260,7 +261,7 @@ user 顺序 = `catalog/window.user.md`，层标题 `##方法` `##记忆` `##输�
 | `totalChars` | number | 全文长度（JS `string.length` / Python `len`） |
 | `text` | string | 窗口正文，最多 2000 字 |
 
-`askUser` 的 `text` 是问题和选项。`finishTurn` 的 `text` 是回复用户的正文（只取 content 的 action）。动态工具 / `tool.detail` / `observation.detail` 的 `text` 是工具跑出来的正文。`memory.write` 的 `text` 是落下的层和条数。
+`askUser` 的 `text` 是问题和选项。`finishTurn` 的 `text` 是回复用户的正文（优先取 finishTurn.arguments.text，兼容历史 content.action）。动态工具 / `tool.detail` / `observation.detail` 的 `text` 是工具跑出来的正文。`memory.write` 的 `text` 是落下的层和条数。
 
 要全文调 `tool.detail`，参数 `callId`。要看压缩事实调 `observation.detail`，参数 `observationId`。
 
@@ -304,9 +305,9 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 
 | 工具 | required 其余 | 谁填其余 |
 |---|---|---|
-| `askUser` | `choice` | 给用户的选项 |
+| `askUser` | `question`、`choice` | 非空问题正文与选项 |
 | `submitGoal` | `goal` | 当前目标。改写时 Runtime 把旧值追加进 `goalHistory` |
-| `finishTurn` | （无） | 回复正文在 content 的 action。没有 action 就空着 |
+| `finishTurn` | `text` | 非空回复正文，不依赖 content |
 | `tool.detail` | `callId` | `#toolIO` 该项的 `callId` |
 | `observation.detail` | `observationId` | `#observation` 该项的 `id` |
 | `notes.write` | `key` `value` | 写入或覆盖 `ledger.notes[key]`。模型自定 key |
@@ -325,4 +326,3 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | `request_tool_service` `request_memory_service` | 挂在岗流水线上，tChrome 没有对应岗 |
 
 `api_discover` / `api_manage` 迁了 schema 和执行入口，登记表第一期空数组。
-

@@ -200,7 +200,18 @@ const outputText = (output: Turn["output"]): string => {
   if (!output) return "";
   if (output.kind === "reply") return output.text;
   if (output.kind === "ask") return output.question;
-  if (output.kind === "error") return output.faultCode === "stopped" ? "已停止" : `失败：${output.faultCode}`;
+  if (output.kind === "error") {
+    const messages: Record<string, string> = {
+      stopped: "已停止",
+      max_outbounds: "本轮已达到执行次数上限，任务还没有完成。你可以缩小任务范围，或让我继续处理剩余部分。",
+      provider_error: "模型服务暂时没有正常响应，本轮未完成。请稍后重试。",
+      provider_key_missing: "尚未配置模型服务密钥，请先在本机服务中完成配置。",
+      provider_key_invalid: "模型服务密钥无效或权限不足，请检查配置。",
+      need_finish_turn: "模型没有生成有效的最终回复，本轮未完成。请重试。",
+      empty_finish_turn: "模型连续返回了空回复，本轮已停止。请重试。",
+    };
+    return messages[output.faultCode] ?? "本轮执行遇到错误，未能完成。请重试；详细错误已保留在服务日志中。";
+  }
   return `${output.name} ${output.callId}`;
 };
 
@@ -227,8 +238,15 @@ export type ConversationItem = {
   preview: string;
 };
 
-const toolText = (row: { name: string; arguments?: { reason?: string }; return?: { text?: string } }): string =>
-  row.return?.text || row.arguments?.reason || row.name;
+const toolText = (row: { arguments?: { reason?: unknown } }, fallback = "工具调用已结束"): string => {
+  const reason = row.arguments?.reason;
+  return typeof reason === "string" && reason.trim() ? reason.trim() : fallback;
+};
+
+const providerReason = (content: unknown): string => {
+  if (typeof content !== "string") return "";
+  return content.replaceAll("\r\n", "\n").match(/(?:^|\n)reason\n([\s\S]*?)(?=\naction\n|$)/i)?.[1]?.trim() ?? "";
+};
 
 const pushLiveTools = (input: {
   messages: SessionMessage[];
@@ -242,7 +260,7 @@ const pushLiveTools = (input: {
     messages.push({
       turnId,
       role: "tool",
-      text: queued?.arguments.reason || ledger.liveTool.name,
+      text: toolText({ arguments: queued?.arguments }, "正在执行工具"),
       name: ledger.liveTool.name,
       live: true,
     });
@@ -250,7 +268,7 @@ const pushLiveTools = (input: {
   for (const item of ledger.toolQueue) {
     if (item.callId === ledger.liveTool?.callId) continue;
     if (item.name === "finishTurn" || item.name === "askUser") continue;
-    messages.push({ turnId, role: "tool", text: item.arguments.reason || item.name, name: item.name });
+    messages.push({ turnId, role: "tool", text: toolText(item, "等待执行工具"), name: item.name });
   }
 };
 
@@ -262,22 +280,21 @@ export function sessionView(dataDir: string, cvId: string): SessionView {
     const turn = loadTurn(dataDir, cvId, turnId);
     messages.push({ turnId, role: "user", text: turn.input.text });
     const turnEvents = events.filter((event) => event.turnId === turnId);
-    let sawAssistant = false;
-    if (turnEvents.some((event) => event.kind === "provider-response" || event.kind === "tool")) {
-      for (const event of turnEvents) {
-        if (event.kind === "provider-response") {
-          const content = String(event.data.content ?? "");
-          if (!content) continue;
-          messages.push({ turnId, role: "assistant", text: content });
-          sawAssistant = true;
-        }
-        if (event.kind !== "tool") continue;
-        const name = String(event.data.name ?? "");
-        if (name === "finishTurn" || name === "askUser") continue;
-        const row = event.data as { name?: string; arguments?: { reason?: string }; return?: { text?: string } };
-        messages.push({ turnId, role: "tool", text: toolText({ name, arguments: row.arguments, return: row.return }), name });
+    // Reasons are progress messages; only turn.output supplies the final reply.
+    // Observations, intermediate actions and raw tool results stay in the logs.
+    for (const event of turnEvents) {
+      if (event.kind === "provider-response") {
+        const reason = providerReason(event.data.content);
+        if (reason) messages.push({ turnId, role: "tool", text: reason });
       }
-    } else {
+      if (event.kind !== "tool") continue;
+      const name = String(event.data.name ?? "");
+      if (name === "finishTurn" || name === "askUser") continue;
+      const row = event.data as { arguments?: { reason?: unknown } };
+      messages.push({ turnId, role: "tool", text: toolText(row), name });
+    }
+    if (!turnEvents.some((event) => event.kind === "tool")) {
+      // Older conversations can have toolIO without tool events.
       for (const row of ledger.toolIO) {
         if (row.turnId !== turnId) continue;
         if (row.name === "finishTurn" || row.name === "askUser") continue;
@@ -285,7 +302,7 @@ export function sessionView(dataDir: string, cvId: string): SessionView {
       }
     }
     pushLiveTools({ messages, ledger, turnId });
-    if (turn.output && (turn.output.kind === "error" || !sawAssistant)) {
+    if (turn.output && turn.output.kind !== "tool") {
       messages.push({ turnId, role: "assistant", text: outputText(turn.output) });
     }
   }

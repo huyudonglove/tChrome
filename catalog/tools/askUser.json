@@ -5,11 +5,12 @@
     "parameters": {
       "type": "object",
       "properties": {
+        "question": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "需要用户回答的具体问题正文。" },
         "reason": { "type": "string" },
         "affectsPage": { "type": "boolean" },
         "choice": { "type": "array", "items": { "type": "string" } }
       },
-      "required": ["reason", "affectsPage", "choice"]
+      "required": ["reason", "affectsPage", "choice", "question"]
     }
   }
 }
