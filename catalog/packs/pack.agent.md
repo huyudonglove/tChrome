@@ -90,22 +90,35 @@ action
 有 `tool_calls` 时这三段也写。finishTurn 的 action 是对用户说的话。action 为空时 Runtime 不把本 Turn 标 completed，继续出网。
 
 #user槽
-user 各槽是 Runtime 装配的参考材料。空槽只留标题。
+user 按层装配。空槽只留标题。
 
+##方法
 `#参考`：catalog/advice.md。槽之间怎么配合。
 `#skill`：catalog/skills/。网页工具能力：每个工具做什么。
 `#sop`：catalog/sops/。浏览步骤：探索型路径和确定型路径。
+
+##记忆
 `#projectMemory`：memory.write 的 projectMemory。project 范围内的记忆，跨 conversation 保留。窗口最近 8 条。
 `#conversationMemory`：memory.write 的 conversationMemory。本 conversation 内确认过的事实。窗口最近 8 条。windowChars 达到 compressAt（200000）时槽写入 summary。
 `#turnMemory`：memory.write 的 turnMemory。本 Turn 写下的记忆。窗口最近 8 条。windowChars 达到 compressAt（200000）时槽写入 summary。
 `#contextSummary`：memory.write 的 contextSummary。给后续 Turn 的汇总。
 `#observation`：ledger.observation。Runtime 在 windowChars 达到 compressAt（200000）时从 toolIO 收成的摘要。observation.detail 的 observationId 等于该项 id。
+
+##输入
 `#userInputHistory`：ledger.userInputHistory。此前 Turn 的用户原话，不含本 Turn。
 `#userInput`：本 Turn 的用户原话。Turn.input.text。
+
+##目标
 `#goal`：ledger.goal。当前目标。submitGoal 写入。
 `#goalHistory`：ledger.goalHistory。被替换掉的旧 goal 数组。Runtime 组装。
+
+##页面
 `#currentPage`：Turn.assembled.currentTab。开 Turn 由面板 POST /turn 的 currentTab 写入，字段 tab / url / title。
 `#currentEnvironment`：Turn.assembled.currentPage。page.get_summary 或其它会改当前页的工具跑完后，Runtime 写入 description / tab / url / title。
+
+##过程
 `#toolIO`：ledger.toolIO。本 Turn 已执行的工具调用，含 arguments 和 return。return.stage=truncated 时 tool.detail 的 callId 等于该项 callId。
+
+##工具
 `#baseTools`：assemble.baseToolsIds 的 usage。常驻工具用法。
 `#tools`：ledger.toolIds 的 usage。本 Turn 动态工具用法。

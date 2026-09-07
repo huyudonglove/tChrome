@@ -156,21 +156,20 @@ action
 
 ### `#user槽`
 
-user 各槽是 Runtime 装配的参考材料。空槽只留标题。
-`#参考`：catalog/advice.md。槽之间怎么配合。
-`#skill`：catalog/skills/。网页工具能力：每个工具做什么。
-`#sop`：catalog/sops/。浏览步骤：探索型路径和确定型路径。
-`#projectMemory` / `#conversationMemory` / `#turnMemory`：对应层记忆。
-`#contextSummary`：memory.write 的 contextSummary。
-`#observation`：ledger.observation。
-`#userInputHistory`：此前 Turn 的用户原话。`#userInput`：本 Turn 的用户原话。
-`#goal`：ledger.goal。`#goalHistory`：ledger.goalHistory。
-`#currentPage`：Turn.assembled.currentTab。`#currentEnvironment`：Turn.assembled.currentPage。
-`#toolIO`：ledger.toolIO。`#baseTools`：assemble.baseToolsIds 的 usage。`#tools`：ledger.toolIds 的 usage。
+user 按层装配。空槽只留标题。
+##方法：`#参考` `#skill` `#sop`
+##记忆：`#projectMemory` `#conversationMemory` `#turnMemory` `#contextSummary` `#observation`
+##输入：`#userInputHistory` `#userInput`
+##目标：`#goal` `#goalHistory`
+##页面：`#currentPage` `#currentEnvironment`
+##过程：`#toolIO`
+##工具：`#baseTools` `#tools`
 
 ## user 插槽
 
-顺序 = `userSlots` 数组。都是参考材料。skill 写网页工具能力。sop 写浏览步骤。
+顺序 = `window.user.md`。层标题 `##方法` `##记忆` `##输入` `##目标` `##页面` `##过程` `##工具`。层内是参考槽。
+
+### `##方法`
 
 ### `#参考`
 
@@ -184,6 +183,8 @@ user 各槽是 Runtime 装配的参考材料。空槽只留标题。
 
 探索型：page.get_summary → page.list_regions → page.list_interactive_elements → 用返回的 id 调 page.click / page.type。
 确定型：直接调目标工具。对用户说完再 finishTurn。
+
+### `##记忆`
 
 ### `#projectMemory`
 
@@ -205,6 +206,8 @@ user 各槽是 Runtime 装配的参考材料。空槽只留标题。
 
 （空）
 
+### `##输入`
+
 ### `#userInputHistory`
 
 （空）
@@ -213,6 +216,8 @@ user 各槽是 Runtime 装配的参考材料。空槽只留标题。
 
 帮我查这款鼠标官网价
 
+### `##目标`
+
 ### `#goal`
 
 （空）
@@ -220,6 +225,8 @@ user 各槽是 Runtime 装配的参考材料。空槽只留标题。
 ### `#goalHistory`
 
 []
+
+### `##页面`
 
 ### `#currentPage`
 
@@ -236,9 +243,13 @@ user 各槽是 Runtime 装配的参考材料。空槽只留标题。
 }
 ```
 
+### `##过程`
+
 ### `#toolIO`
 
 （空）
+
+### `##工具`
 
 ### `#baseTools`
 

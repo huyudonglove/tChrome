@@ -43,6 +43,13 @@ test("窗口按 catalog 模板插值", async () => {
   expect(catalog.userTemplate).toContain("{{#goal}}");
   expect(catalog.userTemplate).toContain("{{#goalHistory}}");
   expect(catalog.assemble.coreToolIds).toContain("page.get_summary");
+  expect(catalog.userTemplate).toContain("##方法");
+  expect(catalog.userTemplate).toContain("##记忆");
+  expect(catalog.userTemplate).toContain("##输入");
+  expect(catalog.userTemplate).toContain("##目标");
+  expect(catalog.userTemplate).toContain("##页面");
+  expect(catalog.userTemplate).toContain("##过程");
+  expect(catalog.userTemplate).toContain("##工具");
   expect(catalog.userTemplate).toContain("{{#baseTools}}");
   expect(catalog.userTemplate).toContain("{{#tools}}");
   expect(catalog.userTemplate).toContain("{{#sop}}");
@@ -56,6 +63,13 @@ test("窗口按 catalog 模板插值", async () => {
   expect(system).toContain("#目标");
   expect(system).toContain("ledger.goal");
   expect(system).toContain("ledger.goalHistory");
+  expect(system).toContain("##方法");
+  expect(system).toContain("##记忆");
+  expect(system).toContain("##输入");
+  expect(system).toContain("##目标");
+  expect(system).toContain("##页面");
+  expect(system).toContain("##过程");
+  expect(system).toContain("##工具");
   expect(system).toContain("`#skill`：catalog/skills/");
   expect(system).toContain("`#sop`：catalog/sops/");
   expect(system).toContain("`#baseTools`：assemble.baseToolsIds");
@@ -100,6 +114,13 @@ test("窗口按 catalog 模板插值", async () => {
     baseToolUsage: "askUser：向用户提问。\nfinishTurn：结束本 Turn。",
     toolUsage: "web_search：搜索公开网页。",
   });
+  expect(user).toContain("##方法");
+  expect(user).toContain("##记忆");
+  expect(user).toContain("##输入");
+  expect(user).toContain("##目标");
+  expect(user).toContain("##页面");
+  expect(user).toContain("##过程");
+  expect(user).toContain("##工具");
   expect(user).toContain("#参考");
   expect(user).toContain("#skill");
   expect(user).toContain("#sop");

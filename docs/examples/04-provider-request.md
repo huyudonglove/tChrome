@@ -166,26 +166,24 @@ baseToolsIds：askUser、finishTurn、submitGoal、tool.detail、observation.det
 content 三段：observation / reason / action。
 
 #user槽
-user 各槽是 Runtime 装配的参考材料。空槽只留标题。
-`#参考`：catalog/advice.md。槽之间怎么配合。
-`#skill`：catalog/skills/。网页工具能力。
-`#sop`：catalog/sops/。浏览步骤。
-`#projectMemory` / `#conversationMemory` / `#turnMemory`：对应层记忆。
-`#contextSummary`：memory.write 的 contextSummary。
-`#observation`：ledger.observation。
-`#userInputHistory`：此前 Turn 的用户原话。`#userInput`：本 Turn 的用户原话。
-`#goal`：ledger.goal。`#goalHistory`：ledger.goalHistory。
-`#currentPage`：Turn.assembled.currentTab。`#currentEnvironment`：Turn.assembled.currentPage。
-`#toolIO`：ledger.toolIO。`#baseTools`：assemble.baseToolsIds 的 usage。`#tools`：ledger.toolIds 的 usage。
+user 按层装配。空槽只留标题。
+##方法：`#参考` `#skill` `#sop`
+##记忆：`#projectMemory` `#conversationMemory` `#turnMemory` `#contextSummary` `#observation`
+##输入：`#userInputHistory` `#userInput`
+##目标：`#goal` `#goalHistory`
+##页面：`#currentPage` `#currentEnvironment`
+##过程：`#toolIO`
+##工具：`#baseTools` `#tools`
 ```
 
 正文以 `catalog/packs/pack.agent.md` 为准。skill / sop / 建议路径不进 system。
 
 ### `messages[1]` user
 
-按 `userSlots` 顺序。都是参考材料，按需取用。空槽只留标题。
+按 `window.user.md` 层顺序。层内是参考槽。空槽只留标题。
 
 ```
+##方法
 #参考
 `#skill` 是网页工具能力。`#sop` 是浏览步骤。`#baseTools` 是常驻工具用法。`#tools` 是本 Turn 动态工具用法。
 
@@ -196,6 +194,7 @@ user 各槽是 Runtime 装配的参考材料。空槽只留标题。
 探索型：page.get_summary → page.list_regions → page.list_interactive_elements → 用返回的 id 调 page.click / page.type。
 确定型：直接调目标工具。对用户说完再 finishTurn。
 
+##记忆
 #projectMemory
 
 #conversationMemory
@@ -207,23 +206,28 @@ user 各槽是 Runtime 装配的参考材料。空槽只留标题。
 #observation
 []
 
+##输入
 #userInputHistory
 
 #userInput
 帮我查这款鼠标官网价
 
+##目标
 #goal
 
 #goalHistory
 []
 
+##页面
 #currentPage
 
 #currentEnvironment
 
+##过程
 #toolIO
 []
 
+##工具
 #baseTools
 askUser：向用户提问。入参：choice。返回：用户选项。affectsPage=false。
 finishTurn：结束本 Turn。入参：无。content 的 action 是对用户说的话。affectsPage=false。
