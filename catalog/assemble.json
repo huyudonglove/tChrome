@@ -25,6 +25,6 @@
     "catalog.add"
   ],
   "messages": {
-    "emptyFinishTurn": "finishTurn 没有 action。对用户说的话写在 content 的 action，再调 finishTurn。"
+    "emptyFinishTurn": "finishTurn 的 action 空着。对用户说的话写在 content 的 action，再调 finishTurn。"
   }
 }
