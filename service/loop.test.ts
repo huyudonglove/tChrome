@@ -51,11 +51,16 @@ test("窗口按 catalog 模板插值", async () => {
   expect(system).toContain("#身份");
   expect(system).toContain("tChrome");
   expect(system).toContain("参考材料");
-  expect(system).toContain("submitGoal");
+  expect(system).toContain("windowChars 达到 compressAt");
+  expect(system).toContain("baseToolsIds");
+  expect(system).toContain("coreToolIds");
+  expect(system).not.toContain("从稳到新");
+  expect(system).not.toContain("常用的一撮");
+  expect(system).not.toContain("这一次会话");
   expect(system).not.toContain("{{");
   expect(system).not.toContain("探索型可以由大到小");
-  expect(system).not.toContain("#skill");
-  expect(system).not.toContain("#sop");
+  expect(system).not.toMatch(/^#skill$/m);
+  expect(system).not.toMatch(/^#sop$/m);
   const user = userText({
     catalog,
     ledger: emptyLedger("cv_01"),
