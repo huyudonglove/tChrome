@@ -52,6 +52,7 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 session.json
 conversations/<cvId>/ledger.json
 conversations/<cvId>/events.jsonl
+conversations/<cvId>/provider.json
 conversations/<cvId>/turns/<turnId>.json
 conversations/<cvId>/memory/<memoryId>.json
 conversations/<cvId>/observations/<observationId>.json
@@ -82,6 +83,49 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。
 `kind=compress` 的 `data`：`observationId` `windowChars` `sourceCallIds` `compressedMemoryIds` `prunedToolIds`。`observationId` 没有折 toolIO 时为 `null`。压缩先裁 `toolIds`（留下 core + 本轮已用过的）和记忆窗口（每层最近 8 条），再把 turn/conversation 收成 `summary`。
 `kind=turn-output` 的 `data`：`output`。
 `kind=session` 的 `data`：`conversationId`，可选 `action`=`new`/`open`。
+
+## provider.json
+
+每个会话一份。每次出网追加一条，不覆盖前面的。看发给模型的窗口和模型交回的 content / toolCalls。
+
+```json
+[
+  {
+    "at": "2026-09-07T00:00:00.000Z",
+    "turnId": "tn_01",
+    "outbound": 1,
+    "request": {
+      "messages": [
+        { "role": "system", "content": "..." },
+        { "role": "user", "content": "..." }
+      ],
+      "toolIds": ["askUser", "finishTurn"]
+    },
+    "response": {
+      "finish": "tool_calls",
+      "content": "observation\n...\nreason\n...\naction\n...",
+      "toolCalls": [{ "id": "call_01", "name": "finishTurn", "arguments": { "reason": "答完", "affectsPage": false } }],
+      "attempts": 1,
+      "parseOk": true,
+      "schemaOk": true,
+      "faultCode": null,
+      "missing": [],
+      "detail": ""
+    }
+  }
+]
+```
+
+| 字段 | 类型 | 怎么填 |
+|---|---|---|
+| `at` | string | ISO-8601 |
+| `turnId` | string | 这次出网所属 Turn |
+| `outbound` | number | 本 Turn 第几次出网，从 1 起 |
+| `request.messages` | array | 发给模型的 system / user 全文 |
+| `request.toolIds` | string[] | 这次 `tools[]` 的名字，schema 仍在 catalog |
+| `response` | object | 模型交口：`finish` `content` `toolCalls` `attempts` `parseOk` `schemaOk` `faultCode` `missing` `detail` |
+
+`events.jsonl` 的 `provider-request` / `provider-response` 仍只记元数据。完整窗口看这份。
 
 ## session.json
 

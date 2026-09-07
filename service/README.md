@@ -13,4 +13,4 @@
 
 Prompt 正文在 `catalog/`：`packs/` `skills/` `sops/` `advice.md` `window.system.md` `window.user.md` `assemble.json`。system 是事实，user 是参考。
 
-HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`。密钥在本目录 `.env`。落盘在 `~/Library/Application Support/tChrome/`（`session.json` + `conversations/<cvId>/`）。
+HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`。密钥在本目录 `.env`。落盘在 `~/Library/Application Support/tChrome/`（`session.json` + `conversations/<cvId>/`）。每次出网的 system/user 和模型交口写 `conversations/<cvId>/provider.json`。

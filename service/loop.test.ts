@@ -6,7 +6,7 @@ import { handleTurn } from "./runtime/loop.ts";
 import { createServer } from "./server.ts";
 import { createProvider } from "./provider/uuapi.ts";
 import { createToolBridge } from "./runtime/bridge.ts";
-import { emptyLedger, loadEvents, loadLedger, loadMemory, loadSession, loadTurn, saveLedger, saveTurn, sessionView } from "./runtime/store.ts";
+import { emptyLedger, loadEvents, loadLedger, loadMemory, loadProviderLog, loadSession, loadTurn, saveLedger, saveTurn, sessionView } from "./runtime/store.ts";
 import { loadCatalog } from "./prompt/catalog.ts";
 import { systemText, userText } from "./context/window.ts";
 import { maybeCompress } from "./runtime/compress.ts";
@@ -170,6 +170,17 @@ test("finishTurn 收口回复", async () => {
   ]);
   expect(events[1]?.data.userInput).toBe("你好");
   expect(events.at(-1)?.data.output).toEqual({ kind: "reply", text: "你好" });
+  const providerLog = loadProviderLog(dir, "cv_01");
+  expect(providerLog).toHaveLength(1);
+  expect(providerLog[0]!.turnId).toBe(reply.turnId);
+  expect(providerLog[0]!.outbound).toBe(1);
+  expect(providerLog[0]!.request.messages).toHaveLength(2);
+  expect(providerLog[0]!.request.messages[0]!.role).toBe("system");
+  expect(providerLog[0]!.request.messages[1]!.content).toContain("你好");
+  expect(providerLog[0]!.request.toolIds).toContain("finishTurn");
+  expect(providerLog[0]!.response.finish).toBe("tool_calls");
+  expect(providerLog[0]!.response.content).toContain("action");
+  expect(providerLog[0]!.response.toolCalls[0]!.name).toBe("finishTurn");
   rmSync(dir, { recursive: true, force: true });
 });
 

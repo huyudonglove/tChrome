@@ -141,6 +141,28 @@ export type ChatMessage = {
   content: string;
 };
 
+export type ProviderExchange = {
+  at: string;
+  turnId: string;
+  outbound: number;
+  request: {
+    messages: ChatMessage[];
+    toolIds: string[];
+  };
+  response: {
+    finish: CompletionResult["finish"];
+    content: string;
+    toolCalls: ToolCall[];
+    attempts: number;
+    parseOk: boolean;
+    schemaOk: boolean;
+    faultCode: string | null;
+    missing: string[];
+    badName?: string;
+    detail?: string;
+  };
+};
+
 export type ChatTool = {
   type: "function";
   function: {

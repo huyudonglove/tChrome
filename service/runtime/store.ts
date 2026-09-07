@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, appendFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import type { Ledger, LogEvent, MemoryRecord, ObservationRecord, Session, Turn } from "../types.ts";
+import type { Ledger, LogEvent, MemoryRecord, ObservationRecord, ProviderExchange, Session, Turn } from "../types.ts";
 import { nextId, nowIso } from "./ids.ts";
 
 export function defaultDataDir(): string {
@@ -27,6 +27,7 @@ export const paths = (dataDir: string, cvId?: string) => {
     conv,
     ledger: join(conv, "ledger.json"),
     events: join(conv, "events.jsonl"),
+    provider: join(conv, "provider.json"),
     turns: join(conv, "turns"),
     memory: join(conv, "memory"),
     observations: join(conv, "observations"),
@@ -137,6 +138,24 @@ export function loadEvents(dataDir: string, cvId: string): LogEvent[] {
     .split("\n")
     .filter(Boolean)
     .map((line) => JSON.parse(line) as LogEvent);
+}
+
+export function loadProviderLog(dataDir: string, cvId: string): ProviderExchange[] {
+  return readJson(paths(dataDir, cvId).provider, []);
+}
+
+export function appendProviderExchange(dataDir: string, cvId: string, exchange: Omit<ProviderExchange, "at" | "outbound"> & { at?: string }): ProviderExchange {
+  const log = loadProviderLog(dataDir, cvId);
+  const row: ProviderExchange = {
+    at: exchange.at ?? nowIso(),
+    turnId: exchange.turnId,
+    outbound: log.filter((item) => item.turnId === exchange.turnId).length + 1,
+    request: exchange.request,
+    response: exchange.response,
+  };
+  log.push(row);
+  writeJson(paths(dataDir, cvId).provider, log);
+  return row;
 }
 
 const outputText = (output: Turn["output"]): string => {

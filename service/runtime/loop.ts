@@ -29,6 +29,7 @@ import {
   saveMemory,
   saveTurn,
   appendEvent,
+  appendProviderExchange,
 } from "./store.ts";
 
 const stoppedReply = (dataDir: string, ledger: Ledger, turn: Turn): TurnReply => {
@@ -364,6 +365,23 @@ export async function handleTurn(
       toolIds: turn.assembled.toolIds,
     });
     if (wasStopped(deps.dataDir, ledger.conversationId)) return stoppedReply(deps.dataDir, ledger, turn);
+    const toolIds = [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds];
+    appendProviderExchange(deps.dataDir, ledger.conversationId, {
+      turnId,
+      request: { messages, toolIds },
+      response: {
+        finish: result.finish,
+        content: result.content,
+        toolCalls: result.toolCalls,
+        attempts: result.attempts,
+        parseOk: result.parseOk,
+        schemaOk: result.schemaOk,
+        faultCode: result.faultCode,
+        missing: result.missing,
+        badName: result.badName,
+        detail: result.detail ?? "",
+      },
+    });
     appendEvent(deps.dataDir, ledger.conversationId, {
       kind: "provider-response",
       turnId,
