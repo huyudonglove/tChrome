@@ -214,13 +214,14 @@ export function currentSessionView(dataDir: string): SessionView {
 }
 
 export function listConversations(dataDir: string): ConversationItem[] {
+  const current = loadSession(dataDir)?.conversationId ?? null;
   return listConversationIds(dataDir)
     .map((id) => {
       const ledger = loadLedger(dataDir, id);
       const lastTurnId = ledger.turnIds.at(-1);
-      let preview = id;
+      let preview = "新会话";
       if (lastTurnId) preview = loadTurn(dataDir, id, lastTurnId).input.text;
-      else if (ledger.userInputHistory.at(-1)) preview = ledger.userInputHistory.at(-1) ?? id;
+      else if (ledger.userInputHistory.at(-1)) preview = ledger.userInputHistory.at(-1) ?? "新会话";
       return {
         conversationId: id,
         updatedAt: ledger.updatedAt,
@@ -229,6 +230,8 @@ export function listConversations(dataDir: string): ConversationItem[] {
       };
     })
     .sort((a, b) => {
+      if (a.conversationId === current) return -1;
+      if (b.conversationId === current) return 1;
       if (a.updatedAt !== b.updatedAt) return a.updatedAt < b.updatedAt ? 1 : -1;
       return a.conversationId < b.conversationId ? 1 : -1;
     });

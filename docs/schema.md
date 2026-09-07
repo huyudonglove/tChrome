@@ -34,7 +34,7 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 | POST | `/turn` | `{userInput, submittedAt}` | `{conversationId, turnId, output}` |
 | POST | `/stop` | 无 | 停当前 Turn。账本 `paused`，投影回 `{conversationId, status, pendingAsk, liveTool, messages}`。下一句可再开 Turn |
 | GET | `/session` | 无 | 当前 `session.json` 指向的会话投影：`{conversationId, status, pendingAsk, liveTool, messages}`。`messages` 含 user / 已跑工具 / 正在跑（`live:true`）/ 排队工具 / assistant |
-| GET | `/conversations` | 无 | `{items:[{conversationId, updatedAt, status, preview}]}` |
+| GET | `/conversations` | 无 | `{items:[{conversationId, updatedAt, status, preview}]}`。当前 `session.json` 指向的排第一，其余按 `updatedAt` 新到旧。空会话 preview 是「新会话」 |
 | POST | `/conversations/open` | `{conversationId}` | 该会话投影，并写入 `session.json` |
 | POST | `/conversations/new` | 无 | 新建空 `cv_`，写入 `session.json`，回空投影 |
 | POST | `/conversations/delete` | `{conversationId}` | 删掉该会话目录。若删的是当前会话，切到最近一条或新建 |

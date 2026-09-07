@@ -320,14 +320,19 @@ test("GET /session 还原消息，切会话改 session.json", async () => {
   expect(opened.messages[0].text).toBe("你好");
   const listed = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations"))).json();
   expect(listed.items.map((item: { conversationId: string }) => item.conversationId).sort()).toEqual(["cv_01", "cv_02"]);
+  const createdAgain = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations/new", { method: "POST" }))).json();
+  expect(createdAgain.conversationId).toBe("cv_03");
+  const listedNew = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations"))).json();
+  expect(listedNew.items[0].conversationId).toBe("cv_03");
+  expect(listedNew.items[0].preview).toBe("新会话");
   const deleted = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations/delete", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ conversationId: "cv_01" }),
   }))).json();
-  expect(deleted.conversationId).toBe("cv_02");
+  expect(deleted.conversationId).toBe("cv_03");
   const after = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations"))).json();
-  expect(after.items.map((item: { conversationId: string }) => item.conversationId)).toEqual(["cv_02"]);
+  expect(after.items.map((item: { conversationId: string }) => item.conversationId)).toEqual(["cv_03", "cv_02"]);
   rmSync(dir, { recursive: true, force: true });
 });
 
