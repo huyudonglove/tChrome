@@ -6,11 +6,14 @@ export type Session = {
   conversationId: string;
 };
 
-export type CurrentPage = {
-  description: string;
+export type CurrentTab = {
   tab: number;
   url: string;
   title: string;
+};
+
+export type CurrentPage = CurrentTab & {
+  description: string;
 };
 
 export type Assembled = {
@@ -24,6 +27,7 @@ export type Assembled = {
   projectMemoryIds: string[];
   mcpIds: string[];
   currentPage: CurrentPage | null;
+  currentTab: CurrentTab | null;
 };
 
 export type TurnOutput =

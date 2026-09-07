@@ -103,11 +103,11 @@ export function createServer(options: ServeOptions = {}) {
         }
       }
       if (request.method === "POST" && url.pathname === "/turn") {
-        const body = (await request.json()) as { userInput?: string; submittedAt?: string };
+        const body = (await request.json()) as { userInput?: string; submittedAt?: string; currentTab?: { tab?: number; url?: string; title?: string } | null };
         const userInput = String(body.userInput ?? "").trim();
         if (!userInput) return json({ conversationId: "", turnId: "", output: { kind: "error", faultCode: "empty_input" } }, 400);
         const submittedAt = body.submittedAt || new Date().toISOString();
-        const reply = await handleTurn(deps, { userInput, submittedAt });
+        const reply = await handleTurn(deps, { userInput, submittedAt, currentTab: body.currentTab ?? null });
         return json(reply);
       }
       if (request.method === "POST" && url.pathname === "/stop") {

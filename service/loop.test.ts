@@ -42,12 +42,36 @@ test("窗口按 catalog 模板插值", async () => {
   expect(catalog.assemble.baseToolsIds).toContain("finishTurn");
   expect(catalog.assemble.coreToolIds).toContain("page.get_summary");
   expect(catalog.systemTemplate).toContain("{{#身份}}");
-  expect(catalog.userTemplate).toContain("{{#userInput}}");
+  expect(catalog.userTemplate).toContain("{{#currentPage}}");
   const system = systemText(catalog);
   expect(system).toContain("#身份");
   expect(system).toContain("tChrome");
   expect(system).toContain("对用户说完再 finishTurn");
   expect(system).not.toContain("{{");
+});
+
+test("开 Turn 写入 currentTab，不调 page 工具", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-tab-"));
+  const provider = mock([
+    ok({
+      finish: "tool_calls",
+      content: "observation\n看到标题\nreason\n收口\naction\n当前是京东",
+      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
+    }),
+  ]);
+  const reply = await handleTurn(
+    { dataDir: dir, repoRoot, provider },
+    {
+      userInput: "这是什么页",
+      submittedAt: "2026-09-06T00:00:00.000Z",
+      currentTab: { tab: 12, url: "https://item.jd.com/x", title: "罗技" },
+    },
+  );
+  expect(reply.output).toEqual({ kind: "reply", text: "当前是京东" });
+  const turn = loadTurn(dir, "cv_01", reply.turnId);
+  expect(turn.assembled.currentTab).toEqual({ tab: 12, url: "https://item.jd.com/x", title: "罗技" });
+  expect(turn.assembled.currentPage).toBeNull();
+  rmSync(dir, { recursive: true, force: true });
 });
 
 test("GET /health", async () => {
@@ -85,6 +109,7 @@ test("finishTurn 收口回复", async () => {
   expect(ledger.userInputHistory).toEqual([]);
   const turn = loadTurn(dir, "cv_01", reply.turnId);
   expect(turn.assembled.currentPage).toBeNull();
+  expect(turn.assembled.currentTab).toBeNull();
   const events = loadEvents(dir, "cv_01");
   expect(events.map((row) => row.kind)).toEqual([
     "session",
@@ -445,6 +470,7 @@ test("队列和正在跑的工具出现在 /session", () => {
       projectMemoryIds: [],
       mcpIds: [],
       currentPage: null,
+      currentTab: null,
     },
     output: null,
   });

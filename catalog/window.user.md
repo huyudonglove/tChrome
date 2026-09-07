@@ -19,6 +19,9 @@
 #userInput
 {{#userInput}}
 
+#currentPage
+{{#currentPage}}
+
 #currentEnvironment
 {{#currentEnvironment}}
 

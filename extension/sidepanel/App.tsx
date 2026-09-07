@@ -217,10 +217,14 @@ export function App() {
       chrome.runtime.sendMessage({ type: "ping" }).catch(() => {});
     }, 1000);
     try {
+      const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      const currentTab = tab?.id
+        ? { tab: tab.id, url: tab.url ?? "", title: tab.title ?? "" }
+        : null;
       const response = await fetch(`${SERVICE}/turn`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ userInput: text, submittedAt: new Date().toISOString() }),
+        body: JSON.stringify({ userInput: text, submittedAt: new Date().toISOString(), currentTab }),
       });
       const body = await response.json() as { output?: Output };
       setSession((current) => ({

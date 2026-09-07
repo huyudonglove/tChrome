@@ -31,7 +31,7 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 | 方法 | 路径 | 体 | 回 |
 |---|---|---|---|
 | GET | `/health` | 无 | `{ok:true}` |
-| POST | `/turn` | `{userInput, submittedAt}` | `{conversationId, turnId, output}` |
+| POST | `/turn` | `{userInput, submittedAt, currentTab?}` | `{conversationId, turnId, output}`。`currentTab` 是 `{tab, url, title}`，开 Turn 写入 `#currentPage`。没有就槽空着 |
 | POST | `/stop` | 无 | 停当前 Turn。账本 `paused`，投影回 `{conversationId, status, pendingAsk, liveTool, messages}`。下一句可再开 Turn |
 | GET | `/session` | 无 | 当前 `session.json` 指向的会话投影：`{conversationId, status, pendingAsk, liveTool, messages}`。`messages` 含 user / 已跑工具 / 正在跑（`live:true`）/ 排队工具 / assistant |
 | GET | `/conversations` | 无 | `{items:[{conversationId, updatedAt, status, preview}]}`。当前 `session.json` 指向的排第一，其余按 `updatedAt` 新到旧。空会话 preview 是「新会话」 |
@@ -142,7 +142,8 @@ Runtime 独占维护。当前会话指针。
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
 | `mcpIds` | string[] | 本轮 MCP；没有就 `[]` |
-| `currentPage` | object \| null | 开 Turn 为 `null`。模型调 `page.get_summary` / `see_page`（或其它会改当前页的工具）跑完后，Runtime 用返回填 `description` `tab` `url` `title` |
+| `currentTab` | object \| null | 开 Turn 由 Runtime 写入。面板 `POST /turn` 带当前标签 `{tab, url, title}`。没有就 `null`。进 user `#currentPage` |
+| `currentPage` | object \| null | 开 Turn 为 `null`。模型调 `page.get_summary` / `see_page`（或其它会改当前页的工具）跑完后，Runtime 用返回填 `description` `tab` `url` `title`。进 user `#currentEnvironment` |
 
 `currentPage`：
 
@@ -208,6 +209,7 @@ user 顺序 = `userSlots`：
 | `#observation` | ledger.`observation` |
 | `#userInputHistory` | ledger.`userInputHistory`（不含本轮） |
 | `#userInput` | Turn.`input.text` |
+| `#currentPage` | Turn.`assembled.currentTab`。开 Turn 写入，只有 tab / url / title |
 | `#currentEnvironment` | Turn.`assembled.currentPage` |
 | `#toolIO` | ledger.`toolIO` |
 | `#tools` | 本轮动态工具用法。常驻用法在 Pack |

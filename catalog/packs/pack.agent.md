@@ -81,6 +81,7 @@ action
 上次会话总结写在 `#contextSummary`。
 当前用户输入写在 `#userInput`。
 历史用户输入写在 `#userInputHistory`。
+当前页标题和链接写在 `#currentPage`，开 Turn 时 Runtime 写入，只有 tab / url / title。
 当前环境写在 `#currentEnvironment`。
 压缩过的事实写在 `#observation`：数组，每项 `{id, text, sourceCallIds}`。要看具体事实，调 observation.detail。
 工具调用和返回写在 `#toolIO`：数组，每项 callId、name、arguments、return。常驻和动态都进这里。同一工具可出现多次。最新的在最下面。窗口到 200K 时较早的条目收进 `#observation`。

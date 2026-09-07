@@ -73,6 +73,7 @@ const assemble = (catalog: Catalog): Assembled => ({
   projectMemoryIds: [],
   mcpIds: [],
   currentPage: null,
+  currentTab: null,
 });
 
 const loadMemories = (dataDir: string, ledger: Ledger) => {
@@ -283,7 +284,7 @@ const runQueue = async (input: {
 
 export async function handleTurn(
   deps: LoopDeps,
-  body: { userInput: string; submittedAt: string },
+  body: { userInput: string; submittedAt: string; currentTab?: { tab?: number; url?: string; title?: string } | null },
 ): Promise<TurnReply> {
   const session = ensureSession(deps.dataDir);
   const ledger = loadLedger(deps.dataDir, session.conversationId);
@@ -311,6 +312,15 @@ export async function handleTurn(
     assembled: assemble(catalog),
     output: null,
   };
+  const tab = body.currentTab;
+  const tabId = Number(tab?.tab);
+  if (tab && Number.isFinite(tabId) && tabId >= 1) {
+    turn.assembled.currentTab = {
+      tab: tabId,
+      url: String(tab.url ?? ""),
+      title: String(tab.title ?? ""),
+    };
+  }
   turn.assembled.turnMemoryIds = [...ledger.memoryIds.turn];
   turn.assembled.conversationMemoryIds = [...ledger.memoryIds.conversation];
   turn.assembled.projectMemoryIds = [...ledger.memoryIds.project];
