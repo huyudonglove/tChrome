@@ -48,8 +48,8 @@ export type Turn = {
 };
 
 export type ToolArguments = {
-  reason: string;
-  affectsPage: boolean;
+  reason?: string;
+  affectsPage?: boolean;
   [key: string]: unknown;
 };
 
@@ -132,6 +132,7 @@ export type CompletionResult = {
   schemaOk: boolean;
   faultCode: string | null;
   missing: string[];
+  badName?: string;
   detail?: string;
 };
 

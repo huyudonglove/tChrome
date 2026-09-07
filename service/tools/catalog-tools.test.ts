@@ -64,6 +64,8 @@ test("缺字段和类型错走 Ajv，不补齐", () => {
     schemaOk: false,
     faultCode: "missing_required",
     missing: expect.arrayContaining(["reason", "affectsPage"]),
+    badName: "page.type",
+    detail: "page.type missing required: reason, affectsPage",
   });
   const wrong = checkToolCalls(
     [{ id: "call_02", name: "page.type", arguments: { reason: "填", affectsPage: true, id: "e1", text: 12 as unknown as string } }],

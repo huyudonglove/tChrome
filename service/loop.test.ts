@@ -574,6 +574,7 @@ test("arguments 不是 JSON 时好的工具照跑，坏的退回再出网", asyn
       schemaOk: false,
       faultCode: "arguments_not_json",
       detail: "page.type: Unexpected token",
+      badName: "page.type",
       content: "observation\n输入\nreason\n填邮箱\naction\npage.type",
       toolCalls: [{ id: "call_01", name: "page.get_summary", arguments: { reason: "看页", affectsPage: false } }],
     }),
@@ -595,6 +596,63 @@ test("arguments 不是 JSON 时好的工具照跑，坏的退回再出网", asyn
   expect(ledger.status).toBe("idle");
   expect(ledger.toolIO.map((row) => row.name)).toEqual(["page.type", "page.get_summary", "finishTurn"]);
   expect(JSON.parse(ledger.toolIO[0]!.return.text).faultCode).toBe("arguments_not_json");
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("缺字段写进 toolIO 再出网，不补齐", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-missing-"));
+  const provider = mock([
+    ok({
+      finish: "tool_calls",
+      parseOk: true,
+      schemaOk: false,
+      faultCode: "missing_required",
+      missing: ["reason", "affectsPage"],
+      badName: "page.type",
+      detail: "page.type missing required: reason, affectsPage",
+      content: "observation\n填邮箱\nreason\n输入\naction\npage.type",
+      toolCalls: [{ id: "call_01", name: "page.type", arguments: { id: "e1", text: "a@b.com" } }],
+    }),
+    ok({
+      finish: "tool_calls",
+      content: "observation\n已记下缺字段\nreason\n收口\naction\n缺 reason 和 affectsPage",
+      toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
+    }),
+  ]);
+  const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "填邮箱", submittedAt: "2026-09-06T00:00:00.000Z" });
+  expect(reply.output).toEqual({ kind: "reply", text: "缺 reason 和 affectsPage" });
+  const ledger = loadLedger(dir, "cv_01");
+  expect(ledger.status).toBe("idle");
+  expect(ledger.toolIO[0]!.name).toBe("page.type");
+  expect(JSON.parse(ledger.toolIO[0]!.return.text)).toMatchObject({
+    ok: false,
+    faultCode: "missing_required",
+    missing: ["reason", "affectsPage"],
+    toolName: "page.type",
+  });
+  expect(ledger.toolIO[0]!.arguments).toEqual({ id: "e1", text: "a@b.com" });
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("stop 没有 tool_calls 就写 needFinishTurn 再出网", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-need-finish-"));
+  const provider = mock([
+    ok({
+      finish: "stop",
+      content: "observation\n说完了\nreason\n收口\naction\n测完了",
+      toolCalls: [],
+    }),
+    ok({
+      finish: "tool_calls",
+      content: "observation\n已看到提示\nreason\n收口\naction\n测完了",
+      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
+    }),
+  ]);
+  const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "测完了吗", submittedAt: "2026-09-06T00:00:00.000Z" });
+  expect(reply.output).toEqual({ kind: "reply", text: "测完了" });
+  const ledger = loadLedger(dir, "cv_01");
+  expect(ledger.toolIO[0]!.name).toBe("finishTurn");
+  expect(ledger.toolIO[0]!.return.text).toContain("没有 tool_calls");
   rmSync(dir, { recursive: true, force: true });
 });
 

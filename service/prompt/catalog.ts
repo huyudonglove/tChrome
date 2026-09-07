@@ -17,6 +17,7 @@ export type Assemble = {
   coreToolIds: string[];
   messages: {
     emptyFinishTurn: string;
+    needFinishTurn: string;
   };
 };
 

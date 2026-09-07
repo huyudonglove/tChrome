@@ -116,8 +116,8 @@ const messagesOf = (catalog: Catalog, ledger: Ledger, turn: Turn, dataDir: strin
 };
 
 const writeFault = (ledger: Ledger, turnId: string, result: CompletionResult) => {
-  const name = result.detail?.split(":")[0]?.trim() || (result.parseOk ? result.toolCalls.at(-1)?.name : "") || "unknown";
-  const call = result.toolCalls.at(-1);
+  const name = result.badName || result.toolCalls.at(-1)?.name || "unknown";
+  const call = result.toolCalls.find((row) => row.name === name) ?? result.toolCalls.at(-1);
   const text = JSON.stringify({
     ok: false,
     faultCode: result.faultCode,
@@ -129,7 +129,7 @@ const writeFault = (ledger: Ledger, turnId: string, result: CompletionResult) =>
     callId: call?.id ?? "call_fault",
     name,
     turnId,
-    arguments: call?.arguments ?? { reason: "", affectsPage: false },
+    arguments: call?.arguments ?? {},
     return: clipReturn(text),
   });
 };
@@ -398,7 +398,7 @@ export async function handleTurn(
     if (!result.parseOk || !result.schemaOk) {
       submitFails += 1;
       writeFault(ledger, turnId, result);
-      if (result.toolCalls.length) {
+      if (!result.parseOk && result.toolCalls.length) {
         ledger.toolQueue = result.toolCalls.map((call) => ({
           callId: call.id,
           name: call.name,
@@ -447,16 +447,17 @@ export async function handleTurn(
     }
     if (result.finish === "stop" && result.toolCalls.length === 0) {
       submitFails += 1;
-      writeFault(ledger, turnId, {
-        ...result,
-        finish: "error",
-        faultCode: "missing_required",
-        toolCalls: [{ id: "call_fault", name: "finishTurn", arguments: { reason: "", affectsPage: false } }],
+      ledger.toolIO.push({
+        callId: "call_fault",
+        name: "finishTurn",
+        turnId,
+        arguments: {},
+        return: clipReturn(catalog.assemble.messages.needFinishTurn),
       });
       if (submitFails >= MAX_SUBMIT) {
         turn.status = "failed";
         turn.completedAt = nowIso();
-        turn.output = { kind: "error", faultCode: "missing_required" };
+        turn.output = { kind: "error", faultCode: "need_finish_turn" };
         ledger.status = "failed";
         ledger.active = null;
         ledger.liveTool = null;

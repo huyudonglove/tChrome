@@ -272,9 +272,10 @@ user 顺序 = `catalog/window.user.md`：参考 / skill / sop / 记忆 / 输入 
 |---|---|
 | `arguments_not_json` | `function.arguments` 解析失败。对象原样用；字符串 `JSON.parse`；围栏、尾逗号、单引号只修外壳。不补字段。好的 `toolCalls` 照跑，坏的那条写进 `#toolIO` 再出网。同一 Turn 最多 3 次 |
 | `unknown_tool` | `name` 不在 `baseToolsIds` + `toolIds` |
-| `missing_required` | catalog `required` 缺或空；`missing` 列出字段名 |
-| `wrong_type` | Ajv：类型对不上 schema |
-| `exclusive_resident` | 同一次出网里 `finishTurn` 不在最后一条 |
+| `missing_required` | catalog `required` 缺或空。`missing` 列出字段名，写进 `#toolIO` 再出网。不补字段。同一 Turn 最多 3 次 |
+| `wrong_type` | Ajv：类型对不上 schema。写进 `#toolIO` 再出网。同一 Turn 最多 3 次 |
+| `exclusive_resident` | 同一次出网里 `finishTurn` / `askUser` 不在最后一条。写进 `#toolIO` 再出网 |
+| `need_finish_turn` | `finish=stop` 且 `tool_calls` 为空，连续 3 次。每次先写 `assemble.messages.needFinishTurn` 进 `#toolIO` 再出网 |
 
 Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 

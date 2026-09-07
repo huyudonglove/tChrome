@@ -18,6 +18,8 @@ user `#observation` 是 Runtime 在 windowChars 达到 compressAt（200000）时
 一次出网的 tool_calls 由 Runtime 按数组顺序执行。
 affectsPage 为 true 时该调用改变当前页（跳转、点击、输入）；为 false 时该调用只读。
 finishTurn 执行后本 Turn status=completed，ledger.status=idle。
+finish=stop 且 tool_calls 为空时，Runtime 在 toolIO 写入 assemble.messages.needFinishTurn，再次出网。
+tool_calls 缺 catalog required 字段时，Runtime 在 toolIO 写入 faultCode=missing_required 和 missing 字段名，再次出网。不补字段。
 toolIO 某条 return.stage=truncated 时，tool.detail 的 callId 等于该条 callId。
 observation 某条需要全文时，observation.detail 的 observationId 等于该条 id。
 ledger.goalHistory 由 Runtime 在 submitGoal 改写 goal 且新值与旧值不同时追加旧 goal。

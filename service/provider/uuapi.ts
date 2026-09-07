@@ -140,6 +140,7 @@ export function createProvider(config: ProviderConfig = {}) {
               schemaOk: false,
               faultCode: "arguments_not_json",
               missing: [],
+              badName: parsed.badName,
               detail: parsed.detail,
             };
           }
