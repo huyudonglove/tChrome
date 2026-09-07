@@ -15,7 +15,10 @@ service/            后端：Bun.serve 127.0.0.1:18788。按模块分
   tools/
   subagent/         第一期空着
   provider/
-catalog/            Pack / skill / SOP / tools schema
+catalog/            Pack / skill / SOP / tools schema / 窗口模板
+  assemble.json     本轮点哪些 pack / skill / sop / 常驻工具 / 核心工具
+  window.system.md  system 插槽模板，`{{#身份}}` 这类占位
+  window.user.md    user 插槽模板
 docs/               schema、账本、阶段样例
 ```
 
@@ -191,7 +194,7 @@ Runtime 独占维护。当前会话指针。
 
 用户一条输入开一个 Turn，CE 装配一次。本 Turn 内工具循环不再走 CE。
 
-system 顺序 = `systemSlots`：`#身份` `#记忆` `#观察` `#环境` `#原则` `#参数说明` `#内置工具` `#输出` `#user字段说明` `#skill` `#sop`
+system 顺序 = `catalog/window.system.md` 里的 `#标题`。user 顺序 = `catalog/window.user.md`。改正文改 catalog 文件。出网时 Runtime 按模板 `{{槽名}}` 插值拼 `system` / `user`。
 
 user 顺序 = `userSlots`：
 

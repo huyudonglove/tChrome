@@ -8,6 +8,7 @@ import { createProvider } from "./provider/uuapi.ts";
 import { createToolBridge } from "./runtime/bridge.ts";
 import { loadEvents, loadLedger, loadMemory, loadSession, loadTurn } from "./runtime/store.ts";
 import { loadCatalog } from "./prompt/catalog.ts";
+import { systemText } from "./context/window.ts";
 import { maybeCompress } from "./runtime/compress.ts";
 import type { CompletionResult, Provider } from "./types.ts";
 
@@ -35,6 +36,18 @@ const mock = (results: CompletionResult[]): Provider => {
     },
   };
 };
+
+test("窗口按 catalog 模板插值", async () => {
+  const catalog = loadCatalog(repoRoot);
+  expect(catalog.assemble.baseToolsIds).toContain("finishTurn");
+  expect(catalog.assemble.coreToolIds).toContain("see_page");
+  expect(catalog.systemTemplate).toContain("{{#身份}}");
+  expect(catalog.userTemplate).toContain("{{#userInput}}");
+  const system = systemText(catalog);
+  expect(system).toContain("#身份");
+  expect(system).toContain("tChrome");
+  expect(system).not.toContain("{{");
+});
 
 test("GET /health", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-health-"));

@@ -8,7 +8,7 @@
 - 「system 插槽」每个 `#标题` 单独一段，正文来自 catalog
 - 「user 插槽」每个 `#块` 单独一段，正文在这一页
 - 「写出的」JSON：`systemSlots` / `userSlots` 都是名数组
-- 出网时 Runtime 按名列表拼 `system` / `user`；按 `baseToolsIds` + `toolIds` 取 `catalog/tools/<id>.json` 填请求的 `tools[]`
+- 出网时 Runtime 按 `catalog/window.system.md` / `window.user.md` 的 `{{槽名}}` 插值拼 `system` / `user`；按 `baseToolsIds` + `toolIds` 取 `catalog/tools/<id>.json` 填请求的 `tools[]`
 
 ## 读到的（02 写出的）
 

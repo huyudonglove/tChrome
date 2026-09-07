@@ -5,10 +5,12 @@
 | 目录 | 层 |
 |---|---|
 | `runtime/` | 账本、循环、压缩、`session.json`、浏览器桥 |
-| `prompt/` | Pack |
+| `prompt/` | 读 catalog，插值拼窗口。改正文改 catalog，不改这里 |
 | `context/` | 当轮窗口 |
 | `tools/` | 工具 schema 与执行 |
 | `subagent/` | 第一期空着 |
 | `provider/` | 转发 UUAPI |
+
+Prompt 正文在 `catalog/`：`packs/` `skills/` `sops/` `window.system.md` `window.user.md` `assemble.json`。
 
 HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`。密钥在本目录 `.env`。落盘在 `~/Library/Application Support/tChrome/`（`session.json` + `conversations/<cvId>/`）。

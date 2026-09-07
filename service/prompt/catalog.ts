@@ -2,62 +2,22 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ChatTool } from "../types.ts";
 
-export const SYSTEM_SLOTS = [
-  "#身份",
-  "#记忆",
-  "#观察",
-  "#环境",
-  "#原则",
-  "#参数说明",
-  "#内置工具",
-  "#输出",
-  "#user字段说明",
-  "#skill",
-  "#sop",
-] as const;
-
-export const USER_SLOTS = [
-  "#projectMemory",
-  "#conversationMemory",
-  "#turnMemory",
-  "#contextSummary",
-  "#observation",
-  "#userInputHistory",
-  "#userInput",
-  "#currentEnvironment",
-  "#toolIO",
-  "#tools",
-] as const;
-
-export const BASE_TOOLS_IDS = [
-  "askUser",
-  "finishTurn",
-  "tool.detail",
-  "observation.detail",
-  "memory.write",
-] as const;
-
-export const CORE_TOOL_IDS = [
-  "see_page",
-  "find_on_page",
-  "snapshot_page",
-  "click",
-  "type",
-  "open_url",
-  "list_tabs",
-  "wait",
-  "scroll",
-  "press",
-  "web_search",
-  "list_browser_tools",
-  "catalog.add",
-] as const;
-
 export type ToolIndex = {
   browser: string[];
   service: string[];
   affectsPage: Record<string, boolean>;
   usage: Record<string, string>;
+};
+
+export type Assemble = {
+  systemIds: string[];
+  skillIds: string[];
+  sopIds: string[];
+  baseToolsIds: string[];
+  coreToolIds: string[];
+  messages: {
+    emptyFinishTurn: string;
+  };
 };
 
 export type Catalog = {
@@ -66,6 +26,9 @@ export type Catalog = {
   sop: string;
   tools: Record<string, ChatTool>;
   index: ToolIndex;
+  assemble: Assemble;
+  systemTemplate: string;
+  userTemplate: string;
 };
 
 const splitHeadings = (text: string): Record<string, string> => {
@@ -93,6 +56,9 @@ export function loadCatalog(root: string): Catalog {
   const skill = readFileSync(join(catalog, "skills", "skill.web.md"), "utf8").replace(/^#skill\n?/, "").trim();
   const sop = readFileSync(join(catalog, "sops", "sop.browse.md"), "utf8").replace(/^#sop\n?/, "").trim();
   const index = JSON.parse(readFileSync(join(catalog, "tools", "index.json"), "utf8")) as ToolIndex;
+  const assemble = JSON.parse(readFileSync(join(catalog, "assemble.json"), "utf8")) as Assemble;
+  const systemTemplate = readFileSync(join(catalog, "window.system.md"), "utf8").replaceAll("\r\n", "\n").trimEnd();
+  const userTemplate = readFileSync(join(catalog, "window.user.md"), "utf8").replaceAll("\r\n", "\n").trimEnd();
   const tools: Record<string, ChatTool> = {};
   for (const file of readdirSync(join(catalog, "tools"))) {
     if (!file.endsWith(".json") || file === "index.json") continue;
@@ -100,7 +66,7 @@ export function loadCatalog(root: string): Catalog {
     const name = tool.function?.name;
     if (name) tools[name] = tool;
   }
-  return { pack, skill, sop, tools, index };
+  return { pack, skill, sop, tools, index, assemble, systemTemplate, userTemplate };
 }
 
 export function dynamicToolIds(catalog: Catalog): string[] {
@@ -108,7 +74,7 @@ export function dynamicToolIds(catalog: Catalog): string[] {
 }
 
 export function coreToolIds(catalog: Catalog): string[] {
-  return CORE_TOOL_IDS.filter((id) => Boolean(catalog.tools[id]));
+  return catalog.assemble.coreToolIds.filter((id) => Boolean(catalog.tools[id]));
 }
 
 export function toolSchemas(catalog: Catalog, ids: string[]): ChatTool[] {
@@ -129,4 +95,16 @@ export function toolUsageFor(catalog: Catalog, ids: string[]): string {
     })
     .filter(Boolean)
     .join("\n");
+}
+
+export function interpolate(template: string, slots: Record<string, string>): string {
+  return template.replace(/\{\{([^}]+)\}\}/g, (_, name: string) => slots[name.trim()] ?? "");
+}
+
+export function slotNames(template: string): string[] {
+  const names: string[] = [];
+  for (const line of template.split("\n")) {
+    if (line.startsWith("#") && !line.startsWith("##") && !line.startsWith("{{")) names.push(line.trim());
+  }
+  return names;
 }

@@ -1,18 +1,18 @@
 import type { Ledger, MemoryRecord, Turn } from "../types.ts";
-import { SYSTEM_SLOTS, USER_SLOTS, type Catalog } from "../prompt/catalog.ts";
+import { interpolate, slotNames, type Catalog } from "../prompt/catalog.ts";
 
 export const MEMORY_WINDOW = 8;
-
-const slotBlock = (name: string, body: string) => (body ? `${name}\n${body}` : name);
 
 const jsonBody = (value: unknown) => JSON.stringify(value, null, 2);
 
 export function systemText(catalog: Catalog): string {
-  return SYSTEM_SLOTS.map((name) => {
-    if (name === "#skill") return slotBlock(name, catalog.skill);
-    if (name === "#sop") return slotBlock(name, catalog.sop);
-    return slotBlock(name, catalog.pack[name] ?? "");
-  }).join("\n\n");
+  const slots: Record<string, string> = {};
+  for (const name of slotNames(catalog.systemTemplate)) {
+    if (name === "#skill") slots[name] = catalog.skill;
+    else if (name === "#sop") slots[name] = catalog.sop;
+    else slots[name] = catalog.pack[name] ?? "";
+  }
+  return interpolate(catalog.systemTemplate, slots);
 }
 
 const memoryBody = (items: MemoryRecord[]) =>
@@ -23,13 +23,14 @@ const memoryBody = (items: MemoryRecord[]) =>
     .join("\n");
 
 export function userText(input: {
+  catalog: Catalog;
   ledger: Ledger;
   turn: Turn;
   memories: { project: MemoryRecord[]; conversation: MemoryRecord[]; turn: MemoryRecord[] };
   toolUsage: string;
 }): string {
-  const { ledger, turn, memories, toolUsage } = input;
-  const bodies: Record<(typeof USER_SLOTS)[number], string> = {
+  const { catalog, ledger, turn, memories, toolUsage } = input;
+  return interpolate(catalog.userTemplate, {
     "#projectMemory": memoryBody(memories.project),
     "#conversationMemory": memoryBody(memories.conversation),
     "#turnMemory": memoryBody(memories.turn),
@@ -40,8 +41,7 @@ export function userText(input: {
     "#currentEnvironment": turn.assembled.currentPage ? jsonBody(turn.assembled.currentPage) : "",
     "#toolIO": jsonBody(ledger.toolIO),
     "#tools": toolUsage,
-  };
-  return USER_SLOTS.map((name) => slotBlock(name, bodies[name])).join("\n\n");
+  });
 }
 
 export function windowChars(system: string, user: string): number {

@@ -1,5 +1,5 @@
 import { systemText, userText, windowChars } from "../context/window.ts";
-import { BASE_TOOLS_IDS, coreToolIds, dynamicToolIds, loadCatalog, toolSchemas, toolUsageFor, type Catalog } from "../prompt/catalog.ts";
+import { coreToolIds, dynamicToolIds, loadCatalog, toolSchemas, toolUsageFor, type Catalog } from "../prompt/catalog.ts";
 import { asObject, asStringArray, clipReturn, executeTool, pageFromBrowser } from "../tools/execute.ts";
 import type {
   Assembled,
@@ -42,10 +42,10 @@ export type LoopDeps = {
 };
 
 const assemble = (catalog: Catalog): Assembled => ({
-  systemIds: ["pack.agent"],
-  skillIds: ["skill.web"],
-  sopIds: ["sop.browse"],
-  baseToolsIds: [...BASE_TOOLS_IDS],
+  systemIds: [...catalog.assemble.systemIds],
+  skillIds: [...catalog.assemble.skillIds],
+  sopIds: [...catalog.assemble.sopIds],
+  baseToolsIds: [...catalog.assemble.baseToolsIds],
   toolIds: coreToolIds(catalog),
   turnMemoryIds: [],
   conversationMemoryIds: [],
@@ -66,6 +66,7 @@ const loadMemories = (dataDir: string, ledger: Ledger) => {
 const messagesOf = (catalog: Catalog, ledger: Ledger, turn: Turn, dataDir: string): ChatMessage[] => {
   const system = systemText(catalog);
   const user = userText({
+    catalog,
     ledger,
     turn,
     memories: loadMemories(dataDir, ledger),
@@ -80,6 +81,7 @@ const messagesOf = (catalog: Catalog, ledger: Ledger, turn: Turn, dataDir: strin
     windowChars: windowChars(system, user),
   });
   const userAfter = userText({
+    catalog,
     ledger,
     turn,
     memories: loadMemories(dataDir, ledger),
@@ -201,7 +203,7 @@ const runQueue = async (input: {
       for (const name of names) {
         if (turn.assembled.toolIds.includes(name)) continue;
         if (!catalog.tools[name]) continue;
-        if ((BASE_TOOLS_IDS as readonly string[]).includes(name)) continue;
+        if (catalog.assemble.baseToolsIds.includes(name)) continue;
         turn.assembled.toolIds.push(name);
       }
     }
@@ -222,7 +224,7 @@ const runQueue = async (input: {
         ledger.toolIO.push({
           ...item,
           turnId: turn.turnId,
-          return: clipReturn("finishTurn 没有 action。对用户说的话写在 content 的 action，再调 finishTurn。"),
+          return: clipReturn(catalog.assemble.messages.emptyFinishTurn),
         });
         return null;
       }

@@ -1,0 +1,30 @@
+{
+  "systemIds": ["pack.agent"],
+  "skillIds": ["skill.web"],
+  "sopIds": ["sop.browse"],
+  "baseToolsIds": [
+    "askUser",
+    "finishTurn",
+    "tool.detail",
+    "observation.detail",
+    "memory.write"
+  ],
+  "coreToolIds": [
+    "see_page",
+    "find_on_page",
+    "snapshot_page",
+    "click",
+    "type",
+    "open_url",
+    "list_tabs",
+    "wait",
+    "scroll",
+    "press",
+    "web_search",
+    "list_browser_tools",
+    "catalog.add"
+  ],
+  "messages": {
+    "emptyFinishTurn": "finishTurn 没有 action。对用户说的话写在 content 的 action，再调 finishTurn。"
+  }
+}
