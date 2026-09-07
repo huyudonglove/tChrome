@@ -144,7 +144,7 @@ data: [DONE]
 
 | `faultCode` | 何时 |
 |---|---|
-| `arguments_not_json` | 拼好的 `function.arguments` 字符串 `JSON.parse` 失败 |
+| `arguments_not_json` | `function.arguments` 解析失败。对象原样用；字符串 `JSON.parse`；围栏、尾逗号、单引号会修 |
 | `unknown_tool` | `name` 不在 `baseToolsIds` + `toolIds` |
 | `missing_required` | catalog `required` 缺或空；`missing` 列出字段名 |
 | `wrong_type` | Ajv：类型对不上 schema |
@@ -165,7 +165,7 @@ data: [DONE]
 
 `arguments_not_json` 时没有对象可查缺，`missing` 为 `[]`，`detail` 写 parse 报错原文。
 
-落地查缺用 **Ajv** 对 `catalog/tools/<name>.json` 的 `function.parameters`。解析用 Bun `JSON.parse`。
+落地查缺用 **Ajv** 对 `catalog/tools/<name>.json` 的 `function.parameters`。解析在 `service/tools/arguments.ts`：对象原样用，字符串 `JSON.parse`，围栏 / 尾逗号 / 单引号会修。
 
 本轮一次过：
 

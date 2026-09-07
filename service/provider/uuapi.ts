@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { ChatCompletionChunk, ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import { argumentChunk, parseToolArguments } from "../tools/arguments.ts";
 import { checkToolCalls } from "../tools/schema.ts";
 import type { ChatMessage, ChatTool, CompletionResult, ToolCall } from "../types.ts";
 
@@ -53,7 +54,7 @@ const mergeChunk = (
     const current = calls[index] ?? { id: "", name: "", arguments: "" };
     if (part.id) current.id = part.id;
     if (part.function?.name) current.name = part.function.name;
-    if (part.function?.arguments) current.arguments += part.function.arguments;
+    if (part.function?.arguments) current.arguments += argumentChunk(part.function.arguments);
     calls[index] = current;
   }
   return { content, finish: choice?.finish_reason ?? null };
@@ -63,20 +64,20 @@ const parseCalls = (calls: AccCall[]): { toolCalls: ToolCall[]; parseOk: boolean
   const toolCalls: ToolCall[] = [];
   for (const call of calls) {
     if (!call.id && !call.name) continue;
-    try {
-      toolCalls.push({
-        id: call.id,
-        name: call.name,
-        arguments: JSON.parse(call.arguments || "{}"),
-      });
-    } catch (error) {
+    const parsed = parseToolArguments(call.arguments);
+    if (!parsed.ok) {
       return {
         toolCalls,
         parseOk: false,
-        detail: error instanceof Error ? error.message : String(error),
+        detail: `${call.name || "unknown"}: ${parsed.detail}`,
         badName: call.name || "unknown",
       };
     }
+    toolCalls.push({
+      id: call.id,
+      name: call.name,
+      arguments: parsed.value,
+    });
   }
   return { toolCalls, parseOk: true, detail: "", badName: "" };
 };
@@ -139,7 +140,7 @@ export function createProvider(config: ProviderConfig = {}) {
               schemaOk: false,
               faultCode: "arguments_not_json",
               missing: [],
-              detail: `${parsed.badName}: ${parsed.detail}`,
+              detail: parsed.detail,
             };
           }
           if (finish !== "tool_calls" || parsed.toolCalls.length === 0) {
