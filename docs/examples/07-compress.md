@@ -139,4 +139,4 @@
 
 `windowChars=18420` 是本样例压缩后的窗口，低于 200000，继续出网。实际数字由 Runtime 出网前写入。
 
-下一份：还在 `tn_01`。窗口带上 `#observation` 的 `ob_01`，`#toolIO` 空，用这次 Turn 已有的插槽再出网。模型要看 `call_01` 全文时交 `observation.detail`。用户下一句话才开新 Turn。
+下一份：还在 `tn_01`。窗口带上 `#observation` 的 `ob_01`，`#toolIO` 空，用这次 Turn 已有的栏目再出网。模型要看 `call_01` 全文时交 `observation.detail`。用户下一句话才开新 Turn。

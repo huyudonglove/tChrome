@@ -1,6 +1,6 @@
 # 08 收口
 
-读 06 的写出。还在 `tn_01`。不再走 CE。Runtime 用这次装配的插槽再出网，`#toolIO` 带上 `call_01`。模型交 `finishTurn`，回合结束。
+读 06 的写出。还在 `tn_01`。不再走 CE。Runtime 用这次装配的栏目再出网，`#toolIO` 带上 `call_01`。模型交 `finishTurn`，回合结束。
 
 怎么看：
 
@@ -34,7 +34,7 @@
 ]
 ```
 
-插槽沿用 03 的 `systemSlots` / `userSlots`。`#userInput` 仍是「帮我查这款鼠标官网价」。`userInputHistory` 仍是 `[]`。
+栏目沿用 03 的 `systemSlots` / `userSlots`。`#userInput` 仍是「帮我查这款鼠标官网价」。`userInputHistory` 仍是 `[]`。
 
 ## 再出网
 

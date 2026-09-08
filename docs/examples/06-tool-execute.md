@@ -264,4 +264,4 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
 }
 ```
 
-下一份：还在 `tn_01`。队列已空。本 Turn 用这次装配的插槽再出网，`#toolIO` 带上 `call_01`，见 `08-finish-turn.md`。窗口到 200K 时走 `07-compress.md`。用户下一句话才开新 Turn，那时才把本轮 `userInput` 写入 `userInputHistory`，走 01。
+下一份：还在 `tn_01`。队列已空。本 Turn 用这次装配的栏目再出网，`#toolIO` 带上 `call_01`，见 `08-finish-turn.md`。窗口到 200K 时走 `07-compress.md`。用户下一句话才开新 Turn，那时才把本轮 `userInput` 写入 `userInputHistory`，走 01。

@@ -85,4 +85,4 @@
 }
 ```
 
-下一份 03 把这份整份带上，再按 `catalog/` 展开成插槽（`systemSlots` / `userSlots`）。出网 tools[] 由 Runtime 按 `baseToolsIds` + `toolIds` 取 schema。
+下一份 03 把这份整份带上，再按 `catalog/` 展开成栏目（`systemSlots` / `userSlots`）。出网 tools[] 由 Runtime 按 `baseToolsIds` + `toolIds` 取 schema。
