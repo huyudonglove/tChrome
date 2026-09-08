@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "ping_url",
+    "description": "探测一个网址是否可达。入参：可选 url。返回：ok、reachable、status、ms affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

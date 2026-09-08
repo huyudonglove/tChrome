@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "measure_files",
+    "description": "统计当前页资源数量和体积。入参：可选 tab。返回：ok、count、transferBytes、items affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

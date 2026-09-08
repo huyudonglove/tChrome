@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "scroll",
+    "description": "滚动当前页。入参：可选 amount、tab。返回：ok affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "scroll_to",
+    "description": "把匹配 text 的元素滚进可视区。入参：可选 text、tab。返回：ok affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "screenshot_one",
+    "description": "元素截图。入参：ref（元素选择器）、可选 tab。返回：ok、image、mime、element_rect affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

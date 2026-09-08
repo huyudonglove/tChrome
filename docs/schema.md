@@ -1,6 +1,6 @@
 # schema
 
-数据声明只写这里。`docs/data.md` 是账本形状和循环。`docs/examples/` 是阶段样例，字段怎么填看本文件。工具参数形状看 `catalog/tools/<id>.json`。Pack 用法看 `catalog/packs/pack.agent.md`。
+数据声明只写这里。`docs/data.md` 是账本形状和循环。`docs/examples/` 是阶段样例，字段怎么填看本文件。工具参数形状看 `catalog/tools/<id>.json`。插槽用途、来源与边界见 `catalog/system-slots.md`、`catalog/user-slots.md` 和各独立槽文件。
 
 ## 仓目录
 
@@ -15,8 +15,12 @@ service/            后端：Bun.serve 127.0.0.1:18788。按模块分
   tools/
   subagent/         第一期空着
   provider/
-catalog/            Pack / skill / tools schema / 窗口模板
-  assemble.json     本轮点哪些 pack / skill / 常驻工具 / 核心工具
+catalog/            独立插槽 / skill / tools schema / 窗口模板
+  assemble.json     常驻工具 / 核心工具 / Runtime 提示文案
+  slots/system/     一个 system 插槽一个文件
+  slots/user/       一个 user 插槽一个文件
+  system-slots.md   system 职责与顺序清单
+  user-slots.md     user 职责与顺序清单
 
   window.system.md  system 插槽：事实
   window.user.md    user 插槽：参考材料
@@ -155,9 +159,7 @@ Runtime 独占维护。当前会话指针。
 
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
-| `systemIds` | string[] | 本轮 Pack，对应 `catalog/packs/<id>.md` |
-| `skillIds` | string[] | 本轮 skill，对应 `catalog/skills/<id>.md`，进 user `#skill` |
-| `baseToolsIds` | string[] | 常驻工具，对应 `catalog/tools/<id>.json`。固定 `askUser` `finishTurn` `submitGoal` `tool.detail` `observation.detail` `memory.write` |
+| `baseToolsIds` | string[] | 常驻工具，对应 `catalog/tools/<id>.json`；完整名单以 `catalog/assemble.json` 为准，说明进入 system `#baseTools` |
 | `toolIds` | string[] | 动态工具，对应 `catalog/tools/<id>.json`。开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.list_interactive_elements` `page.click` `page.type` `open_url` `web_search` `list_browser_tools` `catalog.add`）。缺了 `catalog.add` 再补。压缩时先裁回 core + 本轮已用过的 |
 | `turnMemoryIds` | string[] | 这一轮记忆；没有就 `[]` |
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
@@ -217,27 +219,17 @@ Runtime 独占维护。当前会话指针。
 
 用户一条输入开一个 Turn，CE 装配一次。本 Turn 内工具循环不再走 CE。
 
-system 顺序 = `catalog/window.system.md`：身份、记忆、观察、环境、协议、目标、参数、内置工具、输出、user槽说明。都是事实。`#user槽` 按 user 层介绍：方法 / 记忆 / 输入 / 目标 / 页面 / 过程 / 工具。每层写槽是什么、谁写、干什么。
-user 顺序 = `catalog/window.user.md`，层标题 `##方法` `##记忆` `##输入` `##目标` `##页面` `##过程` `##工具`。方法层是 `#skill`。页面层是 `#currentTab` `#currentPage`。content 三段是 seen / reason / action。
+插槽导航分别维护在 `catalog/system-slots.md` 与 `catalog/user-slots.md`。两份 window 模板只排列 `{{#name}}`；`catalog/slots/system/<name>.md` 和 `catalog/slots/user/<name>.md` 各自维护用途、来源、边界及 `{{data}}`。静态 system 规则直接在各文件中维护，无运行时附加数据；动态槽由 Runtime 注入。装配不再按大 Pack 标题切割。空数据仍保留说明，不能解释为页面为空或任务完成。
 
-| 槽 | 正文来自 |
-|---|---|
-| `#skill` | `catalog/skills/` |
-| `#projectMemory` | ledger.`memoryIds.project` 对应文件。窗口只带最近 8 条，到 200K 仍用全文 |
-| `#conversationMemory` | ledger.`memoryIds.conversation`。窗口只带最近 8 条，压缩后用 `summary` |
-| `#turnMemory` | ledger.`memoryIds.turn`。窗口只带最近 8 条，压缩后用 `summary` |
-| `#contextSummary` | 最近一次 `memory.write` 的 `contextSummary` |
-| `#observation` | ledger.`observation` |
-| `#notes` | ledger.`notes`。模型自管 key/value |
-| `#userInputHistory` | ledger.`userInputHistory`（不含本轮） |
-| `#userInput` | Turn.`input.text` |
-| `#goal` | ledger.`goal` |
-| `#goalHistory` | ledger.`goalHistory`。Runtime 组装 |
-| `#currentTab` | Turn.`assembled.currentTab`。开 Turn 写入，只有 tab / url / title |
-| `#currentPage` | Turn.`assembled.currentPage`。page 工具跑完后填 |
-| `#toolIO` | ledger.`toolIO` |
-| `#baseTools` | `baseToolsIds` 的 usage。Runtime 按 assemble.baseToolsIds 组装 |
-| `#tools` | `toolIds` 的 usage。本轮动态工具 |
+system 顺序：`#identity` → `#environment` → `#execution` → `#output` → `#baseTools`。
+
+user 顺序：`#skill` → `#userInput` → `#userInputHistory` → `#goal` → `#goalHistory` → `#currentTab` → `#currentPage` → `#projectMemory` → `#conversationMemory` → `#turnMemory` → `#contextSummary` → `#notes` → `#toolIO` → `#observation` → `#tools`。
+
+`#skill` 数据来自固定的 `catalog/skills/skill.web.md`；不再记录无实际加载作用的 systemIds / skillIds。其余 user 数据分别来自 Turn.input、ledger、Turn.assembled 和 memory 文件，具体字段与可信边界见各独立槽文件。
+
+`#baseTools` 按 assemble.baseToolsIds 生成常驻工具说明；`#tools` 按 Turn.assembled.toolIds 生成已加载动态工具说明。说明唯一来源是各工具 `function.description`；`catalog/tools/index.json` 只保存 browser / service 分类，不能另写 usage。`#tools` 是 user 参考文本，不是 role=tool 消息。工具 schema 的 description 与窗口说明同源。
+
+维护：增删、重命名或调整插槽职责、顺序时，同步清单、独立文件、模板、装配测试与阶段窗口示例；修改工具说明只改该工具定义，并重新生成示例中的 schema / 工具说明。测试检查目录、清单、顺序、装配及全量工具 description 缺失。
 
 出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。
 
@@ -282,7 +274,7 @@ user 顺序 = `catalog/window.user.md`，层标题 `##方法` `##记忆` `##输�
 
 `provider`：`uuapi`。`model`：`gemini-3.7-flash`。`stream`：`true`。`maxAttempts`：`3`。
 
-`finish`：`tool_calls` / `stop` / `error`。`content`：Pack `#输出` 三段 observation / reason / action。`toolCalls`：`{id, name, arguments}`，已 parse。
+`finish`：`tool_calls` / `stop` / `error`。`content`：system `#output` 三段 seen / reason / action。`toolCalls`：`{id, name, arguments}`，已 parse。
 
 `faultCode`：
 
@@ -299,7 +291,7 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 
 ## 工具参数
 
-每个工具 `arguments` 都有 `reason`（string）和 `affectsPage`（boolean）。其余按 `catalog/tools/<id>.json`。动态工具名单和用法在 `catalog/tools/index.json`。
+每个工具 `arguments` 都有 `reason`（string）和 `affectsPage`（boolean）。其余按 `catalog/tools/<id>.json`。动态工具分类在 `catalog/tools/index.json`；用法只维护在每个工具定义的 function.description。
 
 | 工具 | required 其余 | 谁填其余 |
 |---|---|---|
@@ -313,7 +305,7 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | `memory.write` | （无） | `turnMemory` `conversationMemory` `projectMemory` `contextSummary` 有则写 |
 | `catalog.add` | `names` | 把缺的动态工具挂进本轮 |
 
-常驻：`askUser` `finishTurn` `submitGoal` `tool.detail` `observation.detail` `memory.write`。动态开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.list_interactive_elements` `page.click` `page.type` `open_url` `web_search` `list_browser_tools` `catalog.add`）。全表见 `catalog/tools/index.json`，缺了 `catalog.add`。浏览器工具经 `/tool-request` 泵到 background。
+常驻与初始动态工具名单以 `catalog/assemble.json` 的 baseToolsIds / coreToolIds 为准。动态目录分类见 `catalog/tools/index.json`，缺能力通过 catalog.add 加载。浏览器工具经 `/tool-request` 泵到 background。
 
 没迁、原因：
 

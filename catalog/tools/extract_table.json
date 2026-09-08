@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "extract_table",
+    "description": "把当前页表格和列表抽成结构化数据。入参：可选 tab。返回：ok、tables、lists affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

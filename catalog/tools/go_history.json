@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "go_history",
+    "description": "浏览器前进或后退。入参：可选 action=back|forward、tab。返回：ok affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

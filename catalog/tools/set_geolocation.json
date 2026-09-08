@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "set_geolocation",
+    "description": "用 CDP 模拟地理位置。入参：latitude、longitude，可选 accuracy。返回：ok、latitude、longitude；CDP 失败则 ok=false affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

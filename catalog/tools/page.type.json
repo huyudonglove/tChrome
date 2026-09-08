@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.type",
+    "description": "往一个输入框打字。入参：id（e 开头）、text。返回：ok、value affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

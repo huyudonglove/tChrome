@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "service_worker_list",
+    "description": "列出 Service Worker。入参：无。返回：ok、serviceWorkers affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

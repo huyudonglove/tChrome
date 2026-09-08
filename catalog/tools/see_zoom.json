@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "see_zoom",
+    "description": "读当前页缩放。入参：可选 tab。返回：ok、zoom affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

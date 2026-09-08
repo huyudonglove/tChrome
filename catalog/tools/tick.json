@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "tick",
+    "description": "勾选或取消匹配 text 的复选框。入参：text，可选 checked、tab。返回：ok；找不到匹配项失败，不点第一个 affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

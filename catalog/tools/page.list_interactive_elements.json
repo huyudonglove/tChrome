@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.list_interactive_elements",
+    "description": "列可交互元素。可按 regionId 收窄。入参：可选 regionId、tab。返回：ok、elements[{id,regionId,role,tag,name,inView,disabled}] affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

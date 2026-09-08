@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.inspect_region",
+    "description": "看一个区域的正文和内部元素。入参：id（r 开头）。返回：ok、region、elements、text affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

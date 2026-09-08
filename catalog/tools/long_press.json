@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "long_press",
+    "description": "用 CDP 长按。入参：text，可选 durationMs。返回：ok、durationMs、point；CDP 失败则 ok=false affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

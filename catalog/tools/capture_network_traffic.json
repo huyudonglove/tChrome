@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "capture_network_traffic",
+    "description": "看最近网络请求摘要。入参：无。返回：ok、items affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

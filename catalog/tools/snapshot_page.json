@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "snapshot_page",
+    "description": "拍当前页可交互元素快照。入参：可选 text、tab。返回：ok、title、url、text、elements affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

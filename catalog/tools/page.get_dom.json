@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.get_dom",
+    "description": "取区域或元素的 HTML 片段。入参：id。返回：ok、html affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

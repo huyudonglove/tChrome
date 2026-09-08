@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "websocket_monitor",
+    "description": "监控 WebSocket 消息。入参：action=start|stop|read。返回：ok、messages affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

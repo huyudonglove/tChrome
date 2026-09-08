@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "focus",
+    "description": "把焦点放到匹配 text 的元素上。入参：text，可选 tab。返回：ok affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

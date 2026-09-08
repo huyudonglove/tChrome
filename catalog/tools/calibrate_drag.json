@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "calibrate_drag",
+    "description": "按最近一次 screenshot 的图像坐标拖动。入参：point1/point2=截图像素坐标，image_size=[宽,高]，可选 viewport、tab。返回：ok、mapped_from、mapped_to。先截图，把滑块和缺口点在图上，再调用本工具 affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

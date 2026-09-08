@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "osint_intel",
+    "description": "查公开情报线索。入参：query。返回：ok、urls affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

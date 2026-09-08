@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "record.search",
-    "description": "读取已保存的历史记录，不刷新网页。位置为从0开始的UTF-16字符偏移；read的end不包含在范围内。search区分大小写、按字面匹配。",
+    "description": "记录内字面搜索，区分大小写。kind、id、query、offset(从0开始)、limit(1到20)。返回命中位置、附近文本和nextOffset；无命中仅代表指定查询在该范围未匹配。\n读取已保存的历史记录，不刷新网页。位置为从0开始的UTF-16字符偏移；read的end不包含在范围内。search区分大小写、按字面匹配。 affectsPage=false。\n适用时机：在历史记录里定位信息时。kind、id、query、offset、limit。区分大小写的字面搜索，返回命中位置和上下文；按nextOffset继续搜索。",
     "parameters": {
       "type": "object",
       "properties": {

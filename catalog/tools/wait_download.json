@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "wait_download",
+    "description": "查看最近下载。入参：无。返回：ok、downloads affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

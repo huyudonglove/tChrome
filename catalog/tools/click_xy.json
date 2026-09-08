@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "click_xy",
+    "description": "按坐标点击。入参：point=[x,y]，也可传 x、y；可选 tab。返回：ok、point。滑块不要点，用 calibrate_drag affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

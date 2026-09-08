@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "cookies",
+    "description": "读当前站 Cookie。入参：可选 url、tab。返回：ok、cookies affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

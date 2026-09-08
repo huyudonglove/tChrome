@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "hover",
+    "description": "把指针悬停在匹配 text 的元素上。入参：text，可选 tab。返回：ok affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

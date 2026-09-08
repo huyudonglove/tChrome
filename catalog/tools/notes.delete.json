@@ -2,14 +2,25 @@
   "type": "function",
   "function": {
     "name": "notes.delete",
+    "description": "删除 ledger.notes[key]。入参：key。返回：已删的 key affectsPage=false。\n适用时机：一项工作笔记已过时或无需保留时。必填 key：删除 #notes 中对应项，不删除其他笔记或记忆。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean" },
-        "key": { "type": "string" }
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        },
+        "key": {
+          "type": "string"
+        }
       },
-      "required": ["reason", "affectsPage", "key"]
+      "required": [
+        "reason",
+        "affectsPage",
+        "key"
+      ]
     }
   }
 }

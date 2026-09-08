@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "wait_popup",
+    "description": "等待新弹窗。入参：可选 timeoutMs（超时毫秒，默认3000）。返回：ok、tab（新标签信息）或 error（超时） affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

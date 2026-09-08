@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "probe_ssl",
+    "description": "查看证书是否有效。入参：host 或 url，可选 port。返回：ok、valid、issuer、validTo affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

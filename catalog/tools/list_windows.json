@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "list_windows",
+    "description": "列出浏览器窗口。入参：无。返回：ok、windows[{id,focused,type}] affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

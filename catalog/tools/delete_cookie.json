@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "delete_cookie",
+    "description": "删除指定 Cookie。入参：name，可选 url/domain/path。返回：ok、deleted affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

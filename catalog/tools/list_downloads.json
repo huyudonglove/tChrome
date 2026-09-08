@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "list_downloads",
+    "description": "列出下载项。入参：无。返回：ok、downloads affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

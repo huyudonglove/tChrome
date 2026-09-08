@@ -22,16 +22,13 @@
   "userInput": "帮我查这款鼠标官网价",
   "userInputHistory": [],
   "submittedAt": "2026-09-05T08:00:01.000Z",
-  "systemIds": [
-    "pack.agent"
-  ],
-  "skillIds": [
-    "skill.web"
-  ],
   "baseToolsIds": [
     "askUser",
     "finishTurn",
     "submitGoal",
+    "record.inspect",
+    "record.search",
+    "record.read",
     "tool.detail",
     "observation.detail",
     "memory.write",
@@ -47,46 +44,40 @@
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
   "mcpIds": [],
-  "currentPage": {
-    "description": "当前页面信息",
-    "tab": 12,
-    "url": "https://item.jd.com/100012345678.html",
-    "title": "罗技 MX Master 3S 无线鼠标"
-  },
+  "currentPage": null,
   "systemSlots": [
-    "#身份",
-    "#记忆",
-    "#观察",
-    "#环境",
-    "#协议",
-    "#目标",
-    "#参数说明",
-    "#内置工具",
-    "#输出",
-    "#user槽"
+    "#identity",
+    "#environment",
+    "#execution",
+    "#output",
+    "#baseTools"
   ],
   "userSlots": [
     "#skill",
-    "#projectMemory",
-    "#conversationMemory",
-    "#turnMemory",
-    "#contextSummary",
-    "#observation",
-    "#notes",
-    "#userInputHistory",
     "#userInput",
+    "#userInputHistory",
     "#goal",
     "#goalHistory",
     "#currentTab",
     "#currentPage",
+    "#projectMemory",
+    "#conversationMemory",
+    "#turnMemory",
+    "#contextSummary",
+    "#notes",
     "#toolIO",
-    "#baseTools",
+    "#observation",
     "#tools"
   ],
   "provider": "uuapi",
   "model": "gemini-3.7-flash",
   "stream": true,
-  "maxAttempts": 3
+  "maxAttempts": 3,
+  "currentTab": {
+    "tab": 12,
+    "url": "https://item.jd.com/100012345678.html",
+    "title": "罗技 MX Master 3S 无线鼠标"
+  }
 }
 ```
 
@@ -124,7 +115,7 @@ data: [DONE]
 | 第 4 片 | `finish_reason` = `tool_calls` |
 | `[DONE]` | 流结束。没收到这一行 = 这次失败，整单重试 |
 
-中途断开不当半截成功。拼起来的 `arguments` 字符串再 `JSON.parse` 成对象。`content` 按 Pack `#输出` 拼三段，不进 Ajv。
+中途断开不当半截成功。拼起来的 `arguments` 字符串再 `JSON.parse` 成对象。`content` 按 system `#output` 拼三段，不进 Ajv。
 
 ## 容错
 
@@ -241,16 +232,13 @@ data: [DONE]
   "userInput": "帮我查这款鼠标官网价",
   "userInputHistory": [],
   "submittedAt": "2026-09-05T08:00:01.000Z",
-  "systemIds": [
-    "pack.agent"
-  ],
-  "skillIds": [
-    "skill.web"
-  ],
   "baseToolsIds": [
     "askUser",
     "finishTurn",
     "submitGoal",
+    "record.inspect",
+    "record.search",
+    "record.read",
     "tool.detail",
     "observation.detail",
     "memory.write",
@@ -266,40 +254,29 @@ data: [DONE]
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
   "mcpIds": [],
-  "currentPage": {
-    "description": "当前页面信息",
-    "tab": 12,
-    "url": "https://item.jd.com/100012345678.html",
-    "title": "罗技 MX Master 3S 无线鼠标"
-  },
+  "currentPage": null,
   "systemSlots": [
-    "#身份",
-    "#记忆",
-    "#观察",
-    "#环境",
-    "#协议",
-    "#目标",
-    "#参数说明",
-    "#内置工具",
-    "#输出",
-    "#user槽"
+    "#identity",
+    "#environment",
+    "#execution",
+    "#output",
+    "#baseTools"
   ],
   "userSlots": [
     "#skill",
-    "#projectMemory",
-    "#conversationMemory",
-    "#turnMemory",
-    "#contextSummary",
-    "#observation",
-    "#notes",
-    "#userInputHistory",
     "#userInput",
+    "#userInputHistory",
     "#goal",
     "#goalHistory",
     "#currentTab",
     "#currentPage",
+    "#projectMemory",
+    "#conversationMemory",
+    "#turnMemory",
+    "#contextSummary",
+    "#notes",
     "#toolIO",
-    "#baseTools",
+    "#observation",
     "#tools"
   ],
   "provider": "uuapi",
@@ -323,7 +300,12 @@ data: [DONE]
   "parseOk": true,
   "schemaOk": true,
   "faultCode": null,
-  "missing": []
+  "missing": [],
+  "currentTab": {
+    "tab": 12,
+    "url": "https://item.jd.com/100012345678.html",
+    "title": "罗技 MX Master 3S 无线鼠标"
+  }
 }
 ```
 

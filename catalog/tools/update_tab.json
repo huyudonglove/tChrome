@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "update_tab",
+    "description": "固定或静音标签。入参：可选 tab、pinned、muted。返回：ok affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

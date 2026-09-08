@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "wait_network",
+    "description": "等到页面接口和资源安静后再读页。入参：可选 ms（安静多久）、tab。返回：ok、requests、sample、title、url、text；超时 ok=false affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

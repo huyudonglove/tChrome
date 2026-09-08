@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "emulate_device",
+    "description": "用 CDP 模拟设备视口、UA。入参：device（iPhone 14/Pixel 7/iPad/desktop），可选 width/height/deviceScaleFactor/mobile/userAgent。返回：ok、device、width、height；CDP 失败则 ok=false affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

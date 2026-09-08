@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "measure_timing",
+    "description": "测当前页 TTFB、DOMContentLoaded、load。入参：可选 tab。返回：ok、ttfbMs、domContentLoadedMs、loadMs、url affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

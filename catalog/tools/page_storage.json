@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "page_storage",
+    "description": "读或写页内 localStorage。入参：可选 action、key、value、tab。返回：ok、storage affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

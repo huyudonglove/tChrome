@@ -62,16 +62,13 @@
         "submittedAt": "2026-09-05T08:00:01.000Z"
       },
       "assembled": {
-        "systemIds": [
-          "pack.agent"
-        ],
-        "skillIds": [
-          "skill.web"
-        ],
         "baseToolsIds": [
           "askUser",
           "finishTurn",
           "submitGoal",
+          "record.inspect",
+          "record.search",
+          "record.read",
           "tool.detail",
           "observation.detail",
           "memory.write",
@@ -87,8 +84,8 @@
         "conversationMemoryIds": [],
         "projectMemoryIds": [],
         "mcpIds": [],
-        "currentPage": {
-          "description": "当前页面信息",
+        "currentPage": null,
+        "currentTab": {
           "tab": 12,
           "url": "https://item.jd.com/100012345678.html",
           "title": "罗技 MX Master 3S 无线鼠标"

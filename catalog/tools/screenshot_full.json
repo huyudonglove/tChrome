@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "screenshot_full",
+    "description": "整页截图。入参：可选 tab。返回：ok、image、mime、element_rect（元素位置） affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

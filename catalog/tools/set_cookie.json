@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "set_cookie",
+    "description": "设置 Cookie。入参：name、value，可选 url/domain/path/secure/sameSite/expires。返回：ok、name、value affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

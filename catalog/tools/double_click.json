@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "double_click",
+    "description": "双击页面上匹配 text 的元素。入参：text，可选 tab。返回：ok、clicked affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

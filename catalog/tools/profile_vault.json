@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "profile_vault",
+    "description": "浏览器配置库。入参：action（save/get/list）、可选 profileId、data。返回：ok、profile/items affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

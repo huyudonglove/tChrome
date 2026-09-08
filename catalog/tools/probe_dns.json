@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "probe_dns",
+    "description": "解析域名地址。入参：host 或 url。返回：ok、addresses affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

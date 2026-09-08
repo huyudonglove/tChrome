@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "close_tab",
+    "description": "关闭标签。入参：可选 tab。返回：ok affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "see_console",
+    "description": "读当前页 console 日志。入参：可选 level=error|warn|log|all、tab。返回：ok、count、items[{level,text}] affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "search_plus",
+    "description": "补充搜索公开网页。入参：query。返回：ok、urls affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

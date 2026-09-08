@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "export_data",
+    "description": "导出数据到文件。入参：data（数据）、可选 filename（文件名）。返回：ok、downloadId affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

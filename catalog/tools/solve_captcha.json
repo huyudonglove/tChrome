@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "solve_captcha",
+    "description": "点当前页 Turnstile/reCAPTCHA/hCaptcha iframe。入参：可选 tab。返回：ok、type；认不出或不点得动则普通失败，拼图滑块改 screenshot 后 calibrate_drag affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

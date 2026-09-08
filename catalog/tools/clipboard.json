@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "clipboard",
+    "description": "读或写剪贴板。入参：可选 text。返回：ok，读时带 text affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

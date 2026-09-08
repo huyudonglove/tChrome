@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "bind_tab",
+    "description": "执行 bind tab affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -73,10 +73,24 @@ Runtime 独占维护。当前会话指针。字段见 schema「ledger.json」。
     "submittedAt": "2026-09-05T08:00:01.000Z"
   },
   "assembled": {
-    "systemIds": ["pack.agent"],
-    "skillIds": ["skill.web"],
-    "baseToolsIds": ["askUser", "finishTurn", "submitGoal", "tool.detail", "observation.detail", "memory.write", "notes.write", "notes.delete"],
-    "toolIds": ["page.get_summary", "open_url", "web_search"],
+    "baseToolsIds": [
+      "askUser",
+      "finishTurn",
+      "submitGoal",
+      "record.inspect",
+      "record.search",
+      "record.read",
+      "tool.detail",
+      "observation.detail",
+      "memory.write",
+      "notes.write",
+      "notes.delete"
+    ],
+    "toolIds": [
+      "page.get_summary",
+      "open_url",
+      "web_search"
+    ],
     "turnMemoryIds": [],
     "conversationMemoryIds": [],
     "projectMemoryIds": [],

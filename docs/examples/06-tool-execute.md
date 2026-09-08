@@ -167,16 +167,13 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   "userInput": "帮我查这款鼠标官网价",
   "userInputHistory": [],
   "submittedAt": "2026-09-05T08:00:01.000Z",
-  "systemIds": [
-    "pack.agent"
-  ],
-  "skillIds": [
-    "skill.web"
-  ],
   "baseToolsIds": [
     "askUser",
     "finishTurn",
     "submitGoal",
+    "record.inspect",
+    "record.search",
+    "record.read",
     "tool.detail",
     "observation.detail",
     "memory.write",
@@ -192,40 +189,29 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
   "mcpIds": [],
-  "currentPage": {
-    "description": "当前页面信息",
-    "tab": 12,
-    "url": "https://item.jd.com/100012345678.html",
-    "title": "罗技 MX Master 3S 无线鼠标"
-  },
+  "currentPage": null,
   "systemSlots": [
-    "#身份",
-    "#记忆",
-    "#观察",
-    "#环境",
-    "#协议",
-    "#目标",
-    "#参数说明",
-    "#内置工具",
-    "#输出",
-    "#user槽"
+    "#identity",
+    "#environment",
+    "#execution",
+    "#output",
+    "#baseTools"
   ],
   "userSlots": [
     "#skill",
-    "#projectMemory",
-    "#conversationMemory",
-    "#turnMemory",
-    "#contextSummary",
-    "#observation",
-    "#notes",
-    "#userInputHistory",
     "#userInput",
+    "#userInputHistory",
     "#goal",
     "#goalHistory",
     "#currentTab",
     "#currentPage",
+    "#projectMemory",
+    "#conversationMemory",
+    "#turnMemory",
+    "#contextSummary",
+    "#notes",
     "#toolIO",
-    "#baseTools",
+    "#observation",
     "#tools"
   ],
   "provider": "uuapi",
@@ -269,7 +255,12 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   ],
   "observation": [],
   "windowChars": 0,
-  "compressAt": 200000
+  "compressAt": 200000,
+  "currentTab": {
+    "tab": 12,
+    "url": "https://item.jd.com/100012345678.html",
+    "title": "罗技 MX Master 3S 无线鼠标"
+  }
 }
 ```
 

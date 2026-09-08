@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "click",
+    "description": "单击页面上匹配 text 的按钮、链接或控件。入参：text，可选 tab。返回：ok、clicked affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

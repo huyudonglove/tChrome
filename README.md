@@ -142,7 +142,10 @@ service/
   provider/         UUAPI 模型接入
   subagent/         预留
 catalog/
-  packs/            Agent 固定规则
+  slots/system/     固定规则与常驻工具插槽，每槽独立文件
+  slots/user/       用户请求、状态、记忆与动态工具插槽
+  system-slots.md   system 插槽职责与顺序清单
+  user-slots.md     user 插槽职责与顺序清单
   skills/           网页能力与操作方法
   tools/            工具定义
   assemble.json     装配配置

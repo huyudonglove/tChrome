@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "check_page",
+    "description": "核对当前页 URL、标题或正文是否符合预期。入参：可选 text/url/title、tab。返回：ok、matched affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

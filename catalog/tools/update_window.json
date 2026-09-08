@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "update_window",
+    "description": "改变窗口状态。入参：可选 state。返回：ok affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "open_url",
+    "description": "打开指定网址并读回标题正文。入参：url，可选 tab。返回：ok、title、url、text、tab affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

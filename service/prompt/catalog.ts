@@ -5,13 +5,9 @@ import type { ChatTool } from "../types.ts";
 export type ToolIndex = {
   browser: string[];
   service: string[];
-  affectsPage: Record<string, boolean>;
-  usage: Record<string, string>;
 };
 
 export type Assemble = {
-  systemIds: string[];
-  skillIds: string[];
   baseToolsIds: string[];
   coreToolIds: string[];
   messages: {
@@ -21,7 +17,8 @@ export type Assemble = {
 };
 
 export type Catalog = {
-  pack: Record<string, string>;
+  systemSlots: Record<string, string>;
+  userSlots: Record<string, string>;
   skill: string;
   tools: Record<string, ChatTool>;
   index: ToolIndex;
@@ -30,28 +27,23 @@ export type Catalog = {
   userTemplate: string;
 };
 
-const splitHeadings = (text: string): Record<string, string> => {
-  const sections: Record<string, string> = {};
-  let current = "";
-  const lines = text.replaceAll("\r\n", "\n").split("\n");
-  for (const line of lines) {
-    if (line.startsWith("#") && !line.startsWith("##")) {
-      current = line.trim();
-      sections[current] = "";
-      continue;
-    }
-    if (!current) continue;
-    sections[current] = sections[current] ? `${sections[current]}\n${line}` : line;
-  }
-  for (const key of Object.keys(sections)) {
-    sections[key] = (sections[key] ?? "").trimEnd();
-  }
-  return sections;
-};
+const loadSlots = (catalog: string, role: string): Record<string, string> =>
+  Object.fromEntries(readdirSync(join(catalog, "slots", role))
+    .filter((file) => file.endsWith(".md"))
+    .map((file) => [`#${file.slice(0, -3)}`, readFileSync(join(catalog, "slots", role, file), "utf8").trimEnd()]));
+
+export function renderSlots(template: string, files: Record<string, string>, data: Record<string, string>): string {
+  return interpolate(template, Object.fromEntries(slotNames(template).map((name) => {
+    const file = files[name];
+    if (!file) throw new Error(`missing slot file ${name}`);
+    return [name, interpolate(file, { data: data[name] ?? "" })];
+  })));
+}
 
 export function loadCatalog(root: string): Catalog {
   const catalog = join(root, "catalog");
-  const pack = splitHeadings(readFileSync(join(catalog, "packs", "pack.agent.md"), "utf8"));
+  const systemSlots = loadSlots(catalog, "system");
+  const userSlots = loadSlots(catalog, "user");
   const skill = readFileSync(join(catalog, "skills", "skill.web.md"), "utf8").replace(/^#skill\n?/, "").trim();
   const index = JSON.parse(readFileSync(join(catalog, "tools", "index.json"), "utf8")) as ToolIndex;
   const assemble = JSON.parse(readFileSync(join(catalog, "assemble.json"), "utf8")) as Assemble;
@@ -64,7 +56,7 @@ export function loadCatalog(root: string): Catalog {
     const name = tool.function?.name;
     if (name) tools[name] = tool;
   }
-  return { pack, skill, tools, index, assemble, systemTemplate, userTemplate };
+  return { systemSlots, userSlots, skill, tools, index, assemble, systemTemplate, userTemplate };
 }
 
 export function dynamicToolIds(catalog: Catalog): string[] {
@@ -104,10 +96,9 @@ export function toolSchemas(catalog: Catalog, ids: string[]): ChatTool[] {
 export function toolUsageFor(catalog: Catalog, ids: string[]): string {
   return ids
     .map((id) => {
-      const line = catalog.index.usage[id];
-      if (!line) return "";
-      const affects = catalog.index.affectsPage[id] ? "true" : "false";
-      return `${id}：${line} affectsPage=${affects}。`;
+      const line = catalog.tools[id]?.function.description;
+      if (!line?.trim()) throw new Error(`missing tool description ${id}`);
+      return `${id}：${line}`;
     })
     .filter(Boolean)
     .join("\n");
@@ -118,9 +109,5 @@ export function interpolate(template: string, slots: Record<string, string>): st
 }
 
 export function slotNames(template: string): string[] {
-  const names: string[] = [];
-  for (const line of template.split("\n")) {
-    if (line.startsWith("#") && !line.startsWith("##") && !line.startsWith("{{")) names.push(line.trim());
-  }
-  return names;
+  return Array.from(template.matchAll(/\{\{(#[^}\s]+)\}\}/g), (match) => match[1]!);
 }

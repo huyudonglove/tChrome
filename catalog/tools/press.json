@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "press",
+    "description": "对当前焦点元素按下一个键盘键。入参：key，可选 tab。返回：ok；没有焦点失败 affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

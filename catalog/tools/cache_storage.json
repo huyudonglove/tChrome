@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "cache_storage",
+    "description": "Cache Storage 读写。入参：action（read/write/delete/list）、cache（缓存名）、可选 key、value。返回：ok、value/keys/caches affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

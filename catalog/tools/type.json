@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "type",
+    "description": "在当前焦点或匹配 text 的输入框里输入文字。入参：text，可选 ref、target、tab。返回：ok affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

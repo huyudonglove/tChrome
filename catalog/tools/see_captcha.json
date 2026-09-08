@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "see_captcha",
+    "description": "看当前页有没有验证码、是哪种。入参：可选 tab。返回：ok、present、type、clickable affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "open_tab",
+    "description": "新开一个标签。入参：可选 url。返回：ok、tab、url、title affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

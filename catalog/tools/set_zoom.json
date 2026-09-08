@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "set_zoom",
+    "description": "设置当前页缩放。入参：zoom，可选 tab。返回：ok affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

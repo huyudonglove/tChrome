@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "create_window",
+    "description": "新开一个窗口。入参：可选 url。返回：ok、windowId affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "reload",
+    "description": "刷新当前页。入参：可选 tab。返回：ok、title、url、text affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

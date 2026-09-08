@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "account_vault",
+    "description": "本地账号库。action=list 列站点账号；action=get 按 id 或 site+username 取完整凭据；action=save 保存或更新 site/username/password/label/note；action=delete 按 id 删除。返回：ok、account 或 items affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.list_regions",
+    "description": "列当前页区域，每项带 id。入参：可选 tab。返回：ok、regions[{id,role,name,heading,interactiveCount}] affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

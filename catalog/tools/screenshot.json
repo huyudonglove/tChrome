@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "screenshot",
+    "description": "截当前可视区。入参：可选 tab。返回：ok、image、mime、image_size=[宽,高]、viewport=[宽,高]。calibrate_drag 必须带上这两项尺寸 affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

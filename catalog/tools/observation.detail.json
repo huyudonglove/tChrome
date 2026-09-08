@@ -2,14 +2,25 @@
   "type": "function",
   "function": {
     "name": "observation.detail",
+    "description": "展开 observation 全文。入参：observationId。返回：该项 full affectsPage=false。\n适用时机：#observation 摘要不足以支持当前判断时。必填 observationId：对应摘要项的 id。读取该摘要对应的详细历史记录，不会重新观察当前页面。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean" },
-        "observationId": { "type": "string" }
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        },
+        "observationId": {
+          "type": "string"
+        }
       },
-      "required": ["reason", "affectsPage", "observationId"]
+      "required": [
+        "reason",
+        "affectsPage",
+        "observationId"
+      ]
     }
   }
 }

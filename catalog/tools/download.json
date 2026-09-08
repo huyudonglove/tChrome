@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "download",
+    "description": "按网址下载文件。入参：url。返回：ok、downloadId affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -17,8 +17,6 @@ export type CurrentPage = CurrentTab & {
 };
 
 export type Assembled = {
-  systemIds: string[];
-  skillIds: string[];
   baseToolsIds: string[];
   toolIds: string[];
   turnMemoryIds: string[];
@@ -175,6 +173,7 @@ export type ChatTool = {
   type: "function";
   function: {
     name: string;
+    description?: string;
     parameters: Record<string, unknown>;
   };
 };

@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "wait_captcha",
+    "description": "等到 Turnstile 或同类验证出现。入参：可选 tab、timeoutMs。返回：ok、present、type、ready affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

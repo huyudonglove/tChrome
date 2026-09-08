@@ -57,8 +57,6 @@ export type LoopDeps = {
 };
 
 const assemble = (catalog: Catalog): Assembled => ({
-  systemIds: [...catalog.assemble.systemIds],
-  skillIds: [...catalog.assemble.skillIds],
   baseToolsIds: [...catalog.assemble.baseToolsIds],
   toolIds: coreToolIds(catalog),
   turnMemoryIds: [],
@@ -85,7 +83,6 @@ const messagesOf = (catalog: Catalog, ledger: Ledger, turn: Turn, dataDir: strin
     ledger,
     turn,
     memories: loadMemories(dataDir, ledger),
-    baseToolUsage: toolUsageFor(catalog, turn.assembled.baseToolsIds),
     toolUsage: toolUsageFor(catalog, turn.assembled.toolIds),
   });
   maybeCompress({
@@ -101,7 +98,6 @@ const messagesOf = (catalog: Catalog, ledger: Ledger, turn: Turn, dataDir: strin
     ledger,
     turn,
     memories: loadMemories(dataDir, ledger),
-    baseToolUsage: toolUsageFor(catalog, turn.assembled.baseToolsIds),
     toolUsage: toolUsageFor(catalog, turn.assembled.toolIds),
   });
   return [

@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "list_tabs",
+    "description": "列出当前窗口标签。入参：无。返回：ok、tabs[{id,title,url}] affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

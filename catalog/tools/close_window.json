@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "close_window",
+    "description": "关闭当前窗口。入参：无。返回：ok affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

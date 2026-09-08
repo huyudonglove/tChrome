@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.inspect_element",
+    "description": "看一个可交互元素的标签、名字、位置。入参：id（e 开头）。返回：ok、element affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

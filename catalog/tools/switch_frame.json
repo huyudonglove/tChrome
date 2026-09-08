@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "switch_frame",
+    "description": "切换 iframe（受 Chrome 安全限制，改用 execute_javascript）。入参：frame。返回：ok=false、error affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

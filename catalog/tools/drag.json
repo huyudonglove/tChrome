@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "drag",
+    "description": "按视口坐标拖动。入参：point1=[起点x,y]、point2=[终点x,y]，可选 tab。返回：ok、from、to。坐标来自截图时先 screenshot 再 calibrate_drag affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

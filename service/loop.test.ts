@@ -45,14 +45,8 @@ test("窗口按 catalog 模板插值", async () => {
   expect(catalog.userTemplate).toContain("{{#goal}}");
   expect(catalog.userTemplate).toContain("{{#goalHistory}}");
   expect(catalog.assemble.coreToolIds).toContain("page.get_summary");
-  expect(catalog.userTemplate).toContain("##方法");
-  expect(catalog.userTemplate).toContain("##记忆");
-  expect(catalog.userTemplate).toContain("##输入");
-  expect(catalog.userTemplate).toContain("##目标");
-  expect(catalog.userTemplate).toContain("##页面");
-  expect(catalog.userTemplate).toContain("##过程");
-  expect(catalog.userTemplate).toContain("##工具");
-  expect(catalog.userTemplate).toContain("{{#baseTools}}");
+  expect(catalog.systemTemplate).toContain("{{#baseTools}}");
+  expect(catalog.userTemplate).not.toContain("{{#baseTools}}");
   expect(catalog.userTemplate).toContain("{{#tools}}");
   expect(catalog.userTemplate).not.toContain("{{#sop}}");
   expect(catalog.userTemplate).toContain("{{#currentTab}}");
@@ -62,28 +56,16 @@ test("窗口按 catalog 模板插值", async () => {
   expect(catalog.systemTemplate).not.toContain("{{#skill}}");
   expect(catalog.systemTemplate).not.toContain("{{#sop}}");
   const system = systemText(catalog);
-  expect(system).toContain("#身份");
+  expect(system).toContain("#identity");
   expect(system).toContain("tChrome");
   expect(system).toContain("参考材料");
   expect(system).toContain("windowChars 达到 compressAt");
-  expect(system).toContain("#目标");
   expect(system).toContain("ledger.goal");
   expect(system).toContain("ledger.goalHistory");
-  expect(system).toContain("##方法");
-  expect(system).toContain("##记忆");
-  expect(system).toContain("##输入");
-  expect(system).toContain("##目标");
-  expect(system).toContain("##页面");
-  expect(system).toContain("##过程");
-  expect(system).toContain("##工具");
-  expect(system).toContain("`#skill`：catalog/skills/");
   expect(system).not.toContain("#sop");
-  expect(system).toContain("`#baseTools`：assemble.baseToolsIds");
-  expect(system).toContain("`#notes`：ledger.notes");
+  expect(system).toContain("#baseTools");
   expect(system).toContain("notes.write");
   expect(system).toContain("content 的 seen");
-  expect(system).toContain("`#currentTab`：Turn.assembled.currentTab");
-  expect(system).toContain("`#currentPage`：Turn.assembled.currentPage");
   expect(system).toContain("baseToolsIds");
   expect(system).toContain("coreToolIds");
   expect(system).not.toContain("从稳到新");
@@ -104,8 +86,7 @@ test("窗口按 catalog 模板插值", async () => {
       completedAt: null,
       input: { text: "帮我查这款鼠标官网价", submittedAt: "2026-09-06T00:00:00.000Z" },
       assembled: {
-        systemIds: [],
-        skillIds: [],
+
         baseToolsIds: [],
         toolIds: [],
         turnMemoryIds: [],
@@ -118,24 +99,16 @@ test("窗口按 catalog 模板插值", async () => {
       output: { kind: "tool", name: "", callId: "" },
     },
     memories: { project: [], conversation: [], turn: [] },
-    baseToolUsage: "askUser：向用户提问。\nfinishTurn：结束本 Turn。",
     toolUsage: "web_search：搜索公开网页。",
   });
-  expect(user).toContain("##方法");
-  expect(user).toContain("##记忆");
-  expect(user).toContain("##输入");
-  expect(user).toContain("##目标");
-  expect(user).toContain("##页面");
-  expect(user).toContain("##过程");
-  expect(user).toContain("##工具");
   expect(user).toContain("#notes");
   expect(user).toContain("{}");
   expect(user).toContain("#skill");
   expect(user).not.toContain("#sop");
   expect(user).toContain(catalog.skill);
-  expect(user).toContain("#baseTools");
-  expect(user).toContain("askUser：向用户提问");
-  expect(user).toContain("finishTurn：结束本 Turn");
+  expect(system).toContain("#baseTools");
+  expect(system).toContain("askUser：向用户提问");
+  expect(system).toContain("finishTurn：结束本 Turn");
   expect(user).toContain("#tools");
   expect(user).toContain("web_search：搜索公开网页");
   expect(user).toContain("帮我查这款鼠标官网价");
@@ -572,8 +545,7 @@ test("队列和正在跑的工具出现在 /session", () => {
     completedAt: null,
     input: { text: "测这个站", submittedAt: "2026-09-06T00:00:00.000Z" },
     assembled: {
-      systemIds: [],
-      skillIds: [],
+
       baseToolsIds: [],
       toolIds: [],
       turnMemoryIds: [],
@@ -778,7 +750,6 @@ test("notes.write 按 key 写入，notes.delete 删除", async () => {
   expect(ledger.toolIO.map((row) => row.name)).toEqual(["notes.write", "notes.write", "notes.delete", "finishTurn"]);
   rmSync(dir, { recursive: true, force: true });
 });
-
 
 test.each(["provider", "browser"])("停止后启动新轮，旧 %s 返回不会覆盖新轮", async (waitingOn) => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-stop-restart-"));

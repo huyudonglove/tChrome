@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "network_throttle",
+    "description": "用 CDP 模拟网络条件。入参：profile（offline/slow-3g/fast-3g/4g/online）。返回：ok、profile；CDP 失败则 ok=false affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.get_accessibility_tree",
+    "description": "取区域或元素的无障碍树。入参：id。返回：ok、tree affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

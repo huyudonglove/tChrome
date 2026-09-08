@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "catalog.add",
+    "description": "把缺的动态工具挂进本轮 tools[]。入参：names。返回：补上的工具名。下一轮出网才带 schema affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

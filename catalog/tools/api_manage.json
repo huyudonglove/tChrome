@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "api_manage",
+    "description": "查看接口登记。入参：无。返回：ok、operations affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

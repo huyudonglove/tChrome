@@ -1,6 +1,4 @@
 {
-  "systemIds": ["pack.agent"],
-  "skillIds": ["skill.web"],
   "baseToolsIds": [
     "askUser",
     "finishTurn",

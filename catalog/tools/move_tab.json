@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "move_tab",
+    "description": "移动标签位置。入参：可选 tab、index。返回：ok affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

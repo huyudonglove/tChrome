@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "api_execute",
+    "description": "调用已登记接口。入参：url，可选 method、headers、body。返回：ok、status、text affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

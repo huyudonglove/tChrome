@@ -2,14 +2,25 @@
   "type": "function",
   "function": {
     "name": "submitGoal",
+    "description": "写入 ledger.goal。入参：goal。返回：当前目标。goal 与旧值不同时 Runtime 把旧 goal 追加进 ledger.goalHistory affectsPage=false。\n适用时机：需要记录或更新持续工作的目标时。必填 goal：目标正文。更新 #goal；目标变化时 Runtime 将非空旧目标移入 #goalHistory。记录目标不会自动执行目标，也不会结束 Turn。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean" },
-        "goal": { "type": "string" }
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        },
+        "goal": {
+          "type": "string"
+        }
       },
-      "required": ["reason", "affectsPage", "goal"]
+      "required": [
+        "reason",
+        "affectsPage",
+        "goal"
+      ]
     }
   }
 }

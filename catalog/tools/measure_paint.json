@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "measure_paint",
+    "description": "测当前页绘制时间。入参：可选 tab。返回：ok、firstPaintMs、firstContentfulPaintMs、largestContentfulPaintMs affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

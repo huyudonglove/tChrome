@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.get_summary",
+    "description": "读当前页摘要：标题、地址、区域数、可交互数、标题列表。入参：可选 tab。返回：ok、title、url、regionCount、interactiveCount、headings、landmarkNames affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "control_download",
+    "description": "暂停、继续或取消下载。入参：downloadId，可选 action。返回：ok affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

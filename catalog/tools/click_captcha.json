@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "click_captcha",
+    "description": "点击 Turnstile 勾选框。入参：可选 tab。返回：ok、clicked、type affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

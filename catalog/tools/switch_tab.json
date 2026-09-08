@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "switch_tab",
+    "description": "切到指定标签并读页。入参：tab，也可传 tabId。返回：ok、title、url、text affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

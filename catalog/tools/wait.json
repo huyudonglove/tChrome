@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "wait",
+    "description": "等到出现某段文字或过一段时间。入参：可选 text、ms、tab。返回：ok、title、url、text affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

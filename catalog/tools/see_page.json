@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "see_page",
+    "description": "读当前页标题、地址和可见正文。入参：可选 tab。返回：ok、title、url、text、tab affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

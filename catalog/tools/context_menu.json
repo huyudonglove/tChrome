@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "context_menu",
+    "description": "用 CDP 触发右键。入参：可选 text。返回：ok、triggered、point；CDP 失败则 ok=false affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

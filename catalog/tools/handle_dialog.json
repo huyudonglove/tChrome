@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "handle_dialog",
+    "description": "处理页面对话框（需要在页面加载前设置监听）。入参：无。返回：ok=false、error（提示需要提前设置） affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

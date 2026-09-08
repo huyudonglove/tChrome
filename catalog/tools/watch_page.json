@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "watch_page",
+    "description": "再读一次当前页，看相对上次有没有变化。入参：可选 tab。返回：ok、title、url、text affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

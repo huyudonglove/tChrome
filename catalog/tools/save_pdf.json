@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "save_pdf",
+    "description": "把当前页存成 PDF。入参：可选 tab。返回：ok 或 error affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

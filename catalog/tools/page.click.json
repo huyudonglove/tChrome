@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.click",
+    "description": "点一个元素。入参：id（e 开头）。返回：ok、clicked affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

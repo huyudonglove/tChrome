@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "see_diag",
+    "description": "采集当前页诊断信息。入参：可选 tab。返回：ok、title、url、text affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

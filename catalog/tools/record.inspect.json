@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "record.inspect",
-    "description": "读取已保存的历史记录，不刷新网页。位置为从0开始的UTF-16字符偏移；read的end不包含在范围内。search区分大小写、按字面匹配。",
+    "description": "记录概览。kind=tool或observation，id取callId或observationId。返回长度、结构和预览；历史记录不刷新网页。\n读取已保存的历史记录，不刷新网页。位置为从0开始的UTF-16字符偏移；read的end不包含在范围内。search区分大小写、按字面匹配。 affectsPage=false。\n适用时机：需要了解历史记录的范围与结构时。kind=tool或observation；id取callId或observationId。返回长度、结构、预览与继续读取位置。",
     "parameters": {
       "type": "object",
       "properties": {

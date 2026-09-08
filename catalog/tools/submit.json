@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "submit",
+    "description": "提交当前页上的表单。入参：可选 tab。返回：ok affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

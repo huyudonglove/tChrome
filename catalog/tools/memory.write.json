@@ -2,17 +2,42 @@
   "type": "function",
   "function": {
     "name": "memory.write",
+    "description": "写入记忆。入参：可选 turnMemory、conversationMemory、projectMemory、contextSummary。返回：写入的层 affectsPage=false。\n适用时机：有需要后续保留的事实、偏好或进展时。可选 turnMemory、conversationMemory、projectMemory：字符串数组，追加至对应记忆；contextSummary：对象，替换工作汇总。至少提供一项有意义的内容，记忆的实际作用范围见 对应 memory 插槽。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean" },
-        "turnMemory": { "type": "array", "items": { "type": "string" } },
-        "conversationMemory": { "type": "array", "items": { "type": "string" } },
-        "projectMemory": { "type": "array", "items": { "type": "string" } },
-        "contextSummary": { "type": "object" }
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        },
+        "turnMemory": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "conversationMemory": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "projectMemory": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "contextSummary": {
+          "type": "object"
+        }
       },
-      "required": ["reason", "affectsPage"]
+      "required": [
+        "reason",
+        "affectsPage"
+      ]
     }
   }
 }

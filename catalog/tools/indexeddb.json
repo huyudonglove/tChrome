@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "indexeddb",
+    "description": "IndexedDB 读写。入参：action（read/write/delete/list）、db（数据库名）、可选 store、key、value。返回：ok、value/keys/stores affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

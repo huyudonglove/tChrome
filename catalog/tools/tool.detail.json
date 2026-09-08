@@ -2,14 +2,25 @@
   "type": "function",
   "function": {
     "name": "tool.detail",
+    "description": "展开 toolIO 截断全文。入参：callId。返回：该条 return 全文 affectsPage=false。\n适用时机：工具记录被截断，且下一步确实需要全文时。必填 callId：从 #toolIO 对应记录取得。读取保存的完整工具返回，不会重新执行原工具。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean" },
-        "callId": { "type": "string" }
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        },
+        "callId": {
+          "type": "string"
+        }
       },
-      "required": ["reason", "affectsPage", "callId"]
+      "required": [
+        "reason",
+        "affectsPage",
+        "callId"
+      ]
     }
   }
 }

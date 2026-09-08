@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "send_http_batch",
+    "description": "对多个地址发 HTTP。入参：urls。返回：ok、results affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

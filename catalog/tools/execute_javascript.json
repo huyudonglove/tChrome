@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "execute_javascript",
+    "description": "在当前页执行一段表达式。入参：code，可选 tab。返回：ok、value affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {

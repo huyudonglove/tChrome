@@ -2,6 +2,7 @@
   "type": "function",
   "function": {
     "name": "select",
+    "description": "在下拉里选一项。入参：value 或 text，可选 tab。返回：ok、value；找不到匹配项失败 affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {
