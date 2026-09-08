@@ -87,7 +87,10 @@ export function App() {
   const followBottom = useRef(true);
   const sendingRef = useRef(false);
   const submission = useRef(0);
+  const [proxyEnabled, setProxyEnabled] = useState<boolean | null>(null);
+  const [proxyBusy, setProxyBusy] = useState(false);
   const refreshVersion = useRef(0);
+  const switching = useRef(false);
   const running = sending || session.status === "running";
 
   const loadAll = async () => {
@@ -98,7 +101,7 @@ export function App() {
     ]);
     const next = await sessionRes.json() as SessionView;
     const listed = await listRes.json() as { items: ConversationItem[] };
-    if (generation === submission.current) {
+    if (!switching.current && generation === submission.current) {
       setSession(next);
       setItems(listed.items ?? []);
     }
@@ -134,7 +137,7 @@ export function App() {
         const version = refreshVersion.current;
         const response = await fetch(`${SERVICE}/session`);
         const next = await response.json() as SessionView;
-        if (alive && generation === submission.current && version === refreshVersion.current) setSession(next);
+        if (!switching.current && alive && generation === submission.current && version === refreshVersion.current) setSession(next);
       } catch {}
     };
     const timer = setInterval(tick, 700);
@@ -159,7 +162,7 @@ export function App() {
   }, [session.messages, sending]);
 
   const sendText = async (text: string) => {
-    if (!text || sendingRef.current || session.status === "running") return;
+    if (!text || switching.current || sendingRef.current || session.status === "running") return;
     const currentSubmission = ++submission.current;
     setDraft("");
     sendingRef.current = true;
@@ -177,7 +180,7 @@ export function App() {
       const response = await fetch(`${SERVICE}/turn`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ userInput: text, submittedAt: new Date().toISOString(), currentTab }),
+        body: JSON.stringify({ conversationId: session.conversationId, userInput: text, submittedAt: new Date().toISOString(), currentTab }),
       });
       const body = await response.json() as { output?: Output };
       if (submission.current !== currentSubmission) return;
@@ -212,29 +215,71 @@ export function App() {
   };
 
   const openConversation = async (conversationId: string) => {
+    if (switching.current) return;
+    switching.current = true;
+    try {
+    submission.current++;
+    refreshVersion.current++;
+    sendingRef.current = true;
+    setSending(true);
     const response = await fetch(`${SERVICE}/conversations/open`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ conversationId }),
     });
+    submission.current++;
+    refreshVersion.current++;
     setSession(await response.json() as SessionView);
+    sendingRef.current = false;
+    setSending(false);
     setListOpen(false);
     followBottom.current = true;
     const listed = await fetch(`${SERVICE}/conversations`);
     setItems(((await listed.json()) as { items: ConversationItem[] }).items ?? []);
+    } catch {
+      setStatus(DOWN);
+    } finally {
+      switching.current = false;
+      sendingRef.current = false;
+      setSending(false);
+    }
   };
 
   const startNew = async () => {
+    if (switching.current) return;
+    switching.current = true;
+    try {
+    submission.current++;
+    refreshVersion.current++;
+    sendingRef.current = true;
+    setSending(true);
     const response = await fetch(`${SERVICE}/conversations/new`, { method: "POST" });
+    submission.current++;
+    refreshVersion.current++;
     setSession(await response.json() as SessionView);
+    sendingRef.current = false;
+    setSending(false);
     setListOpen(false);
     followBottom.current = true;
     const listed = await fetch(`${SERVICE}/conversations`);
     setItems(((await listed.json()) as { items: ConversationItem[] }).items ?? []);
+    } catch {
+      setStatus(DOWN);
+    } finally {
+      switching.current = false;
+      sendingRef.current = false;
+      setSending(false);
+    }
   };
 
   const confirmDelete = async () => {
-    if (!pendingDelete) return;
+    if (!pendingDelete || switching.current) return;
+    switching.current = true;
+    submission.current++;
+    refreshVersion.current++;
+    sendingRef.current = true;
+    setSending(true);
+    try {
     const id = pendingDelete.conversationId;
     setPendingDelete(null);
     const response = await fetch(`${SERVICE}/conversations/delete`, {
@@ -242,9 +287,39 @@ export function App() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ conversationId: id }),
     });
+    submission.current++;
+    refreshVersion.current++;
     setSession(await response.json() as SessionView);
+    sendingRef.current = false;
+    setSending(false);
     const listed = await fetch(`${SERVICE}/conversations`);
     setItems(((await listed.json()) as { items: ConversationItem[] }).items ?? []);
+    } catch {
+      setStatus(DOWN);
+    } finally {
+      switching.current = false;
+      sendingRef.current = false;
+      setSending(false);
+    }
+  };
+
+  useEffect(() => {
+    fetch(`${SERVICE}/connection`).then((r) => r.json()).then((value) => setProxyEnabled(value.enabled)).catch(() => setStatus(DOWN));
+  }, []);
+
+  const toggleProxy = async () => {
+    setProxyBusy(true);
+    try {
+      const response = await fetch(`${SERVICE}/connection`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enabled: !proxyEnabled }),
+      });
+      if (!response.ok) throw new Error("connection_update_failed");
+      const verified = await fetch(`${SERVICE}/connection`);
+      if (!verified.ok) throw new Error("connection_read_failed");
+      setProxyEnabled((await verified.json()).enabled);
+    } catch { setStatus(DOWN); }
+    finally { setProxyBusy(false); }
   };
 
   const filtered = items.filter((item) =>
@@ -261,6 +336,10 @@ export function App() {
             <small>{running ? "正在处理" : statusText(session.status)}</small>
           </div>
           <div className="app-actions">
+            <button type="button" disabled={proxyBusy || proxyEnabled === null} aria-pressed={proxyEnabled === true}
+              title="切换模型连接方式，下一次请求生效" onClick={toggleProxy}>
+              {proxyBusy ? "切换中" : proxyEnabled === null ? "连接…" : proxyEnabled ? "代理" : "直连"}
+            </button>
             <button className="icon-button" type="button" title="会话" onClick={() => setListOpen((open) => !open)}>
               <Icon path="M4 6h16M4 12h16M4 18h10" />
             </button>

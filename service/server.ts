@@ -1,8 +1,8 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { handleTurn, type LoopDeps } from "./runtime/loop.ts";
-import { createProvider } from "./provider/uuapi.ts";
-import { defaultDataDir, currentSessionView, listConversations, openConversation, newConversation, deleteConversation, stopTurn } from "./runtime/store.ts";
+import { createProvider, resolveProxy } from "./provider/uuapi.ts";
+import { ensureSession, defaultDataDir, currentSessionView, listConversations, openConversation, newConversation, deleteConversation, stopTurn } from "./runtime/store.ts";
 import { createToolBridge, type ToolBridge } from "./runtime/bridge.ts";
 import type { BrowserResult } from "./types.ts";
 
@@ -44,7 +44,13 @@ const json = (body: unknown, status = 200) =>
 export function createServer(options: ServeOptions = {}) {
   const repoRoot = options.repoRoot ?? process.cwd();
   const dataDir = options.dataDir ?? defaultDataDir();
-  const provider = options.provider ?? createProvider();
+  const connectionPath = join(dataDir, "connection.json");
+  let proxyEnabled = existsSync(connectionPath)
+    ? JSON.parse(readFileSync(connectionPath, "utf8")).enabled === true
+    : Boolean(resolveProxy(Bun.env));
+  const proxyURL = Bun.env.HTTPS_PROXY || "http://127.0.0.1:7892";
+  let activeProvider = createProvider({ proxy: proxyEnabled ? proxyURL : "" });
+  const provider = options.provider ?? { complete: (input: Parameters<typeof activeProvider.complete>[0]) => activeProvider.complete(input) };
   const bridge = options.bridge ?? createToolBridge();
   const host = options.host ?? bridge;
   const deps: LoopDeps = { dataDir, repoRoot, provider, host };
@@ -121,10 +127,23 @@ export function createServer(options: ServeOptions = {}) {
           return respond({ error: error instanceof Error ? error.message : String(error) }, 404);
         }
       }
+      if (request.method === "GET" && url.pathname === "/connection") return respond({ enabled: proxyEnabled });
+      if (request.method === "POST" && url.pathname === "/connection") {
+        const body = await request.json() as { enabled: boolean };
+        if (typeof body.enabled !== "boolean") return respond({ error: "invalid_enabled" }, 400);
+        mkdirSync(dataDir, { recursive: true });
+        writeFileSync(connectionPath, JSON.stringify({ enabled: body.enabled }));
+        proxyEnabled = body.enabled;
+        activeProvider = createProvider({ proxy: proxyEnabled ? proxyURL : "" });
+        return respond({ enabled: proxyEnabled });
+      }
       if (request.method === "POST" && url.pathname === "/turn") {
-        const body = (await request.json()) as { userInput?: string; submittedAt?: string; currentTab?: { tab?: number; url?: string; title?: string } | null };
+        const body = (await request.json()) as { conversationId?: string; userInput?: string; submittedAt?: string; currentTab?: { tab?: number; url?: string; title?: string } | null };
         const userInput = String(body.userInput ?? "").trim();
         if (!userInput) return respond({ conversationId: "", turnId: "", output: { kind: "error", faultCode: "empty_input" } }, 400);
+        if (body.conversationId && body.conversationId !== ensureSession(dataDir).conversationId) {
+          return respond({ output: { kind: "error", faultCode: "conversation_changed" } }, 409);
+        }
         const submittedAt = body.submittedAt || new Date().toISOString();
         const reply = await handleTurn(deps, { userInput, submittedAt, currentTab: body.currentTab ?? null });
         return respond(reply);
@@ -145,4 +164,5 @@ if (isMain) {
   const server = createServer();
   Bun.serve({ hostname, port, fetch: server.fetch });
   console.log(`tChrome service http://${hostname}:${port}`);
+  console.log(`Model connection: ${resolveProxy(Bun.env) ? "proxy" : "direct"}`);
 }

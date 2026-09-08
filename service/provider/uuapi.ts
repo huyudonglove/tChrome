@@ -1,10 +1,10 @@
 import OpenAI from "openai";
-import type { ChatCompletionChunk, ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import { argumentChunk, parseToolArguments } from "../tools/arguments.ts";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import { parseToolArguments } from "../tools/arguments.ts";
 import { checkToolCalls } from "../tools/schema.ts";
 import type { ChatMessage, ChatTool, CompletionResult, ToolCall, ToolCallFault } from "../types.ts";
 
-const MODEL = "gemini-3.7-flash";
+const MODEL = "gemini-3.8-flash";
 const MAX_ATTEMPTS = 3;
 
 export type ProviderConfig = {
@@ -13,6 +13,12 @@ export type ProviderConfig = {
   model?: string;
   proxy?: string;
 };
+
+export function resolveProxy(env: Record<string, string | undefined>) {
+  if (env.TCHROME_PROXY_MODE === "direct") return "";
+  if (env.TCHROME_PROXY_MODE === "proxy") return env.HTTPS_PROXY || "http://127.0.0.1:7892";
+  return env.HTTPS_PROXY ?? env.HTTP_PROXY ?? env.ALL_PROXY;
+}
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -41,25 +47,6 @@ const keyMissing = () => {
 
 type AccCall = { id: string; name: string; arguments: string };
 
-const mergeChunk = (
-  content: string,
-  calls: AccCall[],
-  chunk: ChatCompletionChunk,
-): { content: string; finish: string | null } => {
-  const choice = chunk.choices[0];
-  const delta = choice?.delta;
-  if (delta?.content) content += delta.content;
-  for (const part of delta?.tool_calls ?? []) {
-    const index = part.index ?? 0;
-    const current = calls[index] ?? { id: "", name: "", arguments: "" };
-    if (part.id) current.id = part.id;
-    if (part.function?.name) current.name = part.function.name;
-    if (part.function?.arguments) current.arguments += argumentChunk(part.function.arguments);
-    calls[index] = current;
-  }
-  return { content, finish: choice?.finish_reason ?? null };
-};
-
 const parseCalls = (calls: AccCall[]) => {
   const toolCalls: ToolCall[] = [];
   const faults: ToolCallFault[] = [];
@@ -83,7 +70,7 @@ export function createProvider(config: ProviderConfig = {}) {
   const apiKey = config.apiKey ?? Bun.env.UUAPI_API_KEY;
   const baseURL = config.baseURL ?? "https://uuapi.net/v1";
   const model = config.model ?? MODEL;
-  const proxy = config.proxy ?? Bun.env.HTTPS_PROXY ?? Bun.env.HTTP_PROXY ?? Bun.env.ALL_PROXY;
+  const proxy = config.proxy ?? resolveProxy(Bun.env);
   if (!apiKey) return { complete: async () => keyMissing() };
   const client = new OpenAI({
     apiKey,
@@ -98,22 +85,19 @@ export function createProvider(config: ProviderConfig = {}) {
   });
 
   const once = async (messages: ChatMessage[], tools: ChatTool[]) => {
-    const stream = await client.chat.completions.create({
+    const response = await client.chat.completions.create({
       model,
-      stream: true,
+      stream: false,
       messages: messages as ChatCompletionMessageParam[],
       tools,
     });
-    let content = "";
-    const calls: AccCall[] = [];
-    let finish: string | null = null;
-    for await (const chunk of stream) {
-      const next = mergeChunk(content, calls, chunk);
-      content = next.content;
-      if (next.finish) finish = next.finish;
-    }
-    if (!finish) throw new Error("stream_incomplete");
-    return { content, calls, finish };
+    const choice = response.choices[0];
+    if (!choice) throw new Error("empty_choices");
+    const calls: AccCall[] = (choice.message.tool_calls ?? []).map((call) => {
+      if (call.type !== "function") throw new Error("unsupported_tool_call");
+      return { id: call.id, name: call.function.name, arguments: call.function.arguments };
+    });
+    return { content: choice.message.content ?? "", calls, finish: choice.finish_reason };
   };
 
   return {
@@ -182,6 +166,7 @@ export function createProvider(config: ProviderConfig = {}) {
         parseOk: false,
         schemaOk: false,
         faultCode: status === 401 || status === 403 ? "provider_key_invalid" : "provider_error",
+        detail: `status=${status}; ${lastError instanceof Error ? lastError.message : "unknown provider error"}`.replaceAll(apiKey, "[REDACTED]"),
         missing: [],
       };
     },

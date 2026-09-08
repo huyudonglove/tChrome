@@ -9,10 +9,10 @@ import { loadLedger } from "../runtime/store.ts";
 const input = { messages: [], tools: [], baseToolsIds: [], toolIds: [] };
 const providerFor = (port: number) => createProvider({ apiKey: "local-test", baseURL: `http://127.0.0.1:${port}/v1`, proxy: "" });
 const call = (id: string, name: string, args: string) => ({ id, type: "function", function: { name, arguments: args } });
-const sse = (calls: ReturnType<typeof call>[], content = "") => new Response(
-  `data: ${JSON.stringify({ id: "test", object: "chat.completion.chunk", choices: [{ index: 0, delta: { content, tool_calls: calls.map((item, index) => ({ ...item, index })) }, finish_reason: "tool_calls" }] })}\n\ndata: [DONE]\n\n`,
-  { headers: { "Content-Type": "text/event-stream" } },
-);
+const sse = (calls: ReturnType<typeof call>[], content = "") => Response.json({
+  id: "test", object: "chat.completion", choices: [{ index: 0,
+    message: { role: "assistant", content, tool_calls: calls }, finish_reason: "tool_calls" }],
+});
 
 for (const status of [500, 429, 401, 400]) {
   test(`HTTP ${status} 实际请求数与 attempts 一致`, async () => {

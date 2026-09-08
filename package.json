@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "service": "bun run service/server.ts",
+    "service:proxy": "TCHROME_PROXY_MODE=proxy bun run service/server.ts",
+    "service:direct": "TCHROME_PROXY_MODE=direct bun run service/server.ts",
     "build": "bun run scripts/build-extension.ts",
     "test": "bun test",
     "check": "bun test && bun run scripts/build-extension.ts"
