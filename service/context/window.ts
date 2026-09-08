@@ -6,9 +6,9 @@ export const MEMORY_WINDOW = 8;
 const jsonBody = (value: unknown) => JSON.stringify(value, null, 2);
 
 export function systemText(catalog: Catalog): string {
-  return renderSlots(catalog.systemTemplate, catalog.systemSlots, {
+  return [catalog.systemInventory, catalog.userInventory, renderSlots(catalog.systemTemplate, catalog.systemSlots, {
     "#baseTools": toolUsageFor(catalog, catalog.assemble.baseToolsIds),
-  });
+  })].join("\n\n");
 }
 
 const memoryBody = (items: MemoryRecord[]) =>

@@ -17,6 +17,8 @@ export type Assemble = {
 };
 
 export type Catalog = {
+  systemInventory: string;
+  userInventory: string;
   systemSlots: Record<string, string>;
   userSlots: Record<string, string>;
   skill: string;
@@ -56,7 +58,9 @@ export function loadCatalog(root: string): Catalog {
     const name = tool.function?.name;
     if (name) tools[name] = tool;
   }
-  return { systemSlots, userSlots, skill, tools, index, assemble, systemTemplate, userTemplate };
+  const systemInventory = readFileSync(join(catalog, "system-slots.md"), "utf8").trimEnd();
+  const userInventory = readFileSync(join(catalog, "user-slots.md"), "utf8").trimEnd();
+  return { systemInventory, userInventory, systemSlots, userSlots, skill, tools, index, assemble, systemTemplate, userTemplate };
 }
 
 export function dynamicToolIds(catalog: Catalog): string[] {

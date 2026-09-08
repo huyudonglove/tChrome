@@ -57,7 +57,12 @@ test("完整装配保留各数据来源、规则与输入字面占位", () => {
   expect(rendered).toContain("按可见节点顺序临时编号");
   expect(rendered).toContain("不会自动跨会话共享");
   expect(rendered).toContain("#goal 对应 ledger.goal");
-  expect(systemText(c)).toContain("#toolIO 和 #observation");
+  expect(systemText(c)).toContain("执行证据可能包含此前 Turn 的记录");
+  expect(systemText(c).startsWith(`${c.systemInventory}\n\n${c.userInventory}\n\n`)).toBe(true);
+  for (const role of ["system", "user"] as const) {
+    const inventory = readFileSync(join(root, `catalog/${role}-slots.md`), "utf8").trimEnd();
+    expect(systemText(c).split(inventory)).toHaveLength(2);
+  }
   expect(existsSync(join(root, "catalog/packs/pack.agent.md"))).toBe(false);
   expect(c.assemble).not.toHaveProperty("systemIds");
   expect(c.assemble).not.toHaveProperty("skillIds");
