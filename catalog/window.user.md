@@ -2,9 +2,6 @@
 #skill
 {{#skill}}
 
-#sop
-{{#sop}}
-
 ##记忆
 #projectMemory
 {{#projectMemory}}

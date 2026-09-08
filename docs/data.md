@@ -75,7 +75,6 @@ Runtime 独占维护。当前会话指针。字段见 schema「ledger.json」。
   "assembled": {
     "systemIds": ["pack.agent"],
     "skillIds": ["skill.web"],
-    "sopIds": ["sop.browse"],
     "baseToolsIds": ["askUser", "finishTurn", "submitGoal", "tool.detail", "observation.detail", "memory.write", "notes.write", "notes.delete"],
     "toolIds": ["page.get_summary", "open_url", "web_search"],
     "turnMemoryIds": [],

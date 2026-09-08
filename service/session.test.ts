@@ -9,7 +9,7 @@ const makeTurn = (output: TurnOutput | null): Turn => ({
   turnId: "tn_01", conversationId: "cv_01", status: output ? "completed" : "inferring",
   createdAt: "2026-09-07T00:00:00.000Z", completedAt: null,
   input: { text: "查看当前页面", submittedAt: "2026-09-07T00:00:00.000Z" },
-  assembled: { systemIds: [], skillIds: [], sopIds: [], baseToolsIds: [], toolIds: [],
+  assembled: { systemIds: [], skillIds: [], baseToolsIds: [], toolIds: [],
     turnMemoryIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, currentTab: null },
   output,
 });

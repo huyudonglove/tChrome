@@ -54,7 +54,7 @@ test("窗口按 catalog 模板插值", async () => {
   expect(catalog.userTemplate).toContain("##工具");
   expect(catalog.userTemplate).toContain("{{#baseTools}}");
   expect(catalog.userTemplate).toContain("{{#tools}}");
-  expect(catalog.userTemplate).toContain("{{#sop}}");
+  expect(catalog.userTemplate).not.toContain("{{#sop}}");
   expect(catalog.userTemplate).toContain("{{#currentTab}}");
   expect(catalog.userTemplate).toContain("{{#currentPage}}");
   expect(catalog.userTemplate).not.toContain("{{#参考}}");
@@ -77,7 +77,7 @@ test("窗口按 catalog 模板插值", async () => {
   expect(system).toContain("##过程");
   expect(system).toContain("##工具");
   expect(system).toContain("`#skill`：catalog/skills/");
-  expect(system).toContain("`#sop`：catalog/sops/");
+  expect(system).not.toContain("#sop");
   expect(system).toContain("`#baseTools`：assemble.baseToolsIds");
   expect(system).toContain("`#notes`：ledger.notes");
   expect(system).toContain("notes.write");
@@ -106,7 +106,6 @@ test("窗口按 catalog 模板插值", async () => {
       assembled: {
         systemIds: [],
         skillIds: [],
-        sopIds: [],
         baseToolsIds: [],
         toolIds: [],
         turnMemoryIds: [],
@@ -132,9 +131,8 @@ test("窗口按 catalog 模板插值", async () => {
   expect(user).toContain("#notes");
   expect(user).toContain("{}");
   expect(user).toContain("#skill");
-  expect(user).toContain("#sop");
+  expect(user).not.toContain("#sop");
   expect(user).toContain(catalog.skill);
-  expect(user).toContain(catalog.sop);
   expect(user).toContain("#baseTools");
   expect(user).toContain("askUser：向用户提问");
   expect(user).toContain("finishTurn：结束本 Turn");
@@ -576,7 +574,6 @@ test("队列和正在跑的工具出现在 /session", () => {
     assembled: {
       systemIds: [],
       skillIds: [],
-      sopIds: [],
       baseToolsIds: [],
       toolIds: [],
       turnMemoryIds: [],

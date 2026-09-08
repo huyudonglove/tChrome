@@ -12,7 +12,6 @@ export type ToolIndex = {
 export type Assemble = {
   systemIds: string[];
   skillIds: string[];
-  sopIds: string[];
   baseToolsIds: string[];
   coreToolIds: string[];
   messages: {
@@ -24,7 +23,6 @@ export type Assemble = {
 export type Catalog = {
   pack: Record<string, string>;
   skill: string;
-  sop: string;
   tools: Record<string, ChatTool>;
   index: ToolIndex;
   assemble: Assemble;
@@ -55,7 +53,6 @@ export function loadCatalog(root: string): Catalog {
   const catalog = join(root, "catalog");
   const pack = splitHeadings(readFileSync(join(catalog, "packs", "pack.agent.md"), "utf8"));
   const skill = readFileSync(join(catalog, "skills", "skill.web.md"), "utf8").replace(/^#skill\n?/, "").trim();
-  const sop = readFileSync(join(catalog, "sops", "sop.browse.md"), "utf8").replace(/^#sop\n?/, "").trim();
   const index = JSON.parse(readFileSync(join(catalog, "tools", "index.json"), "utf8")) as ToolIndex;
   const assemble = JSON.parse(readFileSync(join(catalog, "assemble.json"), "utf8")) as Assemble;
   const systemTemplate = readFileSync(join(catalog, "window.system.md"), "utf8").replaceAll("\r\n", "\n").trimEnd();
@@ -67,7 +64,7 @@ export function loadCatalog(root: string): Catalog {
     const name = tool.function?.name;
     if (name) tools[name] = tool;
   }
-  return { pack, skill, sop, tools, index, assemble, systemTemplate, userTemplate };
+  return { pack, skill, tools, index, assemble, systemTemplate, userTemplate };
 }
 
 export function dynamicToolIds(catalog: Catalog): string[] {

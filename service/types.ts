@@ -19,7 +19,6 @@ export type CurrentPage = CurrentTab & {
 export type Assembled = {
   systemIds: string[];
   skillIds: string[];
-  sopIds: string[];
   baseToolsIds: string[];
   toolIds: string[];
   turnMemoryIds: string[];

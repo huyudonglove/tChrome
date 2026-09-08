@@ -28,9 +28,6 @@
   "skillIds": [
     "skill.web"
   ],
-  "sopIds": [
-    "sop.browse"
-  ],
   "baseToolsIds": [
     "askUser",
     "finishTurn",
@@ -70,7 +67,6 @@
   ],
   "userSlots": [
     "#skill",
-    "#sop",
     "#projectMemory",
     "#conversationMemory",
     "#turnMemory",
@@ -251,9 +247,6 @@ data: [DONE]
   "skillIds": [
     "skill.web"
   ],
-  "sopIds": [
-    "sop.browse"
-  ],
   "baseToolsIds": [
     "askUser",
     "finishTurn",
@@ -293,7 +286,6 @@ data: [DONE]
   ],
   "userSlots": [
     "#skill",
-    "#sop",
     "#projectMemory",
     "#conversationMemory",
     "#turnMemory",

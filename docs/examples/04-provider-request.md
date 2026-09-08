@@ -28,9 +28,6 @@
   "skillIds": [
     "skill.web"
   ],
-  "sopIds": [
-    "sop.browse"
-  ],
   "baseToolsIds": [
     "askUser",
     "finishTurn",
@@ -70,7 +67,6 @@
   ],
   "userSlots": [
     "#skill",
-    "#sop",
     "#projectMemory",
     "#conversationMemory",
     "#turnMemory",
@@ -94,7 +90,7 @@
 
 ```
 POST https://uuapi.net/v1/chat/completions
-Authorization: Bearer $UUAPI_API_KEY
+Authorization: Bearer ***
 Content-Type: application/json
 ```
 
@@ -171,7 +167,7 @@ content 三段：seen / reason / action。
 
 #user槽
 user 按层装配。空槽只留标题。
-##方法：`#skill` `#sop`
+##方法：`#skill`
 ##记忆：`#projectMemory` `#conversationMemory` `#turnMemory` `#contextSummary` `#observation` `#notes`
 ##输入：`#userInputHistory` `#userInput`
 ##目标：`#goal` `#goalHistory`
@@ -180,7 +176,7 @@ user 按层装配。空槽只留标题。
 ##工具：`#baseTools` `#tools`
 ```
 
-正文以 `catalog/packs/pack.agent.md` 为准。skill / sop / 建议路径不进 system。
+正文以 `catalog/packs/pack.agent.md` 为准。skill / 建议路径不进 system。
 
 ### `messages[1]` user
 
@@ -190,10 +186,6 @@ user 按层装配。空槽只留标题。
 ##方法
 #skill
 网页工具：page.get_summary 读摘要；page.list_regions 列区域；page.list_interactive_elements 列可交互元素；page.click / page.type 用返回的 id；open_url 打开网址；web_search 检索。
-
-#sop
-探索型：page.get_summary → page.list_regions → page.list_interactive_elements → 用返回的 id 调 page.click / page.type。
-确定型：直接调目标工具。对用户说完再 finishTurn。
 
 ##记忆
 #projectMemory
@@ -490,9 +482,6 @@ web_search：搜索公开网页。affectsPage=false。
   "skillIds": [
     "skill.web"
   ],
-  "sopIds": [
-    "sop.browse"
-  ],
   "baseToolsIds": [
     "askUser",
     "finishTurn",
@@ -532,7 +521,6 @@ web_search：搜索公开网页。affectsPage=false。
   ],
   "userSlots": [
     "#skill",
-    "#sop",
     "#projectMemory",
     "#conversationMemory",
     "#turnMemory",

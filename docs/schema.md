@@ -15,8 +15,8 @@ service/            后端：Bun.serve 127.0.0.1:18788。按模块分
   tools/
   subagent/         第一期空着
   provider/
-catalog/            Pack / skill / SOP / tools schema / 窗口模板
-  assemble.json     本轮点哪些 pack / skill / sop / 常驻工具 / 核心工具
+catalog/            Pack / skill / tools schema / 窗口模板
+  assemble.json     本轮点哪些 pack / skill / 常驻工具 / 核心工具
 
   window.system.md  system 插槽：事实
   window.user.md    user 插槽：参考材料
@@ -157,7 +157,6 @@ Runtime 独占维护。当前会话指针。
 |---|---|---|
 | `systemIds` | string[] | 本轮 Pack，对应 `catalog/packs/<id>.md` |
 | `skillIds` | string[] | 本轮 skill，对应 `catalog/skills/<id>.md`，进 user `#skill` |
-| `sopIds` | string[] | 本轮 SOP，对应 `catalog/sops/<id>.md`，进 user `#sop` |
 | `baseToolsIds` | string[] | 常驻工具，对应 `catalog/tools/<id>.json`。固定 `askUser` `finishTurn` `submitGoal` `tool.detail` `observation.detail` `memory.write` |
 | `toolIds` | string[] | 动态工具，对应 `catalog/tools/<id>.json`。开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.list_interactive_elements` `page.click` `page.type` `open_url` `web_search` `list_browser_tools` `catalog.add`）。缺了 `catalog.add` 再补。压缩时先裁回 core + 本轮已用过的 |
 | `turnMemoryIds` | string[] | 这一轮记忆；没有就 `[]` |
@@ -219,12 +218,11 @@ Runtime 独占维护。当前会话指针。
 用户一条输入开一个 Turn，CE 装配一次。本 Turn 内工具循环不再走 CE。
 
 system 顺序 = `catalog/window.system.md`：身份、记忆、观察、环境、协议、目标、参数、内置工具、输出、user槽说明。都是事实。`#user槽` 按 user 层介绍：方法 / 记忆 / 输入 / 目标 / 页面 / 过程 / 工具。每层写槽是什么、谁写、干什么。
-user 顺序 = `catalog/window.user.md`，层标题 `##方法` `##记忆` `##输入` `##目标` `##页面` `##过程` `##工具`。方法层是 `#skill` `#sop`。页面层是 `#currentTab` `#currentPage`。content 三段是 seen / reason / action。
+user 顺序 = `catalog/window.user.md`，层标题 `##方法` `##记忆` `##输入` `##目标` `##页面` `##过程` `##工具`。方法层是 `#skill`。页面层是 `#currentTab` `#currentPage`。content 三段是 seen / reason / action。
 
 | 槽 | 正文来自 |
 |---|---|
 | `#skill` | `catalog/skills/` |
-| `#sop` | `catalog/sops/` |
 | `#projectMemory` | ledger.`memoryIds.project` 对应文件。窗口只带最近 8 条，到 200K 仍用全文 |
 | `#conversationMemory` | ledger.`memoryIds.conversation`。窗口只带最近 8 条，压缩后用 `summary` |
 | `#turnMemory` | ledger.`memoryIds.turn`。窗口只带最近 8 条，压缩后用 `summary` |

@@ -31,7 +31,6 @@ export function userText(input: {
   const { catalog, ledger, turn, memories, baseToolUsage, toolUsage } = input;
   return interpolate(catalog.userTemplate, {
     "#skill": catalog.skill,
-    "#sop": catalog.sop,
     "#projectMemory": memoryBody(memories.project),
     "#conversationMemory": memoryBody(memories.conversation),
     "#turnMemory": memoryBody(memories.turn),

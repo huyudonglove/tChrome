@@ -173,9 +173,6 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   "skillIds": [
     "skill.web"
   ],
-  "sopIds": [
-    "sop.browse"
-  ],
   "baseToolsIds": [
     "askUser",
     "finishTurn",
@@ -215,7 +212,6 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   ],
   "userSlots": [
     "#skill",
-    "#sop",
     "#projectMemory",
     "#conversationMemory",
     "#turnMemory",

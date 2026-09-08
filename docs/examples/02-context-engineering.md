@@ -1,6 +1,6 @@
 # 02 Context Engineering
 
-读 01 的写出。本环节点名：用哪些 Pack / skill / SOP / 常驻工具 / 动态工具 / 三层记忆 / MCP，以及当前页。正文留给 03 解码展开。
+读 01 的写出。本环节点名：用哪些 Pack / skill / 常驻工具 / 动态工具 / 三层记忆 / MCP，以及当前页。正文留给 03 解码展开。
 
 怎么看：上面「读到的」是 01 写出的原样。下面「写出的」是累积快照：01 六个键 + 本环节新增的键。对照仓里 `catalog/`：这些 ID 都有对应文件。
 
@@ -24,13 +24,12 @@
 
 ## 配方
 
-组装 system / skill / tool / memory / SOP。本环节只选出 ID。
+组装 system / skill / tool / memory。本环节只选出 ID。
 
 | 选什么 | 干什么 | 本轮选中 |
 |---|---|---|
 | `systemIds` | 本轮 Pack，进 system | `pack.agent` → `catalog/packs/pack.agent.md` |
 | `skillIds` | 进 user `#skill` | `skill.web` → `catalog/skills/skill.web.md` |
-| `sopIds` | 进 user `#sop` | `sop.browse` → `catalog/sops/sop.browse.md` |
 | `baseToolsIds` | 常驻工具，每轮都出网 | `askUser` `finishTurn` `submitGoal` `tool.detail` `observation.detail` `memory.write` `notes.write` `notes.delete` |
 | `toolIds` | 动态工具，本轮才挂 | 开 Turn 先挂 core。本样例：`page.get_summary` `open_url` `web_search`。全表见 `catalog/tools/index.json`，缺了 `catalog.add` |
 | `turnMemoryIds` | 这一轮记忆 | 新会话空 |
@@ -62,9 +61,6 @@
   ],
   "skillIds": [
     "skill.web"
-  ],
-  "sopIds": [
-    "sop.browse"
   ],
   "baseToolsIds": [
     "askUser",

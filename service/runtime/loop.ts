@@ -58,7 +58,6 @@ export type LoopDeps = {
 const assemble = (catalog: Catalog): Assembled => ({
   systemIds: [...catalog.assemble.systemIds],
   skillIds: [...catalog.assemble.skillIds],
-  sopIds: [...catalog.assemble.sopIds],
   baseToolsIds: [...catalog.assemble.baseToolsIds],
   toolIds: coreToolIds(catalog),
   turnMemoryIds: [],

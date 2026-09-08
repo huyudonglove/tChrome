@@ -1,7 +1,6 @@
 {
   "systemIds": ["pack.agent"],
   "skillIds": ["skill.web"],
-  "sopIds": ["sop.browse"],
   "baseToolsIds": [
     "askUser",
     "finishTurn",
