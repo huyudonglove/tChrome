@@ -126,10 +126,18 @@ export type ToolCall = {
   arguments: ToolArguments;
 };
 
+export type ToolCallFault = {
+  callId: string;
+  name: string;
+  rawArguments: string;
+  detail: string;
+};
+
 export type CompletionResult = {
   finish: "tool_calls" | "stop" | "error";
   content: string;
   toolCalls: ToolCall[];
+  toolCallFaults?: ToolCallFault[];
   attempts: number;
   parseOk: boolean;
   schemaOk: boolean;

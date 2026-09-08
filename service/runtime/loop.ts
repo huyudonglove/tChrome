@@ -412,15 +412,32 @@ export async function handleTurn(
     }
     if (!result.parseOk || !result.schemaOk) {
       submitFails += 1;
-      writeFault(ledger, turnId, result);
-      const prefixCheck = !result.parseOk && result.toolCalls.length
-        ? checkToolCalls(result.toolCalls, tools, turn.assembled.baseToolsIds, turn.assembled.toolIds)
-        : null;
-      if (prefixCheck && !prefixCheck.schemaOk) {
-        writeFault(ledger, turnId, { ...result, ...prefixCheck });
+      if (result.toolCallFaults?.length) {
+        for (const fault of result.toolCallFaults) {
+          writeFault(ledger, turnId, {
+            ...result,
+            badName: fault.name,
+            detail: fault.detail,
+            toolCalls: [{ id: fault.callId, name: fault.name, arguments: { rawArguments: fault.rawArguments } }],
+          });
+        }
+      } else {
+        writeFault(ledger, turnId, result);
       }
-      if (prefixCheck?.schemaOk) {
-        ledger.toolQueue = result.toolCalls.map((call) => ({
+      const batchCheck = checkToolCalls(result.toolCalls, tools, turn.assembled.baseToolsIds, turn.assembled.toolIds);
+      const validCalls = result.toolCalls.filter((call) => {
+        if (batchCheck.faultCode === "exclusive_resident") return false;
+        const check = checkToolCalls([call], tools, turn.assembled.baseToolsIds, turn.assembled.toolIds);
+        if (!check.schemaOk && (result.toolCallFaults?.length || call.name !== result.badName)) {
+          writeFault(ledger, turnId, { ...result, ...check, toolCalls: [call] });
+        }
+        return check.schemaOk;
+      });
+      if (!result.parseOk && batchCheck.faultCode === "exclusive_resident") {
+        writeFault(ledger, turnId, { ...result, ...batchCheck });
+      }
+      if (validCalls.length) {
+        ledger.toolQueue = validCalls.map((call) => ({
           callId: call.id,
           name: call.name,
           arguments: call.arguments,

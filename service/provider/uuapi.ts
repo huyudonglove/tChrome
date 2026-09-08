@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import type { ChatCompletionChunk, ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { argumentChunk, parseToolArguments } from "../tools/arguments.ts";
 import { checkToolCalls } from "../tools/schema.ts";
-import type { ChatMessage, ChatTool, CompletionResult, ToolCall } from "../types.ts";
+import type { ChatMessage, ChatTool, CompletionResult, ToolCall, ToolCallFault } from "../types.ts";
 
 const MODEL = "gemini-3.7-flash";
 const MAX_ATTEMPTS = 3;
@@ -60,18 +60,15 @@ const mergeChunk = (
   return { content, finish: choice?.finish_reason ?? null };
 };
 
-const parseCalls = (calls: AccCall[]): { toolCalls: ToolCall[]; parseOk: boolean; detail: string; badName: string } => {
+const parseCalls = (calls: AccCall[]) => {
   const toolCalls: ToolCall[] = [];
+  const faults: ToolCallFault[] = [];
   for (const call of calls) {
     if (!call.id && !call.name) continue;
     const parsed = parseToolArguments(call.arguments);
     if (!parsed.ok) {
-      return {
-        toolCalls,
-        parseOk: false,
-        detail: `${call.name || "unknown"}: ${parsed.detail}`,
-        badName: call.name || "unknown",
-      };
+      faults.push({ callId: call.id, name: call.name, rawArguments: call.arguments, detail: parsed.detail });
+      continue;
     }
     toolCalls.push({
       id: call.id,
@@ -79,7 +76,7 @@ const parseCalls = (calls: AccCall[]): { toolCalls: ToolCall[]; parseOk: boolean
       arguments: parsed.value,
     });
   }
-  return { toolCalls, parseOk: true, detail: "", badName: "" };
+  return { toolCalls, faults, parseOk: faults.length === 0 };
 };
 
 export function createProvider(config: ProviderConfig = {}) {
@@ -91,6 +88,7 @@ export function createProvider(config: ProviderConfig = {}) {
   const client = new OpenAI({
     apiKey,
     baseURL,
+    maxRetries: 0,
     ...(proxy
       ? {
           fetch: (url: RequestInfo | URL, init?: RequestInit) =>
@@ -126,7 +124,9 @@ export function createProvider(config: ProviderConfig = {}) {
       toolIds: string[];
     }): Promise<CompletionResult> => {
       let lastError: unknown;
+      let attempts = 0;
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        attempts = attempt;
         try {
           const { content, calls, finish } = await once(input.messages, input.tools);
           const parsed = parseCalls(calls);
@@ -140,8 +140,9 @@ export function createProvider(config: ProviderConfig = {}) {
               schemaOk: false,
               faultCode: "arguments_not_json",
               missing: [],
-              badName: parsed.badName,
-              detail: parsed.detail,
+              toolCallFaults: parsed.faults,
+              badName: parsed.faults[0]?.name,
+              detail: parsed.faults.map((fault) => `${fault.name}: ${fault.detail}`).join("; "),
             };
           }
           if (finish !== "tool_calls" || parsed.toolCalls.length === 0) {
@@ -177,7 +178,7 @@ export function createProvider(config: ProviderConfig = {}) {
         finish: "error",
         content: "",
         toolCalls: [],
-        attempts: MAX_ATTEMPTS,
+        attempts,
         parseOk: false,
         schemaOk: false,
         faultCode: status === 401 || status === 403 ? "provider_key_invalid" : "provider_error",

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { renderMarkdown } from "./markdown";
 
 const SERVICE = "http://127.0.0.1:18788";
 const DOWN = "本机服务没开。终端跑 bun run service。";
@@ -45,67 +46,6 @@ const outputText = (output?: Output) => {
   if (output.kind === "ask") return output.question;
   if (output.kind === "error") return output.faultCode === "stopped" ? "已停止" : `失败：${output.faultCode}`;
   return `${output.name} ${output.callId}`;
-};
-
-const escapeHtml = (text: string) =>
-  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-const renderMarkdown = (text: string) => {
-  if (!text) return "";
-  const lines = text.split("\n");
-  const result: string[] = [];
-  let inCodeBlock = false;
-  let codeContent: string[] = [];
-  let inUl = false;
-  let inOl = false;
-  const closeLists = () => {
-    if (inUl) { result.push("</ul>"); inUl = false; }
-    if (inOl) { result.push("</ol>"); inOl = false; }
-  };
-  for (const line of lines) {
-    if (line.trim().startsWith("```")) {
-      closeLists();
-      if (inCodeBlock) {
-        result.push(`<pre><code>${escapeHtml(codeContent.join("\n"))}</code></pre>`);
-        codeContent = [];
-        inCodeBlock = false;
-      } else {
-        inCodeBlock = true;
-      }
-      continue;
-    }
-    if (inCodeBlock) {
-      codeContent.push(line);
-      continue;
-    }
-    let processed = escapeHtml(line);
-    if (!processed.trim()) { closeLists(); result.push(""); continue; }
-    if (processed.startsWith("### ")) { closeLists(); result.push(`<h3>${processed.slice(4)}</h3>`); continue; }
-    if (processed.startsWith("## ")) { closeLists(); result.push(`<h2>${processed.slice(3)}</h2>`); continue; }
-    if (processed.startsWith("# ")) { closeLists(); result.push(`<h1>${processed.slice(2)}</h1>`); continue; }
-    if (/^[\s]*[-*•]\s/.test(processed)) {
-      if (!inUl) { closeLists(); result.push("<ul>"); inUl = true; }
-      result.push(`<li>${processed.replace(/^[\s]*[-*•]\s/, "")}</li>`);
-      continue;
-    }
-    if (/^[\s]*\d+[.)]\s/.test(processed)) {
-      if (!inOl) { closeLists(); result.push("<ol>"); inOl = true; }
-      result.push(`<li>${processed.replace(/^[\s]*\d+[.)]\s/, "")}</li>`);
-      continue;
-    }
-    closeLists();
-    processed = processed.replace(/`([^`]+)`/g, "<code>$1</code>");
-    processed = processed.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-    processed = processed.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, "<em>$1</em>");
-    processed = processed.replace(/~~(.+?)~~/g, "<del>$1</del>");
-    processed = processed.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-    result.push(`<p>${processed}</p>`);
-  }
-  closeLists();
-  if (inCodeBlock && codeContent.length) {
-    result.push(`<pre><code>${escapeHtml(codeContent.join("\n"))}</code></pre>`);
-  }
-  return result.join("\n");
 };
 
 const Icon = ({ path }: { path: string }) => (
