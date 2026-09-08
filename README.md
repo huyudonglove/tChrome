@@ -37,6 +37,8 @@ tChrome 运行在 Chrome 侧边栏。它不要求用户预先画好流程，而�
 
 缺少能力时，Agent 可以查找工具目录并增量装载工具。
 
+历史记录支持渐进式读取：`record.inspect` 查看长度与结构，`record.search` 按字面搜索定位，`record.read` 按字符范围精读。部分返回提供范围、`hasMore` 和 `nextOffset`，可连续读取；需要全文时使用 `tool.detail` / `observation.detail`。这些读取结果不再被统一截断，且只读取已存记录，不刷新网页。
+
 ### 执行记录与记忆
 
 本机保存会话账本、每轮状态、模型请求与回复、工具参数和返回结果。模型可以写入工作笔记及 turn / conversation / project 三层记忆；当前 project 记忆仍按会话保存，并非跨会话共享。

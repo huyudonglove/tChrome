@@ -1,4 +1,5 @@
 import type { BrowserHost, CurrentPage, ToolArguments, ToolIOItem, ToolReturn } from "../types.ts";
+import { queryRecord, RECORD_TOOLS } from "./records.ts";
 import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
 
 export const WINDOW_TEXT_LIMIT = 2000;
@@ -104,6 +105,11 @@ export async function executeTool(input: ExecuteInput): Promise<string> {
     const conversation = asStringArray(args.conversationMemory).length;
     const project = asStringArray(args.projectMemory).length;
     return `落下 turn=${turn} conversation=${conversation} project=${project}`;
+  }
+  if (RECORD_TOOLS.includes(name)) {
+    const id = String(args.id);
+    const full = args.kind === "tool" ? lookup.fullReturn(id) : lookup.observationFull(id);
+    return queryRecord(name, args, full);
   }
   if (name === "tool.detail") {
     const callId = String(args.callId ?? "");

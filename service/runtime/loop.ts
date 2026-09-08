@@ -1,3 +1,4 @@
+import { FULL_RETURN_TOOLS } from "../tools/records.ts";
 import { systemText, userText, windowChars } from "../context/window.ts";
 import { coreToolIds, dynamicToolIds, loadCatalog, toolSchemas, toolUsageFor, type Catalog } from "../prompt/catalog.ts";
 import { asObject, asStringArray, clipReturn, executeTool, pageFromBrowser } from "../tools/execute.ts";
@@ -203,7 +204,9 @@ const runQueue = async (input: {
     const row: ToolIOItem = {
       ...item,
       turnId: turn.turnId,
-      return: clipReturn(full),
+      return: FULL_RETURN_TOOLS.includes(item.name)
+        ? { stage: "complete", totalChars: full.length, text: full }
+        : clipReturn(full),
     };
     ledger.toolIO.push(row);
     appendEvent(dataDir, ledger.conversationId, {

@@ -1,0 +1,35 @@
+{
+  "type": "function",
+  "function": {
+    "name": "record.inspect",
+    "description": "读取已保存的历史记录，不刷新网页。位置为从0开始的UTF-16字符偏移；read的end不包含在范围内。search区分大小写、按字面匹配。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "tool",
+            "observation"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage",
+        "kind",
+        "id"
+      ]
+    }
+  }
+}
