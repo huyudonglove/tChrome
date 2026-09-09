@@ -184,4 +184,4 @@ Provider 负责模型通信、重试和响应解析。所有接入返回均由 `
 
 目录先按运行端划分，再按职责划分：`service/context/` 和 `service/tools/` 都是本机服务能力，正文和定义与其实现放在同一模块；`extension/tools/` 仅负责依赖 Chrome API 的宿主执行，由服务注册表发现并经浏览器桥调度。
 
-上下文保留 system / user 分层。两份目录只列编号文件名；模块使用 tag、能力和详细描述统一格式。加载后生成两份能力导航放在 system 开头，再放七个 system 模块正文；user 保留十五个 tag 的正文和数据。网页方法并入 user/skill.md。
+上下文保留 system / user 分层。两份目录只列编号文件名；system 模块使用 tag、能力和详细描述格式；user 模块另设内容段。system 先输出 System 栏目清单，每项 tag --能力后直接跟详细正文（含 baseTools 工具说明），再输出 User 栏目清单，每项能力后直接跟详细描述；user 保留十五个 tag 的内容段和数据。网页方法并入 user/skill.md。

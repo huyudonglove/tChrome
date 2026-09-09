@@ -1,14 +1,14 @@
 import type { Ledger, MemoryRecord, Turn } from "../types.ts";
-import { renderSlots, type ContextModules } from "./modules.ts";
+import { renderInventory, renderSlots, type ContextModules } from "./modules.ts";
 
 export const MEMORY_WINDOW = 8;
 
 const jsonBody = (value: unknown) => JSON.stringify(value, null, 2);
 
 export function systemText(contextModules: ContextModules, baseToolUsage: string): string {
-  return [contextModules.systemInventory, contextModules.userInventory, renderSlots(contextModules.systemOrder, contextModules.systemSlots, {
+  return [renderInventory("System", contextModules.systemOrder, contextModules.systemSlots, {
     "#baseTools": baseToolUsage,
-  })].join("\n\n");
+  }), contextModules.userInventory].join("\n\n");
 }
 
 const memoryBody = (items: MemoryRecord[], compact = false) =>
@@ -34,7 +34,7 @@ export function userText(input: {
     "#contextSummary": ledger.contextSummary ? jsonBody(ledger.contextSummary) : "",
     "#observation": jsonBody(ledger.observation),
     "#notes": jsonBody(ledger.notes),
-    "#userInputHistory": ledger.userInputHistory.join("\n"),
+    "#userInputHistory": jsonBody(ledger.userInputHistory),
     "#userInput": turn.input.text,
     "#goal": ledger.goal,
     "#goalHistory": jsonBody(ledger.goalHistory),

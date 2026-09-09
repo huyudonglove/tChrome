@@ -14,7 +14,7 @@
 | `provider/` | 模型通信、传输重试与响应解析 |
 | `presentation/` | 纯函数生成会话消息、错误文案、待执行工具和列表预览 |
 
-Prompt 正文与加载器都在 `service/context/`。system-slots.md / user-slots.md 只保存编号文件名；每个模块独立声明 tag、能力和详细描述。加载器读取元数据生成两份导航，依次放在 system 开头，再追加七个 system 模块正文。user 保留原十五个 tag 的详细描述和工作数据，不重复能力标签。execution 拆出 toolProtocol 与 boundaries；网页方法直接放在 user/skill.md。
+Prompt 正文与加载器都在 `service/context/`。system-slots.md / user-slots.md 只保存编号文件名；每个模块独立声明 tag、能力和详细描述。system 先输出 System 栏目清单，七个模块逐项以 tag --能力接详细正文，baseTools 同时带常驻工具说明；再输出 User 栏目清单，逐项以 tag --能力接详细描述。user 只渲染原十五个 tag 的内容段，不重复能力或详细描述。execution 拆出 toolProtocol 与 boundaries；网页方法直接放在 user/skill.md。
 
 工具 API 定义位于 `service/tools/definitions/`，分组在 groups.json。说明唯一来自 function.description，index 只分类；常驻说明进入 #baseTools，动态说明进入 #tools。运行提示位于 service/runtime/messages.json。上下文 README 是维护入口，不进入模型窗口。
 

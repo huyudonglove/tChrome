@@ -140,7 +140,7 @@ Runtime 独占维护。当前会话指针。字段见 schema「ledger.json」。
 
 用户一条输入开一个 Turn，CE 装配一次。本 Turn 内工具循环不再走 CE。Runtime 只改 `#toolIO`（以及刚落下的记忆槽 / `#observation`），用同一套插槽再出网。
 
-编号文件名清单确定加载顺序，模块中的能力字段生成导航。system 先放两份导航再放详细规则，user 保留 tag 与详细描述/数据。字段和正文来源见 schema「窗口插槽」。
+编号文件名清单确定加载顺序，模块中的能力字段生成导航。system 先放逐项合并能力与详细正文的 System 清单（baseTools 包含工具说明），再放逐项合并能力与详细描述的 User 清单；user 只保留 tag 与内容数据。字段和正文来源见 schema「窗口插槽」。
 
 ## 循环
 

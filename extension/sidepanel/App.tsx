@@ -61,7 +61,7 @@ const Avatar = ({ who }: { who: "user" | "assistant" }) => (
         </svg>
       </div>
     )
-    : <div className="message-avatar">t</div>
+    : <div className="message-avatar"><img className="brand-logo" src="./icons/icon-48.png" alt="tChrome" /></div>
 );
 
 const MdContent = ({ text }: { text: string }) => {
@@ -335,13 +335,13 @@ export function App() {
     <div className={`workspace-shell${listOpen ? " sessions-open" : ""}`}>
       <div className="chrome-top">
         <header className="app-bar">
-          <div className="brand-mark">t</div>
+          <div className="brand-mark"><img className="brand-logo" src="./icons/icon-48.png" alt="tChrome" /></div>
           <div className="app-identity">
             <strong>{session.conversationId ?? "tChrome"}</strong>
             <small>{running ? "正在处理" : statusText(session.status)}</small>
           </div>
           <div className="app-actions">
-            <button type="button" disabled={proxyBusy || proxyEnabled === null} aria-pressed={proxyEnabled === true}
+            <button className="connection-button" type="button" disabled={proxyBusy || proxyEnabled === null} aria-pressed={proxyEnabled === true}
               title="切换模型连接方式，下一次请求生效" onClick={toggleProxy}>
               {proxyBusy ? "切换中" : proxyEnabled === null ? "连接…" : proxyEnabled ? "代理" : "直连"}
             </button>
@@ -369,7 +369,7 @@ export function App() {
         >
           {session.messages.length === 0 && !running ? (
             <div className="welcome">
-              <div className="welcome-mark">t</div>
+              <div className="welcome-mark"><img className="brand-logo" src="./icons/icon-128.png" alt="" /></div>
               <h1>今天想做<em>什么？</em></h1>
               <div className="quick-actions">
                 {SUGGESTIONS.map((item) => (

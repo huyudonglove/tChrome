@@ -77,9 +77,9 @@ test("reordering only inventories changes both navigations and corresponding bod
   expect(reordered.systemOrder).toEqual([...original.systemOrder].reverse());
   expect(reordered.userOrder).toEqual([...original.userOrder].reverse());
   const system = systemText(reordered, "");
-  expect(system.startsWith(`${reordered.systemInventory}\n\n${reordered.userInventory}\n\n`)).toBe(true);
+  expect(system).toBe(`${reordered.systemInventory}\n\n${reordered.userInventory}`);
   expect(navigationTags(system)).toEqual([...reordered.systemOrder, ...reordered.userOrder]);
-  expect(headings(system)).toEqual(reordered.systemOrder);
+  expect(headings(system)).toEqual([]);
   expect(headings(renderSlots(reordered.userOrder, reordered.userSlots, {}))).toEqual(reordered.userOrder);
   expect(system).not.toContain("HUMAN_ONLY_SENTINEL");
 });
@@ -201,4 +201,106 @@ test("the same tag cannot be listed in system and user", () => {
   const order = slotNames(readFileSync(path, "utf8"));
   writeFileSync(path, ["#identity", ...order.slice(1)].map((tag, index) => `${index + 1}. ${tag.slice(1)}`).join("\n"));
   expect(() => loadContextModules(dir)).toThrow("duplicate tag");
+});
+
+
+test("user input history is an array preserving message boundaries and multiline content", () => {
+  const modules = loadContextModules(root);
+  const ledger = emptyLedger("cv_slots");
+  const turn = fixtureTurn();
+  const render = () => userText({ contextModules: modules, ledger, turn,
+    memories: { project: [], conversation: [], turn: [] }, toolUsage: "" });
+  const history = () => {
+    const section = render().split("\n#userInputHistory\n")[1]!.split("\n#goal\n")[0]!;
+    return JSON.parse(section.trim());
+  };
+  expect(history()).toEqual([]);
+  ledger.userInputHistory = ["第一句\n补充一行", '包含"引号"和{{data}}', "第三句"];
+  expect(history()).toEqual(ledger.userInputHistory);
+  expect(history()).not.toContain(turn.input.text);
+});
+
+
+test("user descriptions appear only in system navigation while user bodies contain data", () => {
+  const modules = loadContextModules(root);
+  const system = systemText(modules, "");
+  const data = Object.fromEntries(modules.userOrder.map(tag => [tag, `VALUE_${tag}`]));
+  const user = renderSlots(modules.userOrder, modules.userSlots, data);
+  for (const tag of modules.userOrder) {
+    const module = modules.userSlots[tag]!;
+    expect(module.description?.trim()).toBeTruthy();
+    expect(modules.userInventory).toContain(`${tag} --${module.capability}\n${module.description}`);
+    expect(system.split(module.description!)).toHaveLength(2);
+    expect(user).not.toContain(module.description!);
+    expect(module.body).not.toContain(module.description!);
+    if (tag !== "#skill") {
+      expect(module.body).toBe("{{data}}");
+      expect(renderSlots([tag], modules.userSlots, data)).toBe(`${tag}\n\nVALUE_${tag}`);
+    }
+  }
+  expect(user).not.toMatch(/^能力：|^详细描述：|^内容：/m);
+  for (const module of Object.values(modules.systemSlots)) expect(module.description).toBeUndefined();
+});
+
+test("skill navigation explains its role in system while operational methods remain in user", () => {
+  const modules = loadContextModules(root);
+  const skill = modules.userSlots["#skill"]!;
+  const system = systemText(modules, "");
+  const user = renderSlots(modules.userOrder, modules.userSlots, {});
+  expect(skill.description).toBeTruthy();
+  expect(skill.body.trim()).not.toBe("");
+  expect(skill.body).not.toBe("{{data}}");
+  expect(system).toContain(skill.description!);
+  expect(system).not.toContain(skill.body);
+  expect(user).toContain(skill.body);
+  expect(user).not.toContain(skill.description!);
+});
+
+test("editing a user description updates system guidance without changing user data", () => {
+  const dir = copyContext();
+  const path = join(dir, "service/context/user/goal.md");
+  const original = loadContextModules(dir);
+  const before = renderSlots(["#goal"], original.userSlots, { "#goal": "当前目标" });
+  writeFileSync(path, readFileSync(path, "utf8").replace(/详细描述：\n[\s\S]*?\n\n内容：/, "详细描述：\nDESCRIPTION_FROM_USER_MODULE\n\n内容："));
+  const updated = loadContextModules(dir);
+  expect(systemText(updated, "")).toContain("DESCRIPTION_FROM_USER_MODULE");
+  expect(renderSlots(["#goal"], updated.userSlots, { "#goal": "当前目标" })).toBe(before);
+});
+
+test("user modules require separate nonblank descriptions and content", () => {
+  const valid = "#sample\n能力：【用途】\n\n详细描述：\n说明仅作字段指导\n\n内容：\n{{data}}";
+  expect(parseModule(valid, "#sample")).toEqual({ tag: "#sample", capability: "【用途】", description: "说明仅作字段指导", body: "{{data}}" });
+  const dir = copyContext();
+  const path = join(dir, "service/context/user/goal.md");
+  writeFileSync(path, "#goal\n能力：【目标】\n\n详细描述：\n{{data}}");
+  expect(() => loadContextModules(dir)).toThrow();
+  writeFileSync(path, "#goal\n能力：【目标】\n\n详细描述：\n   \n\n内容：\n{{data}}");
+  expect(() => loadContextModules(dir)).toThrow();
+});
+
+test("user descriptions cannot interpolate runtime data and system modules cannot have a content section", () => {
+  const dir = copyContext();
+  const userPath = join(dir, "service/context/user/goal.md");
+  const originalUser = readFileSync(userPath, "utf8");
+  writeFileSync(userPath, originalUser.replace("详细描述：\n", "详细描述：\n{{data}}\n"));
+  expect(() => loadContextModules(dir)).toThrow();
+  writeFileSync(userPath, originalUser);
+  const systemPath = join(dir, "service/context/system/identity.md");
+  writeFileSync(systemPath, readFileSync(systemPath, "utf8") + "\n\n内容：\n不允许的第二部分");
+  expect(() => loadContextModules(dir)).toThrow();
+});
+
+
+test("system modules combine capability and rules once, including literal dynamic tool usage", () => {
+  const modules = loadContextModules(root);
+  const usage = "TOOL_DESCRIPTION {{data}} {{literal}}";
+  const system = systemText(modules, usage);
+  for (const tag of modules.systemOrder) {
+    const module = modules.systemSlots[tag]!;
+    const text = module.body.replace("{{data}}", () => usage).trimEnd();
+    expect(system.split(`${tag} --${module.capability}\n${text}`)).toHaveLength(2);
+  }
+  expect(system.split(usage)).toHaveLength(2);
+  expect(headings(system)).toEqual([]);
+  expect(system.endsWith(modules.userInventory)).toBe(true);
 });

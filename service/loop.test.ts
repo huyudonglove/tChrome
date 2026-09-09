@@ -46,12 +46,13 @@ const mock = (results: CompletionResult[]): Provider => {
   };
 };
 
-test("窗口由模块导航与独立正文组成，动态数据按栏目注入", () => {
+test("System模块说明直接合并，User动态数据按栏目注入", () => {
   const contextModules = loadContextModules(repoRoot);
   const registry = loadToolRegistry(repoRoot);
   const system = systemText(contextModules, toolUsageFor(registry, registry.toolGroups.baseToolsIds));
-  expect(system.startsWith(`${contextModules.systemInventory}\n\n${contextModules.userInventory}\n\n`)).toBe(true);
-  expect(Array.from(system.match(/^#[A-Za-z][A-Za-z0-9]*$/gm) ?? [])).toEqual(contextModules.systemOrder);
+  expect(system.startsWith("# System 栏目清单\n\n")).toBe(true);
+  expect(system.endsWith(contextModules.userInventory)).toBe(true);
+  expect(Array.from(system.match(/^#[A-Za-z][A-Za-z0-9]*$/gm) ?? [])).toEqual([]);
   expect(system).not.toMatch(/^能力：|^详细描述：/m);
   for (const id of registry.toolGroups.baseToolsIds) expect(system).toContain(`${id}：`);
   const ledger = emptyLedger("cv_01");
@@ -73,6 +74,12 @@ test("窗口由模块导航与独立正文组成，动态数据按栏目注入",
   expect(user).toContain(ledger.goal);
   expect(user).toContain(ledger.notes.candidate!);
   expect(user).toContain(contextModules.userSlots["#skill"]!.body);
+  for (const module of Object.values(contextModules.userSlots)) {
+    expect(system).toContain(module.description!);
+    expect(user).not.toContain(module.description!);
+  }
+  const historySection = user.split("\n#userInputHistory\n")[1]!.split("\n#goal\n")[0]!;
+  expect(JSON.parse(historySection.trim())).toEqual([]);
   expect(user).toContain("web_search：搜索公开网页。");
   expect(user).toContain("帮我查这款鼠标官网价");
   expect(user).not.toContain(contextModules.userInventory);

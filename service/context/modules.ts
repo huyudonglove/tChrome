@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-export type ContextModule = { tag: string; capability: string; body: string };
+export type ContextModule = { tag: string; capability: string; description?: string; body: string };
 export type ContextModules = {
   systemOrder: string[];
   userOrder: string[];
@@ -36,6 +36,13 @@ export function parseModule(text: string, expectedTag: string): ContextModule {
   const placeholders = body!.match(/\{\{[\s\S]*?\}\}/g) ?? [];
   if (placeholders.some(value => value !== "{{data}}")) throw new Error(`unknown module placeholder ${expectedTag}`);
   if (placeholders.length > 1) throw new Error(`duplicate data placeholder ${expectedTag}`);
+  const parts = body!.split(/\n\n内容：\n/);
+  if (parts.length > 2) throw new Error(`duplicate module content section ${expectedTag}`);
+  if (parts.length === 2) {
+    if (!parts[0]!.trim() || !parts[1]!.trim()) throw new Error(`empty module content ${expectedTag}`);
+    if (parts[0]!.includes("{{")) throw new Error(`placeholder in module description ${expectedTag}`);
+    return { tag: tag!, capability: capability!, description: parts[0]!.trim(), body: parts[1]!.trim() };
+  }
   return { tag: tag!, capability: capability!, body: body!.trim() };
 }
 
@@ -47,7 +54,10 @@ const loadSlots = (dir: string, role: string, order: string[]) => {
   return Object.fromEntries(order.map(tag => {
     const file = `${tag.slice(1)}.md`;
     if (!files.includes(file)) throw new Error(`missing slot file ${tag}`);
-    return [tag, parseModule(readFileSync(join(dir, role, file), "utf8"), tag)];
+    const module = parseModule(readFileSync(join(dir, role, file), "utf8"), tag);
+    if (role === "user" && module.description === undefined) throw new Error(`missing user module description/content ${tag}`);
+    if (role === "system" && module.description !== undefined) throw new Error(`unexpected system content section ${tag}`);
+    return [tag, module];
   }));
 };
 
@@ -59,6 +69,16 @@ export function renderSlots(order: string[], files: Record<string, ContextModule
   }).join("\n\n");
 }
 
+/** Each module appears once: tag/capability followed directly by its rules or description. */
+export function renderInventory(role: "System" | "User", order: string[], modules: Record<string, ContextModule>, data: Record<string, string> = {}): string {
+  return `# ${role} 栏目清单\n\n${order.map(tag => {
+    const module = modules[tag];
+    if (!module) throw new Error(`missing slot file ${tag}`);
+    const text = role === "System" ? interpolate(module.body, { data: data[tag] ?? "" }) : module.description!;
+    return `${tag} --${module.capability}\n${text}`.trimEnd();
+  }).join("\n\n")}`;
+}
+
 export function loadContextModules(root: string): ContextModules {
   const dir = join(root, "service", "context");
   const systemOrder = slotNames(readFileSync(join(dir, "system-slots.md"), "utf8"));
@@ -66,11 +86,9 @@ export function loadContextModules(root: string): ContextModules {
   if (systemOrder.some(tag => userOrder.includes(tag))) throw new Error("duplicate tag across system and user");
   const systemSlots = loadSlots(dir, "system", systemOrder);
   const userSlots = loadSlots(dir, "user", userOrder);
-  const navigation = (role: string, order: string[], modules: Record<string, ContextModule>) =>
-    `# ${role} 栏目清单\n\n${order.map(tag => `${tag} --${modules[tag]!.capability}`).join("\n")}`;
   return { systemOrder, userOrder, systemSlots, userSlots,
-    systemInventory: navigation("System", systemOrder, systemSlots),
-    userInventory: navigation("User", userOrder, userSlots) };
+    systemInventory: renderInventory("System", systemOrder, systemSlots),
+    userInventory: renderInventory("User", userOrder, userSlots) };
 }
 
 /** Replace once: user-provided placeholder-looking text is literal data. */

@@ -6,6 +6,7 @@ const root = join(import.meta.dir, "..");
 const dist = join(root, "dist");
 mkdirSync(join(dist, "ui"), { recursive: true });
 cpSync(join(root, "manifest.json"), join(dist, "manifest.json"));
+cpSync(join(root, "extension", "icons"), join(dist, "icons"), { recursive: true });
 cpSync(join(root, "extension", "ui", "tokens.css"), join(dist, "ui", "tokens.css"));
 cpSync(join(root, "extension", "sidepanel.html"), join(dist, "sidepanel.html"));
 cpSync(join(root, "extension", "content-console.js"), join(dist, "content-console.js"));
