@@ -2,13 +2,13 @@
   "type": "function",
   "function": {
     "name": "hover",
-    "description": "把指针悬停在匹配 text 的元素上。入参：text，可选 tab。返回：ok affectsPage=true。",
+    "description": "把指针悬停在匹配 text 的元素上。\n参数：可选 ref、text、tab（目标标签编号）。\n返回：ok（是否成功）。\nref：snapshot_page 返回的元素 ref；有 ref 时优先使用。\ntext：没有 ref 时按控件可见文字、value 或 aria-label 定位。\naffectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
           "type": "string",
-          "description": "snapshot_page 返回的元素 ref；有 ref 时优先使用"
+          "description": "参数含义见工具说明。"
         },
         "text": {
           "type": "string",
@@ -18,7 +18,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

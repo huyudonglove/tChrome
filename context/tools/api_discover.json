@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "api_discover",
-    "description": "列出已登记的接口。入参：无。返回：ok、operations affectsPage=false。",
+    "description": "列出已登记的接口。\n返回：ok（是否成功）、operations（已登记接口列表）。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

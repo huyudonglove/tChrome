@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "switch_frame",
-    "description": "切换 iframe（受 Chrome 安全限制，改用 execute_javascript）。入参：frame。返回：ok=false、error affectsPage=true。",
+    "description": "切换内嵌页面（受 Chrome 安全限制，改用 execute_javascript）。\n参数：frame（内嵌页面标识）。\n返回：ok=false、error（失败原因）。\naffectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

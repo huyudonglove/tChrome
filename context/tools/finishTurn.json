@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "finishTurn",
-    "description": "结束本 Turn。已能回答用户或需要说明无法继续时，先根据已返回的结果确认完成情况再调用。必填 text：非空最终回复正文。返回该正文并结束本轮；回复不依赖 content，不能只在 content 中写回复。affectsPage=false。",
+    "description": "结束本轮对话。已能回答用户或需要说明无法继续时，先根据已返回的结果确认完成情况再调用。\n参数：必填 text：非空最终回复正文。\n返回：该正文并结束本轮；回复不依赖 content，不能只在 content 中写回复。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -13,7 +13,8 @@
           "description": "向用户展示的最终回复正文，说明已确认的结果或具体阻碍。"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

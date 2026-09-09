@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "measure_timing",
-    "description": "测当前页 TTFB、DOMContentLoaded、load。入参：可选 tab。返回：ok、ttfbMs、domContentLoadedMs、loadMs、url affectsPage=false。",
+    "description": "测当前页首字节、文档就绪和页面加载时间。\n参数：可选 tab（目标标签编号）。\n返回：ok（是否成功）、ttfbMs（首字节耗时毫秒数）、domContentLoadedMs（文档就绪毫秒数）、loadMs（加载完成毫秒数）、url（页面地址）。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

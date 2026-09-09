@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "record.inspect",
-    "description": "查看历史记录的长度、结构和预览。必填 kind=tool或observation；id 在 kind=tool 时取 callId，在 kind=observation 时取摘要项 id。返回 ok、source、totalChars、positionUnit、structure、[start,end)范围的 text、hasMore 和 nextOffset；位置为从0开始的UTF-16字符偏移。失败返回 error。只读历史记录，不刷新网页。affectsPage=false。",
+    "description": "查看历史记录的长度、结构和预览。\n参数：必填 kind=tool 或 kind=observation；id 在 kind=tool 时取 callId，在 kind=observation 时取摘要项 id。\n返回：ok、source、totalChars、positionUnit、structure、[start,end)范围的 text、hasMore 和 nextOffset；位置为从 0 开始的 UTF-16 字符偏移。失败返回 error。只读历史记录，不刷新网页。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

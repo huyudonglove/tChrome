@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "notes.delete",
-    "description": "删除过时的工作笔记。必填 key：#notes 中要删除的项。返回已删除的 key，不删除其他笔记或记忆。affectsPage=false。",
+    "description": "删除过时的工作笔记。\n参数：必填 key：#notes 中要删除的项。\n返回：已删除的 key，不删除其他笔记或记忆。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

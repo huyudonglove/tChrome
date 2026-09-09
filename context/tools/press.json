@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "press",
-    "description": "对当前焦点元素按下一个键盘键。入参：key，可选 tab。返回：ok；没有焦点失败 affectsPage=true。",
+    "description": "对当前焦点元素按下一个键盘键。\n参数：key（键名），可选 tab（目标标签编号）。\n返回：ok（是否成功）；没有焦点失败。\naffectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "string"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

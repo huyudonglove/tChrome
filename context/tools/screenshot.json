@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "screenshot",
-    "description": "截当前可视区。入参：可选 tab。返回：ok、image、mime、image_size=[宽,高]、viewport=[宽,高]。calibrate_drag 必须带上这两项尺寸 affectsPage=false。",
+    "description": "截当前可视区。\n参数：可选 tab（目标标签编号）。\n返回：ok（是否成功）、image（图像内容）、mime（图像格式）、image_size=[宽,高]、viewport=[宽,高]。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

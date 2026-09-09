@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "service_worker_list",
-    "description": "列出 Service Worker。入参：无。返回：ok、serviceWorkers affectsPage=false。",
+    "description": "列出网页后台服务。\n返回：ok（是否成功）、serviceWorkers（网页后台服务列表）。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "deep_search",
-    "description": "更深一层搜索公开网页。入参：query。返回：ok、urls affectsPage=false。",
+    "description": "更深一层搜索公开网页。\n参数：query（搜索词）。\n返回：ok（是否成功）、urls（结果网址列表）。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

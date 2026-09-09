@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "find_on_page",
-    "description": "按文字或选择器查找可点元素。入参：text，可选 tab。返回：ok、elements[{ref,tag,text,href}] affectsPage=false。",
+    "description": "按文字或选择器查找可点元素。\n参数：text（文本），可选 tab（目标标签编号）。\n返回：ok、elements[{ref,tag,text,href}]。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "string"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

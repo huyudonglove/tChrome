@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "list_windows",
-    "description": "列出浏览器窗口。入参：无。返回：ok、windows[{id,focused,type}] affectsPage=false。",
+    "description": "列出浏览器窗口。\n返回：ok、windows[{id,focused,type}]。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

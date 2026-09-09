@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "export_data",
-    "description": "导出数据到文件。入参：data（数据）、可选 filename（文件名）。返回：ok、downloadId affectsPage=false。",
+    "description": "导出数据到文件。\n参数：data（数据）、可选 filename（文件名）。\n返回：ok（是否成功）、downloadId（下载编号）。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

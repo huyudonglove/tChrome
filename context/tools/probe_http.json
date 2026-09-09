@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "probe_http",
-    "description": "探测 HTTP 状态和耗时。入参：url。返回：ok、status、ms、headers affectsPage=false。",
+    "description": "探测 HTTP 状态和耗时。\n参数：url（网址）。\n返回：ok（是否成功）、status（响应状态码）、ms（耗时毫秒数）、headers。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "string"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

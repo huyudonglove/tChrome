@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "websocket_monitor",
-    "description": "监控 WebSocket 消息。入参：action=start|stop|read。返回：ok、messages affectsPage=false。",
+    "description": "监控 WebSocket 消息。\n参数：action=start|stop|read。\n返回：ok（是否成功）、messages（消息列表）。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

@@ -107,7 +107,7 @@ test("窗口按上下文栏目清单插值", async () => {
   expect(user).toContain(contextModules.skill);
   expect(system).toContain("#baseTools");
   expect(system).toContain("askUser：向用户提问");
-  expect(system).toContain("finishTurn：结束本 Turn");
+  expect(system).toContain("finishTurn：结束本轮对话");
   expect(user).toContain("#tools");
   expect(user).toContain("web_search：搜索公开网页");
   expect(user).toContain("帮我查这款鼠标官网价");

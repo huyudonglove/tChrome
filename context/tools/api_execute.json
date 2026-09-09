@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "api_execute",
-    "description": "调用已登记接口。入参：url，可选 method、headers、body。返回：ok、status、text affectsPage=false。",
+    "description": "调用已登记接口。\n参数：url（网址），可选 method（请求方法）、headers（请求头）、body（请求正文）。\n返回：ok（是否成功）、status（响应状态码）、text（返回文本）。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

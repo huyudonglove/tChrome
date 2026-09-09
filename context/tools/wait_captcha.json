@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "wait_captcha",
-    "description": "等到 Turnstile 或同类验证出现。入参：可选 tab、timeoutMs。返回：ok、present、type、ready affectsPage=false。",
+    "description": "等到 Turnstile 或同类验证出现。\n参数：可选 tab（目标标签编号）、timeoutMs（超时毫秒数）。\n返回：ok（是否成功）、present（是否出现）、type（类型）、ready。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

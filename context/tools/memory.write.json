@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "memory.write",
-    "description": "保存后续需要的事实、偏好或进展。可选 turnMemory、conversationMemory、projectMemory：字符串数组，追加至对应记忆；contextSummary：对象，替换整个工作汇总而非局部合并，应保留仍有效的重要信息。至少提供一项有意义的内容。返回三类记忆的写入条数。三类记忆及工作汇总仅在本会话保存，新会话不继承。affectsPage=false。",
+    "description": "保存后续需要的事实、偏好或进展。\n参数：可选 turnMemory、conversationMemory、projectMemory：字符串数组，追加至对应记忆；contextSummary：对象，替换整个工作汇总而非局部合并，应保留仍有效的重要信息。至少提供一项有意义的内容。\n返回：三类记忆的写入条数。三类记忆及工作汇总仅在本会话保存，新会话不继承。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

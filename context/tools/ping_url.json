@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "ping_url",
-    "description": "探测一个网址是否可达。入参：可选 url。返回：ok、reachable、status、ms affectsPage=false。",
+    "description": "探测一个网址是否可达。\n参数：可选 url（网址）。\n返回：ok（是否成功）、reachable（是否可达）、status（响应状态码）、ms（耗时毫秒数）。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "string"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

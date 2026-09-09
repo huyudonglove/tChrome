@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "record.search",
-    "description": "在历史记录中做区分大小写的字面搜索。必填 kind=tool或observation；id 在 kind=tool 时取 callId，在 kind=observation 时取摘要项 id；query 为1到200字符的查询文本，offset 为从0开始的UTF-16字符偏移，limit 为1到20条。返回 ok、source、totalChars、positionUnit、matches（命中范围与附近文本）、returnedCount、hasMore 和 nextOffset；沿用 nextOffset 继续搜索。无命中仅代表该查询从指定位置起未匹配，失败返回 error。只读历史记录，不刷新网页。affectsPage=false。",
+    "description": "在历史记录中做区分大小写的字面搜索。\n参数：必填 kind=tool 或 kind=observation；id 在 kind=tool 时取 callId，在 kind=observation 时取摘要项 id；query 为 1 到 200 字符的查询文本，offset 为从 0 开始的 UTF-16 字符偏移，limit 为 1 到 20 条。\n返回：ok（是否成功）、source、totalChars、positionUnit、matches（命中范围与附近文本）、returnedCount、hasMore 和 nextOffset；沿用 nextOffset 继续搜索。无命中仅代表该查询从指定位置起未匹配，失败返回 error（失败原因）。只读历史记录，不刷新网页。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "wait",
-    "description": "等到出现某段文字或过一段时间。入参：可选 text、ms、tab。返回：ok、title、url、text affectsPage=false。",
+    "description": "等到出现某段文字或过一段时间。\n参数：可选 text（文本）、ms（等待毫秒数）、tab（目标标签编号）。\n返回：ok（是否成功）、title（页面标题）、url（页面地址）、text（返回文本）。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -13,7 +13,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

@@ -2,19 +2,20 @@
   "type": "function",
   "function": {
     "name": "execute_javascript",
-    "description": "在当前页执行一段表达式。入参：code，可选 tab。返回：ok、value affectsPage=true。",
+    "description": "在当前页执行一段表达式。\n参数：code（页内执行的表达式），可选 tab（目标标签编号）。\n返回：ok（是否成功）、value（当前值）。\naffectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {
         "code": {
           "type": "string",
-          "description": "页内执行的 JS 表达式"
+          "description": "页内执行的 脚本表达式"
         },
         "tab": {
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

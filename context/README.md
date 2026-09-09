@@ -9,9 +9,9 @@
 | 模块 | 功能 | 归属 | 文件 |
 | --- | --- | --- | --- |
 | `#baseTools` | 提供常驻基础工具的用途、参数、返回与状态变化。 | system：固定规则；baseTools 注入常驻工具说明 | [baseTools.md](system/baseTools.md) |
-| `#environment` | 说明运行环境，以及模型、本机服务、Chrome 扩展的职责。 | system：固定规则；baseTools 注入常驻工具说明 | [environment.md](system/environment.md) |
+| `#environment` | 说明运行环境与可用能力。 | system：固定规则；baseTools 注入常驻工具说明 | [environment.md](system/environment.md) |
 | `#execution` | 定义任务推进、结果判断、错误处理、授权、等待用户与结束任务的通用执行规则。 | system：固定规则；baseTools 注入常驻工具说明 | [execution.md](system/execution.md) |
-| `#identity` | 定义 Agent 的身份、职责范围、语言与沟通风格。 | system：固定规则；baseTools 注入常驻工具说明 | [identity.md](system/identity.md) |
+| `#identity` | 说明助手身份与职责范围。 | system：固定规则；baseTools 注入常驻工具说明 | [identity.md](system/identity.md) |
 | `#output` | 定义过程说明、最终答复和追问的表达格式。 | system：固定规则；baseTools 注入常驻工具说明 | [output.md](system/output.md) |
 | `#contextSummary` | 汇总目标、进展、阻碍与下一步。 | user：运行时参考数据；skill 注入网页方法 | [contextSummary.md](user/contextSummary.md) |
 | `#conversationMemory` | 保留会话事实、偏好与决定。 | user：运行时参考数据；skill 注入网页方法 | [conversationMemory.md](user/conversationMemory.md) |
@@ -42,3 +42,7 @@
 | [messages.json](../service/runtime/messages.json) | 空回复、未调用结束工具时的运行提示；按需进入 toolIO | 运行层 |
 
 工具 API 名称 `catalog.add` 与 `list_browser_tools` 保持不变。新增工具时同时维护定义、发现分类与必要的加载分组。运行提示不属于工具配置，也不在加载器内硬编码。
+
+说明分工：两份清单只解释栏目功能；user 模块只放材料；execution 放通用执行、授权与证据规则；output 统一表达格式及 `reason` 写法；网页方法放在 skill；各工具用法放在 `function.description`。工具参数 `reason.description` 只引用 `#output`，加载器原样返回工具定义，不再追加另一份写作要求。
+
+修改后运行 `bun run scripts/sync-context-examples.ts`，用当前加载器和窗口装配函数同步阶段示例中的窗口与工具定义，再运行 `bun run check` 验证。同步脚本不调用模型、浏览器或运行中的服务。

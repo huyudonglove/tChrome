@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "group_tabs",
-    "description": "把标签编成一组。入参：可选 tabs。返回：ok、groupId affectsPage=true。",
+    "description": "把标签编成一组。\n参数：可选 tabs（标签编号列表）。\n返回：ok（是否成功）、groupId（分组编号）。\naffectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

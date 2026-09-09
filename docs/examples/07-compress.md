@@ -62,7 +62,9 @@
   {
     "id": "ob_01",
     "text": "web_search 查到罗技官网 MX Master 3S 标价 999 元。",
-    "sourceCallIds": ["call_01"]
+    "sourceCallIds": [
+      "call_01"
+    ]
   }
 ]
 ```
@@ -87,7 +89,9 @@
 {
   "observationId": "ob_01",
   "text": "web_search 查到罗技官网 MX Master 3S 标价 999 元。",
-  "sourceCallIds": ["call_01"],
+  "sourceCallIds": [
+    "call_01"
+  ],
   "totalChars": 26,
   "createdAt": "2026-09-05T08:00:20.000Z",
   "full": {
@@ -129,7 +133,9 @@
     {
       "id": "ob_01",
       "text": "web_search 查到罗技官网 MX Master 3S 标价 999 元。",
-      "sourceCallIds": ["call_01"]
+      "sourceCallIds": [
+        "call_01"
+      ]
     }
   ],
   "windowChars": 18420,

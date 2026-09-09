@@ -2,15 +2,29 @@
   "type": "function",
   "function": {
     "name": "catalog.add",
-    "description": "加载缺少的动态工具。必填 names：工具名字符串数组。返回补充的工具名；下一次收到可用工具列表后才能调用新增工具，不要在加载工具的同一批调用它。新一轮用户请求或历史压缩后，先前加载的工具可能不再可用，以本次 tools[] 为准。affectsPage=false。",
+    "description": "加载缺少的动态工具。\n参数：必填 names：工具名字符串数组。\n返回：补充的工具名；下一次收到可用工具列表后才能调用新增工具，不要在加载工具的同一批调用它。新一轮用户请求或历史压缩后，先前加载的工具可能不再可用，以本次 tools[] 为准。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean" },
-        "names": { "type": "array", "items": { "type": "string" } }
+        "reason": {
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        },
+        "names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       },
-      "required": ["reason", "affectsPage", "names"]
+      "required": [
+        "reason",
+        "affectsPage",
+        "names"
+      ]
     }
   }
 }

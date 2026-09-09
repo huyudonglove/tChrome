@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page_find",
-    "description": "页面内搜索（Ctrl+F）。入参：query。返回：ok、found、text、rect affectsPage=false。",
+    "description": "页面内搜索（Ctrl+F）。\n参数：query（搜索词）。\n返回：ok（是否成功）、found（是否找到）、text（返回文本）、rect。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "page.get_element_state",
-    "description": "看元素焦点、禁用、勾选、当前值。入参：id。返回：ok、focused、disabled、value、inView affectsPage=false。",
+    "description": "看元素焦点、禁用、勾选、当前值。\n参数：id（页面工具返回的目标标识），可选 tab（目标标签编号）。\n返回：ok（是否成功）、focused、disabled、value（当前值）、inView。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

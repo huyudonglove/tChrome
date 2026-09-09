@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "wait_download",
-    "description": "查看最近下载。入参：无。返回：ok、downloads affectsPage=false。",
+    "description": "查看最近下载。\n返回：ok（是否成功）、downloads（下载记录）。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

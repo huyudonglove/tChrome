@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "set_cookie",
-    "description": "设置 Cookie。入参：name、value，可选 url/domain/path/secure/sameSite/expires。返回：ok、name、value affectsPage=true。",
+    "description": "设置 Cookie。\n参数：name（名称）、value（值），可选 url（网址）/domain（域名）/path（路径）/secure（是否仅通过安全连接发送）/sameSite（跨站发送限制）/expires（过期时间）。\n返回：ok（是否成功）、name、value（当前值）。\naffectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

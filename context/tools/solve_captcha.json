@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "solve_captcha",
-    "description": "点当前页 Turnstile/reCAPTCHA/hCaptcha iframe。入参：可选 tab。返回：ok、type；认不出或不点得动则普通失败，拼图滑块改 screenshot 后 calibrate_drag affectsPage=true。",
+    "description": "点当前页 Turnstile、reCAPTCHA 或 hCaptcha 的内嵌验证页面。\n参数：可选 tab（目标标签编号）。\n返回：ok（是否成功）、type（类型）；认不出或不点得动则普通失败，拼图滑块改 screenshot 后 calibrate_drag。\naffectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

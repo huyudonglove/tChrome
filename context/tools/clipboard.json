@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "clipboard",
-    "description": "读或写剪贴板。入参：可选 text。返回：ok，读时带 text affectsPage=false。",
+    "description": "当前后台环境不能读写系统剪贴板。\n参数：text（文本） 为拟写入的内容，不传表示读取。\n返回：ok=false、error（后台环境限制）。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -11,7 +11,8 @@
           "description": "写入内容；留空为读"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

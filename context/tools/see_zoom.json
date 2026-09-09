@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "see_zoom",
-    "description": "读当前页缩放。入参：可选 tab。返回：ok、zoom affectsPage=false。",
+    "description": "读当前页缩放。\n参数：可选 tab（目标标签编号）。\n返回：ok（是否成功）、zoom（缩放比例）。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

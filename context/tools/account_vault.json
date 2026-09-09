@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "account_vault",
-    "description": "本地账号库。action=list 列站点账号；action=get 按 id 或 site+username 取完整凭据；action=save 保存或更新 site/username/password/label/note；action=delete 按 id 删除。返回：ok、account 或 items affectsPage=false。",
+    "description": "管理本地账号库。\n参数：action=list 列站点账号；action=get 按 id 或 site+username 取完整凭据；action=save 保存或更新 site（站点）、username（账号）、password（密码）、label（标签）、note（备注）；action=delete 按 id 删除。\n返回：ok（是否成功）、account 或 items（结果列表）。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -20,7 +20,7 @@
         },
         "site": {
           "type": "string",
-          "description": "站点域名或 URL"
+          "description": "站点域名或网址"
         },
         "username": {
           "type": "string",
@@ -39,7 +39,8 @@
           "type": "boolean"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

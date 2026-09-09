@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "attach_file",
-    "description": "给文件选择框指定文件。入参：可选 tab。返回：ok 或 error affectsPage=true。",
+    "description": "当前不支持附加文件。\n返回：ok=false、error（没有已附加文件）。\naffectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"

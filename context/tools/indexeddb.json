@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "indexeddb",
-    "description": "IndexedDB 读写。入参：action（read/write/delete/list）、db（数据库名）、可选 store、key、value。返回：ok、value/keys/stores affectsPage=false。",
+    "description": "读写页内数据库。\n参数：action（read/write/delete/list）、db（数据库名）、可选 store（数据表名）、key（键名）、value（值）。\n返回：ok（是否成功）、value（当前值）/keys/stores。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "面向用户的行动理由，表达要求见 #output。"
         },
         "affectsPage": {
           "type": "boolean"
