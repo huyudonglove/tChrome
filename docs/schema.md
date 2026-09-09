@@ -135,7 +135,7 @@ Runtime 独占维护。当前会话指针。
 | `notes` | object | 模型自管的 key/value。新会话 `{}`。`notes.write` 写入或覆盖 `notes[key]`。`notes.delete` 删除 `notes[key]`。进 user `#notes` |
 | `windowChars` | number | 本轮出网窗口已用字符数。开 Turn 装配后、以及本 Turn 每次出网前，Runtime 写入 |
 | `compressAt` | number | 压缩门槛，固定 `200000` |
-| `memoryIds` | object | `{turn, conversation, project}`，各是 string[] |
+| `memoryIds` | object | `{conversation, project}`，各是 string[] |
 
 ## turns/<turnId>.json
 
@@ -160,7 +160,6 @@ Runtime 独占维护。当前会话指针。
 |---|---|---|
 | `baseToolsIds` | string[] | 常驻工具，对应 `service/tools/definitions/<id>.json`；完整名单以 `service/tools/definitions/groups.json` 为准，说明进入 system `#baseTools` |
 | `toolIds` | string[] | 动态工具，对应 `service/tools/definitions/<id>.json`。开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.list_interactive_elements` `page.click` `page.type` `open_url` `web_search` `list_browser_tools` `catalog.add`）。缺了 `catalog.add` 再补。窗口压缩保持已加载工具不变 |
-| `turnMemoryIds` | string[] | 这一轮记忆；没有就 `[]` |
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
 | `mcpIds` | string[] | 本轮 MCP；没有就 `[]` |
@@ -188,14 +187,14 @@ Runtime 独占维护。当前会话指针。
 
 ## memory/<memoryId>.json
 
-三层，从稳到新：project → conversation → turn。模型调 `memory.write` 提交。Runtime 落盘，ID 挂到 ledger.`memoryIds`。下一次出网装配进对应 user 槽。
+两层：project 是跨会话共享的长期记忆；conversation 保存本会话的过程发现和已确认事实。conversation 在本地按会话保存，跨轮读取，新会话不继承，删除会话时一起删除；project 独立于会话保存，删除来源会话不影响长期记忆。notes 保存本会话的草稿、候选和中间材料，按 key 覆盖或删除，不在每轮自动清空。模型调 `memory.write` 提交。Runtime 落盘，ID 挂到 ledger.`memoryIds`。下一次出网装配进对应 user 槽。
 
-Context 每层仅投影最近 8 条记忆。窗口到 200K 时，turn / conversation 槽优先用 `summary`，缺省时使用归一空白后的前 80 字。project 不做摘要压缩。该过程是纯展示投影，不改磁盘记录、不设置 `compressed`、不裁 ledger 或 Turn 的 memoryIds。
+Memory 能力层每层仅投影最近 8 条记忆。窗口到 200K 时，conversation 槽优先用 `summary`，缺省时使用归一空白后的前 80 字。project 不做摘要压缩。该过程是纯展示投影，不改磁盘记录、不设置 `compressed`、不裁 ledger 或 Turn 的 memoryIds。
 
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
 | `memoryId` | string | `mm_` |
-| `layer` | string | `turn` / `conversation` / `project` |
+| `layer` | string | `conversation` / `project` |
 | `text` | string | 原文 |
 | `summary` | string | 记忆摘要，供展示投影使用 |
 | `compressed` | boolean | 兼容已有记录；为 true 时普通投影使用 summary，新的窗口压缩不改此字段 |
@@ -221,11 +220,11 @@ Context 每层仅投影最近 8 条记忆。窗口到 200K 时，turn / conversa
 
 加载顺序由 `service/context/system-slots.md` 和 `user-slots.md` 的编号文件名决定，例如 `1. identity`，不在目录重复描述能力。system 模块以 `#tag`、`能力：【…】`、`详细描述：` 和正文组成；user 模块还包含独立的 `内容：` 段。user 的详细描述进入 system 内 User 清单，内容段通过 `{{data}}` 注入运行数据。
 
-加载器返回 systemOrder / userOrder，systemSlots / userSlots 保存模块元数据与对应正文。system 先输出 `# System 栏目清单`，七个模块每项 tag --能力之后直接跟详细正文，baseTools 包含工具说明；再输出 `# User 栏目清单`，每项 tag --能力之后直接跟详细描述。system 详细正文与清单项合并，只出现一次；user 渲染十五个原有 tag 的内容段和数据，不重复能力标签或详细描述。
+加载器返回 systemOrder / userOrder，systemSlots / userSlots 保存模块元数据与对应正文。system 先输出 `# System 栏目清单`，七个模块每项 tag --能力之后直接跟详细正文，baseTools 包含工具说明；再输出 `# User 栏目清单`，每项 tag --能力之后直接跟详细描述。system 详细正文与清单项合并，只出现一次；user 渲染十四个 tag 的内容段和数据，不重复能力标签或详细描述。
 
 system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，boundaries 管授权和证据来源。网页方法维护于 `service/skills/web-observation/SKILL.md`，runtime 按 `service/skills/index.json` 加载后作为数据注入 context，模块描述仍由 `service/context/user/skill.md` 提供。既有 user tag 与字段来源、工具 schema 和输出协议保持不变。
 
-常驻工具说明进入 #baseTools，动态工具说明进入 #tools，唯一来源仍是 `service/tools/definitions/<id>.json` 的 function.description。调整模块后同步生成导航、装配测试与阶段示例；阶段 JSON 中 systemSlots / userSlots 是对应的 7 / 15 个 tag 名数组，并非模块对象。
+常驻工具说明进入 #baseTools，动态工具说明进入 #tools，唯一来源仍是 `service/tools/definitions/<id>.json` 的 function.description。调整模块后同步生成导航、装配测试与阶段示例；阶段 JSON 中 systemSlots / userSlots 是对应的 7 / 14 个 tag 名数组，并非模块对象。
 
 出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。
 
@@ -298,7 +297,7 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | `observation.detail` | `observationId` | `#observation` 该项的 `id` |
 | `notes.write` | `key` `value` | 写入或覆盖 `ledger.notes[key]`。模型自定 key |
 | `notes.delete` | `key` | 删除 `ledger.notes[key]` |
-| `memory.write` | （无） | `turnMemory` `conversationMemory` `projectMemory` `contextSummary` 有则写 |
+| `memory.write` | （无） | `conversationMemory` `projectMemory` `contextSummary` 有则写 |
 | `catalog.add` | `names` | 把缺的动态工具挂进本轮 |
 
 常驻与初始动态工具名单以 `service/tools/definitions/groups.json` 的 baseToolsIds / coreToolIds 为准。动态目录分类见 `service/tools/definitions/index.json`，缺能力通过 catalog.add 加载。浏览器工具经 `/tool-request` 泵到 background。

@@ -128,13 +128,13 @@ export async function executeTool(input: ExecuteInput): Promise<ToolExecution> {
     return result(JSON.stringify({ ok: true, tools: lookup.unusedTools }));
   }
   if (name === "memory.write") {
-    const entries = (["turn", "conversation", "project"] as const).flatMap((layer) =>
+    const entries = (["conversation", "project"] as const).flatMap((layer) =>
       asStringArray(args[`${layer}Memory`]).map((text) => ({ layer, text })));
     const summary = asObject(args.contextSummary);
     const effects: ToolEffect[] = entries.length ? [{ type: "memory.append", entries }] : [];
     if (summary) effects.push({ type: "context-summary.set", summary });
     const count = (layer: string) => entries.filter((entry) => entry.layer === layer).length;
-    return result(`落下 turn=${count("turn")} conversation=${count("conversation")} project=${count("project")}`, effects);
+    return result(`落下 conversation=${count("conversation")} project=${count("project")}`, effects);
   }
   if (RECORD_TOOLS.includes(name)) {
     const id = String(args.id);

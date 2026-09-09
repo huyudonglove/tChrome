@@ -132,7 +132,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
 }
 ```
 
-本轮样例记忆三层和 `contextSummary` 空，直到模型交 `memory.write`。形状如下（本轮主链是 `web_search`，这条不进本轮写出的）。Runtime 落盘后，下一次出网把正文带进 `#turnMemory` / `#conversationMemory` / `#projectMemory` / `#contextSummary`。
+本轮样例记忆两层和 `contextSummary` 空，直到模型交 `memory.write`。形状如下（本轮主链是 `web_search`，这条不进本轮写出的）。Runtime 落盘后，下一次出网把正文带进 `#conversationMemory` / `#projectMemory` / `#contextSummary`。
 
 ```json
 {
@@ -141,14 +141,14 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   "arguments": {
     "reason": "记下当前页型号，下一轮核对官网价时用。",
     "affectsPage": false,
-    "turnMemory": [
+    "conversationMemory": [
       "当前页是罗技 MX Master 3S，京东标价待核官网。"
     ]
   },
   "return": {
     "stage": "complete",
-    "totalChars": 19,
-    "text": "已写入 turnMemory 1 条。"
+    "totalChars": 27,
+    "text": "已写入 conversationMemory 1 条。"
   }
 }
 ```
@@ -185,7 +185,6 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "open_url",
     "web_search"
   ],
-  "turnMemoryIds": [],
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
   "mcpIds": [],
@@ -214,7 +213,6 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "#pageObservedHistory",
     "#projectMemory",
     "#conversationMemory",
-    "#turnMemory",
     "#contextSummary",
     "#notes",
     "#toolIO",

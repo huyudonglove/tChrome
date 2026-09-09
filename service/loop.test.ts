@@ -66,10 +66,10 @@ test("System模块说明直接合并，User动态数据按栏目注入", () => {
       turnId: "tn_01", conversationId: "cv_01", status: "inferring",
       createdAt: "2026-09-06T00:00:00.000Z", completedAt: null,
       input: { text: "帮我查这款鼠标官网价", submittedAt: "2026-09-06T00:00:00.000Z" },
-      assembled: { baseToolsIds: [], toolIds: [], turnMemoryIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null, pageObservedHistory: [] },
+      assembled: { baseToolsIds: [], toolIds: [],  conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null, pageObservedHistory: [] },
       output: null,
     },
-    memories: { project: "", conversation: "", turn: "" },
+    memories: { project: "", conversation: "" },
     toolUsage: "web_search：搜索公开网页。",
   });
   expect(Array.from(user.match(/^#[A-Za-z][A-Za-z0-9]*$/gm) ?? [])).toEqual(contextModules.userOrder);
@@ -458,8 +458,7 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
           arguments: {
             reason: "记下",
             affectsPage: false,
-            turnMemory: ["本轮用户要查鼠标价"],
-            conversationMemory: ["用户在核对罗技 MX Master 3S"],
+            conversationMemory: ["本轮用户要查鼠标价", "用户在核对罗技 MX Master 3S"],
             projectMemory: ["项目偏好：查官网价"],
           },
         },
@@ -472,8 +471,8 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
     submittedAt: "2026-09-06T00:00:00.000Z",
   });
   const ledger = loadLedger(dir, "cv_01");
-  expect(ledger.memoryIds.turn).toHaveLength(1);
-  expect(loadMemory(dir, "cv_01", ledger.memoryIds.turn[0]!).compressed).toBe(false);
+  expect(ledger.memoryIds.conversation).toHaveLength(2);
+  expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).compressed).toBe(false);
   expect(loadMemories(dir, "cv_01", ledger.memoryIds).project[0]!.compressed).toBe(false);
   const turn = loadTurn(dir, "cv_01", reply.turnId);
   turn.assembled.toolIds = ["see_page", "web_search", "screenshot", "cookies_get"];
@@ -489,10 +488,10 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
   expect(ledger.memoryIds).toEqual(memoryIdsBefore);
   expect(ledger.toolIO).toHaveLength(2);
   expect(ledger.observation.at(-1)?.sourceCallIds).toEqual(["call_old"]);
-  expect(loadMemory(dir, "cv_01", ledger.memoryIds.turn[0]!).compressed).toBe(false);
+  expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).compressed).toBe(false);
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).compressed).toBe(false);
   expect(loadMemories(dir, "cv_01", ledger.memoryIds).project[0]!.compressed).toBe(false);
-  expect(loadMemory(dir, "cv_01", ledger.memoryIds.turn[0]!).text).toBe("本轮用户要查鼠标价");
+  expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).text).toBe("本轮用户要查鼠标价");
   const events = loadEvents(dir, "cv_01");
   expect(events.some((row) => row.kind === "compress")).toBe(true);
   rmSync(dir, { recursive: true, force: true });
@@ -524,7 +523,7 @@ test("队列和正在跑的工具出现在 /session", () => {
 
       baseToolsIds: [],
       toolIds: [],
-      turnMemoryIds: [],
+
       conversationMemoryIds: [],
       projectMemoryIds: [],
       mcpIds: [],

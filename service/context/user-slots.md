@@ -9,9 +9,8 @@
 7. pageObservedHistory
 8. projectMemory
 9. conversationMemory
-10. turnMemory
-11. contextSummary
-12. notes
-13. toolIO
-14. observation
-15. tools
+10. contextSummary
+11. notes
+12. toolIO
+13. observation
+14. tools

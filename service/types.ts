@@ -25,7 +25,6 @@ export type PageObservation = CurrentPage & {
 export type Assembled = {
   baseToolsIds: string[];
   toolIds: string[];
-  turnMemoryIds: string[];
   conversationMemoryIds: string[];
   projectMemoryIds: string[];
   mcpIds: string[];
@@ -101,7 +100,7 @@ export type Ledger = {
   notes: Record<string, string>;
   windowChars: number;
   compressAt: number;
-  memoryIds: { turn: string[]; conversation: string[]; project: string[] };
+  memoryIds: { conversation: string[]; project: string[] };
   contextSummary: Record<string, unknown> | null;
 };
 

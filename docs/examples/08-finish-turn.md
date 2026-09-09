@@ -113,7 +113,6 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "open_url",
     "web_search"
   ],
-  "turnMemoryIds": [],
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
   "mcpIds": [],
@@ -142,7 +141,6 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "#pageObservedHistory",
     "#projectMemory",
     "#conversationMemory",
-    "#turnMemory",
     "#contextSummary",
     "#notes",
     "#toolIO",

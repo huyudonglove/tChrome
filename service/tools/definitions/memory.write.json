@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "memory.write",
-    "description": "保存后续需要的事实、偏好或进展。\n参数：可选 turnMemory、conversationMemory、projectMemory：字符串数组，按旧到新排列并追加至对应记忆末尾；contextSummary：对象，替换整个工作汇总而非局部合并，应保留仍有效的重要信息。其中历史事实、已完成进展等记录数组按旧到新排列，新增项放末尾，保留旧项相对顺序；待办按执行顺序，选项或排名按各自含义排列。至少提供一项有意义的内容。\n返回：三类记忆的写入条数。turnMemory、conversationMemory 和工作汇总仅在本会话保存；projectMemory 是独立于会话的长期记忆，跨会话共享，删除来源会话后仍保留。\naffectsPage=false。",
+    "description": "保存后续需要的事实、偏好或进展。\n参数：可选 conversationMemory、projectMemory：字符串数组，按旧到新排列并追加至对应记忆末尾；contextSummary：对象，替换整个工作汇总而非局部合并，应保留仍有效的重要信息。其中历史事实、已完成进展等记录数组按旧到新排列，新增项放末尾，保留旧项相对顺序；待办按执行顺序，选项或排名按各自含义排列。至少提供一项有意义的内容。\n返回：两类记忆的写入条数。conversationMemory 和工作汇总仅在本会话保存；projectMemory 是独立于会话的长期记忆，跨会话共享，删除来源会话后仍保留。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -11,12 +11,6 @@
         },
         "affectsPage": {
           "type": "boolean"
-        },
-        "turnMemory": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         },
         "conversationMemory": {
           "type": "array",
@@ -37,7 +31,8 @@
       "required": [
         "reason",
         "affectsPage"
-      ]
+      ],
+      "additionalProperties": false
     }
   }
 }

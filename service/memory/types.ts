@@ -1,4 +1,4 @@
-export type MemoryLayer = "turn" | "conversation" | "project";
+export type MemoryLayer = "conversation" | "project";
 
 export type MemoryRecord = {
   memoryId: string;

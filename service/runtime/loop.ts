@@ -66,7 +66,7 @@ export type LoopDeps = {
 const assemble = (toolRegistry: ToolRegistry): Assembled => ({
   baseToolsIds: [...toolRegistry.toolGroups.baseToolsIds],
   toolIds: coreToolIds(toolRegistry),
-  turnMemoryIds: [],
+
   conversationMemoryIds: [],
   projectMemoryIds: [],
   mcpIds: [],
@@ -233,7 +233,6 @@ export async function handleTurn(
     };
     turn.assembled.currentPage = { ...turn.assembled.currentTab, description: "用户发话时的标签信息，尚未读取页面内容" };
   }
-  turn.assembled.turnMemoryIds = [...ledger.memoryIds.turn];
   turn.assembled.conversationMemoryIds = [...ledger.memoryIds.conversation];
   turn.assembled.projectMemoryIds = loadMemories(deps.dataDir, ledger.conversationId, ledger.memoryIds).project.map(item => item.memoryId);
   ledger.turnIds.push(turnId);

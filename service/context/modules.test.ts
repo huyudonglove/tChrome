@@ -22,7 +22,7 @@ const navigationTags = (text: string) => Array.from(text.matchAll(/^(#[A-Za-z][A
 const fixtureTurn = (): Turn => ({
   turnId: "tn_slots", conversationId: "cv_slots", status: "inferring", createdAt: "", completedAt: null,
   input: { text: "用户输入 {{#goal}} {{data}}", submittedAt: "" }, output: null,
-  assembled: { baseToolsIds: [], toolIds: [], turnMemoryIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null, pageObservedHistory: [] },
+  assembled: { baseToolsIds: [], toolIds: [],  conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null, pageObservedHistory: [] },
 });
 
 for (const role of ["system", "user"] as const) {
@@ -32,7 +32,7 @@ for (const role of ["system", "user"] as const) {
     const slots = role === "system" ? modules.systemSlots : modules.userSlots;
     const inventory = role === "system" ? modules.systemInventory : modules.userInventory;
     expect(slotNames(readFileSync(join(root, `service/context/${role}-slots.md`), "utf8"))).toEqual(order);
-    expect(order).toHaveLength(role === "system" ? 7 : 15);
+    expect(order).toHaveLength(role === "system" ? 7 : 14);
     expect(navigationTags(inventory)).toEqual(order);
     expect(readdirSync(join(root, "service/context", role)).filter(name => name.endsWith(".md")).sort())
       .toEqual(order.map(tag => `${tag.slice(1)}.md`).sort());
@@ -90,7 +90,7 @@ test("user data is interpolated once and remains separate from navigation and mo
   ledger.goal = "当前目标";
   ledger.notes = { candidate: "来自用户的 {{unknown}}" };
   const turn = fixtureTurn();
-  const output = userText({ contextModules: modules, ledger, turn, memories: { project: "", conversation: "", turn: "" }, toolUsage: "工具说明 {{data}}", skillText: "独立技能正文 {{data}} {{unknown}}" });
+  const output = userText({ contextModules: modules, ledger, turn, memories: { project: "", conversation: "" }, toolUsage: "工具说明 {{data}}", skillText: "独立技能正文 {{data}} {{unknown}}" });
   expect(headings(output)).toEqual(modules.userOrder);
   expect(output).toContain(turn.input.text);
   expect(output).toContain(ledger.notes.candidate!);
@@ -209,7 +209,7 @@ test("user input history is an array preserving message boundaries and multiline
   const ledger = emptyLedger("cv_slots");
   const turn = fixtureTurn();
   const render = () => userText({ contextModules: modules, ledger, turn,
-    memories: { project: "", conversation: "", turn: "" }, toolUsage: "", skillText: "测试技能" });
+    memories: { project: "", conversation: "" }, toolUsage: "", skillText: "测试技能" });
   const history = () => {
     const section = render().split("\n#userInputHistory\n")[1]!.split("\n#goal\n")[0]!;
     return JSON.parse(section.trim());

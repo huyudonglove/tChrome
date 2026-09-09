@@ -13,6 +13,5 @@ export function projectMemories(memories: Memories, compact = false): Record<key
   return {
     project: memoryBody(memories.project),
     conversation: memoryBody(memories.conversation, compact),
-    turn: memoryBody(memories.turn, compact),
   };
 }

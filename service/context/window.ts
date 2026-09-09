@@ -13,7 +13,7 @@ export function userText(input: {
   contextModules: ContextModules;
   ledger: Ledger;
   turn: Turn;
-  memories: { project: string; conversation: string; turn: string };
+  memories: { project: string; conversation: string };
   toolUsage: string;
   skillText: string;
 }): string {
@@ -22,7 +22,6 @@ export function userText(input: {
     "#skill": input.skillText,
     "#projectMemory": memories.project,
     "#conversationMemory": memories.conversation,
-    "#turnMemory": memories.turn,
     "#contextSummary": ledger.contextSummary ? jsonBody(ledger.contextSummary) : "",
     "#observation": jsonBody(ledger.observation),
     "#notes": jsonBody(ledger.notes),

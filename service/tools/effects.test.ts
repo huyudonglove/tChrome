@@ -20,7 +20,7 @@ function setup() {
     turnId: "tn_effects", conversationId: ledger.conversationId, status: "inferring",
     createdAt: new Date().toISOString(), completedAt: null, input: { text: "检查", submittedAt: "now" },
     output: null, assembled: {
-      baseToolsIds: ["finishTurn"], toolIds: ["page.click"], turnMemoryIds: [],
+      baseToolsIds: ["finishTurn"], toolIds: ["page.click"],
       conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, currentTab: null,
       pageObservedHistory: [],
     },
@@ -69,18 +69,17 @@ test("runtime persists goals and notes from effects without interpreting the ori
 test("memory effects contain normalized entries and runtime persists their source and summary", async () => {
   const fixture = setup();
   const execution = await fixture.execute("memory.write", {
-    turnMemory: ["找到按钮", "", null], conversationMemory: ["用户目标"], projectMemory: [],
+    conversationMemory: ["找到按钮", "", null, "用户目标"], projectMemory: [],
     contextSummary: { next: "打开结果" },
   });
-  expect(execution.text).toBe("落下 turn=1 conversation=1 project=0");
-  expect(fixture.ledger.memoryIds.turn).toEqual([]);
+  expect(execution.text).toBe("落下 conversation=2 project=0");
+  expect(fixture.ledger.memoryIds.conversation).toEqual([]);
   fixture.apply(execution, "call_memory");
   const saved = loadLedger(fixture.dataDir, fixture.ledger.conversationId);
   expect(saved.contextSummary).toEqual({ next: "打开结果" });
-  expect(saved.memoryIds.turn).toHaveLength(1);
-  expect(saved.memoryIds.conversation).toHaveLength(1);
-  expect(loadMemory(fixture.dataDir, saved.conversationId, saved.memoryIds.turn[0]!)).toMatchObject({
-    text: "找到按钮", sourceCallId: "call_memory", layer: "turn",
+  expect(saved.memoryIds.conversation).toHaveLength(2);
+  expect(loadMemory(fixture.dataDir, saved.conversationId, saved.memoryIds.conversation[0]!)).toMatchObject({
+    text: "找到按钮", sourceCallId: "call_memory", layer: "conversation",
   });
 });
 

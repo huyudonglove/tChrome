@@ -45,7 +45,6 @@
     "windowChars": 0,
     "compressAt": 200000,
     "memoryIds": {
-      "turn": [],
       "conversation": [],
       "project": []
     }
@@ -80,7 +79,6 @@
           "open_url",
           "web_search"
         ],
-        "turnMemoryIds": [],
         "conversationMemoryIds": [],
         "projectMemoryIds": [],
         "mcpIds": [],

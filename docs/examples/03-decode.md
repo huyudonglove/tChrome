@@ -38,7 +38,6 @@
     "open_url",
     "web_search"
   ],
-  "turnMemoryIds": [],
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
   "mcpIds": [],
@@ -147,8 +146,8 @@ observation.detail：展开历史摘要的详细记录。
 返回：该摘要对应的完整历史记录，找不到时返回缺失提示；不会重新观察当前页面。
 affectsPage=false。
 memory.write：保存后续需要的事实、偏好或进展。
-参数：可选 turnMemory、conversationMemory、projectMemory：字符串数组，按旧到新排列并追加至对应记忆末尾；contextSummary：对象，替换整个工作汇总而非局部合并，应保留仍有效的重要信息。其中历史事实、已完成进展等记录数组按旧到新排列，新增项放末尾，保留旧项相对顺序；待办按执行顺序，选项或排名按各自含义排列。至少提供一项有意义的内容。
-返回：三类记忆的写入条数。turnMemory、conversationMemory 和工作汇总仅在本会话保存；projectMemory 是独立于会话的长期记忆，跨会话共享，删除来源会话后仍保留。
+参数：可选 conversationMemory、projectMemory：字符串数组，按旧到新排列并追加至对应记忆末尾；contextSummary：对象，替换整个工作汇总而非局部合并，应保留仍有效的重要信息。其中历史事实、已完成进展等记录数组按旧到新排列，新增项放末尾，保留旧项相对顺序；待办按执行顺序，选项或排名按各自含义排列。至少提供一项有意义的内容。
+返回：两类记忆的写入条数。conversationMemory 和工作汇总仅在本会话保存；projectMemory 是独立于会话的长期记忆，跨会话共享，删除来源会话后仍保留。
 affectsPage=false。
 notes.write：保存或更新工作笔记。
 参数：必填 key、value，均为字符串。创建或覆盖 #notes 中指定 key 的值，同一个 key 不会追加多份。
@@ -189,13 +188,8 @@ affectsPage=false。
 
 记录按写入顺序由旧到新排列，新记录追加到末尾；取最近8条时保留这个顺序。
 
-#conversationMemory --【会话事实，偏好，决定】
-本会话确认过的事实、偏好和决定。窗口最多展示最近8条，较大上下文中可能只显示摘要；摘要不代表完整原文。使用时核对来源和当前条件，通过 memory.write 记录仍有价值的事实，避免重复写入。
-
-记录按写入顺序由旧到新排列，新记录追加到末尾；取最近8条时保留这个顺序。
-
-#turnMemory --【阶段事实，过程发现】
-当前工作阶段积累的事实和过程发现，实际可包含此前轮次保留的内容，不假定全部来自本轮。窗口最多展示最近8条，较大上下文中可能只显示摘要；按来源及适用条件判断。通过 memory.write 保存值得保留的发现，工作概况参考 contextSummary，草稿材料放 notes。
+#conversationMemory --【会话记忆，过程事实，偏好决定】
+本会话值得保留的过程发现、已确认事实、偏好和决定，包含原阶段记忆。持久保存在本地，本会话后续轮次可以读取，服务重启后保留；新会话不继承，删除会话时一起删除。尚未确认的候选和中间材料放 notes，整体工作概况放 contextSummary，跨会话仍适用的事实放 projectMemory。窗口最多展示最近8条，较大上下文中可能只显示摘要；摘要不代表完整原文。使用时核对来源和当前条件，通过 memory.write 记录仍有价值的事实，避免重复写入。
 
 记录按写入顺序由旧到新排列，新记录追加到末尾；取最近8条时保留这个顺序。
 
@@ -263,8 +257,6 @@ affectsPage=false。
 
 #conversationMemory
 
-#turnMemory
-
 #contextSummary
 
 #notes
@@ -327,7 +319,6 @@ affectsPage=false。
     "open_url",
     "web_search"
   ],
-  "turnMemoryIds": [],
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
   "mcpIds": [],
@@ -356,7 +347,6 @@ affectsPage=false。
     "#pageObservedHistory",
     "#projectMemory",
     "#conversationMemory",
-    "#turnMemory",
     "#contextSummary",
     "#notes",
     "#toolIO",

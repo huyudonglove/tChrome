@@ -40,7 +40,6 @@
     "open_url",
     "web_search"
   ],
-  "turnMemoryIds": [],
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
   "mcpIds": [],
@@ -69,7 +68,6 @@
     "#pageObservedHistory",
     "#projectMemory",
     "#conversationMemory",
-    "#turnMemory",
     "#contextSummary",
     "#notes",
     "#toolIO",
@@ -256,7 +254,6 @@
     "open_url",
     "web_search"
   ],
-  "turnMemoryIds": [],
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
   "mcpIds": [],
@@ -285,7 +282,6 @@
     "#pageObservedHistory",
     "#projectMemory",
     "#conversationMemory",
-    "#turnMemory",
     "#contextSummary",
     "#notes",
     "#toolIO",

@@ -5,7 +5,30 @@ import type { Memories, MemoryIds, MemoryRecord } from "./types.ts";
 const memoryDir = (dataDir: string, conversationId: string) => join(dataDir, "conversations", conversationId, "memory");
 const projectDir = (dataDir: string) => join(dataDir, "memory", "project");
 const jsonFiles = (dir: string) => existsSync(dir) ? readdirSync(dir).filter(name => name.endsWith(".json")).sort() : [];
-const read = (path: string): MemoryRecord => JSON.parse(readFileSync(path, "utf8"));
+type StoredMemoryRecord = Omit<MemoryRecord, "layer"> & { layer: MemoryRecord["layer"] | "turn" };
+const readStored = (path: string): StoredMemoryRecord => JSON.parse(readFileSync(path, "utf8"));
+const read = (path: string): MemoryRecord => {
+  const record = readStored(path);
+  return { ...record, layer: record.layer === "turn" ? "conversation" : record.layer };
+};
+const chronological = (a: MemoryRecord, b: MemoryRecord) => a.createdAt.localeCompare(b.createdAt)
+  || a.memoryId.localeCompare(b.memoryId, undefined, { numeric: true });
+
+/** Merge legacy process memories into the conversation's persistent memory index. */
+export function migrateConversationMemory(dataDir: string, conversationId: string, ids: MemoryIds & { turn?: string[] }): MemoryIds {
+  if (!Object.hasOwn(ids, "turn")) return ids;
+  const records = [...new Set([...ids.conversation, ...(ids.turn ?? [])])].map(memoryId => {
+    const path = join(memoryDir(dataDir, conversationId), `${memoryId}.json`);
+    const stored = readStored(path);
+    const record: MemoryRecord = { ...stored, layer: stored.layer === "turn" ? "conversation" : stored.layer };
+    if (stored.layer === "turn") {
+      writeFileSync(`${path}.tmp`, `${JSON.stringify(record, null, 2)}\n`);
+      renameSync(`${path}.tmp`, path);
+    }
+    return record;
+  }).sort(chronological);
+  return { conversation: records.map(record => record.memoryId), project: [...ids.project] };
+}
 
 /** Copy legacy long-term records before any conversation can be deleted. */
 export function migrateProjectMemories(dataDir: string): void {
@@ -46,6 +69,6 @@ export function loadMemories(dataDir: string, conversationId: string, ids: Memor
   migrateProjectMemories(dataDir);
   const local = (names: string[]) => names.map(id => loadMemory(dataDir, conversationId, id));
   const project = jsonFiles(projectDir(dataDir)).map(file => read(join(projectDir(dataDir), file)))
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.memoryId.localeCompare(b.memoryId, undefined, { numeric: true }));
-  return { project, conversation: local(ids.conversation), turn: local(ids.turn) };
+    .sort(chronological);
+  return { project, conversation: local(ids.conversation) };
 }

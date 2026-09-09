@@ -78,7 +78,7 @@
 | `compressAt` | 200000 |
 | `windowChars` 压缩前 | 200000（本样例假设已到） |
 | 归档什么 | 除最近两条以外的 toolIO，全文写 observation |
-| 仅展示摘要 | 超阈值时的 turnMemory / conversationMemory |
+| 仅展示摘要 | 超阈值时的 conversationMemory |
 | 保留什么 | projectMemory 原文展示；最近两条 toolIO；完整 memoryIds 与 toolIds |
 
 ## 压缩后窗口
@@ -135,9 +135,9 @@
 
 `call_01` 已归档到 `ob_01`，call_02 和 call_03 留在 toolIO。之后新跑的工具继续追加。只有一条或两条记录时不归档。
 
-### `#turnMemory` / `#conversationMemory`
+### `#conversationMemory`
 
-本样例这两槽为空。存在记忆时，Context 每层仅投影最近 8 条；超阈值时 turn / conversation 优先展示 summary，没有摘要时展示归一空白后的前 80 字。project 不做摘要压缩。磁盘记忆的 text、summary、compressed 和完整 memoryIds 都保持不变，已加载 toolIds 也不卸载。流水 kind=compress 的 compressedMemoryIds / prunedToolIds 保留为空数组，仅兼容事件形状。
+本样例此槽为空。存在记忆时，Memory 能力层每层仅投影最近 8 条；超阈值时 conversation 优先展示 summary，没有摘要时展示归一空白后的前 80 字。project 不做摘要压缩。磁盘记忆的 text、summary、compressed 和完整 memoryIds 都保持不变，已加载 toolIds 也不卸载。流水 kind=compress 的 compressedMemoryIds / prunedToolIds 保留为空数组，仅兼容事件形状。
 
 ### 全文另存
 

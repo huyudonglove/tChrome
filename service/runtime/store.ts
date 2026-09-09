@@ -5,7 +5,7 @@ import type { Ledger, LogEvent, ObservationRecord, ChatMessage, ProviderExchange
 import { nextId, nowIso } from "./ids.ts";
 import { abortLocalProcesses } from "../tools/local-process.ts";
 import { localScope } from "../tools/local-tools.ts";
-import { migrateProjectMemories } from "../memory/store.ts";
+import { migrateConversationMemory, migrateProjectMemories } from "../memory/store.ts";
 import { emptySessionView, projectConversationList, projectSessionView } from "../presentation/session-view.ts";
 import type { ConversationItem, SessionView } from "../presentation/session-view.ts";
 export type { ConversationItem, SessionMessage, SessionView } from "../presentation/session-view.ts";
@@ -75,7 +75,7 @@ export function emptyLedger(conversationId: string): Ledger {
     notes: {},
     windowChars: 0,
     compressAt: 200000,
-    memoryIds: { turn: [], conversation: [], project: [] },
+    memoryIds: { conversation: [], project: [] },
     contextSummary: null,
   };
 }
@@ -85,6 +85,11 @@ export function loadLedger(dataDir: string, cvId: string): Ledger {
   ledger.goal ??= "";
   ledger.goalHistory ??= [];
   ledger.notes ??= {};
+  const memoryIds = migrateConversationMemory(dataDir, cvId, ledger.memoryIds);
+  if (JSON.stringify(memoryIds) !== JSON.stringify(ledger.memoryIds)) {
+    ledger.memoryIds = memoryIds;
+    writeJson(paths(dataDir, cvId).ledger, ledger);
+  }
   return ledger;
 }
 

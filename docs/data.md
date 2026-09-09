@@ -50,7 +50,6 @@ Runtime 独占维护。当前会话指针。字段见 schema「ledger.json」。
   "windowChars": 0,
   "compressAt": 200000,
   "memoryIds": {
-    "turn": [],
     "conversation": [],
     "project": []
   }
@@ -91,7 +90,6 @@ Runtime 独占维护。当前会话指针。字段见 schema「ledger.json」。
       "open_url",
       "web_search"
     ],
-    "turnMemoryIds": [],
     "conversationMemoryIds": [],
     "projectMemoryIds": [],
     "mcpIds": [],
@@ -108,12 +106,12 @@ Runtime 独占维护。当前会话指针。字段见 schema「ledger.json」。
 
 ## Memory
 
-三层，从稳到新：project → conversation → turn。模型调 `memory.write` 提交。字段见 schema「memory/<memoryId>.json」。
+两层：project 是跨会话共享的长期记忆；conversation 保存本会话的过程发现和已确认事实。conversation 在本地按会话保存，跨轮读取，新会话不继承，删除会话时一起删除；project 独立于会话保存，删除来源会话不影响长期记忆。notes 保存本会话的草稿、候选和中间材料，按 key 覆盖或删除，不在每轮自动清空。模型调 `memory.write` 提交。字段见 schema「memory/<memoryId>.json」。
 
 ```json
 {
   "memoryId": "mm_01",
-  "layer": "turn",
+  "layer": "conversation",
   "text": "当前页是罗技 MX Master 3S，京东标价待核官网。",
   "summary": "MX Master 3S，待核官网价",
   "compressed": false,
@@ -151,6 +149,6 @@ Runtime 独占维护。当前会话指针。字段见 schema「ledger.json」。
 5. 动态工具 / `tool.detail` / `observation.detail` → 队列清空后还在本 Turn 里再出网：插槽沿用这次装配，只更新 `#toolIO`。
 6. `memory.write` → Runtime 落盘，ID 挂到 ledger.`memoryIds`。队列清空后再出网时，对应 user 槽带上刚落下的内容。
 7. `finishTurn` → 本 Turn `status=completed`，ledger.`status=idle`，`active=null`。用户下一句话开新 Turn 时写入 `userInputHistory`，走步骤 1。
-8. 开 Turn 装配后、以及本 Turn 每次出网前，Runtime 计 `windowChars`。到 `compressAt`（200000）时，Runtime 把较早 toolIO 归档到可回查的 observation，保留最近两条；Context 每层投影最近 8 条记忆，超阈值时 turn / conversation 展示摘要，project 不做摘要压缩。该过程不写磁盘记忆、不裁 memoryIds、不卸载 toolIds，再用投影后的窗口出网。
+8. 开 Turn 装配后、以及本 Turn 每次出网前，Runtime 计 `windowChars`。到 `compressAt`（200000）时，Runtime 把较早 toolIO 归档到可回查的 observation，保留最近两条；Memory 能力层每层投影最近 8 条记忆，超阈值时 conversation 展示摘要，project 不做摘要压缩。该过程不写磁盘记忆、不裁 memoryIds、不卸载 toolIds，再用投影后的窗口出网。
 
 分阶段模拟：`docs/examples/01-normalize.md` → `02-context-engineering.md` → `03-decode.md` → `04-provider-request.md` → `05-provider-response.md` → `06-tool-execute.md` → `08-finish-turn.md`。窗口到 200K 时插 `07-compress.md`。

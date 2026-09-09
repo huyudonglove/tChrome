@@ -6,7 +6,7 @@ import { deleteConversation, newConversation } from "../runtime/store.ts";
 import { loadMemories, migrateProjectMemories, saveMemory } from "./store.ts";
 import type { MemoryIds, MemoryRecord } from "./types.ts";
 
-const emptyIds = (): MemoryIds => ({ turn: [], conversation: [], project: [] });
+const emptyIds = (): MemoryIds => ({ conversation: [], project: [] });
 const record = (memoryId: string, layer: MemoryRecord["layer"], text = memoryId, createdAt = "2026-01-01T00:00:00.000Z"): MemoryRecord => ({
   memoryId, layer, text, summary: text, compressed: false, createdAt, sourceCallId: "call_01",
 });
@@ -71,24 +71,21 @@ test("deleting an unread legacy conversation migrates its long-term facts before
   ]);
 }));
 
-test("loading migrates legacy long-term facts but retains turn and conversation isolation", () => withDir(dir => {
+test("loading migrates legacy long-term facts but retains conversation isolation", () => withDir(dir => {
   const first = newConversation(dir).conversationId!;
   const second = newConversation(dir).conversationId!;
   const shared = record("mm_03", "project", "shared");
   legacyMemory(dir, first, shared);
   for (const [conversationId, label] of [[first, "first"], [second, "second"]]) {
-    saveMemory(dir, conversationId!, record("mm_01", "turn", `${label} turn`));
+    saveMemory(dir, conversationId!, record("mm_01", "conversation", `${label} process fact`));
     saveMemory(dir, conversationId!, record("mm_02", "conversation", `${label} conversation`));
   }
-  const ids = { turn: ["mm_01"], conversation: ["mm_02"], project: [] };
+  const ids = { conversation: ["mm_01", "mm_02"], project: [] };
   const a = loadMemories(dir, first, ids);
   const b = loadMemories(dir, second, ids);
-  expect(a.turn.map(item => item.text)).toEqual(["first turn"]);
-  expect(b.turn.map(item => item.text)).toEqual(["second turn"]);
-  expect(a.conversation.map(item => item.text)).toEqual(["first conversation"]);
-  expect(b.conversation.map(item => item.text)).toEqual(["second conversation"]);
+  expect(a.conversation.map(item => item.text)).toEqual(["first process fact", "first conversation"]);
+  expect(b.conversation.map(item => item.text)).toEqual(["second process fact", "second conversation"]);
   expect(a.project).toEqual(b.project);
   expect(b.project).toEqual([{ ...shared, memoryId: `legacy_${first}_mm_03`, sourceConversationId: first }]);
-  expect(loadMemories(dir, second, emptyIds()).turn).toEqual([]);
   expect(loadMemories(dir, second, emptyIds()).conversation).toEqual([]);
 }));

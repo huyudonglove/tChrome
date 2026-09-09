@@ -16,7 +16,7 @@
 | `provider/` | 模型通信、传输重试与响应解析 |
 | `presentation/` | 纯函数生成会话消息、错误文案、待执行工具和列表预览 |
 
-Prompt 正文与加载器都在 `service/context/`。system-slots.md / user-slots.md 只保存编号文件名；每个模块独立声明 tag、能力和详细描述。system 先输出 System 栏目清单，七个模块逐项以 tag --能力接详细正文，baseTools 同时带常驻工具说明；再输出 User 栏目清单，逐项以 tag --能力接详细描述。user 只渲染原十五个 tag 的内容段，不重复能力或详细描述。execution 拆出 toolProtocol 与 boundaries；Skill 正文位于独立的 service/skills/<name>/SKILL.md，由 runtime 加载后注入 #skill；context/user/skill.md 只提供模块说明和数据占位。
+Prompt 正文与加载器都在 `service/context/`。system-slots.md / user-slots.md 只保存编号文件名；每个模块独立声明 tag、能力和详细描述。system 先输出 System 栏目清单，七个模块逐项以 tag --能力接详细正文，baseTools 同时带常驻工具说明；再输出 User 栏目清单，逐项以 tag --能力接详细描述。user 只渲染十四个 tag 的内容段，不重复能力或详细描述。execution 拆出 toolProtocol 与 boundaries；Skill 正文位于独立的 service/skills/<name>/SKILL.md，由 runtime 加载后注入 #skill；context/user/skill.md 只提供模块说明和数据占位。
 
 工具 API 定义位于 `service/tools/definitions/`，分组在 groups.json。说明唯一来自 function.description，index 只分类；常驻说明进入 #baseTools，动态说明进入 #tools。运行提示位于 service/runtime/messages.json。上下文 README 是维护入口，不进入模型窗口。
 
@@ -26,7 +26,9 @@ HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`�
 
 存储层保留持久化和会话命令，读取 ledger / events / turns 后调用 presentation 投影，命令返回行为保持不变。浏览器执行实现在 `extension/tools/browser-tools.js`，由后台 worker 调用。
 
-超过窗口阈值时，Runtime 仅将较早 toolIO 归档为 observation，保留最近两条，并提供 `observation.detail` 回查。Memory 能力层每层投影最近 8 条记忆，超阈值时 turn / conversation 显示 summary（没有摘要时生成展示用短文本），project 不做摘要压缩。该投影不写磁盘记忆、不裁 memoryIds，也不卸载 toolIds。
+记忆只有两层：conversation 保存本会话的过程发现、已确认事实、偏好和决定，本地持久化并跨轮读取，新会话不继承，删除会话时删除；project 保存跨会话共享的长期背景与约束，删除来源会话后仍保留。notes 保存本会话草稿、候选和中间材料，按 key 覆盖或删除；contextSummary 保存本会话的工作状态汇总，每次完整替换。
+
+超过窗口阈值时，Runtime 仅将较早 toolIO 归档为 observation，保留最近两条，并提供 `observation.detail` 回查。Memory 能力层每层投影最近 8 条记忆，超阈值时 conversation 显示 summary（没有摘要时生成展示用短文本），project 不做摘要压缩。该投影不写磁盘记忆、不裁 memoryIds，也不卸载 toolIds。
 
 Provider 使用 Chat Completions 的 `stream: false`，解析完整 JSON 响应。统一策略校验位于 `runtime/loop.ts` 的 `validateCompletion`，调用 `tools/schema.ts` 检查所有 provider 返回的工具提交；provider 不承担工具加载策略或批次执行决策。
 

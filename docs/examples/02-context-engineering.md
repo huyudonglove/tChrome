@@ -1,6 +1,6 @@
 # 02 Context Engineering
 
-读 01 的写出。本环节点名：常驻工具 / 动态工具 / 三层记忆 / MCP，以及发话时标签。system / user 槽按两份编号文件名清单加载，能力导航从模块元数据生成，网页方法来自 service/skills/web-observation/SKILL.md，由 runtime 注入 #skill；该模块的详细描述随 User 清单进入 system。正文留给 03 解码展开。
+读 01 的写出。本环节点名：常驻工具 / 动态工具 / 两层记忆 / MCP，以及发话时标签。system / user 槽按两份编号文件名清单加载，能力导航从模块元数据生成，网页方法来自 service/skills/web-observation/SKILL.md，由 runtime 注入 #skill；该模块的详细描述随 User 清单进入 system。正文留给 03 解码展开。
 
 怎么看：上面「读到的」是 01 写出的原样。下面「写出的」是累积快照：01 六个键 + 本环节新增的键。栏目和 skill 对应 `service/context/` 中的文件，工具 ID 对应 `service/tools/definitions/`，记忆 ID 对应运行数据目录中的记录。
 
@@ -30,7 +30,6 @@
 |---|---|---|
 | `baseToolsIds` | 常驻工具，每轮都出网 | `askUser` `finishTurn` `submitGoal` `tool.detail` `observation.detail` `memory.write` `notes.write` `notes.delete` |
 | `toolIds` | 动态工具，本轮才挂 | 开 Turn 先挂 core。本样例：`page.get_summary` `open_url` `web_search`。全表见 `service/tools/definitions/index.json`，缺了 `catalog.add` |
-| `turnMemoryIds` | 这一轮记忆 | 新会话空 |
 | `conversationMemoryIds` | 这一次会话记忆 | 新会话空 |
 | `projectMemoryIds` | 项目记忆 | 新会话空 |
 | `mcpIds` | 本轮 MCP | 空 |
@@ -72,7 +71,6 @@
     "open_url",
     "web_search"
   ],
-  "turnMemoryIds": [],
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
   "mcpIds": [],
