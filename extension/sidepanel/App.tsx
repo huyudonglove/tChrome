@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { renderMarkdown } from "./markdown";
-
-const SERVICE = "http://127.0.0.1:18788";
-const DOWN = "本机服务没开。终端跑 bun run service。";
+import { SERVICE, DOWN, requestJSON, errorText } from "./service";
 
 type Output =
   | { kind: "reply"; text: string }
@@ -79,6 +77,7 @@ export function App() {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState("");
+  const [serviceDown, setServiceDown] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [pendingDelete, setPendingDelete] = useState<{ conversationId: string; preview: string } | null>(null);
@@ -95,12 +94,10 @@ export function App() {
 
   const loadAll = async () => {
     const generation = submission.current;
-    const [sessionRes, listRes] = await Promise.all([
-      fetch(`${SERVICE}/session`),
-      fetch(`${SERVICE}/conversations`),
+    const [next, listed] = await Promise.all([
+      requestJSON<SessionView>("/session"),
+      requestJSON<{ items: ConversationItem[] }>("/conversations"),
     ]);
-    const next = await sessionRes.json() as SessionView;
-    const listed = await listRes.json() as { items: ConversationItem[] };
     if (!switching.current && generation === submission.current) {
       setSession(next);
       setItems(listed.items ?? []);
@@ -112,11 +109,10 @@ export function App() {
     let alive = true;
     const probe = async () => {
       try {
-        const response = await fetch(`${SERVICE}/health`);
-        const body = await response.json();
-        if (alive) setStatus(body.ok ? "" : DOWN);
+        const body = await requestJSON<{ ok: boolean }>("/health");
+        if (alive) setServiceDown(!body.ok);
       } catch {
-        if (alive) setStatus(DOWN);
+        if (alive) setServiceDown(true);
       }
     };
     void loadAll().catch(() => setStatus(DOWN));
@@ -162,7 +158,12 @@ export function App() {
   }, [session.messages, sending]);
 
   const sendText = async (text: string) => {
-    if (!text || switching.current || sendingRef.current || session.status === "running") return;
+    if (!text) return;
+    if (switching.current || sendingRef.current || session.status === "running") {
+      setStatus(switching.current ? "会话切换中，请稍后发送" : "正在处理，请等待完成或先停止");
+      return;
+    }
+    setStatus("");
     const currentSubmission = ++submission.current;
     setDraft("");
     sendingRef.current = true;
@@ -171,18 +172,18 @@ export function App() {
       ...current,
       messages: [...current.messages, { role: "user", text }],
     }));
-    void chrome.runtime.sendMessage({ type: "ping" }).catch(() => {});
     try {
+      void chrome.runtime.sendMessage({ type: "ping" }).catch(() => {});
       const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
       const currentTab = tab?.id
         ? { tab: tab.id, url: tab.url ?? "", title: tab.title ?? "" }
         : null;
-      const response = await fetch(`${SERVICE}/turn`, {
+      const body = await requestJSON<{ output?: Output }>("/turn", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ conversationId: session.conversationId, userInput: text, submittedAt: new Date().toISOString(), currentTab }),
       });
-      const body = await response.json() as { output?: Output };
+
       if (submission.current !== currentSubmission) return;
       // The persisted session owns chat messages; appending the POST reply here
       // races with polling and briefly duplicates the final answer.
@@ -190,9 +191,12 @@ export function App() {
       await loadAll();
       if (submission.current !== currentSubmission) return;
       refreshVersion.current++;
-      setStatus(!response.ok ? outputText(body.output) : "");
-    } catch {
-      if (submission.current === currentSubmission) setStatus(DOWN);
+      setStatus(body.output?.kind === "error" ? outputText(body.output) : "");
+    } catch (error) {
+      if (submission.current === currentSubmission) {
+        setStatus(errorText(error));
+        setDraft((current) => current || text);
+      }
     } finally {
       if (submission.current === currentSubmission) {
         sendingRef.current = false;
@@ -222,22 +226,22 @@ export function App() {
     refreshVersion.current++;
     sendingRef.current = true;
     setSending(true);
-    const response = await fetch(`${SERVICE}/conversations/open`, {
+    const next = await requestJSON<SessionView>("/conversations/open", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ conversationId }),
     });
     submission.current++;
     refreshVersion.current++;
-    setSession(await response.json() as SessionView);
+    setSession(next);
     sendingRef.current = false;
     setSending(false);
     setListOpen(false);
     followBottom.current = true;
-    const listed = await fetch(`${SERVICE}/conversations`);
-    setItems(((await listed.json()) as { items: ConversationItem[] }).items ?? []);
-    } catch {
-      setStatus(DOWN);
+    const listed = await requestJSON<{ items: ConversationItem[] }>("/conversations");
+    setItems(listed.items ?? []);
+    } catch (error) {
+      setStatus(errorText(error));
     } finally {
       switching.current = false;
       sendingRef.current = false;
@@ -253,18 +257,18 @@ export function App() {
     refreshVersion.current++;
     sendingRef.current = true;
     setSending(true);
-    const response = await fetch(`${SERVICE}/conversations/new`, { method: "POST" });
+    const next = await requestJSON<SessionView>("/conversations/new", { method: "POST" });
     submission.current++;
     refreshVersion.current++;
-    setSession(await response.json() as SessionView);
+    setSession(next);
     sendingRef.current = false;
     setSending(false);
     setListOpen(false);
     followBottom.current = true;
-    const listed = await fetch(`${SERVICE}/conversations`);
-    setItems(((await listed.json()) as { items: ConversationItem[] }).items ?? []);
-    } catch {
-      setStatus(DOWN);
+    const listed = await requestJSON<{ items: ConversationItem[] }>("/conversations");
+    setItems(listed.items ?? []);
+    } catch (error) {
+      setStatus(errorText(error));
     } finally {
       switching.current = false;
       sendingRef.current = false;
@@ -282,20 +286,20 @@ export function App() {
     try {
     const id = pendingDelete.conversationId;
     setPendingDelete(null);
-    const response = await fetch(`${SERVICE}/conversations/delete`, {
+    const next = await requestJSON<SessionView>("/conversations/delete", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ conversationId: id }),
     });
     submission.current++;
     refreshVersion.current++;
-    setSession(await response.json() as SessionView);
+    setSession(next);
     sendingRef.current = false;
     setSending(false);
-    const listed = await fetch(`${SERVICE}/conversations`);
-    setItems(((await listed.json()) as { items: ConversationItem[] }).items ?? []);
-    } catch {
-      setStatus(DOWN);
+    const listed = await requestJSON<{ items: ConversationItem[] }>("/conversations");
+    setItems(listed.items ?? []);
+    } catch (error) {
+      setStatus(errorText(error));
     } finally {
       switching.current = false;
       sendingRef.current = false;
@@ -348,7 +352,7 @@ export function App() {
             </button>
           </div>
         </header>
-        {status ? <div className={`status ${status === DOWN ? "down" : ""}`}>{status}</div> : null}
+        {serviceDown || status ? <div className={`status ${serviceDown || status === DOWN ? "down" : ""}`}>{serviceDown ? DOWN : status}</div> : null}
       </div>
 
       <div className="conversation-pane">

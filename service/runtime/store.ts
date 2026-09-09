@@ -325,7 +325,6 @@ export function currentSessionView(dataDir: string): SessionView {
 }
 
 export function listConversations(dataDir: string): ConversationItem[] {
-  const current = loadSession(dataDir)?.conversationId ?? null;
   return listConversationIds(dataDir)
     .map((id) => {
       const ledger = loadLedger(dataDir, id);
@@ -335,16 +334,15 @@ export function listConversations(dataDir: string): ConversationItem[] {
       else if (ledger.userInputHistory.at(-1)) preview = ledger.userInputHistory.at(-1) ?? "新会话";
       return {
         conversationId: id,
+        createdAt: ledger.createdAt,
         updatedAt: ledger.updatedAt,
         status: ledger.status,
         preview: preview.slice(0, 40),
       };
     })
     .sort((a, b) => {
-      if (a.conversationId === current) return -1;
-      if (b.conversationId === current) return 1;
-      if (a.updatedAt !== b.updatedAt) return a.updatedAt < b.updatedAt ? 1 : -1;
-      return a.conversationId < b.conversationId ? 1 : -1;
+      if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? 1 : -1;
+      return b.conversationId.localeCompare(a.conversationId, undefined, { numeric: true });
     });
 }
 
