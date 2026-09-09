@@ -1,3 +1,5 @@
+import runtimeMessages from "../runtime/messages.json";
+import type { ToolEffect, ToolExecution } from "./effects.ts";
 import type { BrowserHost, CurrentPage, ToolArguments, ToolIOItem, ToolReturn } from "../types.ts";
 import { queryRecord, RECORD_TOOLS } from "./records.ts";
 import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
@@ -74,62 +76,84 @@ export type ExecuteInput = {
     fullReturn: (callId: string) => string | null;
     observationFull: (observationId: string) => string | null;
     unusedTools: string[];
+    knownTools: string[];
+    enabledTools: string[];
   };
 };
 
-export async function executeTool(input: ExecuteInput): Promise<string> {
+const result = (text: string, effects: ToolEffect[] = []): ToolExecution => ({ text, effects });
+
+const externalResult = (value: Record<string, unknown>): ToolExecution => {
+  const page = pageFromBrowser(value);
+  return result(JSON.stringify(value), page ? [{ type: "page.set", page }] : []);
+};
+
+export async function executeTool(input: ExecuteInput): Promise<ToolExecution> {
   const { name, arguments: args, content, lookup, host, dataDir, browserNames } = input;
-  if (name === "finishTurn") return closingText(args.text, content);
-  if (name === "askUser") return questionWithChoices(closingText(args.question, content), asStringArray(args.choice));
+  if (name === "finishTurn") {
+    const text = closingText(args.text, content);
+    return text ? result(text, [{ type: "turn.reply", text }])
+      : result(runtimeMessages.emptyFinishTurn, [{ type: "queue.clear" }]);
+  }
+  if (name === "askUser") {
+    const question = questionWithChoices(closingText(args.question, content), asStringArray(args.choice));
+    return result(question, [{ type: "turn.ask", question }]);
+  }
   if (name === "submitGoal") {
     const goal = String(args.goal ?? "").trim();
-    return goal ? `当前目标：${goal}` : "goal 空着";
+    return goal ? result(`当前目标：${goal}`, [{ type: "goal.set", goal }]) : result("goal 空着");
   }
   if (name === "notes.write") {
     const key = String(args.key ?? "").trim();
-    return key ? `notes[${key}]=${String(args.value ?? "")}` : "key 空着";
+    const value = String(args.value ?? "");
+    return key ? result(`notes[${key}]=${value}`, [{ type: "note.write", key, value }]) : result("key 空着");
   }
   if (name === "notes.delete") {
     const key = String(args.key ?? "").trim();
-    return key ? `deleted notes[${key}]` : "key 空着";
+    return key ? result(`deleted notes[${key}]`, [{ type: "note.delete", key }]) : result("key 空着");
   }
   if (name === "catalog.add") {
-    const names = asStringArray(args.names);
-    return `补上 ${names.join(" ")}`.trim();
+    const names = [...new Set(asStringArray(args.names))];
+    const added = names.filter((id) => lookup.knownTools.includes(id) && !lookup.enabledTools.includes(id));
+    const alreadyEnabled = names.filter((id) => lookup.enabledTools.includes(id));
+    const unknown = names.filter((id) => !lookup.knownTools.includes(id) && !lookup.enabledTools.includes(id));
+    return result(JSON.stringify({ ok: unknown.length === 0, added, alreadyEnabled, unknown }),
+      added.length ? [{ type: "tools.enable", names: added }] : []);
   }
   if (name === "list_browser_tools") {
-    return JSON.stringify({ ok: true, tools: lookup.unusedTools });
+    return result(JSON.stringify({ ok: true, tools: lookup.unusedTools }));
   }
   if (name === "memory.write") {
-    const turn = asStringArray(args.turnMemory).length;
-    const conversation = asStringArray(args.conversationMemory).length;
-    const project = asStringArray(args.projectMemory).length;
-    return `落下 turn=${turn} conversation=${conversation} project=${project}`;
+    const entries = (["turn", "conversation", "project"] as const).flatMap((layer) =>
+      asStringArray(args[`${layer}Memory`]).map((text) => ({ layer, text })));
+    const summary = asObject(args.contextSummary);
+    const effects: ToolEffect[] = entries.length ? [{ type: "memory.append", entries }] : [];
+    if (summary) effects.push({ type: "context-summary.set", summary });
+    const count = (layer: string) => entries.filter((entry) => entry.layer === layer).length;
+    return result(`落下 turn=${count("turn")} conversation=${count("conversation")} project=${count("project")}`, effects);
   }
   if (RECORD_TOOLS.includes(name)) {
     const id = String(args.id);
     const full = args.kind === "tool" ? lookup.fullReturn(id) : lookup.observationFull(id);
-    return queryRecord(name, args, full);
+    return result(queryRecord(name, args, full));
   }
   if (name === "tool.detail") {
     const callId = String(args.callId ?? "");
     const full = lookup.fullReturn(callId);
-    if (full !== null) return full;
+    if (full !== null) return result(full);
     const item = lookup.toolIO.find((row) => row.callId === callId);
-    return item?.return.text ?? `没有 ${callId} 的全文`;
+    return result(item?.return.text ?? `没有 ${callId} 的全文`);
   }
   if (name === "observation.detail") {
     const observationId = String(args.observationId ?? "");
-    return lookup.observationFull(observationId) ?? `没有 ${observationId}`;
+    return result(lookup.observationFull(observationId) ?? `没有 ${observationId}`);
   }
   if ((SERVICE_TOOL_NAMES as readonly string[]).includes(name)) {
-    const result = await runServiceTool(dataDir, name, hostArgs(args));
-    return JSON.stringify(result);
+    return externalResult(await runServiceTool(dataDir, name, hostArgs(args)));
   }
   if (browserNames.includes(name)) {
-    if (!host) return `${name} 没有浏览器桥`;
-    const result = await host.execute(name, hostArgs(args));
-    return JSON.stringify(result);
+    if (!host) return result(`${name} 没有浏览器桥`);
+    return externalResult(await host.execute(name, hostArgs(args)));
   }
-  return `${name} 未接`;
+  return result(`${name} 未接`);
 }

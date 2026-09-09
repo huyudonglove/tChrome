@@ -1,24 +1,24 @@
 import runtimeMessages from "./messages.json";
 import { FULL_RETURN_TOOLS } from "../tools/records.ts";
 import { systemText, userText, windowChars } from "../context/window.ts";
-import { coreToolIds, dynamicToolIds, loadContextModules, toolSchemas, toolUsageFor, type ContextModules } from "../context/modules.ts";
-import { asObject, asStringArray, clipReturn, executeTool, pageFromBrowser } from "../tools/execute.ts";
+import { loadContextModules, type ContextModules } from "../context/modules.ts";
+import { loadToolRegistry, coreToolIds, dynamicToolIds, toolSchemas, toolUsageFor, type ToolRegistry } from "../tools/registry.ts";
+import { clipReturn, executeTool } from "../tools/execute.ts";
+import { applyToolEffects } from "./effects.ts";
 import type {
   Assembled,
   BrowserHost,
   ChatMessage,
   CompletionResult,
   Ledger,
-  MemoryRecord,
   Provider,
-  ToolCall,
   ToolIOItem,
   Turn,
   TurnOutput,
   TurnReply,
 } from "../types.ts";
 import { checkToolCalls } from "../tools/schema.ts";
-import { maybeCompress } from "./compress.ts";
+import { archiveToolHistory } from "./compress.ts";
 import { nextId, nowIso } from "./ids.ts";
 import {
   ensureSession,
@@ -29,7 +29,6 @@ import {
   loadFullReturn,
   saveFullReturn,
   saveLedger,
-  saveMemory,
   saveTurn,
   appendEvent,
   appendProviderExchange,
@@ -43,9 +42,14 @@ const stoppedReply = (ledger: Ledger, turn: Turn): TurnReply => ({
   output: { kind: "error", faultCode: "stopped" },
 });
 
-const wasStopped = (dataDir: string, conversationId: string, turnId: string) => {
+const wasStopped = (dataDir: string, conversationId: string, turnId: string, expectedStatus: Ledger["status"] = "running") => {
   const current = loadLedger(dataDir, conversationId);
-  return current.status !== "running" || current.active?.turnId !== turnId;
+  if (current.status !== expectedStatus) return true;
+  // Tool effects persist completion before returning to the coordinator. Its own
+  // idle state is valid only while this remains the latest completed turn.
+  return expectedStatus === "idle"
+    ? current.active !== null || current.turnIds.at(-1) !== turnId
+    : current.active?.turnId !== turnId;
 };
 
 const MAX_SUBMIT = 3;
@@ -57,9 +61,9 @@ export type LoopDeps = {
   host?: BrowserHost;
 };
 
-const assemble = (contextModules: ContextModules): Assembled => ({
-  baseToolsIds: [...contextModules.toolGroups.baseToolsIds],
-  toolIds: coreToolIds(contextModules),
+const assemble = (toolRegistry: ToolRegistry): Assembled => ({
+  baseToolsIds: [...toolRegistry.toolGroups.baseToolsIds],
+  toolIds: coreToolIds(toolRegistry),
   turnMemoryIds: [],
   conversationMemoryIds: [],
   projectMemoryIds: [],
@@ -77,34 +81,36 @@ const loadMemories = (dataDir: string, ledger: Ledger) => {
   };
 };
 
-const messagesOf = (contextModules: ContextModules, ledger: Ledger, turn: Turn, dataDir: string): ChatMessage[] => {
-  const system = systemText(contextModules);
-  const user = userText({
-    contextModules,
-    ledger,
-    turn,
-    memories: loadMemories(dataDir, ledger),
-    toolUsage: toolUsageFor(contextModules, turn.assembled.toolIds),
-  });
-  maybeCompress({
-    dataDir,
-    ledger,
-    turn,
-    contextModules,
-    coreToolIds: coreToolIds(contextModules),
-    windowChars: windowChars(system, user),
-  });
-  const userAfter = userText({
-    contextModules,
-    ledger,
-    turn,
-    memories: loadMemories(dataDir, ledger),
-    toolUsage: toolUsageFor(contextModules, turn.assembled.toolIds),
-  });
-  return [
-    { role: "system", content: system },
-    { role: "user", content: userAfter },
-  ];
+const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, compactMemory = false): ChatMessage[] => [
+  { role: "system", content: systemText(contextModules, toolUsageFor(toolRegistry, turn.assembled.baseToolsIds)) },
+  { role: "user", content: userText({
+    contextModules, ledger, turn, memories, compactMemory,
+    toolUsage: toolUsageFor(toolRegistry, turn.assembled.toolIds),
+  }) },
+];
+
+// Every provider result crosses the same policy boundary before execution.
+// Providers parse transport data; only runtime decides which tools may run.
+const validateCompletion = (
+  raw: CompletionResult,
+  tools: Parameters<typeof checkToolCalls>[1],
+  baseToolsIds: string[],
+  toolIds: string[],
+) => {
+  const batch = checkToolCalls(raw.toolCalls, tools, baseToolsIds, toolIds);
+  const checks = raw.toolCalls.map((call) => ({
+    call,
+    check: checkToolCalls([call], tools, baseToolsIds, toolIds),
+  }));
+  const result: CompletionResult = raw.finish === "error" ? raw : {
+    ...raw,
+    ...batch,
+    parseOk: raw.parseOk,
+    ...(!raw.parseOk ? { faultCode: raw.faultCode, badName: raw.badName, detail: raw.detail, missing: raw.missing } : {}),
+  };
+  return { result, batch, checks,
+    validCalls: batch.faultCode === "exclusive_resident" ? [] : checks.filter(({ check }) => check.schemaOk).map(({ call }) => call),
+  };
 };
 
 const writeFault = (ledger: Ledger, turnId: string, result: CompletionResult) => {
@@ -126,48 +132,16 @@ const writeFault = (ledger: Ledger, turnId: string, result: CompletionResult) =>
   });
 };
 
-const persistMemory = (dataDir: string, ledger: Ledger, call: ToolCall) => {
-  const writeLayer = (layer: "turn" | "conversation" | "project", texts: string[]) => {
-    for (const text of texts) {
-      const memoryId = nextId("mm_", [
-        ...ledger.memoryIds.turn,
-        ...ledger.memoryIds.conversation,
-        ...ledger.memoryIds.project,
-      ]);
-      const record: MemoryRecord = {
-        memoryId,
-        layer,
-        text,
-        summary: text.slice(0, 40),
-        compressed: false,
-        createdAt: nowIso(),
-        sourceCallId: call.id,
-      };
-      saveMemory(dataDir, ledger.conversationId, record);
-      ledger.memoryIds[layer].push(memoryId);
-      appendEvent(dataDir, ledger.conversationId, {
-        kind: "memory",
-        data: { memoryId, layer, sourceCallId: call.id },
-      });
-    }
-  };
-  writeLayer("turn", asStringArray(call.arguments.turnMemory));
-  writeLayer("conversation", asStringArray(call.arguments.conversationMemory));
-  writeLayer("project", asStringArray(call.arguments.projectMemory));
-  const summary = asObject(call.arguments.contextSummary);
-  if (summary) ledger.contextSummary = summary;
-};
-
 const runQueue = async (input: {
   dataDir: string;
   ledger: Ledger;
   turn: Turn;
-  contextModules: ContextModules;
+  toolRegistry: ToolRegistry;
   content: string;
   browserNames: string[];
   host?: BrowserHost;
 }): Promise<TurnOutput | null> => {
-  const { dataDir, ledger, turn, contextModules, content, host, browserNames } = input;
+  const { dataDir, ledger, turn, toolRegistry, content, host, browserNames } = input;
   while (ledger.toolQueue.length) {
     const item = ledger.toolQueue.shift();
     if (!item) break;
@@ -179,7 +153,7 @@ const runQueue = async (input: {
     turn.usage ??= { modelRequests: 0, toolCalls: 0 };
     turn.usage.toolCalls += 1;
     saveTurn(dataDir, turn);
-    const full = await executeTool({
+    const execution = await executeTool({
       name: item.name,
       arguments: item.arguments,
       content,
@@ -188,15 +162,18 @@ const runQueue = async (input: {
       host,
       lookup: {
         toolIO: ledger.toolIO,
+        knownTools: Object.keys(toolRegistry.tools),
+        enabledTools: [...turn.assembled.toolIds, ...toolRegistry.toolGroups.baseToolsIds],
         fullReturn: (callId) => loadFullReturn(dataDir, ledger.conversationId, callId),
         observationFull: (observationId) =>
           loadObservation(dataDir, ledger.conversationId, observationId)?.full ?? null,
-        unusedTools: dynamicToolIds(contextModules).filter((id) => !turn.assembled.toolIds.includes(id)),
+        unusedTools: dynamicToolIds(toolRegistry).filter((id) => !turn.assembled.toolIds.includes(id)),
       },
     });
     if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
       return { kind: "error", faultCode: "stopped" };
     }
+    const full = execution.text;
     saveFullReturn(dataDir, ledger.conversationId, item.callId, full);
     const row: ToolIOItem = {
       ...item,
@@ -211,71 +188,8 @@ const runQueue = async (input: {
       turnId: turn.turnId,
       data: { callId: item.callId, name: item.name, arguments: item.arguments, return: row.return },
     });
-    try {
-      const parsed = JSON.parse(full) as { ok?: boolean; tab?: number; url?: string; title?: string; description?: string };
-      const page = pageFromBrowser(parsed);
-      if (page) turn.assembled.currentPage = page;
-    } catch {
-      // resident tools return plain text
-    }
-    if (item.name === "memory.write") {
-      persistMemory(dataDir, ledger, { id: item.callId, name: item.name, arguments: item.arguments });
-    }
-    if (item.name === "submitGoal") {
-      const goal = String(item.arguments.goal ?? "").trim();
-      if (goal && goal !== ledger.goal) {
-        if (ledger.goal) ledger.goalHistory.push(ledger.goal);
-        ledger.goal = goal;
-      }
-    }
-    if (item.name === "notes.write") {
-      const key = String(item.arguments.key ?? "").trim();
-      if (key) ledger.notes[key] = String(item.arguments.value ?? "");
-    }
-    if (item.name === "notes.delete") {
-      const key = String(item.arguments.key ?? "").trim();
-      if (key) delete ledger.notes[key];
-    }
-    if (item.name === "catalog.add") {
-      const names = asStringArray(item.arguments.names);
-      for (const name of names) {
-        if (turn.assembled.toolIds.includes(name)) continue;
-        if (!contextModules.tools[name]) continue;
-        if (contextModules.toolGroups.baseToolsIds.includes(name)) continue;
-        turn.assembled.toolIds.push(name);
-      }
-    }
-    if (item.name === "askUser") {
-      turn.status = "waiting_human";
-      turn.completedAt = nowIso();
-      turn.output = { kind: "ask", question: full };
-      ledger.status = "waiting_human";
-      ledger.pendingAsk = { turnId: turn.turnId, question: full };
-      ledger.active = { turnId: turn.turnId };
-      ledger.liveTool = null;
-      return turn.output;
-    }
-    if (item.name === "finishTurn") {
-      if (!full.trim()) {
-        ledger.toolQueue = [];
-        ledger.liveTool = null;
-        ledger.toolIO.push({
-          ...item,
-          turnId: turn.turnId,
-          return: clipReturn(runtimeMessages.emptyFinishTurn),
-        });
-        return null;
-      }
-      turn.status = "completed";
-      turn.completedAt = nowIso();
-      turn.output = { kind: "reply", text: full };
-      ledger.status = "idle";
-      ledger.active = null;
-      ledger.pendingAsk = null;
-      ledger.toolQueue = [];
-      ledger.liveTool = null;
-      return turn.output;
-    }
+    const output = applyToolEffects({ dataDir, ledger, turn, call: item, effects: execution.effects });
+    if (output) return output;
   }
   return null;
 };
@@ -300,6 +214,7 @@ export async function handleTurn(
     ledger.userInputHistory.push(last.input.text);
   }
   const contextModules = loadContextModules(deps.repoRoot);
+  const toolRegistry = loadToolRegistry(deps.repoRoot);
   const turnId = nextId("tn_", ledger.turnIds);
   const turn: Turn = {
     turnId,
@@ -308,7 +223,7 @@ export async function handleTurn(
     createdAt: nowIso(),
     completedAt: null,
     input: { text: body.userInput, submittedAt: body.submittedAt },
-    assembled: assemble(contextModules),
+    assembled: assemble(toolRegistry),
     output: null,
     usage: { modelRequests: 0, toolCalls: 0 },
   };
@@ -345,8 +260,16 @@ export async function handleTurn(
   let submitFails = 0;
   while (true) {
     if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
-    const messages = messagesOf(contextModules, ledger, turn, deps.dataDir);
-    const tools = toolSchemas(contextModules, [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds]);
+    const memories = loadMemories(deps.dataDir, ledger);
+    let messages = messagesOf(contextModules, toolRegistry, ledger, turn, memories);
+    const initialChars = windowChars(messages[0]!.content, messages[1]!.content);
+    if (initialChars >= ledger.compressAt) {
+      archiveToolHistory({ dataDir: deps.dataDir, ledger, windowChars: initialChars });
+      messages = messagesOf(contextModules, toolRegistry, ledger, turn, memories, true);
+    }
+    ledger.windowChars = windowChars(messages[0]!.content, messages[1]!.content);
+    saveLedger(deps.dataDir, ledger);
+    const tools = toolSchemas(toolRegistry, [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds]);
     turn.usage!.modelRequests += 1;
     saveTurn(deps.dataDir, turn);
     appendEvent(deps.dataDir, ledger.conversationId, {
@@ -354,13 +277,14 @@ export async function handleTurn(
       turnId,
       data: { windowChars: ledger.windowChars, toolIds: [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds], usage: { ...turn.usage } },
     });
-    const result = await deps.provider.complete({
+    const rawResult = await deps.provider.complete({
       messages,
       tools,
-      baseToolsIds: turn.assembled.baseToolsIds,
-      toolIds: turn.assembled.toolIds,
     });
     if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
+    const { result, batch: batchCheck, checks, validCalls } = validateCompletion(
+      rawResult, tools, turn.assembled.baseToolsIds, turn.assembled.toolIds,
+    );
     const toolIds = [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds];
     appendProviderExchange(deps.dataDir, ledger.conversationId, {
       turnId,
@@ -424,15 +348,12 @@ export async function handleTurn(
       } else {
         writeFault(ledger, turnId, result);
       }
-      const batchCheck = checkToolCalls(result.toolCalls, tools, turn.assembled.baseToolsIds, turn.assembled.toolIds);
-      const validCalls = result.toolCalls.filter((call) => {
-        if (batchCheck.faultCode === "exclusive_resident") return false;
-        const check = checkToolCalls([call], tools, turn.assembled.baseToolsIds, turn.assembled.toolIds);
+      for (const { call, check } of checks) {
+        if (batchCheck.faultCode === "exclusive_resident") break;
         if (!check.schemaOk && (result.toolCallFaults?.length || call.name !== result.badName)) {
           writeFault(ledger, turnId, { ...result, ...check, toolCalls: [call] });
         }
-        return check.schemaOk;
-      });
+      }
       if (!result.parseOk && batchCheck.faultCode === "exclusive_resident") {
         writeFault(ledger, turnId, { ...result, ...batchCheck });
       }
@@ -446,12 +367,12 @@ export async function handleTurn(
           dataDir: deps.dataDir,
           ledger,
           turn,
-          contextModules,
+          toolRegistry,
           content: result.content,
-          browserNames: contextModules.index.browser,
+          browserNames: toolRegistry.index.browser,
           host,
         });
-        if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
+        if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId, ledger.status)) return stoppedReply(ledger, turn);
         saveTurn(deps.dataDir, turn);
         saveLedger(deps.dataDir, ledger);
         if (closed) {
@@ -521,12 +442,12 @@ export async function handleTurn(
       dataDir: deps.dataDir,
       ledger,
       turn,
-      contextModules,
+      toolRegistry,
       content: result.content,
-      browserNames: contextModules.index.browser,
+      browserNames: toolRegistry.index.browser,
       host,
     });
-    if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
+    if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId, ledger.status)) return stoppedReply(ledger, turn);
     saveTurn(deps.dataDir, turn);
     saveLedger(deps.dataDir, ledger);
     if (closed) {

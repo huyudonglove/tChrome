@@ -90,7 +90,7 @@ body 四个键：`model`、`messages`、`tools`、`stream`。
 ```json
 {
   "model": "gemini-3.7-flash",
-  "stream": true,
+  "stream": false,
   "messages": [
     {
       "role": "system",
@@ -105,11 +105,11 @@ body 四个键：`model`、`messages`、`tools`、`stream`。
 }
 ```
 
-SDK 写法：`client.chat.completions.create({ model, messages, tools, stream: true })`。不是 Responses，不是扩展直连 UUAPI。
+SDK 写法：`client.chat.completions.create({ model, messages, tools, stream: false })`。不是 Responses，不是扩展直连 UUAPI。
 
-## 流式
+## JSON 响应
 
-`stream: true`。响应是 SSE：每行 `data: {chunk}`，最后 `data: [DONE]`。Provider 把分片拼成一份交口，字段见 05。中途断了当这次失败，整单重试，不从半截续。
+`stream: false`。响应是一份完整的 Chat Completions JSON；Provider 读取 `choices[0].message` 和 `finish_reason`，解析工具参数后交给 Runtime，字段见 05。网络中断、无 choices 或响应无法解析时，按传输失败规则重试同一请求。
 
 ## 兜底重试
 
@@ -121,7 +121,7 @@ SDK 写法：`client.chat.completions.create({ model, messages, tools, stream: t
 | 不重试 | 4xx（除 429）、key 无效、请求体不合法                         |
 | 间隔   | 失败后等 1s 再打；第 3 次仍失败 → `finish=error` 交给 Runtime |
 
-已收到完整 `[DONE]` 不算失败，不重试。
+完整响应成功解析后交给 Runtime；工具参数或 schema 校验失败由工具反馈流程处理，不作为传输重试。
 
 ### `messages[0]` system
 
@@ -878,7 +878,7 @@ affectsPage=false。
   ],
   "provider": "uuapi",
   "model": "gemini-3.7-flash",
-  "stream": true,
+  "stream": false,
   "maxAttempts": 3,
   "currentTab": {
     "tab": 12,

@@ -1,7 +1,6 @@
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { parseToolArguments } from "../tools/arguments.ts";
-import { checkToolCalls } from "../tools/schema.ts";
 import type { ChatMessage, ChatTool, CompletionResult, ToolCall, ToolCallFault } from "../types.ts";
 
 const MODEL = "gemini-3.8-flash";
@@ -105,8 +104,6 @@ export function createProvider(config: ProviderConfig = {}) {
     complete: async (input: {
       messages: ChatMessage[];
       tools: ChatTool[];
-      baseToolsIds: string[];
-      toolIds: string[];
     }): Promise<CompletionResult> => {
       let lastError: unknown;
       let attempts = 0;
@@ -142,13 +139,15 @@ export function createProvider(config: ProviderConfig = {}) {
               missing: [],
             };
           }
-          const check = checkToolCalls(parsed.toolCalls, input.tools, input.baseToolsIds, input.toolIds);
           return {
             finish: "tool_calls",
             content,
             toolCalls: parsed.toolCalls,
             attempts: attempt,
-            ...check,
+            parseOk: true,
+            schemaOk: true,
+            faultCode: null,
+            missing: [],
           };
         } catch (error) {
           lastError = error;

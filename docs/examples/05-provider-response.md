@@ -1,16 +1,16 @@
 # 05 Provider 传出
 
-读 04 的写出。记录这一次 UUAPI **传出**：先 SSE 原文，再收成 Runtime 认的交口。
+读 04 的写出。记录这一次 UUAPI **传出**：先完整 JSON 响应，再转成 Runtime 认的交口。
 
 怎么看：
-- 「读到的」是 04 写出的原样（`stream=true`，最多 3 次）
-- 「SSE 原文」是 `stream: true` 时一行行 `data:`
-- 「模型交口」是 Provider 把分片拼完、JSON.parse 参数之后，Runtime 只认这份
+- 「读到的」是 04 写出的原样（`stream=false`，最多 3 次）
+- 「JSON 响应」是 `stream: false` 返回的完整 Chat Completions 对象
+- 「模型交口」是 Provider 读取 message、解析工具参数之后，Runtime 只认这份
 - 「写出的」累积快照追加 `finish` `content` `toolCalls` `attempts` `parseOk` `schemaOk` `faultCode` `missing`
 
 作者是 Provider。不跑工具、不落盘。`usage` / 响应 `id` / `object` 不进交口。
 
-本轮第 1 次就收到完整 `[DONE]`，交 `web_search`，不交 `askUser`。
+本轮第 1 次就收到完整 JSON 响应，交 `web_search`，不交 `askUser`。
 
 ## 读到的（04 写出的）
 
@@ -71,7 +71,7 @@
   ],
   "provider": "uuapi",
   "model": "gemini-3.7-flash",
-  "stream": true,
+  "stream": false,
   "maxAttempts": 3,
   "currentTab": {
     "tab": 12,
@@ -81,41 +81,39 @@
 }
 ```
 
-## SSE 原文
+## JSON 响应
 
-`stream: true` 时没有整份 JSON body，是：
+`stream: false` 返回完整 JSON，Provider 读取第一项 `choices[0]`：
 
+```json
+{
+  "id": "chatcmpl_01",
+  "object": "chat.completion",
+  "model": "gemini-3.7-flash",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "seen\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web_search，查询罗技 MX Master 3S 官网价。",
+        "tool_calls": [
+          {
+            "id": "call_01",
+            "type": "function",
+            "function": {
+              "name": "web_search",
+              "arguments": "{\"reason\": \"当前页已确认是目标商品，需要官网价来核对标价。\", \"affectsPage\": false, \"query\": \"罗技 MX Master 3S 官网 价格\"}"
+            }
+          }
+        ]
+      },
+      "finish_reason": "tool_calls"
+    }
+  ]
+}
 ```
-data: {chunk}
 
-data: {chunk}
-
-data: [DONE]
-```
-
-本轮四次分片（content 三段 → 工具名 → 参数字符串 → finish），然后 DONE：
-
-```
-data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"seen\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web_search，查询罗技 MX Master 3S 官网价。"},"finish_reason":null}]}
-
-data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_01","type":"function","function":{"name":"web_search","arguments":""}}]},"finish_reason":null}]}
-
-data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"reason\": \"当前页已确认是目标商品，需要官网价来核对标价。\", \"affectsPage\": false, \"query\": \"罗技 MX Master 3S 官网 价格\"}"}}]},"finish_reason":null}]}
-
-data: {"id":"chatcmpl_01","object":"chat.completion.chunk","model":"gemini-3.7-flash","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
-
-data: [DONE]
-```
-
-| 分片 | 带来什么 |
-|---|---|
-| 第 1 片 | `delta.content` = observation / reason / action 三段 |
-| 第 2 片 | `tool_calls[0].id` = `call_01`，`function.name` = `web_search` |
-| 第 3 片 | `function.arguments` 追加 JSON **字符串** |
-| 第 4 片 | `finish_reason` = `tool_calls` |
-| `[DONE]` | 流结束。没收到这一行 = 这次失败，整单重试 |
-
-中途断开不当半截成功。拼起来的 `arguments` 字符串再 `JSON.parse` 成对象。`content` 按 system `#output` 拼三段，不进 Ajv。
+`message.content` 保留模型正文，`message.tool_calls` 提供完整调用数组。`function.arguments` 是 JSON 字符串，Provider 使用参数解析器转成对象；正文不进入 Ajv。缺少 choices 或无法解析响应按传输失败处理。
 
 ## 容错
 
@@ -125,7 +123,7 @@ data: [DONE]
 
 ### A. 线路失败（同一 body 再打，最多 3 次）
 
-网络 / 超时 / 5xx / 429 / 流被掐 / SSE 某条 `data:` 不是 JSON。不经过模型。
+网络 / 超时 / 5xx / 429 / 响应 JSON 无法解析 / 缺少 choices。4xx（除 429）不重试；可重试失败间隔 1 秒，最多 3 次。
 
 ### B. 工具提交失败（把错误类型回给模型再交，同一 turn 最多 3 次）
 
@@ -156,7 +154,7 @@ data: [DONE]
 
 `arguments_not_json` 时没有对象可查缺，`missing` 为 `[]`，`detail` 写 parse 报错原文。
 
-落地查缺用 **Ajv** 对 `context/tools/<name>.json` 的 `function.parameters`。解析在 `service/tools/arguments.ts`：对象原样用，字符串 `JSON.parse`，围栏 / 尾逗号 / 单引号只修外壳。缺字段、类型错不补，faultCode 回给模型再交。
+所有 provider 返回均经过 `service/runtime/loop.ts` 的 `validateCompletion`，由它调用 `service/tools/schema.ts` 完成统一策略校验，不因接入方式不同而绕过检查。落地查缺用 **Ajv** 对 `tools/<name>.json` 的 `function.parameters`。解析在 `service/tools/arguments.ts`：对象原样用，字符串 `JSON.parse`，围栏 / 尾逗号 / 单引号只修外壳。缺字段、类型错不补，faultCode 回给模型再交。
 
 本轮一次过：
 
@@ -177,13 +175,13 @@ data: [DONE]
 
 ## 模型交口（解析后）
 
-| SSE | → 交口 |
+| JSON 响应 | → 交口 |
 |---|---|
-| 最后一片 `finish_reason` | `finish` |
-| 各片 `delta.content` 拼起来 | `content` = observation / reason / action 三段 |
-| 第 1 片 `tool_calls[].id` | `toolCalls[].id` |
-| 第 1 片 `function.name` | `toolCalls[].name` |
-| 各片 `function.arguments` 字符串拼接后 JSON.parse | `toolCalls[].arguments` 对象 |
+| `choices[0].finish_reason` | `finish` |
+| `choices[0].message.content` | `content` 原文 |
+| `message.tool_calls[].id` | `toolCalls[].id` |
+| `message.tool_calls[].function.name` | `toolCalls[].name` |
+| `message.tool_calls[].function.arguments` 经参数解析器解析 | `toolCalls[].arguments` 对象 |
 
 ```json
 {
@@ -281,7 +279,7 @@ data: [DONE]
   ],
   "provider": "uuapi",
   "model": "gemini-3.7-flash",
-  "stream": true,
+  "stream": false,
   "maxAttempts": 3,
   "finish": "tool_calls",
   "content": "seen\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web_search，查询罗技 MX Master 3S 官网价。",

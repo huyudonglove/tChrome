@@ -6,8 +6,8 @@ import type { ChatTool } from "../types.ts";
 
 const run = (name: string, args: ExecuteInput["arguments"], content = "") => executeTool({
   name, arguments: args, content, dataDir: "", browserNames: [],
-  lookup: { toolIO: [], fullReturn: () => null, observationFull: () => null, unusedTools: [] },
-});
+  lookup: { toolIO: [], fullReturn: () => null, observationFull: () => null, unusedTools: [], knownTools: [], enabledTools: [] },
+}).then((result) => result.text);
 
 test("finishTurn uses explicit text when provider content is empty", async () => {
   expect(await run("finishTurn", { text: "已找到三项结果。" })).toBe("已找到三项结果。");
@@ -28,12 +28,12 @@ test("legacy closing calls retain action fallback", async () => {
   expect(await run("finishTurn", {}, "seen\n页面已读\nreason\n完成\naction\n旧版回复")).toBe("旧版回复");
   expect(await run("askUser", { choice: ["是", "否"] }, "action\n是否继续？")).toBe("是否继续？\n选项：是 / 否");
   expect(await run("finishTurn", { text: "  " }, "action\n兼容回复")).toBe("兼容回复");
-  expect(await run("finishTurn", {})).toBe("");
+  expect(await run("finishTurn", {})).toContain("finishTurn 的回复为空");
 });
 
 test.each([{ name: "finishTurn", field: "text" }, { name: "askUser", field: "question" }])(
   "$name schema requires a nonblank user-facing message", ({ name, field }) => {
-    const tool = JSON.parse(readFileSync(new URL(`../../context/tools/${name}.json`, import.meta.url), "utf8")) as ChatTool;
+    const tool = JSON.parse(readFileSync(new URL(`../../tools/${name}.json`, import.meta.url), "utf8")) as ChatTool;
     const check = (args: ExecuteInput["arguments"]) => checkToolCalls([
       { id: "closing", name, arguments: { reason: "完成当前步骤", affectsPage: false, choice: [], ...args } },
     ], [tool], [name], []);

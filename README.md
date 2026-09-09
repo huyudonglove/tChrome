@@ -43,7 +43,7 @@ tChrome 运行在 Chrome 侧边栏。它不要求用户预先画好流程，而�
 
 本机保存会话账本、每轮状态、模型请求与回复、工具参数和返回结果。模型可以写入工作笔记及 turn / conversation / project 三层记忆；当前 project 记忆仍按会话保存，并非跨会话共享。
 
-上下文达到 200,000 字符阈值时触发压缩处理，较早工具记录和记忆转为摘要，详细结果可以回查。
+上下文达到 200,000 字符阈值时，Runtime 将较早工具记录归档为可回查的 observation，并保留最近两条 toolIO。Context 每层只投影最近 8 条记忆，超阈值时对 turn / conversation 使用摘要，project 不做摘要压缩。完整记忆及其 ID、已加载工具 ID 保持不变。
 
 ## 架构
 
@@ -53,7 +53,7 @@ Chrome Side Panel（React + TypeScript）
               ▼
 本机 Bun 服务（127.0.0.1:18788）
   Runtime ── Prompt / Context ── Provider ── UUAPI
-      │                           Chat Completions + SSE
+      │                           Chat Completions + JSON
       │ 工具请求与结果
       ▼
 Chrome Background Worker ── 浏览器工具 ── 网页
@@ -133,12 +133,14 @@ bun run service
 ## 目录
 
 ```text
-extension/          Chrome 侧栏、后台 worker、浏览器工具
+extension/          Chrome 侧栏和后台 worker
+  tools/            浏览器工具实现及测试
 service/
-  runtime/          Agent 循环、账本、存储、压缩和浏览器桥
-  context/          上下文窗口
-  tools/            参数处理、schema 校验和工具执行
-  provider/         UUAPI 模型接入
+  runtime/          Agent 循环、账本、存储、工具证据归档和浏览器桥
+  context/          模块加载、纯窗口投影与记忆展示裁剪
+  tools/            工具注册表、参数处理、schema 校验和工具执行
+  provider/         模型通信、传输重试与响应解析
+  presentation/     会话消息、错误文案和列表展示投影
   subagent/         预留
 context/            人类总目录见 context/README.md；清单是唯一模块顺序来源
   system/           固定规则与常驻工具插槽，每槽独立文件
@@ -146,8 +148,8 @@ context/            人类总目录见 context/README.md；清单是唯一模块
   system-slots.md   system 插槽职责与顺序清单
   user-slots.md     user 插槽职责与顺序清单
   skills/           网页能力与操作方法
-  tools/            工具定义；groups.json 管加载分组，index.json 管分类
   README.md         人类维护入口，不进入模型窗口
+tools/              工具 schema；groups.json 管加载分组，index.json 管分类
 docs/               数据协议和分阶段示例
 scripts/            扩展构建脚本
 ```
@@ -176,5 +178,7 @@ scripts/            扩展构建脚本
 - [分阶段数据示例](docs/examples/01-normalize.md)
 - [服务说明](service/README.md)
 - [扩展说明](extension/README.md)
+
+Provider 负责模型通信、重试和响应解析。所有接入返回均由 `service/runtime/loop.ts` 的 `validateCompletion` 统一调用 `service/tools/schema.ts`，按当前工具 schema 检查参数、工具名和收口工具顺序，再由运行循环推进状态。工具定义由 `service/tools/registry.ts` 读取，Context 仅接收工具说明并装配窗口。`presentation/` 的纯函数负责会话展示，存储层读取数据后调用投影，保留持久化和命令职责。
 
 运行提示独立维护在 `service/runtime/messages.json`，由运行层按需写入工具记录。

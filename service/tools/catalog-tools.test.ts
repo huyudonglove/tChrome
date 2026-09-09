@@ -1,18 +1,18 @@
 import { expect, test } from "bun:test";
 import { join } from "node:path";
-import { loadContextModules, toolSchemas } from "../context/modules.ts";
+import { loadToolRegistry, toolSchemas } from "./registry.ts";
 import { parseToolArguments } from "./arguments.ts";
 import { checkToolCalls } from "./schema.ts";
 
 const repoRoot = join(import.meta.dir, "../..");
 
 test("每个工具有 schema，reason 和 affectsPage 都在 required", () => {
-  const contextModules = loadContextModules(repoRoot);
-  const listed = [...contextModules.index.browser, ...contextModules.index.service, ...contextModules.toolGroups.baseToolsIds];
+  const registry = loadToolRegistry(repoRoot);
+  const listed = [...registry.index.browser, ...registry.index.service, ...registry.toolGroups.baseToolsIds];
   const unique = [...new Set(listed)];
   expect(unique.length).toBeGreaterThan(20);
   for (const name of unique) {
-    const tool = contextModules.tools[name];
+    const tool = registry.tools[name];
     expect(tool, name).toBeTruthy();
     if (!tool) continue;
     const params = tool.function.parameters as {
@@ -24,17 +24,17 @@ test("每个工具有 schema，reason 和 affectsPage 都在 required", () => {
     expect(params.required ?? [], `${name} required`).toContain("reason");
     expect(params.required ?? [], `${name} required`).toContain("affectsPage");
     expect(tool.function.name).toBe(name);
-    expect(contextModules.tools[name]?.function.description, `${name} usage`).toBeTruthy();
+    expect(registry.tools[name]?.function.description, `${name} usage`).toBeTruthy();
   }
-  for (const name of contextModules.toolGroups.coreToolIds) {
-    expect(contextModules.tools[name], `core ${name}`).toBeTruthy();
+  for (const name of registry.toolGroups.coreToolIds) {
+    expect(registry.tools[name], `core ${name}`).toBeTruthy();
   }
 });
 
 test("core 工具 schema 带上用法里的必填入参", () => {
-  const contextModules = loadContextModules(repoRoot);
+  const registry = loadToolRegistry(repoRoot);
   const requiredOf = (name: string) => {
-    const params = contextModules.tools[name]?.function.parameters as { required?: string[] };
+    const params = registry.tools[name]?.function.parameters as { required?: string[] };
     return params.required ?? [];
   };
   expect(requiredOf("page.click")).toContain("id");
@@ -47,16 +47,16 @@ test("core 工具 schema 带上用法里的必填入参", () => {
 });
 
 test("缺字段和类型错走 Ajv，不补齐", () => {
-  const contextModules = loadContextModules(repoRoot);
+  const registry = loadToolRegistry(repoRoot);
   const ids = ["page.type", "finishTurn"];
-  const tools = toolSchemas(contextModules, ids);
+  const tools = toolSchemas(registry, ids);
   const parsed = parseToolArguments('{"id":"e1","text":"a@b.com",}');
   expect(parsed.ok).toBe(true);
   if (!parsed.ok) return;
   const missing = checkToolCalls(
     [{ id: "call_01", name: "page.type", arguments: parsed.value }],
     tools,
-    contextModules.toolGroups.baseToolsIds,
+    registry.toolGroups.baseToolsIds,
     ids,
   );
   expect(missing).toEqual({
@@ -70,7 +70,7 @@ test("缺字段和类型错走 Ajv，不补齐", () => {
   const wrong = checkToolCalls(
     [{ id: "call_02", name: "page.type", arguments: { reason: "填", affectsPage: true, id: "e1", text: 12 as unknown as string } }],
     tools,
-    contextModules.toolGroups.baseToolsIds,
+    registry.toolGroups.baseToolsIds,
     ids,
   );
   expect(wrong.faultCode).toBe("wrong_type");

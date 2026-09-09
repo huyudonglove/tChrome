@@ -6,7 +6,7 @@ import { createProvider } from "./uuapi.ts";
 import { handleTurn } from "../runtime/loop.ts";
 import { loadLedger } from "../runtime/store.ts";
 
-const input = { messages: [], tools: [], baseToolsIds: [], toolIds: [] };
+const input = { messages: [], tools: [] };
 const providerFor = (port: number) => createProvider({ apiKey: "local-test", baseURL: `http://127.0.0.1:${port}/v1`, proxy: "" });
 const call = (id: string, name: string, args: string) => ({ id, type: "function", function: { name, arguments: args } });
 const sse = (calls: ReturnType<typeof call>[], content = "") => Response.json({
@@ -64,3 +64,35 @@ test("真实 Provider 到 Runtime：多个坏调用留账，合法兄弟照跑",
     expect(requests).toBe(2);
   } finally { server.stop(true); rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("provider returns parsed calls without enforcing runtime tool policy", async () => {
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => sse([
+    call("unknown", "not_registered", "{}"),
+  ]) });
+  try {
+    const result = await providerFor(server.port!).complete(input);
+    expect(result.parseOk).toBe(true);
+    expect(result.toolCalls[0]?.name).toBe("not_registered");
+    expect(result.faultCode).toBeNull();
+  } finally { server.stop(true); }
+});
+
+for (const policy of ["unknown_tool", "missing_required", "exclusive_resident"]) {
+  test(`runtime enforces ${policy} for normally parsed provider responses`, async () => {
+    const dir = mkdtempSync(join(tmpdir(), "tchrome-runtime-policy-"));
+    let requests = 0;
+    const valid = call("valid", "notes.write", JSON.stringify({ reason: "test", affectsPage: false, key: "kept", value: "yes" }));
+    const done = call("done", "finishTurn", JSON.stringify({ reason: "done", affectsPage: false, text: "完成" }));
+    const bad = policy === "exclusive_resident" ? done : call("invalid", policy === "unknown_tool" ? "not_registered" : "notes.write", "{}");
+    const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => sse(++requests === 1 ? [bad, valid] : [done]) });
+    try {
+      const reply = await handleTurn({ dataDir: dir, repoRoot: resolve(import.meta.dir, "../.."), provider: providerFor(server.port!) },
+        { userInput: "测试", submittedAt: "now" });
+      expect(reply.output).toEqual({ kind: "reply", text: "完成" });
+      const ledger = loadLedger(dir, reply.conversationId);
+      expect(ledger.notes.kept).toBe(policy === "exclusive_resident" ? undefined : "yes");
+      expect(ledger.toolIO.some((row) => row.return.text.includes(policy))).toBe(true);
+      expect(requests).toBe(2);
+    } finally { server.stop(true); rmSync(dir, { recursive: true, force: true }); }
+  });
+}

@@ -7,14 +7,16 @@ import { createServer } from "./server.ts";
 import { createProvider } from "./provider/uuapi.ts";
 import { createToolBridge } from "./runtime/bridge.ts";
 import { stopTurn, emptyLedger, loadEvents, loadLedger, loadMemory, loadProviderLog, loadSession, loadTurn, saveLedger, saveTurn, sessionView } from "./runtime/store.ts";
+import { loadToolRegistry, toolUsageFor } from "./tools/registry.ts";
 import { loadContextModules } from "./context/modules.ts";
 import { systemText, userText } from "./context/window.ts";
-import { maybeCompress } from "./runtime/compress.ts";
+import { archiveToolHistory } from "./runtime/compress.ts";
 import type { CompletionResult, Provider } from "./types.ts";
 
 const repoRoot = join(import.meta.dir, "..");
 
-const ok = (partial: Partial<CompletionResult> & Pick<CompletionResult, "finish">): CompletionResult => ({
+const ok = (partial: Partial<CompletionResult> & Pick<CompletionResult, "finish">): CompletionResult => {
+  const value: CompletionResult = {
   content: "seen\n已收到\nreason\n收口\naction\n你好",
   toolCalls: [],
   attempts: 1,
@@ -23,7 +25,14 @@ const ok = (partial: Partial<CompletionResult> & Pick<CompletionResult, "finish"
   faultCode: null,
   missing: [],
   ...partial,
-});
+};
+  const action = value.content.match(/(?:^|\n)action\n([\s\S]*)$/i)?.[1]?.trim() ?? "";
+  value.toolCalls = value.toolCalls.map((call) => ({ ...call, arguments: {
+    ...(call.name === "finishTurn" ? { text: action } : call.name === "askUser" ? { question: action } : {}),
+    ...call.arguments,
+  } }));
+  return value;
+};
 
 const mock = (results: CompletionResult[]): Provider => {
   let i = 0;
@@ -39,12 +48,13 @@ const mock = (results: CompletionResult[]): Provider => {
 
 test("窗口按上下文栏目清单插值", async () => {
   const contextModules = loadContextModules(repoRoot);
-  expect(contextModules.toolGroups.baseToolsIds).toContain("notes.write");
-  expect(contextModules.toolGroups.baseToolsIds).toContain("notes.delete");
+  const toolRegistry = loadToolRegistry(repoRoot);
+  expect(toolRegistry.toolGroups.baseToolsIds).toContain("notes.write");
+  expect(toolRegistry.toolGroups.baseToolsIds).toContain("notes.delete");
   expect(contextModules.userInventory).toContain("#notes");
   expect(contextModules.userInventory).toContain("#goal");
   expect(contextModules.userInventory).toContain("#goalHistory");
-  expect(contextModules.toolGroups.coreToolIds).toContain("page.get_summary");
+  expect(toolRegistry.toolGroups.coreToolIds).toContain("page.get_summary");
   expect(contextModules.systemInventory).toContain("#baseTools");
   expect(contextModules.userInventory).not.toContain("#baseTools");
   expect(contextModules.userInventory).toContain("#tools");
@@ -55,7 +65,7 @@ test("窗口按上下文栏目清单插值", async () => {
   expect(contextModules.userInventory).not.toContain("#currentEnvironment");
   expect(contextModules.systemInventory).not.toContain("#skill");
   expect(contextModules.systemInventory).not.toContain("#sop");
-  const system = systemText(contextModules);
+  const system = systemText(contextModules, toolUsageFor(toolRegistry, toolRegistry.toolGroups.baseToolsIds));
   expect(system).toContain("#identity");
   expect(system).toContain("tChrome");
   expect(system).toContain("参考材料");
@@ -470,7 +480,7 @@ test("catalog.add 把缺的工具挂进本轮", async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("到门槛时先裁 toolIds 再压缩记忆", async () => {
+test("归档历史工具结果保留工具能力、记忆索引和原始记忆", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-compress-"));
   const provider = mock([
     ok({
@@ -503,17 +513,19 @@ test("到门槛时先裁 toolIds 再压缩记忆", async () => {
   const turn = loadTurn(dir, "cv_01", reply.turnId);
   turn.assembled.toolIds = ["see_page", "web_search", "screenshot", "cookies_get"];
   ledger.compressAt = 1;
-  maybeCompress({
+  const memoryIdsBefore = structuredClone(ledger.memoryIds);
+  ledger.toolIO.unshift({ callId: "call_old", name: "web_search", turnId: turn.turnId, arguments: {}, return: { stage: "complete", text: "旧证据", totalChars: 3 } });
+  archiveToolHistory({
     dataDir: dir,
     ledger,
-    turn,
-    contextModules: loadContextModules(repoRoot),
-    coreToolIds: ["see_page", "web_search"],
     windowChars: 200000,
   });
-  expect(turn.assembled.toolIds).toEqual(["see_page", "web_search"]);
-  expect(loadMemory(dir, "cv_01", ledger.memoryIds.turn[0]!).compressed).toBe(true);
-  expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).compressed).toBe(true);
+  expect(turn.assembled.toolIds).toEqual(["see_page", "web_search", "screenshot", "cookies_get"]);
+  expect(ledger.memoryIds).toEqual(memoryIdsBefore);
+  expect(ledger.toolIO).toHaveLength(2);
+  expect(ledger.observation.at(-1)?.sourceCallIds).toEqual(["call_old"]);
+  expect(loadMemory(dir, "cv_01", ledger.memoryIds.turn[0]!).compressed).toBe(false);
+  expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).compressed).toBe(false);
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.project[0]!).compressed).toBe(false);
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.turn[0]!).text).toBe("本轮用户要查鼠标价");
   const events = loadEvents(dir, "cv_01");
@@ -529,7 +541,7 @@ test("队列和正在跑的工具出现在 /session", () => {
   ledger.turnIds = ["tn_01"];
   ledger.liveTool = { name: "see_page", callId: "call_01" };
   ledger.toolQueue = [
-    { callId: "call_01", name: "see_page", arguments: { reason: "看当前页", affectsPage: false } },
+    { callId: "call_01", name: "page.get_summary", arguments: { reason: "看当前页", affectsPage: false } },
     { callId: "call_02", name: "click", arguments: { reason: "点分类", affectsPage: true } },
   ];
   ledger.toolIO = [
@@ -579,7 +591,7 @@ test("POST /stop 把 running 标成 paused", async () => {
     ok({
       finish: "tool_calls",
       content: "seen\n读页\nreason\n看\naction\nsee_page",
-      toolCalls: [{ id: "call_01", name: "see_page", arguments: { reason: "看当前页", affectsPage: false } }],
+      toolCalls: [{ id: "call_01", name: "page.get_summary", arguments: { reason: "看当前页", affectsPage: false } }],
     }),
   ]);
   const server = createServer({ dataDir: dir, repoRoot, provider, host });

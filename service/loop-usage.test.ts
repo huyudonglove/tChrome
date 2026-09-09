@@ -92,13 +92,13 @@ test("three consecutive invalid submissions still stop without executing invalid
   });
 });
 
-test("legacy empty finishTurn stops after three attempts instead of looping", async () => {
+test("finishTurn missing required text is rejected before execution three times", async () => {
   const emptyFinish = () => result({ toolCalls: [call("empty_finish", "finishTurn")] });
   await run([emptyFinish(), emptyFinish(), emptyFinish(), finish()], ({ reply, turn, ledger, modelRequests, browserCalls }) => {
-    expect(reply.output).toEqual({ kind: "error", faultCode: "empty_finish_turn" });
+    expect(reply.output).toEqual({ kind: "error", faultCode: "missing_required" });
     expect(ledger.status).toBe("failed");
     expect(modelRequests).toBe(3);
     expect(browserCalls).toEqual([]);
-    expect(turn.usage).toEqual({ modelRequests: 3, toolCalls: 3 });
+    expect(turn.usage).toEqual({ modelRequests: 3, toolCalls: 0 });
   });
 });

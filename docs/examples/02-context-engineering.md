@@ -29,7 +29,7 @@
 | 选什么 | 干什么 | 本轮选中 |
 |---|---|---|
 | `baseToolsIds` | 常驻工具，每轮都出网 | `askUser` `finishTurn` `submitGoal` `tool.detail` `observation.detail` `memory.write` `notes.write` `notes.delete` |
-| `toolIds` | 动态工具，本轮才挂 | 开 Turn 先挂 core。本样例：`page.get_summary` `open_url` `web_search`。全表见 `context/tools/index.json`，缺了 `catalog.add` |
+| `toolIds` | 动态工具，本轮才挂 | 开 Turn 先挂 core。本样例：`page.get_summary` `open_url` `web_search`。全表见 `tools/index.json`，缺了 `catalog.add` |
 | `turnMemoryIds` | 这一轮记忆 | 新会话空 |
 | `conversationMemoryIds` | 这一次会话记忆 | 新会话空 |
 | `projectMemoryIds` | 项目记忆 | 新会话空 |
@@ -42,7 +42,7 @@
 
 见 `docs/schema.md`「阶段快照」`context-engineering-input` 和「assembled」。
 
-出网 `tools[]` = `baseToolsIds` + `toolIds`，按名取 `context/tools/<id>.json`。
+出网 `tools[]` = `baseToolsIds` + `toolIds`，按名取 `tools/<id>.json`。
 
 ## 写出的
 

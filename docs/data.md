@@ -145,12 +145,12 @@ Runtime 独占维护。当前会话指针。字段见 schema「ledger.json」。
 ## 循环
 
 1. 用户一句话 → `POST /turn` `{userInput, submittedAt, currentTab?}`。Runtime 读 `session.json`，没有 `conversationId` 就建 `cv_` 并写入。新 Turn。Runtime 把上一 Turn 的 `userInput` 追加进 ledger.`userInputHistory`。CE 装配一次。`currentTab` 开 Turn 由 Runtime 写入（标题和链接），进 `#currentTab`。`currentPage` 开 Turn 为 `null`。LLM 交工具。模型调 `page.get_summary` 后 Runtime 才填 `currentPage`，进 `#currentPage`。
-2. 模型一次出网可交多个 `toolCalls`。Runtime 按数组顺序写入 ledger.`toolQueue`。任务队列按这个顺序执行。
+2. 模型一次出网可交多个 `toolCalls`。所有 provider 返回均通过统一参数/schema 与批次顺序校验，Runtime 按数组顺序写入 ledger.`toolQueue`。任务队列按这个顺序执行。
 3. 队列每跑完一条，把 `{callId, name, arguments, return}` 追加到 ledger.`toolIO` 末尾，并从队列弹出。
 4. `askUser` → ledger.`status=waiting_human`。用户下一条输入开新 Turn（走步骤 1）。
 5. 动态工具 / `tool.detail` / `observation.detail` → 队列清空后还在本 Turn 里再出网：插槽沿用这次装配，只更新 `#toolIO`。
 6. `memory.write` → Runtime 落盘，ID 挂到 ledger.`memoryIds`。队列清空后再出网时，对应 user 槽带上刚落下的内容。
 7. `finishTurn` → 本 Turn `status=completed`，ledger.`status=idle`，`active=null`。用户下一句话开新 Turn 时写入 `userInputHistory`，走步骤 1。
-8. 开 Turn 装配后、以及本 Turn 每次出网前，Runtime 计 `windowChars`。到 `compressAt`（200000）先裁 `toolIds`（留下 core + 本轮已用过的）和记忆窗口（每层最近 8 条），再把较早 toolIO / turn+conversation 记忆收成摘要，然后用压缩后的窗口再出网。
+8. 开 Turn 装配后、以及本 Turn 每次出网前，Runtime 计 `windowChars`。到 `compressAt`（200000）时，Runtime 把较早 toolIO 归档到可回查的 observation，保留最近两条；Context 每层投影最近 8 条记忆，超阈值时 turn / conversation 展示摘要，project 不做摘要压缩。该过程不写磁盘记忆、不裁 memoryIds、不卸载 toolIds，再用投影后的窗口出网。
 
 分阶段模拟：`docs/examples/01-normalize.md` → `02-context-engineering.md` → `03-decode.md` → `04-provider-request.md` → `05-provider-response.md` → `06-tool-execute.md` → `08-finish-turn.md`。窗口到 200K 时插 `07-compress.md`。

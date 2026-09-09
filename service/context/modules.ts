@@ -1,16 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ChatTool } from "../types.ts";
-
-export type ToolIndex = {
-  browser: string[];
-  service: string[];
-};
-
-export type ToolGroups = {
-  baseToolsIds: string[];
-  coreToolIds: string[];
-};
 
 export type ContextModules = {
   systemInventory: string;
@@ -18,9 +7,6 @@ export type ContextModules = {
   systemSlots: Record<string, string>;
   userSlots: Record<string, string>;
   skill: string;
-  tools: Record<string, ChatTool>;
-  index: ToolIndex;
-  toolGroups: ToolGroups;
 };
 
 const loadSlots = (contextModules: string, role: string): Record<string, string> =>
@@ -41,15 +27,6 @@ export function loadContextModules(root: string): ContextModules {
   const systemSlots = loadSlots(contextModules, "system");
   const userSlots = loadSlots(contextModules, "user");
   const skill = readFileSync(join(contextModules, "skills", "skill.web.md"), "utf8").replace(/^#skill\n?/, "").trim();
-  const index = JSON.parse(readFileSync(join(contextModules, "tools", "index.json"), "utf8")) as ToolIndex;
-  const toolGroups = JSON.parse(readFileSync(join(contextModules, "tools", "groups.json"), "utf8")) as ToolGroups;
-  const tools: Record<string, ChatTool> = {};
-  for (const file of readdirSync(join(contextModules, "tools"))) {
-    if (!file.endsWith(".json") || ["index.json", "groups.json"].includes(file)) continue;
-    const tool = JSON.parse(readFileSync(join(contextModules, "tools", file), "utf8")) as ChatTool;
-    const name = tool.function?.name;
-    if (name) tools[name] = tool;
-  }
   const systemInventory = readFileSync(join(contextModules, "system-slots.md"), "utf8").trimEnd();
   const userInventory = readFileSync(join(contextModules, "user-slots.md"), "utf8").trimEnd();
   for (const [inventory, files] of [[systemInventory, systemSlots], [userInventory, userSlots]] as const) {
@@ -57,34 +34,7 @@ export function loadContextModules(root: string): ContextModules {
     for (const name of names) if (!files[name]) throw new Error(`missing slot file ${name}`);
     for (const name of Object.keys(files)) if (!names.includes(name)) throw new Error(`unlisted slot file ${name}`);
   }
-  return { systemInventory, userInventory, systemSlots, userSlots, skill, tools, index, toolGroups };
-}
-
-export function dynamicToolIds(contextModules: ContextModules): string[] {
-  return [...contextModules.index.browser, ...contextModules.index.service];
-}
-
-export function coreToolIds(contextModules: ContextModules): string[] {
-  return contextModules.toolGroups.coreToolIds.filter((id) => Boolean(contextModules.tools[id]));
-}
-
-export function toolSchemas(contextModules: ContextModules, ids: string[]): ChatTool[] {
-  return ids.map((id) => {
-    const tool = contextModules.tools[id];
-    if (!tool) throw new Error(`unknown tool ${id}`);
-    return tool;
-  });
-}
-
-export function toolUsageFor(contextModules: ContextModules, ids: string[]): string {
-  return ids
-    .map((id) => {
-      const line = contextModules.tools[id]?.function.description;
-      if (!line?.trim()) throw new Error(`missing tool description ${id}`);
-      return `${id}：${line}`;
-    })
-    .filter(Boolean)
-    .join("\n");
+  return { systemInventory, userInventory, systemSlots, userSlots, skill };
 }
 
 export function interpolate(template: string, slots: Record<string, string>): string {

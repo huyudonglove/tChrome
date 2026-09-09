@@ -182,8 +182,6 @@ export type Provider = {
   complete(input: {
     messages: ChatMessage[];
     tools: ChatTool[];
-    baseToolsIds: string[];
-    toolIds: string[];
   }): Promise<CompletionResult>;
 };
 

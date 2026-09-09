@@ -1,4 +1,4 @@
-import { runBrowserTool } from "./browser-tools.js";
+import { runBrowserTool } from "./tools/browser-tools.js";
 
 const SERVICE = "http://127.0.0.1:18788";
 const PUMP_ALARM = "tchrome-tool-pump";

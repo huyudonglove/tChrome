@@ -1,6 +1,6 @@
 # schema
 
-数据声明只写这里。`docs/data.md` 是账本形状和循环。`docs/examples/` 是阶段样例，字段怎么填看本文件。工具参数形状看 `context/tools/<id>.json`。插槽用途、来源与边界见 `context/system-slots.md`、`context/user-slots.md` 和各独立槽文件。
+数据声明只写这里。`docs/data.md` 是账本形状和循环。`docs/examples/` 是阶段样例，字段怎么填看本文件。工具参数形状看 `tools/<id>.json`。插槽用途、来源与边界见 `context/system-slots.md`、`context/user-slots.md` 和各独立槽文件。
 
 ## 仓目录
 
@@ -8,22 +8,25 @@
 extension/          GUI：Side Panel + background。常规通用 UI 组件和样式
   ui/               通用组件、样式
   sidepanel/        面板入口
+  tools/            浏览器工具实现及测试
 service/            后端：Bun.serve 127.0.0.1:18788。按模块分
   runtime/
   context/          读取上下文模块，按清单顺序装配窗口
-  tools/
+  tools/            工具注册、schema 与执行
+  presentation/     会话消息和列表的纯展示投影
   subagent/         第一期空着
-  provider/
-context/            独立模块 / skill / tools schema / 栏目顺序清单
+  provider/         模型通信、传输重试与响应解析
+context/            独立模块 / skill / 栏目顺序清单
   system/           一个 system 插槽一个文件
   user/             一个 user 插槽一个文件
   system-slots.md   system 职责与顺序清单
   user-slots.md     user 职责与顺序清单
   README.md         人类维护入口，不进入模型窗口
   skills/           网页方法
-  tools/groups.json 常驻基础工具 / 初始动态工具分组
-  tools/index.json  browser / service 分类
-  tools/*.json      完整工具 schema
+tools/              工具 API 定义
+  groups.json       常驻基础工具 / 初始动态工具分组
+  index.json        browser / service 分类
+  *.json            完整工具 schema
 
 docs/               schema、账本、阶段样例
 ```
@@ -32,7 +35,7 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 
 ## 本机 HTTP
 
-第一期七条。面板长请求直连 `http://127.0.0.1:18788`。浏览器工具由 background 泵：面板每秒 `ping` worker，worker 拉 `/tool-request`，跑完交 `/tool-result`。
+面板请求本机服务 `http://127.0.0.1:18788`。background 独立调度浏览器工具：拉 `/tool-request`，执行后交 `/tool-result`；面板 ping 用于唤醒，alarms 支持休眠后恢复。
 
 | 方法 | 路径 | 体 | 回 |
 |---|---|---|---|
@@ -85,7 +88,7 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。
 `kind=provider-response` 的 `data`：`finish` `content` `toolCalls` `attempts` `parseOk` `schemaOk` `faultCode` `missing`。
 `kind=tool` 的 `data`：`callId` `name` `arguments` `return`。
 `kind=memory` 的 `data`：`memoryId` `layer` `sourceCallId`。
-`kind=compress` 的 `data`：`observationId` `windowChars` `sourceCallIds` `compressedMemoryIds` `prunedToolIds`。`observationId` 没有折 toolIO 时为 `null`。压缩先裁 `toolIds`（留下 core + 本轮已用过的）和记忆窗口（每层最近 8 条），再把 turn/conversation 收成 `summary`。
+`kind=compress` 的 `data`：`observationId` `windowChars` `sourceCallIds` `compressedMemoryIds` `prunedToolIds`。只有超过阈值且 toolIO 多于两条时才归档并写事件，保留最近两条。`compressedMemoryIds` 和 `prunedToolIds` 保持空数组，仅为兼容已有事件形状；Runtime 不改记忆或工具索引。
 `kind=turn-output` 的 `data`：`output`。
 `kind=session` 的 `data`：`conversationId`，可选 `action`=`new`/`open`。
 
@@ -160,8 +163,8 @@ Runtime 独占维护。当前会话指针。
 
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
-| `baseToolsIds` | string[] | 常驻工具，对应 `context/tools/<id>.json`；完整名单以 `context/tools/groups.json` 为准，说明进入 system `#baseTools` |
-| `toolIds` | string[] | 动态工具，对应 `context/tools/<id>.json`。开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.list_interactive_elements` `page.click` `page.type` `open_url` `web_search` `list_browser_tools` `catalog.add`）。缺了 `catalog.add` 再补。压缩时先裁回 core + 本轮已用过的 |
+| `baseToolsIds` | string[] | 常驻工具，对应 `tools/<id>.json`；完整名单以 `tools/groups.json` 为准，说明进入 system `#baseTools` |
+| `toolIds` | string[] | 动态工具，对应 `tools/<id>.json`。开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.list_interactive_elements` `page.click` `page.type` `open_url` `web_search` `list_browser_tools` `catalog.add`）。缺了 `catalog.add` 再补。窗口压缩保持已加载工具不变 |
 | `turnMemoryIds` | string[] | 这一轮记忆；没有就 `[]` |
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
@@ -191,15 +194,15 @@ Runtime 独占维护。当前会话指针。
 
 三层，从稳到新：project → conversation → turn。模型调 `memory.write` 提交。Runtime 落盘，ID 挂到 ledger.`memoryIds`。下一次出网装配进对应 user 槽。
 
-窗口到 200K 时 Runtime 压缩 `turn` 和 `conversation`：槽里只留 `summary`，原文仍按 `memoryId` 落盘。`project` 不压。
+Context 每层仅投影最近 8 条记忆。窗口到 200K 时，turn / conversation 槽优先用 `summary`，缺省时使用归一空白后的前 80 字。project 不做摘要压缩。该过程是纯展示投影，不改磁盘记录、不设置 `compressed`、不裁 ledger 或 Turn 的 memoryIds。
 
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
 | `memoryId` | string | `mm_` |
 | `layer` | string | `turn` / `conversation` / `project` |
 | `text` | string | 原文 |
-| `summary` | string | 压缩后的摘要 |
-| `compressed` | boolean | `true` 时窗口槽用 `summary` |
+| `summary` | string | 记忆摘要，供展示投影使用 |
+| `compressed` | boolean | 兼容已有记录；为 true 时普通投影使用 summary，新的窗口压缩不改此字段 |
 | `createdAt` | string | ISO-8601 |
 | `sourceCallId` | string | 写下这条的 `memory.write` 的 `callId` |
 
@@ -226,7 +229,7 @@ Runtime 独占维护。当前会话指针。
 
 `#skill` 数据来自固定的 `context/skills/skill.web.md`；不再记录无实际加载作用的 systemIds / skillIds。其余 user 数据分别来自 Turn.input、ledger、Turn.assembled 和 memory 文件，具体字段与可信边界见各独立槽文件。
 
-`#baseTools` 按 toolGroups.baseToolsIds 生成常驻工具说明；`#tools` 按 Turn.assembled.toolIds 生成已加载动态工具说明。说明唯一来源是各工具 `function.description`；`context/tools/index.json` 只保存 browser / service 分类，不能另写 usage。`#tools` 是 user 参考文本，不是 role=tool 消息。工具 schema 的 description 与窗口说明同源。
+`#baseTools` 按 toolGroups.baseToolsIds 生成常驻工具说明；`#tools` 按 Turn.assembled.toolIds 生成已加载动态工具说明。说明唯一来源是各工具 `function.description`；`tools/index.json` 只保存 browser / service 分类，不能另写 usage。`#tools` 是 user 参考文本，不是 role=tool 消息。工具 schema 的 description 与窗口说明同源。
 
 维护：增删、重命名或调整插槽职责、顺序时，同步清单、独立文件、装配测试与阶段窗口示例；修改工具说明只改该工具定义，并重新生成示例中的 schema / 工具说明。测试检查目录、清单、顺序、装配及全量工具 description 缺失。
 
@@ -271,7 +274,7 @@ Runtime 独占维护。当前会话指针。
 
 面板入口只有 `userInput` `submittedAt`。其余键 Runtime 写。
 
-`provider`：`uuapi`。`model`：`gemini-3.7-flash`。`stream`：`true`。`maxAttempts`：`3`。
+`provider`：`uuapi`。`model`：`gemini-3.7-flash`。`stream`：`false`。`maxAttempts`：`3`。
 
 `finish`：`tool_calls` / `stop` / `error`。`content`：system `#output` 三段 seen / reason / action。`toolCalls`：`{id, name, arguments}`，已 parse。
 
@@ -290,7 +293,7 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 
 ## 工具参数
 
-每个工具 `arguments` 都有 `reason`（string）和 `affectsPage`（boolean）。其余按 `context/tools/<id>.json`。动态工具分类在 `context/tools/index.json`；用法只维护在每个工具定义的 function.description。
+每个工具 `arguments` 都有 `reason`（string）和 `affectsPage`（boolean）。其余按 `tools/<id>.json`。动态工具分类在 `tools/index.json`；用法只维护在每个工具定义的 function.description。
 
 | 工具 | required 其余 | 谁填其余 |
 |---|---|---|
@@ -304,7 +307,7 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | `memory.write` | （无） | `turnMemory` `conversationMemory` `projectMemory` `contextSummary` 有则写 |
 | `catalog.add` | `names` | 把缺的动态工具挂进本轮 |
 
-常驻与初始动态工具名单以 `context/tools/groups.json` 的 baseToolsIds / coreToolIds 为准。动态目录分类见 `context/tools/index.json`，缺能力通过 catalog.add 加载。浏览器工具经 `/tool-request` 泵到 background。
+常驻与初始动态工具名单以 `tools/groups.json` 的 baseToolsIds / coreToolIds 为准。动态目录分类见 `tools/index.json`，缺能力通过 catalog.add 加载。浏览器工具经 `/tool-request` 泵到 background。
 
 没迁、原因：
 
@@ -317,3 +320,7 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 `api_discover` / `api_manage` 迁了 schema 和执行入口，登记表第一期空数组。
 
 运行提示独立维护在 `service/runtime/messages.json`，由运行层按需写入工具记录。
+
+## 实现职责
+
+工具 schema、分类和分组由 `service/tools/registry.ts` 读取根目录 `tools/`。Provider 负责模型通信、传输重试及响应/参数解析；所有 provider 返回都由 `service/runtime/loop.ts` 的 `validateCompletion` 调用 `service/tools/schema.ts` 统一检查 schema、工具名和收口顺序，Runtime 根据结果推进状态。Context 接收数据和工具说明，仅生成窗口投影。`service/presentation/session-view.ts` 以纯函数生成 UI 消息和会话列表；store 负责读取记录、持久化和会话命令。
