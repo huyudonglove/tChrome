@@ -355,8 +355,18 @@ export function openConversation(dataDir: string, conversationId: string): Sessi
   return sessionView(dataDir, conversationId);
 }
 
+// Keep the allocation watermark outside deletable conversation directories.
+// Existing installations migrate from their highest surviving conversation ID.
+const allocateConversationId = (dataDir: string): string => {
+  const path = join(dataDir, "conversation-id.json");
+  const previous = readJson<string | null>(path, null);
+  const conversationId = nextId("cv_", [...listConversationIds(dataDir), ...(previous ? [previous] : [])]);
+  writeJson(path, conversationId);
+  return conversationId;
+};
+
 export function newConversation(dataDir: string): SessionView {
-  const conversationId = nextId("cv_", listConversationIds(dataDir));
+  const conversationId = allocateConversationId(dataDir);
   saveSession(dataDir, { conversationId });
   saveLedger(dataDir, emptyLedger(conversationId));
   appendEvent(dataDir, conversationId, { kind: "session", data: { conversationId, action: "new" } });
@@ -367,6 +377,12 @@ export function deleteConversation(dataDir: string, conversationId: string): Ses
   if (!listConversationIds(dataDir).includes(conversationId)) {
     throw new Error("没有这个会话");
   }
+  // Persist the high watermark before removing legacy directories too.
+  const watermarkPath = join(dataDir, "conversation-id.json");
+  const previous = readJson<string | null>(watermarkPath, null);
+  const highest = [...listConversationIds(dataDir), ...(previous ? [previous] : [])]
+    .sort((a, b) => Number(b.slice(3)) - Number(a.slice(3)))[0];
+  if (highest) writeJson(watermarkPath, highest);
   const current = loadSession(dataDir)?.conversationId;
   rmSync(paths(dataDir, conversationId).conv, { recursive: true, force: true });
   if (current !== conversationId) return currentSessionView(dataDir);
@@ -378,7 +394,7 @@ export function deleteConversation(dataDir: string, conversationId: string): Ses
 export function ensureSession(dataDir: string): Session {
   const existing = loadSession(dataDir);
   if (existing?.conversationId) return existing;
-  const conversationId = nextId("cv_", listConversationIds(dataDir));
+  const conversationId = allocateConversationId(dataDir);
   const session = { conversationId };
   saveSession(dataDir, session);
   saveLedger(dataDir, emptyLedger(conversationId));

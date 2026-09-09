@@ -285,6 +285,7 @@ export async function handleTurn(
   body: { userInput: string; submittedAt: string; currentTab?: { tab?: number; url?: string; title?: string } | null },
 ): Promise<TurnReply> {
   const session = ensureSession(deps.dataDir);
+  const host = deps.host?.forScope?.(session.conversationId) ?? deps.host;
   const ledger = loadLedger(deps.dataDir, session.conversationId);
   if (ledger.status === "running") {
     return {
@@ -448,7 +449,7 @@ export async function handleTurn(
           contextModules,
           content: result.content,
           browserNames: contextModules.index.browser,
-          host: deps.host,
+          host,
         });
         if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
         saveTurn(deps.dataDir, turn);
@@ -523,7 +524,7 @@ export async function handleTurn(
       contextModules,
       content: result.content,
       browserNames: contextModules.index.browser,
-      host: deps.host,
+      host,
     });
     if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
     saveTurn(deps.dataDir, turn);

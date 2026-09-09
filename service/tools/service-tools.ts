@@ -30,7 +30,7 @@ const hostOf = (input: Record<string, unknown>) => {
   }
 };
 
-const fetchText = async (url: string, init: RequestInit = {}) => {
+const fetchText = async (url: string, init: RequestInit = {}, textLimit = 8000) => {
   const started = Date.now();
   const response = await fetch(url, { redirect: "follow", ...init });
   const text = await response.text();
@@ -40,7 +40,7 @@ const fetchText = async (url: string, init: RequestInit = {}) => {
     url: response.url,
     ms: Date.now() - started,
     headers: Object.fromEntries([...response.headers.entries()].slice(0, 20)),
-    text: text.slice(0, 8000),
+    text: text.slice(0, textLimit),
   };
 };
 
@@ -77,9 +77,22 @@ export async function runServiceTool(
     const query = input.query || input.q || input.text;
     if (!query) return { ok: false, error: "缺 query" };
     const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(String(query))}`;
-    const page = await fetchText(url);
-    const hits = [...page.text.matchAll(/uddg=([^&"]+)/g)].slice(0, 8).map((item) => decodeURIComponent(item[1] ?? ""));
-    return { ok: true, query, urls: [...new Set(hits)] };
+    try {
+      // Parse the complete HTML before limiting the extracted result count.
+      const page = await fetchText(url, {}, Infinity);
+      if (!page.ok) return { ok: false, query, status: page.status, error: `搜索服务返回 HTTP ${page.status}`, urls: [] };
+      const hits = new Set<string>();
+      for (const item of page.text.matchAll(/uddg=([^&"'<>\s]+)/g)) {
+        try {
+          const target = decodeURIComponent(item[1] ?? "");
+          if (["http:", "https:"].includes(new URL(target).protocol)) hits.add(target);
+        } catch { /* A malformed result must not discard the other hits. */ }
+        if (hits.size === 8) break;
+      }
+      return { ok: true, query, urls: [...hits] };
+    } catch (error) {
+      return { ok: false, query, error: error instanceof Error ? error.message : String(error), urls: [] };
+    }
   }
   if (name === "ping_url") {
     const url = String(input.url || "https://www.gstatic.com/generate_204");

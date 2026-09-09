@@ -1,0 +1,30 @@
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { loadContextModules, toolSchemas, toolUsageFor } from "../service/context/modules.ts";
+import { systemText, userText } from "../service/context/window.ts";
+import { emptyLedger } from "../service/runtime/store.ts";
+import type { Turn } from "../service/types.ts";
+
+const root = join(import.meta.dir, "..");
+const c = loadContextModules(root);
+function update(value: any): any {
+  if (!value || typeof value !== "object") return value;
+  if (value.type === "function" && value.function?.name) return toolSchemas(c, [value.function.name])[0];
+  if (Array.isArray(value)) return value.map(update);
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, update(item)]));
+}
+for (const file of readdirSync(join(root, "docs/examples")).filter(f => f.endsWith(".md"))) {
+  const path = join(root, "docs/examples", file);
+  let text = readFileSync(path, "utf8");
+  if (/^0[34]-/.test(file)) {
+    const snapshot = JSON.parse(text.match(/^```json\n([\s\S]*?)^```/m)![1]!);
+    const turn = { turnId: snapshot.turnId, input: { text: snapshot.userInput }, assembled: snapshot } as Turn;
+    const ledger = emptyLedger(snapshot.conversationId);
+    ledger.userInputHistory = snapshot.userInputHistory;
+    const user = userText({ contextModules: c, ledger, turn, memories: { project: [], conversation: [], turn: [] }, toolUsage: toolUsageFor(c, snapshot.toolIds) });
+    text = text.replace(/^```\n# System 栏目清单\n[\s\S]*?^```/m, () => `\`\`\`\n${systemText(c)}\n\`\`\``);
+    text = text.replace(/^```\n#skill\n[\s\S]*?^```/m, () => `\`\`\`\n${user}\n\`\`\``);
+  }
+  text = text.replace(/^```json\n([\s\S]*?)^```/gm, (_, body) => `\`\`\`json\n${JSON.stringify(update(JSON.parse(body)), null, 2)}\n\`\`\``);
+  writeFileSync(path, text);
+}

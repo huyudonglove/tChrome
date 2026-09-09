@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { renderMarkdown } from "./markdown";
 import { SERVICE, DOWN, requestJSON, errorText } from "./service";
+import { shouldSubmitOnEnter, stopCurrentSession } from "./interactions";
 
 type Output =
   | { kind: "reply"; text: string }
@@ -205,18 +206,18 @@ export function App() {
     }
   };
 
-  const stopRun = async () => {
-    try {
-      const response = await fetch(`${SERVICE}/stop`, { method: "POST" });
-      const stopped = await response.json() as SessionView;
-      submission.current++;
+  const stopRun = () => stopCurrentSession<SessionView>({
+    conversationId: session.conversationId,
+    submission,
+    switching,
+    onStopped: (stopped) => {
+      refreshVersion.current++;
       setSession(stopped);
       sendingRef.current = false;
       setSending(false);
-    } catch {
-      setStatus(DOWN);
-    }
-  };
+    },
+    onError: (error) => setStatus(errorText(error)),
+  });
 
   const openConversation = async (conversationId: string) => {
     if (switching.current) return;
@@ -436,7 +437,7 @@ export function App() {
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
+              if (shouldSubmitOnEnter(event)) {
                 event.preventDefault();
                 void sendText(draft.trim());
               }

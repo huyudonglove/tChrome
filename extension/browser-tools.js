@@ -660,7 +660,7 @@ export const runBrowserTool = async (name, input = {}) => {
         await new Promise((resolve) => setTimeout(resolve, 300));
         page = await inspectTab(tabId);
       }
-      return page.ok && (page.text || '').includes(input.text) ? page : {ok: false, error: '没等到这段文字', ...page};
+      return page.ok && (page.text || '').includes(input.text) ? page : {...page, ok: false, error: page.error || '没等到这段文字'};
     }
     await new Promise((resolve) => setTimeout(resolve, Math.min(Number(input.ms) || 800, 8000)));
     return inspectTab(tabId);
@@ -872,6 +872,12 @@ export const runBrowserTool = async (name, input = {}) => {
     const tab = await getTab(tabId);
     if (!tab?.id) return {ok: false, error: '没有标签'};
     try {
+      // captureVisibleTab 只截窗口的活动标签，先恢复窗口并激活目标页。
+      if (tab.windowId) {
+        await chrome.windows.update(tab.windowId, {state: 'normal', focused: true}).catch(() => {});
+      }
+      await chrome.tabs.update(tab.id, {active: true});
+      await waitNetworkIdle(tab.id);
       if (name === 'screenshot_one') {
         // 元素截图：先获取元素位置，然后裁剪
         const {ref} = input;

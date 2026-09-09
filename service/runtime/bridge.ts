@@ -9,41 +9,59 @@ export type ToolRequest = {
 export type ToolBridge = BrowserHost & {
   current(): ToolRequest | null;
   resolve(id: string, result: BrowserResult): boolean;
-  abort(): void;
+  abort(scope?: string): void;
+};
+
+type Pending = {
+  request: ToolRequest;
+  scope?: string;
+  done: (result: BrowserResult) => void;
 };
 
 export function createToolBridge(timeoutMs = 30000): ToolBridge {
-  const pending = new Map<string, (result: BrowserResult) => void>();
-  let current: ToolRequest | null = null;
+  const queue: Pending[] = [];
+  let timer: ReturnType<typeof setTimeout> | undefined;
   let seq = 0;
 
-  const fail = (id: string, error: string) => {
-    const done = pending.get(id);
-    if (!done) return;
-    pending.delete(id);
-    if (current?.id === id) current = null;
-    done({ ok: false, error });
+  const clearTimer = () => {
+    if (timer !== undefined) clearTimeout(timer);
+    timer = undefined;
   };
-
+  const activate = () => {
+    clearTimer();
+    const next = queue[0];
+    if (!next) return;
+    timer = setTimeout(() => {
+      finish(next.request.id, { ok: false, error: "浏览器工具超时" });
+    }, timeoutMs);
+  };
+  const finish = (id: string, result: BrowserResult): boolean => {
+    const next = queue[0];
+    if (!next || next.request.id !== id) return false;
+    queue.shift();
+    activate();
+    next.done(result);
+    return true;
+  };
+  const execute = (scope: string | undefined, name: string, input: Record<string, unknown>): Promise<BrowserResult> =>
+    new Promise((done) => {
+      queue.push({ request: { id: `br_${Date.now()}_${++seq}`, name, input }, scope, done });
+      if (queue.length === 1) activate();
+    });
+  const abort = (scope?: string) => {
+    const active = queue[0];
+    const removed: Pending[] = [];
+    for (let i = queue.length - 1; i >= 0; i--) {
+      if (scope === undefined || queue[i]?.scope === scope) removed.push(...queue.splice(i, 1));
+    }
+    if (queue[0] !== active) activate();
+    for (const item of removed) item.done({ ok: false, error: "已停止" });
+  };
   return {
-    execute: (name, input) =>
-      new Promise((resolve) => {
-        const id = `br_${Date.now()}_${++seq}`;
-        pending.set(id, resolve);
-        setTimeout(() => fail(id, "浏览器工具超时"), timeoutMs);
-        current = { id, name, input };
-      }),
-    current: () => current,
-    resolve: (id, result) => {
-      const done = pending.get(id);
-      if (!done) return false;
-      pending.delete(id);
-      if (current?.id === id) current = null;
-      done(result);
-      return true;
-    },
-    abort: () => {
-      for (const id of [...pending.keys()]) fail(id, "已停止");
-    },
+    execute: (name, input) => execute(undefined, name, input),
+    forScope: (scope) => ({ execute: (name, input) => execute(scope, name, input), abort: () => abort(scope) }),
+    current: () => queue[0]?.request ?? null,
+    resolve: finish,
+    abort,
   };
 }

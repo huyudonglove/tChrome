@@ -64,3 +64,50 @@ test("indexeddb delete opens a writable transaction and removes the requested ke
   expect(result.ok).toBe(true);
   expect(records.has("key")).toBe(false);
 });
+
+test("wait reports failure when the page loads but expected text never appears", async () => {
+  globals.chrome = {
+    tabs: { get: async () => ({ id: 7, url: "https://example.com" }) },
+    scripting: { executeScript: async () => [{ result: {
+      title: "Example", url: "https://example.com", text: "not ready",
+    } }] },
+  };
+  const result = await runBrowserTool("wait", { tab: 7, text: "missing", ms: 1 });
+  expect(result.ok).toBe(false);
+  expect(result.error).toBe("没等到这段文字");
+  expect(result.tab).toBe(7);
+  expect(result.text).toBe("not ready");
+});
+
+for (const name of ["screenshot_full", "screenshot_one"]) {
+  test(`${name} activates the requested background tab before capturing its window`, async () => {
+    let activeTab = 99;
+    let minimized = true;
+    const targetTab = { id: 7, windowId: 3, url: "https://example.com" };
+    const rect = { x: 10, y: 20, width: 30, height: 40 };
+    globals.chrome = {
+      windows: { update: async (id: number, input: any) => {
+        expect(id).toBe(3);
+        if (input.state === "normal") minimized = false;
+      } },
+      tabs: {
+        get: async () => ({ ...targetTab, active: activeTab === 7 }),
+        update: async (id: number, input: any) => { if (input.active) activeTab = id; },
+        captureVisibleTab: async (windowId: number) => {
+          expect(windowId).toBe(3);
+          if (minimized) throw new Error("image readback failed");
+          return `image-of-tab-${activeTab}`;
+        },
+      },
+      scripting: { executeScript: async ({ target, args }: any) => {
+        expect(target.tabId).toBe(7);
+        return [{ result: args ? rect : { count: 0, last: [] } }];
+      } },
+    };
+    const result = await runBrowserTool(name, { tab: 7, ref: "#example" });
+    expect(result.ok).toBe(true);
+    expect(result.tab).toBe(7);
+    expect(result.image).toBe("image-of-tab-7");
+    if (name === "screenshot_one") expect(result.element_rect).toEqual(rect);
+  });
+}

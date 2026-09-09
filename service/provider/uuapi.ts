@@ -16,8 +16,9 @@ export type ProviderConfig = {
 
 export function resolveProxy(env: Record<string, string | undefined>) {
   if (env.TCHROME_PROXY_MODE === "direct") return "";
-  if (env.TCHROME_PROXY_MODE === "proxy") return env.HTTPS_PROXY || "http://127.0.0.1:7892";
-  return env.HTTPS_PROXY ?? env.HTTP_PROXY ?? env.ALL_PROXY;
+  const address = env.HTTPS_PROXY || env.HTTP_PROXY || env.ALL_PROXY;
+  if (env.TCHROME_PROXY_MODE === "proxy") return address || "http://127.0.0.1:7892";
+  return address;
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

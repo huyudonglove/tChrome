@@ -2,7 +2,7 @@ import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { handleTurn, type LoopDeps } from "./runtime/loop.ts";
 import { createProvider, resolveProxy } from "./provider/uuapi.ts";
-import { ensureSession, defaultDataDir, currentSessionView, listConversations, openConversation, newConversation, deleteConversation, stopTurn } from "./runtime/store.ts";
+import { ensureSession, loadSession, defaultDataDir, currentSessionView, listConversations, openConversation, newConversation, deleteConversation, stopTurn } from "./runtime/store.ts";
 import { createToolBridge, type ToolBridge } from "./runtime/bridge.ts";
 import type { BrowserResult } from "./types.ts";
 
@@ -48,7 +48,7 @@ export function createServer(options: ServeOptions = {}) {
   let proxyEnabled = existsSync(connectionPath)
     ? JSON.parse(readFileSync(connectionPath, "utf8")).enabled === true
     : Boolean(resolveProxy(Bun.env));
-  const proxyURL = Bun.env.HTTPS_PROXY || "http://127.0.0.1:7892";
+  const proxyURL = resolveProxy({ ...Bun.env, TCHROME_PROXY_MODE: "proxy" });
   let activeProvider = createProvider({ proxy: proxyEnabled ? proxyURL : "" });
   const provider = options.provider ?? { complete: (input: Parameters<typeof activeProvider.complete>[0]) => activeProvider.complete(input) };
   const bridge = options.bridge ?? createToolBridge();
@@ -122,7 +122,9 @@ export function createServer(options: ServeOptions = {}) {
         const conversationId = String(body.conversationId ?? "");
         if (!conversationId) return respond({ error: "缺 conversationId" }, 400);
         try {
-          return respond(deleteConversation(dataDir, conversationId));
+          const next = deleteConversation(dataDir, conversationId);
+          host.abort?.(conversationId);
+          return respond(next);
         } catch (error) {
           return respond({ error: error instanceof Error ? error.message : String(error) }, 404);
         }
@@ -149,8 +151,15 @@ export function createServer(options: ServeOptions = {}) {
         return respond(reply);
       }
       if (request.method === "POST" && url.pathname === "/stop") {
-        host.abort?.();
-        return respond(stopTurn(dataDir));
+        const raw = await request.text();
+        const target = raw ? (JSON.parse(raw) as { conversationId?: string | null }).conversationId : undefined;
+        const conversationId = loadSession(dataDir)?.conversationId;
+        if (target !== undefined && target !== conversationId) {
+          return respond({ error: "会话已切换，停止请求已忽略" }, 409);
+        }
+        const stopped = stopTurn(dataDir);
+        if (conversationId) host.abort?.(conversationId);
+        return respond(stopped);
       }
       return respond({ error: "not found" }, 404);
     },
