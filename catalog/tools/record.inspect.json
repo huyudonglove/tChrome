@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "record.inspect",
-    "description": "记录概览。kind=tool或observation，id取callId或observationId。返回长度、结构和预览；历史记录不刷新网页。\n读取已保存的历史记录，不刷新网页。位置为从0开始的UTF-16字符偏移；read的end不包含在范围内。search区分大小写、按字面匹配。 affectsPage=false。\n适用时机：需要了解历史记录的范围与结构时。kind=tool或observation；id取callId或observationId。返回长度、结构、预览与继续读取位置。",
+    "description": "查看历史记录的长度、结构和预览。必填 kind=tool或observation；id 在 kind=tool 时取 callId，在 kind=observation 时取摘要项 id。返回 ok、source、totalChars、positionUnit、structure、[start,end)范围的 text、hasMore 和 nextOffset；位置为从0开始的UTF-16字符偏移。失败返回 error。只读历史记录，不刷新网页。affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

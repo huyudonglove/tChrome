@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "record.read",
-    "description": "精确读取记录范围。kind、id、offset(从0开始)、limit(1到10000字符)。返回[start,end)文本、hasMore和nextOffset。位置单位UTF-16，沿用返回位置继续读。\n读取已保存的历史记录，不刷新网页。位置为从0开始的UTF-16字符偏移；read的end不包含在范围内。search区分大小写、按字面匹配。 affectsPage=false。\n适用时机：已知需要的范围时。kind、id、offset、limit。UTF-16字符位置从0开始，返回[start,end)及nextOffset；一次最多10000字符。",
+    "description": "精确读取历史记录范围。必填 kind=tool或observation；id 在 kind=tool 时取 callId，在 kind=observation 时取摘要项 id；offset 为从0开始的UTF-16字符偏移，limit 为1到10000字符。返回 ok、source、totalChars、positionUnit、[start,end)范围的 text、hasMore 和 nextOffset，end 不包含在范围内；沿用 nextOffset 继续读。失败返回 error。只读历史记录，不刷新网页。affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "catalog.add",
-    "description": "把缺的动态工具挂进本轮 tools[]。入参：names。返回：补上的工具名。下一轮出网才带 schema affectsPage=false。",
+    "description": "加载缺少的动态工具。必填 names：工具名字符串数组。返回补充的工具名；下一次收到可用工具列表后才能调用新增工具，不要在加载工具的同一批调用它。新一轮用户请求或历史压缩后，先前加载的工具可能不再可用，以本次 tools[] 为准。affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

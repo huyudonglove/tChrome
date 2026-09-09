@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "askUser",
-    "description": "向用户提问。必填 question 为非空问题正文；choice 为可选答案数组，无选项传 []。返回：问题正文与选项。本 Turn status=waiting_human，用户下一条消息开启新 Turn affectsPage=false。\n适用时机：缺少必须由用户提供的信息或授权时。必填 question：非空问题；choice：选项数组，无选项传 []。展示问题和选项，进入 waiting_human，等待用户下一条消息，不会在这次调用中返回用户答案。",
+    "description": "向用户提问。缺少必须由用户提供的信息或授权时调用。必填 question：非空问题正文；choice：选项数组，无选项传 []。返回问题正文与选项，暂停并等待用户下一条消息；下一条消息开启新 Turn，不会在本次调用中返回用户答案。affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

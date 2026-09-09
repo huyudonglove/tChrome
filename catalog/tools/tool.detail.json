@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "tool.detail",
-    "description": "展开 toolIO 截断全文。入参：callId。返回：该条 return 全文 affectsPage=false。\n适用时机：工具记录被截断，且下一步确实需要全文时。必填 callId：从 #toolIO 对应记录取得。读取保存的完整工具返回，不会重新执行原工具。",
+    "description": "读取工具返回全文。工具记录被截断且需要全文时调用。必填 callId：从 #toolIO 对应记录原样取得。返回已保存的完整工具返回；全文不可用时返回仍保留的文本或缺失提示。不会重新执行原工具。affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

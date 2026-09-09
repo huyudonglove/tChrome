@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "list_browser_tools",
-    "description": "列出 catalog 里还没挂上的动态工具。入参：无。返回：ok、tools。缺工具时再 catalog.add affectsPage=false。",
+    "description": "列出尚未加载的动态工具。无专属入参。返回 ok、tools（工具名列表）；选定所需工具后用 catalog.add 加载。affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "finishTurn",
-    "description": "结束本 Turn。必填 text 为非空最终回复；先根据已返回的结果确认完成情况，再调用。回复不依赖 content。 affectsPage=false。\n适用时机：已能回答用户，或需要说明无法继续时。必填 text：非空的最终回复正文。返回该正文并结束本 Turn；不能只在 content 中写回复。",
+    "description": "结束本 Turn。已能回答用户或需要说明无法继续时，先根据已返回的结果确认完成情况再调用。必填 text：非空最终回复正文。返回该正文并结束本轮；回复不依赖 content，不能只在 content 中写回复。affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
