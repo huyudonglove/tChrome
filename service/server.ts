@@ -5,6 +5,7 @@ import { createProvider, resolveProxy } from "./provider/uuapi.ts";
 import { ensureSession, loadSession, defaultDataDir, currentSessionView, listConversations, openConversation, newConversation, deleteConversation, stopTurn } from "./runtime/store.ts";
 import { createToolBridge, type ToolBridge } from "./runtime/bridge.ts";
 import type { BrowserResult } from "./types.ts";
+import { abortAllLocalProcesses } from "./tools/local-process.ts";
 
 const loadEnv = () => {
   const envPath = join(import.meta.dir, ".env");
@@ -47,7 +48,7 @@ export function createServer(options: ServeOptions = {}) {
   const connectionPath = join(dataDir, "connection.json");
   let proxyEnabled = existsSync(connectionPath)
     ? JSON.parse(readFileSync(connectionPath, "utf8")).enabled === true
-    : Boolean(resolveProxy(Bun.env));
+    : Bun.env.TCHROME_PROXY_MODE === "proxy";
   const proxyURL = resolveProxy({ ...Bun.env, TCHROME_PROXY_MODE: "proxy" });
   let activeProvider = createProvider({ proxy: proxyEnabled ? proxyURL : "" });
   const provider = options.provider ?? { complete: (input: Parameters<typeof activeProvider.complete>[0]) => activeProvider.complete(input) };
@@ -62,6 +63,7 @@ export function createServer(options: ServeOptions = {}) {
   return {
     dataDir,
     bridge,
+    get proxyEnabled() { return proxyEnabled; },
     fetch: async (request: Request) => {
       const url = new URL(request.url);
       const origin = request.headers.get("origin");
@@ -172,6 +174,12 @@ if (isMain) {
   const port = 18788;
   const server = createServer();
   Bun.serve({ hostname, port, fetch: server.fetch });
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.once(signal, () => {
+      abortAllLocalProcesses();
+      process.exit(0);
+    });
+  }
   console.log(`tChrome service http://${hostname}:${port}`);
-  console.log(`Model connection: ${resolveProxy(Bun.env) ? "proxy" : "direct"}`);
+  console.log(`Model connection: ${server.proxyEnabled ? "proxy" : "direct"}`);
 }

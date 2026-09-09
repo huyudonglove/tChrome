@@ -116,6 +116,22 @@
     "probe_dns",
     "probe_ssl",
     "account_vault",
-    "catalog.add"
+    "catalog.add",
+    "local.capabilities",
+    "local.fs_copy",
+    "local.fs_delete",
+    "local.fs_list",
+    "local.fs_mkdir",
+    "local.fs_move",
+    "local.fs_read",
+    "local.fs_search",
+    "local.fs_stat",
+    "local.fs_write",
+    "local.open",
+    "local.process_start",
+    "local.process_status",
+    "local.process_stop",
+    "local.process_write",
+    "local.run"
   ]
 }

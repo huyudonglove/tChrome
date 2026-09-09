@@ -1,0 +1,37 @@
+{
+  "type": "function",
+  "function": {
+    "name": "local.process_write",
+    "description": "向本会话运行中进程的标准输入写入 text；end=true 表示写入后关闭标准输入。返回当前进程快照。\n本机操作，affectsPage=false；这不表示没有文件或系统副作用。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "processId": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 65536
+        },
+        "end": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string",
+          "description": "本次操作的目的"
+        },
+        "affectsPage": {
+          "type": "boolean",
+          "const": false
+        }
+      },
+      "required": [
+        "processId",
+        "text",
+        "reason",
+        "affectsPage"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

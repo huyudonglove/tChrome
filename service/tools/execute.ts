@@ -3,6 +3,7 @@ import type { ToolEffect, ToolExecution } from "./effects.ts";
 import type { BrowserHost, CurrentPage, ToolArguments, ToolIOItem, ToolReturn } from "../types.ts";
 import { queryRecord, RECORD_TOOLS } from "./records.ts";
 import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
+import { LOCAL_TOOL_NAMES, runLocalTool } from "./local-tools.ts";
 
 export const WINDOW_TEXT_LIMIT = 2000;
 
@@ -69,6 +70,7 @@ export type ExecuteInput = {
   arguments: ToolArguments;
   content: string;
   dataDir: string;
+  conversationId?: string;
   browserNames: string[];
   host?: BrowserHost;
   lookup: {
@@ -147,6 +149,10 @@ export async function executeTool(input: ExecuteInput): Promise<ToolExecution> {
   if (name === "observation.detail") {
     const observationId = String(args.observationId ?? "");
     return result(lookup.observationFull(observationId) ?? `没有 ${observationId}`);
+  }
+  if ((LOCAL_TOOL_NAMES as readonly string[]).includes(name)) {
+    if (!input.conversationId) return externalResult({ ok: false, error: "本地工具缺少会话标识" });
+    return externalResult(await runLocalTool(name, hostArgs(args), dataDir, input.conversationId));
   }
   if ((SERVICE_TOOL_NAMES as readonly string[]).includes(name)) {
     return externalResult(await runServiceTool(dataDir, name, hostArgs(args)));

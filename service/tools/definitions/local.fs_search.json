@@ -1,0 +1,46 @@
+{
+  "type": "function",
+  "function": {
+    "name": "local.fs_search",
+    "description": "在目录内递归按名称子串query搜索，不跟随符号链接，不搜索文件内容。limit默认100最大1000；maxEntries默认10000最大100000。返回matches、scanned、truncated、errors，截断时缩小搜索目录或关键词。\n操作服务所在电脑，路径必须绝对；affectsPage=false 不表示没有文件副作用。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "绝对路径"
+        },
+        "query": {
+          "type": "string",
+          "minLength": 1
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 100
+        },
+        "maxEntries": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000,
+          "default": 10000
+        },
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean",
+          "const": false
+        }
+      },
+      "required": [
+        "path",
+        "query",
+        "reason",
+        "affectsPage"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

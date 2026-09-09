@@ -3,6 +3,8 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type { Ledger, LogEvent, MemoryRecord, ObservationRecord, ChatMessage, ProviderExchange, Session, Turn } from "../types.ts";
 import { nextId, nowIso } from "./ids.ts";
+import { abortLocalProcesses } from "../tools/local-process.ts";
+import { localScope } from "../tools/local-tools.ts";
 import { emptySessionView, projectConversationList, projectSessionView } from "../presentation/session-view.ts";
 import type { ConversationItem, SessionView } from "../presentation/session-view.ts";
 export type { ConversationItem, SessionMessage, SessionView } from "../presentation/session-view.ts";
@@ -262,6 +264,7 @@ export function deleteConversation(dataDir: string, conversationId: string): Ses
     .sort((a, b) => Number(b.slice(3)) - Number(a.slice(3)))[0];
   if (highest) writeJson(watermarkPath, highest);
   const current = loadSession(dataDir)?.conversationId;
+  abortLocalProcesses(localScope(dataDir, conversationId));
   rmSync(paths(dataDir, conversationId).conv, { recursive: true, force: true });
   if (current !== conversationId) return currentSessionView(dataDir);
   const remaining = listConversations(dataDir);
@@ -283,6 +286,7 @@ export function ensureSession(dataDir: string): Session {
 export function stopTurn(dataDir: string): SessionView {
   const session = loadSession(dataDir);
   if (!session?.conversationId) return currentSessionView(dataDir);
+  abortLocalProcesses(localScope(dataDir, session.conversationId));
   const ledger = loadLedger(dataDir, session.conversationId);
   if (ledger.status !== "running") return sessionView(dataDir, session.conversationId);
   const turnId = ledger.active?.turnId;

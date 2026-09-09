@@ -1,0 +1,37 @@
+{
+  "type": "function",
+  "function": {
+    "name": "local.fs_copy",
+    "description": "复制文件或目录，保留符号链接。默认拒绝已存在目标，overwrite=true允许覆盖。\n操作服务所在电脑，路径必须绝对；affectsPage=false 不表示没有文件副作用。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "绝对路径"
+        },
+        "destination": {
+          "type": "string",
+          "description": "绝对路径"
+        },
+        "overwrite": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean",
+          "const": false
+        }
+      },
+      "required": [
+        "source",
+        "destination",
+        "reason",
+        "affectsPage"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

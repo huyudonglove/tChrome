@@ -238,6 +238,9 @@ export function App() {
     sendingRef.current = false;
     setSending(false);
     setListOpen(false);
+    setDraft("");
+    setStatus("");
+    setShowJump(false);
     followBottom.current = true;
     const listed = await requestJSON<{ items: ConversationItem[] }>("/conversations");
     setItems(listed.items ?? []);
@@ -265,6 +268,9 @@ export function App() {
     sendingRef.current = false;
     setSending(false);
     setListOpen(false);
+    setDraft("");
+    setStatus("");
+    setShowJump(false);
     followBottom.current = true;
     const listed = await requestJSON<{ items: ConversationItem[] }>("/conversations");
     setItems(listed.items ?? []);
@@ -294,6 +300,12 @@ export function App() {
     });
     submission.current++;
     refreshVersion.current++;
+    if (next.conversationId !== session.conversationId) {
+      setDraft("");
+      setStatus("");
+      setShowJump(false);
+      followBottom.current = true;
+    }
     setSession(next);
     sendingRef.current = false;
     setSending(false);
@@ -341,9 +353,12 @@ export function App() {
             <small>{running ? "正在处理" : statusText(session.status)}</small>
           </div>
           <div className="app-actions">
-            <button className="connection-button" type="button" disabled={proxyBusy || proxyEnabled === null} aria-pressed={proxyEnabled === true}
-              title="切换模型连接方式，下一次请求生效" onClick={toggleProxy}>
-              {proxyBusy ? "切换中" : proxyEnabled === null ? "连接…" : proxyEnabled ? "代理" : "直连"}
+            <button className="connection-switch" type="button" role="switch" aria-label="使用代理"
+              disabled={proxyBusy || proxyEnabled === null} aria-checked={proxyEnabled === true}
+              aria-busy={proxyBusy} title={proxyEnabled ? "代理已开启，关闭后使用直连" : "当前使用直连，开启后使用代理"}
+              onClick={toggleProxy}>
+              <span>{proxyBusy ? "切换中" : proxyEnabled === null ? "连接中" : proxyEnabled ? "代理" : "直连"}</span>
+              <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
             </button>
             <button className="icon-button" type="button" title="会话" onClick={() => setListOpen((open) => !open)}>
               <Icon path="M4 6h16M4 12h16M4 18h10" />
@@ -403,9 +418,8 @@ export function App() {
           ) : null}
         </div>
         {showJump ? (
-          <button className="jump-to-bottom" type="button" onClick={() => scrollToBottom("smooth")}>
-            <Icon path="M6 9l6 6 6-6" />
-            <span>回到底部</span>
+          <button className="jump-to-bottom" type="button" title="回到底部" aria-label="回到底部" onClick={() => scrollToBottom("smooth")}>
+            <Icon path="M12 4v12M7 11l5 5 5-5M5 20h14" />
           </button>
         ) : null}
       </div>
@@ -425,8 +439,7 @@ export function App() {
         </section>
       ) : null}
 
-      <div className="composer-wrap">
-        <form
+      <form
           className="composer"
           onSubmit={(event) => {
             event.preventDefault();
@@ -442,6 +455,7 @@ export function App() {
                 void sendText(draft.trim());
               }
             }}
+            aria-label="输入消息"
             placeholder="说一句"
           />
           <button
@@ -452,8 +466,7 @@ export function App() {
           >
             {running ? <Icon path="M7 7h10v10H7z" /> : <Icon path="M5 12h14M13 6l6 6-6 6" />}
           </button>
-        </form>
-      </div>
+      </form>
 
       {listOpen ? (
         <>
@@ -481,9 +494,11 @@ export function App() {
                   <button
                     type="button"
                     className="delete"
+                    title="删除会话"
+                    aria-label={`删除会话：${item.preview || item.conversationId}`}
                     onClick={() => setPendingDelete({ conversationId: item.conversationId, preview: item.preview || item.conversationId })}
                   >
-                    删
+                    <Icon path="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" />
                   </button>
                 </li>
               ))}

@@ -1,0 +1,40 @@
+{
+  "type": "function",
+  "function": {
+    "name": "local.run",
+    "description": "在服务所在电脑用 zsh -lc 执行命令并等待结束。cwd 必须是绝对路径。timeoutMs 默认30000，最大300000，超时会终止进程组。返回 ok、processId、status、exitCode、signal、stdout/stderr及各自截断标志；输出各保留末尾65536字符，非零退出表示失败。\n本机操作，affectsPage=false；这不表示没有文件或系统副作用。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string"
+        },
+        "cwd": {
+          "type": "string",
+          "description": "运行目录的绝对路径"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300000,
+          "default": 30000
+        },
+        "reason": {
+          "type": "string",
+          "description": "本次操作的目的"
+        },
+        "affectsPage": {
+          "type": "boolean",
+          "const": false
+        }
+      },
+      "required": [
+        "command",
+        "cwd",
+        "reason",
+        "affectsPage"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "type": "function",
+  "function": {
+    "name": "local.fs_read",
+    "description": "按字节分页读取UTF-8文本文件，offset默认0，limit默认65536，范围4..1048576。返回content、size、nextOffset、truncated。后续页使用返回的nextOffset，保持UTF-8字符完整；不用于二进制。\n操作服务所在电脑，路径必须绝对；affectsPage=false 不表示没有文件副作用。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "绝对路径"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "default": 0
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 4,
+          "maximum": 1048576,
+          "default": 65536
+        },
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean",
+          "const": false
+        }
+      },
+      "required": [
+        "path",
+        "reason",
+        "affectsPage"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

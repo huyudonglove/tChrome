@@ -1,0 +1,25 @@
+{
+  "type": "function",
+  "function": {
+    "name": "local.capabilities",
+    "description": "查询服务所在电脑的平台、主目录和本地执行能力，用于确认本机环境。\n本机操作，affectsPage=false；这不表示没有文件或系统副作用。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "description": "本次操作的目的"
+        },
+        "affectsPage": {
+          "type": "boolean",
+          "const": false
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
