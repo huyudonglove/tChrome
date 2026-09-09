@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "catalog.add",
-    "description": "加载缺少的动态工具。\n参数：必填 names：工具名字符串数组。\n返回：补充的工具名；下一次收到可用工具列表后才能调用新增工具，不要在加载工具的同一批调用它。新一轮用户请求或历史压缩后，先前加载的工具可能不再可用，以本次 tools[] 为准。\naffectsPage=false。",
+    "description": "加载缺少的动态工具。\n参数：必填 names（工具名字符串数组）、reason（加载目的）；affectsPage 可省略，传入时只能为 false。\n返回：补充的工具名；下一次收到可用工具列表后才能调用新增工具，不要在加载工具的同一批调用它。新一轮用户请求或历史压缩后，先前加载的工具可能不再可用，以本次 tools[] 为准。\n此工具只更新能力目录，不执行页面操作。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,9 @@
           "type": "string"
         },
         "affectsPage": {
-          "type": "boolean"
+          "type": "boolean",
+          "const": false,
+          "description": "可省略；加载工具不操作页面，传入时只能为false"
         },
         "names": {
           "type": "array",
@@ -21,7 +23,6 @@
       },
       "required": [
         "reason",
-        "affectsPage",
         "names"
       ]
     }

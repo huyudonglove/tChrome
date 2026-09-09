@@ -89,9 +89,9 @@ const waitTabComplete = (tabId) => new Promise((resolve) => {
   setTimeout(finish, 8000);
 });
 
-// CDP 辅助函数：发送 Input.dispatchMouseEvent
+// 共用 CDP 连接；可能产生副作用的脚本不自动重试。
 const attachedDebuggers = new Set();
-const withDebugger = async (tabId, run) => {
+const withDebugger = async (tabId, run, {retryDetached = true} = {}) => {
   const target = {tabId};
   if (!attachedDebuggers.has(tabId)) {
     await chrome.debugger.attach(target, '1.3');
@@ -103,6 +103,7 @@ const withDebugger = async (tabId, run) => {
     const message = error instanceof Error ? error.message : String(error);
     if (/not attached|Detached|Debugger is not attached/i.test(message)) {
       attachedDebuggers.delete(tabId);
+      if (!retryDetached) throw error;
       await chrome.debugger.attach(target, '1.3');
       attachedDebuggers.add(tabId);
       return run();
@@ -1097,11 +1098,58 @@ export const runBrowserTool = async (name, input = {}) => {
     return {ok: true, items: Object.entries(profiles).map(([id, p]) => ({id, ...p}))};
   }
   if (name === 'execute_javascript') {
-    if (!input.code) return {ok: false, error: '缺 code'};
-    return runOnTab(tabId, [input.code], (code) => {
-      const value = Function(`"use strict"; return (${code})`)();
-      return {ok: true, value: value == null ? null : String(value).slice(0, 1000)};
-    });
+    if (typeof input.code !== 'string' || !input.code.trim()) return {ok: false, error: '缺 code'};
+    const limit = 16000;
+    try {
+      const tab = await getTab(tabId);
+      if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可执行脚本的普通网页标签'};
+      const response = await withDebugger(tab.id, async () => {
+        let timer;
+        try {
+          return await Promise.race([
+            chrome.debugger.sendCommand({tabId: tab.id}, 'Runtime.evaluate', {
+              expression: input.code,
+              awaitPromise: true,
+              returnByValue: true,
+              timeout: 5000,
+              allowUnsafeEvalBlockedByCSP: true,
+            }),
+            new Promise((_, reject) => {
+              timer = setTimeout(() => reject(new Error('等待 JavaScript 结果超时；执行状态未知，脚本可能仍在继续，请先检查页面状态，勿直接重复执行。')), 8000);
+            }),
+          ]);
+        } finally {
+          clearTimeout(timer);
+        }
+      }, {retryDetached: false});
+      if (response?.exceptionDetails) {
+        const details = response.exceptionDetails;
+        const error = String(details.exception?.description || details.text || 'JavaScript 执行失败');
+        return {ok: false, tab: tab.id, error: error.slice(0, limit), ...(error.length > limit ? {truncated: true} : {})};
+      }
+      const remote = response?.result;
+      if (!remote?.type) return {ok: false, tab: tab.id, error: '执行器未返回 JavaScript 结果'};
+      const result = {ok: true, tab: tab.id, type: remote.type};
+      if (Object.hasOwn(remote, 'value')) {
+        const serialized = JSON.stringify(remote.value);
+        if (serialized.length > limit) {
+          return {...result, truncated: true, totalChars: serialized.length, valuePreview: serialized.slice(0, limit)};
+        }
+        return {...result, value: remote.value};
+      }
+      if (remote.unserializableValue != null) {
+        const value = String(remote.unserializableValue);
+        return value.length > limit
+          ? {...result, truncated: true, totalChars: value.length, valuePreview: value.slice(0, limit)}
+          : {...result, unserializableValue: value};
+      }
+      if (remote.type === 'undefined') return result;
+      const description = String(remote.description || remote.subtype || remote.type);
+      return {...result, serializable: false, description: description.slice(0, limit), ...(description.length > limit ? {truncated: true} : {})};
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {ok: false, error: message.slice(0, limit), ...(message.length > limit ? {truncated: true} : {})};
+    }
   }
   if (name === 'handle_dialog') {
     // handle_dialog 需要在页面加载前设置监听，这里返回提示

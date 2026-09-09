@@ -50,6 +50,8 @@ export const pageFromBrowser = (result: {
   if (!result.ok) return null;
   const tab = Number(result.tab);
   if (!Number.isFinite(tab) || tab < 1) return null;
+  // A target tab alone (for example a JavaScript value) is not a page observation.
+  if (typeof result.url !== "string" || !result.url || typeof result.title !== "string") return null;
   return {
     description: result.description || "当前页面信息",
     tab,

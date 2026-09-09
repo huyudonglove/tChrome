@@ -42,3 +42,13 @@ test.each([{ name: "finishTurn", field: "text" }, { name: "askUser", field: "que
     expect(check({ [field]: "有效正文" }).schemaOk).toBe(true);
   },
 );
+
+test("JavaScript values with only a target tab do not overwrite the current page", async () => {
+  const execution = await executeTool({
+    name: "execute_javascript", arguments: { code: "1 + 1", tab: 7 }, content: "", dataDir: "",
+    browserNames: ["execute_javascript"], host: { execute: async () => ({ ok: true, tab: 7, type: "number", value: 2 }) },
+    lookup: { toolIO: [], fullReturn: () => null, observationFull: () => null, unusedTools: [], knownTools: [], enabledTools: [] },
+  });
+  expect(JSON.parse(execution.text)).toMatchObject({ ok: true, value: 2 });
+  expect(execution.effects).toEqual([]);
+});

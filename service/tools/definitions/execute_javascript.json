@@ -2,13 +2,13 @@
   "type": "function",
   "function": {
     "name": "execute_javascript",
-    "description": "在当前页执行一段表达式。\n参数：code（页内执行的表达式），可选 tab（目标标签编号）。\n返回：ok（是否成功）、value（当前值）。\naffectsPage=true。",
+    "description": "通过 Chrome Debugger 在目标页面的主 JavaScript 环境执行表达式，可访问页面变量并等待 Promise。多条语句用 IIFE 包装，可选 tab 指定目标标签。\n返回：ok、type，以及结构化 value；undefined 无 value，NaN/Infinity/BigInt 等使用 unserializableValue；无法按值序列化时返回 serializable=false 和 description。输出超过16000个序列化字符时省略 value，返回 truncated=true、totalChars、valuePreview。错误返回 ok=false、error。超时或调试连接中断时执行状态可能未知，不自动重试有副作用的脚本。受 Chrome 调试权限和页面访问限制。\n参数：code（表达式）、可选 tab；reason 和 affectsPage 必填，affectsPage 根据实际脚本行为填写。",
     "parameters": {
       "type": "object",
       "properties": {
         "code": {
           "type": "string",
-          "description": "页内执行的 脚本表达式"
+          "description": "JavaScript 表达式；多语句用 (() => { ...; return value; })()，异步用 (async () => { ...; return value; })()"
         },
         "tab": {
           "type": "number"

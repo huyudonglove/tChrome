@@ -6,7 +6,7 @@ import { checkToolCalls } from "./schema.ts";
 
 const repoRoot = join(import.meta.dir, "../..");
 
-test("每个工具有 schema，reason 和 affectsPage 都在 required", () => {
+test("每个工具有 schema 和必填 reason，affectsPage 按工具约定校验", () => {
   const registry = loadToolRegistry(repoRoot);
   const listed = [...registry.index.browser, ...registry.index.service, ...registry.toolGroups.baseToolsIds];
   const unique = [...new Set(listed)];
@@ -22,7 +22,8 @@ test("每个工具有 schema，reason 和 affectsPage 都在 required", () => {
     expect(params.properties?.reason, `${name} reason`).toBeTruthy();
     expect(params.properties?.affectsPage, `${name} affectsPage`).toBeTruthy();
     expect(params.required ?? [], `${name} required`).toContain("reason");
-    expect(params.required ?? [], `${name} required`).toContain("affectsPage");
+    if (name === "catalog.add") expect(params.required ?? []).not.toContain("affectsPage");
+    else expect(params.required ?? [], `${name} required`).toContain("affectsPage");
     expect(tool.function.name).toBe(name);
     expect(registry.tools[name]?.function.description, `${name} usage`).toBeTruthy();
   }
@@ -75,4 +76,17 @@ test("缺字段和类型错走 Ajv，不补齐", () => {
   );
   expect(wrong.faultCode).toBe("wrong_type");
   expect(wrong.schemaOk).toBe(false);
+});
+
+test("catalog.add accepts the reported names/reason call without affectsPage and rejects true", () => {
+  const registry = loadToolRegistry(repoRoot);
+  const tools = toolSchemas(registry, ["catalog.add"]);
+  const check = (arguments_: Record<string, unknown>) => checkToolCalls([
+    { id: "load-script", name: "catalog.add", arguments: arguments_ },
+  ], tools, [], ["catalog.add"]);
+  const args = { names: ["execute_javascript"], reason: "加载脚本工具" };
+  expect(check(args).schemaOk).toBe(true);
+  expect(check({ ...args, affectsPage: false }).schemaOk).toBe(true);
+  expect(check({ ...args, affectsPage: true }).schemaOk).toBe(false);
+  expect(check({ names: args.names }).schemaOk).toBe(false);
 });
