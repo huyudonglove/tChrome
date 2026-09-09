@@ -7,7 +7,7 @@ import { createServer } from "./server.ts";
 import { createProvider } from "./provider/uuapi.ts";
 import { createToolBridge } from "./runtime/bridge.ts";
 import { stopTurn, emptyLedger, loadEvents, loadLedger, loadMemory, loadProviderLog, loadSession, loadTurn, saveLedger, saveTurn, sessionView } from "./runtime/store.ts";
-import { loadCatalog } from "./prompt/catalog.ts";
+import { loadContextModules } from "./context/modules.ts";
 import { systemText, userText } from "./context/window.ts";
 import { maybeCompress } from "./runtime/compress.ts";
 import type { CompletionResult, Provider } from "./types.ts";
@@ -37,25 +37,25 @@ const mock = (results: CompletionResult[]): Provider => {
   };
 };
 
-test("窗口按 catalog 模板插值", async () => {
-  const catalog = loadCatalog(repoRoot);
-  expect(catalog.assemble.baseToolsIds).toContain("notes.write");
-  expect(catalog.assemble.baseToolsIds).toContain("notes.delete");
-  expect(catalog.userTemplate).toContain("{{#notes}}");
-  expect(catalog.userTemplate).toContain("{{#goal}}");
-  expect(catalog.userTemplate).toContain("{{#goalHistory}}");
-  expect(catalog.assemble.coreToolIds).toContain("page.get_summary");
-  expect(catalog.systemTemplate).toContain("{{#baseTools}}");
-  expect(catalog.userTemplate).not.toContain("{{#baseTools}}");
-  expect(catalog.userTemplate).toContain("{{#tools}}");
-  expect(catalog.userTemplate).not.toContain("{{#sop}}");
-  expect(catalog.userTemplate).toContain("{{#currentTab}}");
-  expect(catalog.userTemplate).toContain("{{#currentPage}}");
-  expect(catalog.userTemplate).not.toContain("{{#参考}}");
-  expect(catalog.userTemplate).not.toContain("{{#currentEnvironment}}");
-  expect(catalog.systemTemplate).not.toContain("{{#skill}}");
-  expect(catalog.systemTemplate).not.toContain("{{#sop}}");
-  const system = systemText(catalog);
+test("窗口按上下文栏目清单插值", async () => {
+  const contextModules = loadContextModules(repoRoot);
+  expect(contextModules.toolGroups.baseToolsIds).toContain("notes.write");
+  expect(contextModules.toolGroups.baseToolsIds).toContain("notes.delete");
+  expect(contextModules.userInventory).toContain("#notes");
+  expect(contextModules.userInventory).toContain("#goal");
+  expect(contextModules.userInventory).toContain("#goalHistory");
+  expect(contextModules.toolGroups.coreToolIds).toContain("page.get_summary");
+  expect(contextModules.systemInventory).toContain("#baseTools");
+  expect(contextModules.userInventory).not.toContain("#baseTools");
+  expect(contextModules.userInventory).toContain("#tools");
+  expect(contextModules.userInventory).not.toContain("#sop");
+  expect(contextModules.userInventory).toContain("#currentTab");
+  expect(contextModules.userInventory).toContain("#currentPage");
+  expect(contextModules.userInventory).not.toContain("#参考");
+  expect(contextModules.userInventory).not.toContain("#currentEnvironment");
+  expect(contextModules.systemInventory).not.toContain("#skill");
+  expect(contextModules.systemInventory).not.toContain("#sop");
+  const system = systemText(contextModules);
   expect(system).toContain("#identity");
   expect(system).toContain("tChrome");
   expect(system).toContain("参考材料");
@@ -75,7 +75,7 @@ test("窗口按 catalog 模板插值", async () => {
   expect(system).not.toMatch(/^#skill$/m);
   expect(system).not.toMatch(/^#sop$/m);
   const user = userText({
-    catalog,
+    contextModules,
     ledger: emptyLedger("cv_01"),
     turn: {
       turnId: "tn_01",
@@ -104,7 +104,7 @@ test("窗口按 catalog 模板插值", async () => {
   expect(user).toContain("{}");
   expect(user).toContain("#skill");
   expect(user).not.toContain("#sop");
-  expect(user).toContain(catalog.skill);
+  expect(user).toContain(contextModules.skill);
   expect(system).toContain("#baseTools");
   expect(system).toContain("askUser：向用户提问");
   expect(system).toContain("finishTurn：结束本 Turn");
@@ -507,7 +507,7 @@ test("到门槛时先裁 toolIds 再压缩记忆", async () => {
     dataDir: dir,
     ledger,
     turn,
-    catalog: loadCatalog(repoRoot),
+    contextModules: loadContextModules(repoRoot),
     coreToolIds: ["see_page", "web_search"],
     windowChars: 200000,
   });

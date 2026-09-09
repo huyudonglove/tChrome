@@ -33,7 +33,7 @@ test("legacy closing calls retain action fallback", async () => {
 
 test.each([{ name: "finishTurn", field: "text" }, { name: "askUser", field: "question" }])(
   "$name schema requires a nonblank user-facing message", ({ name, field }) => {
-    const tool = JSON.parse(readFileSync(new URL(`../../catalog/tools/${name}.json`, import.meta.url), "utf8")) as ChatTool;
+    const tool = JSON.parse(readFileSync(new URL(`../../context/tools/${name}.json`, import.meta.url), "utf8")) as ChatTool;
     const check = (args: ExecuteInput["arguments"]) => checkToolCalls([
       { id: "closing", name, arguments: { reason: "完成当前步骤", affectsPage: false, choice: [], ...args } },
     ], [tool], [name], []);

@@ -1,27 +1,28 @@
 import { expect, test } from "bun:test";
-import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, mkdtempSync, cpSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import runtimeMessages from "../runtime/messages.json";
 import { join } from "node:path";
-import { loadCatalog, renderSlots, slotNames, toolSchemas, toolUsageFor, type Catalog } from "./catalog.ts";
+import { loadContextModules, renderSlots, slotNames, toolSchemas, toolUsageFor, type ContextModules } from "./modules.ts";
 import { systemText, userText } from "../context/window.ts";
 import { emptyLedger } from "../runtime/store.ts";
 import type { Turn } from "../types.ts";
 
 const root = join(import.meta.dir, "../..");
-const developerCopy = /用途与来源|^用途[：:]|^来源[：:]|应用维护|由本文件维护|无运行时附加数据|ledger\.|Turn\.assembled|baseToolsIds|coreToolIds|windowChars|compressAt|catalog\/|function\.description|Runtime|装配|维护位置/gm;
-const system = ["identity", "environment", "execution", "output", "baseTools"].map(n => `#${n}`);
-const user = ["skill", "userInput", "userInputHistory", "goal", "goalHistory", "currentTab", "currentPage", "projectMemory", "conversationMemory", "turnMemory", "contextSummary", "notes", "toolIO", "observation", "tools"].map(n => `#${n}`);
+const developerCopy = /用途与来源|^用途[：:]|^来源[：:]|应用维护|由本文件维护|无运行时附加数据|ledger\.|Turn\.assembled|baseToolsIds|coreToolIds|windowChars|compressAt|contextModules\/|function\.description|Runtime|装配|维护位置/gm;
+const system = slotNames(readFileSync(join(root, "context/system-slots.md"), "utf8"));
+const user = slotNames(readFileSync(join(root, "context/user-slots.md"), "utf8"));
 
 for (const [role, names] of [["system", system], ["user", user]] as const) {
-  test(`${role} 清单、模板顺序和独立槽目录完全一致`, () => {
-    const c = loadCatalog(root);
-    const template = role === "system" ? c.systemTemplate : c.userTemplate;
+  test(`${role} 清单、加载顺序和独立槽目录完全一致`, () => {
+    const c = loadContextModules(root);
+    const inventoryText = role === "system" ? c.systemInventory : c.userInventory;
     const files = role === "system" ? c.systemSlots : c.userSlots;
-    const inventory = readFileSync(join(root, `catalog/${role}-slots.md`), "utf8");
+    const inventory = readFileSync(join(root, `context/${role}-slots.md`), "utf8");
     const listed = Array.from(inventory.matchAll(/^\| \d+ \|.*?`(#[^`]+)`/gm), m => m[1]);
     expect(listed).toEqual(names);
-    expect(slotNames(template)).toEqual(names);
-    expect(template.split(/\n+/).every(l => /^\{\{#[\w]+\}\}$/.test(l))).toBe(true);
-    expect(readdirSync(join(root, "catalog/slots", role)).sort()).toEqual(names.map(n => `${n.slice(1)}.md`).sort());
+    expect(slotNames(inventoryText)).toEqual(names);
+    expect(readdirSync(join(root, "context", role)).sort()).toEqual(names.map(n => `${n.slice(1)}.md`).sort());
     for (const name of names) {
       expect(files[name]?.startsWith(`${name}\n`)).toBe(true);
       if (role === "user") expect(files[name]).toBe(`${name}\n\n{{data}}`);
@@ -29,14 +30,14 @@ for (const [role, names] of [["system", system], ["user", user]] as const) {
       expect(files[name]?.match(/\{\{data\}\}/g)?.length).toBe(1);
     }
     const data = Object.fromEntries(names.map(n => [n, `DATA_${n}_END`]));
-    const rendered = renderSlots(template, files, data);
+    const rendered = renderSlots(inventoryText, files, data);
     for (const name of names) expect(rendered.split(`DATA_${name}_END`).length).toBe(2);
     expect(rendered).not.toContain("{{");
   });
 }
 
 test("完整装配保留各数据来源、规则与输入字面占位", () => {
-  const c = loadCatalog(root);
+  const c = loadContextModules(root);
   const ledger = emptyLedger("cv_slots");
   ledger.goal = "GOAL_DATA";
   ledger.goalHistory = ["OLD_GOAL_DATA"];
@@ -47,9 +48,9 @@ test("完整装配保留各数据来源、规则与输入字面占位", () => {
   ledger.toolIO = [{ turnId: "tn_slots", callId: "call_data", name: "web_search", arguments: { query: "TOOL_DATA" }, return: { stage: "complete", totalChars: 2, text: "ok" } }];
   const turn: Turn = { turnId: "tn_slots", conversationId: "cv_slots", status: "inferring", createdAt: "", completedAt: null,
     input: { text: "INPUT_DATA {{#goal}}", submittedAt: "" }, output: null,
-    assembled: { baseToolsIds: c.assemble.baseToolsIds, toolIds: c.assemble.coreToolIds, turnMemoryIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: { tab: 1, title: "TAB_DATA", url: "https://example.test" }, currentPage: { tab: 1, title: "PAGE_DATA", description: "PAGE_BODY", url: "https://example.test" } } };
+    assembled: { baseToolsIds: c.toolGroups.baseToolsIds, toolIds: c.toolGroups.coreToolIds, turnMemoryIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: { tab: 1, title: "TAB_DATA", url: "https://example.test" }, currentPage: { tab: 1, title: "PAGE_DATA", description: "PAGE_BODY", url: "https://example.test" } } };
   const memory = (layer: "project" | "conversation" | "turn") => [{ memoryId: `mm_${layer}`, layer, text: `${layer}_DATA`, summary: "", compressed: false, createdAt: "", sourceCallId: "call_memory" }];
-  const rendered = userText({ catalog: c, ledger, turn, memories: { project: memory("project"), conversation: memory("conversation"), turn: memory("turn") }, toolUsage: toolUsageFor(c, turn.assembled.toolIds) });
+  const rendered = userText({ contextModules: c, ledger, turn, memories: { project: memory("project"), conversation: memory("conversation"), turn: memory("turn") }, toolUsage: toolUsageFor(c, turn.assembled.toolIds) });
   expect(Array.from(rendered.match(/^#[a-zA-Z]+$/gm) ?? [])).toEqual(user);
   for (const data of ["GOAL_DATA", "OLD_GOAL_DATA", "HISTORY_DATA", "NOTES_DATA", "SUMMARY_DATA", "OBS_DATA", "TOOL_DATA", "INPUT_DATA {{#goal}}", "TAB_DATA", "PAGE_BODY", "project_DATA", "conversation_DATA", "turn_DATA", c.skill]) expect(rendered).toContain(data);
   expect(Array.from(systemText(c).match(/^#[a-zA-Z]+$/gm) ?? [])).toEqual(system);
@@ -63,16 +64,16 @@ test("完整装配保留各数据来源、规则与输入字面占位", () => {
   expect(systemText(c)).toContain("执行证据可能包含此前 Turn 的记录");
   expect(systemText(c).startsWith(`${c.systemInventory}\n\n${c.userInventory}\n\n`)).toBe(true);
   for (const role of ["system", "user"] as const) {
-    const inventory = readFileSync(join(root, `catalog/${role}-slots.md`), "utf8").trimEnd();
+    const inventory = readFileSync(join(root, `context/${role}-slots.md`), "utf8").trimEnd();
     expect(systemText(c).split(inventory)).toHaveLength(2);
   }
-  expect(existsSync(join(root, "catalog/packs/pack.agent.md"))).toBe(false);
-  expect(c.assemble).not.toHaveProperty("systemIds");
-  expect(c.assemble).not.toHaveProperty("skillIds");
+  expect(existsSync(join(root, "context/packs/pack.agent.md"))).toBe(false);
+  expect(c.toolGroups).not.toHaveProperty("systemIds");
+  expect(c.toolGroups).not.toHaveProperty("skillIds");
 });
 
 test("清理说明后仍保留执行、授权、时效和回查协议", () => {
-  const c = loadCatalog(root);
+  const c = loadContextModules(root);
   const rules = systemText(c);
   for (const text of [
     "调用按 tool_calls 数组顺序执行", "同批仅放入参数已知", "askUser 和 finishTurn 每批最多出现一个，且必须放在最后",
@@ -98,7 +99,7 @@ test("清理说明后仍保留执行、授权、时效和回查协议", () => {
 });
 
 test("阶段示例窗口、目录数组和工具 schema 与当前模块一致", () => {
-  const c = loadCatalog(root);
+  const c = loadContextModules(root);
   for (const file of readdirSync(join(root, "docs/examples")).filter(f => f.endsWith(".md"))) {
     const text = readFileSync(join(root, "docs/examples", file), "utf8");
     const visit = (value: unknown): void => {
@@ -121,30 +122,30 @@ test("阶段示例窗口、目录数组和工具 schema 与当前模块一致", 
       const turn = { turnId: snapshot.turnId, input: { text: snapshot.userInput }, assembled: snapshot } as Turn;
       const ledger = emptyLedger(snapshot.conversationId);
       ledger.userInputHistory = snapshot.userInputHistory;
-      expect(userWindow).toBe(userText({ catalog: c, ledger, turn, memories: { project: [], conversation: [], turn: [] }, toolUsage: toolUsageFor(c, snapshot.toolIds) }) + "\n");
+      expect(userWindow).toBe(userText({ contextModules: c, ledger, turn, memories: { project: [], conversation: [], turn: [] }, toolUsage: toolUsageFor(c, snapshot.toolIds) }) + "\n");
       expect(userWindow).not.toMatch(developerCopy);
-      for (const id of c.assemble.coreToolIds.filter(id => ["page.get_summary", "open_url", "web_search"].includes(id))) expect(userWindow).toContain(toolUsageFor(c, [id]));
+      for (const id of c.toolGroups.coreToolIds.filter(id => ["page.get_summary", "open_url", "web_search"].includes(id))) expect(userWindow).toContain(toolUsageFor(c, [id]));
     }
   }
 });
 
-const missingDescriptions = (c: Catalog) => Object.entries(c.tools).filter(([, t]) => !t.function.description?.trim()).map(([id]) => id);
+const missingDescriptions = (c: ContextModules) => Object.entries(c.tools).filter(([, t]) => !t.function.description?.trim()).map(([id]) => id);
 
 test("所有工具说明唯一来自定义，常驻与动态说明互不重复", () => {
-  const c = loadCatalog(root);
+  const c = loadContextModules(root);
   expect(Object.keys(c.index).sort()).toEqual(["browser", "service"]);
   expect(missingDescriptions(c)).toEqual([]);
-  expect(new Set([...c.index.browser, ...c.index.service, ...c.assemble.baseToolsIds])).toEqual(new Set(Object.keys(c.tools)));
+  expect(new Set([...c.index.browser, ...c.index.service, ...c.toolGroups.baseToolsIds])).toEqual(new Set(Object.keys(c.tools)));
   const base = systemText(c);
   expect(base).not.toMatch(developerCopy);
-  const dynamic = toolUsageFor(c, c.assemble.coreToolIds);
-  for (const id of c.assemble.baseToolsIds) {
+  const dynamic = toolUsageFor(c, c.toolGroups.coreToolIds);
+  for (const id of c.toolGroups.baseToolsIds) {
     expect(base.split(`${id}：`).length).toBe(2);
     expect(dynamic).not.toContain(`${id}：`);
   }
   for (const tool of toolSchemas(c, Object.keys(c.tools))) {
     const id = tool.function.name;
-    const disk = JSON.parse(readFileSync(join(root, `catalog/tools/${id}.json`), "utf8"));
+    const disk = JSON.parse(readFileSync(join(root, `context/tools/${id}.json`), "utf8"));
     expect(tool.function.description).not.toMatch(developerCopy);
     expect(JSON.stringify(tool.function.parameters)).not.toMatch(developerCopy);
     expect(tool.function.description).toBe(disk.function.description);
@@ -154,12 +155,52 @@ test("所有工具说明唯一来自定义，常驻与动态说明互不重复",
 
 test("缺失、空白工具描述会被目录测试检测且不静默吞掉", () => {
   for (const value of [undefined, "", "   "]) {
-    const c = loadCatalog(root);
+    const c = loadContextModules(root);
     c.tools.askUser!.function.description = value;
     expect(missingDescriptions(c)).toEqual(["askUser"]);
     expect(() => toolUsageFor(c, ["askUser"])).toThrow("missing tool description askUser");
   }
-  const c = loadCatalog(root);
+  const c = loadContextModules(root);
   delete c.systemSlots["#identity"];
   expect(() => systemText(c)).toThrow("missing slot file #identity");
+});
+
+test("只改清单即可改变实际窗口顺序，人类 README 不进模型", () => {
+  const temp = mkdtempSync(join(tmpdir(), "tchrome-context-"));
+  try {
+    cpSync(join(root, "context"), join(temp, "context"), { recursive: true });
+    writeFileSync(join(temp, "context/README.md"), "HUMAN_ONLY_SENTINEL");
+    for (const role of ["system", "user"] as const) {
+      const file = join(temp, `context/${role}-slots.md`);
+      const original = readFileSync(file, "utf8");
+      const rows = original.split("\n").filter(line => /^\| \d+ \|/.test(line)).reverse()
+        .map((line, i) => line.replace(/^\| \d+ \|/, `| ${i + 1} |`));
+      let i = 0;
+      writeFileSync(file, original.replace(/^\| \d+ \|.*$/gm, () => rows[i++]!));
+    }
+    const c = loadContextModules(temp);
+    expect(Array.from(systemText(c).match(/^#[a-zA-Z]+$/gm) ?? [])).toEqual([...system].reverse());
+    expect(slotNames(c.userInventory)).toEqual([...user].reverse());
+    expect(Array.from(renderSlots(c.userInventory, c.userSlots, {}).match(/^#[a-zA-Z]+$/gm) ?? [])).toEqual([...user].reverse());
+    expect(systemText(c)).not.toContain("HUMAN_ONLY_SENTINEL");
+    expect(Object.keys(c.toolGroups).sort()).toEqual(["baseToolsIds", "coreToolIds"]);
+    expect(Object.keys(runtimeMessages).sort()).toEqual(["emptyFinishTurn", "needFinishTurn"]);
+    expect(c).not.toHaveProperty("assemble");
+    expect(c).not.toHaveProperty("systemTemplate");
+    expect(c).not.toHaveProperty("userTemplate");
+    for (const name of ["assemble.json", "window.system.md", "window.user.md", "slots"]) expect(existsSync(join(temp, "context", name))).toBe(false);
+    rmSync(join(temp, "context/system/identity.md"));
+    expect(() => loadContextModules(temp)).toThrow("missing slot file #identity");
+    writeFileSync(join(temp, "context/system/identity.md"), "#identity");
+    writeFileSync(join(temp, "context/system/orphan.md"), "#orphan");
+    expect(() => loadContextModules(temp)).toThrow("unlisted slot file #orphan");
+  } finally { rmSync(temp, { recursive: true, force: true }); }
+});
+
+test("清单空白、重复、编号不连续与坏栏目拒绝加载", () => {
+  expect(() => slotNames("# Empty")).toThrow("empty slot inventory");
+  expect(() => slotNames("| 1 | `#one` | desc |\n| 2 | `#one` | desc |")).toThrow("duplicate slot");
+  expect(() => slotNames("| 2 | `#one` | desc |")).toThrow("invalid slot inventory row");
+  expect(() => slotNames("| 1 | #one | desc |")).toThrow("invalid slot inventory row");
+  expect(slotNames("| 1 | 分组 | `#one` | desc |\r\n| 2 | 分组 | `#two` | desc |")).toEqual(["#one", "#two"]);
 });

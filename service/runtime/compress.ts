@@ -1,5 +1,5 @@
 import { MEMORY_WINDOW } from "../context/window.ts";
-import type { Catalog } from "../prompt/catalog.ts";
+import type { ContextModules } from "../context/modules.ts";
 import type { Ledger, MemoryRecord, ObservationItem, ObservationRecord, Turn } from "../types.ts";
 import { nextId, nowIso } from "./ids.ts";
 import { appendEvent, loadMemory, saveMemory, saveObservation } from "./store.ts";
@@ -27,17 +27,17 @@ export function maybeCompress(input: {
   dataDir: string;
   ledger: Ledger;
   turn: Turn;
-  catalog: Catalog;
+  contextModules: ContextModules;
   coreToolIds: string[];
   windowChars: number;
 }): void {
-  const { dataDir, ledger, turn, catalog, coreToolIds } = input;
+  const { dataDir, ledger, turn, contextModules, coreToolIds } = input;
   ledger.windowChars = input.windowChars;
   if (ledger.windowChars < ledger.compressAt) return;
 
   const used = new Set(ledger.toolIO.map((row) => row.name));
   const keptTools = turn.assembled.toolIds.filter((id) => coreToolIds.includes(id) || used.has(id));
-  const prunedToolIds = turn.assembled.toolIds.filter((id) => !keptTools.includes(id) && catalog.tools[id]);
+  const prunedToolIds = turn.assembled.toolIds.filter((id) => !keptTools.includes(id) && contextModules.tools[id]);
   turn.assembled.toolIds = keptTools;
   ledger.memoryIds.turn = ledger.memoryIds.turn.slice(-MEMORY_WINDOW);
   ledger.memoryIds.conversation = ledger.memoryIds.conversation.slice(-MEMORY_WINDOW);

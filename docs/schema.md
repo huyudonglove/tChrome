@@ -1,6 +1,6 @@
 # schema
 
-数据声明只写这里。`docs/data.md` 是账本形状和循环。`docs/examples/` 是阶段样例，字段怎么填看本文件。工具参数形状看 `catalog/tools/<id>.json`。插槽用途、来源与边界见 `catalog/system-slots.md`、`catalog/user-slots.md` 和各独立槽文件。
+数据声明只写这里。`docs/data.md` 是账本形状和循环。`docs/examples/` 是阶段样例，字段怎么填看本文件。工具参数形状看 `context/tools/<id>.json`。插槽用途、来源与边界见 `context/system-slots.md`、`context/user-slots.md` 和各独立槽文件。
 
 ## 仓目录
 
@@ -10,20 +10,21 @@ extension/          GUI：Side Panel + background。常规通用 UI 组件和样
   sidepanel/        面板入口
 service/            后端：Bun.serve 127.0.0.1:18788。按模块分
   runtime/
-  prompt/
-  context/
+  context/          读取上下文模块，按清单顺序装配窗口
   tools/
   subagent/         第一期空着
   provider/
-catalog/            独立插槽 / skill / tools schema / 窗口模板
-  assemble.json     常驻工具 / 核心工具 / Runtime 提示文案
-  slots/system/     一个 system 插槽一个文件
-  slots/user/       一个 user 插槽一个文件
+context/            独立模块 / skill / tools schema / 栏目顺序清单
+  system/           一个 system 插槽一个文件
+  user/             一个 user 插槽一个文件
   system-slots.md   system 职责与顺序清单
   user-slots.md     user 职责与顺序清单
+  README.md         人类维护入口，不进入模型窗口
+  skills/           网页方法
+  tools/groups.json 常驻基础工具 / 初始动态工具分组
+  tools/index.json  browser / service 分类
+  tools/*.json      完整工具 schema
 
-  window.system.md  system 插槽：事实
-  window.user.md    user 插槽：参考材料
 docs/               schema、账本、阶段样例
 ```
 
@@ -159,8 +160,8 @@ Runtime 独占维护。当前会话指针。
 
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
-| `baseToolsIds` | string[] | 常驻工具，对应 `catalog/tools/<id>.json`；完整名单以 `catalog/assemble.json` 为准，说明进入 system `#baseTools` |
-| `toolIds` | string[] | 动态工具，对应 `catalog/tools/<id>.json`。开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.list_interactive_elements` `page.click` `page.type` `open_url` `web_search` `list_browser_tools` `catalog.add`）。缺了 `catalog.add` 再补。压缩时先裁回 core + 本轮已用过的 |
+| `baseToolsIds` | string[] | 常驻工具，对应 `context/tools/<id>.json`；完整名单以 `context/tools/groups.json` 为准，说明进入 system `#baseTools` |
+| `toolIds` | string[] | 动态工具，对应 `context/tools/<id>.json`。开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.list_interactive_elements` `page.click` `page.type` `open_url` `web_search` `list_browser_tools` `catalog.add`）。缺了 `catalog.add` 再补。压缩时先裁回 core + 本轮已用过的 |
 | `turnMemoryIds` | string[] | 这一轮记忆；没有就 `[]` |
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
@@ -219,17 +220,15 @@ Runtime 独占维护。当前会话指针。
 
 用户一条输入开一个 Turn，CE 装配一次。本 Turn 内工具循环不再走 CE。
 
-插槽导航分别维护在 `catalog/system-slots.md` 与 `catalog/user-slots.md`。两份 window 模板只排列 `{{#name}}`；`catalog/slots/system/<name>.md` 和 `catalog/slots/user/<name>.md` 各自维护用途、来源、边界及 `{{data}}`。静态 system 规则直接在各文件中维护，无运行时附加数据；动态槽由 Runtime 注入。装配不再按大 Pack 标题切割。空数据仍保留说明，不能解释为页面为空或任务完成。
+插槽导航分别维护在 `context/system-slots.md` 与 `context/user-slots.md`。程序直接读取两份清单的编号行，按清单顺序加载并排列对应模块，不再维护独立窗口模板；`context/system/<name>.md` 和 `context/user/<name>.md` 各自维护执行规则或 `{{data}}`。静态 system 规则直接在各文件中维护，无运行时附加数据；动态槽由 Runtime 注入。装配不再按大 Pack 标题切割。空数据仍保留说明，不能解释为页面为空或任务完成。
 
-system 顺序：`#identity` → `#environment` → `#execution` → `#output` → `#baseTools`。
+顺序仅以两份栏目清单为准，本文不再另列顺序。
 
-user 顺序：`#skill` → `#userInput` → `#userInputHistory` → `#goal` → `#goalHistory` → `#currentTab` → `#currentPage` → `#projectMemory` → `#conversationMemory` → `#turnMemory` → `#contextSummary` → `#notes` → `#toolIO` → `#observation` → `#tools`。
+`#skill` 数据来自固定的 `context/skills/skill.web.md`；不再记录无实际加载作用的 systemIds / skillIds。其余 user 数据分别来自 Turn.input、ledger、Turn.assembled 和 memory 文件，具体字段与可信边界见各独立槽文件。
 
-`#skill` 数据来自固定的 `catalog/skills/skill.web.md`；不再记录无实际加载作用的 systemIds / skillIds。其余 user 数据分别来自 Turn.input、ledger、Turn.assembled 和 memory 文件，具体字段与可信边界见各独立槽文件。
+`#baseTools` 按 toolGroups.baseToolsIds 生成常驻工具说明；`#tools` 按 Turn.assembled.toolIds 生成已加载动态工具说明。说明唯一来源是各工具 `function.description`；`context/tools/index.json` 只保存 browser / service 分类，不能另写 usage。`#tools` 是 user 参考文本，不是 role=tool 消息。工具 schema 的 description 与窗口说明同源。
 
-`#baseTools` 按 assemble.baseToolsIds 生成常驻工具说明；`#tools` 按 Turn.assembled.toolIds 生成已加载动态工具说明。说明唯一来源是各工具 `function.description`；`catalog/tools/index.json` 只保存 browser / service 分类，不能另写 usage。`#tools` 是 user 参考文本，不是 role=tool 消息。工具 schema 的 description 与窗口说明同源。
-
-维护：增删、重命名或调整插槽职责、顺序时，同步清单、独立文件、模板、装配测试与阶段窗口示例；修改工具说明只改该工具定义，并重新生成示例中的 schema / 工具说明。测试检查目录、清单、顺序、装配及全量工具 description 缺失。
+维护：增删、重命名或调整插槽职责、顺序时，同步清单、独立文件、装配测试与阶段窗口示例；修改工具说明只改该工具定义，并重新生成示例中的 schema / 工具说明。测试检查目录、清单、顺序、装配及全量工具 description 缺失。
 
 出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。
 
@@ -285,13 +284,13 @@ user 顺序：`#skill` → `#userInput` → `#userInputHistory` → `#goal` → 
 | `missing_required` | catalog `required` 缺或空。`missing` 列出字段名，写进 `#toolIO` 再出网。不补字段。同一 Turn 最多 3 次 |
 | `wrong_type` | Ajv：类型对不上 schema。写进 `#toolIO` 再出网。同一 Turn 最多 3 次 |
 | `exclusive_resident` | 同一次出网里 `finishTurn` / `askUser` 不在最后一条。写进 `#toolIO` 再出网 |
-| `need_finish_turn` | `finish=stop` 且 `tool_calls` 为空，连续 3 次。每次先写 `assemble.messages.needFinishTurn` 进 `#toolIO` 再出网 |
+| `need_finish_turn` | `finish=stop` 且 `tool_calls` 为空，连续 3 次。每次先写 `service/runtime/messages.json 的 needFinishTurn` 进 `#toolIO` 再出网 |
 
 Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 
 ## 工具参数
 
-每个工具 `arguments` 都有 `reason`（string）和 `affectsPage`（boolean）。其余按 `catalog/tools/<id>.json`。动态工具分类在 `catalog/tools/index.json`；用法只维护在每个工具定义的 function.description。
+每个工具 `arguments` 都有 `reason`（string）和 `affectsPage`（boolean）。其余按 `context/tools/<id>.json`。动态工具分类在 `context/tools/index.json`；用法只维护在每个工具定义的 function.description。
 
 | 工具 | required 其余 | 谁填其余 |
 |---|---|---|
@@ -305,7 +304,7 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | `memory.write` | （无） | `turnMemory` `conversationMemory` `projectMemory` `contextSummary` 有则写 |
 | `catalog.add` | `names` | 把缺的动态工具挂进本轮 |
 
-常驻与初始动态工具名单以 `catalog/assemble.json` 的 baseToolsIds / coreToolIds 为准。动态目录分类见 `catalog/tools/index.json`，缺能力通过 catalog.add 加载。浏览器工具经 `/tool-request` 泵到 background。
+常驻与初始动态工具名单以 `context/tools/groups.json` 的 baseToolsIds / coreToolIds 为准。动态目录分类见 `context/tools/index.json`，缺能力通过 catalog.add 加载。浏览器工具经 `/tool-request` 泵到 background。
 
 没迁、原因：
 
@@ -316,3 +315,5 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | `request_tool_service` `request_memory_service` | 挂在岗流水线上，tChrome 没有对应岗 |
 
 `api_discover` / `api_manage` 迁了 schema 和执行入口，登记表第一期空数组。
+
+运行提示独立维护在 `service/runtime/messages.json`，由运行层按需写入工具记录。

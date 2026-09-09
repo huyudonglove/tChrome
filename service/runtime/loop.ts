@@ -1,6 +1,7 @@
+import runtimeMessages from "./messages.json";
 import { FULL_RETURN_TOOLS } from "../tools/records.ts";
 import { systemText, userText, windowChars } from "../context/window.ts";
-import { coreToolIds, dynamicToolIds, loadCatalog, toolSchemas, toolUsageFor, type Catalog } from "../prompt/catalog.ts";
+import { coreToolIds, dynamicToolIds, loadContextModules, toolSchemas, toolUsageFor, type ContextModules } from "../context/modules.ts";
 import { asObject, asStringArray, clipReturn, executeTool, pageFromBrowser } from "../tools/execute.ts";
 import type {
   Assembled,
@@ -56,9 +57,9 @@ export type LoopDeps = {
   host?: BrowserHost;
 };
 
-const assemble = (catalog: Catalog): Assembled => ({
-  baseToolsIds: [...catalog.assemble.baseToolsIds],
-  toolIds: coreToolIds(catalog),
+const assemble = (contextModules: ContextModules): Assembled => ({
+  baseToolsIds: [...contextModules.toolGroups.baseToolsIds],
+  toolIds: coreToolIds(contextModules),
   turnMemoryIds: [],
   conversationMemoryIds: [],
   projectMemoryIds: [],
@@ -76,29 +77,29 @@ const loadMemories = (dataDir: string, ledger: Ledger) => {
   };
 };
 
-const messagesOf = (catalog: Catalog, ledger: Ledger, turn: Turn, dataDir: string): ChatMessage[] => {
-  const system = systemText(catalog);
+const messagesOf = (contextModules: ContextModules, ledger: Ledger, turn: Turn, dataDir: string): ChatMessage[] => {
+  const system = systemText(contextModules);
   const user = userText({
-    catalog,
+    contextModules,
     ledger,
     turn,
     memories: loadMemories(dataDir, ledger),
-    toolUsage: toolUsageFor(catalog, turn.assembled.toolIds),
+    toolUsage: toolUsageFor(contextModules, turn.assembled.toolIds),
   });
   maybeCompress({
     dataDir,
     ledger,
     turn,
-    catalog,
-    coreToolIds: coreToolIds(catalog),
+    contextModules,
+    coreToolIds: coreToolIds(contextModules),
     windowChars: windowChars(system, user),
   });
   const userAfter = userText({
-    catalog,
+    contextModules,
     ledger,
     turn,
     memories: loadMemories(dataDir, ledger),
-    toolUsage: toolUsageFor(catalog, turn.assembled.toolIds),
+    toolUsage: toolUsageFor(contextModules, turn.assembled.toolIds),
   });
   return [
     { role: "system", content: system },
@@ -161,12 +162,12 @@ const runQueue = async (input: {
   dataDir: string;
   ledger: Ledger;
   turn: Turn;
-  catalog: Catalog;
+  contextModules: ContextModules;
   content: string;
   browserNames: string[];
   host?: BrowserHost;
 }): Promise<TurnOutput | null> => {
-  const { dataDir, ledger, turn, catalog, content, host, browserNames } = input;
+  const { dataDir, ledger, turn, contextModules, content, host, browserNames } = input;
   while (ledger.toolQueue.length) {
     const item = ledger.toolQueue.shift();
     if (!item) break;
@@ -190,7 +191,7 @@ const runQueue = async (input: {
         fullReturn: (callId) => loadFullReturn(dataDir, ledger.conversationId, callId),
         observationFull: (observationId) =>
           loadObservation(dataDir, ledger.conversationId, observationId)?.full ?? null,
-        unusedTools: dynamicToolIds(catalog).filter((id) => !turn.assembled.toolIds.includes(id)),
+        unusedTools: dynamicToolIds(contextModules).filter((id) => !turn.assembled.toolIds.includes(id)),
       },
     });
     if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
@@ -239,8 +240,8 @@ const runQueue = async (input: {
       const names = asStringArray(item.arguments.names);
       for (const name of names) {
         if (turn.assembled.toolIds.includes(name)) continue;
-        if (!catalog.tools[name]) continue;
-        if (catalog.assemble.baseToolsIds.includes(name)) continue;
+        if (!contextModules.tools[name]) continue;
+        if (contextModules.toolGroups.baseToolsIds.includes(name)) continue;
         turn.assembled.toolIds.push(name);
       }
     }
@@ -261,7 +262,7 @@ const runQueue = async (input: {
         ledger.toolIO.push({
           ...item,
           turnId: turn.turnId,
-          return: clipReturn(catalog.assemble.messages.emptyFinishTurn),
+          return: clipReturn(runtimeMessages.emptyFinishTurn),
         });
         return null;
       }
@@ -297,7 +298,7 @@ export async function handleTurn(
     const last = loadTurn(deps.dataDir, ledger.conversationId, prevId);
     ledger.userInputHistory.push(last.input.text);
   }
-  const catalog = loadCatalog(deps.repoRoot);
+  const contextModules = loadContextModules(deps.repoRoot);
   const turnId = nextId("tn_", ledger.turnIds);
   const turn: Turn = {
     turnId,
@@ -306,7 +307,7 @@ export async function handleTurn(
     createdAt: nowIso(),
     completedAt: null,
     input: { text: body.userInput, submittedAt: body.submittedAt },
-    assembled: assemble(catalog),
+    assembled: assemble(contextModules),
     output: null,
     usage: { modelRequests: 0, toolCalls: 0 },
   };
@@ -343,8 +344,8 @@ export async function handleTurn(
   let submitFails = 0;
   while (true) {
     if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
-    const messages = messagesOf(catalog, ledger, turn, deps.dataDir);
-    const tools = toolSchemas(catalog, [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds]);
+    const messages = messagesOf(contextModules, ledger, turn, deps.dataDir);
+    const tools = toolSchemas(contextModules, [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds]);
     turn.usage!.modelRequests += 1;
     saveTurn(deps.dataDir, turn);
     appendEvent(deps.dataDir, ledger.conversationId, {
@@ -444,9 +445,9 @@ export async function handleTurn(
           dataDir: deps.dataDir,
           ledger,
           turn,
-          catalog,
+          contextModules,
           content: result.content,
-          browserNames: catalog.index.browser,
+          browserNames: contextModules.index.browser,
           host: deps.host,
         });
         if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
@@ -488,7 +489,7 @@ export async function handleTurn(
         name: "finishTurn",
         turnId,
         arguments: {},
-        return: clipReturn(catalog.assemble.messages.needFinishTurn),
+        return: clipReturn(runtimeMessages.needFinishTurn),
       });
       if (submitFails >= MAX_SUBMIT) {
         turn.status = "failed";
@@ -519,9 +520,9 @@ export async function handleTurn(
       dataDir: deps.dataDir,
       ledger,
       turn,
-      catalog,
+      contextModules,
       content: result.content,
-      browserNames: catalog.index.browser,
+      browserNames: contextModules.index.browser,
       host: deps.host,
     });
     if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);

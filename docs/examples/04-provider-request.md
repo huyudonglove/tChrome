@@ -125,7 +125,7 @@ SDK 写法：`client.chat.completions.create({ model, messages, tools, stream: t
 
 ### `messages[0]` system
 
-由独立槽文件与本样例数据完整装配；模板只排列顺序。
+由独立槽文件与本样例数据完整装配；顺序只读取两份栏目清单。
 
 ```
 # System 栏目清单
@@ -245,7 +245,7 @@ notes.delete：删除过时的工作笔记。必填 key：#notes 中要删除的
 
 ### `messages[1]` user
 
-由独立槽文件与本样例数据完整装配；模板只排列顺序。
+由独立槽文件与本样例数据完整装配；顺序只读取两份栏目清单。
 
 ```
 #skill

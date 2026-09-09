@@ -136,21 +136,18 @@ bun run service
 extension/          Chrome 侧栏、后台 worker、浏览器工具
 service/
   runtime/          Agent 循环、账本、存储、压缩和浏览器桥
-  prompt/           读取 catalog、装配提示词
   context/          上下文窗口
   tools/            参数处理、schema 校验和工具执行
   provider/         UUAPI 模型接入
   subagent/         预留
-catalog/
-  slots/system/     固定规则与常驻工具插槽，每槽独立文件
-  slots/user/       用户请求、状态、记忆与动态工具插槽
+context/            人类总目录见 context/README.md；清单是唯一模块顺序来源
+  system/           固定规则与常驻工具插槽，每槽独立文件
+  user/             用户请求、状态、记忆与动态工具插槽
   system-slots.md   system 插槽职责与顺序清单
   user-slots.md     user 插槽职责与顺序清单
   skills/           网页能力与操作方法
-  tools/            工具定义
-  assemble.json     装配配置
-  window.system.md  system 模板
-  window.user.md    user 模板
+  tools/            工具定义；groups.json 管加载分组，index.json 管分类
+  README.md         人类维护入口，不进入模型窗口
 docs/               数据协议和分阶段示例
 scripts/            扩展构建脚本
 ```
@@ -179,3 +176,5 @@ scripts/            扩展构建脚本
 - [分阶段数据示例](docs/examples/01-normalize.md)
 - [服务说明](service/README.md)
 - [扩展说明](extension/README.md)
+
+运行提示独立维护在 `service/runtime/messages.json`，由运行层按需写入工具记录。

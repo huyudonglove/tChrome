@@ -1,13 +1,13 @@
 import type { Ledger, MemoryRecord, Turn } from "../types.ts";
-import { renderSlots, toolUsageFor, type Catalog } from "../prompt/catalog.ts";
+import { renderSlots, toolUsageFor, type ContextModules } from "./modules.ts";
 
 export const MEMORY_WINDOW = 8;
 
 const jsonBody = (value: unknown) => JSON.stringify(value, null, 2);
 
-export function systemText(catalog: Catalog): string {
-  return [catalog.systemInventory, catalog.userInventory, renderSlots(catalog.systemTemplate, catalog.systemSlots, {
-    "#baseTools": toolUsageFor(catalog, catalog.assemble.baseToolsIds),
+export function systemText(contextModules: ContextModules): string {
+  return [contextModules.systemInventory, contextModules.userInventory, renderSlots(contextModules.systemInventory, contextModules.systemSlots, {
+    "#baseTools": toolUsageFor(contextModules, contextModules.toolGroups.baseToolsIds),
   })].join("\n\n");
 }
 
@@ -19,15 +19,15 @@ const memoryBody = (items: MemoryRecord[]) =>
     .join("\n");
 
 export function userText(input: {
-  catalog: Catalog;
+  contextModules: ContextModules;
   ledger: Ledger;
   turn: Turn;
   memories: { project: MemoryRecord[]; conversation: MemoryRecord[]; turn: MemoryRecord[] };
   toolUsage: string;
 }): string {
-  const { catalog, ledger, turn, memories, toolUsage } = input;
-  return renderSlots(catalog.userTemplate, catalog.userSlots, {
-    "#skill": catalog.skill,
+  const { contextModules, ledger, turn, memories, toolUsage } = input;
+  return renderSlots(contextModules.userInventory, contextModules.userSlots, {
+    "#skill": contextModules.skill,
     "#projectMemory": memoryBody(memories.project),
     "#conversationMemory": memoryBody(memories.conversation),
     "#turnMemory": memoryBody(memories.turn),
