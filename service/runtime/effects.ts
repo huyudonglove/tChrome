@@ -40,7 +40,12 @@ export function applyToolEffects(input: {
       case "tools.enable":
         turn.assembled.toolIds = [...new Set([...turn.assembled.toolIds, ...effect.names])];
         break;
-      case "page.set": turn.assembled.currentPage = effect.page; break;
+      case "page.set":
+        turn.assembled.currentPage = { ...effect.page };
+        (turn.assembled.pageObservedHistory ??= []).push({
+          ...effect.page, observedAt: nowIso(), callId: call.callId, toolName: call.name,
+        });
+        break;
       case "turn.ask":
         turn.status = "waiting_human";
         turn.completedAt = nowIso();

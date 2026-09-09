@@ -22,7 +22,7 @@ const navigationTags = (text: string) => Array.from(text.matchAll(/^(#[A-Za-z][A
 const fixtureTurn = (): Turn => ({
   turnId: "tn_slots", conversationId: "cv_slots", status: "inferring", createdAt: "", completedAt: null,
   input: { text: "用户输入 {{#goal}} {{data}}", submittedAt: "" }, output: null,
-  assembled: { baseToolsIds: [], toolIds: [], turnMemoryIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null },
+  assembled: { baseToolsIds: [], toolIds: [], turnMemoryIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null, pageObservedHistory: [] },
 });
 
 for (const role of ["system", "user"] as const) {
@@ -132,7 +132,7 @@ test.each([
 });
 
 test("inventory accepts only contiguous numbered basenames and rejects duplicate entries", () => {
-  expect(slotNames("# List\n\n1. identity\r\n2. currentPage\n")).toEqual(["#identity", "#currentPage"]);
+  expect(slotNames("# List\n\n1. identity\r\n2. pageObservedHistory\n")).toEqual(["#identity", "#pageObservedHistory"]);
   for (const inventory of ["# Empty", "1. identity\n2. identity", "2. identity", "1. #identity", "1. ../identity", "1. identity --【重复能力】", "| 1 | `#identity` | description |"])
     expect(() => slotNames(inventory)).toThrow();
 });

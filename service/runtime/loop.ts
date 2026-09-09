@@ -69,6 +69,7 @@ const assemble = (toolRegistry: ToolRegistry): Assembled => ({
   projectMemoryIds: [],
   mcpIds: [],
   currentPage: null,
+  pageObservedHistory: [],
   currentTab: null,
 });
 
@@ -236,6 +237,7 @@ export async function handleTurn(
       url: String(tab.url ?? ""),
       title: String(tab.title ?? ""),
     };
+    turn.assembled.currentPage = { ...turn.assembled.currentTab, description: "用户发话时的标签信息，尚未读取页面内容" };
   }
   turn.assembled.turnMemoryIds = [...ledger.memoryIds.turn];
   turn.assembled.conversationMemoryIds = [...ledger.memoryIds.conversation];

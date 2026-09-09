@@ -35,7 +35,7 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 | 方法 | 路径 | 体 | 回 |
 |---|---|---|---|
 | GET | `/health` | 无 | `{ok:true}` |
-| POST | `/turn` | `{userInput, submittedAt, currentTab?}` | `{conversationId, turnId, output}`。`currentTab` 是 `{tab, url, title}`，开 Turn 写入 `#currentTab`。没有就槽空着 |
+| POST | `/turn` | `{userInput, submittedAt, currentTab?}` | `{conversationId, turnId, output}`。`currentTab` 是 `{tab, url, title}`，开 Turn 写入 `#currentPage`。没有就槽空着 |
 | POST | `/stop` | 无 | 停当前 Turn。账本 `paused`，投影回 `{conversationId, status, pendingAsk, liveTool, messages}`。下一句可再开 Turn |
 | GET | `/session` | 无 | 当前 `session.json` 指向的会话投影：`{conversationId, status, pendingAsk, liveTool, messages}`。`messages` 按流水：user / 每次出网的 `content` / 已跑工具的 `return` / 正在跑（`live:true`）/ 排队工具。没有 `content` 时才用收口 `output` |
 | GET | `/conversations` | 无 | `{items:[{conversationId, updatedAt, status, preview}]}`。当前 `session.json` 指向的排第一，其余按 `updatedAt` 新到旧。空会话 preview 是「新会话」 |
@@ -164,8 +164,9 @@ Runtime 独占维护。当前会话指针。
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
 | `mcpIds` | string[] | 本轮 MCP；没有就 `[]` |
-| `currentTab` | object \| null | 开 Turn 由 Runtime 写入。面板 `POST /turn` 带当前标签 `{tab, url, title}`。没有就 `null`。进 user `#currentTab` |
-| `currentPage` | object \| null | 开 Turn 为 `null`。模型调 `page.get_summary`（或其它会改当前页的工具）跑完后，Runtime 用返回填 `description` `tab` `url` `title`。进 user `#currentPage` |
+| `currentTab` | object \| null | 本轮输入来源的内部标签快照，仅用于初始化 currentPage，不单独注入模型 |
+| `currentPage` | object \| null | 初始取发话标签，标注尚未读取页面内容；随后由有效页面工具返回替换。注入 `#currentPage` |
+| `pageObservedHistory` | object[] | 本轮工具页面观察，初始 `[]`，按旧到新追加，包含最新一次观察。每条带页面字段及 observedAt、callId、toolName。注入 `#pageObservedHistory` |
 
 `currentPage`：
 

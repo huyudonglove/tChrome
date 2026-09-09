@@ -16,6 +16,12 @@ export type CurrentPage = CurrentTab & {
   description: string;
 };
 
+export type PageObservation = CurrentPage & {
+  observedAt: string;
+  callId: string;
+  toolName: string;
+};
+
 export type Assembled = {
   baseToolsIds: string[];
   toolIds: string[];
@@ -24,6 +30,7 @@ export type Assembled = {
   projectMemoryIds: string[];
   mcpIds: string[];
   currentPage: CurrentPage | null;
+  pageObservedHistory: PageObservation[];
   currentTab: CurrentTab | null;
 };
 

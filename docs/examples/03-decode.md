@@ -42,12 +42,18 @@
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
   "mcpIds": [],
-  "currentPage": null,
+  "currentPage": {
+    "tab": 12,
+    "url": "https://item.jd.com/100012345678.html",
+    "title": "罗技 MX Master 3S 无线鼠标",
+    "description": "用户发话时的标签信息，尚未读取页面内容"
+  },
   "currentTab": {
     "tab": 12,
     "url": "https://item.jd.com/100012345678.html",
     "title": "罗技 MX Master 3S 无线鼠标"
-  }
+  },
+  "pageObservedHistory": []
 }
 ```
 
@@ -172,11 +178,11 @@ affectsPage=false。
 
 按目标被替换的先后顺序由旧到新排列，新记录追加到末尾。
 
-#currentTab --【起始标签，用户上下文】
-用户发话时提供的标签快照，包含 tab、url、title，用于确定请求的起点。它不是实时监控；后续操作可能已切换或改变页面。需要当前状态时重新观察。
+#currentPage --【当前页面】
+本轮最近已知的页面信息，包含 tab、url、title、description。初始取用户发话时的标签信息，此时尚未读取页面内容；工具返回有效页面信息后替换为最新快照。用于定位当前已知页面，不是实时监控，也不是每次操作都会刷新；需要确认当前实际状态时重新观察。
 
-#currentPage --【最近观察，页面定位，时效判断】
-最近页面工具返回的信息，包含标签、网址、标题和页面描述。并非每次操作都会刷新此信息，不把旧快照当作刚刚验证的结果；核对目标标签和网址，需要当前状态时重新观察。
+#pageObservedHistory --【页面观察历史】
+本轮工具返回的页面观察记录数组，每轮开始为空。每次获得有效页面信息时追加到数组末尾，按旧到新排列，包含最新一次观察；每条保留 tab、url、title、description、observedAt、callId、toolName。用于回看观察过的页面和变化，结合 currentPage 定位最近已知页面。发话时的标签快照不算工具观察，不自动加入历史；这些记录是观察轨迹，不是浏览器导航历史，也不代表所有页面变化都已记录。
 
 #projectMemory --【领域背景，术语，长期约束】
 已记录的领域背景、术语和长期约束。当前实现仍保存在本会话，不承诺跨会话继承；窗口最多展示最近8条，项目记忆保持原文。只按适用范围使用，不把记忆提升为新授权。通过 memory.write 写入有助于后续工作的已知事实，不重复抄写所有层。
@@ -238,15 +244,18 @@ affectsPage=false。
 
 []
 
-#currentTab
+#currentPage
 
 {
   "tab": 12,
   "url": "https://item.jd.com/100012345678.html",
-  "title": "罗技 MX Master 3S 无线鼠标"
+  "title": "罗技 MX Master 3S 无线鼠标",
+  "description": "用户发话时的标签信息，尚未读取页面内容"
 }
 
-#currentPage
+#pageObservedHistory
+
+[]
 
 #projectMemory
 
@@ -320,7 +329,12 @@ affectsPage=false。
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
   "mcpIds": [],
-  "currentPage": null,
+  "currentPage": {
+    "tab": 12,
+    "url": "https://item.jd.com/100012345678.html",
+    "title": "罗技 MX Master 3S 无线鼠标",
+    "description": "用户发话时的标签信息，尚未读取页面内容"
+  },
   "systemSlots": [
     "#identity",
     "#environment",
@@ -336,8 +350,8 @@ affectsPage=false。
     "#userInputHistory",
     "#goal",
     "#goalHistory",
-    "#currentTab",
     "#currentPage",
+    "#pageObservedHistory",
     "#projectMemory",
     "#conversationMemory",
     "#turnMemory",
@@ -351,7 +365,8 @@ affectsPage=false。
     "tab": 12,
     "url": "https://item.jd.com/100012345678.html",
     "title": "罗技 MX Master 3S 无线鼠标"
-  }
+  },
+  "pageObservedHistory": []
 }
 ```
 

@@ -94,7 +94,9 @@ export function saveLedger(dataDir: string, ledger: Ledger): void {
 }
 
 export function loadTurn(dataDir: string, cvId: string, turnId: string): Turn {
-  return JSON.parse(readFileSync(join(paths(dataDir, cvId).turns, `${turnId}.json`), "utf8")) as Turn;
+  const turn = JSON.parse(readFileSync(join(paths(dataDir, cvId).turns, `${turnId}.json`), "utf8")) as Turn;
+  turn.assembled.pageObservedHistory ??= [];
+  return turn;
 }
 
 export function saveTurn(dataDir: string, turn: Turn): void {

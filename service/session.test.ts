@@ -10,7 +10,7 @@ const makeTurn = (output: TurnOutput | null): Turn => ({
   createdAt: "2026-09-07T00:00:00.000Z", completedAt: null,
   input: { text: "查看当前页面", submittedAt: "2026-09-07T00:00:00.000Z" },
   assembled: { baseToolsIds: [], toolIds: [],
-    turnMemoryIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, currentTab: null },
+    turnMemoryIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, pageObservedHistory: [], currentTab: null },
   output,
 });
 

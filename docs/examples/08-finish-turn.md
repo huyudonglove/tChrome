@@ -117,7 +117,12 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
   "mcpIds": [],
-  "currentPage": null,
+  "currentPage": {
+    "tab": 12,
+    "url": "https://item.jd.com/100012345678.html",
+    "title": "罗技 MX Master 3S 无线鼠标",
+    "description": "用户发话时的标签信息，尚未读取页面内容"
+  },
   "systemSlots": [
     "#identity",
     "#environment",
@@ -133,8 +138,8 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "#userInputHistory",
     "#goal",
     "#goalHistory",
-    "#currentTab",
     "#currentPage",
+    "#pageObservedHistory",
     "#projectMemory",
     "#conversationMemory",
     "#turnMemory",
@@ -202,7 +207,8 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "tab": 12,
     "url": "https://item.jd.com/100012345678.html",
     "title": "罗技 MX Master 3S 无线鼠标"
-  }
+  },
+  "pageObservedHistory": []
 }
 ```
 

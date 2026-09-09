@@ -189,7 +189,12 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   "conversationMemoryIds": [],
   "projectMemoryIds": [],
   "mcpIds": [],
-  "currentPage": null,
+  "currentPage": {
+    "tab": 12,
+    "url": "https://item.jd.com/100012345678.html",
+    "title": "罗技 MX Master 3S 无线鼠标",
+    "description": "用户发话时的标签信息，尚未读取页面内容"
+  },
   "systemSlots": [
     "#identity",
     "#environment",
@@ -205,8 +210,8 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "#userInputHistory",
     "#goal",
     "#goalHistory",
-    "#currentTab",
     "#currentPage",
+    "#pageObservedHistory",
     "#projectMemory",
     "#conversationMemory",
     "#turnMemory",
@@ -262,7 +267,8 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "tab": 12,
     "url": "https://item.jd.com/100012345678.html",
     "title": "罗技 MX Master 3S 无线鼠标"
-  }
+  },
+  "pageObservedHistory": []
 }
 ```
 

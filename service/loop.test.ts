@@ -64,7 +64,7 @@ test("System模块说明直接合并，User动态数据按栏目注入", () => {
       turnId: "tn_01", conversationId: "cv_01", status: "inferring",
       createdAt: "2026-09-06T00:00:00.000Z", completedAt: null,
       input: { text: "帮我查这款鼠标官网价", submittedAt: "2026-09-06T00:00:00.000Z" },
-      assembled: { baseToolsIds: [], toolIds: [], turnMemoryIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null },
+      assembled: { baseToolsIds: [], toolIds: [], turnMemoryIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null, pageObservedHistory: [] },
       output: null,
     },
     memories: { project: [], conversation: [], turn: [] },
@@ -106,7 +106,8 @@ test("开 Turn 写入 currentTab，不调 page 工具", async () => {
   expect(reply.output).toEqual({ kind: "reply", text: "当前是京东" });
   const turn = loadTurn(dir, "cv_01", reply.turnId);
   expect(turn.assembled.currentTab).toEqual({ tab: 12, url: "https://item.jd.com/x", title: "罗技" });
-  expect(turn.assembled.currentPage).toBeNull();
+  expect(turn.assembled.currentPage).toMatchObject({ tab: 12, url: "https://item.jd.com/x", title: "罗技" });
+  expect(turn.assembled.pageObservedHistory).toEqual([]);
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -525,7 +526,7 @@ test("队列和正在跑的工具出现在 /session", () => {
       conversationMemoryIds: [],
       projectMemoryIds: [],
       mcpIds: [],
-      currentPage: null,
+      currentPage: null, pageObservedHistory: [],
       currentTab: null,
     },
     output: null,

@@ -5,8 +5,8 @@
 3. userInputHistory
 4. goal
 5. goalHistory
-6. currentTab
-7. currentPage
+6. currentPage
+7. pageObservedHistory
 8. projectMemory
 9. conversationMemory
 10. turnMemory

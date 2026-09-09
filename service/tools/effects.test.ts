@@ -21,6 +21,7 @@ function setup() {
     output: null, assembled: {
       baseToolsIds: ["finishTurn"], toolIds: ["page.click"], turnMemoryIds: [],
       conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, currentTab: null,
+      pageObservedHistory: [],
     },
   };
   const execute = (name: string, args: ToolArguments, options: Partial<ExecuteInput> = {}) => executeTool({
@@ -114,4 +115,41 @@ test("browser page metadata becomes a typed effect; failed results cannot replac
     browserNames: ["page.click"], host: { execute: async () => ({ ok: false, tab: 8, error: "closed" }) },
   });
   expect(failed.effects).toEqual([]);
+});
+
+test("page effects update the current page and persist observations in chronological order", () => {
+  const fixture = setup();
+  fixture.turn.assembled.currentPage = {
+    tab: 1, url: "https://example.test/input", title: "发话页面", description: "发送消息时的标签快照",
+  };
+  expect(fixture.turn.assembled.pageObservedHistory).toEqual([]);
+
+  const pages = [
+    { tab: 2, url: "https://example.test/results", title: "搜索结果", description: "找到两个结果" },
+    { tab: 3, url: "https://example.test/detail", title: "详情", description: "已打开结果详情" },
+  ];
+  const calls = [
+    { callId: "call_results", name: "page.get_summary", arguments: {} },
+    { callId: "call_detail", name: "page.click", arguments: {} },
+  ];
+  const startedAt = Date.now();
+  for (let index = 0; index < pages.length; index++) {
+    applyToolEffects({
+      dataDir: fixture.dataDir, ledger: fixture.ledger, turn: fixture.turn,
+      call: calls[index]!, effects: [{ type: "page.set", page: pages[index]! }],
+    });
+  }
+
+  expect(fixture.turn.assembled.currentPage).toEqual(pages[1]!);
+  const history = fixture.turn.assembled.pageObservedHistory;
+  expect(history).toHaveLength(2);
+  expect(history).toEqual(pages.map((page, index) => ({
+    ...page, observedAt: expect.any(String), callId: calls[index]!.callId, toolName: calls[index]!.name,
+  })));
+  const observedTimes = history.map((page) => Date.parse(page.observedAt));
+  expect(observedTimes[0]!).toBeGreaterThanOrEqual(startedAt);
+  expect(observedTimes[1]!).toBeGreaterThanOrEqual(observedTimes[0]!);
+  expect(observedTimes[1]!).toBeLessThanOrEqual(Date.now());
+  expect(loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId).assembled)
+    .toEqual(fixture.turn.assembled);
 });
