@@ -13,8 +13,7 @@
           "type": "number"
         },
         "reason": {
-          "type": "string",
-          "description": "面向用户的行动理由，表达要求见 #output。"
+          "type": "string"
         },
         "affectsPage": {
           "type": "boolean"

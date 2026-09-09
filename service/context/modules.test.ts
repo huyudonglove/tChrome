@@ -171,7 +171,10 @@ test("所有工具说明唯一来自定义，常驻与动态说明互不重复",
     expect(JSON.stringify(tool.function.parameters)).not.toMatch(developerCopy);
     expect(tool).toEqual(disk);
     expect(tool.function.description).toBe(disk.function.description);
-    expect(disk.function.parameters.properties.reason.description).toBe("面向用户的行动理由，表达要求见 #output。");
+    for (const field of ["reason", "affectsPage"]) {
+      expect(disk.function.parameters.properties[field]).not.toHaveProperty("description");
+      expect(disk.function.parameters.required).toContain(field);
+    }
     expect(toolUsageFor(c, [id])).toBe(`${id}：${disk.function.description}`);
   }
 });

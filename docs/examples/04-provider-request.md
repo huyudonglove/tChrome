@@ -372,8 +372,7 @@ affectsPage=false。
             "description": "需要用户回答的具体问题正文。"
           },
           "reason": {
-            "type": "string",
-            "description": "面向用户的行动理由，表达要求见 #output。"
+            "type": "string"
           },
           "affectsPage": {
             "type": "boolean"
@@ -409,8 +408,7 @@ affectsPage=false。
             "description": "向用户展示的最终回复正文，说明已确认的结果或具体阻碍。"
           },
           "reason": {
-            "type": "string",
-            "description": "面向用户的行动理由，表达要求见 #output。"
+            "type": "string"
           },
           "affectsPage": {
             "type": "boolean"
@@ -433,8 +431,7 @@ affectsPage=false。
         "type": "object",
         "properties": {
           "reason": {
-            "type": "string",
-            "description": "面向用户的行动理由，表达要求见 #output。"
+            "type": "string"
           },
           "affectsPage": {
             "type": "boolean"
@@ -460,8 +457,7 @@ affectsPage=false。
         "type": "object",
         "properties": {
           "reason": {
-            "type": "string",
-            "description": "面向用户的行动理由，表达要求见 #output。"
+            "type": "string"
           },
           "affectsPage": {
             "type": "boolean"
@@ -496,8 +492,7 @@ affectsPage=false。
         "type": "object",
         "properties": {
           "reason": {
-            "type": "string",
-            "description": "面向用户的行动理由，表达要求见 #output。"
+            "type": "string"
           },
           "affectsPage": {
             "type": "boolean"
@@ -549,8 +544,7 @@ affectsPage=false。
         "type": "object",
         "properties": {
           "reason": {
-            "type": "string",
-            "description": "面向用户的行动理由，表达要求见 #output。"
+            "type": "string"
           },
           "affectsPage": {
             "type": "boolean"
@@ -596,8 +590,7 @@ affectsPage=false。
         "type": "object",
         "properties": {
           "reason": {
-            "type": "string",
-            "description": "面向用户的行动理由，表达要求见 #output。"
+            "type": "string"
           },
           "affectsPage": {
             "type": "boolean"
@@ -623,8 +616,7 @@ affectsPage=false。
         "type": "object",
         "properties": {
           "reason": {
-            "type": "string",
-            "description": "面向用户的行动理由，表达要求见 #output。"
+            "type": "string"
           },
           "affectsPage": {
             "type": "boolean"
@@ -650,8 +642,7 @@ affectsPage=false。
         "type": "object",
         "properties": {
           "reason": {
-            "type": "string",
-            "description": "面向用户的行动理由，表达要求见 #output。"
+            "type": "string"
           },
           "affectsPage": {
             "type": "boolean"
@@ -694,8 +685,7 @@ affectsPage=false。
         "type": "object",
         "properties": {
           "reason": {
-            "type": "string",
-            "description": "面向用户的行动理由，表达要求见 #output。"
+            "type": "string"
           },
           "affectsPage": {
             "type": "boolean"
@@ -725,8 +715,7 @@ affectsPage=false。
         "type": "object",
         "properties": {
           "reason": {
-            "type": "string",
-            "description": "面向用户的行动理由，表达要求见 #output。"
+            "type": "string"
           },
           "affectsPage": {
             "type": "boolean"
@@ -752,8 +741,7 @@ affectsPage=false。
         "type": "object",
         "properties": {
           "reason": {
-            "type": "string",
-            "description": "面向用户的行动理由，表达要求见 #output。"
+            "type": "string"
           },
           "affectsPage": {
             "type": "boolean"
@@ -781,8 +769,7 @@ affectsPage=false。
             "type": "string"
           },
           "reason": {
-            "type": "string",
-            "description": "面向用户的行动理由，表达要求见 #output。"
+            "type": "string"
           },
           "affectsPage": {
             "type": "boolean"
@@ -805,8 +792,7 @@ affectsPage=false。
         "type": "object",
         "properties": {
           "reason": {
-            "type": "string",
-            "description": "面向用户的行动理由，表达要求见 #output。"
+            "type": "string"
           },
           "affectsPage": {
             "type": "boolean"
