@@ -38,11 +38,11 @@ test("loading follows ledger IDs and layers without modifying IDs or disk record
     const ids = { turn: ["m2", "m1"], conversation: ["m3"], project: ["m4"] };
     const before = JSON.stringify(ids);
     const memories = loadMemories(dir, "cv_01", ids);
-    expect(memories).toEqual({ turn: [records[1], records[0]], conversation: [records[2]], project: [records[3]] });
+    expect(memories).toEqual({ turn: [records[1], records[0]], conversation: [records[2]], project: [{ ...records[3], sourceConversationId: "cv_01" }] });
     expect(JSON.stringify(ids)).toBe(before);
     memories.turn[0]!.text = "in-memory edit";
     expect(loadMemory(dir, "cv_01", "m2")).toEqual(records[1]);
-    expect(loadMemories(dir, "cv_01", { turn: [], conversation: [], project: [] })).toEqual({ turn: [], conversation: [], project: [] });
+    expect(loadMemories(dir, "cv_01", { turn: [], conversation: [], project: [] })).toEqual({ turn: [], conversation: [], project: [{ ...records[3], sourceConversationId: "cv_01" }] });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -83,7 +83,7 @@ test("compact projection summarizes turn and conversation only without mutating 
     expect(projected.project).toBe(`${longText}\nfull text\ncompressed summary`);
     expect(JSON.stringify(memories)).toBe(before);
     for (const items of Object.values(memories)) {
-      for (const item of items) expect(loadMemory(dir, "cv_01", item.memoryId)).toEqual(item);
+      for (const item of items) expect(loadMemory(dir, "cv_01", item.memoryId)).toEqual(item.layer === "project" ? { ...item, sourceConversationId: "cv_01" } : item);
     }
     expect(projectMemories({ turn: [], conversation: [], project: [] }, true)).toEqual({ turn: "", conversation: "", project: "" });
   } finally { rmSync(dir, { recursive: true, force: true }); }

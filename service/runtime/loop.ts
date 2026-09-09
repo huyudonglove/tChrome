@@ -235,7 +235,7 @@ export async function handleTurn(
   }
   turn.assembled.turnMemoryIds = [...ledger.memoryIds.turn];
   turn.assembled.conversationMemoryIds = [...ledger.memoryIds.conversation];
-  turn.assembled.projectMemoryIds = [...ledger.memoryIds.project];
+  turn.assembled.projectMemoryIds = loadMemories(deps.dataDir, ledger.conversationId, ledger.memoryIds).project.map(item => item.memoryId);
   ledger.turnIds.push(turnId);
   ledger.status = "running";
   ledger.active = { turnId };
@@ -258,6 +258,7 @@ export async function handleTurn(
   while (true) {
     if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
     const memories = loadMemories(deps.dataDir, ledger.conversationId, ledger.memoryIds);
+    turn.assembled.projectMemoryIds = memories.project.map(item => item.memoryId);
     let messages = messagesOf(contextModules, toolRegistry, ledger, turn, memories, skillText);
     const initialChars = windowChars(messages[0]!.content, messages[1]!.content);
     if (initialChars >= ledger.compressAt) {

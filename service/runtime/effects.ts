@@ -1,4 +1,4 @@
-import { saveMemory } from "../memory/store.ts";
+import { loadMemories, saveMemory } from "../memory/store.ts";
 import type { Ledger, MemoryRecord, ToolQueueItem, Turn, TurnOutput } from "../types.ts";
 import type { ToolEffect } from "../tools/effects.ts";
 import { nextId, nowIso } from "./ids.ts";
@@ -25,13 +25,14 @@ export function applyToolEffects(input: {
       case "note.delete": delete ledger.notes[effect.key]; break;
       case "memory.append":
         for (const { layer, text } of effect.entries) {
-          const memoryId = nextId("mm_", Object.values(ledger.memoryIds).flat());
+          const memoryId = layer === "project" ? nextId("lm_", loadMemories(dataDir, ledger.conversationId, ledger.memoryIds).project.map(item => item.memoryId)) : nextId("mm_", Object.values(ledger.memoryIds).flat());
           const record: MemoryRecord = {
             memoryId, layer, text, summary: text.slice(0, 40), compressed: false,
             createdAt: nowIso(), sourceCallId: call.callId,
           };
           saveMemory(dataDir, ledger.conversationId, record);
-          ledger.memoryIds[layer].push(memoryId);
+          if (layer === "project") turn.assembled.projectMemoryIds.push(memoryId);
+          else ledger.memoryIds[layer].push(memoryId);
           appendEvent(dataDir, ledger.conversationId, {
             kind: "memory", data: { memoryId, layer, sourceCallId: call.callId },
           });

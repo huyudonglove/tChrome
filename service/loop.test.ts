@@ -1,4 +1,4 @@
-import { loadMemory } from "./memory/store.ts";
+import { loadMemories, loadMemory } from "./memory/store.ts";
 import { loadSkills } from "./skills/loader.ts";
 import { expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -474,7 +474,7 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
   const ledger = loadLedger(dir, "cv_01");
   expect(ledger.memoryIds.turn).toHaveLength(1);
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.turn[0]!).compressed).toBe(false);
-  expect(loadMemory(dir, "cv_01", ledger.memoryIds.project[0]!).compressed).toBe(false);
+  expect(loadMemories(dir, "cv_01", ledger.memoryIds).project[0]!.compressed).toBe(false);
   const turn = loadTurn(dir, "cv_01", reply.turnId);
   turn.assembled.toolIds = ["see_page", "web_search", "screenshot", "cookies_get"];
   ledger.compressAt = 1;
@@ -491,7 +491,7 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
   expect(ledger.observation.at(-1)?.sourceCallIds).toEqual(["call_old"]);
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.turn[0]!).compressed).toBe(false);
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).compressed).toBe(false);
-  expect(loadMemory(dir, "cv_01", ledger.memoryIds.project[0]!).compressed).toBe(false);
+  expect(loadMemories(dir, "cv_01", ledger.memoryIds).project[0]!.compressed).toBe(false);
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.turn[0]!).text).toBe("本轮用户要查鼠标价");
   const events = loadEvents(dir, "cv_01");
   expect(events.some((row) => row.kind === "compress")).toBe(true);

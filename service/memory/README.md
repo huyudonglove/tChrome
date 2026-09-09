@@ -8,6 +8,8 @@
 
 Runtime 处理 memory.write 的 effect，分配 ID、写入记忆、更新账本索引并记录事件；每次请求模型前读取记忆并调用投影。Context 只接收三层文本，模块文件保留用途说明与数据占位。工具 schema 继续由 tools/definitions/memory.write.json 唯一维护。
 
-存储沿用 `<dataDir>/conversations/<conversationId>/memory/<memoryId>.json`，无需迁移。三层记录目前都按会话隔离，project 层不表示跨会话共享。停止任务不会删除已写入记忆；删除会话时随该会话目录一起删除。
+turn/conversation 存储于 `<dataDir>/conversations/<conversationId>/memory/<memoryId>.json`，保持会话隔离。project 是服务级长期记忆，独立存储于 `<dataDir>/memory/project/<memoryId>.json`，同一 dataDir 下所有会话共享，删除来源会话后仍保留；新记录携带 sourceConversationId 并使用全局 lm_ 编号，不再写入会话账本的 project 索引。
+
+首次读取/写入长期记忆或删除会话前，自动将旧会话目录中的 project 记录复制到共享目录，使用 legacy_<conversationId>_<memoryId> 避免旧ID碰撞，保留来源与原文件。完成后写入迁移标记；中断重试幂等。后续读取只使用共享目录，旧账本 project 索引仅作为历史数据保留。
 
 contextSummary 是账本中的工作汇总，通过 memory.write 更新，仍由 runtime 协调持久化，不重复保存到记忆文件。工具历史归档的 observation 属于执行证据，不属于这三层记忆。

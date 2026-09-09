@@ -5,6 +5,7 @@ import type { Ledger, LogEvent, ObservationRecord, ChatMessage, ProviderExchange
 import { nextId, nowIso } from "./ids.ts";
 import { abortLocalProcesses } from "../tools/local-process.ts";
 import { localScope } from "../tools/local-tools.ts";
+import { migrateProjectMemories } from "../memory/store.ts";
 import { emptySessionView, projectConversationList, projectSessionView } from "../presentation/session-view.ts";
 import type { ConversationItem, SessionView } from "../presentation/session-view.ts";
 export type { ConversationItem, SessionMessage, SessionView } from "../presentation/session-view.ts";
@@ -250,6 +251,7 @@ export function deleteConversation(dataDir: string, conversationId: string): Ses
   if (!listConversationIds(dataDir).includes(conversationId)) {
     throw new Error("没有这个会话");
   }
+  migrateProjectMemories(dataDir);
   // Persist the high watermark before removing legacy directories too.
   const watermarkPath = join(dataDir, "conversation-id.json");
   const previous = readJson<string | null>(watermarkPath, null);

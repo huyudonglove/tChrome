@@ -8,6 +8,7 @@ export type MemoryRecord = {
   compressed: boolean;
   createdAt: string;
   sourceCallId: string;
+  sourceConversationId?: string;
 };
 
 export type MemoryIds = Record<MemoryLayer, string[]>;
