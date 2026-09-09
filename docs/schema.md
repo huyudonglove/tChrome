@@ -1,34 +1,30 @@
 # schema
 
-数据声明只写这里。`docs/data.md` 是账本形状和循环。`docs/examples/` 是阶段样例，字段怎么填看本文件。工具参数形状看 `tools/<id>.json`。插槽用途、来源与边界见 `context/system-slots.md`、`context/user-slots.md` 和各独立槽文件。
+数据声明只写这里。`docs/data.md` 是账本形状和循环。`docs/examples/` 是阶段样例，字段怎么填看本文件。工具参数形状看 `service/tools/definitions/<id>.json`。插槽用途、来源与边界见 `service/context/system-slots.md`、`service/context/user-slots.md` 和各独立槽文件。
 
 ## 仓目录
 
 ```text
-extension/          GUI：Side Panel + background。常规通用 UI 组件和样式
-  ui/               通用组件、样式
-  sidepanel/        面板入口
-  tools/            浏览器工具实现及测试
-service/            后端：Bun.serve 127.0.0.1:18788。按模块分
-  runtime/
-  context/          读取上下文模块，按清单顺序装配窗口
-  tools/            工具注册、schema 与执行
-  presentation/     会话消息和列表的纯展示投影
-  subagent/         第一期空着
-  provider/         模型通信、传输重试与响应解析
-context/            独立模块 / skill / 栏目顺序清单
-  system/           一个 system 插槽一个文件
-  user/             一个 user 插槽一个文件
-  system-slots.md   system 职责与顺序清单
-  user-slots.md     user 职责与顺序清单
-  README.md         人类维护入口，不进入模型窗口
-  skills/           网页方法
-tools/              工具 API 定义
-  groups.json       常驻基础工具 / 初始动态工具分组
-  index.json        browser / service 分类
-  *.json            完整工具 schema
-
-docs/               schema、账本、阶段样例
+service/                  本机服务，按职责组织
+  runtime/                循环、账本、持久化、证据归档与浏览器桥
+  context/                上下文正文、模块加载与纯窗口投影
+    system/               固定规则与常驻工具插槽
+    user/                 请求、状态、记忆与动态工具插槽
+    skills/               网页操作方法
+    system-slots.md       system 栏目顺序与职责
+    user-slots.md         user 栏目顺序与职责
+    README.md             维护入口，不进入模型窗口
+  tools/                  工具注册、校验与服务端执行
+    definitions/          schema、groups.json 分组与 index.json 分类
+  provider/               模型通信、重试与响应解析
+  presentation/           会话消息与列表的纯展示投影
+extension/                Chrome 宿主
+  background.ts           接收服务请求并调度浏览器工具
+  tools/                  依赖 Chrome API 的宿主执行器及测试
+  sidepanel/              面板入口
+  ui/                     通用组件和样式
+docs/                     数据协议与阶段示例
+scripts/                  构建与示例同步
 ```
 
 Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.json` 拷进 `dist/`。Chrome 加载 `dist/`。`dist/` 已 gitignore。产物路径仍是 `background.js` / `sidepanel.html`。GUI 只跟本机服务说话。密钥、落盘、出网 UUAPI 在 `service/`。
@@ -163,8 +159,8 @@ Runtime 独占维护。当前会话指针。
 
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
-| `baseToolsIds` | string[] | 常驻工具，对应 `tools/<id>.json`；完整名单以 `tools/groups.json` 为准，说明进入 system `#baseTools` |
-| `toolIds` | string[] | 动态工具，对应 `tools/<id>.json`。开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.list_interactive_elements` `page.click` `page.type` `open_url` `web_search` `list_browser_tools` `catalog.add`）。缺了 `catalog.add` 再补。窗口压缩保持已加载工具不变 |
+| `baseToolsIds` | string[] | 常驻工具，对应 `service/tools/definitions/<id>.json`；完整名单以 `service/tools/definitions/groups.json` 为准，说明进入 system `#baseTools` |
+| `toolIds` | string[] | 动态工具，对应 `service/tools/definitions/<id>.json`。开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.list_interactive_elements` `page.click` `page.type` `open_url` `web_search` `list_browser_tools` `catalog.add`）。缺了 `catalog.add` 再补。窗口压缩保持已加载工具不变 |
 | `turnMemoryIds` | string[] | 这一轮记忆；没有就 `[]` |
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
@@ -223,13 +219,13 @@ Context 每层仅投影最近 8 条记忆。窗口到 200K 时，turn / conversa
 
 用户一条输入开一个 Turn，CE 装配一次。本 Turn 内工具循环不再走 CE。
 
-插槽导航分别维护在 `context/system-slots.md` 与 `context/user-slots.md`。程序直接读取两份清单的编号行，按清单顺序加载并排列对应模块，不再维护独立窗口模板；`context/system/<name>.md` 和 `context/user/<name>.md` 各自维护执行规则或 `{{data}}`。静态 system 规则直接在各文件中维护，无运行时附加数据；动态槽由 Runtime 注入。装配不再按大 Pack 标题切割。空数据仍保留说明，不能解释为页面为空或任务完成。
+插槽导航分别维护在 `service/context/system-slots.md` 与 `service/context/user-slots.md`。程序直接读取两份清单的编号行，按清单顺序加载并排列对应模块，不再维护独立窗口模板；`service/context/system/<name>.md` 和 `service/context/user/<name>.md` 各自维护执行规则或 `{{data}}`。静态 system 规则直接在各文件中维护，无运行时附加数据；动态槽由 Runtime 注入。装配不再按大 Pack 标题切割。空数据仍保留说明，不能解释为页面为空或任务完成。
 
 顺序仅以两份栏目清单为准，本文不再另列顺序。
 
-`#skill` 数据来自固定的 `context/skills/skill.web.md`；不再记录无实际加载作用的 systemIds / skillIds。其余 user 数据分别来自 Turn.input、ledger、Turn.assembled 和 memory 文件，具体字段与可信边界见各独立槽文件。
+`#skill` 数据来自固定的 `service/context/skills/skill.web.md`；不再记录无实际加载作用的 systemIds / skillIds。其余 user 数据分别来自 Turn.input、ledger、Turn.assembled 和 memory 文件，具体字段与可信边界见各独立槽文件。
 
-`#baseTools` 按 toolGroups.baseToolsIds 生成常驻工具说明；`#tools` 按 Turn.assembled.toolIds 生成已加载动态工具说明。说明唯一来源是各工具 `function.description`；`tools/index.json` 只保存 browser / service 分类，不能另写 usage。`#tools` 是 user 参考文本，不是 role=tool 消息。工具 schema 的 description 与窗口说明同源。
+`#baseTools` 按 toolGroups.baseToolsIds 生成常驻工具说明；`#tools` 按 Turn.assembled.toolIds 生成已加载动态工具说明。说明唯一来源是各工具 `function.description`；`service/tools/definitions/index.json` 只保存 browser / service 分类，不能另写 usage。`#tools` 是 user 参考文本，不是 role=tool 消息。工具 schema 的 description 与窗口说明同源。
 
 维护：增删、重命名或调整插槽职责、顺序时，同步清单、独立文件、装配测试与阶段窗口示例；修改工具说明只改该工具定义，并重新生成示例中的 schema / 工具说明。测试检查目录、清单、顺序、装配及全量工具 description 缺失。
 
@@ -293,7 +289,7 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 
 ## 工具参数
 
-每个工具 `arguments` 都有 `reason`（string）和 `affectsPage`（boolean）。其余按 `tools/<id>.json`。动态工具分类在 `tools/index.json`；用法只维护在每个工具定义的 function.description。
+每个工具 `arguments` 都有 `reason`（string）和 `affectsPage`（boolean）。其余按 `service/tools/definitions/<id>.json`。动态工具分类在 `service/tools/definitions/index.json`；用法只维护在每个工具定义的 function.description。
 
 | 工具 | required 其余 | 谁填其余 |
 |---|---|---|
@@ -307,7 +303,7 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | `memory.write` | （无） | `turnMemory` `conversationMemory` `projectMemory` `contextSummary` 有则写 |
 | `catalog.add` | `names` | 把缺的动态工具挂进本轮 |
 
-常驻与初始动态工具名单以 `tools/groups.json` 的 baseToolsIds / coreToolIds 为准。动态目录分类见 `tools/index.json`，缺能力通过 catalog.add 加载。浏览器工具经 `/tool-request` 泵到 background。
+常驻与初始动态工具名单以 `service/tools/definitions/groups.json` 的 baseToolsIds / coreToolIds 为准。动态目录分类见 `service/tools/definitions/index.json`，缺能力通过 catalog.add 加载。浏览器工具经 `/tool-request` 泵到 background。
 
 没迁、原因：
 
@@ -323,4 +319,4 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 
 ## 实现职责
 
-工具 schema、分类和分组由 `service/tools/registry.ts` 读取根目录 `tools/`。Provider 负责模型通信、传输重试及响应/参数解析；所有 provider 返回都由 `service/runtime/loop.ts` 的 `validateCompletion` 调用 `service/tools/schema.ts` 统一检查 schema、工具名和收口顺序，Runtime 根据结果推进状态。Context 接收数据和工具说明，仅生成窗口投影。`service/presentation/session-view.ts` 以纯函数生成 UI 消息和会话列表；store 负责读取记录、持久化和会话命令。
+工具 schema、分类和分组由 `service/tools/registry.ts` 读取同模块的 `service/tools/definitions/`。Provider 负责模型通信、传输重试及响应/参数解析；所有 provider 返回都由 `service/runtime/loop.ts` 的 `validateCompletion` 调用 `service/tools/schema.ts` 统一检查 schema、工具名和收口顺序，Runtime 根据结果推进状态。Context 接收数据和工具说明，仅生成窗口投影。`service/presentation/session-view.ts` 以纯函数生成 UI 消息和会话列表；store 负责读取记录、持久化和会话命令。

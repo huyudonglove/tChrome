@@ -19,12 +19,12 @@ export type ToolRegistry = {
 };
 
 export function loadToolRegistry(root: string): ToolRegistry {
-  const index = JSON.parse(readFileSync(join(root, "tools", "index.json"), "utf8")) as ToolIndex;
-  const toolGroups = JSON.parse(readFileSync(join(root, "tools", "groups.json"), "utf8")) as ToolGroups;
+  const index = JSON.parse(readFileSync(join(root, "service", "tools", "definitions", "index.json"), "utf8")) as ToolIndex;
+  const toolGroups = JSON.parse(readFileSync(join(root, "service", "tools", "definitions", "groups.json"), "utf8")) as ToolGroups;
   const tools: Record<string, ChatTool> = {};
-  for (const file of readdirSync(join(root, "tools"))) {
+  for (const file of readdirSync(join(root, "service", "tools", "definitions"))) {
     if (!file.endsWith(".json") || ["index.json", "groups.json"].includes(file)) continue;
-    const tool = JSON.parse(readFileSync(join(root, "tools", file), "utf8")) as ChatTool;
+    const tool = JSON.parse(readFileSync(join(root, "service", "tools", "definitions", file), "utf8")) as ChatTool;
     const name = tool.function?.name;
     if (name) tools[name] = tool;
   }

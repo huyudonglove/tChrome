@@ -154,7 +154,7 @@
 
 `arguments_not_json` 时没有对象可查缺，`missing` 为 `[]`，`detail` 写 parse 报错原文。
 
-所有 provider 返回均经过 `service/runtime/loop.ts` 的 `validateCompletion`，由它调用 `service/tools/schema.ts` 完成统一策略校验，不因接入方式不同而绕过检查。落地查缺用 **Ajv** 对 `tools/<name>.json` 的 `function.parameters`。解析在 `service/tools/arguments.ts`：对象原样用，字符串 `JSON.parse`，围栏 / 尾逗号 / 单引号只修外壳。缺字段、类型错不补，faultCode 回给模型再交。
+所有 provider 返回均经过 `service/runtime/loop.ts` 的 `validateCompletion`，由它调用 `service/tools/schema.ts` 完成统一策略校验，不因接入方式不同而绕过检查。落地查缺用 **Ajv** 对 `service/tools/definitions/<name>.json` 的 `function.parameters`。解析在 `service/tools/arguments.ts`：对象原样用，字符串 `JSON.parse`，围栏 / 尾逗号 / 单引号只修外壳。缺字段、类型错不补，faultCode 回给模型再交。
 
 本轮一次过：
 

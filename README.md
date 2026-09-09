@@ -62,7 +62,6 @@ Chrome Background Worker ── 浏览器工具 ── 网页
 - 扩展只请求本机服务，不直接连接模型服务。
 - 模型密钥保存在本机服务配置中。
 - 后台 worker 拉取并执行浏览器任务；关闭侧栏不等于停止任务。
-- `subagent/` 是预留目录，当前未接入子 Agent。
 
 ## 快速开始
 
@@ -133,25 +132,26 @@ bun run service
 ## 目录
 
 ```text
-extension/          Chrome 侧栏和后台 worker
-  tools/            浏览器工具实现及测试
-service/
-  runtime/          Agent 循环、账本、存储、工具证据归档和浏览器桥
-  context/          模块加载、纯窗口投影与记忆展示裁剪
-  tools/            工具注册表、参数处理、schema 校验和工具执行
-  provider/         模型通信、传输重试与响应解析
-  presentation/     会话消息、错误文案和列表展示投影
-  subagent/         预留
-context/            人类总目录见 context/README.md；清单是唯一模块顺序来源
-  system/           固定规则与常驻工具插槽，每槽独立文件
-  user/             用户请求、状态、记忆与动态工具插槽
-  system-slots.md   system 插槽职责与顺序清单
-  user-slots.md     user 插槽职责与顺序清单
-  skills/           网页能力与操作方法
-  README.md         人类维护入口，不进入模型窗口
-tools/              工具 schema；groups.json 管加载分组，index.json 管分类
-docs/               数据协议和分阶段示例
-scripts/            扩展构建脚本
+service/                  本机服务，按职责组织
+  runtime/                循环、账本、持久化、证据归档与浏览器桥
+  context/                上下文正文、模块加载与纯窗口投影
+    system/               固定规则与常驻工具插槽
+    user/                 请求、状态、记忆与动态工具插槽
+    skills/               网页操作方法
+    system-slots.md       system 栏目顺序与职责
+    user-slots.md         user 栏目顺序与职责
+    README.md             维护入口，不进入模型窗口
+  tools/                  工具注册、校验与服务端执行
+    definitions/          schema、groups.json 分组与 index.json 分类
+  provider/               模型通信、重试与响应解析
+  presentation/           会话消息与列表的纯展示投影
+extension/                Chrome 宿主
+  background.ts           接收服务请求并调度浏览器工具
+  tools/                  依赖 Chrome API 的宿主执行器及测试
+  sidepanel/              面板入口
+  ui/                     通用组件和样式
+docs/                     数据协议与阶段示例
+scripts/                  构建与示例同步
 ```
 
 运行数据默认保存在：
@@ -179,6 +179,8 @@ scripts/            扩展构建脚本
 - [服务说明](service/README.md)
 - [扩展说明](extension/README.md)
 
-Provider 负责模型通信、重试和响应解析。所有接入返回均由 `service/runtime/loop.ts` 的 `validateCompletion` 统一调用 `service/tools/schema.ts`，按当前工具 schema 检查参数、工具名和收口工具顺序，再由运行循环推进状态。工具定义由 `service/tools/registry.ts` 读取，Context 仅接收工具说明并装配窗口。`presentation/` 的纯函数负责会话展示，存储层读取数据后调用投影，保留持久化和命令职责。
+Provider 负责模型通信、重试和响应解析。所有接入返回均由 `service/runtime/loop.ts` 的 `validateCompletion` 统一调用 `service/tools/schema.ts`，按当前工具 schema 检查参数、工具名和收口工具顺序，再由运行循环推进状态。工具定义保存在 `service/tools/definitions/`，由同模块的 `registry.ts` 读取，Context 仅接收工具说明并装配窗口。`presentation/` 的纯函数负责会话展示，存储层读取数据后调用投影，保留持久化和命令职责。
 
 运行提示独立维护在 `service/runtime/messages.json`，由运行层按需写入工具记录。
+
+目录先按运行端划分，再按职责划分：`service/context/` 和 `service/tools/` 都是本机服务能力，正文和定义与其实现放在同一模块；`extension/tools/` 仅负责依赖 Chrome API 的宿主执行，由服务注册表发现并经浏览器桥调度。

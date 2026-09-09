@@ -1,6 +1,6 @@
 # 03 解码
 
-读 02 的写出。按 `context/` 把 ID 展开成**栏目**。JSON 里只留栏目名列表，不写带换行的长字符串，也不塞 tools schema。
+读 02 的写出。按 `service/context/` 把 ID 展开成**栏目**。JSON 里只留栏目名列表，不写带换行的长字符串，也不塞 tools schema。
 
 怎么看：
 
@@ -8,7 +8,7 @@
 - 「system 栏目」每个 `#标题` 单独一段，正文来自 catalog
 - 「user 栏目」每个 `#块` 单独一段，正文在这一页
 - 「写出的」JSON：`systemSlots` / `userSlots` 都是名数组
-- 出网时 Runtime 读取 `context/system-slots.md` / `context/user-slots.md` 的栏目顺序，加载对应模块并插值拼 `system` / `user`；按 `baseToolsIds` + `toolIds` 取 `tools/<id>.json` 填请求的 `tools[]`
+- 出网时 Runtime 读取 `service/context/system-slots.md` / `service/context/user-slots.md` 的栏目顺序，加载对应模块并插值拼 `system` / `user`；按 `baseToolsIds` + `toolIds` 取 `service/tools/definitions/<id>.json` 填请求的 `tools[]`
 
 ## 读到的（02 写出的）
 
@@ -53,9 +53,9 @@
 
 ## catalog 取出
 
-两份栏目清单是唯一模块顺序来源；各槽的执行规则或数据占位由 `context/system/<name>.md` / `context/user/<name>.md` 独立维护。完整导航见 `context/system-slots.md` 和 `context/user-slots.md`。不再加载 Pack，也不携带无实际加载作用的 systemIds / skillIds。
+两份栏目清单是唯一模块顺序来源；各槽的执行规则或数据占位由 `service/context/system/<name>.md` / `service/context/user/<name>.md` 独立维护。完整导航见 `service/context/system-slots.md` 和 `service/context/user-slots.md`。不再加载 Pack，也不携带无实际加载作用的 systemIds / skillIds。
 
-`#skill` 数据来自 `context/skills/skill.web.md`。常驻工具说明进入 system `#baseTools`，动态工具说明进入 user `#tools`，两者都从 `tools/<id>.json` 的 function.description 生成；index 只做目录分类。API tools[] 仍携带完整 schema。
+`#skill` 数据来自 `service/context/skills/skill.web.md`。常驻工具说明进入 system `#baseTools`，动态工具说明进入 user `#tools`，两者都从 `service/tools/definitions/<id>.json` 的 function.description 生成；index 只做目录分类。API tools[] 仍携带完整 schema。
 
 以下是本样例真实装配结果；两份清单原文放在 system 开头，仅解释栏目功能。user 栏目直接呈现工作材料，空数据不额外添加说明。输入开始时 currentPage=null，currentTab 是发话时标签快照。
 

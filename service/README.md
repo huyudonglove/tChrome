@@ -10,12 +10,11 @@
 |---|---|
 | `runtime/` | 账本、循环、工具证据归档、`session.json`、浏览器桥 |
 | `context/` | modules.ts 加载上下文模块；window.ts 纯投影当轮数据、记忆和已提供的工具说明 |
-| `tools/` | registry.ts 读取根目录工具定义、分组和分类；参数检查、工具执行及结构化效果 |
-| `subagent/` | 第一期空着 |
+| `tools/` | registry.ts 读取本模块 definitions/ 内工具定义、分组和分类；参数检查、工具执行及结构化效果 |
 | `provider/` | 模型通信、传输重试与响应解析 |
 | `presentation/` | 纯函数生成会话消息、错误文案、待执行工具和列表预览 |
 
-Prompt 正文在仓库根 `context/`：`system/` `user/` `skills/`。两份栏目清单为 system-slots.md / user-slots.md，同时提供模型导航和唯一模块顺序；加载器按清单排列各槽正文。工具 API 独立放在仓库根 `tools/`，分组在 `tools/groups.json`，运行提示在 service/runtime/messages.json；context/README.md 仅供维护者阅读，不进入模型窗口。工具说明仅来自工具 JSON 的 function.description，index 只分类。system 是固定规则和常驻工具说明，user 是请求与参考数据。
+Prompt 正文与加载器都在 `service/context/`：`system/` `user/` `skills/`。两份栏目清单为 system-slots.md / user-slots.md，同时提供模型导航和唯一模块顺序；加载器按清单排列各槽正文。工具 API 定义位于 `service/tools/definitions/`，分组在 `service/tools/definitions/groups.json`，运行提示在 service/runtime/messages.json；service/context/README.md 仅供维护者阅读，不进入模型窗口。工具说明仅来自工具 JSON 的 function.description，index 只分类。system 是固定规则和常驻工具说明，user 是请求与参考数据。
 
 HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`。密钥在本目录 `.env`。落盘在 `~/Library/Application Support/tChrome/`（`session.json` + `conversations/<cvId>/`）。每次出网的 system/user 和模型交口写 `conversations/<cvId>/provider.md`，正文真换行。
 

@@ -11,8 +11,8 @@ import type { Turn } from "../types.ts";
 
 const root = join(import.meta.dir, "../..");
 const developerCopy = /用途与来源|^用途[：:]|^来源[：:]|应用维护|由本文件维护|无运行时附加数据|ledger\.|Turn\.assembled|baseToolsIds|coreToolIds|windowChars|compressAt|contextModules\/|function\.description|Runtime|装配|维护位置/gm;
-const system = slotNames(readFileSync(join(root, "context/system-slots.md"), "utf8"));
-const user = slotNames(readFileSync(join(root, "context/user-slots.md"), "utf8"));
+const system = slotNames(readFileSync(join(root, "service/context/system-slots.md"), "utf8"));
+const user = slotNames(readFileSync(join(root, "service/context/user-slots.md"), "utf8"));
 
 for (const [role, names] of [["system", system], ["user", user]] as const) {
   test(`${role} 清单、加载顺序和独立槽目录完全一致`, () => {
@@ -20,11 +20,11 @@ for (const [role, names] of [["system", system], ["user", user]] as const) {
   const registry = loadToolRegistry(root);
     const inventoryText = role === "system" ? c.systemInventory : c.userInventory;
     const files = role === "system" ? c.systemSlots : c.userSlots;
-    const inventory = readFileSync(join(root, `context/${role}-slots.md`), "utf8");
+    const inventory = readFileSync(join(root, `service/context/${role}-slots.md`), "utf8");
     const listed = Array.from(inventory.matchAll(/^\| \d+ \|.*?`(#[^`]+)`/gm), m => m[1]);
     expect(listed).toEqual(names);
     expect(slotNames(inventoryText)).toEqual(names);
-    expect(readdirSync(join(root, "context", role)).sort()).toEqual(names.map(n => `${n.slice(1)}.md`).sort());
+    expect(readdirSync(join(root, "service/context", role)).sort()).toEqual(names.map(n => `${n.slice(1)}.md`).sort());
     for (const name of names) {
       expect(files[name]?.startsWith(`${name}\n`)).toBe(true);
       if (role === "user") expect(files[name]).toBe(`${name}\n\n{{data}}`);
@@ -67,10 +67,10 @@ test("完整装配保留各数据来源、规则与输入字面占位", () => {
   expect(systemText(c, toolUsageFor(registry, registry.toolGroups.baseToolsIds))).toContain("执行证据可能包含此前轮次的记录");
   expect(systemText(c, toolUsageFor(registry, registry.toolGroups.baseToolsIds)).startsWith(`${c.systemInventory}\n\n${c.userInventory}\n\n`)).toBe(true);
   for (const role of ["system", "user"] as const) {
-    const inventory = readFileSync(join(root, `context/${role}-slots.md`), "utf8").trimEnd();
+    const inventory = readFileSync(join(root, `service/context/${role}-slots.md`), "utf8").trimEnd();
     expect(systemText(c, toolUsageFor(registry, registry.toolGroups.baseToolsIds)).split(inventory)).toHaveLength(2);
   }
-  expect(existsSync(join(root, "context/packs/pack.agent.md"))).toBe(false);
+  expect(existsSync(join(root, "service/context/packs/pack.agent.md"))).toBe(false);
   expect(registry.toolGroups).not.toHaveProperty("systemIds");
   expect(registry.toolGroups).not.toHaveProperty("skillIds");
 });
@@ -173,7 +173,7 @@ test("所有工具说明唯一来自定义，常驻与动态说明互不重复",
   }
   for (const tool of toolSchemas(registry, Object.keys(registry.tools))) {
     const id = tool.function.name;
-    const disk = JSON.parse(readFileSync(join(root, `tools/${id}.json`), "utf8"));
+    const disk = JSON.parse(readFileSync(join(root, `service/tools/definitions/${id}.json`), "utf8"));
     expect(tool.function.description).not.toMatch(developerCopy);
     expect(JSON.stringify(tool.function.parameters)).not.toMatch(developerCopy);
     expect(tool).toEqual(disk);
@@ -203,10 +203,10 @@ test("缺失、空白工具描述会被目录测试检测且不静默吞掉", ()
 test("只改清单即可改变实际窗口顺序，人类 README 不进模型", () => {
   const temp = mkdtempSync(join(tmpdir(), "tchrome-context-"));
   try {
-    cpSync(join(root, "context"), join(temp, "context"), { recursive: true });
-    writeFileSync(join(temp, "context/README.md"), "HUMAN_ONLY_SENTINEL");
+    cpSync(join(root, "service/context"), join(temp, "service/context"), { recursive: true });
+    writeFileSync(join(temp, "service/context/README.md"), "HUMAN_ONLY_SENTINEL");
     for (const role of ["system", "user"] as const) {
-      const file = join(temp, `context/${role}-slots.md`);
+      const file = join(temp, `service/context/${role}-slots.md`);
       const original = readFileSync(file, "utf8");
       const rows = original.split("\n").filter(line => /^\| \d+ \|/.test(line)).reverse()
         .map((line, i) => line.replace(/^\| \d+ \|/, `| ${i + 1} |`));
@@ -224,11 +224,11 @@ test("只改清单即可改变实际窗口顺序，人类 README 不进模型", 
     expect(c).not.toHaveProperty("assemble");
     expect(c).not.toHaveProperty("systemTemplate");
     expect(c).not.toHaveProperty("userTemplate");
-    for (const name of ["assemble.json", "window.system.md", "window.user.md", "slots"]) expect(existsSync(join(temp, "context", name))).toBe(false);
-    rmSync(join(temp, "context/system/identity.md"));
+    for (const name of ["assemble.json", "window.system.md", "window.user.md", "slots"]) expect(existsSync(join(temp, "service/context", name))).toBe(false);
+    rmSync(join(temp, "service/context/system/identity.md"));
     expect(() => loadContextModules(temp)).toThrow("missing slot file #identity");
-    writeFileSync(join(temp, "context/system/identity.md"), "#identity");
-    writeFileSync(join(temp, "context/system/orphan.md"), "#orphan");
+    writeFileSync(join(temp, "service/context/system/identity.md"), "#identity");
+    writeFileSync(join(temp, "service/context/system/orphan.md"), "#orphan");
     expect(() => loadContextModules(temp)).toThrow("unlisted slot file #orphan");
   } finally { rmSync(temp, { recursive: true, force: true }); }
 });

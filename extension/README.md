@@ -7,3 +7,5 @@ GUI。Side Panel + background。样式对标 telance，组件放 `ui/`。浏览�
 `bun build` 打进 `dist/`。Chrome 加载 `dist/`。
 
 更新后需在 `chrome://extensions` 重新加载扩展，使新增的 `storage` 和 `alarms` 权限生效。
+
+`extension/tools/` 是 Chrome 宿主执行层，调用 tabs、scripting、debugger 等 API。统一工具注册、参数定义与校验位于 `service/tools/`，扩展从浏览器桥接收已调度请求。

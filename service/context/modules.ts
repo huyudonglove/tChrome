@@ -23,7 +23,7 @@ export function renderSlots(inventory: string, files: Record<string, string>, da
 }
 
 export function loadContextModules(root: string): ContextModules {
-  const contextModules = join(root, "context");
+  const contextModules = join(root, "service", "context");
   const systemSlots = loadSlots(contextModules, "system");
   const userSlots = loadSlots(contextModules, "user");
   const skill = readFileSync(join(contextModules, "skills", "skill.web.md"), "utf8").replace(/^#skill\n?/, "").trim();

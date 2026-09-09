@@ -2,7 +2,7 @@
 
 读 01 的写出。本环节点名：常驻工具 / 动态工具 / 三层记忆 / MCP，以及发话时标签。system / user 槽及顺序由两份栏目清单与独立模块加载，skill 数据来自 skill.web.md。正文留给 03 解码展开。
 
-怎么看：上面「读到的」是 01 写出的原样。下面「写出的」是累积快照：01 六个键 + 本环节新增的键。对照仓里 `context/`：这些 ID 都有对应文件。
+怎么看：上面「读到的」是 01 写出的原样。下面「写出的」是累积快照：01 六个键 + 本环节新增的键。栏目和 skill 对应 `service/context/` 中的文件，工具 ID 对应 `service/tools/definitions/`，记忆 ID 对应运行数据目录中的记录。
 
 ## 读到的（01 写出的）
 
@@ -29,7 +29,7 @@
 | 选什么 | 干什么 | 本轮选中 |
 |---|---|---|
 | `baseToolsIds` | 常驻工具，每轮都出网 | `askUser` `finishTurn` `submitGoal` `tool.detail` `observation.detail` `memory.write` `notes.write` `notes.delete` |
-| `toolIds` | 动态工具，本轮才挂 | 开 Turn 先挂 core。本样例：`page.get_summary` `open_url` `web_search`。全表见 `tools/index.json`，缺了 `catalog.add` |
+| `toolIds` | 动态工具，本轮才挂 | 开 Turn 先挂 core。本样例：`page.get_summary` `open_url` `web_search`。全表见 `service/tools/definitions/index.json`，缺了 `catalog.add` |
 | `turnMemoryIds` | 这一轮记忆 | 新会话空 |
 | `conversationMemoryIds` | 这一次会话记忆 | 新会话空 |
 | `projectMemoryIds` | 项目记忆 | 新会话空 |
@@ -42,7 +42,7 @@
 
 见 `docs/schema.md`「阶段快照」`context-engineering-input` 和「assembled」。
 
-出网 `tools[]` = `baseToolsIds` + `toolIds`，按名取 `tools/<id>.json`。
+出网 `tools[]` = `baseToolsIds` + `toolIds`，按名取 `service/tools/definitions/<id>.json`。
 
 ## 写出的
 
@@ -85,4 +85,4 @@
 }
 ```
 
-下一份 03 把这份整份带上，再按 `context/` 展开成栏目（`systemSlots` / `userSlots`）。出网 tools[] 由 Runtime 按 `baseToolsIds` + `toolIds` 取 schema。
+下一份 03 把这份整份带上，再按 `service/context/` 展开成栏目（`systemSlots` / `userSlots`）。出网 tools[] 由 Runtime 按 `baseToolsIds` + `toolIds` 取 schema。
