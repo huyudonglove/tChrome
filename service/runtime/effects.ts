@@ -1,7 +1,8 @@
+import { saveMemory } from "../memory/store.ts";
 import type { Ledger, MemoryRecord, ToolQueueItem, Turn, TurnOutput } from "../types.ts";
 import type { ToolEffect } from "../tools/effects.ts";
 import { nextId, nowIso } from "./ids.ts";
-import { appendEvent, saveLedger, saveMemory, saveTurn } from "./store.ts";
+import { appendEvent, saveLedger, saveTurn } from "./store.ts";
 
 export function applyToolEffects(input: {
   dataDir: string;

@@ -61,7 +61,7 @@
 
 两份编号文件名清单是唯一模块顺序来源；各槽的执行规则或数据占位由 `service/context/system/<name>.md` / `service/context/user/<name>.md` 独立维护。能力导航由模块的 tag、capability 和清单顺序生成。不再加载 Pack，也不携带无实际加载作用的 systemIds / skillIds。
 
-`#skill` 数据来自 `service/context/user/skill.md`。常驻工具说明进入 system `#baseTools`，动态工具说明进入 user `#tools`，两者都从 `service/tools/definitions/<id>.json` 的 function.description 生成；index 只做目录分类。API tools[] 仍携带完整 schema。
+`#skill` 数据由 runtime 根据 `service/skills/index.json` 加载独立 Skill 正文；`service/context/user/skill.md` 仅维护模块说明与占位。常驻工具说明进入 system `#baseTools`，动态工具说明进入 user `#tools`，两者都从 `service/tools/definitions/<id>.json` 的 function.description 生成；index 只做目录分类。API tools[] 仍携带完整 schema。
 
 以下是本样例真实装配结果；system 先输出逐项合并能力与详细正文的 System 清单（baseTools 带工具说明），再输出逐项合并能力与详细描述的 User 清单。user 栏目只保留 tag 和内容段，不重复能力或详细描述，空数据不额外添加说明。输入开始时 currentPage=null，currentTab 是发话时标签快照。
 
@@ -161,7 +161,7 @@ affectsPage=false。
 
 # User 栏目清单
 
-#skill --【网页观察，元素定位，业务验证】
+#skill --【操作方法，经验参考】
 提供当前可参考的操作方法、经验和注意事项。按任务需要选择使用，结合当前环境与工具结果判断适用性；具体方法本身不代表操作已经执行或结果已经验证。
 
 #userInput --【当前请求，任务入口】
@@ -223,6 +223,8 @@ affectsPage=false。
 
 ```
 #skill
+
+## 网页观察与操作
 
 按下一步的信息需求选择最少必要的网页观察，由概况逐步缩小到相关区域或控件；已有明确目标和足够证据时直接操作，不必每次重走完整观察流程。各工具的能力、参数和返回见工具说明。
 

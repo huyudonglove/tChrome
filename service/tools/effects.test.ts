@@ -1,3 +1,4 @@
+import { loadMemory } from "../memory/store.ts";
 import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -5,7 +6,7 @@ import { join } from "node:path";
 import type { ToolArguments, Turn } from "../types.ts";
 import { executeTool, type ExecuteInput } from "./execute.ts";
 import { applyToolEffects } from "../runtime/effects.ts";
-import { emptyLedger, loadLedger, loadMemory, loadTurn } from "../runtime/store.ts";
+import { emptyLedger, loadLedger, loadTurn } from "../runtime/store.ts";
 
 const directories: string[] = [];
 afterEach(() => { for (const dir of directories.splice(0)) rmSync(dir, { recursive: true, force: true }); });

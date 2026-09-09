@@ -1,3 +1,5 @@
+import { loadMemory } from "./memory/store.ts";
+import { loadSkills } from "./skills/loader.ts";
 import { expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -6,7 +8,7 @@ import { handleTurn } from "./runtime/loop.ts";
 import { createServer } from "./server.ts";
 import { createProvider } from "./provider/uuapi.ts";
 import { createToolBridge } from "./runtime/bridge.ts";
-import { stopTurn, emptyLedger, loadEvents, loadLedger, loadMemory, loadProviderLog, loadSession, loadTurn, saveLedger, saveTurn, sessionView } from "./runtime/store.ts";
+import { stopTurn, emptyLedger, loadEvents, loadLedger, loadProviderLog, loadSession, loadTurn, saveLedger, saveTurn, sessionView } from "./runtime/store.ts";
 import { loadToolRegistry, toolUsageFor } from "./tools/registry.ts";
 import { loadContextModules } from "./context/modules.ts";
 import { systemText, userText } from "./context/window.ts";
@@ -59,7 +61,7 @@ test("System模块说明直接合并，User动态数据按栏目注入", () => {
   ledger.goal = "核对官网价格";
   ledger.notes = { candidate: "尚未确认的候选" };
   const user = userText({
-    contextModules, ledger,
+    contextModules, ledger, skillText: loadSkills(repoRoot),
     turn: {
       turnId: "tn_01", conversationId: "cv_01", status: "inferring",
       createdAt: "2026-09-06T00:00:00.000Z", completedAt: null,
@@ -67,13 +69,13 @@ test("System模块说明直接合并，User动态数据按栏目注入", () => {
       assembled: { baseToolsIds: [], toolIds: [], turnMemoryIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null, pageObservedHistory: [] },
       output: null,
     },
-    memories: { project: [], conversation: [], turn: [] },
+    memories: { project: "", conversation: "", turn: "" },
     toolUsage: "web_search：搜索公开网页。",
   });
   expect(Array.from(user.match(/^#[A-Za-z][A-Za-z0-9]*$/gm) ?? [])).toEqual(contextModules.userOrder);
   expect(user).toContain(ledger.goal);
   expect(user).toContain(ledger.notes.candidate!);
-  expect(user).toContain(contextModules.userSlots["#skill"]!.body);
+  expect(user).toContain(loadSkills(repoRoot));
   for (const module of Object.values(contextModules.userSlots)) {
     expect(system).toContain(module.description!);
     expect(user).not.toContain(module.description!);

@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, appendFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import type { Ledger, LogEvent, MemoryRecord, ObservationRecord, ChatMessage, ProviderExchange, Session, Turn } from "../types.ts";
+import type { Ledger, LogEvent, ObservationRecord, ChatMessage, ProviderExchange, Session, Turn } from "../types.ts";
 import { nextId, nowIso } from "./ids.ts";
 import { abortLocalProcesses } from "../tools/local-process.ts";
 import { localScope } from "../tools/local-tools.ts";
@@ -34,7 +34,6 @@ export const paths = (dataDir: string, cvId?: string) => {
     events: join(conv, "events.jsonl"),
     provider: join(conv, "provider.md"),
     turns: join(conv, "turns"),
-    memory: join(conv, "memory"),
     observations: join(conv, "observations"),
     returns: join(conv, "returns"),
   };
@@ -101,14 +100,6 @@ export function loadTurn(dataDir: string, cvId: string, turnId: string): Turn {
 
 export function saveTurn(dataDir: string, turn: Turn): void {
   writeJson(join(paths(dataDir, turn.conversationId).turns, `${turn.turnId}.json`), turn);
-}
-
-export function loadMemory(dataDir: string, cvId: string, memoryId: string): MemoryRecord {
-  return JSON.parse(readFileSync(join(paths(dataDir, cvId).memory, `${memoryId}.json`), "utf8")) as MemoryRecord;
-}
-
-export function saveMemory(dataDir: string, cvId: string, record: MemoryRecord): void {
-  writeJson(join(paths(dataDir, cvId).memory, `${record.memoryId}.json`), record);
 }
 
 export function loadObservation(dataDir: string, cvId: string, observationId: string): ObservationRecord | null {

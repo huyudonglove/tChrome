@@ -1,0 +1,14 @@
+export type MemoryLayer = "turn" | "conversation" | "project";
+
+export type MemoryRecord = {
+  memoryId: string;
+  layer: MemoryLayer;
+  text: string;
+  summary: string;
+  compressed: boolean;
+  createdAt: string;
+  sourceCallId: string;
+};
+
+export type MemoryIds = Record<MemoryLayer, string[]>;
+export type Memories = Record<MemoryLayer, MemoryRecord[]>;

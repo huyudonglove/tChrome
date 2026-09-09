@@ -90,7 +90,7 @@ test("user data is interpolated once and remains separate from navigation and mo
   ledger.goal = "当前目标";
   ledger.notes = { candidate: "来自用户的 {{unknown}}" };
   const turn = fixtureTurn();
-  const output = userText({ contextModules: modules, ledger, turn, memories: { project: [], conversation: [], turn: [] }, toolUsage: "工具说明 {{data}}" });
+  const output = userText({ contextModules: modules, ledger, turn, memories: { project: "", conversation: "", turn: "" }, toolUsage: "工具说明 {{data}}", skillText: "独立技能正文 {{data}} {{unknown}}" });
   expect(headings(output)).toEqual(modules.userOrder);
   expect(output).toContain(turn.input.text);
   expect(output).toContain(ledger.notes.candidate!);
@@ -98,7 +98,7 @@ test("user data is interpolated once and remains separate from navigation and mo
   expect(output).not.toContain(modules.systemInventory);
   expect(output).not.toContain(modules.userInventory);
   expect(output).not.toMatch(/^能力：|^详细描述：/m);
-  expect(output).toContain(modules.userSlots["#skill"]!.body.replace(/\{\{data\}\}/g, ""));
+  expect(output).toContain("#skill\n\n独立技能正文 {{data}} {{unknown}}");
   expect(modules).not.toHaveProperty("skill");
 });
 
@@ -209,7 +209,7 @@ test("user input history is an array preserving message boundaries and multiline
   const ledger = emptyLedger("cv_slots");
   const turn = fixtureTurn();
   const render = () => userText({ contextModules: modules, ledger, turn,
-    memories: { project: [], conversation: [], turn: [] }, toolUsage: "" });
+    memories: { project: "", conversation: "", turn: "" }, toolUsage: "", skillText: "测试技能" });
   const history = () => {
     const section = render().split("\n#userInputHistory\n")[1]!.split("\n#goal\n")[0]!;
     return JSON.parse(section.trim());
@@ -233,27 +233,27 @@ test("user descriptions appear only in system navigation while user bodies conta
     expect(system.split(module.description!)).toHaveLength(2);
     expect(user).not.toContain(module.description!);
     expect(module.body).not.toContain(module.description!);
-    if (tag !== "#skill") {
-      expect(module.body).toBe("{{data}}");
-      expect(renderSlots([tag], modules.userSlots, data)).toBe(`${tag}\n\nVALUE_${tag}`);
-    }
+    expect(module.body).toBe("{{data}}");
+    expect(renderSlots([tag], modules.userSlots, data)).toBe(`${tag}\n\nVALUE_${tag}`);
   }
   expect(user).not.toMatch(/^能力：|^详细描述：|^内容：/m);
   for (const module of Object.values(modules.systemSlots)) expect(module.description).toBeUndefined();
 });
 
-test("skill navigation explains its role in system while operational methods remain in user", () => {
-  const modules = loadContextModules(root);
+test("skill navigation describes injected skills without storing their operational methods", () => {
+  // The copied fixture deliberately contains context only: context must not load skills itself.
+  const modules = loadContextModules(copyContext());
   const skill = modules.userSlots["#skill"]!;
+  const methods = "SKILL_METHODS_FROM_RUNTIME {{data}} {{unknown}}";
   const system = systemText(modules, "");
-  const user = renderSlots(modules.userOrder, modules.userSlots, {});
+  const user = renderSlots(modules.userOrder, modules.userSlots, { "#skill": methods });
   expect(skill.description).toBeTruthy();
-  expect(skill.body.trim()).not.toBe("");
-  expect(skill.body).not.toBe("{{data}}");
+  expect(skill.body).toBe("{{data}}");
   expect(system).toContain(skill.description!);
-  expect(system).not.toContain(skill.body);
-  expect(user).toContain(skill.body);
+  expect(system).not.toContain(methods);
+  expect(user).toContain(`#skill\n\n${methods}`);
   expect(user).not.toContain(skill.description!);
+  expect(renderSlots(["#skill"], modules.userSlots, {})).not.toContain(methods);
 });
 
 test("editing a user description updates system guidance without changing user data", () => {

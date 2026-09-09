@@ -1,6 +1,9 @@
+import { loadMemories } from "../memory/store.ts";
+import { projectMemories } from "../memory/window.ts";
 import runtimeMessages from "./messages.json";
 import { FULL_RETURN_TOOLS } from "../tools/records.ts";
 import { systemText, userText, windowChars } from "../context/window.ts";
+import { loadSkills } from "../skills/loader.ts";
 import { loadContextModules, type ContextModules } from "../context/modules.ts";
 import { loadToolRegistry, coreToolIds, dynamicToolIds, toolSchemas, toolUsageFor, type ToolRegistry } from "../tools/registry.ts";
 import { clipReturn, executeTool } from "../tools/execute.ts";
@@ -23,7 +26,6 @@ import { nextId, nowIso } from "./ids.ts";
 import {
   ensureSession,
   loadLedger,
-  loadMemory,
   loadObservation,
   loadTurn,
   loadFullReturn,
@@ -73,19 +75,10 @@ const assemble = (toolRegistry: ToolRegistry): Assembled => ({
   currentTab: null,
 });
 
-const loadMemories = (dataDir: string, ledger: Ledger) => {
-  const read = (ids: string[]) => ids.map((id) => loadMemory(dataDir, ledger.conversationId, id));
-  return {
-    project: read(ledger.memoryIds.project),
-    conversation: read(ledger.memoryIds.conversation),
-    turn: read(ledger.memoryIds.turn),
-  };
-};
-
-const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, compactMemory = false): ChatMessage[] => [
+const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, compactMemory = false): ChatMessage[] => [
   { role: "system", content: systemText(contextModules, toolUsageFor(toolRegistry, turn.assembled.baseToolsIds)) },
   { role: "user", content: userText({
-    contextModules, ledger, turn, memories, compactMemory,
+    contextModules, ledger, turn, memories: projectMemories(memories, compactMemory), skillText,
     toolUsage: toolUsageFor(toolRegistry, turn.assembled.toolIds),
   }) },
 ];
@@ -216,6 +209,7 @@ export async function handleTurn(
     ledger.userInputHistory.push(last.input.text);
   }
   const contextModules = loadContextModules(deps.repoRoot);
+  const skillText = loadSkills(deps.repoRoot);
   const toolRegistry = loadToolRegistry(deps.repoRoot);
   const turnId = nextId("tn_", ledger.turnIds);
   const turn: Turn = {
@@ -263,12 +257,12 @@ export async function handleTurn(
   let submitFails = 0;
   while (true) {
     if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
-    const memories = loadMemories(deps.dataDir, ledger);
-    let messages = messagesOf(contextModules, toolRegistry, ledger, turn, memories);
+    const memories = loadMemories(deps.dataDir, ledger.conversationId, ledger.memoryIds);
+    let messages = messagesOf(contextModules, toolRegistry, ledger, turn, memories, skillText);
     const initialChars = windowChars(messages[0]!.content, messages[1]!.content);
     if (initialChars >= ledger.compressAt) {
       archiveToolHistory({ dataDir: deps.dataDir, ledger, windowChars: initialChars });
-      messages = messagesOf(contextModules, toolRegistry, ledger, turn, memories, true);
+      messages = messagesOf(contextModules, toolRegistry, ledger, turn, memories, skillText, true);
     }
     ledger.windowChars = windowChars(messages[0]!.content, messages[1]!.content);
     saveLedger(deps.dataDir, ledger);

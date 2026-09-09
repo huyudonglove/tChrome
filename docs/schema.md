@@ -223,7 +223,7 @@ Context 每层仅投影最近 8 条记忆。窗口到 200K 时，turn / conversa
 
 加载器返回 systemOrder / userOrder，systemSlots / userSlots 保存模块元数据与对应正文。system 先输出 `# System 栏目清单`，七个模块每项 tag --能力之后直接跟详细正文，baseTools 包含工具说明；再输出 `# User 栏目清单`，每项 tag --能力之后直接跟详细描述。system 详细正文与清单项合并，只出现一次；user 渲染十五个原有 tag 的内容段和数据，不重复能力标签或详细描述。
 
-system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，boundaries 管授权和证据来源。网页方法直接在 `service/context/user/skill.md`，不再独立读取 skill 文件。既有 user tag 与字段来源、工具 schema 和输出协议保持不变。
+system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，boundaries 管授权和证据来源。网页方法维护于 `service/skills/web-observation/SKILL.md`，runtime 按 `service/skills/index.json` 加载后作为数据注入 context，模块描述仍由 `service/context/user/skill.md` 提供。既有 user tag 与字段来源、工具 schema 和输出协议保持不变。
 
 常驻工具说明进入 #baseTools，动态工具说明进入 #tools，唯一来源仍是 `service/tools/definitions/<id>.json` 的 function.description。调整模块后同步生成导航、装配测试与阶段示例；阶段 JSON 中 systemSlots / userSlots 是对应的 7 / 15 个 tag 名数组，并非模块对象。
 

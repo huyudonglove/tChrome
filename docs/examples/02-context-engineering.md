@@ -1,6 +1,6 @@
 # 02 Context Engineering
 
-读 01 的写出。本环节点名：常驻工具 / 动态工具 / 三层记忆 / MCP，以及发话时标签。system / user 槽按两份编号文件名清单加载，能力导航从模块元数据生成，网页方法直接来自 user/skill.md 的内容段；该模块的详细描述随 User 清单进入 system。正文留给 03 解码展开。
+读 01 的写出。本环节点名：常驻工具 / 动态工具 / 三层记忆 / MCP，以及发话时标签。system / user 槽按两份编号文件名清单加载，能力导航从模块元数据生成，网页方法来自 service/skills/web-observation/SKILL.md，由 runtime 注入 #skill；该模块的详细描述随 User 清单进入 system。正文留给 03 解码展开。
 
 怎么看：上面「读到的」是 01 写出的原样。下面「写出的」是累积快照：01 六个键 + 本环节新增的键。栏目和 skill 对应 `service/context/` 中的文件，工具 ID 对应 `service/tools/definitions/`，记忆 ID 对应运行数据目录中的记录。
 

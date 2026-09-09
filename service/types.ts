@@ -1,6 +1,6 @@
+export type { MemoryLayer, MemoryRecord } from "./memory/types.ts";
 export type LedgerStatus = "idle" | "running" | "waiting_human" | "paused" | "failed";
 export type TurnStatus = "assembling" | "inferring" | "completed" | "waiting_human" | "failed";
-export type MemoryLayer = "turn" | "conversation" | "project";
 
 export type Session = {
   conversationId: string;
@@ -103,16 +103,6 @@ export type Ledger = {
   compressAt: number;
   memoryIds: { turn: string[]; conversation: string[]; project: string[] };
   contextSummary: Record<string, unknown> | null;
-};
-
-export type MemoryRecord = {
-  memoryId: string;
-  layer: MemoryLayer;
-  text: string;
-  summary: string;
-  compressed: boolean;
-  createdAt: string;
-  sourceCallId: string;
 };
 
 export type ObservationRecord = {
