@@ -6,7 +6,7 @@ export const MEMORY_WINDOW = 8;
 const jsonBody = (value: unknown) => JSON.stringify(value, null, 2);
 
 export function systemText(contextModules: ContextModules, baseToolUsage: string): string {
-  return [contextModules.systemInventory, contextModules.userInventory, renderSlots(contextModules.systemInventory, contextModules.systemSlots, {
+  return [contextModules.systemInventory, contextModules.userInventory, renderSlots(contextModules.systemOrder, contextModules.systemSlots, {
     "#baseTools": baseToolUsage,
   })].join("\n\n");
 }
@@ -27,8 +27,7 @@ export function userText(input: {
   compactMemory?: boolean;
 }): string {
   const { contextModules, ledger, turn, memories, toolUsage } = input;
-  return renderSlots(contextModules.userInventory, contextModules.userSlots, {
-    "#skill": contextModules.skill,
+  return renderSlots(contextModules.userOrder, contextModules.userSlots, {
     "#projectMemory": memoryBody(memories.project),
     "#conversationMemory": memoryBody(memories.conversation, input.compactMemory),
     "#turnMemory": memoryBody(memories.turn, input.compactMemory),

@@ -1,19 +1,17 @@
-# User 栏目清单
+# User 模块顺序
 
-| 顺序 | 分组 | 栏目 | 功能 |
-| --- | --- | --- | --- |
-| 1 | 方法 | `#skill` | 提供网页操作方法与注意事项。 |
-| 2 | 输入 | `#userInput` | 明确本轮用户请求。 |
-| 3 | 输入 | `#userInputHistory` | 提供历史用户请求，帮助理解指代与条件变化。 |
-| 4 | 目标 | `#goal` | 明确当前工作目标，判断进展与完成情况。 |
-| 5 | 目标 | `#goalHistory` | 记录旧目标，帮助理解方向变化。 |
-| 6 | 页面 | `#currentTab` | 确定用户发话时的起始标签。 |
-| 7 | 页面 | `#currentPage` | 提供最近观察的页面信息，判断操作对象与页面状态。 |
-| 8 | 记忆 | `#projectMemory` | 提供项目背景、术语与长期约束。 |
-| 9 | 记忆 | `#conversationMemory` | 保留会话事实、偏好与决定。 |
-| 10 | 记忆 | `#turnMemory` | 保留阶段进展、临时发现与待处理事项。 |
-| 11 | 记忆 | `#contextSummary` | 汇总目标、进展、阻碍与下一步。 |
-| 12 | 记忆 | `#notes` | 维护工作清单、候选项和中间数据。 |
-| 13 | 证据 | `#toolIO` | 提供工具调用、返回与错误，判断实际执行结果。 |
-| 14 | 证据 | `#observation` | 提供历史执行摘要与详细证据回查入口。 |
-| 15 | 工具 | `#tools` | 提供当前已加载动态工具的用法。 |
+1. skill
+2. userInput
+3. userInputHistory
+4. goal
+5. goalHistory
+6. currentTab
+7. currentPage
+8. projectMemory
+9. conversationMemory
+10. turnMemory
+11. contextSummary
+12. notes
+13. toolIO
+14. observation
+15. tools

@@ -194,6 +194,8 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "#identity",
     "#environment",
     "#execution",
+    "#toolProtocol",
+    "#boundaries",
     "#output",
     "#baseTools"
   ],

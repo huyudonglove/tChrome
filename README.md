@@ -137,9 +137,8 @@ service/                  本机服务，按职责组织
   context/                上下文正文、模块加载与纯窗口投影
     system/               固定规则与常驻工具插槽
     user/                 请求、状态、记忆与动态工具插槽
-    skills/               网页操作方法
-    system-slots.md       system 栏目顺序与职责
-    user-slots.md         user 栏目顺序与职责
+    system-slots.md       system 编号文件名加载顺序
+    user-slots.md         user 编号文件名加载顺序
     README.md             维护入口，不进入模型窗口
   tools/                  工具注册、校验与服务端执行
     definitions/          schema、groups.json 分组与 index.json 分类
@@ -184,3 +183,5 @@ Provider 负责模型通信、重试和响应解析。所有接入返回均由 `
 运行提示独立维护在 `service/runtime/messages.json`，由运行层按需写入工具记录。
 
 目录先按运行端划分，再按职责划分：`service/context/` 和 `service/tools/` 都是本机服务能力，正文和定义与其实现放在同一模块；`extension/tools/` 仅负责依赖 Chrome API 的宿主执行，由服务注册表发现并经浏览器桥调度。
+
+上下文保留 system / user 分层。两份目录只列编号文件名；模块使用 tag、能力和详细描述统一格式。加载后生成两份能力导航放在 system 开头，再放七个 system 模块正文；user 保留十五个 tag 的正文和数据。网页方法并入 user/skill.md。

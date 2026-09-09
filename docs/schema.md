@@ -10,9 +10,8 @@ service/                  本机服务，按职责组织
   context/                上下文正文、模块加载与纯窗口投影
     system/               固定规则与常驻工具插槽
     user/                 请求、状态、记忆与动态工具插槽
-    skills/               网页操作方法
-    system-slots.md       system 栏目顺序与职责
-    user-slots.md         user 栏目顺序与职责
+    system-slots.md       system 编号文件名加载顺序
+    user-slots.md         user 编号文件名加载顺序
     README.md             维护入口，不进入模型窗口
   tools/                  工具注册、校验与服务端执行
     definitions/          schema、groups.json 分组与 index.json 分类
@@ -219,15 +218,13 @@ Context 每层仅投影最近 8 条记忆。窗口到 200K 时，turn / conversa
 
 用户一条输入开一个 Turn，CE 装配一次。本 Turn 内工具循环不再走 CE。
 
-插槽导航分别维护在 `service/context/system-slots.md` 与 `service/context/user-slots.md`。程序直接读取两份清单的编号行，按清单顺序加载并排列对应模块，不再维护独立窗口模板；`service/context/system/<name>.md` 和 `service/context/user/<name>.md` 各自维护执行规则或 `{{data}}`。静态 system 规则直接在各文件中维护，无运行时附加数据；动态槽由 Runtime 注入。装配不再按大 Pack 标题切割。空数据仍保留说明，不能解释为页面为空或任务完成。
+加载顺序由 `service/context/system-slots.md` 和 `user-slots.md` 的编号文件名决定，例如 `1. identity`，不在目录重复描述能力。各模块以 `#tag`、`能力：【…】`、`详细描述：` 和正文组成；动态数据仍用 `{{data}}` 注入。
 
-顺序仅以两份栏目清单为准，本文不再另列顺序。
+加载器返回 systemOrder / userOrder，systemSlots / userSlots 的每项为 `{tag, capability, body}`。从元数据生成 systemInventory / userInventory，两份导航依次置于 system 最前，起始标题为 `# System 栏目清单`。之后拼接七个 system 模块的详细正文。user 渲染十五个原有 tag 的详细描述和数据，不重复能力标签。
 
-`#skill` 数据来自固定的 `service/context/skills/skill.web.md`；不再记录无实际加载作用的 systemIds / skillIds。其余 user 数据分别来自 Turn.input、ledger、Turn.assembled 和 memory 文件，具体字段与可信边界见各独立槽文件。
+system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，boundaries 管授权和证据来源。网页方法直接在 `service/context/user/skill.md`，不再独立读取 skill 文件。既有 user tag 与字段来源、工具 schema 和输出协议保持不变。
 
-`#baseTools` 按 toolGroups.baseToolsIds 生成常驻工具说明；`#tools` 按 Turn.assembled.toolIds 生成已加载动态工具说明。说明唯一来源是各工具 `function.description`；`service/tools/definitions/index.json` 只保存 browser / service 分类，不能另写 usage。`#tools` 是 user 参考文本，不是 role=tool 消息。工具 schema 的 description 与窗口说明同源。
-
-维护：增删、重命名或调整插槽职责、顺序时，同步清单、独立文件、装配测试与阶段窗口示例；修改工具说明只改该工具定义，并重新生成示例中的 schema / 工具说明。测试检查目录、清单、顺序、装配及全量工具 description 缺失。
+常驻工具说明进入 #baseTools，动态工具说明进入 #tools，唯一来源仍是 `service/tools/definitions/<id>.json` 的 function.description。调整模块后同步生成导航、装配测试与阶段示例；阶段 JSON 中 systemSlots / userSlots 是对应的 7 / 15 个 tag 名数组，并非模块对象。
 
 出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。
 

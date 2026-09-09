@@ -1,9 +1,9 @@
-# System 栏目清单
+# System 模块顺序
 
-| 顺序 | 栏目 | 功能 |
-| --- | --- | --- |
-| 1 | `#identity` | 说明助手身份与职责范围。 |
-| 2 | `#environment` | 说明运行环境与可用能力。 |
-| 3 | `#execution` | 定义任务推进、结果判断、错误处理、授权、等待用户与结束任务的通用执行规则。 |
-| 4 | `#output` | 定义过程说明、最终答复和追问的表达格式。 |
-| 5 | `#baseTools` | 提供常驻基础工具的用途、参数、返回与状态变化。 |
+1. identity
+2. environment
+3. execution
+4. toolProtocol
+5. boundaries
+6. output
+7. baseTools

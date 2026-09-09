@@ -46,81 +46,36 @@ const mock = (results: CompletionResult[]): Provider => {
   };
 };
 
-test("窗口按上下文栏目清单插值", async () => {
+test("窗口由模块导航与独立正文组成，动态数据按栏目注入", () => {
   const contextModules = loadContextModules(repoRoot);
-  const toolRegistry = loadToolRegistry(repoRoot);
-  expect(toolRegistry.toolGroups.baseToolsIds).toContain("notes.write");
-  expect(toolRegistry.toolGroups.baseToolsIds).toContain("notes.delete");
-  expect(contextModules.userInventory).toContain("#notes");
-  expect(contextModules.userInventory).toContain("#goal");
-  expect(contextModules.userInventory).toContain("#goalHistory");
-  expect(toolRegistry.toolGroups.coreToolIds).toContain("page.get_summary");
-  expect(contextModules.systemInventory).toContain("#baseTools");
-  expect(contextModules.userInventory).not.toContain("#baseTools");
-  expect(contextModules.userInventory).toContain("#tools");
-  expect(contextModules.userInventory).not.toContain("#sop");
-  expect(contextModules.userInventory).toContain("#currentTab");
-  expect(contextModules.userInventory).toContain("#currentPage");
-  expect(contextModules.userInventory).not.toContain("#参考");
-  expect(contextModules.userInventory).not.toContain("#currentEnvironment");
-  expect(contextModules.systemInventory).not.toContain("#skill");
-  expect(contextModules.systemInventory).not.toContain("#sop");
-  const system = systemText(contextModules, toolUsageFor(toolRegistry, toolRegistry.toolGroups.baseToolsIds));
-  expect(system).toContain("#identity");
-  expect(system).toContain("tChrome");
-  expect(system).toContain("参考材料");
-  expect(system).toContain("摘要可能丢失细节，不代表完整原文");
-  expect(system).toContain("目标变化时非空旧目标自动加入 #goalHistory");
-  expect(system).not.toMatch(/ledger\.|windowChars|compressAt/);
-  expect(system).not.toContain("#sop");
-  expect(system).toContain("#baseTools");
-  expect(system).toContain("notes.write");
-  expect(system).toContain("content 的 seen");
-  expect(system).not.toMatch(/baseToolsIds|coreToolIds|用途与来源|应用维护|Turn\.assembled/);
-  expect(system).not.toContain("从稳到新");
-  expect(system).not.toContain("常用的一撮");
-  expect(system).not.toContain("这一次会话");
-  expect(system).not.toContain("{{");
-  expect(system).not.toContain("探索型可以由大到小");
-  expect(system).not.toMatch(/^#skill$/m);
-  expect(system).not.toMatch(/^#sop$/m);
+  const registry = loadToolRegistry(repoRoot);
+  const system = systemText(contextModules, toolUsageFor(registry, registry.toolGroups.baseToolsIds));
+  expect(system.startsWith(`${contextModules.systemInventory}\n\n${contextModules.userInventory}\n\n`)).toBe(true);
+  expect(Array.from(system.match(/^#[A-Za-z][A-Za-z0-9]*$/gm) ?? [])).toEqual(contextModules.systemOrder);
+  expect(system).not.toMatch(/^能力：|^详细描述：/m);
+  for (const id of registry.toolGroups.baseToolsIds) expect(system).toContain(`${id}：`);
+  const ledger = emptyLedger("cv_01");
+  ledger.goal = "核对官网价格";
+  ledger.notes = { candidate: "尚未确认的候选" };
   const user = userText({
-    contextModules,
-    ledger: emptyLedger("cv_01"),
+    contextModules, ledger,
     turn: {
-      turnId: "tn_01",
-      conversationId: "cv_01",
-      status: "inferring",
-      createdAt: "2026-09-06T00:00:00.000Z",
-      completedAt: null,
+      turnId: "tn_01", conversationId: "cv_01", status: "inferring",
+      createdAt: "2026-09-06T00:00:00.000Z", completedAt: null,
       input: { text: "帮我查这款鼠标官网价", submittedAt: "2026-09-06T00:00:00.000Z" },
-      assembled: {
-
-        baseToolsIds: [],
-        toolIds: [],
-        turnMemoryIds: [],
-        conversationMemoryIds: [],
-        projectMemoryIds: [],
-        mcpIds: [],
-        currentTab: null,
-        currentPage: null,
-      },
-      output: { kind: "tool", name: "", callId: "" },
+      assembled: { baseToolsIds: [], toolIds: [], turnMemoryIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null },
+      output: null,
     },
     memories: { project: [], conversation: [], turn: [] },
     toolUsage: "web_search：搜索公开网页。",
   });
-  expect(user).toContain("#notes");
-  expect(user).toContain("{}");
-  expect(user).toContain("#skill");
-  expect(user).not.toContain("#sop");
-  expect(user).toContain(contextModules.skill);
-  expect(system).toContain("#baseTools");
-  expect(system).toContain("askUser：向用户提问");
-  expect(system).toContain("finishTurn：结束本轮对话");
-  expect(user).toContain("#tools");
-  expect(user).toContain("web_search：搜索公开网页");
+  expect(Array.from(user.match(/^#[A-Za-z][A-Za-z0-9]*$/gm) ?? [])).toEqual(contextModules.userOrder);
+  expect(user).toContain(ledger.goal);
+  expect(user).toContain(ledger.notes.candidate!);
+  expect(user).toContain(contextModules.userSlots["#skill"]!.body);
+  expect(user).toContain("web_search：搜索公开网页。");
   expect(user).toContain("帮我查这款鼠标官网价");
+  expect(user).not.toContain(contextModules.userInventory);
   expect(user).not.toContain("{{");
 });
 

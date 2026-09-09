@@ -49,6 +49,8 @@
     "#identity",
     "#environment",
     "#execution",
+    "#toolProtocol",
+    "#boundaries",
     "#output",
     "#baseTools"
   ],
@@ -257,6 +259,8 @@
     "#identity",
     "#environment",
     "#execution",
+    "#toolProtocol",
+    "#boundaries",
     "#output",
     "#baseTools"
   ],
