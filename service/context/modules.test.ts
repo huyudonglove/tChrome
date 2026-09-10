@@ -37,7 +37,7 @@ test("reordering only inventories changes both navigations and corresponding bod
   expect(reordered.systemOrder).toEqual([...original.systemOrder].reverse());
   expect(reordered.userOrder).toEqual([...original.userOrder].reverse());
   const system = systemText(reordered, "");
-  expect(system).toBe(`${reordered.systemInventory}\n\n${reordered.userInventory}`);
+  expect(system).toBe(`${reordered.overview}\n\n${reordered.systemInventory}\n\n${reordered.userInventory}`);
   expect(navigationTags(system)).toEqual([...reordered.systemOrder, ...reordered.userOrder]);
   expect(headings(system)).toEqual([]);
   expect(headings(renderSlots(reordered.userOrder, reordered.userSlots, {}))).toEqual(reordered.userOrder);

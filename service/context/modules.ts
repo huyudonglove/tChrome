@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 export type ContextModule = { tag: string; capability: string; description?: string; body: string };
 export type ContextModules = {
+  overview: string;
   systemOrder: string[];
   userOrder: string[];
   systemInventory: string;
@@ -81,12 +82,14 @@ export function renderInventory(role: "System" | "User", order: string[], module
 
 export function loadContextModules(root: string): ContextModules {
   const dir = join(root, "service", "context");
+  const overview = readFileSync(join(dir, "overview.md"), "utf8").trim();
+  if (!overview) throw new Error("empty context overview");
   const systemOrder = slotNames(readFileSync(join(dir, "system-slots.md"), "utf8"));
   const userOrder = slotNames(readFileSync(join(dir, "user-slots.md"), "utf8"));
   if (systemOrder.some(tag => userOrder.includes(tag))) throw new Error("duplicate tag across system and user");
   const systemSlots = loadSlots(dir, "system", systemOrder);
   const userSlots = loadSlots(dir, "user", userOrder);
-  return { systemOrder, userOrder, systemSlots, userSlots,
+  return { overview, systemOrder, userOrder, systemSlots, userSlots,
     systemInventory: renderInventory("System", systemOrder, systemSlots),
     userInventory: renderInventory("User", userOrder, userSlots) };
 }

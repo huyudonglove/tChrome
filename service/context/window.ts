@@ -4,7 +4,7 @@ import { renderInventory, renderSlots, type ContextModules } from "./modules.ts"
 const jsonBody = (value: unknown) => JSON.stringify(value, null, 2);
 
 export function systemText(contextModules: ContextModules, baseToolUsage: string): string {
-  return [renderInventory("System", contextModules.systemOrder, contextModules.systemSlots, {
+  return [contextModules.overview, renderInventory("System", contextModules.systemOrder, contextModules.systemSlots, {
     "#baseTools": baseToolUsage,
   }), contextModules.userInventory].join("\n\n");
 }

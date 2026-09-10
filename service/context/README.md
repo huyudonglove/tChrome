@@ -4,6 +4,7 @@
 
 | 入口 | 职责 |
 |---|---|
+| [overview.md](overview.md) | 整份提示词总纲，说明 System 规则与 User 材料如何支撑判断、行动和反馈；置于两份清单之前 |
 | [system-slots.md](system-slots.md) | 仅编号文件名，例如 `1. identity`；对应 system/ 中的文件 |
 | [user-slots.md](user-slots.md) | 仅编号文件名；对应 user/ 中的文件 |
 | [system/](system/) | identity、environment、execution、toolProtocol、boundaries、output、baseTools 七个规则模块 |
@@ -36,7 +37,7 @@ user 模块在详细描述后增加内容段：
 
 目录中的名字是不含 .md 的文件名，不携带能力描述。编号从 1 连续递增，必须与目录文件一一对应。模块 tag、能力和正文只在模块文件维护，避免能力描述重复维护。
 
-加载结果包含 systemOrder / userOrder，以及保存模块元数据与正文的 systemSlots / userSlots。systemInventory 和 userInventory 从顺序和能力元数据生成。最终 system 先输出 `# System 栏目清单`，每项 tag --能力之后直接跟该模块的详细正文，baseTools 注入常驻工具说明；再输出 `# User 栏目清单`，每项 tag --能力之后直接跟详细描述。system 正文已经合并在对应清单项内，不再额外拼接一份；user 仅保留 tag 与内容段。
+加载结果包含 systemOrder / userOrder，以及保存模块元数据与正文的 systemSlots / userSlots。systemInventory 和 userInventory 从顺序和能力元数据生成。最终 system 先输出 overview.md 总纲，然后输出 `# System 栏目清单`，每项 tag --能力之后直接跟该模块的详细正文，baseTools 注入常驻工具说明；再输出 `# User 栏目清单`，每项 tag --能力之后直接跟详细描述。system 正文已经合并在对应清单项内，不再额外拼接一份；user 仅保留 tag 与内容段。
 
 execution 专注任务推进；toolProtocol 负责调用、返回和错误处理协议；boundaries 负责授权、来源与证据边界。具体技能由独立的 [service/skills/](../skills/) 能力目录维护：[index.json](../skills/index.json) 只声明成员和加载顺序，[web-observation/SKILL.md](../skills/web-observation/SKILL.md) 保存网页观察与操作方法。runtime 每轮调用一次 `loadSkills(root)`，按清单顺序读取各 `<name>/SKILL.md` 并拼接，再通过 `userText` 的 `skillText` 参数注入 #skill。context 只负责渲染，不能读取 skills 目录；ContextModules 不保存技能正文。
 

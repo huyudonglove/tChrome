@@ -198,4 +198,4 @@ Provider 负责模型通信、重试和响应解析。所有接入返回均由 `
 
 目录先按运行端划分，再按职责划分：`service/context/`、`service/tools/`、`service/skills/` 和 `service/memory/` 都是本机服务能力，正文和定义与其实现放在同一模块；`extension/tools/` 仅负责依赖 Chrome API 的宿主执行，由服务注册表发现并经浏览器桥调度。
 
-上下文保留 system / user 分层。两份目录只列编号文件名；system 模块使用 tag、能力和详细描述格式；user 模块另设内容段。system 先输出 System 栏目清单，每项 tag --能力后直接跟详细正文（含 baseTools 工具说明），再输出 User 栏目清单，每项能力后直接跟详细描述；user 保留十四个 tag 的内容段和数据。Skill 正文独立维护于 `service/skills/<name>/SKILL.md`，Runtime 根据 `service/skills/index.json` 每轮加载后注入 `#skill`；context 中只保留模块说明和占位符。
+上下文保留 system / user 分层。两份目录只列编号文件名；system 模块使用 tag、能力和详细描述格式；user 模块另设内容段。system 先输出 `service/context/overview.md` 总纲，串联规则、材料、判断与行动，再输出 System 栏目清单，每项 tag --能力后直接跟详细正文（含 baseTools 工具说明），再输出 User 栏目清单，每项能力后直接跟详细描述；user 保留十四个 tag 的内容段和数据。Skill 正文独立维护于 `service/skills/<name>/SKILL.md`，Runtime 根据 `service/skills/index.json` 每轮加载后注入 `#skill`；context 中只保留模块说明和占位符。

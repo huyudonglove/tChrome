@@ -29,7 +29,7 @@ for (const file of readdirSync(join(root, "docs/examples")).filter(f => f.endsWi
     const ledger = emptyLedger(snapshot.conversationId);
     ledger.userInputHistory = snapshot.userInputHistory;
     const user = userText({ contextModules: c, ledger, turn, memories: { project: "", conversation: "" }, skillText: loadSkills(root), toolUsage: toolUsageFor(registry, snapshot.toolIds) });
-    text = text.replace(/^```\n# System 栏目清单\n[\s\S]*?^```/m, () => `\`\`\`\n${systemText(c, toolUsageFor(registry, registry.toolGroups.baseToolsIds))}\n\`\`\``);
+    text = text.replace(/^```\n# (?:总纲|System 栏目清单)\n[\s\S]*?^```/m, () => `\`\`\`\n${systemText(c, toolUsageFor(registry, registry.toolGroups.baseToolsIds))}\n\`\`\``);
     text = text.replace(/^```\n#skill\n[\s\S]*?^```/m, () => `\`\`\`\n${user}\n\`\`\``);
   }
   text = text.replace(/^```json\n([\s\S]*?)^```/gm, (_, body) => `\`\`\`json\n${JSON.stringify(update(JSON.parse(body)), null, 2)}\n\`\`\``);
