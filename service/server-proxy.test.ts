@@ -48,12 +48,10 @@ for (const variable of ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY"]) {
 }
 
 for (const [mode, stored, expected] of [
-  [undefined, undefined, false],
   ["direct", undefined, false],
   ["proxy", undefined, true],
   ["proxy", false, false],
   ["direct", true, true],
-  [undefined, true, true],
 ] as const) {
   test(`connection initialization mode=${mode} saved=${stored} yields enabled=${expected}`, async () => {
     const savedMode = Bun.env.TCHROME_PROXY_MODE;

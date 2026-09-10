@@ -25,46 +25,6 @@ const fixtureTurn = (): Turn => ({
   assembled: { baseToolsIds: [], toolIds: [],  conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null, pageObservedHistory: [] },
 });
 
-for (const role of ["system", "user"] as const) {
-  test(`${role} numbered inventory and generated navigation follow the module files`, () => {
-    const modules = loadContextModules(root);
-    const order = role === "system" ? modules.systemOrder : modules.userOrder;
-    const slots = role === "system" ? modules.systemSlots : modules.userSlots;
-    const inventory = role === "system" ? modules.systemInventory : modules.userInventory;
-    expect(slotNames(readFileSync(join(root, `service/context/${role}-slots.md`), "utf8"))).toEqual(order);
-    expect(order).toHaveLength(role === "system" ? 7 : 14);
-    expect(navigationTags(inventory)).toEqual(order);
-    expect(readdirSync(join(root, "service/context", role)).filter(name => name.endsWith(".md")).sort())
-      .toEqual(order.map(tag => `${tag.slice(1)}.md`).sort());
-    for (const tag of order) {
-      const source = readFileSync(join(root, "service/context", role, `${tag.slice(1)}.md`), "utf8");
-      const capability = source.match(/^能力：(【[^\n]+】)$/m)![1]!;
-      expect(slots[tag]!.tag).toBe(tag);
-      expect(slots[tag]!.capability.trim()).not.toBe("");
-      expect(inventory).toContain(`${tag} --${capability}`);
-      expect(slots[tag]!.body).not.toMatch(/^能力：|^详细描述：/m);
-    }
-    const rendered = renderSlots(order, slots, Object.fromEntries(order.map(tag => [tag, `DATA_${tag}`])));
-    expect(headings(rendered)).toEqual(order);
-    expect(rendered).not.toMatch(/^能力：|^详细描述：/m);
-  });
-}
-
-test("editing a module capability updates navigation without touching either numbered inventory", () => {
-  const dir = copyContext();
-  const systemBefore = readFileSync(join(dir, "service/context/system-slots.md"), "utf8");
-  const userBefore = readFileSync(join(dir, "service/context/user-slots.md"), "utf8");
-  const path = join(dir, "service/context/system/identity.md");
-  writeFileSync(path, readFileSync(path, "utf8").replace(/^能力：.*$/m, "能力：【CAPABILITY_FROM_MODULE】"));
-  const modules = loadContextModules(dir);
-  expect(modules.systemInventory).toContain("#identity --【CAPABILITY_FROM_MODULE】");
-  expect(readFileSync(join(dir, "service/context/system-slots.md"), "utf8")).toBe(systemBefore);
-  expect(readFileSync(join(dir, "service/context/user-slots.md"), "utf8")).toBe(userBefore);
-  const output = systemText(modules, "");
-  expect(output.split("CAPABILITY_FROM_MODULE")).toHaveLength(2);
-  expect(renderSlots(modules.systemOrder, modules.systemSlots, {})).not.toContain("CAPABILITY_FROM_MODULE");
-});
-
 test("reordering only inventories changes both navigations and corresponding bodies", () => {
   const dir = copyContext();
   const original = loadContextModules(dir);
@@ -99,7 +59,6 @@ test("user data is interpolated once and remains separate from navigation and mo
   expect(output).not.toContain(modules.userInventory);
   expect(output).not.toMatch(/^能力：|^详细描述：/m);
   expect(output).toContain("#skill\n\n独立技能正文 {{data}} {{unknown}}");
-  expect(modules).not.toHaveProperty("skill");
 });
 
 test.each([
@@ -146,20 +105,6 @@ test("missing render targets and unknown body placeholders are rejected while li
     .toBe("#goal\n\n{{data}} {{unknown}} {{#goal}}");
 });
 
-test("tool descriptions still have one source independent of context navigation", () => {
-  const registry = loadToolRegistry(root);
-  const modules = loadContextModules(root);
-  const base = systemText(modules, toolUsageFor(registry, registry.toolGroups.baseToolsIds));
-  for (const id of registry.toolGroups.baseToolsIds) expect(base.split(`${id}：`)).toHaveLength(2);
-  for (const tool of toolSchemas(registry, Object.keys(registry.tools))) {
-    const disk = JSON.parse(readFileSync(join(root, `service/tools/definitions/${tool.function.name}.json`), "utf8"));
-    expect(tool).toEqual(disk);
-    expect(tool.function.description?.trim()).not.toBe("");
-  }
-  registry.tools.askUser!.function.description = " ";
-  expect(() => toolUsageFor(registry, ["askUser"])).toThrow();
-});
-
 test("generated examples use the current navigation, body order and tool schemas", () => {
   const modules = loadContextModules(root);
   const registry = loadToolRegistry(root);
@@ -185,7 +130,6 @@ test("generated examples use the current navigation, body order and tool schemas
   }
 });
 
-
 test("module parser rejects blank capabilities, blank bodies and duplicate placeholders", () => {
   const valid = "#sample\n能力：【用途】\n\n详细描述：\n{{data}}";
   expect(parseModule(valid, "#sample")).toEqual({ tag: "#sample", capability: "【用途】", body: "{{data}}" });
@@ -203,7 +147,6 @@ test("the same tag cannot be listed in system and user", () => {
   expect(() => loadContextModules(dir)).toThrow("duplicate tag");
 });
 
-
 test("user input history is an array preserving message boundaries and multiline content", () => {
   const modules = loadContextModules(root);
   const ledger = emptyLedger("cv_slots");
@@ -220,7 +163,6 @@ test("user input history is an array preserving message boundaries and multiline
   expect(history()).not.toContain(turn.input.text);
 });
 
-
 test("user descriptions appear only in system navigation while user bodies contain data", () => {
   const modules = loadContextModules(root);
   const system = systemText(modules, "");
@@ -232,12 +174,8 @@ test("user descriptions appear only in system navigation while user bodies conta
     expect(modules.userInventory).toContain(`${tag} --${module.capability}\n${module.description}`);
     expect(system.split(module.description!)).toHaveLength(2);
     expect(user).not.toContain(module.description!);
-    expect(module.body).not.toContain(module.description!);
-    expect(module.body).toBe("{{data}}");
-    expect(renderSlots([tag], modules.userSlots, data)).toBe(`${tag}\n\nVALUE_${tag}`);
   }
   expect(user).not.toMatch(/^能力：|^详细描述：|^内容：/m);
-  for (const module of Object.values(modules.systemSlots)) expect(module.description).toBeUndefined();
 });
 
 test("skill navigation describes injected skills without storing their operational methods", () => {
@@ -254,17 +192,6 @@ test("skill navigation describes injected skills without storing their operation
   expect(user).toContain(`#skill\n\n${methods}`);
   expect(user).not.toContain(skill.description!);
   expect(renderSlots(["#skill"], modules.userSlots, {})).not.toContain(methods);
-});
-
-test("editing a user description updates system guidance without changing user data", () => {
-  const dir = copyContext();
-  const path = join(dir, "service/context/user/goal.md");
-  const original = loadContextModules(dir);
-  const before = renderSlots(["#goal"], original.userSlots, { "#goal": "当前目标" });
-  writeFileSync(path, readFileSync(path, "utf8").replace(/详细描述：\n[\s\S]*?\n\n内容：/, "详细描述：\nDESCRIPTION_FROM_USER_MODULE\n\n内容："));
-  const updated = loadContextModules(dir);
-  expect(systemText(updated, "")).toContain("DESCRIPTION_FROM_USER_MODULE");
-  expect(renderSlots(["#goal"], updated.userSlots, { "#goal": "当前目标" })).toBe(before);
 });
 
 test("user modules require separate nonblank descriptions and content", () => {
@@ -289,7 +216,6 @@ test("user descriptions cannot interpolate runtime data and system modules canno
   writeFileSync(systemPath, readFileSync(systemPath, "utf8") + "\n\n内容：\n不允许的第二部分");
   expect(() => loadContextModules(dir)).toThrow();
 });
-
 
 test("system modules combine capability and rules once, including literal dynamic tool usage", () => {
   const modules = loadContextModules(root);

@@ -35,15 +35,24 @@ tChrome 运行在 Chrome 侧边栏。它不要求用户预先画好流程，而�
 
 核心网页工具支持读取摘要、查找区域、列出交互元素、查看细节、点击和输入。已有足够信息时可以直接使用目标工具，不要求每次走完固定观察流程。
 
-缺少能力时，Agent 可以查找工具目录并增量装载工具。
+初始加载核心网页工具和发现入口。`list_browser_tools` 返回尚未加载的动态工具名称，包含浏览器、网络和本地工具；`catalog.add` 加载所选工具，下一次模型请求才收到完整说明和 schema。
+
+本地 `local.*` 工具支持文件读写、目录搜索、复制移动删除、命令执行、后台进程管理与系统打开。命令使用绝对工作目录，默认30秒超时、最长300秒；进程按会话隔离，停止或删除会话会终止对应进程组。`execute_javascript` 通过 Chrome Debugger 在页面主环境执行，支持 Promise 和结构化结果，断线或超时不自动重放。
+
+`#currentPage` 表示本轮最新已知页面；`#pageObservedHistory` 按旧到新记录本轮工具返回的页面观察，两者都不是实时页面监控。
 
 历史记录支持渐进式读取：`record.inspect` 查看长度与结构，`record.search` 按字面搜索定位，`record.read` 按字符范围精读。部分返回提供范围、`hasMore` 和 `nextOffset`，可连续读取；需要全文时使用 `tool.detail` / `observation.detail`。这些读取结果不再被统一截断，且只读取已存记录，不刷新网页。
 
 ### 执行记录与记忆
 
-本机保存会话账本、每轮状态、模型请求与回复、工具参数和返回结果。模型可以写入工作笔记及 turn / conversation / project 三层记忆；当前 project 记忆仍按会话保存，并非跨会话共享。
+本机保存会话账本、每轮状态、模型请求与回复、工具参数和返回结果。模型通过 `notes.write` 维护草稿、候选和中间材料，通过 `memory.write` 保存两层记忆：
 
-上下文达到 200,000 字符阈值时，Runtime 将较早工具记录归档为可回查的 observation，并保留最近两条 toolIO。Context 每层只投影最近 8 条记忆，超阈值时对 turn / conversation 使用摘要，project 不做摘要压缩。完整记忆及其 ID、已加载工具 ID 保持不变。
+- `conversationMemory`：本会话值得保留的过程事实、偏好和决定，跨轮保留，删除会话时删除。
+- `projectMemory`：独立于会话的长期记忆，所有会话共享读取，删除来源会话后仍保留。
+
+原 `turnMemory` 已合并至会话记忆，旧数据自动迁移。`contextSummary` 保存本会话的工作概况，通过完整替换更新。
+
+上下文达到 200,000 字符阈值时，Runtime 将较早工具记录归档为可回查的 observation，并保留最近两条 toolIO。Memory 能力层每层投影最近 8 条记忆，保持旧到新顺序；超阈值时对 conversation 使用摘要，project 不做摘要压缩。完整记忆及其 ID、已加载工具 ID 保持不变。
 
 ## 架构
 
@@ -71,7 +80,7 @@ Chrome Background Worker ── 浏览器工具 ── 网页
 - Chrome 135 或更新版本
 - 可用的 UUAPI API Key
 
-当前默认模型为 `gemini-3.7-flash`，接口为 `https://uuapi.net/v1`，通过官方 OpenAI SDK 调用 Chat Completions。
+当前默认模型为 `gemini-3.8-flash`，接口为 `https://uuapi.net/v1`，通过官方 OpenAI SDK 调用 Chat Completions。
 
 ### 1. 获取代码与安装依赖
 
@@ -87,15 +96,18 @@ bun install
 
 ```dotenv
 UUAPI_API_KEY=your_api_key
+UUAPI_REASONING_EFFORT=high
 ```
 
-需要代理时，在同一文件中配置实际可用的代理地址，例如：
+推理强度默认 `high`，支持 `low`、`medium`、`high`，通过请求字段 `reasoning_effort` 发送。上游是否实际采用取决于模型和网关支持。
+
+首次启动默认直连。需要代理时，在同一文件中配置实际可用的代理地址，例如：
 
 ```dotenv
 HTTPS_PROXY=http://127.0.0.1:7892
 ```
 
-仅在该代理确实运行时使用此配置。修改服务配置后需要重启服务。`.env` 已被 Git 忽略。
+代理地址本身不会自动开启代理；在侧栏打开代理开关即可，关闭即直连。选择保存在本地，服务重启后恢复；没有保存设置时也可通过 `TCHROME_PROXY_MODE=proxy` 显式启用。修改服务配置后需要重启服务。`.env` 已被 Git 忽略。
 
 ### 3. 构建扩展并启动服务
 
@@ -134,7 +146,9 @@ bun run service
 ```text
 service/                  本机服务，按职责组织
   runtime/                循环、账本、持久化、证据归档与浏览器桥
-  context/                上下文正文、模块加载与纯窗口投影
+  skills/                 独立 Skill 目录、启用清单与加载器
+  memory/                 两层记忆读写、迁移与窗口投影
+  context/                模块描述、规则加载与文本组装
     system/               固定规则与常驻工具插槽
     user/                 请求、状态、记忆与动态工具插槽
     system-slots.md       system 编号文件名加载顺序
@@ -159,7 +173,7 @@ scripts/                  构建与示例同步
 ~/Library/Application Support/tChrome/
 ```
 
-其中包含会话账本、事件日志、`provider.md` 模型交互记录、Turn、记忆、观察摘要及工具完整返回。
+其中 `conversations/<会话ID>/` 保存会话账本、事件日志、`provider.md` 模型交互记录、Turn、会话记忆、观察摘要及工具完整返回；`memory/project/` 独立保存共享长期记忆。
 
 ## 安全与当前边界
 
@@ -182,6 +196,6 @@ Provider 负责模型通信、重试和响应解析。所有接入返回均由 `
 
 运行提示独立维护在 `service/runtime/messages.json`，由运行层按需写入工具记录。
 
-目录先按运行端划分，再按职责划分：`service/context/` 和 `service/tools/` 都是本机服务能力，正文和定义与其实现放在同一模块；`extension/tools/` 仅负责依赖 Chrome API 的宿主执行，由服务注册表发现并经浏览器桥调度。
+目录先按运行端划分，再按职责划分：`service/context/`、`service/tools/`、`service/skills/` 和 `service/memory/` 都是本机服务能力，正文和定义与其实现放在同一模块；`extension/tools/` 仅负责依赖 Chrome API 的宿主执行，由服务注册表发现并经浏览器桥调度。
 
-上下文保留 system / user 分层。两份目录只列编号文件名；system 模块使用 tag、能力和详细描述格式；user 模块另设内容段。system 先输出 System 栏目清单，每项 tag --能力后直接跟详细正文（含 baseTools 工具说明），再输出 User 栏目清单，每项能力后直接跟详细描述；user 保留十五个 tag 的内容段和数据。网页方法并入 user/skill.md。
+上下文保留 system / user 分层。两份目录只列编号文件名；system 模块使用 tag、能力和详细描述格式；user 模块另设内容段。system 先输出 System 栏目清单，每项 tag --能力后直接跟详细正文（含 baseTools 工具说明），再输出 User 栏目清单，每项能力后直接跟详细描述；user 保留十四个 tag 的内容段和数据。Skill 正文独立维护于 `service/skills/<name>/SKILL.md`，Runtime 根据 `service/skills/index.json` 每轮加载后注入 `#skill`；context 中只保留模块说明和占位符。

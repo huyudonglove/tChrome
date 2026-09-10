@@ -10,6 +10,7 @@ export type ProviderConfig = {
   apiKey?: string;
   baseURL?: string;
   model?: string;
+  reasoningEffort?: "low" | "medium" | "high";
   proxy?: string;
 };
 
@@ -70,6 +71,10 @@ export function createProvider(config: ProviderConfig = {}) {
   const apiKey = config.apiKey ?? Bun.env.UUAPI_API_KEY;
   const baseURL = config.baseURL ?? "https://uuapi.net/v1";
   const model = config.model ?? MODEL;
+  const reasoningEffort = config.reasoningEffort ?? Bun.env.UUAPI_REASONING_EFFORT ?? "high";
+  if (reasoningEffort !== "low" && reasoningEffort !== "medium" && reasoningEffort !== "high") {
+    throw new Error("UUAPI_REASONING_EFFORT must be low, medium or high");
+  }
   const proxy = config.proxy ?? resolveProxy(Bun.env);
   if (!apiKey) return { complete: async () => keyMissing() };
   const client = new OpenAI({
@@ -87,6 +92,7 @@ export function createProvider(config: ProviderConfig = {}) {
   const once = async (messages: ChatMessage[], tools: ChatTool[]) => {
     const response = await client.chat.completions.create({
       model,
+      reasoning_effort: reasoningEffort,
       stream: false,
       messages: messages as ChatCompletionMessageParam[],
       tools,

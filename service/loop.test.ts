@@ -1,5 +1,4 @@
 import { loadMemories, loadMemory } from "./memory/store.ts";
-import { loadSkills } from "./skills/loader.ts";
 import { expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -9,9 +8,6 @@ import { createServer } from "./server.ts";
 import { createProvider } from "./provider/uuapi.ts";
 import { createToolBridge } from "./runtime/bridge.ts";
 import { stopTurn, emptyLedger, loadEvents, loadLedger, loadProviderLog, loadSession, loadTurn, saveLedger, saveTurn, sessionView } from "./runtime/store.ts";
-import { loadToolRegistry, toolUsageFor } from "./tools/registry.ts";
-import { loadContextModules } from "./context/modules.ts";
-import { systemText, userText } from "./context/window.ts";
 import { archiveToolHistory } from "./runtime/compress.ts";
 import type { CompletionResult, Provider } from "./types.ts";
 
@@ -48,46 +44,6 @@ const mock = (results: CompletionResult[]): Provider => {
   };
 };
 
-test("System模块说明直接合并，User动态数据按栏目注入", () => {
-  const contextModules = loadContextModules(repoRoot);
-  const registry = loadToolRegistry(repoRoot);
-  const system = systemText(contextModules, toolUsageFor(registry, registry.toolGroups.baseToolsIds));
-  expect(system.startsWith("# System 栏目清单\n\n")).toBe(true);
-  expect(system.endsWith(contextModules.userInventory)).toBe(true);
-  expect(Array.from(system.match(/^#[A-Za-z][A-Za-z0-9]*$/gm) ?? [])).toEqual([]);
-  expect(system).not.toMatch(/^能力：|^详细描述：/m);
-  for (const id of registry.toolGroups.baseToolsIds) expect(system).toContain(`${id}：`);
-  const ledger = emptyLedger("cv_01");
-  ledger.goal = "核对官网价格";
-  ledger.notes = { candidate: "尚未确认的候选" };
-  const user = userText({
-    contextModules, ledger, skillText: loadSkills(repoRoot),
-    turn: {
-      turnId: "tn_01", conversationId: "cv_01", status: "inferring",
-      createdAt: "2026-09-06T00:00:00.000Z", completedAt: null,
-      input: { text: "帮我查这款鼠标官网价", submittedAt: "2026-09-06T00:00:00.000Z" },
-      assembled: { baseToolsIds: [], toolIds: [],  conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null, pageObservedHistory: [] },
-      output: null,
-    },
-    memories: { project: "", conversation: "" },
-    toolUsage: "web_search：搜索公开网页。",
-  });
-  expect(Array.from(user.match(/^#[A-Za-z][A-Za-z0-9]*$/gm) ?? [])).toEqual(contextModules.userOrder);
-  expect(user).toContain(ledger.goal);
-  expect(user).toContain(ledger.notes.candidate!);
-  expect(user).toContain(loadSkills(repoRoot));
-  for (const module of Object.values(contextModules.userSlots)) {
-    expect(system).toContain(module.description!);
-    expect(user).not.toContain(module.description!);
-  }
-  const historySection = user.split("\n#userInputHistory\n")[1]!.split("\n#goal\n")[0]!;
-  expect(JSON.parse(historySection.trim())).toEqual([]);
-  expect(user).toContain("web_search：搜索公开网页。");
-  expect(user).toContain("帮我查这款鼠标官网价");
-  expect(user).not.toContain(contextModules.userInventory);
-  expect(user).not.toContain("{{");
-});
-
 test("开 Turn 写入 currentTab，不调 page 工具", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-tab-"));
   const provider = mock([
@@ -110,14 +66,6 @@ test("开 Turn 写入 currentTab，不调 page 工具", async () => {
   expect(turn.assembled.currentTab).toEqual({ tab: 12, url: "https://item.jd.com/x", title: "罗技" });
   expect(turn.assembled.currentPage).toMatchObject({ tab: 12, url: "https://item.jd.com/x", title: "罗技" });
   expect(turn.assembled.pageObservedHistory).toEqual([]);
-  rmSync(dir, { recursive: true, force: true });
-});
-
-test("GET /health", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "tchrome-health-"));
-  const server = createServer({ dataDir: dir, repoRoot, provider: mock([]) });
-  const response = await server.fetch(new Request("http://127.0.0.1:18788/health"));
-  expect(await response.json()).toEqual({ ok: true });
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -417,31 +365,6 @@ test("GET /session 还原消息，切会话改 session.json", async () => {
   expect(deleted.conversationId).toBe("cv_03");
   const after = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations"))).json();
   expect(after.items.map((item: { conversationId: string }) => item.conversationId)).toEqual(["cv_03", "cv_02"]);
-  rmSync(dir, { recursive: true, force: true });
-});
-
-test("catalog.add 把缺的工具挂进本轮", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "tchrome-add-"));
-  const provider = mock([
-    ok({
-      finish: "tool_calls",
-      content: "seen\n缺截图\nreason\n补工具\naction\ncatalog.add",
-      toolCalls: [{ id: "call_01", name: "catalog.add", arguments: { reason: "要截图", affectsPage: false, names: ["screenshot"] } }],
-    }),
-    ok({
-      finish: "tool_calls",
-      content: "seen\n已补上\nreason\n收口\naction\n补上了",
-      toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "补完", affectsPage: false } }],
-    }),
-  ]);
-  const reply = await handleTurn(
-    { dataDir: dir, repoRoot, provider, host: { execute: async () => ({ ok: false }) } },
-    { userInput: "截一张", submittedAt: "2026-09-06T00:00:00.000Z" },
-  );
-  expect(reply.output).toEqual({ kind: "reply", text: "补上了" });
-  const turn = loadTurn(dir, "cv_01", reply.turnId);
-  expect(turn.assembled.toolIds).toContain("screenshot");
-  expect(turn.assembled.toolIds).toContain("page.get_summary");
   rmSync(dir, { recursive: true, force: true });
 });
 

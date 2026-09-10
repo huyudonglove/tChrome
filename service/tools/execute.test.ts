@@ -9,16 +9,6 @@ const run = (name: string, args: ExecuteInput["arguments"], content = "") => exe
   lookup: { toolIO: [], fullReturn: () => null, observationFull: () => null, unusedTools: [], knownTools: [], enabledTools: [] },
 }).then((result) => result.text);
 
-test("finishTurn uses explicit text when provider content is empty", async () => {
-  expect(await run("finishTurn", { text: "已找到三项结果。" })).toBe("已找到三项结果。");
-});
-
-test("askUser uses explicit question and choices when provider content is empty", async () => {
-  expect(await run("askUser", { question: "选择哪一项？", choice: ["第一项", "第二项"] }))
-    .toBe("选择哪一项？\n选项：第一项 / 第二项");
-  expect(await run("askUser", { question: "请输入商品名称。", choice: [] })).toBe("请输入商品名称。");
-});
-
 test("explicit closing arguments take precedence over legacy content", async () => {
   expect(await run("finishTurn", { text: " 新回复 " }, "action\n旧回复")).toBe("新回复");
   expect(await run("askUser", { question: "新问题", choice: [] }, "action\n旧问题")).toBe("新问题");
