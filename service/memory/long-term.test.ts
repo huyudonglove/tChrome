@@ -8,7 +8,7 @@ import type { MemoryIds, MemoryRecord } from "./types.ts";
 
 const emptyIds = (): MemoryIds => ({ conversation: [], project: [] });
 const record = (memoryId: string, layer: MemoryRecord["layer"], text = memoryId, createdAt = "2026-01-01T00:00:00.000Z"): MemoryRecord => ({
-  memoryId, layer, text, summary: text, compressed: false, createdAt, sourceCallId: "call_01",
+  memoryId, turnId: "tn_01", layer, text, summary: text, compressed: false, createdAt, sourceCallId: "call_01",
 });
 const withDir = (run: (dir: string) => void) => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-long-memory-"));

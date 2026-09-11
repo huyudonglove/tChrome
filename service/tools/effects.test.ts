@@ -82,7 +82,7 @@ test("memory effects contain normalized entries and runtime persists their sourc
   const saved = loadLedger(fixture.dataDir, fixture.ledger.conversationId);
   expect(saved.memoryIds.conversation).toHaveLength(2);
   expect(loadMemory(fixture.dataDir, saved.conversationId, saved.memoryIds.conversation[0]!)).toMatchObject({
-    text: "找到按钮", sourceCallId: "call_memory", layer: "conversation",
+    text: "找到按钮", turnId: fixture.turn.turnId, sourceCallId: "call_memory", layer: "conversation",
   });
 });
 

@@ -14,3 +14,9 @@
 每个 Agent 的 `tools/` 是本 Agent 专用工具 schema 的唯一来源：压缩通过 `submitSummary` 提交 tag 和 summary；查询通过 `submitMatches` 提交 ids（未找到时为空数组）。这些工具仅装配到对应 Agent 请求，不进入主 Agent 工具目录。每次必须恰好调用一次本 Agent 的返回工具，正文不作为业务结果；协议层读取工具文件并按同一 schema 校验参数，目录 ID 范围等语义约束另行校验。
 
 查询请求明确区分两种数据：`request` 仅含主 Agent 的 module、tag、question；`catalog` 由 runtime 从本地目录组装，提供候选 id 和语义描述。查询 Agent 根据前者匹配后者，通过 submitMatches 输出 ID。校验范围直接从同一 catalog 派生，不单独接受另一份 allowedIds，避免目录与校验列表不一致。主 Agent 的 context.query 不接受 ID。
+
+## 按轮次压缩的准备数据
+
+`service/runtime/turn-history.ts` 提供 `assembleTurnHistory` 和 `loadSettledTurnHistory`，使用既有 turnId 汇集输入、目标变化、工具结果、页面观察及最终输出。记录包含 conversationId，轮次编号只在所属会话内解释；已结束历史按账本顺序读取，排除当前活动轮次和未结束记录。记忆与 notes 保持独立；新记忆保存来源 turnId，notes 不增加轮次或版本历史。
+
+当前只新增轮次过程组装能力，尚未接入压缩调度。线上压缩仍按原来的四个模块执行；切换为按 turn 压缩还需同时调整摘要窗口、覆盖索引、查询入口和超长当前轮次的批次分段，不能仅替换来源读取函数。

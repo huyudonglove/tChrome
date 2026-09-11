@@ -17,3 +17,5 @@ conversation 存储于 `<dataDir>/conversations/<conversationId>/memory/<memoryI
 读取旧会话账本时，将旧 turn 索引与 conversation 索引按 ID 去重，按记录时间及 ID 数字序合并到 conversation；旧 turn 文件原地更新为 conversation，正文、摘要和来源保持不变，迁移可重复执行。Notes 承担会话草稿用途，不再保留独立的过程记忆层。
 
 Runtime 在请求前过滤已有摘要覆盖的会话记忆；达到总窗口阈值时，保留最近 3 条，其余交独立 LLM 压缩。长期记忆保持全部原文，不参与这四个模块的压缩。常驻 `context.query(module, tag, question?)` 将主题交给查询 Agent 语义匹配本会话对应模块目录，由 runtime 校验内部 ID、沿来源关系读取原文并去重，按原顺序返回。主 Agent 无需提供记录 ID。只检索已压缩归档；支持多条或 not_found，单次原文内容上限 30,000 字符，超过时返回 partial 和遗漏数量，不截断单条原文。请缩小主题或问题后再查；单条原文本身超过上限时也会明确返回 partial。查询不会刷新页面。
+
+新记忆记录持久保存来源 turnId，由 runtime 在 memory.write 执行时填写，与 sourceCallId 一同用于轮次归档关联。两层记忆沿用相同的来源记录结构；记忆层级与有效期不因此改变。User 投影仍只展示正文，旧数据不补写或迁移。

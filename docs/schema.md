@@ -206,6 +206,7 @@ Memory 投影保持全部可见原文，不使用旧 compressed/summary 字段�
 | `summary` | string | 记忆摘要，供展示投影使用 |
 | `compressed` | boolean | 存储字段；模型投影不再依此替换正文，压缩覆盖由模块目录管理 |
 | `createdAt` | string | ISO-8601 |
+| `turnId` | string | 写入这条记忆时的轮次，由 runtime 自动记录；表示来源，不改变记忆层级 |
 | `sourceCallId` | string | 写下这条的 `memory.write` 的 `callId` |
 
 ## context-records/<kind>/<id>.json

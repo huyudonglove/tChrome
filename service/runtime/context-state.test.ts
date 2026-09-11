@@ -16,7 +16,7 @@ test("compression retains latest inputs/pages/memories and two complete tool bat
   ledger.toolIO=Array.from({length:6},(_,i)=>({callId:`call_${i}`,turnId:'tn_06',batchId:`batch_${Math.floor(i/2)}`,name:'page.get_summary',arguments:{},return:{stage:'complete' as const,text:`结果${i}`,totalChars:3}}));
   const pages=Array.from({length:5},(_,i)=>({id:`page_${i}`,turnId:'tn_06',tab:1,url:'https://example.com',title:'例子',description:`页面${i}`,observedAt:'2026-09-11',callId:`call_${i}`,toolName:'page.get_summary'}));
   const turn:Turn={turnId:'tn_06',conversationId:ledger.conversationId,status:'inferring',createdAt:'',completedAt:null,input:{id:'current',text:'当前输入',submittedAt:''},assembled:{baseToolsIds:[],toolIds:[],conversationMemoryIds:[],projectMemoryIds:[],mcpIds:[],currentTab:null,currentPage:pages[4]!,pageObservedHistory:pages},output:null};
-  const memories={project:[],conversation:Array.from({length:5},(_,i)=>({memoryId:`mm_${i}`,layer:'conversation' as const,text:`记忆${i}`,summary:'',compressed:false,createdAt:'2026-09-11',sourceCallId:`call_${i}`}))};
+  const memories={project:[],conversation:Array.from({length:5},(_,i)=>({memoryId:`mm_${i}`,turnId:"tn_06",layer:'conversation' as const,text:`记忆${i}`,summary:'',compressed:false,createdAt:'2026-09-11',sourceCallId:`call_${i}`}))};
   const before=JSON.stringify({ledger,turn,memories});
   let requests=0;
   const provider:Provider={complete:async ({tools})=>{requests++;expect(tools.map(tool=>tool.function.name)).toEqual(["submitSummary"]);return {finish:'tool_calls',content:'',toolCalls:[{id:'summary',name:'submitSummary',arguments:{tag:'历史事项',summary:'较早的两项记录'}}],attempts:1,parseOk:true,schemaOk:true,faultCode:null,missing:[]};}};

@@ -7,7 +7,7 @@ import { projectMemories } from "./window.ts";
 import type { Memories, MemoryRecord } from "./types.ts";
 
 const record = (memoryId: string, layer: MemoryRecord["layer"] = "conversation", overrides: Partial<MemoryRecord> = {}): MemoryRecord => ({
-  memoryId, layer, text: `text ${memoryId}`, summary: `summary ${memoryId}`,
+  memoryId, turnId: "tn_01", layer, text: `text ${memoryId}`, summary: `summary ${memoryId}`,
   compressed: false, createdAt: "2026-01-01T00:00:00.000Z", sourceCallId: "call_01", ...overrides,
 });
 

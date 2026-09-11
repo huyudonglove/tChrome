@@ -28,7 +28,7 @@ test("source store retrieves archived input, goal, page and both memory layers",
     saveContextRecord(dir, "cv_01", kind, { id: `${kind}_01`, text: `完整${kind}原文` });
   }
   for (const layer of ["conversation", "project"] as const) {
-    saveMemory(dir, "cv_01", { memoryId: `${layer}_01`, layer, text: "持久记忆", summary: "", compressed: false,
+    saveMemory(dir, "cv_01", { memoryId: `${layer}_01`, turnId: "tn_01", layer, text: "持久记忆", summary: "", compressed: false,
       createdAt: "2026-09-11T00:00:00.000Z", sourceCallId: "call_01" });
   }
   const query = async (kind: string, id: string, conversationId = "cv_01") => {
