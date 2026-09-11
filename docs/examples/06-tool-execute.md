@@ -10,7 +10,7 @@
 - 「`#toolIO`」是本 Turn 下一轮出网时 user 槽里给模型看的数组，最新在最下面
 - 「写出的」累积快照追加 `toolQueue` `toolIO`
 
-作者是 Runtime。本轮返回 26 字，`stage=complete`，不到 2000，不调 `tool.detail`。
+作者是 Runtime。本轮返回 26 字，`stage=complete`，不到 2000，不调 `record.query`。
 
 ## 读到的（05 写出的）
 
@@ -59,7 +59,7 @@
 
 `totalChars=26` ≤ 2000，`stage=complete`。窗口 `return.text` = 全文。
 
-超出 2000 时：`stage=truncated`，窗口只留前 2000 字，`totalChars` 写全文长度。模型要全文时交 `tool.detail`，`callId=call_01`。
+超出 2000 时：`stage=truncated`，窗口只留前 2000 字，`totalChars` 写全文长度。模型要全文时交 `record.query`，`kind=tool`、`id=call_01`，按需选择 inspect/search/read。
 
 ## `#toolIO`
 
@@ -88,7 +88,7 @@
 
 `totalChars=26` ≤ 2000，`stage=complete`。窗口 `return.text` = 全文。
 
-观察就是这些工具返回。Runtime 把本条追加到 ledger.`toolIO` 末尾。窗口只带 `return`（最多 2000 字）；全文按 `callId` 另存，模型要全文时交 `tool.detail`。
+观察就是这些工具返回。Runtime 把本条追加到 ledger.`toolIO` 末尾。窗口只带 `return`（最多 2000 字）；全文按 `callId` 另存，模型要细节时使用 `record.query(kind=tool)` 分页回查。
 
 askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮主链是 `web_search`，这两条不进本轮写出的）。
 
@@ -171,11 +171,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "askUser",
     "finishTurn",
     "submitGoal",
-    "record.inspect",
-    "record.search",
-    "record.read",
-    "tool.detail",
-    "observation.detail",
+    "record.query",
     "memory.write",
     "notes.write",
     "notes.delete"

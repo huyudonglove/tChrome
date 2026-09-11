@@ -8,7 +8,7 @@
 
 - 「读到的」在 06 的基础上追加两条工具记录，以展示保留最近两条的归档规则
 - 「压缩前」窗口带着当前 toolIO 和每层最近 8 条记忆
-- 「压缩后」较早的 tool history 进 `#observation`（摘要）；细节用 `observation.detail`
+- 「压缩后」较早的 tool history 进 `#observation`（摘要）；细节用 `record.query(kind=observation)` 分页回查
 - 「写出的」累积快照改 `observation` `toolIO` `windowChars`
 
 ## 读到的（沿用 06 并追加两次调用）
@@ -97,7 +97,7 @@
 ]
 ```
 
-这是压缩过的事实。要看具体调用和返回，调 `observation.detail`，`observationId=ob_01`。
+这是压缩过的事实。要看具体调用和返回，调 `record.query`，`kind=observation`、`id=ob_01`，按需选择 inspect/search/read。
 
 ### `#toolIO`
 
@@ -154,7 +154,7 @@
 }
 ```
 
-`observation.detail` 的 `return.text` 是这份 `full` 的正文（窗口仍截 2000 字）。
+`record.query(mode=read, kind=observation, id=ob_01)` 按 offset/limit 读取这份 `full` 的指定范围。分页结果不会再截成 2000 字；通过 hasMore/nextOffset 继续读取。
 
 ## 字段
 
@@ -216,4 +216,4 @@
 
 `windowChars=18420` 是本样例压缩后的窗口，低于 200000，继续出网。实际数字由 Runtime 出网前写入。
 
-下一份：还在 `tn_01`。窗口带上 `#observation` 的 `ob_01`，`#toolIO` 保留 call_02 和 call_03，用这次 Turn 已有的栏目再出网。模型要看 `call_01` 全文时交 `observation.detail`。用户下一句话才开新 Turn。
+下一份：还在 `tn_01`。窗口带上 `#observation` 的 `ob_01`，`#toolIO` 保留 call_02 和 call_03，用这次 Turn 已有的栏目再出网。模型要看 `call_01` 原始结果时用 `record.query(kind=tool, id=call_01)` 分页回查。用户下一句话才开新 Turn。

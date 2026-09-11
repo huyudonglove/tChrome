@@ -9,3 +9,21 @@ GUI。Side Panel + background。样式对标 telance，组件放 `ui/`。浏览�
 更新后需在 `chrome://extensions` 重新加载扩展，使新增的 `storage` 和 `alarms` 权限生效。
 
 `extension/tools/` 是 Chrome 宿主执行层，调用 tabs、scripting、debugger 等 API。统一工具注册、参数定义与校验位于 `service/tools/`，扩展从浏览器桥接收已调度请求。
+
+原生对话框通过 Chrome Debugger 的 Page 事件记录，通过 `Page.handleJavaScriptDialog` 处理。`handle_dialog` 接受 `action: "accept" | "dismiss"`、可选 `promptText` 和 `tab`，直接处理已经弹出的 alert、confirm、prompt 或 beforeunload，无需提前调用本工具。确认可能触发提交或离开页面，`affectsPage` 必须为 `true`。执行时无弹窗返回 `no_dialog`，其他处理失败返回 `dialog_handle_failed`。
+
+`see_diag` 在浏览器层读取标签和弹窗状态，不执行页面脚本。`dialog.status` 为 `open`、`closed` 或 `unknown`：分别表示捕获到未关闭弹窗、已确认关闭、当前状态无法确认。连接调试器前已出现的弹窗不一定补发开启事件，因此 `unknown` 不能解释为无弹窗；仍可使用 `handle_dialog` 处理。`wait_new_tab` 只等调用后的新标签创建，不等待原生对话框；没有 `wait_dialog` 工具。
+
+
+工具定位与截图：`snapshot_page` / `find_on_page` 返回稳定的 `el-...` ref，仅供 `click` / `type` / `focus` 等使用；`page.*` 的元素 id 属于另一套定位，不能混用。ref 在导航或元素移除后失效，不会回退点击其他控件；文本匹配多项时要求先查找并指定 ref。`find_on_page` 搜索全部可见交互控件，再限制返回数量，不附带整页正文。`page_find` 使用 `window.find` 选中并滚动到文本，不打开 Ctrl+F 面板。
+
+`capture_page` 的 viewport 模式截可视区；full_page 模式使用 CDP 捕获已渲染的整页内容，不滚动触发懒加载或展开独立滚动容器。单边超过 16000 或总面积超过 3200 万像素时明确失败。`list_downloads` 列出最近下载；`wait_download` 必须指定 downloadId，等待下载完成、中断或超时。
+
+构建工具源码和 schema 时会生成执行器指纹。扩展与服务每次派发工具前核对版本；不一致时不执行工具，并在侧栏提示重新打包、重启服务和重新加载扩展，避免新版说明与旧实现混用。
+
+
+`capture_page` 的 element 模式真正裁剪指定元素：`ref` 使用查找工具返回的稳定引用，`selector` 使用唯一匹配的 CSS 选择器，二者互斥。支持可视区外已渲染元素，不滚动页面；返回文档 CSS 坐标及实际裁剪范围，图片像素尺寸随屏幕像素比变化。
+
+`save_pdf` 通过 Chrome 的 Page.printToPDF 生成打印版 PDF，下载到本机并确认下载完成后返回绝对路径。文件名相对浏览器下载目录，重名自动改名；下载仍进行时返回 pending 和 downloadId，可继续 wait_download，不重复打印。工具历史不包含 PDF/base64。
+
+验证码工具检查受支持组件及其 frame，点击实际可访问的勾选控件，不能用点击 iframe 代替。`see_captcha` / `wait_captcha` 的检测成功不等于验证成功；`solve_captcha` 仅在唯一组件出现非空响应字段且状态可确认时成功。仅勾选、多组件、无法访问的 frame 或图像拼图挑战不会假报通过，返回 requiresUser 交给用户处理；工具不返回响应令牌。

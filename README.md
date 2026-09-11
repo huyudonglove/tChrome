@@ -43,7 +43,7 @@ tChrome 运行在 Chrome 侧边栏。它不要求用户预先画好流程，而�
 
 `#currentPage` 表示本轮最新已知页面；`#pageObservedHistory` 按旧到新记录本轮工具返回的页面观察，两者都不是实时页面监控。
 
-历史记录支持渐进式读取：`record.inspect` 查看长度与结构，`record.search` 按字面搜索定位，`record.read` 按字符范围精读。部分返回提供范围、`hasMore` 和 `nextOffset`，可连续读取；需要全文时使用 `tool.detail` / `observation.detail`。这些读取结果不再被统一截断，且只读取已存记录，不刷新网页。
+历史记录统一使用 `record.query`：`mode=inspect` 查看长度与结构，`mode=search` 按字面搜索定位，`mode=read` 按字符范围精读；`kind=tool/observation` 指定来源。读取按 `hasMore` 和 `nextOffset` 分页继续，不提供无限全文入口。分页结果不再被统一截断，且只读取已存记录，不刷新网页。
 
 ### 执行记录与记忆
 
@@ -110,6 +110,16 @@ HTTPS_PROXY=http://127.0.0.1:7892
 ```
 
 代理地址本身不会自动开启代理；在侧栏打开代理开关即可，关闭即直连。选择保存在本地，服务重启后恢复；没有保存设置时也可通过 `TCHROME_PROXY_MODE=proxy` 显式启用。修改服务配置后需要重启服务。`.env` 已被 Git 忽略。
+
+也可选择 ShiningSpace 的 Responses API（`grok-4.6`），在 `service/.env` 配置：
+
+```dotenv
+TCHROME_PROVIDER=shiningspace
+SHININGSPACE_API_KEY=your_api_key
+SHININGSPACE_REASONING_EFFORT=high
+```
+
+其接口为 `https://ai.shiningspace.com:8090/v1/responses`，支持工具与图片请求。会话列表右下角的设置中可切换 provider，从下一次模型请求起生效并保存到 `connection.json`；两套密钥独立保留。`TCHROME_PROVIDER` 仅决定尚未保存选择时的默认值。
 
 ### 3. 构建扩展并启动服务
 

@@ -28,8 +28,8 @@ function setup() {
   const execute = (name: string, args: ToolArguments, options: Partial<ExecuteInput> = {}) => executeTool({
     name, arguments: args, content: "", dataDir, browserNames: [],
     lookup: {
-      toolIO: [], fullReturn: () => null, observationFull: () => null, unusedTools: ["screenshot"],
-      knownTools: ["finishTurn", "page.click", "screenshot"],
+      toolIO: [], fullReturn: () => null, observationFull: () => null, unusedTools: ["capture_page"],
+      knownTools: ["finishTurn", "page.click", "capture_page"],
       enabledTools: [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds],
     },
     ...options,
@@ -41,13 +41,13 @@ function setup() {
 
 test("catalog.add reports only enabled names and distinguishes duplicates and unknown tools", async () => {
   const fixture = setup();
-  const execution = await fixture.execute("catalog.add", { names: ["screenshot", "screenshot", "page.click", "finishTurn", "missing"] });
-  expect(JSON.parse(execution.text)).toEqual({ ok: false, added: ["screenshot"], alreadyEnabled: ["page.click", "finishTurn"], unknown: ["missing"] });
+  const execution = await fixture.execute("catalog.add", { names: ["capture_page", "capture_page", "page.click", "finishTurn", "missing"] });
+  expect(JSON.parse(execution.text)).toEqual({ ok: false, added: ["capture_page"], alreadyEnabled: ["page.click", "finishTurn"], unknown: ["missing"] });
   expect(fixture.turn.assembled.toolIds).toEqual(["page.click"]);
   fixture.apply(execution);
-  expect(loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId).assembled.toolIds).toEqual(["page.click", "screenshot"]);
-  const repeated = await fixture.execute("catalog.add", { names: ["screenshot"] });
-  expect(JSON.parse(repeated.text)).toEqual({ ok: true, added: [], alreadyEnabled: ["screenshot"], unknown: [] });
+  expect(loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId).assembled.toolIds).toEqual(["page.click", "capture_page"]);
+  const repeated = await fixture.execute("catalog.add", { names: ["capture_page"] });
+  expect(JSON.parse(repeated.text)).toEqual({ ok: true, added: [], alreadyEnabled: ["capture_page"], unknown: [] });
   expect(repeated.effects).toEqual([]);
 });
 

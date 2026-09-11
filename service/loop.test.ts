@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { handleTurn } from "./runtime/loop.ts";
 import { createServer } from "./server.ts";
+import { executorVersion } from "./executor-version.ts";
 import { createProvider } from "./provider/uuapi.ts";
 import { createToolBridge } from "./runtime/bridge.ts";
 import { stopTurn, emptyLedger, loadEvents, loadLedger, loadProviderLog, loadSession, loadTurn, saveLedger, saveTurn, sessionView } from "./runtime/store.ts";
@@ -302,13 +303,13 @@ test("GET /tool-request 和 POST /tool-result 对上", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-bridge-"));
   const bridge = createToolBridge(2000);
   const server = createServer({ dataDir: dir, repoRoot, provider: mock([]), bridge });
-  const empty = await server.fetch(new Request("http://127.0.0.1:18788/tool-request"));
-  expect(await empty.json()).toEqual({ request: null });
+  const empty = await server.fetch(new Request(`http://127.0.0.1:18788/tool-request?executorVersion=${executorVersion(repoRoot)}`));
+  expect(await empty.json()).toEqual({ request: null, executorVersion: executorVersion(repoRoot) });
   const pending = bridge.execute("see_page", {});
-  const listed = await server.fetch(new Request("http://127.0.0.1:18788/tool-request"));
+  const listed = await server.fetch(new Request(`http://127.0.0.1:18788/tool-request?executorVersion=${executorVersion(repoRoot)}`));
   const body = await listed.json() as { request: { id: string; name: string } };
   expect(body.request.name).toBe("see_page");
-  const posted = await server.fetch(new Request("http://127.0.0.1:18788/tool-result", {
+  const posted = await server.fetch(new Request(`http://127.0.0.1:18788/tool-result?executorVersion=${executorVersion(repoRoot)}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ id: body.request.id, result: { ok: true, tab: 3, url: "https://example.com", title: "ex" } }),
@@ -398,7 +399,7 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).compressed).toBe(false);
   expect(loadMemories(dir, "cv_01", ledger.memoryIds).project[0]!.compressed).toBe(false);
   const turn = loadTurn(dir, "cv_01", reply.turnId);
-  turn.assembled.toolIds = ["see_page", "web_search", "screenshot", "cookies_get"];
+  turn.assembled.toolIds = ["see_page", "web_search", "capture_page", "cookies_get"];
   ledger.compressAt = 1;
   const memoryIdsBefore = structuredClone(ledger.memoryIds);
   ledger.toolIO.unshift({ callId: "call_old", name: "web_search", turnId: turn.turnId, arguments: {}, return: { stage: "complete", text: "旧证据", totalChars: 3 } });
@@ -407,7 +408,7 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
     ledger,
     windowChars: 200000,
   });
-  expect(turn.assembled.toolIds).toEqual(["see_page", "web_search", "screenshot", "cookies_get"]);
+  expect(turn.assembled.toolIds).toEqual(["see_page", "web_search", "capture_page", "cookies_get"]);
   expect(ledger.memoryIds).toEqual(memoryIdsBefore);
   expect(ledger.toolIO).toHaveLength(2);
   expect(ledger.observation.at(-1)?.sourceCallIds).toEqual(["call_old"]);

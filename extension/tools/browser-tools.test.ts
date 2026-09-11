@@ -79,38 +79,22 @@ test("wait reports failure when the page loads but expected text never appears",
   expect(result.text).toBe("not ready");
 });
 
-for (const name of ["screenshot_full", "screenshot_one"]) {
-  test(`${name} activates the requested background tab before capturing its window`, async () => {
-    let activeTab = 99;
-    let minimized = true;
-    const targetTab = { id: 7, windowId: 3, url: "https://example.com" };
-    const rect = { x: 10, y: 20, width: 30, height: 40 };
-    globals.chrome = {
-      windows: { update: async (id: number, input: any) => {
-        expect(id).toBe(3);
-        if (input.state === "normal") minimized = false;
-      } },
-      tabs: {
-        get: async () => ({ ...targetTab, active: activeTab === 7 }),
-        update: async (id: number, input: any) => { if (input.active) activeTab = id; },
-        captureVisibleTab: async (windowId: number) => {
-          expect(windowId).toBe(3);
-          if (minimized) throw new Error("image readback failed");
-          return `image-of-tab-${activeTab}`;
-        },
-      },
-      scripting: { executeScript: async ({ target, args }: any) => {
-        expect(target.tabId).toBe(7);
-        return [{ result: args ? rect : { count: 0, last: [] } }];
-      } },
-    };
-    const result = await runBrowserTool(name, { tab: 7, ref: "#example" });
-    expect(result.ok).toBe(true);
-    expect(result.tab).toBe(7);
-    expect(result.image).toBe("image-of-tab-7");
-    if (name === "screenshot_one") expect(result.element_rect).toEqual(rect);
-  });
-}
+test("capture_page element crops the element document bounds and rejects ambiguous inputs", async () => {
+  const commands: any[] = [];
+  globals.chrome = {
+    tabs: {get: async () => ({id: 904, url: "https://example.com"})},
+    scripting: {executeScript: async () => [{result: {ok: true, rect: {x: -10, y: 1800, width: 240, height: 120}}}]},
+    debugger: {attach: async () => {}, sendCommand: async (_: any, name: string, params: any) => {
+      commands.push([name, params]);
+      if (name === "Page.getLayoutMetrics") return {cssContentSize: {x: 0, y: 0, width: 1280, height: 3000}};
+      return {data: "cropped-image"};
+    }},
+  };
+  const result = await runBrowserTool("capture_page", {mode: "element",tab: 904, selector: "#target"});
+  expect(result).toMatchObject({ok: true, mime: "image/png", clipped: true, capture_rect: {x: 0, y: 1800, width: 230, height: 120}});
+  expect(commands[1]).toEqual(["Page.captureScreenshot", {format: "png", fromSurface: true, captureBeyondViewport: true, clip: {x: 0, y: 1800, width: 230, height: 120, scale: 1}}]);
+  expect((await runBrowserTool("capture_page", {mode: "element",tab: 904, ref: "el-test", selector: "#target"})).ok).toBe(false);
+});
 
 let javascriptTab = 2000;
 const mockJavascript = (sendCommand: (...args: any[]) => Promise<any>, attach = async (..._args: any[]) => {}) => {
@@ -219,11 +203,12 @@ test("execute_javascript bounds pending promises without claiming cancellation o
   let cleared = false;
   let calls = 0;
   globals.setTimeout = (callback: () => void, ms: number) => {
+    if (ms === 20000) return 124;
     expect(ms).toBe(8000);
     timeout = callback;
     return 123;
   };
-  globals.clearTimeout = (id: number) => { expect(id).toBe(123); cleared = true; };
+  globals.clearTimeout = (id: number) => { if (id === 124) return; expect(id).toBe(123); cleared = true; };
   try {
     const tab = mockJavascript(async () => { calls++; return new Promise(() => {}); });
     const pending = runBrowserTool("execute_javascript", { tab, code: "new Promise(() => {})" });
@@ -240,4 +225,65 @@ test("execute_javascript bounds pending promises without claiming cancellation o
     globals.setTimeout = originalSetTimeout;
     globals.clearTimeout = originalClearTimeout;
   }
+});
+
+
+test("native dialog detection releases a blocked page operation and accepts prompt without DOM", async () => {
+  let event: any, detach: any;
+  const commands: any[] = [];
+  let scriptCalls = 0;
+  globals.chrome = {
+    tabs: {get: async () => ({id: 901, url: "https://example.com", title: "Example"}), onRemoved: {addListener() {}}},
+    debugger: {
+      attach: async () => {},
+      onEvent: {addListener(fn: any) { event = fn; }},
+      onDetach: {addListener(fn: any) { detach = fn; }},
+      sendCommand: async (_target: any, method: string, params: any) => { commands.push([method, params]); },
+    },
+    scripting: {executeScript: () => {
+      scriptCalls++;
+      event({tabId: 901}, "Page.javascriptDialogOpening", {type: "prompt", message: "Name?", defaultPrompt: ""});
+      return new Promise(() => {});
+    }},
+  };
+  expect(await runBrowserTool("see_diag", {tab: 901})).toMatchObject({ok: true, dialog: {status: "unknown"}});
+  expect(scriptCalls).toBe(0);
+  expect(await runBrowserTool("see_page", {tab: 901})).toMatchObject({ok: false, faultCode: "dialog_open", dialog: {type: "prompt", message: "Name?"}});
+  expect(await runBrowserTool("see_diag", {tab: 901})).toMatchObject({dialog: {status: "open"}});
+  expect(await runBrowserTool("handle_dialog", {tab: 901, action: "accept", promptText: "Ada"})).toMatchObject({ok: true, dialog: {status: "closed"}});
+  expect(commands).toContainEqual(["Page.handleJavaScriptDialog", {accept: true, promptText: "Ada"}]);
+  expect(scriptCalls).toBe(1);
+  detach({tabId: 901});
+  expect(await runBrowserTool("see_diag", {tab: 901})).toMatchObject({dialog: {status: "unknown"}});
+});
+
+test("handle_dialog works without an opening event and surfaces missing dialog", async () => {
+  let fail = false;
+  globals.chrome = {
+    tabs: {get: async () => ({id: 902, url: "https://example.com"})},
+    debugger: {attach: async () => {}, sendCommand: async (_target: any, method: string, params: any) => {
+      expect(method).toBe("Page.handleJavaScriptDialog");
+      expect(params).toEqual({accept: false});
+      if (fail) throw new Error("No dialog is showing");
+    }},
+  };
+  expect(await runBrowserTool("handle_dialog", {tab: 902, action: "dismiss"})).toMatchObject({ok: true});
+  fail = true;
+  expect(await runBrowserTool("handle_dialog", {tab: 902, action: "dismiss"})).toMatchObject({ok: false, faultCode: "no_dialog"});
+});
+
+
+test("capture_page full_page captures CSS content bounds beyond viewport without resizing", async () => {
+  const commands: any[] = [];
+  globals.chrome = {
+    tabs: {get: async () => ({id: 903, url: "https://example.com"})},
+    debugger: {attach: async () => {}, sendCommand: async (_: any, method: string, params: any) => {
+      commands.push([method, params]);
+      if (method === "Page.getLayoutMetrics") return {cssContentSize: {x: 0, y: 0, width: 800, height: 6000}};
+      if (method === "Page.captureScreenshot") return {data: "test-image"};
+      throw new Error(method);
+    }},
+  };
+  expect(await runBrowserTool("capture_page", {mode: "full_page",tab: 903})).toMatchObject({ok: true, fullPage: true, page_size: [800, 6000]});
+  expect(commands[1]).toEqual(["Page.captureScreenshot", {format: "jpeg", quality: 70, captureBeyondViewport: true, fromSurface: true, clip: {x: 0, y: 0, width: 800, height: 6000, scale: 1}}]);
 });

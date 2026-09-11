@@ -1,14 +1,13 @@
 import type { ToolArguments } from "../types.ts";
 
-export const RECORD_TOOLS = ["record.inspect", "record.search", "record.read"];
-export const FULL_RETURN_TOOLS = ["tool.detail", "observation.detail", ...RECORD_TOOLS];
+export const FULL_RETURN_TOOLS = ["record.query"];
 
 // Positions are zero-based UTF-16 offsets, matching JavaScript slice/indexOf.
-export function queryRecord(name: string, args: ToolArguments, full: string | null): string {
+export function queryRecord(args: ToolArguments, full: string | null): string {
   const source = { kind: args.kind, id: args.id, historical: true };
   if (full === null) return JSON.stringify({ ok: false, source, error: "记录不存在" });
-  const meta = { ok: true, source, totalChars: full.length, positionUnit: "utf16", tools: RECORD_TOOLS };
-  if (name === "record.inspect") {
+  const meta = { ok: true, source, totalChars: full.length, positionUnit: "utf16", tool: "record.query", modes: ["inspect", "read", "search"] };
+  if (args.mode === "inspect") {
     let structure: unknown = { format: "text", totalLines: full.split("\n").length };
     try {
       const value = JSON.parse(full);
@@ -20,7 +19,7 @@ export function queryRecord(name: string, args: ToolArguments, full: string | nu
   }
   const offset = args.offset as number;
   if (offset > full.length) return JSON.stringify({ ...meta, ok: false, error: "offset 超出记录范围" });
-  if (name === "record.read") {
+  if (args.mode === "read") {
     const end = Math.min(offset + (args.limit as number), full.length);
     return JSON.stringify({ ...meta, start: offset, end, text: full.slice(offset, end),
       hasMore: end < full.length, nextOffset: end < full.length ? end : null });

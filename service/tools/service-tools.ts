@@ -13,7 +13,6 @@ export const SERVICE_TOOL_NAMES = [
   "deep_search",
   "search_plus",
   "osint_intel",
-  "ping_url",
   "probe_http",
   "probe_dns",
   "probe_ssl",
@@ -33,7 +32,8 @@ const hostOf = (input: Record<string, unknown>) => {
 const fetchText = async (url: string, init: RequestInit = {}, textLimit = 8000) => {
   const started = Date.now();
   const response = await fetch(url, { redirect: "follow", ...init });
-  const text = await response.text();
+  const text = textLimit === 0 ? "" : await response.text();
+  if (textLimit === 0) void response.body?.cancel().catch(() => {});
   return {
     ok: response.ok,
     status: response.status,
@@ -94,18 +94,23 @@ export async function runServiceTool(
       return { ok: false, query, error: error instanceof Error ? error.message : String(error), urls: [] };
     }
   }
-  if (name === "ping_url") {
-    const url = String(input.url || "https://www.gstatic.com/generate_204");
-    try {
-      const page = await fetchText(url, { method: "GET" });
-      return { ok: true, reachable: page.status > 0, status: page.status, ms: page.ms, url: page.url };
-    } catch (error) {
-      return { ok: false, reachable: false, error: error instanceof Error ? error.message : String(error) };
-    }
-  }
   if (name === "probe_http") {
-    if (!input.url) return { ok: false, error: "缺 url" };
-    return fetchText(String(input.url), { method: String(input.method || "GET") });
+    if (typeof input.url !== "string" || !input.url.trim()) return { ok: false, error: "缺 url" };
+    const url = input.url.trim();
+    try {
+      if (!["http:", "https:"].includes(new URL(url).protocol)) throw new Error();
+    } catch {
+      return { ok: false, error: "url 必须是有效的 HTTP 或 HTTPS 网址" };
+    }
+    const method = input.method === undefined ? "GET" : input.method;
+    if (method !== "GET" && method !== "HEAD") return { ok: false, error: "method 仅支持 GET 或 HEAD" };
+    const started = Date.now();
+    try {
+      const page = await fetchText(url, { method }, 0);
+      return { ok: page.ok, reachable: true, status: page.status, ms: page.ms, url: page.url, headers: page.headers };
+    } catch (error) {
+      return { ok: false, reachable: false, url, ms: Date.now() - started, error: error instanceof Error ? error.message : String(error) };
+    }
   }
   if (name === "probe_dns") {
     const host = hostOf(input);

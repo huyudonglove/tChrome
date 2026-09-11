@@ -19,6 +19,12 @@ type SessionView = {
   messages: Message[];
 };
 
+type ConnectionView = {
+  enabled: boolean;
+  provider: string;
+  providers: { id: string; label: string; model: string }[];
+};
+
 type ConversationItem = {
   conversationId: string;
   updatedAt: string;
@@ -79,7 +85,10 @@ export function App() {
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState("");
   const [serviceDown, setServiceDown] = useState(false);
+  const [extensionIssue, setExtensionIssue] = useState("");
   const [listOpen, setListOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  useEffect(() => { if (!listOpen) setSettingsOpen(false); }, [listOpen]);
   const [query, setQuery] = useState("");
   const [pendingDelete, setPendingDelete] = useState<{ conversationId: string; preview: string } | null>(null);
   const [showJump, setShowJump] = useState(false);
@@ -87,8 +96,10 @@ export function App() {
   const followBottom = useRef(true);
   const sendingRef = useRef(false);
   const submission = useRef(0);
-  const [proxyEnabled, setProxyEnabled] = useState<boolean | null>(null);
-  const [proxyBusy, setProxyBusy] = useState(false);
+  const [connection, setConnection] = useState<ConnectionView | null>(null);
+  const [connectionBusy, setConnectionBusy] = useState(false);
+  const [connectionError, setConnectionError] = useState("");
+  const connectionUpdating = useRef(false);
   const refreshVersion = useRef(0);
   const switching = useRef(false);
   const running = sending || session.status === "running";
@@ -110,8 +121,13 @@ export function App() {
     let alive = true;
     const probe = async () => {
       try {
-        const body = await requestJSON<{ ok: boolean }>("/health");
-        if (alive) setServiceDown(!body.ok);
+        const body = await requestJSON<{ ok: boolean; extension?: { status: string; error?: string } }>("/health");
+        if (alive) {
+          setServiceDown(!body.ok);
+          setExtensionIssue(!body.extension ? "本地服务版本过旧，请重启服务并重新加载扩展。"
+            : body.extension.status === "mismatch" ? body.extension.error || "扩展版本不一致，请重新打包并加载扩展。"
+            : body.extension.status === "disconnected" ? "浏览器执行器已断开，请重新加载扩展。" : "");
+        }
       } catch {
         if (alive) setServiceDown(true);
       }
@@ -321,22 +337,37 @@ export function App() {
   };
 
   useEffect(() => {
-    fetch(`${SERVICE}/connection`).then((r) => r.json()).then((value) => setProxyEnabled(value.enabled)).catch(() => setStatus(DOWN));
-  }, []);
-
-  const toggleProxy = async () => {
-    setProxyBusy(true);
-    try {
-      const response = await fetch(`${SERVICE}/connection`, {
-        method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ enabled: !proxyEnabled }),
+    let alive = true;
+    if (!serviceDown) {
+      void requestJSON<ConnectionView>("/connection").then((value) => {
+        if (alive) {
+          setConnection(value);
+          setConnectionError("");
+        }
+      }).catch((error) => {
+        if (alive) setConnectionError(errorText(error));
       });
-      if (!response.ok) throw new Error("connection_update_failed");
-      const verified = await fetch(`${SERVICE}/connection`);
-      if (!verified.ok) throw new Error("connection_read_failed");
-      setProxyEnabled((await verified.json()).enabled);
-    } catch { setStatus(DOWN); }
-    finally { setProxyBusy(false); }
+    }
+    return () => { alive = false; };
+  }, [serviceDown]);
+
+  const updateConnection = async (change: { enabled?: boolean; provider?: string }) => {
+    if (connectionUpdating.current || !connection || serviceDown) return;
+    connectionUpdating.current = true;
+    setConnectionBusy(true);
+    setConnectionError("");
+    try {
+      const next = await requestJSON<ConnectionView>("/connection", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify(change),
+      });
+      setConnection(next);
+    } catch (error) {
+      setConnectionError(errorText(error));
+    } finally {
+      connectionUpdating.current = false;
+      setConnectionBusy(false);
+    }
   };
 
   const filtered = items.filter((item) =>
@@ -353,13 +384,6 @@ export function App() {
             <small>{running ? "正在处理" : statusText(session.status)}</small>
           </div>
           <div className="app-actions">
-            <button className="connection-switch" type="button" role="switch" aria-label="使用代理"
-              disabled={proxyBusy || proxyEnabled === null} aria-checked={proxyEnabled === true}
-              aria-busy={proxyBusy} title={proxyEnabled ? "代理已开启，关闭后使用直连" : "当前使用直连，开启后使用代理"}
-              onClick={toggleProxy}>
-              <span>{proxyBusy ? "切换中" : proxyEnabled === null ? "连接中" : proxyEnabled ? "代理" : "直连"}</span>
-              <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
-            </button>
             <button className="icon-button" type="button" title="会话" onClick={() => setListOpen((open) => !open)}>
               <Icon path="M4 6h16M4 12h16M4 18h10" />
             </button>
@@ -368,6 +392,7 @@ export function App() {
             </button>
           </div>
         </header>
+        {extensionIssue && !serviceDown ? <div className="status down" role="alert">{extensionIssue}</div> : null}
         {serviceDown || status ? <div className={`status ${serviceDown || status === DOWN ? "down" : ""}`}>{serviceDown ? DOWN : status}</div> : null}
       </div>
 
@@ -503,6 +528,42 @@ export function App() {
                 </li>
               ))}
             </ul>
+            <div className="history-footer">
+              {settingsOpen ? (
+                <section className="settings-panel" id="connection-settings" aria-label="设置">
+                  <strong>设置</strong>
+        <div className="connection-settings" aria-busy={connectionBusy}>
+          <label className="provider-picker">
+            <span>模型</span>
+            <select aria-label="模型服务商" value={connection?.provider ?? ""}
+              disabled={connectionBusy || !connection || serviceDown}
+              title="切换后从下一次模型请求生效，并自动保存"
+              onChange={(event) => void updateConnection({ provider: event.target.value })}>
+              {!connection && <option value="">连接中…</option>}
+              {connection?.providers?.map((provider) => (
+                <option key={provider.id} value={provider.id}>{provider.label} · {provider.model}</option>
+              ))}
+            </select>
+          </label>
+          <div className="connection-setting-row"><span>连接方式</span>
+          <button className="connection-switch" type="button" role="switch" aria-label="使用代理"
+            disabled={connectionBusy || !connection || serviceDown} aria-checked={connection?.enabled === true}
+            title={connection?.enabled ? "代理已开启，关闭后使用直连" : "当前使用直连，开启后使用代理"}
+            onClick={() => void updateConnection({ enabled: !connection?.enabled })}>
+            <span>{connection?.enabled ? "代理" : "直连"}</span>
+            <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
+          </button>
+          </div>
+        </div>
+        {connectionError && !serviceDown ? <div className="status down" role="alert">{connectionError}</div> : null}
+                </section>
+              ) : null}
+              <button className={`icon-button${settingsOpen ? " accent" : ""}`} type="button"
+                title="设置" aria-label="设置" aria-expanded={settingsOpen} aria-controls="connection-settings"
+                onClick={() => setSettingsOpen((open) => !open)}>
+                <Icon path="M9.5 3h5l.6 2.4 2.1 1.2 2.4-.7 2.5 4.2-1.8 1.7v2.4l1.8 1.7-2.5 4.2-2.4-.7-2.1 1.2-.6 2.4h-5l-.6-2.4-2.1-1.2-2.4.7-2.5-4.2 1.8-1.7v-2.4L1.9 10l2.5-4.2 2.4.7 2.1-1.2L9.5 3zM16 13a4 4 0 1 1-8 0 4 4 0 0 1 8 0" />
+              </button>
+            </div>
           </aside>
         </>
       ) : null}

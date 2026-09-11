@@ -1,0 +1,86 @@
+{
+  "type": "function",
+  "function": {
+    "name": "capture_page",
+    "description": "捕获页面图片。必填 mode：viewport 截当前可视区；full_page 截已渲染整页；element 裁剪单个元素，必须且只能提供 ref（snapshot_page/find_on_page 返回的 el-...）或 selector（唯一 CSS 选择器）。可选 tab。ref/selector 不用于其他模式，不可混用 page.* 的 id。\n整页及元素模式不滚动触发懒加载、不展开独立滚动容器，超出图像尺寸上限时明确失败。viewport 会激活目标标签以正确截图。\n返回：ok、mode、image（本地图片引用）、mime；viewport 带 image_size/viewport；full_page 带 fullPage/page_size；element 带 element_rect/capture_rect（文档 CSS 坐标）及 clipped。图像独立存储，模型附图使用实际内容，工具历史不保存 Base64。PDF 使用 save_pdf。affectsPage=false。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean",
+          "const": false
+        },
+        "tab": {
+          "type": "number"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "viewport",
+            "full_page",
+            "element"
+          ]
+        },
+        "ref": {
+          "type": "string",
+          "pattern": "^el-",
+          "minLength": 1
+        },
+        "selector": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage",
+        "mode"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "element"
+              }
+            }
+          },
+          "then": {
+            "oneOf": [
+              {
+                "required": [
+                  "ref"
+                ]
+              },
+              {
+                "required": [
+                  "selector"
+                ]
+              }
+            ]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "ref"
+                  ]
+                },
+                {
+                  "required": [
+                    "selector"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

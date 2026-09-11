@@ -17,7 +17,7 @@
 }
 * { box-sizing: border-box; }
 html, body, #root { width: 100%; height: 100%; margin: 0; overflow: hidden; }
-button, textarea, input { font: inherit; }
+button, textarea, input, select { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: default; opacity: .42; }
 svg { width: 17px; height: 17px; stroke-width: 1.8; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
@@ -65,6 +65,14 @@ svg { width: 17px; height: 17px; stroke-width: 1.8; fill: none; stroke: currentC
   text-transform: uppercase;
 }
 .app-actions { display: flex; gap: 6px; }
+.connection-settings { display: grid; gap: 16px; margin-top: 16px; }
+.connection-setting-row { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 12px; }
+.provider-picker { display: flex; flex: 1; min-width: 0; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
+.provider-picker > span { flex-shrink: 0; }
+.provider-picker select { width: 100%; min-width: 0; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 11px; text-overflow: ellipsis; cursor: pointer; }
+.provider-picker select:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.provider-picker select:disabled { cursor: default; opacity: .5; }
+.connection-settings .connection-switch { flex-shrink: 0; min-height: 30px; }
 .icon-button {
   display: grid;
   width: 36px;
@@ -245,7 +253,7 @@ svg { width: 17px; height: 17px; stroke-width: 1.8; fill: none; stroke: currentC
   z-index: 40;
   display: grid;
   width: min(92vw, 280px);
-  grid-template-rows: 62px auto minmax(0, 1fr);
+  grid-template-rows: 62px auto minmax(0, 1fr) auto;
   color: var(--text);
   background: var(--canvas);
   border-right: 1px solid var(--line);
@@ -501,3 +509,9 @@ input::placeholder { color: var(--muted); }
 @media (prefers-reduced-motion: no-preference) { button { transition: background .15s, border-color .15s, color .15s; } }
 
 .review-card { max-height: 35vh; overflow-y: auto; }
+
+.history-footer { position: relative; display: flex; justify-content: flex-end; padding: 10px 12px; border-top: 1px solid var(--line); }
+.settings-panel { position: absolute; bottom: calc(100% + 8px); left: 12px; right: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: 0 8px 28px rgba(0, 0, 0, .3); max-height: calc(100vh - 140px); overflow-y: auto; }
+.settings-panel > strong { font-size: 13px; }
+.settings-panel .provider-picker { flex-direction: column; align-items: stretch; gap: 8px; }
+.settings-panel .status { margin: 12px 0 0; padding: 0; }

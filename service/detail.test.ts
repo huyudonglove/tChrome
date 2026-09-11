@@ -10,8 +10,8 @@ import type { CompletionResult, Provider } from "./types.ts";
 const repoRoot = join(import.meta.dir, "..");
 const full = "详细内容".repeat(1000) + "末尾证据";
 
-for (const name of ["tool.detail", "observation.detail", "record.read"]) {
-  test(`${name} 全文进入下一次模型窗口，不再次截断`, async () => {
+for (const kind of ["tool", "observation"]) {
+  test(`record.query ${kind} 分页结果进入下一次模型窗口，不再次截断`, async () => {
     const dataDir = mkdtempSync(join(tmpdir(), "tchrome-detail-"));
     try {
       const session = ensureSession(dataDir);
@@ -29,9 +29,9 @@ for (const name of ["tool.detail", "observation.detail", "record.read"]) {
             content: "", finish: "tool_calls", attempts: 1, parseOk: true, schemaOk: true,
             faultCode: null, missing: [],
             toolCalls: requests === 1 ? [{
-              id: "detail", name,
+              id: "detail", name: "record.query",
               arguments: { reason: "查看完整证据", affectsPage: false,
-                ...(name === "record.read" ? { kind: "tool", id: "source", offset: 0, limit: 10000 } : name === "tool.detail" ? { callId: "source" } : { observationId: "ob_01" }) },
+                mode: "read", kind, id: kind === "tool" ? "source" : "ob_01", offset: 0, limit: 10000 },
             }] : [{ id: "finish", name: "finishTurn", arguments: {
               reason: "证据已读", affectsPage: false, text: "完成",
             } }],
@@ -44,8 +44,7 @@ for (const name of ["tool.detail", "observation.detail", "record.read"]) {
       expect(requests).toBe(2);
       const row = loadLedger(dataDir, session.conversationId).toolIO.find((item) => item.callId === "detail");
       expect(row?.return.stage).toBe("complete");
-      if (name === "record.read") expect(JSON.parse(row!.return.text).text).toBe(full);
-      else expect(row?.return).toEqual({ stage: "complete", totalChars: full.length, text: full });
+      expect(JSON.parse(row!.return.text).text).toBe(full);
     } finally {
       rmSync(dataDir, { recursive: true, force: true });
     }

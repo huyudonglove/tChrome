@@ -26,11 +26,7 @@
     "askUser",
     "finishTurn",
     "submitGoal",
-    "record.inspect",
-    "record.search",
-    "record.read",
-    "tool.detail",
-    "observation.detail",
+    "record.query",
     "memory.write",
     "notes.write",
     "notes.delete"
@@ -136,13 +132,12 @@ SDK 写法：`client.chat.completions.create({ model, messages, tools, stream: f
 ```
 # 总纲
 
-当前日期（太平洋时间，America/Los_Angeles）：2026-09-06。
-
 你围绕用户当前请求持续推进任务。System 提供行为规则、执行原则和模块说明；User 按模块提供当前请求、目标、工作状态、记忆和执行证据。两者共同支撑本次判断：用 System 的规则理解和使用 User 的材料，再通过工具行动获取新的反馈。
 
 每次决策，以当前请求为起点，结合相关模块理解目标和现状，判断还缺什么，再选择能推进任务的行动。根据执行结果修正判断，持续推进，直到完成并验证结果，或需要用户参与；按工具协议回复或询问。
 
 各模块共同描述同一项工作，应结合理解，不逐栏机械执行。只取当前决策需要的信息；历史记录用于参考，当前状态需要证据，模块为空不代表必须先补齐。需要保留的新事实和工作状态按对应模块的用途更新，不必每次行动都写入所有模块。
+当前日期（太平洋时间，America/Los_Angeles）：2026-09-06。
 
 # System 栏目清单
 
@@ -202,26 +197,7 @@ submitGoal：记录或更新持续工作的目标。
 参数：必填 goal：目标正文。
 返回：当前目标并更新 #goal；目标变化时非空旧目标自动加入 #goalHistory，无需另写历史。记录目标不会自动执行目标，也不会结束本轮。
 affectsPage=false。
-record.inspect：查看历史记录的长度、结构和预览。
-参数：必填 kind=tool 或 kind=observation；id 在 kind=tool 时取 callId，在 kind=observation 时取摘要项 id。
-返回：ok、source、totalChars、positionUnit、structure、[start,end)范围的 text、hasMore 和 nextOffset；位置为从 0 开始的 UTF-16 字符偏移。失败返回 error。只读历史记录，不刷新网页。
-affectsPage=false。
-record.search：在历史记录中做区分大小写的字面搜索。
-参数：必填 kind=tool 或 kind=observation；id 在 kind=tool 时取 callId，在 kind=observation 时取摘要项 id；query 为 1 到 200 字符的查询文本，offset 为从 0 开始的 UTF-16 字符偏移，limit 为 1 到 20 条。
-返回：ok（是否成功）、source、totalChars、positionUnit、matches（命中范围与附近文本）、returnedCount、hasMore 和 nextOffset；沿用 nextOffset 继续搜索。无命中仅代表该查询从指定位置起未匹配，失败返回 error（失败原因）。只读历史记录，不刷新网页。
-affectsPage=false。
-record.read：精确读取历史记录范围。
-参数：必填 kind=tool 或 kind=observation；id 在 kind=tool 时取 callId，在 kind=observation 时取摘要项 id；offset 为从 0 开始的 UTF-16 字符偏移，limit 为 1 到 10000 字符。
-返回：ok、source、totalChars、positionUnit、[start,end)范围的 text、hasMore 和 nextOffset，end 不包含在范围内；沿用 nextOffset 继续读。失败返回 error。只读历史记录，不刷新网页。
-affectsPage=false。
-tool.detail：读取工具返回全文。工具记录被截断且需要全文时调用。
-参数：必填 callId：从 #toolIO 对应记录原样取得。
-返回：已保存的完整工具返回；全文不可用时返回仍保留的文本或缺失提示。不会重新执行原工具。
-affectsPage=false。
-observation.detail：展开历史摘要的详细记录。
-参数：必填 observationId：从 #observation 对应项原样取得的 id。
-返回：该摘要对应的完整历史记录，找不到时返回缺失提示；不会重新观察当前页面。
-affectsPage=false。
+record.query：按模式回查历史工具结果或页面观察记录。kind=tool 时 id 是 callId，kind=observation 时 id 是观察摘要 id。mode=inspect 返回结构和最多 400 字符预览，不传 offset、limit、query；mode=read 必填 offset 和 limit（1～10000 字符）；mode=search 必填 query（1～200 字符）、offset 和 limit（1～20 条），做区分大小写的字面搜索。位置均为从 0 开始的 UTF-16 偏移；返回 source、totalChars、positionUnit、hasMore、nextOffset，read 另含 [start,end) 范围的 text，search 另含 matches 与附近文本。沿 nextOffset 分页，无记录或越界返回 error。只读历史，不刷新网页；affectsPage=false。
 memory.write：保存后续需要的事实、偏好或进展。
 参数：可选 conversationMemory、projectMemory：字符串数组，按旧到新排列并追加至对应记忆末尾；contextSummary：对象，替换整个工作汇总而非局部合并，应保留仍有效的重要信息。其中历史事实、已完成进展等记录数组按旧到新排列，新增项放末尾，保留旧项相对顺序；待办按执行顺序，选项或排名按各自含义排列。至少提供一项有意义的内容。
 返回：两类记忆的写入条数。conversationMemory 和工作汇总仅在本会话保存；projectMemory 是独立于会话的长期记忆，跨会话共享，删除来源会话后仍保留。
@@ -279,12 +255,12 @@ affectsPage=false。
 模型维护的草稿、候选项和中间材料，不等同于已确认事实或已完成结果。notes.write 按 key 创建或覆盖，notes.delete 删除过时材料。用清晰的键区分用途，不重复存放整份目标或工作汇总。
 
 #toolIO --【执行证据，返回检查，错误诊断】
-工具调用及返回，可能包含此前轮次记录，按顺序由旧到新。先核对 turnId、调用参数、目标标签和网址，再读 return 判断实际发生了什么。stage=complete 只表示文本未截断，不代表操作成功；stage=truncated 表示文本不完整。依据 ok、error、状态和内容判断结果，详情不足时用记录查询工具或 tool.detail 按原 callId 回查。历史回查不会重新执行工具或刷新网页。
+工具调用及返回，可能包含此前轮次记录，按顺序由旧到新。先核对 turnId、调用参数、目标标签和网址，再读 return 判断实际发生了什么。stage=complete 只表示文本未截断，不代表操作成功；stage=truncated 表示文本不完整。依据 ok、error、状态和内容判断结果，详情不足时用 record.query（kind=tool，id=原 callId）按需预览、搜索或分页回查。历史回查不会重新执行工具或刷新网页。
 
 截图结果中的 image 是本地图片引用；当前请求附图与引用路径对应，可直接观察附图内容。未附带的历史图片不能仅凭路径判断其内容。
 
 #observation --【历史摘要，证据回查】
-由较早工具记录收成的历史摘要，供定位相关证据，不是实时页面观察。摘要可能省略参数、条件和结果细节；需要全文时按该项 id 使用 observation.detail 或记录查询工具回查。不能仅凭摘要宣称当前网页状态已验证。
+由较早工具记录收成的历史摘要，供定位相关证据，不是实时页面观察。摘要可能省略参数、条件和结果细节；需要细节时按该项 id 使用 record.query（kind=observation）预览、搜索或分页回查。不能仅凭摘要宣称当前网页状态已验证。
 
 按摘要生成顺序由旧到新排列，新摘要追加到末尾。
 
@@ -468,8 +444,8 @@ affectsPage=false。
   {
     "type": "function",
     "function": {
-      "name": "record.inspect",
-      "description": "查看历史记录的长度、结构和预览。\n参数：必填 kind=tool 或 kind=observation；id 在 kind=tool 时取 callId，在 kind=observation 时取摘要项 id。\n返回：ok、source、totalChars、positionUnit、structure、[start,end)范围的 text、hasMore 和 nextOffset；位置为从 0 开始的 UTF-16 字符偏移。失败返回 error。只读历史记录，不刷新网页。\naffectsPage=false。",
+      "name": "record.query",
+      "description": "按模式回查历史工具结果或页面观察记录。kind=tool 时 id 是 callId，kind=observation 时 id 是观察摘要 id。mode=inspect 返回结构和最多 400 字符预览，不传 offset、limit、query；mode=read 必填 offset 和 limit（1～10000 字符）；mode=search 必填 query（1～200 字符）、offset 和 limit（1～20 条），做区分大小写的字面搜索。位置均为从 0 开始的 UTF-16 偏移；返回 source、totalChars、positionUnit、hasMore、nextOffset，read 另含 [start,end) 范围的 text，search 另含 matches 与附近文本。沿 nextOffset 分页，无记录或越界返回 error。只读历史，不刷新网页；affectsPage=false。",
       "parameters": {
         "type": "object",
         "properties": {
@@ -477,94 +453,8 @@ affectsPage=false。
             "type": "string"
           },
           "affectsPage": {
-            "type": "boolean"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "tool",
-              "observation"
-            ]
-          },
-          "id": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "required": [
-          "reason",
-          "affectsPage",
-          "kind",
-          "id"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "record.search",
-      "description": "在历史记录中做区分大小写的字面搜索。\n参数：必填 kind=tool 或 kind=observation；id 在 kind=tool 时取 callId，在 kind=observation 时取摘要项 id；query 为 1 到 200 字符的查询文本，offset 为从 0 开始的 UTF-16 字符偏移，limit 为 1 到 20 条。\n返回：ok（是否成功）、source、totalChars、positionUnit、matches（命中范围与附近文本）、returnedCount、hasMore 和 nextOffset；沿用 nextOffset 继续搜索。无命中仅代表该查询从指定位置起未匹配，失败返回 error（失败原因）。只读历史记录，不刷新网页。\naffectsPage=false。",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string"
-          },
-          "affectsPage": {
-            "type": "boolean"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "tool",
-              "observation"
-            ]
-          },
-          "id": {
-            "type": "string",
-            "minLength": 1
-          },
-          "offset": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "limit": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 20
-          },
-          "query": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
-          }
-        },
-        "required": [
-          "reason",
-          "affectsPage",
-          "kind",
-          "id",
-          "offset",
-          "limit",
-          "query"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "record.read",
-      "description": "精确读取历史记录范围。\n参数：必填 kind=tool 或 kind=observation；id 在 kind=tool 时取 callId，在 kind=observation 时取摘要项 id；offset 为从 0 开始的 UTF-16 字符偏移，limit 为 1 到 10000 字符。\n返回：ok、source、totalChars、positionUnit、[start,end)范围的 text、hasMore 和 nextOffset，end 不包含在范围内；沿用 nextOffset 继续读。失败返回 error。只读历史记录，不刷新网页。\naffectsPage=false。",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string"
-          },
-          "affectsPage": {
-            "type": "boolean"
+            "type": "boolean",
+            "const": false
           },
           "kind": {
             "type": "string",
@@ -585,67 +475,101 @@ affectsPage=false。
             "type": "integer",
             "minimum": 1,
             "maximum": 10000
+          },
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "inspect",
+              "read",
+              "search"
+            ]
           }
         },
         "required": [
           "reason",
           "affectsPage",
+          "mode",
           "kind",
-          "id",
-          "offset",
-          "limit"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "tool.detail",
-      "description": "读取工具返回全文。工具记录被截断且需要全文时调用。\n参数：必填 callId：从 #toolIO 对应记录原样取得。\n返回：已保存的完整工具返回；全文不可用时返回仍保留的文本或缺失提示。不会重新执行原工具。\naffectsPage=false。",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string"
+          "id"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "mode": {
+                  "const": "inspect"
+                }
+              }
+            },
+            "then": {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "offset"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "limit"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "query"
+                    ]
+                  }
+                ]
+              }
+            }
           },
-          "affectsPage": {
-            "type": "boolean"
+          {
+            "if": {
+              "properties": {
+                "mode": {
+                  "const": "read"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "offset",
+                "limit"
+              ],
+              "not": {
+                "required": [
+                  "query"
+                ]
+              }
+            }
           },
-          "callId": {
-            "type": "string"
+          {
+            "if": {
+              "properties": {
+                "mode": {
+                  "const": "search"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "offset",
+                "limit",
+                "query"
+              ],
+              "properties": {
+                "limit": {
+                  "maximum": 20
+                }
+              }
+            }
           }
-        },
-        "required": [
-          "reason",
-          "affectsPage",
-          "callId"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "observation.detail",
-      "description": "展开历史摘要的详细记录。\n参数：必填 observationId：从 #observation 对应项原样取得的 id。\n返回：该摘要对应的完整历史记录，找不到时返回缺失提示；不会重新观察当前页面。\naffectsPage=false。",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string"
-          },
-          "affectsPage": {
-            "type": "boolean"
-          },
-          "observationId": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "reason",
-          "affectsPage",
-          "observationId"
         ]
       }
     }
@@ -845,11 +769,7 @@ affectsPage=false。
     "askUser",
     "finishTurn",
     "submitGoal",
-    "record.inspect",
-    "record.search",
-    "record.read",
-    "tool.detail",
-    "observation.detail",
+    "record.query",
     "memory.write",
     "notes.write",
     "notes.delete"

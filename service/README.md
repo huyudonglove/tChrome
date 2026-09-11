@@ -28,10 +28,16 @@ HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`�
 
 记忆只有两层：conversation 保存本会话的过程发现、已确认事实、偏好和决定，本地持久化并跨轮读取，新会话不继承，删除会话时删除；project 保存跨会话共享的长期背景与约束，删除来源会话后仍保留。notes 保存本会话草稿、候选和中间材料，按 key 覆盖或删除；contextSummary 保存本会话的工作状态汇总，每次完整替换。
 
-超过窗口阈值时，Runtime 仅将较早 toolIO 归档为 observation，保留最近两条，并提供 `observation.detail` 回查。Memory 能力层每层投影最近 8 条记忆，超阈值时 conversation 显示 summary（没有摘要时生成展示用短文本），project 不做摘要压缩。该投影不写磁盘记忆、不裁 memoryIds，也不卸载 toolIds。
+超过窗口阈值时，Runtime 仅将较早 toolIO 归档为 observation，保留最近两条，并提供 `record.query(kind=observation)` 回查。Memory 能力层每层投影最近 8 条记忆，超阈值时 conversation 显示 summary（没有摘要时生成展示用短文本），project 不做摘要压缩。该投影不写磁盘记忆、不裁 memoryIds，也不卸载 toolIds。
 
 Provider 使用 Chat Completions 的 `stream: false`，解析完整 JSON 响应。统一策略校验位于 `runtime/loop.ts` 的 `validateCompletion`，调用 `tools/schema.ts` 检查所有 provider 返回的工具提交；provider 不承担工具加载策略或批次执行决策。
 
 长期记忆 projectMemory 位于数据目录的 memory/project/，独立于会话，所有会话共享读取，删除来源会话后仍保留。turn/conversation 记忆继续按会话隔离。首次使用时自动复制迁移旧会话中的 project 记录并保留来源，具体见 memory/README.md。
 
 模型请求默认发送 `reasoning_effort: "high"`。可在 `service/.env` 配置 `UUAPI_REASONING_EFFORT=low|medium|high`，修改后重启服务；代码创建 Provider 时也可传 `reasoningEffort` 覆盖。上游是否实际采用该强度取决于所选模型及网关支持。
+
+## 模型 Provider
+
+`TCHROME_PROVIDER=uuapi`（默认）使用 UUAPI Chat Completions；`TCHROME_PROVIDER=shiningspace` 使用 `https://ai.shiningspace.com:8090/v1/responses` 和 `grok-4.6`。后者密钥配置为 `SHININGSPACE_API_KEY`，推理强度配置为 `SHININGSPACE_REASONING_EFFORT=high`（默认，支持 low/medium/high）。密钥和推理强度写入被忽略的 `service/.env`，修改后重启服务。会话列表右下角的设置中切换 provider，无需重启，从下一次模型请求起生效，正在发送的请求继续使用原 provider。选择与代理开关一起保存到 `connection.json`，优先于环境变量；`TCHROME_PROVIDER` 仅作为未保存选择时的默认值。两者共用侧栏代理开关。
+
+Responses 适配器负责文本、图片 input_image、扁平 function schema 和 function_call 返回转换。Runtime 继续统一管理上下文与工具校验；请求使用 store=false，不使用 previous_response_id 串接会话。未完成响应不会执行其中的部分工具调用。

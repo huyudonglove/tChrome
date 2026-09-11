@@ -6,7 +6,7 @@ import { createServer } from "./server.ts";
 
 for (const variable of ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY"]) {
   test(`server starts direct despite ${variable} and uses it only after enabling proxy`, async () => {
-    const keys = ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY", "TCHROME_PROXY_MODE", "UUAPI_API_KEY"];
+    const keys = ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY", "TCHROME_PROXY_MODE", "TCHROME_PROVIDER", "UUAPI_API_KEY"];
     const saved = keys.map(key => [key, Bun.env[key]] as const);
     const dir = mkdtempSync(join(tmpdir(), "tchrome-server-proxy-"));
     const actual: unknown[] = [];
@@ -20,6 +20,7 @@ for (const variable of ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY"]) {
     }) as typeof fetch);
     try {
       for (const key of keys) delete Bun.env[key];
+      Bun.env.TCHROME_PROVIDER = "uuapi";
       Bun.env[variable] = "http://127.0.0.1:19999";
       Bun.env.UUAPI_API_KEY = "local-test-not-a-secret";
       const server = createServer({ dataDir: dir, repoRoot: join(import.meta.dir, "..") });
@@ -62,7 +63,7 @@ for (const [mode, stored, expected] of [
       if (stored !== undefined) writeFileSync(join(dir, "connection.json"), JSON.stringify({ enabled: stored }));
       const server = createServer({ dataDir: dir });
       const status = await (await server.fetch(new Request("http://127.0.0.1:18788/connection"))).json();
-      expect(status).toEqual({ enabled: expected });
+      expect(status).toMatchObject({ enabled: expected });
       expect(server.proxyEnabled).toBe(expected);
     } finally {
       if (savedMode === undefined) delete Bun.env.TCHROME_PROXY_MODE;

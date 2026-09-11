@@ -1,0 +1,133 @@
+{
+  "type": "function",
+  "function": {
+    "name": "record.query",
+    "description": "按模式回查历史工具结果或页面观察记录。kind=tool 时 id 是 callId，kind=observation 时 id 是观察摘要 id。mode=inspect 返回结构和最多 400 字符预览，不传 offset、limit、query；mode=read 必填 offset 和 limit（1～10000 字符）；mode=search 必填 query（1～200 字符）、offset 和 limit（1～20 条），做区分大小写的字面搜索。位置均为从 0 开始的 UTF-16 偏移；返回 source、totalChars、positionUnit、hasMore、nextOffset，read 另含 [start,end) 范围的 text，search 另含 matches 与附近文本。沿 nextOffset 分页，无记录或越界返回 error。只读历史，不刷新网页；affectsPage=false。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean",
+          "const": false
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "tool",
+            "observation"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "query": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "inspect",
+            "read",
+            "search"
+          ]
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage",
+        "mode",
+        "kind",
+        "id"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "inspect"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "offset"
+                  ]
+                },
+                {
+                  "required": [
+                    "limit"
+                  ]
+                },
+                {
+                  "required": [
+                    "query"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "read"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "offset",
+              "limit"
+            ],
+            "not": {
+              "required": [
+                "query"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "search"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "offset",
+              "limit",
+              "query"
+            ],
+            "properties": {
+              "limit": {
+                "maximum": 20
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

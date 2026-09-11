@@ -15,7 +15,8 @@ function update(value: any): any {
   if (value.type === "function" && value.function?.name && value.function.parameters) return toolSchemas(registry, [value.function.name])[0];
   if (Array.isArray(value)) return value.map(update);
   return Object.fromEntries(Object.entries(value).map(([key, item]) => [key,
-    key === "systemSlots" && Array.isArray(item) ? [...c.systemOrder]
+    key === "baseToolsIds" && Array.isArray(item) ? [...registry.toolGroups.baseToolsIds]
+      : key === "systemSlots" && Array.isArray(item) ? [...c.systemOrder]
       : key === "userSlots" && Array.isArray(item) ? [...c.userOrder]
         : update(item),
   ]));

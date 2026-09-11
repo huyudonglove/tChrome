@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "snapshot_page",
-    "description": "拍当前页可交互元素快照。\n参数：可选 text（文本）、tab（目标标签编号）。\n返回：ok（是否成功）、title（页面标题）、url（页面地址）、text（返回文本）、elements。\naffectsPage=false。",
+    "description": "列出当前页可见交互控件快照，不附带整页正文。参数：可选 text（筛选文本）、limit（默认40，最多100）、tab。返回：ok、title、url、elements、total、truncated。elements.ref 可用于 click/type 等工具；不可作为 page.* 的 id。导航或元素移除后需重新获取。affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -14,6 +14,14 @@
         },
         "affectsPage": {
           "type": "boolean"
+        },
+        "text": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
         }
       },
       "required": [

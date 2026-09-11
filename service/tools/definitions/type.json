@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "type",
-    "description": "向当前焦点输入框或指定输入框输入文字。\n参数：text（文本），可选 ref、target、tab（目标标签编号）。\n返回：ok（是否成功）。\nref：snapshot_page 返回的输入框 ref；有 ref 时优先使用。\ntarget：没有 ref 时按 name/placeholder/aria-label/label 文字定位。\naffectsPage=true。",
+    "description": "向指定可编辑控件输入 text。必须提供 ref 或非空 target；不会默认选择当前焦点。ref 来自 snapshot_page 或 find_on_page，不可混用 page.* 的 id。ref 失效不回退按文字定位；target 多项匹配时明确失败。返回：ok、value。affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -11,11 +11,13 @@
         },
         "ref": {
           "type": "string",
-          "description": "参数含义见工具说明。"
+          "description": "参数含义见工具说明。",
+          "pattern": "^el-"
         },
         "target": {
           "type": "string",
-          "description": "参数含义见工具说明。"
+          "description": "参数含义见工具说明。",
+          "minLength": 1
         },
         "tab": {
           "type": "number"
@@ -31,6 +33,18 @@
         "reason",
         "affectsPage",
         "text"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "ref"
+          ]
+        },
+        {
+          "required": [
+            "target"
+          ]
+        }
       ]
     }
   }

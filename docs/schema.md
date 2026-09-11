@@ -131,7 +131,7 @@ Runtime 独占维护。当前会话指针。
 | `toolQueue` | object[] | 本 Turn 待执行的工具。模型一次出网交的 `toolCalls` 按数组顺序入队。任务队列按这个顺序跑。跑完一条弹出，写入 `toolIO`。新会话 / 新出网前空。每项 `{callId, name, arguments}` |
 | `liveTool` | object \| null | 正在跑的那条 `{name, callId}`。空闲 / 追问 / 失败为 `null` |
 | `toolIO` | object[] | 本会话已执行、窗口里还带着的工具调用。新会话 `[]`。队列里跑完一条追加一条，最新在最下面。窗口到 200K 时较早的条目收进 `observation`。每项见「toolIO 项」 |
-| `observation` | object[] | 压缩过的事实。新会话 `[]`。每项 `{id, text, sourceCallIds}`。`text` 是摘要。全文在 `observations/<id>.json`，用 `observation.detail` 取 |
+| `observation` | object[] | 压缩过的事实。新会话 `[]`。每项 `{id, text, sourceCallIds}`。`text` 是摘要。全文在 `observations/<id>.json`，用 `record.query(kind=observation, id=<id>, mode=inspect/read/search)` 回查 |
 | `notes` | object | 模型自管的 key/value。新会话 `{}`。`notes.write` 写入或覆盖 `notes[key]`。`notes.delete` 删除 `notes[key]`。进 user `#notes` |
 | `windowChars` | number | 本轮出网窗口已用字符数。开 Turn 装配后、以及本 Turn 每次出网前，Runtime 写入 |
 | `compressAt` | number | 压缩门槛，固定 `200000` |
@@ -180,7 +180,7 @@ Runtime 独占维护。当前会话指针。
 
 `kind`：`tool` / `ask` / `reply` / `error`。
 
-- `tool` → `{kind, name, callId}`（动态工具 / `tool.detail` / `observation.detail` / `memory.write`）
+- `tool` → `{kind, name, callId}`（动态工具 / `record.query` / `memory.write`）
 - `ask` → `{kind, question}`（`askUser`）
 - `reply` → `{kind, text}`（`finishTurn`，`text` 取 finishTurn.arguments.text；历史调用可回退 content.action，不用 reason 顶）
 - `error` → `{kind, faultCode}`
@@ -242,13 +242,19 @@ system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，
 
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
-| `stage` | string | `complete` 全文 ≤ 2000 字；`truncated` 超出，`text` 只留前 2000 字 |
+| `stage` | string | 普通结果全文 ≤ 2000 字时为 `complete`；超出时为 `truncated`，`text` 只留前 2000 字。`record.query` 自身已限制预览和分页大小，完整返回当页结果，不再二次裁剪 |
 | `totalChars` | number | 全文长度（JS `string.length` / Python `len`） |
-| `text` | string | 窗口正文，最多 2000 字 |
+| `text` | string | 窗口正文，普通结果最多 2000 字；`record.query` 保留完整的受限预览或当页结果 |
 
-`askUser` 的 `text` 是问题和选项。`finishTurn` 的 `text` 是回复用户的正文（优先取 finishTurn.arguments.text，兼容历史 content.action）。动态工具 / `tool.detail` / `observation.detail` 的 `text` 是工具跑出来的正文。`memory.write` 的 `text` 是落下的层和条数。
+`askUser` 的 `text` 是问题和选项。`finishTurn` 的 `text` 是回复用户的正文（优先取 finishTurn.arguments.text，兼容历史 content.action）。动态工具 / `record.query` 的 `text` 是工具跑出来的正文。`memory.write` 的 `text` 是落下的层和条数。
 
-要全文调 `tool.detail`，参数 `callId`。要看压缩事实调 `observation.detail`，参数 `observationId`。
+历史回查统一使用 `record.query(kind, id, mode)`。`kind=tool` 时 `id` 取 `#toolIO` 的 `callId`；`kind=observation` 时取 `#observation` 的 `id`。只读本地历史，不刷新网页。
+
+- `mode=inspect`：返回结构与最多 400 字符预览，不传 `offset`、`limit`、`query`。
+- `mode=read`：必填 `offset` 和 `limit`，每页 1～10000 字符。
+- `mode=search`：必填 `query`（1～200 字符）、`offset` 和 `limit`（每页 1～20 条），进行区分大小写的字面搜索。
+
+偏移从 0 开始，以 UTF-16 代码单元计数。返回 `source`、`totalChars`、`positionUnit`、`hasMore` 和 `nextOffset`，沿 `nextOffset` 继续读取；不存在的记录或越界位置返回错误。没有不限长度的全文返回模式；已限制大小的查询结果不再套用普通工具的 2000 字裁剪，保证分页内容与游标一致。
 
 ## 阶段快照
 
@@ -293,8 +299,9 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | `askUser` | `question`、`choice` | 非空问题正文与选项 |
 | `submitGoal` | `goal` | 当前目标。改写时 Runtime 把旧值追加进 `goalHistory` |
 | `finishTurn` | `text` | 非空回复正文，不依赖 content |
-| `tool.detail` | `callId` | `#toolIO` 该项的 `callId` |
-| `observation.detail` | `observationId` | `#observation` 该项的 `id` |
+| `record.query` | `kind` `id` `mode`；read/search 另有分页必填项 | 工具结果用 `kind=tool` 和 `callId`；归档观察用 `kind=observation` 和观察 `id`，模式见上文 |
+| `capture_page` | `mode`；element 另需 ref/selector 二选一 | `viewport` / `full_page` / `element`；元素定位不混用 page.* 的 id，PDF 使用 `save_pdf` |
+| `probe_http` | `url` | HTTP(S) 网址，可选 `method=GET/HEAD`；返回状态、耗时、最终网址和响应头，`reachable=true` 表示收到 HTTP 响应（包括 4xx/5xx），`ok=true` 表示 2xx |
 | `notes.write` | `key` `value` | 写入或覆盖 `ledger.notes[key]`。模型自定 key |
 | `notes.delete` | `key` | 删除 `ledger.notes[key]` |
 | `memory.write` | （无） | `conversationMemory` `projectMemory` `contextSummary` 有则写 |

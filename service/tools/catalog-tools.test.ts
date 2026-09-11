@@ -90,3 +90,14 @@ test("catalog.add accepts the reported names/reason call without affectsPage and
   expect(check({ ...args, affectsPage: true }).schemaOk).toBe(false);
   expect(check({ names: args.names }).schemaOk).toBe(false);
 });
+
+
+test("capture_page validates mode-specific target parameters", () => {
+  const registry = loadToolRegistry(repoRoot);
+  const tools = toolSchemas(registry, ["capture_page"]);
+  const valid = (arguments_: Record<string, unknown>) => checkToolCalls(
+    [{id: "capture", name: "capture_page", arguments: {reason: "观察", affectsPage: false, ...arguments_}}], tools, [], ["capture_page"],
+  ).schemaOk;
+  for (const args of [{mode: "viewport"}, {mode: "full_page"}, {mode: "element", ref: "el-example"}, {mode: "element", selector: "#target"}]) expect(valid(args)).toBe(true);
+  for (const args of [{}, {mode: "pdf"}, {mode: "element"}, {mode: "element", ref: "e1"}, {mode: "element", ref: "el-example", selector: "#target"}, {mode: "viewport", selector: "#target"}]) expect(valid(args)).toBe(false);
+});

@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { cpSync, mkdirSync, renameSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { executorVersion } from "../service/executor-version.ts";
 
 const root = join(import.meta.dir, "..");
 const dist = join(root, "dist");
@@ -13,6 +14,7 @@ cpSync(join(root, "extension", "content-console.js"), join(dist, "content-consol
 
 const background = await Bun.build({
   entrypoints: [join(root, "extension", "background.ts")],
+  define: { __TCHROME_EXECUTOR_VERSION__: JSON.stringify(executorVersion(root)) },
   outdir: dist,
   target: "browser",
 });

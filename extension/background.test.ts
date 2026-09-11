@@ -9,6 +9,8 @@ test("background dispatch continues without panel messages and resumes on alarms
   let request: { id: string; name: string } | null = null;
   const results: string[] = [];
   let active = true;
+  let version: string | undefined = "unbundled";
+  let status = 200;
   Object.defineProperty(globalThis, "chrome", { configurable: true, value: {
     sidePanel: { setPanelBehavior: () => {} },
     runtime: {
@@ -28,8 +30,11 @@ test("background dispatch continues without panel messages and resumes on alarms
   }) as typeof setInterval);
   const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (url: string, options?: RequestInit) => {
     if (url.endsWith("/session")) return Response.json({ status: active ? "running" : "idle" });
-    if (url.endsWith("/tool-request")) return Response.json({ request });
-    if (url.endsWith("/tool-result")) {
+    if (url.includes("/tool-request?")) {
+      expect(new URL(url).searchParams.get("executorVersion")).toBe("unbundled");
+      return Response.json({ request, executorVersion: version }, { status });
+    }
+    if (url.includes("/tool-result?")) {
       const body = JSON.parse(options?.body as string);
       results.push(body.id);
       expect(body.result).toBeDefined();
@@ -54,6 +59,15 @@ test("background dispatch continues without panel messages and resumes on alarms
     alarmListener({ name: "tchrome-tool-pump" });
     await Bun.sleep(0);
     expect(results).toEqual(["after-panel-close", "after-worker-wakeup"]);
+    // Reject both old services that omit a version and incompatible builds.
+    request = { id: "must-not-execute", name: "list_browser_tools" };
+    for (const nextVersion of [undefined, "different-build", "unbundled"]) {
+      version = nextVersion;
+      status = nextVersion === "unbundled" ? 409 : 200;
+      interval();
+      await Bun.sleep(0);
+      expect(results).toEqual(["after-panel-close", "after-worker-wakeup"]);
+    }
   } finally {
     fetchSpy.mockRestore();
     intervalSpy.mockRestore();

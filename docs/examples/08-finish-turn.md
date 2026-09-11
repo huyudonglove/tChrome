@@ -99,11 +99,7 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "askUser",
     "finishTurn",
     "submitGoal",
-    "record.inspect",
-    "record.search",
-    "record.read",
-    "tool.detail",
-    "observation.detail",
+    "record.query",
     "memory.write",
     "notes.write",
     "notes.delete"

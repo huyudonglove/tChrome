@@ -2,10 +2,19 @@
   "type": "function",
   "function": {
     "name": "handle_dialog",
-    "description": "处理页面对话框（需要在页面加载前设置监听）。\n返回：ok=false、error（提示需要提前设置）。\naffectsPage=true。",
+    "description": "通过 Chrome Debugger 处理目标标签当前已弹出的浏览器原生 alert、confirm、prompt 或 beforeunload 对话框，无需提前调用本工具。\n参数：action=accept（确认）或 dismiss（取消）；promptText 可选，仅在确认 prompt 时填写；tab 可选，指定目标标签。\n返回：ok（是否成功）；失败时 faultCode=no_dialog 表示执行处理时没有原生对话框，faultCode=dialog_handle_failed 表示处理失败。即使 see_diag 的 dialog.status=unknown，仍可尝试处理；unknown 不代表没有弹窗。\naffectsPage=true；确认可能提交表单或离开页面，应依据用户任务选择。",
     "parameters": {
       "type": "object",
       "properties": {
+        "action": {
+          "type": "string",
+          "enum": ["accept", "dismiss"],
+          "description": "确认或取消当前原生对话框"
+        },
+        "promptText": {
+          "type": "string",
+          "description": "确认 prompt 对话框时输入的文本"
+        },
         "tab": {
           "type": "number"
         },
@@ -13,10 +22,12 @@
           "type": "string"
         },
         "affectsPage": {
-          "type": "boolean"
+          "type": "boolean",
+          "const": true
         }
       },
       "required": [
+        "action",
         "reason",
         "affectsPage"
       ],

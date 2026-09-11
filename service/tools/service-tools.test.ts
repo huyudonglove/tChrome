@@ -28,3 +28,30 @@ test("search network failure is returned to the loop as a tool error", async () 
     expect(await runServiceTool("/tmp", "web_search", { query: "demo" })).toMatchObject({ ok: false, error: "network unavailable" });
   } finally { mock.mockRestore(); }
 });
+
+
+test("HTTP probe distinguishes reachable error responses and skips their body", async () => {
+  const response = new Response(new ReadableStream({ start() {} }), { status: 503, headers: { "retry-after": "10" } });
+  Object.defineProperty(response, "url", { value: "https://example.com/final" });
+  const mock = spyOn(globalThis, "fetch").mockResolvedValue(response);
+  try {
+    const result = await runServiceTool("/tmp", "probe_http", { url: "https://example.com", method: "HEAD" });
+    expect(result).toMatchObject({ ok: false, reachable: true, status: 503, url: "https://example.com/final", headers: { "retry-after": "10" } });
+    expect(result).not.toHaveProperty("text");
+    expect(mock.mock.calls[0]?.[1]?.method).toBe("HEAD");
+  } finally { mock.mockRestore(); }
+});
+
+test("HTTP probe validates its target and method before sending and reports network errors", async () => {
+  const mock = spyOn(globalThis, "fetch").mockRejectedValue(new Error("network unavailable"));
+  try {
+    for (const input of [{}, { url: "file:///tmp/test" }, { url: "https://example.com", method: "POST" }]) {
+      expect(await runServiceTool("/tmp", "probe_http", input)).toMatchObject({ ok: false, error: expect.any(String) });
+    }
+    expect(mock).not.toHaveBeenCalled();
+    expect(await runServiceTool("/tmp", "probe_http", { url: "https://example.com" })).toMatchObject({
+      ok: false, reachable: false, url: "https://example.com", error: "network unavailable",
+    });
+    expect(mock.mock.calls[0]?.[1]?.method).toBe("GET");
+  } finally { mock.mockRestore(); }
+});

@@ -65,11 +65,7 @@
           "askUser",
           "finishTurn",
           "submitGoal",
-          "record.inspect",
-          "record.search",
-          "record.read",
-          "tool.detail",
-          "observation.detail",
+          "record.query",
           "memory.write",
           "notes.write",
           "notes.delete"

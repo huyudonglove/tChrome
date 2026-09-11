@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "wait_captcha",
-    "description": "等到 Turnstile 或同类验证出现。\n参数：可选 tab（目标标签编号）、timeoutMs（超时毫秒数）。\n返回：ok（是否成功）、present（是否出现）、type（类型）、ready。\naffectsPage=false。",
+    "description": "等待检测到 Turnstile、reCAPTCHA 或 hCaptcha 出现，最多 12 秒。出现即返回，不等待验证通过；超时 ok=false。返回 present、type、status、clickable。 可选 tab（标签编号）、timeoutMs（总超时毫秒，1～12000）。affectsPage=false。 多个验证码或响应字段返回 ambiguous=true，不宣称全部通过。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -14,6 +14,11 @@
         },
         "affectsPage": {
           "type": "boolean"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12000
         }
       },
       "required": [

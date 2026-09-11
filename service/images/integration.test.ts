@@ -20,8 +20,8 @@ test("截图以图片内容发给模型，持久记录仅保留引用，删除�
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-images-integration-"));
   const requests: any[] = [];
   const calls = [
-    { name: "catalog.add", arguments: { names: ["screenshot"], reason: "加载截图" } },
-    { name: "screenshot", arguments: { reason: "观察页面", affectsPage: false } },
+    { name: "catalog.add", arguments: { names: ["capture_page"], reason: "加载截图" } },
+    { name: "capture_page", arguments: { mode: "viewport", reason: "观察页面", affectsPage: false } },
     { name: "finishTurn", arguments: { reason: "已观察图片", affectsPage: false, text: "完成" } },
   ];
   const server = Bun.serve({
@@ -53,7 +53,7 @@ test("截图以图片内容发给模型，持久记录仅保留引用，删除�
     }, { userInput: "截图看看页面", submittedAt: new Date().toISOString() });
 
     expect(reply.output).toEqual({ kind: "reply", text: "完成" });
-    expect(executed).toEqual(["screenshot"]);
+    expect(executed).toEqual(["capture_page"]);
     expect(requests).toHaveLength(3);
     const parts = requests[2].messages.flatMap((message: any) => Array.isArray(message.content) ? message.content : []);
     const images = parts.filter((part: any) => part.type === "image_url");
@@ -67,7 +67,7 @@ test("截图以图片内容发给模型，持久记录仅保留引用，删除�
 
     const conversationId = "cv_01";
     const ledger = loadLedger(dataDir, conversationId);
-    const screenshot = ledger.toolIO.find((item) => item.name === "screenshot")!;
+    const screenshot = ledger.toolIO.find((item) => item.name === "capture_page")!;
     expect(screenshot.images).toHaveLength(1);
     const storedFiles = filesIn(paths(dataDir, conversationId).conv);
     const imageFiles = storedFiles.filter((path) => path.endsWith(".png"));

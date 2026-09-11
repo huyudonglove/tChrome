@@ -76,11 +76,7 @@ Runtime 独占维护。当前会话指针。字段见 schema「ledger.json」。
       "askUser",
       "finishTurn",
       "submitGoal",
-      "record.inspect",
-      "record.search",
-      "record.read",
-      "tool.detail",
-      "observation.detail",
+      "record.query",
       "memory.write",
       "notes.write",
       "notes.delete"
@@ -122,7 +118,7 @@ Runtime 独占维护。当前会话指针。字段见 schema「ledger.json」。
 
 ## Observation
 
-压缩过的事实。全文另存。字段见 schema「observations/<observationId>.json」。
+压缩过的事实。全文另存，用 `record.query` 的 `kind=observation` 和对应 `id` 预览、搜索或分页读取；工具结果使用 `kind=tool` 和 `callId`。每次回查有大小限制，分页结果不再被普通工具结果的 2000 字上限裁剪。字段见 schema「observations/<observationId>.json」。
 
 ```json
 {
@@ -146,7 +142,7 @@ Runtime 独占维护。当前会话指针。字段见 schema「ledger.json」。
 2. 模型一次出网可交多个 `toolCalls`。所有 provider 返回均通过统一参数/schema 与批次顺序校验，Runtime 按数组顺序写入 ledger.`toolQueue`。任务队列按这个顺序执行。
 3. 队列每跑完一条，把 `{callId, name, arguments, return}` 追加到 ledger.`toolIO` 末尾，并从队列弹出。
 4. `askUser` → ledger.`status=waiting_human`。用户下一条输入开新 Turn（走步骤 1）。
-5. 动态工具 / `tool.detail` / `observation.detail` → 队列清空后还在本 Turn 里再出网：插槽沿用这次装配，只更新 `#toolIO`。
+5. 动态工具 / `record.query` → 队列清空后还在本 Turn 里再出网：插槽沿用这次装配，只更新 `#toolIO`。
 6. `memory.write` → Runtime 落盘，ID 挂到 ledger.`memoryIds`。队列清空后再出网时，对应 user 槽带上刚落下的内容。
 7. `finishTurn` → 本 Turn `status=completed`，ledger.`status=idle`，`active=null`。用户下一句话开新 Turn 时写入 `userInputHistory`，走步骤 1。
 8. 开 Turn 装配后、以及本 Turn 每次出网前，Runtime 计 `windowChars`。到 `compressAt`（200000）时，Runtime 把较早 toolIO 归档到可回查的 observation，保留最近两条；Memory 能力层每层投影最近 8 条记忆，超阈值时 conversation 展示摘要，project 不做摘要压缩。该过程不写磁盘记忆、不裁 memoryIds、不卸载 toolIds，再用投影后的窗口出网。

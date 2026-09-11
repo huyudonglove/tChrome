@@ -1,7 +1,7 @@
 import runtimeMessages from "../runtime/messages.json";
 import type { ToolEffect, ToolExecution } from "./effects.ts";
 import type { BrowserHost, CurrentPage, ToolArguments, ToolIOItem, ToolReturn } from "../types.ts";
-import { queryRecord, RECORD_TOOLS } from "./records.ts";
+import { queryRecord } from "./records.ts";
 import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
 import { LOCAL_TOOL_NAMES, runLocalTool } from "./local-tools.ts";
 
@@ -136,21 +136,10 @@ export async function executeTool(input: ExecuteInput): Promise<ToolExecution> {
     const count = (layer: string) => entries.filter((entry) => entry.layer === layer).length;
     return result(`落下 conversation=${count("conversation")} project=${count("project")}`, effects);
   }
-  if (RECORD_TOOLS.includes(name)) {
+  if (name === "record.query") {
     const id = String(args.id);
     const full = args.kind === "tool" ? lookup.fullReturn(id) : lookup.observationFull(id);
-    return result(queryRecord(name, args, full));
-  }
-  if (name === "tool.detail") {
-    const callId = String(args.callId ?? "");
-    const full = lookup.fullReturn(callId);
-    if (full !== null) return result(full);
-    const item = lookup.toolIO.find((row) => row.callId === callId);
-    return result(item?.return.text ?? `没有 ${callId} 的全文`);
-  }
-  if (name === "observation.detail") {
-    const observationId = String(args.observationId ?? "");
-    return result(lookup.observationFull(observationId) ?? `没有 ${observationId}`);
+    return result(queryRecord(args, full));
   }
   if ((LOCAL_TOOL_NAMES as readonly string[]).includes(name)) {
     if (!input.conversationId) return externalResult({ ok: false, error: "本地工具缺少会话标识" });

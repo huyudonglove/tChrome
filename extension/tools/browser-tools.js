@@ -1,3 +1,9 @@
+import { savePagePdf } from './pdf.js';
+import { runCaptchaTool } from './captcha.js';
+import { captureElement } from './element-capture.js';
+import { elementTool } from './element-tools.js';
+import { waitForDownload } from './downloads.js';
+import { withDebugger, monitorDialogs, dialogState, watchDialog, handleDialog } from './dialogs.js';
 export const BROWSER_TOOL_NAMES = [
   'page.get_summary', 'page.list_regions', 'page.list_interactive_elements',
   'page.inspect_region', 'page.inspect_element', 'page.get_dom',
@@ -13,12 +19,12 @@ export const BROWSER_TOOL_NAMES = [
   'list_tabs', 'list_windows', 'switch_tab', 'open_tab', 'close_tab',
   'duplicate_tab', 'move_tab', 'update_tab', 'create_window', 'update_window',
   'close_window', 'group_tabs', 'ungroup_tabs',
-  'screenshot', 'screenshot_full', 'screenshot_one',
+  'capture_page',
   'save_pdf', 'download', 'wait_download', 'control_download', 'export_data',
   'cookies', 'read_page_credentials', 'page_storage', 'indexeddb',
   'cache_storage', 'capture_network_traffic', 'profile_vault',
   'execute_javascript', 'handle_dialog', 'see_zoom', 'set_zoom',
-  'bind_tab', 'see_env', 'list_downloads', 'see_diag', 'see_console', 'wait_popup',
+  'bind_tab', 'see_env', 'list_downloads', 'see_diag', 'see_console', 'wait_new_tab',
   'list_browser_tools', 'measure_timing', 'measure_paint', 'measure_files',
   'see_captcha', 'wait_captcha', 'click_captcha', 'solve_captcha',
   'emulate_device', 'network_throttle', 'set_cookie', 'delete_cookie', 'clear_cookies',
@@ -89,28 +95,6 @@ const waitTabComplete = (tabId) => new Promise((resolve) => {
   setTimeout(finish, 8000);
 });
 
-// 共用 CDP 连接；可能产生副作用的脚本不自动重试。
-const attachedDebuggers = new Set();
-const withDebugger = async (tabId, run, {retryDetached = true} = {}) => {
-  const target = {tabId};
-  if (!attachedDebuggers.has(tabId)) {
-    await chrome.debugger.attach(target, '1.3');
-    attachedDebuggers.add(tabId);
-  }
-  try {
-    return await run();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (/not attached|Detached|Debugger is not attached/i.test(message)) {
-      attachedDebuggers.delete(tabId);
-      if (!retryDetached) throw error;
-      await chrome.debugger.attach(target, '1.3');
-      attachedDebuggers.add(tabId);
-      return run();
-    }
-    throw error;
-  }
-};
 const cdpMouse = async (tabId, type, x, y, options = {}) => {
   const params = {
     type,
@@ -195,13 +179,14 @@ const afterPageAction = async (tabId) => {
 
 // 页面 JS 卡死时 executeScript 会无限挂起，服务端 30s 就判工具超时。
 // 统一 8s 超时：宁可快速失败让模型换路，不挂到服务端上限。
-const withTimeout = (promise, ms = 8000, what = '页内执行') => Promise.race([
-  promise,
-  new Promise((_, reject) => setTimeout(() => reject(new Error(`${what}超时（页面可能卡死）`)), ms)),
-]).catch((error) => {
-  if (error instanceof Error && error.message.includes('超时')) return {ok: false, error: error.message};
-  throw error;
-});
+const withTimeout = async (promise, ms = 8000, what = '页内执行') => {
+  let timer;
+  try {
+    return await Promise.race([promise, new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${what}超时（页面可能卡死）`)), ms);
+    })]);
+  } finally { clearTimeout(timer); }
+};
 
 const viewportOf = async (tabId) => {
   const tab = await getTab(tabId);
@@ -425,6 +410,8 @@ const runPageTool = async (name, input = {}) => {
           if (!el) return {ok: false, error: `没有元素 ${id}`};
           const node = el.node;
           const value = payload.text;
+          if (!node.matches('input,textarea,[contenteditable="true"]') || node.readOnly || el.disabled
+            || (node.tagName === 'INPUT' && !['text','search','tel','url','email','password','number','date','datetime-local','month','week','time'].includes(node.type))) return {ok: false, error: '目标不是可编辑输入框'};
           node.focus();
           if ('value' in node) {
             const proto = node instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
@@ -432,6 +419,8 @@ const runPageTool = async (name, input = {}) => {
             if (setter) setter.call(node, value);
             else node.value = value;
           } else node.textContent = value;
+          const actual = 'value' in node ? node.value : node.textContent;
+          if (actual !== value) return {ok: false, value: actual, error: '控件未接受完整输入，请检查控件格式要求'};
           node.dispatchEvent(new Event('input', {bubbles: true}));
           node.dispatchEvent(new Event('change', {bubbles: true}));
           return {ok: true, id, value: 'value' in node ? node.value : node.textContent};
@@ -462,62 +451,74 @@ const runOnTab = async (tabId, args, func) => {
   }
 };
 
-export const runBrowserTool = async (name, input = {}) => {
+const capturePage = async (input) => {
+  const tabId = input.tab ?? input.tabId;
+  if (!['viewport', 'full_page', 'element'].includes(input.mode)) return {ok: false, error: 'capture_page 需要 mode=viewport|full_page|element'};
+  if (input.mode !== 'element' && (input.ref !== undefined || input.selector !== undefined)) return {ok: false, error: 'ref/selector 仅用于 element 模式'};
+  if (input.mode === 'full_page') {
+    const tab = await getTab(tabId);
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可截图的普通网页标签'};
+    try {
+      return await withDebugger(tab.id, async () => {
+        const metrics = await chrome.debugger.sendCommand({tabId: tab.id}, 'Page.getLayoutMetrics');
+        const size = metrics.cssContentSize;
+        if (!size || !(size.width > 0 && size.height > 0)) return {ok: false, error: '无法读取整页尺寸'};
+        if (size.width > 16000 || size.height > 16000 || size.width * size.height > 32000000) return {ok: false, faultCode: 'page_too_large', error: '整页尺寸超过截图上限（边长16000、3200万像素），请分段使用 capture_page(mode=viewport)'};
+        const shot = await chrome.debugger.sendCommand({tabId: tab.id}, 'Page.captureScreenshot', {
+          format: 'jpeg', quality: 70, captureBeyondViewport: true, fromSurface: true,
+          clip: {x: size.x ?? 0, y: size.y ?? 0, width: size.width, height: size.height, scale: 1},
+        });
+        if (!shot?.data) return {ok: false, error: '浏览器未返回截图'};
+        return {ok: true, tab: tab.id, image: `data:image/jpeg;base64,${shot.data}`, mime: 'image/jpeg', fullPage: true, page_size: [size.width, size.height]};
+      }, {retryDetached: false});
+    } catch (error) { return {ok: false, error: String(error)}; }
+  }
+  if (input.mode === 'element') {
+    const tab = await getTab(tabId);
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可截图的普通网页标签'};
+    return captureElement(tab.id, input);
+  }
+  if (input.mode === 'viewport') {
+    const tab = await getTab(tabId);
+    if (!tab?.id || !tab.url || isBlocked(tab.url)) return {ok: false, error: '没有可截图的普通网页标签'};
+    // 最小化的窗口 Chrome 会挂起渲染器，captureVisibleTab 必报
+    // "image readback failed"。先恢复窗口再激活标签。
+    if (tab.windowId) {
+      await chrome.windows.update(tab.windowId, {state: 'normal', focused: true}).catch(() => {});
+    }
+    await chrome.tabs.update(tab.id, {active: true});
+    await waitNetworkIdle(tab.id);
+    const shotMeta = async (image) => ({
+      ok: true,
+      tab: tab.id,
+      image,
+      mime: 'image/jpeg',
+      image_size: await imageSizeOf(image),
+      viewport: await viewportOf(tab.id),
+    });
+    try {
+      return await shotMeta(await chrome.tabs.captureVisibleTab(tab.windowId, {format: 'jpeg', quality: 70}));
+    } catch (error) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      try {
+        return await shotMeta(await chrome.tabs.captureVisibleTab(tab.windowId, {format: 'jpeg', quality: 70}));
+      } catch (retryError) {
+        return {ok: false, error: retryError instanceof Error ? retryError.message : String(retryError)};
+      }
+    }
+  }
+};
+
+const executeBrowserTool = async (name, input = {}) => {
   const tabId = input.tab ?? input.tabId;
   if (name.startsWith('page.')) return runPageTool(name, input);
   if (name === 'see_page' || name === 'watch_page') return inspectTab(tabId);
-  if (name === 'snapshot_page' || name === 'find_on_page') {
-    const page = await inspectTab(tabId);
-    if (!page.ok) return page;
-    const snap = await runOnTab(page.tab, [input.text || ''], (q) => {
-      const nodes = [...document.querySelectorAll('a,button,input,textarea,select,[role="button"],[contenteditable="true"]')];
-      const labelOf = (node) => {
-        const explicit = node.id ? document.querySelector(`label[for="${CSS.escape(node.id)}"]`)?.innerText : '';
-        return (explicit || node.closest('label')?.innerText || '').trim().slice(0, 100);
-      };
-      const rows = nodes.slice(0, 40).map((node, index) => {
-        const rect = node.getBoundingClientRect();
-        return {
-          ref: `el-${index}`,
-          tag: node.tagName.toLowerCase(),
-          role: node.getAttribute('role') || '',
-          type: node.getAttribute('type') || '',
-          name: node.getAttribute('name') || '',
-          text: (node.innerText || node.getAttribute('aria-label') || '').trim().slice(0, 100),
-          placeholder: node.getAttribute('placeholder') || '',
-          label: labelOf(node),
-          value: 'value' in node ? String(node.value || '').slice(0, 100) : '',
-          checked: 'checked' in node ? Boolean(node.checked) : undefined,
-          disabled: Boolean(node.disabled || node.getAttribute('aria-disabled') === 'true'),
-          required: Boolean(node.required || node.getAttribute('aria-required') === 'true'),
-          href: node.href || '',
-          rect: {x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height)},
-        };
-      });
-      const dialog = document.querySelector('[role="dialog"],dialog,[aria-modal="true"]');
-      const pageState = document.readyState !== 'complete'
-        ? 'loading'
-        : dialog
-          ? 'dialog'
-          : 'ready';
-      const headings = [...document.querySelectorAll('h1,h2,h3,[role="heading"]')].slice(0, 12)
-        .map((node) => ({level: Number(node.getAttribute('aria-level')) || Number(node.tagName.slice(1)) || null, text: node.innerText.trim().slice(0, 120)}))
-        .filter((item) => item.text);
-      const landmarks = [...document.querySelectorAll('header,nav,main,aside,footer,[role="banner"],[role="navigation"],[role="main"],[role="complementary"],[role="contentinfo"]')]
-        .slice(0, 12).map((node) => ({role: node.getAttribute('role') || node.tagName.toLowerCase(), text: node.innerText.trim().slice(0, 160)}));
-      const forms = [...document.forms].slice(0, 8).map((form, index) => ({
-        index,
-        name: form.name || form.id || '',
-        action: form.action || '',
-        method: form.method || 'get',
-        fields: [...form.querySelectorAll('input:not([type=hidden]),textarea,select')].slice(0, 20).map((field) => ({
-          type: field.type || field.tagName.toLowerCase(), name: field.name || '', label: labelOf(field), placeholder: field.placeholder || '', required: Boolean(field.required), disabled: Boolean(field.disabled),
-        })),
-      }));
-      const filtered = q ? rows.filter((item) => [item.text, item.label, item.placeholder, item.name, item.href].some((value) => String(value).includes(q))) : rows;
-      return {ok: true, page_state: pageState, headings, landmarks, forms, elements: filtered};
-    });
-    return {...page, ...snap};
+  if (['snapshot_page', 'find_on_page', 'click', 'double_click', 'focus', 'hover', 'type'].includes(name)) {
+    const tab = await getTab(tabId);
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可操作的普通网页标签'};
+    const [{result}] = await withTimeout(chrome.scripting.executeScript({target: {tabId: tab.id}, func: elementTool, args: [name, input]}));
+    if (result?.ok && ['click', 'double_click', 'type'].includes(name)) await afterPageAction(tab.id);
+    return {tab: tab.id, ...result};
   }
   if (name === 'see_page_info') {
     return runOnTab(tabId, [], () => ({
@@ -542,52 +543,6 @@ export const runBrowserTool = async (name, input = {}) => {
     const needle = input.text || input.url || input.title || '';
     const hit = [page.title, page.url, page.text].join('\n');
     return {ok: !needle || hit.includes(needle), tabId: page.tab, title: page.title, url: page.url, matched: needle};
-  }
-  if (name === 'click' || name === 'double_click' || name === 'focus' || name === 'hover') {
-    const result = await runOnTab(tabId, [input.ref || '', input.text || '', name], (ref, q, action) => {
-      const nodes = [...document.querySelectorAll('a,button,input,textarea,select,[role="button"],[contenteditable="true"]')];
-      const refIndex = /^el-(\d+)$/.exec(ref)?.[1];
-      const hit = refIndex !== undefined
-        ? nodes[Number(refIndex)]
-        : nodes.find((node) => (node.innerText || node.value || node.getAttribute('aria-label') || '').includes(q));
-      if (!hit) return {ok: false, error: '没找到可点元素'};
-      if (action === 'double_click') hit.dispatchEvent(new MouseEvent('dblclick', {bubbles: true}));
-      else if (action === 'focus') hit.focus();
-      else if (action === 'hover') hit.dispatchEvent(new MouseEvent('mouseover', {bubbles: true}));
-      else hit.click();
-      return {ok: true, clicked: (hit.innerText || hit.value || '').slice(0, 80)};
-    });
-    if (result.ok && name !== 'hover' && name !== 'focus') await afterPageAction(tabId);
-    return result;
-  }
-  if (name === 'type') {
-    const result = await runOnTab(tabId, [input.text || '', input.ref || '', input.target || ''], (value, ref, q) => {
-      const nodes = [...document.querySelectorAll('input:not([type=hidden]),textarea,[contenteditable="true"]')];
-      const labelText = (node) => {
-        const id = node.id;
-        const label = id ? document.querySelector(`label[for="${CSS.escape(id)}"]`) : null;
-        return [node.name, node.placeholder, node.getAttribute('aria-label'), label?.innerText].filter(Boolean).join(' ');
-      };
-      const allInteractive = [...document.querySelectorAll('a,button,input,textarea,select,[role="button"],[contenteditable="true"]')];
-      const refIndex = /^el-(\d+)$/.exec(ref)?.[1];
-      const byRef = refIndex !== undefined ? allInteractive[Number(refIndex)] : null;
-      const el = byRef && nodes.includes(byRef)
-        ? byRef
-        : (q ? nodes.find((node) => labelText(node).toLowerCase().includes(q.toLowerCase())) : null);
-      if (!el) return {ok: false, error: '没找到输入框'};
-      el.focus();
-      if ('value' in el) {
-        const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-        const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-        if (setter) setter.call(el, value);
-        else el.value = value;
-      } else el.textContent = value;
-      el.dispatchEvent(new Event('input', {bubbles: true}));
-      el.dispatchEvent(new Event('change', {bubbles: true}));
-      return {ok: true, value: 'value' in el ? el.value : el.textContent};
-    });
-    if (result.ok) await afterPageAction(tabId);
-    return result;
   }
   if (name === 'tick') {
     const result = await runOnTab(tabId, [input.text || '', input.checked !== false], (q, checked) => {
@@ -710,10 +665,10 @@ export const runBrowserTool = async (name, input = {}) => {
     const imageSize = input.image_size;
     const viewport = input.viewport || await viewportOf(tabId);
     if (!Array.isArray(imageSize) || imageSize.length !== 2) {
-      return {ok: false, error: '缺 image_size=[宽,高]（用最近一次 screenshot 返回值）'};
+      return {ok: false, error: '缺 image_size=[宽,高]（用最近一次 capture_page(mode=viewport) 返回值）'};
     }
     if (!Array.isArray(viewport) || viewport.length !== 2) {
-      return {ok: false, error: '缺 viewport=[宽,高]（用最近一次 screenshot 返回值）'};
+      return {ok: false, error: '缺 viewport=[宽,高]（用最近一次 capture_page(mode=viewport) 返回值）'};
     }
     const from = mapImagePointToViewport(point1, imageSize, viewport);
     const to = mapImagePointToViewport(point2, imageSize, viewport);
@@ -869,80 +824,19 @@ export const runBrowserTool = async (name, input = {}) => {
     await chrome.tabs.ungroup(input.tabIds || [tabId].filter(Boolean));
     return {ok: true};
   }
-  if (name === 'screenshot_full' || name === 'screenshot_one') {
+  if (name === 'capture_page') return {...await capturePage(input), mode: input.mode};
+  if (name === 'save_pdf') {
     const tab = await getTab(tabId);
-    if (!tab?.id) return {ok: false, error: '没有标签'};
-    try {
-      // captureVisibleTab 只截窗口的活动标签，先恢复窗口并激活目标页。
-      if (tab.windowId) {
-        await chrome.windows.update(tab.windowId, {state: 'normal', focused: true}).catch(() => {});
-      }
-      await chrome.tabs.update(tab.id, {active: true});
-      await waitNetworkIdle(tab.id);
-      if (name === 'screenshot_one') {
-        // 元素截图：先获取元素位置，然后裁剪
-        const {ref} = input;
-        if (!ref) return {ok: false, error: 'screenshot_one 需要 ref 参数'};
-        const [{result}] = await chrome.scripting.executeScript({
-          target: {tabId: tab.id},
-          func: (r) => {
-            const el = document.querySelector(`[data-ref="${r}"]`) || document.querySelector(r);
-            if (!el) return null;
-            const rect = el.getBoundingClientRect();
-            return {x: rect.x, y: rect.y, width: rect.width, height: rect.height};
-          },
-          args: [ref],
-        });
-        if (!result) return {ok: false, error: `未找到元素 ref=${ref}`};
-        // 使用CDP截图并裁剪
-        const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {format: 'jpeg', quality: 70});
-        // 简单返回全图，标注元素位置（完整裁剪需要offscreen document）
-        return {ok: true, tab: tab.id, image: dataUrl, mime: 'image/jpeg', element_rect: result};
-      }
-      // 整页截图：滚动到底部再截
-      const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {format: 'jpeg', quality: 70});
-      return {ok: true, tab: tab.id, image: dataUrl, mime: 'image/jpeg'};
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      return {ok: false, error: `截图失败：${message}`};
-    }
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可导出 PDF 的普通网页标签'};
+    return savePagePdf(tab.id, input);
   }
-  if (name === 'screenshot') {
-    const tab = await getTab(tabId);
-    if (!tab?.id || !tab.url || isBlocked(tab.url)) return {ok: false, error: '没有可截图的普通网页标签'};
-    // 最小化的窗口 Chrome 会挂起渲染器，captureVisibleTab 必报
-    // "image readback failed"。先恢复窗口再激活标签。
-    if (tab.windowId) {
-      await chrome.windows.update(tab.windowId, {state: 'normal', focused: true}).catch(() => {});
-    }
-    await chrome.tabs.update(tab.id, {active: true});
-    await waitNetworkIdle(tab.id);
-    const shotMeta = async (image) => ({
-      ok: true,
-      tab: tab.id,
-      image,
-      mime: 'image/jpeg',
-      image_size: await imageSizeOf(image),
-      viewport: await viewportOf(tab.id),
-    });
-    try {
-      return await shotMeta(await chrome.tabs.captureVisibleTab(tab.windowId, {format: 'jpeg', quality: 70}));
-    } catch (error) {
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      try {
-        return await shotMeta(await chrome.tabs.captureVisibleTab(tab.windowId, {format: 'jpeg', quality: 70}));
-      } catch (retryError) {
-        return {ok: false, error: retryError instanceof Error ? retryError.message : String(retryError)};
-      }
-    }
-  }
-  if (name === 'save_pdf') return {ok: false, error: '当前环境不能存 PDF'};
   if (name === 'download') {
     if (!input.url) return {ok: false, error: '缺 url'};
     const id = await chrome.downloads.download({url: input.url});
     return {ok: true, downloadId: id};
   }
-  if (name === 'wait_download' || name === 'list_downloads') {
+  if (name === 'wait_download') return waitForDownload(input);
+  if (name === 'list_downloads') {
     const items = await chrome.downloads.search({limit: 10, orderBy: ['-startTime']});
     return {ok: true, downloads: items.map((item) => ({id: item.id, filename: item.filename, state: item.state}))};
   }
@@ -1152,8 +1046,9 @@ export const runBrowserTool = async (name, input = {}) => {
     }
   }
   if (name === 'handle_dialog') {
-    // handle_dialog 需要在页面加载前设置监听，这里返回提示
-    return {ok: false, error: 'handle_dialog 需要在页面加载前设置；对于已有弹窗，请在新页面使用 wait_dialog 或手动处理'};
+    const tab = await getTab(tabId);
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可处理弹窗的普通网页标签'};
+    return handleDialog(tab.id, input);
   }
   if (name === 'see_zoom') {
     const tab = await getTab(tabId);
@@ -1165,7 +1060,15 @@ export const runBrowserTool = async (name, input = {}) => {
     await chrome.tabs.setZoom(tab.id, input.zoom || 1);
     return {ok: true};
   }
-  if (name === 'see_diag') return inspectTab(tabId);
+  if (name === 'see_diag') {
+    const tab = await getTab(tabId);
+    if (!tab?.id) return {ok: false, error: '没有标签'};
+    try {
+      const dialog = await monitorDialogs(tab.id);
+      return {ok: true, tab: tab.id, title: tab.title, url: tab.url, dialog,
+        ...(dialog.status === 'unknown' ? {detail: '未捕获弹窗事件，不能据此断定没有弹窗；若已知有弹窗，可直接调用 handle_dialog。'} : {})};
+    } catch (error) { return {ok: false, tab: tab.id, dialog: dialogState(tab.id), error: String(error)}; }
+  }
   if (name === 'see_console') {
     const tab = await getTab(tabId);
     if (!tab?.id || !tab.url || isBlocked(tab.url)) return {ok: false, error: '没有可读取的普通网页标签'};
@@ -1190,10 +1093,9 @@ export const runBrowserTool = async (name, input = {}) => {
       return {ok: false, tab: tab.id, error: error instanceof Error ? error.message : String(error)};
     }
   }
-  if (name === 'wait_popup') {
+  if (name === 'wait_new_tab') {
     const {timeoutMs} = input;
     const timeout = Math.min(Number(timeoutMs) || 3000, 5000);
-    const before = new Set((await chrome.tabs.query({currentWindow: true})).map((t) => t.id));
     return new Promise((resolve) => {
       const onCreated = (tab) => {
         chrome.tabs.onCreated.removeListener(onCreated);
@@ -1202,7 +1104,7 @@ export const runBrowserTool = async (name, input = {}) => {
       };
       const timer = setTimeout(() => {
         chrome.tabs.onCreated.removeListener(onCreated);
-        resolve({ok: false, error: '超时没有新弹窗'});
+        resolve({ok: false, error: '超时没有新标签'});
       }, timeout);
       chrome.tabs.onCreated.addListener(onCreated);
     });
@@ -1246,55 +1148,10 @@ export const runBrowserTool = async (name, input = {}) => {
       };
     });
   }
-  if (name === 'see_captcha' || name === 'wait_captcha' || name === 'click_captcha' || name === 'solve_captcha') {
-    const inspect = () => runOnTab(tabId, [], () => {
-      const frames = [...document.querySelectorAll('iframe')].map((node) => node.src || '');
-      const type = frames.some((src) => src.includes('challenges.cloudflare.com') || src.includes('turnstile'))
-        ? 'turnstile'
-        : frames.some((src) => src.includes('recaptcha'))
-          ? 'recaptcha'
-          : frames.some((src) => src.includes('hcaptcha'))
-            ? 'hcaptcha'
-            : document.querySelector('[name=cf-turnstile-response],input[name=h-captcha-response],textarea[name=g-recaptcha-response]')
-              ? 'token'
-              : null;
-      return {ok: true, present: Boolean(type), type, ready: Boolean(type)};
-    });
-    if (name === 'wait_captcha') {
-      // 服务端 30s 上限：等待窗口压到 12s。
-      const deadline = Date.now() + Math.min(Number(input.timeoutMs) || 8000, 12000);
-      let last = await inspect();
-      while (!last.present && Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, 400));
-        last = await inspect();
-      }
-      return last.present ? last : {ok: false, error: '没等到验证码', ...last};
-    }
-    const found = await inspect();
-    if (name === 'see_captcha') return found;
-    if (!found.present) {
-      return {
-        ok: false,
-        error: '未识别到 Turnstile/reCAPTCHA/hCaptcha iframe。拼图滑块用 screenshot 后 calibrate_drag；勾选类用 click_captcha',
-        ...found,
-      };
-    }
-    const clicked = await runOnTab(tabId, [], () => {
-      const iframe = [...document.querySelectorAll('iframe')].find((node) => /turnstile|recaptcha|hcaptcha/.test(node.src || ''));
-      if (iframe) {
-        iframe.click();
-        return {ok: true, clicked: true};
-      }
-      const box = document.querySelector('[name=cf-turnstile-response],input[name=h-captcha-response],textarea[name=g-recaptcha-response]')
-        ?.closest('form')
-        ?.querySelector('input[type=checkbox],div[role=checkbox]');
-      if (box) {
-        box.click();
-        return {ok: true, clicked: true};
-      }
-      return {ok: false, error: '验证码 iframe 无法点击，用 screenshot 后 calibrate_drag 或 click_captcha 再试'};
-    });
-    return {...found, ...clicked, type: found.type};
+  if (['see_captcha', 'wait_captcha', 'click_captcha', 'solve_captcha'].includes(name)) {
+    const tab = await getTab(tabId);
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可检查验证码的普通网页标签'};
+    return runCaptchaTool(name, tab.id, input);
   }
   // 设备仿真：模拟移动端视口、UA、触摸
   if (name === 'emulate_device') {
@@ -1448,13 +1305,13 @@ export const runBrowserTool = async (name, input = {}) => {
   // 页面内搜索
   if (name === 'page_find') {
     const {query} = input;
-    if (!query) return {ok: false, error: '需要 query'};
+    if (typeof query !== 'string' || !query.trim()) return {ok: false, error: '需要非空 query'};
     return runOnTab(tabId, [query], (q) => {
       const found = window.find(q);
       const selection = window.getSelection();
-      const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+      const range = found && selection?.rangeCount > 0 ? selection.getRangeAt(0) : null;
       const rect = range ? range.getBoundingClientRect() : null;
-      return {ok: true, found, text: selection.toString(), rect: rect ? {x: rect.x, y: rect.y, w: rect.width, h: rect.height} : null};
+      return {ok: true, found, text: found ? selection?.toString() || '' : '', rect: rect ? {x: rect.x, y: rect.y, w: rect.width, h: rect.height} : null};
     });
   }
   // 长按
@@ -1544,4 +1401,38 @@ export const runBrowserTool = async (name, input = {}) => {
     return {ok: false, error: '需要 action=start|stop|read'};
   }
   return {ok: false, error: `未接执行器 ${name}`};
+};
+
+
+// Always release the serial tool pump. A timed-out operation is not replayed.
+const browserOnly = new Set(['open_tab', 'duplicate_tab', 'bind_tab', 'list_browser_tools', 'list_tabs', 'list_windows', 'see_env', 'close_tab', 'close_window', 'switch_tab', 'move_tab', 'update_tab', 'create_window', 'update_window', 'group_tabs', 'ungroup_tabs', 'list_downloads', 'download', 'export_data', 'control_download', 'wait_download', 'wait_new_tab', 'profile_vault']);
+export const runBrowserTool = async (name, input = {}) => {
+  let timer, unwatch;
+  let expired = false;
+  let targetTab;
+  const blocked = (dialog) => ({ok: false, tab: targetTab, faultCode: 'dialog_open', dialog,
+    error: '原生对话框阻塞页面，请用 handle_dialog 确认或取消。原操作可能在关闭后继续，请先检查结果，勿重复执行。'});
+  try {
+    const deadline = new Promise((resolve) => {
+      timer = setTimeout(() => { expired = true; resolve({ok: false, tab: targetTab, faultCode: 'tool_timeout',
+        dialog: dialogState(targetTab), error: '工具等待超时，操作状态未知，可能仍在执行。请先用 see_diag 检查；如有原生弹窗，用 handle_dialog 处理，勿直接重试原操作。'}); }, 20000);
+    });
+    const operation = async () => {
+      let dialogOpened;
+      if (!browserOnly.has(name) && name !== 'handle_dialog' && name !== 'see_diag' && globalThis.chrome?.debugger?.onEvent) {
+        const tab = await getTab(input.tab ?? input.tabId);
+        if (expired) return {ok: false, faultCode: 'tool_timeout'};
+        targetTab = tab?.id;
+        if (targetTab && !isBlocked(tab.url)) {
+          dialogOpened = new Promise((resolve) => { unwatch = watchDialog(targetTab, (dialog) => resolve(blocked(dialog))); });
+          // Monitoring failure should not disable otherwise usable page tools.
+          await monitorDialogs(targetTab).catch(() => {});
+          if (dialogState(targetTab).status === 'open') return blocked(dialogState(targetTab));
+        }
+      }
+      if (expired) return {ok: false, faultCode: 'tool_timeout'};
+      return dialogOpened ? Promise.race([executeBrowserTool(name, input), dialogOpened]) : executeBrowserTool(name, input);
+    };
+    return await Promise.race([operation(), deadline]);
+  } finally { clearTimeout(timer); unwatch?.(); }
 };

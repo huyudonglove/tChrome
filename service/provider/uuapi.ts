@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { completeResponses } from "./responses.ts";
 import { readImageDataUrl } from "../images/store.ts";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { parseToolArguments } from "../tools/arguments.ts";
@@ -13,6 +14,7 @@ export type ProviderConfig = {
   model?: string;
   reasoningEffort?: "low" | "medium" | "high";
   proxy?: string;
+  api?: "chat" | "responses";
 };
 
 export function resolveProxy(env: Record<string, string | undefined>) {
@@ -91,6 +93,7 @@ export function createProvider(config: ProviderConfig = {}) {
   });
 
   const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: { dataDir: string; conversationId: string }) => {
+    if (config.api === "responses") return completeResponses(client, { model, reasoningEffort, messages, tools, imageContext });
     const outgoing: ChatCompletionMessageParam[] = messages.map(message => {
       if (!message.images?.length) return { role: message.role, content: message.content };
       if (message.role !== "user" || !imageContext) throw new Error("图片请求缺少有效会话上下文");

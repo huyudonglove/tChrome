@@ -2,18 +2,27 @@
   "type": "function",
   "function": {
     "name": "find_on_page",
-    "description": "按文字或选择器查找可点元素。\n参数：text（文本），可选 tab（目标标签编号）。\n返回：ok、elements[{ref,tag,text,href}]。\naffectsPage=false。",
+    "description": "按文本查找可见交互控件，不返回整页正文，也不接受 CSS 选择器。先搜索全部控件，再限制返回数量。\n参数：text 必填，可选 tab、limit（默认40，最多100）。\n返回：ok、title、url、elements[{ref,tag,text,label,...}]、total、truncated。ref 只用于 click/type 等工具，不能作为 page.click 的 id；页面导航或元素移除后失效。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
         "text": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "reason": {
           "type": "string"
         },
         "affectsPage": {
           "type": "boolean"
+        },
+        "tab": {
+          "type": "number"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
         }
       },
       "required": [

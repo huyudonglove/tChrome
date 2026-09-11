@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page_find",
-    "description": "页面内搜索（Ctrl+F）。\n参数：query（搜索词）。\n返回：ok（是否成功）、found（是否找到）、text（返回文本）、rect。\naffectsPage=false。",
+    "description": "使用 window.find 在页面内查找并选中文本，可能滚动页面；不会打开浏览器 Ctrl+F 面板，也不返回可点击元素编号。参数：query 必填，可选 tab。返回：ok、found、text（选中文本）、rect（匹配位置，未找到为null）。affectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -13,12 +13,18 @@
           "type": "string"
         },
         "affectsPage": {
-          "type": "boolean"
+          "type": "boolean",
+          "const": true
+        },
+        "query": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "required": [
         "reason",
-        "affectsPage"
+        "affectsPage",
+        "query"
       ],
       "additionalProperties": true
     }
