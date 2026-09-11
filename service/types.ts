@@ -145,6 +145,7 @@ export type ProviderExchange = {
     toolIds: string[];
   };
   response: {
+    providerCallIds?: Record<string, string>;
     finish: CompletionResult["finish"];
     toolCalls: ToolCall[];
     attempts: number;

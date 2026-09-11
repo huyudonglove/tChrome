@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type { Ledger, LogEvent, ChatMessage, ProviderExchange, Session, Turn } from "../types.ts";
-import { nextId, nowIso } from "./ids.ts";
+import { idPrefix, nextId, nowIso } from "./ids.ts";
 import { abortLocalProcesses } from "../tools/local-process.ts";
 import { localScope } from "../tools/local-tools.ts";
 import { emptySessionView, projectConversationList, projectSessionView } from "../presentation/session-view.ts";
@@ -222,7 +222,7 @@ export function openConversation(dataDir: string, conversationId: string): Sessi
 const allocateConversationId = (dataDir: string): string => {
   const path = join(dataDir, "conversation-id.json");
   const previous = readJson<string | null>(path, null);
-  const conversationId = nextId("cv_", [...listConversationIds(dataDir), ...(previous ? [previous] : [])]);
+  const conversationId = nextId(idPrefix("conversation"), [...listConversationIds(dataDir), ...(previous ? [previous] : [])]);
   writeJson(path, conversationId);
   return conversationId;
 };

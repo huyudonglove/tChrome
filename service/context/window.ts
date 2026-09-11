@@ -35,7 +35,7 @@ export function userText(input: {
     "#conversationHistorySummary": jsonBody(turnSummaryView(input.conversationSummaries)),
     "#goal": jsonBody(goalView(ledger.goal)),
     "#goalHistory": jsonBody(goalHistoryView(ledger.goalHistory)),
-    "#currentPage": turn.assembled.currentPage ? jsonBody(pageView(turn.assembled.currentPage)) : "",
+    "#currentPage": jsonBody(turn.assembled.currentPage ? pageView(turn.assembled.currentPage) : null),
     "#pageObservedHistory": jsonBody((turn.assembled.pageObservedHistory ?? []).map(pageView)),
     "#toolIO": jsonBody(toolHistoryView(ledger.toolIO)),
     "#queryHistory": jsonBody((input.queryHistory ?? []).map(queryView)),

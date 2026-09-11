@@ -62,7 +62,7 @@ execution 专注任务推进；toolProtocol 负责调用、返回和错误处理
 | conversationMemory / projectMemory | memoryId、turnId、sourceCallId、text；长期记忆有来源会话时保留 sourceConversationId |
 | toolIO | callId、turnId、可选 batchId、name、arguments 和解析后的 return |
 | conversationHistorySummary | sumId、turnId、tag、userRequest、actions、result |
-| currentQuery / queryHistory | queryId、发起查询的 turnId、sumId、module、intent、status、records；records 中保留来源 turnId、模块记录 id 和原文 content |
+| currentQuery / queryHistory | queryId、发起查询的 turnId、sumId、module、intent、status、records；records 直接保留原模块记录和身份字段，不包装 id/content |
 
 页面控件引用及工具参数中的业务 ID 继续保留；它们与观察 ID、调用 ID 各自承担不同的定位职责。notes 使用 key 标识条目，工具定义使用工具名，无需新增通用记录 ID。
 

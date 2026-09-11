@@ -32,7 +32,7 @@ memoryId 标识记忆，sourceCallId 指向来源调用，sourceConversationId �
 
 ## queryHistory（可选）
 
-queryId 标识查询，sumId 指向入口摘要；module/intent 表示查询模块和意图，status 是返回状态。records 为命中记录：id 保留原模块记录的标识，content 为原文。缺省或空数组时，我不推断发生过查询。
+queryId 标识查询，sumId 指向入口摘要；module/intent 表示查询模块和意图，status 是返回状态。records 直接保留命中模块的原记录，沿用 callId、memoryId、id 等原有标识和字段。缺省或空数组时，我不推断发生过查询。
 
 我只把影响本轮结果的查询结论合入 result，不复制整段原文。记录中的执行、目标、记忆和摘要属于来源历史，回查不等于本轮重新执行或验证；部分返回不支持推断遗漏内容。来源关联由 Runtime 保留。
 

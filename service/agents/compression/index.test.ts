@@ -1,10 +1,10 @@
 import { afterEach, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import type { Provider } from "../../types.ts";
 import { compressRecords } from "./index.ts";
-import { loadIndex, readSource, resolveSources } from "../../context-archive/store.ts";
+import { archiveDir, loadIndex, readSource, resolveSources } from "../../context-archive/store.ts";
 import type { CompressionTurn } from "./protocol.ts";
 const dirs: string[] = [];
 afterEach(() => dirs.splice(0).forEach(dir => rmSync(dir, { recursive: true, force: true })));
@@ -28,6 +28,7 @@ test("batches turns in one request and preserves independent immutable sources",
   expect(calls).toHaveLength(1);
   expect(calls[0]!.map(turn => turn.turnId)).toEqual(["tn_01", "tn_02"]);
   const first = loadIndex(args.dataDir, args.conversationId, args.module);
+  expect(first.entries.map(record => record.id)).toEqual(["sum_01", "sum_02"]);
   expect(first.entries.map(record => record.sourceIds)).toEqual([["tn_01"], ["tn_02"]]);
   await compressRecords({ ...args, records });
   expect(calls).toHaveLength(1);
@@ -77,4 +78,19 @@ test("rollup has no independent threshold and explicit pass keeps turns separate
   expect(next.entries.map(record => record.level)).toEqual([1, 1, 2, 2]);
   expect(next.entries.slice(2).map(record => record.sourceIds)).toEqual(before.entries.map(record => [record.id]));
   expect(resolveSources(args.dataDir, args.conversationId, args.module, next.activeIds).map(record => record.id)).toEqual(["tn_01", "tn_02"]);
+});
+
+test("failed index commit never reuses an orphan summary ID on retry", async () => {
+  const args = setup(model());
+  const root = archiveDir(args.dataDir, args.conversationId, args.module);
+  const indexPath = resolve(root, "index.json");
+  const records = [source("tn_01")];
+  await expect(compressRecords({ ...args, records, provider: model(() => mkdirSync(indexPath, { recursive: true })) })).rejects.toThrow();
+  expect(existsSync(resolve(root, "records", "sum_01.json"))).toBe(true);
+  rmSync(indexPath, { recursive: true });
+  expect(loadIndex(args.dataDir, args.conversationId, args.module).entries).toEqual([]);
+  await compressRecords({ ...args, records });
+  const index = loadIndex(args.dataDir, args.conversationId, args.module);
+  expect(index.activeIds).toEqual(["sum_02"]);
+  expect(resolveSources(args.dataDir, args.conversationId, args.module, index.activeIds)).toEqual(records);
 });

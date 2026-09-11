@@ -1,6 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { saveContextRecord } from "./records.ts";
-import { inputRecord } from "./ids.ts";
+import { allocateRecordId, idPrefix, inputRecord } from "./ids.ts";
 import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
 import { projectMemories } from "../memory/window.ts";
@@ -110,7 +109,7 @@ const validateCompletion = (
   };
 };
 
-const writeFault = (ledger: Ledger, turnId: string, result: CompletionResult) => {
+const writeFault = (dataDir: string, ledger: Ledger, turnId: string, result: CompletionResult) => {
   const name = result.badName || result.toolCalls.at(-1)?.name || "unknown";
   const call = result.toolCalls.find((row) => row.name === name) ?? result.toolCalls.at(-1);
   const text = JSON.stringify({
@@ -121,7 +120,7 @@ const writeFault = (ledger: Ledger, turnId: string, result: CompletionResult) =>
     detail: result.detail ?? "",
   });
   ledger.toolIO.push({
-    callId: call?.id ?? "call_fault",
+    callId: call?.id ?? allocateRecordId(dataDir, ledger.conversationId, "call"),
     name,
     turnId,
     arguments: call?.arguments ?? {},
@@ -213,14 +212,14 @@ export async function handleTurn(
   const contextModules = loadContextModules(deps.repoRoot);
   const skillText = loadSkills(deps.repoRoot);
   const toolRegistry = loadToolRegistry(deps.repoRoot);
-  const turnId = nextId("tn_", ledger.turnIds);
+  const turnId = nextId(idPrefix("turn"), ledger.turnIds);
   const turn: Turn = {
     turnId,
     conversationId: ledger.conversationId,
     status: "assembling",
     createdAt: nowIso(),
     completedAt: null,
-    input: { id: `input_${randomUUID()}`, text: body.userInput, submittedAt: body.submittedAt },
+    input: { id: allocateRecordId(deps.dataDir, ledger.conversationId, "input"), text: body.userInput, submittedAt: body.submittedAt },
     assembled: assemble(toolRegistry),
     output: null,
     usage: { modelRequests: 0, toolCalls: 0 },
@@ -308,12 +307,29 @@ export async function handleTurn(
       turnId,
       data: { windowChars: ledger.windowChars, toolIds: [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds], usage: { ...turn.usage } },
     });
-    const rawResult = await deps.provider.complete({
+    const providerResult = await deps.provider.complete({
       messages,
       tools,
       imageContext: { dataDir: deps.dataDir, conversationId: ledger.conversationId },
     });
     if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
+    const providerCallIds: Record<string, string> = {};
+    const byProviderId = new Map<string, string>();
+    const localCallId = (providerId: string) => {
+      let id = byProviderId.get(providerId);
+      if (!id) {
+        id = allocateRecordId(deps.dataDir, ledger.conversationId, "call");
+        byProviderId.set(providerId, id);
+        providerCallIds[id] = providerId;
+      }
+      return id;
+    };
+    const rawResult = { ...providerResult,
+      toolCalls: providerResult.toolCalls.map(call => ({ ...call, id: localCallId(call.id) })),
+      ...(providerResult.toolCallFaults ? { toolCallFaults: providerResult.toolCallFaults.map(fault => ({ ...fault, callId: localCallId(fault.callId) })) } : {}),
+    };
+    const batchId = rawResult.toolCalls.length || rawResult.toolCallFaults?.length
+      ? allocateRecordId(deps.dataDir, ledger.conversationId, "batch") : undefined;
     const { result, batch: batchCheck, checks, validCalls } = validateCompletion(
       rawResult, tools, turn.assembled.baseToolsIds, turn.assembled.toolIds,
     );
@@ -324,6 +340,7 @@ export async function handleTurn(
       content: result.content,
       request: { toolIds },
       response: {
+        providerCallIds,
         finish: result.finish,
         toolCalls: result.toolCalls,
         attempts: result.attempts,
@@ -370,7 +387,7 @@ export async function handleTurn(
       submitFails += 1;
       if (result.toolCallFaults?.length) {
         for (const fault of result.toolCallFaults) {
-          writeFault(ledger, turnId, {
+          writeFault(deps.dataDir, ledger, turnId, {
             ...result,
             badName: fault.name,
             detail: fault.detail,
@@ -378,20 +395,20 @@ export async function handleTurn(
           });
         }
       } else {
-        writeFault(ledger, turnId, result);
+        writeFault(deps.dataDir, ledger, turnId, result);
       }
       for (const { call, check } of checks) {
         if (batchCheck.faultCode === "exclusive_resident") break;
         if (!check.schemaOk && (result.toolCallFaults?.length || call.name !== result.badName)) {
-          writeFault(ledger, turnId, { ...result, ...check, toolCalls: [call] });
+          writeFault(deps.dataDir, ledger, turnId, { ...result, ...check, toolCalls: [call] });
         }
       }
       if (!result.parseOk && batchCheck.faultCode === "exclusive_resident") {
-        writeFault(ledger, turnId, { ...result, ...batchCheck });
+        writeFault(deps.dataDir, ledger, turnId, { ...result, ...batchCheck });
       }
       if (validCalls.length) {
         ledger.toolQueue = validCalls.map((call) => ({
-          batchId: `${turnId}_${turn.usage!.modelRequests}`,
+          batchId,
           callId: call.id,
           name: call.name,
           arguments: call.arguments,
@@ -441,7 +458,7 @@ export async function handleTurn(
     if (result.finish === "stop" && result.toolCalls.length === 0) {
       submitFails += 1;
       ledger.toolIO.push({
-        callId: "call_fault",
+        callId: allocateRecordId(deps.dataDir, ledger.conversationId, "call"),
         name: "finishTurn",
         turnId,
         arguments: {},
@@ -468,7 +485,7 @@ export async function handleTurn(
       continue;
     }
     ledger.toolQueue = result.toolCalls.map((call) => ({
-      batchId: `${turnId}_${turn.usage!.modelRequests}`,
+      batchId,
       callId: call.id,
       name: call.name,
       arguments: call.arguments,

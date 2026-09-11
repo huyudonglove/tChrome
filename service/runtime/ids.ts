@@ -1,4 +1,27 @@
 import type { Turn, UserInputRecord } from "../types.ts";
+import { mkdirSync, readFileSync, writeFileSync, renameSync } from "node:fs";
+import { join } from "node:path";
+import { catalog, idPrefix, type IdentityKind } from "../identity/catalog.ts";
+export { idPrefix } from "../identity/catalog.ts";
+
+/** Reserve before publishing records; failed operations may leave gaps, never reused IDs. */
+export function allocateRecordId(dataDir: string, conversationId: string, kind: IdentityKind): string {
+  if (catalog[kind].allocation !== "counter") throw new Error(`ID kind ${kind} uses its existing record index`);
+  if (!/^[A-Za-z0-9_-]+$/.test(conversationId)) throw new Error("Invalid conversation ID");
+  const dir = join(dataDir, "conversations", conversationId);
+  const path = join(dir, "id-counters.json");
+  mkdirSync(dir, { recursive: true });
+  let counters: Record<string, number> = {};
+  try { counters = JSON.parse(readFileSync(path, "utf8")); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  const previous = counters[kind] ?? 0;
+  if (!Number.isSafeInteger(previous) || previous < 0 || previous >= Number.MAX_SAFE_INTEGER) throw new Error("Invalid ID counter");
+  const next = previous + 1;
+  counters[kind] = next;
+  writeFileSync(`${path}.tmp`, JSON.stringify(counters));
+  renameSync(`${path}.tmp`, path);
+  return `${idPrefix(kind)}${String(next).padStart(2, "0")}`;
+}
 export function nowIso(): string {
   return new Date().toISOString();
 }

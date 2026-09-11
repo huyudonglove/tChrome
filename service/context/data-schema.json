@@ -1,0 +1,510 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "User 模块数据契约",
+  "description": "模型窗口各插槽的逻辑值。文本槽保持字符串，其余槽取 JSON 解析后的值；不含 # 标签。ID 前缀与分配范围由 service/identity/catalog.json 定义。",
+  "type": "object",
+  "properties": {
+    "skill": {
+      "type": "string"
+    },
+    "userInput": {
+      "$ref": "#/$defs/input"
+    },
+    "conversationHistorySummary": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/summary"
+      }
+    },
+    "userInputHistory": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/input"
+      }
+    },
+    "goal": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/goal"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "goalHistory": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/goal"
+      }
+    },
+    "currentPage": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/page"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "pageObservedHistory": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/pageObservation"
+      }
+    },
+    "projectMemory": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/projectMemory"
+      }
+    },
+    "conversationMemory": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/conversationMemory"
+      }
+    },
+    "notes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "toolIO": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/tool"
+      }
+    },
+    "queryHistory": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/query"
+      }
+    },
+    "currentQuery": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/query"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "tools": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "skill",
+    "userInput",
+    "conversationHistorySummary",
+    "userInputHistory",
+    "goal",
+    "goalHistory",
+    "currentPage",
+    "pageObservedHistory",
+    "projectMemory",
+    "conversationMemory",
+    "notes",
+    "toolIO",
+    "queryHistory",
+    "currentQuery",
+    "tools"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "conversationId": {
+      "$ref": "tchrome:identity#/$defs/conversation"
+    },
+    "turnId": {
+      "$ref": "tchrome:identity#/$defs/turn"
+    },
+    "inputId": {
+      "$ref": "tchrome:identity#/$defs/input"
+    },
+    "goalId": {
+      "$ref": "tchrome:identity#/$defs/goal"
+    },
+    "pageId": {
+      "$ref": "tchrome:identity#/$defs/page"
+    },
+    "callId": {
+      "$ref": "tchrome:identity#/$defs/call"
+    },
+    "batchId": {
+      "$ref": "tchrome:identity#/$defs/batch"
+    },
+    "conversationMemoryId": {
+      "$ref": "tchrome:identity#/$defs/conversationMemory"
+    },
+    "projectMemoryId": {
+      "$ref": "tchrome:identity#/$defs/projectMemory"
+    },
+    "sumId": {
+      "$ref": "tchrome:identity#/$defs/sum"
+    },
+    "queryId": {
+      "$ref": "tchrome:identity#/$defs/query"
+    },
+    "input": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/inputId"
+        },
+        "turnId": {
+          "$ref": "#/$defs/turnId"
+        },
+        "userInput": {
+          "type": "string"
+        },
+        "submittedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "turnId",
+        "userInput"
+      ],
+      "additionalProperties": false
+    },
+    "goal": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/goalId"
+        },
+        "turnId": {
+          "$ref": "#/$defs/turnId"
+        },
+        "sourceCallId": {
+          "$ref": "#/$defs/callId"
+        },
+        "goal": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "turnId",
+        "goal"
+      ],
+      "additionalProperties": false
+    },
+    "page": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/pageId"
+        },
+        "turnId": {
+          "$ref": "#/$defs/turnId"
+        },
+        "callId": {
+          "$ref": "#/$defs/callId"
+        },
+        "tab": {
+          "type": "integer"
+        },
+        "url": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "observedAt": {
+          "type": "string"
+        },
+        "toolName": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "tab",
+        "url",
+        "title",
+        "description"
+      ],
+      "additionalProperties": false
+    },
+    "pageObservation": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/page"
+        },
+        {
+          "required": [
+            "id",
+            "turnId",
+            "callId"
+          ]
+        }
+      ]
+    },
+    "memory": {
+      "type": "object",
+      "properties": {
+        "memoryId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/conversationMemoryId"
+            },
+            {
+              "$ref": "#/$defs/projectMemoryId"
+            }
+          ]
+        },
+        "turnId": {
+          "$ref": "#/$defs/turnId"
+        },
+        "sourceCallId": {
+          "$ref": "#/$defs/callId"
+        },
+        "sourceConversationId": {
+          "$ref": "#/$defs/conversationId"
+        },
+        "text": {
+          "type": "string"
+        },
+        "layer": {
+          "enum": [
+            "conversation",
+            "project"
+          ]
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "memoryId",
+        "turnId",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "projectMemory": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/memory"
+        },
+        {
+          "properties": {
+            "memoryId": {
+              "$ref": "#/$defs/projectMemoryId"
+            }
+          }
+        }
+      ]
+    },
+    "conversationMemory": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/memory"
+        },
+        {
+          "properties": {
+            "memoryId": {
+              "$ref": "#/$defs/conversationMemoryId"
+            }
+          }
+        }
+      ]
+    },
+    "toolReturn": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "stage": {
+              "enum": [
+                "complete",
+                "truncated"
+              ]
+            },
+            "result": {}
+          },
+          "required": [
+            "stage",
+            "result"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "stage": {
+              "enum": [
+                "complete",
+                "truncated"
+              ]
+            },
+            "totalChars": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "stage",
+            "totalChars",
+            "text"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "tool": {
+      "type": "object",
+      "properties": {
+        "callId": {
+          "$ref": "#/$defs/callId"
+        },
+        "turnId": {
+          "$ref": "#/$defs/turnId"
+        },
+        "batchId": {
+          "$ref": "#/$defs/batchId"
+        },
+        "name": {
+          "type": "string"
+        },
+        "arguments": {
+          "type": "object"
+        },
+        "return": {
+          "$ref": "#/$defs/toolReturn"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "required": [
+        "callId",
+        "turnId",
+        "name",
+        "arguments",
+        "return"
+      ],
+      "additionalProperties": false
+    },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "sumId": {
+          "$ref": "#/$defs/sumId"
+        },
+        "turnId": {
+          "$ref": "#/$defs/turnId"
+        },
+        "tag": {
+          "type": "string"
+        },
+        "userRequest": {
+          "type": "string"
+        },
+        "actions": {
+          "type": "string"
+        },
+        "result": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "sumId",
+        "turnId",
+        "tag",
+        "userRequest",
+        "actions",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "queryRecord": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/input"
+        },
+        {
+          "$ref": "#/$defs/goal"
+        },
+        {
+          "$ref": "#/$defs/pageObservation"
+        },
+        {
+          "$ref": "#/$defs/memory"
+        },
+        {
+          "$ref": "#/$defs/tool"
+        },
+        {
+          "$ref": "#/$defs/summary"
+        },
+        {
+          "$ref": "#/$defs/query"
+        }
+      ]
+    },
+    "query": {
+      "type": "object",
+      "properties": {
+        "queryId": {
+          "$ref": "#/$defs/queryId"
+        },
+        "turnId": {
+          "$ref": "#/$defs/turnId"
+        },
+        "sumId": {
+          "$ref": "#/$defs/sumId"
+        },
+        "module": {
+          "type": "string",
+          "minLength": 1
+        },
+        "intent": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "complete",
+            "partial",
+            "not_found",
+            "error"
+          ]
+        },
+        "records": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/queryRecord"
+          }
+        }
+      },
+      "required": [
+        "queryId",
+        "turnId",
+        "sumId",
+        "module",
+        "intent",
+        "status",
+        "records"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -71,7 +71,7 @@ conversations/<cvId>/returns/<callId>.txt
 
 JSON 快照覆盖写。流水只追加，不改已经写下的行。
 
-前缀：`cv_` 会话 · `tn_` 回合 · `mm_` 记忆 · `cmp_` 压缩记录 · `call_` 工具调用。
+记录 ID 规则统一见 `service/identity/catalog.json`；System 编号说明和 User 数据校验从同一清单读取。模块 JSON 契约见 `service/context/data-schema.json`，字段速查见 `service/context/DATA.md`。
 
 ## events.jsonl
 
@@ -154,7 +154,7 @@ Runtime 独占维护。当前会话指针。
 | `status` | string | `assembling` → `inferring` → `completed` / `waiting_human` / `failed`。工具循环时停在 `inferring` |
 | `createdAt` | string | ISO-8601 |
 | `completedAt` | string \| null | 收口时写；进行中 `null` |
-| `input.id` | string | 创建输入时生成并持久保存的 `input_<UUID>`；不从 turnId 推导，后续渲染和进入历史沿用此 ID |
+| `input.id` | string | 创建输入时生成并持久保存的 `input_01`；不从 turnId 推导，后续渲染和进入历史沿用此 ID |
 | `input.text` | string | 本轮用户原话。用户下一条输入才开新 Turn |
 | `input.submittedAt` | string | 面板提交时间，ISO-8601 |
 | `assembled` | object | 这一轮点名的 catalog IDs + 当前页，见「assembled」 |
@@ -211,7 +211,7 @@ Memory 投影保持全部可见原文。会话记忆根据来源 turnId 随轮�
 
 用户输入、目标版本、页面观察在创建时以稳定 ID 写入本会话独立记录，kind 为 userInput、goal、pageObservation。窗口变化和压缩不修改原始记录。ID 用于内部关联，不要求主 Agent 操作 ID。
 
-- 用户输入：`{id: "input_<UUID>", turnId, userInput, submittedAt}`，当前 `#userInput` 和对应历史项共用 ID。
+- 用户输入：`{id: "input_01", turnId, userInput, submittedAt}`，当前 `#userInput` 和对应历史项共用 ID。
 - 目标版本：`{id, turnId, goal, sourceCallId, createdAt}`，每次目标文字变化建立新版本。
 - 页面观察：`{id, turnId, tab, url, title, description, observedAt, callId, toolName}`，当前页和对应历史项共用观察 ID。
 - 记忆继续使用 memory 文件及 memoryId，注入模型时仅显示原文。

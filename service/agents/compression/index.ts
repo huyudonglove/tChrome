@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { allocateRecordId } from "../../runtime/ids.ts";
 import type { Provider } from "../../types.ts";
 import { requestTurnSummaries, type CompressionTurn, type TurnSummary } from "./protocol.ts";
 import { commitArchive, loadIndex } from "../../context-archive/store.ts";
@@ -81,7 +81,7 @@ async function compress(input: Input): Promise<void> {
     return output;
   };
   const append = (summary: TurnSummary, level: number, sourceIds: string[]) => {
-    const record: CompressionRecord = { id: `cmp_${randomUUID().replaceAll("-", "")}`, module: input.module, level, ...summary, sourceIds, createdAt: new Date().toISOString() };
+    const record: CompressionRecord = { id: allocateRecordId(input.dataDir, input.conversationId, "sum"), module: input.module, level, ...summary, sourceIds, createdAt: new Date().toISOString() };
     index.entries.push(record); added.push(record); return record;
   };
   const groups = new Map<string, SourceRecord[]>();

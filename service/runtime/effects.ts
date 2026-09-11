@@ -1,9 +1,8 @@
-import { randomUUID } from "node:crypto";
 import { saveContextRecord } from "./records.ts";
 import { loadMemories, saveMemory } from "../memory/store.ts";
 import type { Ledger, MemoryRecord, ToolQueueItem, Turn, TurnOutput } from "../types.ts";
 import type { ToolEffect } from "../tools/effects.ts";
-import { nextId, nowIso } from "./ids.ts";
+import { allocateRecordId, idPrefix, nextId, nowIso } from "./ids.ts";
 import { appendEvent, saveLedger, saveTurn } from "./store.ts";
 
 export function applyToolEffects(input: {
@@ -19,7 +18,7 @@ export function applyToolEffects(input: {
     switch (effect.type) {
       case "goal.set":
         if (effect.goal !== ledger.goal?.goal) {
-          const record = { id: `goal_${randomUUID()}`, turnId: turn.turnId, goal: effect.goal, sourceCallId: call.callId, createdAt: nowIso() };
+          const record = { id: allocateRecordId(dataDir, ledger.conversationId, "goal"), turnId: turn.turnId, goal: effect.goal, sourceCallId: call.callId, createdAt: nowIso() };
           saveContextRecord(dataDir, ledger.conversationId, "goal", record);
           if (ledger.goal) ledger.goalHistory.push(ledger.goal);
           ledger.goal = record;
@@ -29,7 +28,7 @@ export function applyToolEffects(input: {
       case "note.delete": delete ledger.notes[effect.key]; break;
       case "memory.append":
         for (const { layer, text } of effect.entries) {
-          const memoryId = layer === "project" ? nextId("lm_", loadMemories(dataDir, ledger.conversationId, ledger.memoryIds).project.map(item => item.memoryId)) : nextId("mm_", Object.values(ledger.memoryIds).flat());
+          const memoryId = layer === "project" ? nextId(idPrefix("projectMemory"), loadMemories(dataDir, ledger.conversationId, ledger.memoryIds).project.map(item => item.memoryId)) : nextId(idPrefix("conversationMemory"), Object.values(ledger.memoryIds).flat());
           const record: MemoryRecord = {
             memoryId, turnId: turn.turnId, layer, text,
             createdAt: nowIso(), sourceCallId: call.callId,
@@ -46,7 +45,7 @@ export function applyToolEffects(input: {
         turn.assembled.toolIds = [...new Set([...turn.assembled.toolIds, ...effect.names])];
         break;
       case "page.set": {
-        const record = { ...effect.page, id: `page_${randomUUID()}`, turnId: turn.turnId, observedAt: nowIso(), callId: call.callId, toolName: call.name };
+        const record = { ...effect.page, id: allocateRecordId(dataDir, ledger.conversationId, "page"), turnId: turn.turnId, observedAt: nowIso(), callId: call.callId, toolName: call.name };
         saveContextRecord(dataDir, ledger.conversationId, "pageObservation", record);
         turn.assembled.currentPage = record;
         turn.assembled.pageObservedHistory.push(record);

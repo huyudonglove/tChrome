@@ -1,3 +1,4 @@
+import { identityRulesText } from "../identity/catalog.ts";
 import { afterEach, expect, test } from "bun:test";
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -181,7 +182,7 @@ test("system modules combine capability and rules once, including literal dynami
   const system = systemText(modules, usage, "2026-09-06");
   for (const tag of modules.systemOrder) {
     const module = modules.systemSlots[tag]!;
-    const text = module.body.replace("{{data}}", () => usage).trimEnd();
+    const text = module.body.replace("{{data}}", () => tag === "#recordIdentity" ? identityRulesText() : usage).trimEnd();
     expect(system.split(`${tag} --${module.capability}\n${text}`)).toHaveLength(2);
   }
   expect(system.split(usage)).toHaveLength(2);

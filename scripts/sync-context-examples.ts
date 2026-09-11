@@ -27,7 +27,7 @@ for (const file of readdirSync(join(root, "docs/examples")).filter(f => /^0[1-8]
   let text = readFileSync(path, "utf8");
   if (/^0[34]-/.test(file)) {
     const snapshot = JSON.parse(text.match(/^```json\n([\s\S]*?)^```/m)![1]!);
-    const turn = { turnId: snapshot.turnId, input: { id: `input_${snapshot.turnId}`, text: snapshot.userInput, submittedAt: snapshot.submittedAt }, assembled: snapshot } as Turn;
+    const turn = { turnId: snapshot.turnId, input: { id: `input_${snapshot.turnId.slice(3)}`, text: snapshot.userInput, submittedAt: snapshot.submittedAt }, assembled: snapshot } as Turn;
     const ledger = emptyLedger(snapshot.conversationId);
     ledger.userInputHistory = snapshot.userInputHistory;
     const user = userText({ contextModules: c, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: loadSkills(root), toolUsage: toolUsageFor(registry, snapshot.toolIds) });

@@ -1,0 +1,79 @@
+{
+  "conversation": {
+    "field": "conversationId",
+    "prefix": "cv",
+    "scope": "service",
+    "allocation": "existing",
+    "description": "会话"
+  },
+  "turn": {
+    "field": "turnId",
+    "prefix": "tn",
+    "scope": "conversation",
+    "allocation": "existing",
+    "description": "用户输入开启的轮次"
+  },
+  "input": {
+    "field": "id",
+    "prefix": "input",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "用户输入记录"
+  },
+  "goal": {
+    "field": "id",
+    "prefix": "goal",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "目标版本"
+  },
+  "page": {
+    "field": "id",
+    "prefix": "page",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "页面观察"
+  },
+  "call": {
+    "field": "callId",
+    "prefix": "call",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "工具调用；sourceCallId 引用此 ID"
+  },
+  "batch": {
+    "field": "batchId",
+    "prefix": "batch",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "一次模型返回的调用批次"
+  },
+  "conversationMemory": {
+    "field": "memoryId",
+    "prefix": "mm",
+    "scope": "conversation",
+    "allocation": "existing",
+    "description": "会话记忆"
+  },
+  "projectMemory": {
+    "field": "memoryId",
+    "prefix": "lm",
+    "scope": "service",
+    "allocation": "existing",
+    "description": "共享长期记忆"
+  },
+  "sum": {
+    "field": "sumId",
+    "prefix": "sum",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "压缩摘要（归档文件字段为 id）"
+  },
+  "query": {
+    "field": "queryId",
+    "prefix": "query",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "查询记录"
+  }
+}
