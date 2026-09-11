@@ -1,4 +1,5 @@
 import { loadMemories } from "../memory/store.ts";
+import { storeToolImages } from "../images/tool-result.ts";
 import { projectMemories } from "../memory/window.ts";
 import runtimeMessages from "./messages.json";
 import { FULL_RETURN_TOOLS } from "../tools/records.ts";
@@ -22,7 +23,7 @@ import type {
 } from "../types.ts";
 import { checkToolCalls } from "../tools/schema.ts";
 import { archiveToolHistory } from "./compress.ts";
-import { nextId, nowIso } from "./ids.ts";
+import { nextId, nowIso, pacificDate } from "./ids.ts";
 import {
   ensureSession,
   loadLedger,
@@ -76,11 +77,12 @@ const assemble = (toolRegistry: ToolRegistry): Assembled => ({
 });
 
 const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, compactMemory = false): ChatMessage[] => [
-  { role: "system", content: systemText(contextModules, toolUsageFor(toolRegistry, turn.assembled.baseToolsIds)) },
+  { role: "system", content: systemText(contextModules, toolUsageFor(toolRegistry, turn.assembled.baseToolsIds), pacificDate()) },
   { role: "user", content: userText({
     contextModules, ledger, turn, memories: projectMemories(memories, compactMemory), skillText,
     toolUsage: toolUsageFor(toolRegistry, turn.assembled.toolIds),
-  }) },
+  }), images: [...new Map(ledger.toolIO.filter(item => item.turnId === turn.turnId)
+    .flatMap(item => item.images ?? []).reverse().map(image => [image.id, image])).values()].slice(0, 4).reverse() },
 ];
 
 // Every provider result crosses the same policy boundary before execution.
@@ -168,11 +170,13 @@ const runQueue = async (input: {
     if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
       return { kind: "error", faultCode: "stopped" };
     }
-    const full = execution.text;
+    const stored = storeToolImages(dataDir, ledger.conversationId, execution.text);
+    const full = stored.text;
     saveFullReturn(dataDir, ledger.conversationId, item.callId, full);
     const row: ToolIOItem = {
       ...item,
       turnId: turn.turnId,
+      ...(stored.images.length ? { images: stored.images } : {}),
       return: FULL_RETURN_TOOLS.includes(item.name)
         ? { stage: "complete", totalChars: full.length, text: full }
         : clipReturn(full),
@@ -181,7 +185,7 @@ const runQueue = async (input: {
     appendEvent(dataDir, ledger.conversationId, {
       kind: "tool",
       turnId: turn.turnId,
-      data: { callId: item.callId, name: item.name, arguments: item.arguments, return: row.return },
+      data: { callId: item.callId, name: item.name, arguments: item.arguments, return: row.return, ...(row.images ? { images: row.images } : {}) },
     });
     const output = applyToolEffects({ dataDir, ledger, turn, call: item, effects: execution.effects });
     if (output) return output;
@@ -277,6 +281,7 @@ export async function handleTurn(
     const rawResult = await deps.provider.complete({
       messages,
       tools,
+      imageContext: { dataDir: deps.dataDir, conversationId: ledger.conversationId },
     });
     if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
     const { result, batch: batchCheck, checks, validCalls } = validateCompletion(

@@ -1,10 +1,10 @@
 import type { Ledger, Turn } from "../types.ts";
-import { renderInventory, renderSlots, type ContextModules } from "./modules.ts";
+import { interpolate, renderInventory, renderSlots, type ContextModules } from "./modules.ts";
 
 const jsonBody = (value: unknown) => JSON.stringify(value, null, 2);
 
-export function systemText(contextModules: ContextModules, baseToolUsage: string): string {
-  return [contextModules.overview, renderInventory("System", contextModules.systemOrder, contextModules.systemSlots, {
+export function systemText(contextModules: ContextModules, baseToolUsage: string, currentDate: string): string {
+  return [interpolate(contextModules.overview, { currentDate }), renderInventory("System", contextModules.systemOrder, contextModules.systemSlots, {
     "#baseTools": baseToolUsage,
   }), contextModules.userInventory].join("\n\n");
 }

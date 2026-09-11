@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "screenshot_one",
-    "description": "元素截图。\n参数：ref（元素选择器）、可选 tab（目标标签编号）。\n返回：ok（是否成功）、image（图像内容）、mime（图像格式）、element_rect。\naffectsPage=false。",
+    "description": "元素截图。\n参数：ref（元素选择器）、可选 tab（目标标签编号）。\n返回：ok（是否成功）、image（本地图片引用：id、相对路径path、mimeType、width、height、bytes）、mime（图像格式）、element_rect。\naffectsPage=false。\n图片独立保存，下一次模型请求会附带本轮未归档记录中最近最多4张图片的实际内容供观察；工具记录只含引用，不含Base64。",
     "parameters": {
       "type": "object",
       "properties": {

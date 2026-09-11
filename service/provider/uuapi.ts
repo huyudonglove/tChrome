@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { readImageDataUrl } from "../images/store.ts";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { parseToolArguments } from "../tools/arguments.ts";
 import type { ChatMessage, ChatTool, CompletionResult, ToolCall, ToolCallFault } from "../types.ts";
@@ -89,12 +90,23 @@ export function createProvider(config: ProviderConfig = {}) {
       : {}),
   });
 
-  const once = async (messages: ChatMessage[], tools: ChatTool[]) => {
+  const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: { dataDir: string; conversationId: string }) => {
+    const outgoing: ChatCompletionMessageParam[] = messages.map(message => {
+      if (!message.images?.length) return { role: message.role, content: message.content };
+      if (message.role !== "user" || !imageContext) throw new Error("图片请求缺少有效会话上下文");
+      return { role: "user", content: [
+        { type: "text", text: message.content },
+        ...message.images.flatMap(image => [
+          { type: "text" as const, text: `附图：${image.path}（${image.width}×${image.height}）` },
+          { type: "image_url" as const, image_url: { url: readImageDataUrl(imageContext.dataDir, imageContext.conversationId, image) } },
+        ]),
+      ] };
+    });
     const response = await client.chat.completions.create({
       model,
       reasoning_effort: reasoningEffort,
       stream: false,
-      messages: messages as ChatCompletionMessageParam[],
+      messages: outgoing,
       tools,
     });
     const choice = response.choices[0];
@@ -110,13 +122,14 @@ export function createProvider(config: ProviderConfig = {}) {
     complete: async (input: {
       messages: ChatMessage[];
       tools: ChatTool[];
+      imageContext?: { dataDir: string; conversationId: string };
     }): Promise<CompletionResult> => {
       let lastError: unknown;
       let attempts = 0;
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         attempts = attempt;
         try {
-          const { content, calls, finish } = await once(input.messages, input.tools);
+          const { content, calls, finish } = await once(input.messages, input.tools, input.imageContext);
           const parsed = parseCalls(calls);
           if (!parsed.parseOk) {
             return {

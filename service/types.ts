@@ -1,4 +1,5 @@
 export type { MemoryLayer, MemoryRecord } from "./memory/types.ts";
+import type { ImageReference } from "./images/store.ts";
 export type LedgerStatus = "idle" | "running" | "waiting_human" | "paused" | "failed";
 export type TurnStatus = "assembling" | "inferring" | "completed" | "waiting_human" | "failed";
 
@@ -73,6 +74,7 @@ export type ToolQueueItem = {
 export type ToolIOItem = ToolQueueItem & {
   turnId: string;
   return: ToolReturn;
+  images?: ImageReference[];
 };
 
 export type ObservationItem = {
@@ -143,6 +145,7 @@ export type CompletionResult = {
 export type ChatMessage = {
   role: "system" | "user";
   content: string;
+  images?: ImageReference[];
 };
 
 export type ProviderExchange = {
@@ -178,6 +181,7 @@ export type Provider = {
   complete(input: {
     messages: ChatMessage[];
     tools: ChatTool[];
+    imageContext?: { dataDir: string; conversationId: string };
   }): Promise<CompletionResult>;
 };
 

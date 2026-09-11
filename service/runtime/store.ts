@@ -174,6 +174,7 @@ const renderProviderExchange = (row: ProviderExchange, messages: ChatMessage[], 
     "",
     fence("system", messages.find((item) => item.role === "system")?.content ?? ""),
     fence("user", messages.find((item) => item.role === "user")?.content ?? ""),
+    ...(messages.some(item => item.images?.length) ? [fence("images", JSON.stringify(messages.flatMap(item => item.images ?? []), null, 2))] : []),
     fence("content", content),
     fence("tool_calls", calls),
   ].join("\n");

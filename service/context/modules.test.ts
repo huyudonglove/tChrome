@@ -36,8 +36,8 @@ test("reordering only inventories changes both navigations and corresponding bod
   const reordered = loadContextModules(dir);
   expect(reordered.systemOrder).toEqual([...original.systemOrder].reverse());
   expect(reordered.userOrder).toEqual([...original.userOrder].reverse());
-  const system = systemText(reordered, "");
-  expect(system).toBe(`${reordered.overview}\n\n${reordered.systemInventory}\n\n${reordered.userInventory}`);
+  const system = systemText(reordered, "", "2026-09-06");
+  expect(system).toBe(`${reordered.overview.replace("{{currentDate}}", "2026-09-06")}\n\n${reordered.systemInventory}\n\n${reordered.userInventory}`);
   expect(navigationTags(system)).toEqual([...reordered.systemOrder, ...reordered.userOrder]);
   expect(headings(system)).toEqual([]);
   expect(headings(renderSlots(reordered.userOrder, reordered.userSlots, {}))).toEqual(reordered.userOrder);
@@ -122,7 +122,7 @@ test("generated examples use the current navigation, body order and tool schemas
     };
     for (const fence of text.matchAll(/^```json\n([\s\S]*?)^```/gm)) visit(JSON.parse(fence[1]!));
     if (file.startsWith("03-") || file.startsWith("04-")) {
-      expect(text).toContain(`\`\`\`\n${systemText(modules, toolUsageFor(registry, registry.toolGroups.baseToolsIds))}\n\`\`\``);
+      expect(text).toContain(`\`\`\`\n${systemText(modules, toolUsageFor(registry, registry.toolGroups.baseToolsIds), "2026-09-06")}\n\`\`\``);
       const renderedUser = text.match(/^```\n(#skill\n[\s\S]*?)^```/m)?.[1];
       expect(headings(renderedUser ?? "")).toEqual(modules.userOrder);
       expect(renderedUser).not.toMatch(/^能力：|^详细描述：/m);
@@ -165,7 +165,7 @@ test("user input history is an array preserving message boundaries and multiline
 
 test("user descriptions appear only in system navigation while user bodies contain data", () => {
   const modules = loadContextModules(root);
-  const system = systemText(modules, "");
+  const system = systemText(modules, "", "2026-09-06");
   const data = Object.fromEntries(modules.userOrder.map(tag => [tag, `VALUE_${tag}`]));
   const user = renderSlots(modules.userOrder, modules.userSlots, data);
   for (const tag of modules.userOrder) {
@@ -183,7 +183,7 @@ test("skill navigation describes injected skills without storing their operation
   const modules = loadContextModules(copyContext());
   const skill = modules.userSlots["#skill"]!;
   const methods = "SKILL_METHODS_FROM_RUNTIME {{data}} {{unknown}}";
-  const system = systemText(modules, "");
+  const system = systemText(modules, "", "2026-09-06");
   const user = renderSlots(modules.userOrder, modules.userSlots, { "#skill": methods });
   expect(skill.description).toBeTruthy();
   expect(skill.body).toBe("{{data}}");
@@ -220,7 +220,7 @@ test("user descriptions cannot interpolate runtime data and system modules canno
 test("system modules combine capability and rules once, including literal dynamic tool usage", () => {
   const modules = loadContextModules(root);
   const usage = "TOOL_DESCRIPTION {{data}} {{literal}}";
-  const system = systemText(modules, usage);
+  const system = systemText(modules, usage, "2026-09-06");
   for (const tag of modules.systemOrder) {
     const module = modules.systemSlots[tag]!;
     const text = module.body.replace("{{data}}", () => usage).trimEnd();
