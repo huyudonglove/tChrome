@@ -2,17 +2,14 @@
 
 1. skill
 2. userInput
-3. userInputHistorySummary
+3. conversationHistorySummary
 4. userInputHistory
 5. goal
 6. goalHistory
 7. currentPage
-8. pageObservedHistorySummary
-9. pageObservedHistory
-10. projectMemory
-11. conversationMemorySummary
-12. conversationMemory
-13. notes
-14. toolIOSummary
-15. toolIO
-16. tools
+8. pageObservedHistory
+9. projectMemory
+10. conversationMemory
+11. notes
+12. toolIO
+13. tools

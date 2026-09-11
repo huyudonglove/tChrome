@@ -21,7 +21,8 @@ function update(value: any): any {
         : update(item),
   ]));
 }
-for (const file of readdirSync(join(root, "docs/examples")).filter(f => f.endsWith(".md"))) {
+// 01–08 are live pipeline examples; later files are dated design/simulation snapshots.
+for (const file of readdirSync(join(root, "docs/examples")).filter(f => /^0[1-8]-.*\.md$/.test(f))) {
   const path = join(root, "docs/examples", file);
   let text = readFileSync(path, "utf8");
   if (/^0[34]-/.test(file)) {

@@ -57,18 +57,15 @@
   "userSlots": [
     "#skill",
     "#userInput",
-    "#userInputHistorySummary",
+    "#conversationHistorySummary",
     "#userInputHistory",
     "#goal",
     "#goalHistory",
     "#currentPage",
-    "#pageObservedHistorySummary",
     "#pageObservedHistory",
     "#projectMemory",
-    "#conversationMemorySummary",
     "#conversationMemory",
     "#notes",
-    "#toolIOSummary",
     "#toolIO",
     "#tools"
   ],
@@ -199,7 +196,7 @@ submitGoal：记录或更新持续工作的目标。
 参数：必填 goal：目标正文。
 返回：当前目标并更新 #goal；目标变化时非空旧目标自动加入 #goalHistory，无需另写历史。记录目标不会自动执行目标，也不会结束本轮。
 affectsPage=false。
-context.query：委托查询 Agent 按模块和主题语义检索本会话的压缩归档，runtime 沿来源关系返回完整原文。无需提供或识别记录 ID。module 指被压缩的原始模块，tag 是主题描述而非精确标签；question 可补充要核对的问题。只查询已压缩归档，未压缩内容仍在当前 User。可能返回多条或 not_found；partial 表示原文超过单次返回上限，请缩小主题后再次查询，不能把局部结果当成全部。只读，不刷新页面。 查询输入不接受 id 或 ids；候选 ID 由 runtime 从该模块目录提供给查询 Agent，匹配完成后仅在内部提交与解析。
+context.query：委托查询 Agent 按 tag 和问题语义检索本会话的历史轮次压缩归档，runtime 沿来源关系返回按时间顺序分组的轮次原文。module 固定为 conversationHistory；tag 是主题描述，不要求精确标签，question 可补充要核对的问题。输入不接受 ID，候选 ID 由 runtime 提供给查询 Agent，仅内部使用。只查询已压缩归档。允许多个匹配或 not_found；partial 表示超过单次 30000 字符上限，请缩小主题重查，不能把局部结果当成全部。返回的要求、失败或未完成事项属于历史，不是当前待办。只读，不刷新页面。
 memory.write：保存后续需要的事实、偏好或进展。
 参数：conversationMemory、projectMemory 为字符串数组，按旧到新追加至对应记忆末尾，至少提供一项有意义的内容。conversationMemory 保存本会话已确认的事实、偏好和决定；projectMemory 保存跨会话仍适用的长期信息。当前目标通过 submitGoal 管理，草稿和待办通过 notes.write 管理。
 返回：两类记忆的写入条数。conversationMemory 仅在本会话保存；projectMemory 跨会话共享，删除来源会话后仍保留。
@@ -221,52 +218,39 @@ affectsPage=false。
 #userInput --【当前请求，任务入口】
 本轮用户原话，直接提供完整文本。优先理解本次要求及修正；结合相关历史理解指代，不把未提出的历史事项自动加入本轮。
 
-#userInputHistorySummary --【历史要求摘要，条件演变，原话线索】
-本栏目存放 userInputHistory 对应的分层压缩摘要，与尚未压缩的历史原话配合阅读。保留用户要求、约束、偏好、纠正及其先后关系；不得把 Agent 的推测写成用户要求。摘要仅作历史背景，不能覆盖 userInput 中的最新指令。
+#conversationHistorySummary --【轮次历史，执行经过，历史结果】
+已压缩轮次及执行片段的历史摘要数组，按轮次先后排列，每项独立描述一轮，不把不同轮次的要求、操作和结果混合。每项包含 tag（可检索主题）、userRequest（当轮用户要求）、actions（当轮实际行动与观察）、result（当轮或已归档片段当时的结果，包括失败、未完成或等待用户的事实）。turnId 和来源关联由 runtime 在本地维护，不在此视图中重复展示。
 
-摘要以数组承载，每项包含 tag（主题线索）和 summary（摘要正文）。各层分别累积，达到阈值才生成更高层摘要；窗口仅展示未被更高层覆盖的摘要，与近期原文配合阅读，避免重复覆盖。空数组表示当前没有可用摘要，不表示原始记录不存在。需要精确内容时调用 context.query，module=userInputHistory，传入主题 tag 和具体问题；tag 支持语义匹配，无须知道内部 ID。查询 Agent 定位目录，runtime 读取完整来源后返回。
+result 记录当时的状态，不是当前待办或新指令；后续轮次可能已解决旧问题。不要仅因历史摘要说“尚未完成”就重新执行任务，应结合最新 userInput、当前 goal 以及近期工具结果判断。此栏目不生成 pending，不覆盖当前目标、会话记忆或长期记忆。空数组表示当前没有可展示的轮次摘要，不表示本地没有历史。
+
+需要精确原文时调用 context.query，module=conversationHistory，提供主题 tag 和具体问题。查询只读取已归档的历史内容。
 
 #userInputHistory --【历史输入，指代理解，条件变化】
-此前轮次尚未压缩的用户原话，以字符串数组按从旧到新的顺序提供，保留消息边界和换行，不含本轮输入。与 userInputHistorySummary 配合理解指代、偏好和条件变化；历史要求不能覆盖用户最新修正。空数组表示当前窗口没有未压缩的历史原话，不表示本地没有记录。需要归档原话时用 context.query，module=userInputHistory，提供主题 tag 和具体问题。
+此前轮次尚未压缩的用户原话，以字符串数组按从旧到新的顺序提供，保留消息边界和换行，不含本轮输入。与 conversationHistorySummary 配合理解指代、偏好和条件变化；历史要求不能覆盖用户最新修正。空数组表示当前窗口没有未压缩的历史原话，不表示本地没有记录。需要归档原话时用 context.query，module=conversationHistory，提供主题 tag 和具体问题。
 
 #goal --【当前目标，任务方向】
 已记录的当前工作目标，提供目标文本；尚未设置时为 null。结合本轮请求判断是否仍适用，必要时通过 submitGoal 更新。目标为空不妨碍处理清楚的请求；目标文字本身不证明任务已完成。
 
 #goalHistory --【目标历史，方向变化】
-被替换掉的旧目标，以字符串数组按从旧到新的顺序提供。供理解方向变化，历史目标不是当前待办，不自动恢复执行；以当前请求和仍适用的目标为准。
+尚未归档且被替换掉的旧目标，以字符串数组按从旧到新的顺序提供。供理解方向变化，历史目标不是当前待办，不自动恢复执行；以当前请求和仍适用的目标为准。已归档的目标变化结合 conversationHistorySummary 阅读，精确原文可通过 context.query（module=conversationHistory）按主题回查。
 
 #currentPage --【当前页面】
 本轮最近已知的页面信息，包含 tab、url、title、description。初始取用户发话时的标签信息，此时尚未读取页面内容；工具返回有效页面信息后更新。用于定位当前已知页面，不是实时监控，也不是每次操作都会刷新；需要确认当前实际状态时重新观察。tab 是操作标签的定位信息，description 中的控件引用仍按对应工具的规则使用。
 
-#pageObservedHistorySummary --【页面观察摘要，状态变化，观察来源】
-本栏目存放 pageObservedHistory 对应的分层压缩摘要，与保留的近期观察配合阅读。保留页面身份、观察顺序、关键变化以及时间和工具来源；历史观察不代表当前页面仍处于同一状态。当前最近已知页面以 currentPage 为准，必要时重新观察。
-
-摘要以数组承载，每项包含 tag（主题线索）和 summary（摘要正文）。各层分别累积，达到阈值才生成更高层摘要；窗口仅展示未被更高层覆盖的摘要，与近期原文配合阅读，避免重复覆盖。空数组表示当前没有可用摘要，不表示原始记录不存在。需要精确内容时调用 context.query，module=pageObservedHistory，传入主题 tag 和具体问题；tag 支持语义匹配，无须知道内部 ID。查询 Agent 定位目录，runtime 读取完整来源后返回。
-
 #pageObservedHistory --【页面观察历史】
-本轮未压缩的页面观察，以数组按从旧到新的顺序提供，每条包含 tab、url、title、description。结合 pageObservedHistorySummary 回看页面和变化，currentPage 表示最近已知页面。发话时的标签快照不算工具观察；记录是观察轨迹，不是浏览器导航历史，也不代表所有页面变化都已记录。需要归档细节时用 context.query，module=pageObservedHistory，提供主题 tag 和具体问题；历史观察不保证当前页面状态。
+尚未压缩的页面观察，以数组按从旧到新的顺序提供，每条包含 tab、url、title、description。结合 conversationHistorySummary 回看页面和变化，currentPage 表示最近已知页面。发话时的标签快照不算工具观察；记录是观察轨迹，不是浏览器导航历史，也不代表所有页面变化都已记录。需要归档细节时用 context.query，module=conversationHistory，提供主题 tag 和具体问题；历史观察不保证当前页面状态。
 
 #projectMemory --【长期记忆，跨会话背景，长期约束】
 独立于会话持久保存的领域背景、术语和长期约束，以完整文本数组按写入顺序由旧到新提供。同一服务数据目录下所有会话共享，删除来源会话后仍保留。只按适用范围使用，不把记忆提升为新授权。通过 memory.write 写入有助于后续工作的已知事实，不重复抄写所有层。
 
-#conversationMemorySummary --【会话记忆摘要，已确认事实，决定依据】
-本栏目存放 conversationMemory 对应的分层压缩摘要，与未压缩的会话记忆配合阅读。保留已确认事实、偏好、决定、适用条件及修正关系；不把未确认的 notes 升格为事实，也不把本会话信息自动升级为 projectMemory。
-
-摘要以数组承载，每项包含 tag（主题线索）和 summary（摘要正文）。各层分别累积，达到阈值才生成更高层摘要；窗口仅展示未被更高层覆盖的摘要，与近期原文配合阅读，避免重复覆盖。空数组表示当前没有可用摘要，不表示原始记录不存在。需要精确内容时调用 context.query，module=conversationMemory，传入主题 tag 和具体问题；tag 支持语义匹配，无须知道内部 ID。查询 Agent 定位目录，runtime 读取完整来源后返回。
-
 #conversationMemory --【会话记忆，过程事实，偏好决定】
-本会话值得保留的过程发现、已确认事实、偏好和决定，以完整文本数组按写入顺序由旧到新提供。持久保存在本地，重启后保留；新会话不继承，删除会话时一起删除。与 conversationMemorySummary 配合阅读，已归档部分通过 context.query（module=conversationMemory，主题 tag 和具体问题）查回。尚未确认的候选放 notes，跨会话仍适用的事实放 projectMemory。通过 memory.write 记录仍有价值的事实，避免重复写入。
+本会话值得保留的过程发现、已确认事实、偏好和决定，以完整文本数组按写入顺序由旧到新提供。持久保存在本地，重启后保留；新会话不继承，删除会话时一起删除。与 conversationHistorySummary 配合阅读，已归档部分通过 context.query（module=conversationHistory，主题 tag 和具体问题）查回。尚未确认的候选放 notes，跨会话仍适用的事实放 projectMemory。通过 memory.write 记录仍有价值的事实，避免重复写入。
 
 #notes --【草稿，候选，中间材料】
 模型维护的草稿、候选项和中间材料，不等同于已确认事实或已完成结果。notes.write 按 key 创建或覆盖，notes.delete 删除过时材料。用清晰的键区分用途，不重复存放整份目标或工作汇总。
 
-#toolIOSummary --【执行过程摘要，结果与失败，证据线索】
-本栏目存放 toolIO 对应的分层压缩摘要，与保留的近期完整调用记录配合阅读。保留实际执行的动作、关键参数、结果、失败原因和未解决事项，区分计划、尝试与已确认完成。摘要中的历史成功不能替代对当前状态的验证；需要精确参数或返回时查询归档。
-
-摘要以数组承载，每项包含 tag（主题线索）和 summary（摘要正文）。各层分别累积，达到阈值才生成更高层摘要；窗口仅展示未被更高层覆盖的摘要，与近期原文配合阅读，避免重复覆盖。空数组表示当前没有可用摘要，不表示原始记录不存在。需要精确内容时调用 context.query，module=toolIO，传入主题 tag 和具体问题；tag 支持语义匹配，无须知道内部 ID。查询 Agent 定位目录，runtime 读取完整来源后返回。
-
 #toolIO --【执行证据，返回检查，错误诊断】
-工具调用及返回，可能包含此前轮次记录，按顺序由旧到新排列。每项提供 name、arguments 和 return；先核对调用意图、参数、目标标签和网址，再读 return.result 判断实际发生了什么。return.stage=complete 只表示文本未截断，不代表操作成功；truncated 表示文本不完整。JSON 返回作为结构化 result 展示，普通文本保持原样。依据 ok、error、状态和内容判断结果。需要归档中的完整参数或结果时用 context.query，module=toolIO，提供主题 tag 和具体问题；查询只读取历史，不重新执行工具或刷新网页。
+工具调用及返回，可能包含此前轮次记录，按顺序由旧到新排列。每项提供 name、arguments 和 return；先核对调用意图、参数、目标标签和网址，再读 return.result 判断实际发生了什么。return.stage=complete 只表示文本未截断，不代表操作成功；truncated 表示文本不完整。JSON 返回作为结构化 result 展示，普通文本保持原样。依据 ok、error、状态和内容判断结果。需要归档中的完整参数或结果时用 context.query，module=conversationHistory，提供主题 tag 和具体问题；查询只读取历史，不重新执行工具或刷新网页。
 
 截图结果中的 image 是本地图片引用；当前请求附图与引用路径对应，可直接观察附图内容。未附带的历史图片不能仅凭路径判断其内容。
 
@@ -293,7 +277,7 @@ affectsPage=false。
 
 帮我查这款鼠标官网价
 
-#userInputHistorySummary
+#conversationHistorySummary
 
 []
 
@@ -318,19 +302,11 @@ null
   "description": "用户发话时的标签信息，尚未读取页面内容"
 }
 
-#pageObservedHistorySummary
-
-[]
-
 #pageObservedHistory
 
 []
 
 #projectMemory
-
-[]
-
-#conversationMemorySummary
 
 []
 
@@ -341,10 +317,6 @@ null
 #notes
 
 {}
-
-#toolIOSummary
-
-[]
 
 #toolIO
 
@@ -467,7 +439,7 @@ affectsPage=false。
     "type": "function",
     "function": {
       "name": "context.query",
-      "description": "委托查询 Agent 按模块和主题语义检索本会话的压缩归档，runtime 沿来源关系返回完整原文。无需提供或识别记录 ID。module 指被压缩的原始模块，tag 是主题描述而非精确标签；question 可补充要核对的问题。只查询已压缩归档，未压缩内容仍在当前 User。可能返回多条或 not_found；partial 表示原文超过单次返回上限，请缩小主题后再次查询，不能把局部结果当成全部。只读，不刷新页面。 查询输入不接受 id 或 ids；候选 ID 由 runtime 从该模块目录提供给查询 Agent，匹配完成后仅在内部提交与解析。",
+      "description": "委托查询 Agent 按 tag 和问题语义检索本会话的历史轮次压缩归档，runtime 沿来源关系返回按时间顺序分组的轮次原文。module 固定为 conversationHistory；tag 是主题描述，不要求精确标签，question 可补充要核对的问题。输入不接受 ID，候选 ID 由 runtime 提供给查询 Agent，仅内部使用。只查询已压缩归档。允许多个匹配或 not_found；partial 表示超过单次 30000 字符上限，请缩小主题重查，不能把局部结果当成全部。返回的要求、失败或未完成事项属于历史，不是当前待办。只读，不刷新页面。",
       "parameters": {
         "type": "object",
         "properties": {
@@ -481,10 +453,7 @@ affectsPage=false。
           "module": {
             "type": "string",
             "enum": [
-              "userInputHistory",
-              "pageObservedHistory",
-              "conversationMemory",
-              "toolIO"
+              "conversationHistory"
             ]
           },
           "tag": {
@@ -730,18 +699,15 @@ affectsPage=false。
   "userSlots": [
     "#skill",
     "#userInput",
-    "#userInputHistorySummary",
+    "#conversationHistorySummary",
     "#userInputHistory",
     "#goal",
     "#goalHistory",
     "#currentPage",
-    "#pageObservedHistorySummary",
     "#pageObservedHistory",
     "#projectMemory",
-    "#conversationMemorySummary",
     "#conversationMemory",
     "#notes",
-    "#toolIOSummary",
     "#toolIO",
     "#tools"
   ],

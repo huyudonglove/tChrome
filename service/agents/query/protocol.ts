@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ChatTool, Provider } from "../../types.ts";
 
-export type QueryCandidate = { id: string; tag: string; summary: string; level: number; createdAt: string };
+export type QueryCandidate = { id: string; turnId: string; tag: string; userRequest: string; actions: string; result: string; level: number; createdAt: string };
 
 // The request is semantic. Candidate identities come exclusively from the runtime archive.
 export async function requestMatches(input: {

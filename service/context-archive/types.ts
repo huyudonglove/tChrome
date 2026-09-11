@@ -1,4 +1,4 @@
-export const compressionModules = ["userInputHistory", "pageObservedHistory", "conversationMemory", "toolIO"] as const;
+export const compressionModules = ["conversationHistory"] as const;
 export type CompressionModule = typeof compressionModules[number];
 export type SourceRecord = { id: string; content: unknown };
 export type CompressionRecord = {
@@ -6,7 +6,10 @@ export type CompressionRecord = {
   module: CompressionModule;
   level: number;
   tag: string;
-  summary: string;
+  turnId: string;
+  userRequest: string;
+  actions: string;
+  result: string;
   sourceIds: string[];
   createdAt: string;
 };

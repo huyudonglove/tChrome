@@ -6,5 +6,6 @@ export const goalView = (record: GoalRecord | null) => record?.goal ?? null;
 export const goalHistoryView = (records: GoalRecord[]) => records.map(record => record.goal);
 export const pageView = (page: CurrentPage) => ({ tab: page.tab, url: page.url, title: page.title, description: page.description });
 
-export type SummaryViews = Partial<Record<"userInputHistory" | "pageObservedHistory" | "conversationMemory" | "toolIO", Array<{ tag: string; summary: string }>>>;
-export const summaryView = (summaries: Array<{ tag: string; summary: string }> = []) => summaries.map(({ tag, summary }) => ({ tag, summary }));
+
+export type TurnSummary = { turnId: string; tag: string; userRequest: string; actions: string; result: string };
+export const turnSummaryView = (records: TurnSummary[] = []) => records.map(({ tag, userRequest, actions, result }) => ({ tag, userRequest, actions, result }));

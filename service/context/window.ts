@@ -1,7 +1,7 @@
 import type { Ledger, Turn } from "../types.ts";
 import { interpolate, renderInventory, renderSlots, type ContextModules } from "./modules.ts";
 
-import { goalHistoryView, goalView, inputHistoryView, pageView, summaryView, type SummaryViews } from "./projections/records.ts";
+import { goalHistoryView, goalView, inputHistoryView, pageView, turnSummaryView, type TurnSummary } from "./projections/records.ts";
 import { toolHistoryView } from "./projections/tools.ts";
 
 const jsonBody = (value: unknown) => JSON.stringify(value, null, 2);
@@ -19,7 +19,7 @@ export function userText(input: {
   memories: { project: string; conversation: string };
   toolUsage: string;
   skillText: string;
-  summaries?: SummaryViews;
+  conversationSummaries?: TurnSummary[];
 }): string {
   const { contextModules, ledger, turn, memories, toolUsage } = input;
   return renderSlots(contextModules.userOrder, contextModules.userSlots, {
@@ -29,15 +29,12 @@ export function userText(input: {
     "#notes": jsonBody(ledger.notes),
     "#userInputHistory": jsonBody(inputHistoryView(ledger.userInputHistory)),
     "#userInput": turn.input.text,
+    "#conversationHistorySummary": jsonBody(turnSummaryView(input.conversationSummaries)),
     "#goal": jsonBody(goalView(ledger.goal)),
     "#goalHistory": jsonBody(goalHistoryView(ledger.goalHistory)),
     "#currentPage": turn.assembled.currentPage ? jsonBody(pageView(turn.assembled.currentPage)) : "",
     "#pageObservedHistory": jsonBody((turn.assembled.pageObservedHistory ?? []).map(pageView)),
     "#toolIO": jsonBody(toolHistoryView(ledger.toolIO)),
-    "#userInputHistorySummary": jsonBody(summaryView(input.summaries?.userInputHistory)),
-    "#pageObservedHistorySummary": jsonBody(summaryView(input.summaries?.pageObservedHistory)),
-    "#conversationMemorySummary": jsonBody(summaryView(input.summaries?.conversationMemory)),
-    "#toolIOSummary": jsonBody(summaryView(input.summaries?.toolIO)),
     "#tools": toolUsage,
   });
 }

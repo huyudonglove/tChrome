@@ -9,7 +9,7 @@ function response(overrides: Partial<CompletionResult> = {}): CompletionResult {
     attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [], ...overrides };
 }
 function run(result: CompletionResult, observe?: (input: Parameters<Provider["complete"]>[0]) => void) {
-  return requestMatches({ repoRoot, request: { module: "userInputHistory", tag: "状态限制", question: "是否可以修改状态" }, candidates: ["sum_1", "sum_2"].map(id => ({ id, tag: "状态", summary: "修改要求", level: 1, createdAt: "2026-09-11" })),
+  return requestMatches({ repoRoot, request: { module: "conversationHistory", tag: "状态限制", question: "是否可以修改状态" }, candidates: ["sum_1", "sum_2"].map(id => ({ id, tag: "状态", turnId: "tn_1", userRequest: "修改要求", actions: "核对状态", result: "已核对", level: 1, createdAt: "2026-09-11" })),
     provider: { async complete(input) { observe?.(input); return result; } } });
 }
 
@@ -19,7 +19,7 @@ test("query assembles only its return tool and ignores conflicting content", asy
     expect(input.tools[0]!.function.parameters).toMatchObject({ required: ["ids"], additionalProperties: false });
     expect(input.messages[0]!.content).toContain("submitMatches");
     const data = JSON.parse(input.messages[1]!.content);
-    expect(data.request).toEqual({module:"userInputHistory",tag:"状态限制",question:"是否可以修改状态"});
+    expect(data.request).toEqual({module:"conversationHistory",tag:"状态限制",question:"是否可以修改状态"});
     expect(data.request).not.toHaveProperty("ids");
     expect(data.catalog.map((row: {id:string}) => row.id)).toEqual(["sum_1","sum_2"]);
   });

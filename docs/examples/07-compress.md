@@ -1,21 +1,13 @@
-# 07 模型压缩与委托查询
+# 07 轮次压缩与委托查询
 
-当前实现以 `service/agents/compression/`、`service/agents/query/`、`service/context-archive/` 和 `service/runtime/context-state.ts` 为准。两个 Agent 各自维护提示词、输入输出协议和校验，直接复用现有无状态 `provider.complete`。归档层负责文件存储、覆盖索引与来源展开，runtime 负责触发与调度。
+当前实现以 `service/agents/compression/`、`service/agents/query/`、`service/context-archive/` 和 `service/runtime/context-state.ts` 为准。两个 Agent 各自管理提示词、输入输出协议和专用返回工具，直接复用现有无状态 `provider.complete`。
 
-发送前先按模块投影并统计 System + User 的字符数。达到 200000 字符时，runtime 从未覆盖记录中选择较早内容，分别发起仅装配本 Agent 专用返回工具的 LLM 请求。用户历史、页面历史、会话记忆各保留最近 3 条，工具记录保留最近 2 个完整模型工具批次；当前输入、目标和当前页面不参与压缩。
+每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes 和长期记忆保持可见。没有独立的 20K 摘要阈值，也不把多轮合成一条摘要。
 
-每个模块写入 `conversations/<conversationId>/compression/<module>/`：
+模型输出校验成功、完整来源与摘要落盘后，才原子更新目录索引和覆盖关系。失败或取消不提交该批次覆盖，原文继续可用；此前成功提交的归档保留。索引是提交点，中断可能留下未被索引引用的文件。窗口按来源覆盖过滤历史输入、目标版本、页面观察、会话记忆写入和工具记录，本地原文不删除。
 
-- `sources/<id>.json`：完整原始记录。
-- `records/<id>.json`：tag、摘要、层级、来源 ID 和生成时间。
-- `index.json`：全部摘要目录、当前未被覆盖的摘要 ID、已覆盖原始 ID。
+归档位于 `conversations/<conversationId>/compression/conversationHistory/`：`sources/` 保存完整来源，`records/` 保存不可变摘要，`index.json` 管理目录及覆盖关系。摘要由 runtime 关联真实 turnId；各轮请求、行动与结果分别保存。当前轮次执行片段只描述归档时的事实，不声称该轮已经结束。结果不包含 pending，不自动恢复历史未完成任务。
 
-原文和摘要先不可变落盘，索引原子提交。窗口仅过滤已覆盖原文，账本和记忆索引保持完整。失败模块不推进覆盖状态，已成功的其他模块归档仍有效；停止后不提交新的归档结果。没有重新分配原记录 ID。
+主 Agent 调用 `context.query(module="conversationHistory", tag, question?)`。查询 Agent 根据主题选择目录 ID；runtime 校验 ID、读取对应完整来源并去重，按原顺序返回，主 Agent 不操作内部 ID。查询目录分批读取，单次最多返回 30000 字符，以完整来源记录为单位；超出返回 partial 与遗漏数量，不截断单条原文。没有匹配时返回 not_found。
 
-每次生成一级摘要并追加；连续同层摘要积累达到 20000 字符时，再生成更高层摘要。旧摘要和来源仍可查，窗口只显示未被覆盖的摘要，且仅暴露 tag 和 summary。
-
-主 Agent 使用常驻 `context.query`，传入 module、tag 和可选 question。查询 Agent 按语义选择该模块目录中的候选 ID；runtime 校验 ID 并沿来源关系返回原文，去重并保持原始顺序。主 Agent 不直接操作归档 ID。
-
-查询目录分批读取，当前单次结果最多 30000 字符，以完整记录为单位返回；超出明确返回 partial 和遗漏数量，不能当作全部。单条原文本身超过上限时也会返回 partial。压缩后窗口仍达到 200000 字符则返回 context_limit，不发送超限主请求，也不裁剪近期原文。
-
-验证见 `service/runtime/context-state.test.ts`（发送前触发、保留窗口与失败）、`service/detail.test.ts`（查询结果进入下一次主请求）、`service/agents/compression/index.test.ts`、`service/agents/query/index.test.ts` 中的分层、取消和归档测试。测试使用模拟 LLM，不代表某个真实模型的摘要质量已通过验证。
+归档后主窗口仍达到 200000 字符则返回 context_limit，不发送超限请求。验证覆盖运行时发送前触发、近期记录保留、批量逐轮结果、取消和归档回查；模拟模型测试不能证明真实模型的摘要与匹配质量。

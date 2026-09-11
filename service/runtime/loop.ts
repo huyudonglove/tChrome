@@ -77,10 +77,10 @@ const assemble = (toolRegistry: ToolRegistry): Assembled => ({
   currentTab: null,
 });
 
-const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, summaries: Parameters<typeof userText>[0]["summaries"] = {}): ChatMessage[] => [
+const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, summaries: Parameters<typeof userText>[0]["conversationSummaries"] = []): ChatMessage[] => [
   { role: "system", content: systemText(contextModules, toolUsageFor(toolRegistry, turn.assembled.baseToolsIds), pacificDate()) },
   { role: "user", content: userText({
-    contextModules, ledger, turn, memories: projectMemories(memories), skillText, summaries,
+    contextModules, ledger, turn, memories: projectMemories(memories), skillText, conversationSummaries: summaries,
     toolUsage: toolUsageFor(toolRegistry, turn.assembled.toolIds),
   }), images: [...new Map(ledger.toolIO.filter(item => item.turnId === turn.turnId)
     .flatMap(item => item.images ?? []).reverse().map(image => [image.id, image])).values()].slice(0, 4).reverse() },
@@ -267,10 +267,13 @@ export async function handleTurn(
     if (initialChars >= ledger.compressAt) {
       appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-start", turnId, data: { windowChars: initialChars } });
       try {
-        await compressContext({ ...deps, ledger, turn, memories, isCancelled: () => wasStopped(deps.dataDir, ledger.conversationId, turn.turnId) });
-        if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
-        state = contextState(deps.dataDir, ledger, turn, memories);
-        messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, state.summaries);
+        for (const phase of ["history", "current", "summaries"] as const) {
+          if (windowChars(messages[0]!.content, messages[1]!.content) < ledger.compressAt) break;
+          await compressContext({ ...deps, ledger, turn, memories, isCancelled: () => wasStopped(deps.dataDir, ledger.conversationId, turn.turnId) }, phase);
+          if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
+          state = contextState(deps.dataDir, ledger, turn, memories);
+          messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, state.summaries);
+        }
         appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress", turnId, data: { beforeChars: initialChars, afterChars: windowChars(messages[0]!.content, messages[1]!.content) } });
       } catch (error) {
         if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);

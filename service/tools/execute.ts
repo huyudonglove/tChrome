@@ -69,7 +69,7 @@ export type ExecuteInput = {
   conversationId?: string;
   browserNames: string[];
   host?: BrowserHost;
-  queryContext?: (args: {module: "userInputHistory" | "pageObservedHistory" | "conversationMemory" | "toolIO"; tag: string; question: string}) => Promise<unknown>;
+  queryContext?: (args: {module: "conversationHistory"; tag: string; question: string}) => Promise<unknown>;
   lookup: {
     unusedTools: string[];
     knownTools: string[];
@@ -128,7 +128,7 @@ export async function executeTool(input: ExecuteInput): Promise<ToolExecution> {
   }
   if (name === "context.query") {
     if (!input.queryContext) return result(JSON.stringify({ status: "error", error: "query_agent_unavailable" }));
-    return result(JSON.stringify(await input.queryContext({ module: args.module as "userInputHistory" | "pageObservedHistory" | "conversationMemory" | "toolIO", tag: String(args.tag), question: String(args.question ?? "") })));
+    return result(JSON.stringify(await input.queryContext({ module: args.module as "conversationHistory", tag: String(args.tag), question: String(args.question ?? "") })));
   }
   if ((LOCAL_TOOL_NAMES as readonly string[]).includes(name)) {
     if (!input.conversationId) return externalResult({ ok: false, error: "本地工具缺少会话标识" });

@@ -1,56 +1,34 @@
-# 输入结构与模块说明
+# 输入结构与字段
 
-User 是一个轮次对象。最外层 turnId 标识本次处理的轮次；其内部模块均属于这一轮。runtime 已完成分组和顺序整理，你不需要自行寻找其他轮次，也不需要输出或重新生成内部 ID。数组内部按原始顺序排列，不按工具名或主题重新排序。
+User 是 JSON 对象 {turns:[...]}。turns 按历史顺序排列，每项有唯一 turnId；数组内保留各模块原始顺序，空数组表示本次没有该模块的增量，null 表示暂无值。每轮分别处理，不跨轮推断或合并。
 
-## turnId：轮次归属
+## 轮次元数据
+- turnId：本次摘要必须原样返回的轮次标识，不是业务任务号。
+- conversationId：所属会话，turnId 仅在该会话内唯一。
+- status：completed 已结束、waiting_human 等用户、failed 失败；assembling/inferring 表示尚未结束的长轮次分段，不能宣布整轮结束。
+- createdAt、completedAt：轮次起止时间；completedAt 为 null 表示还没有收尾时间。
+- sequence.turn、sequence.batch：runtime 的轮次和批次排序位置，仅用于归档先后，不是成功证据。
+- segment（可选）：batchIds 是本段已完成工具批次；complete=false 表示仍在运行的轮次片段；complete=true 表示已结束轮次或此前分段后剩余的最终部分。此前已归档部分可通过同轮 summaries 提供，不能把剩余部分误认为全部过程。分段不代表新一轮。
 
-同一轮用户输入与后续多次模型推理、工具调用共用一个 turnId。它只在所属会话内定位轮次，不代表工具批次、任务编号或完成状态。
+## userInput：用户原话对象
+id 是记录标识，turnId 是来源轮次，userInput 是原话，submittedAt 是提交时间。用户要求与约束以原话为准；“继续”等指代缺少背景时不猜测。目标是模型计划，不能冒充用户原话。
 
-## userInput：本轮用户原话
+## goalChanges：本轮目标版本数组
+每项 id 为版本标识，turnId 为创建轮次，goal 为目标正文，sourceCallId 为产生变更的工具调用，createdAt 为创建时间。空数组只表示本轮没改目标，不表示没有持续目标。多个版本保留变更顺序；计划不是完成证据。
 
-字符串，表示本轮直接收到的要求、补充、纠正或回答。以原话为依据提取用户意图与约束，不能把 goalChanges 中模型自行设定的目标冒充用户要求。用户提到“继续”等指代而本轮缺少背景时，不猜测被省略的内容。
+## toolIO：工具执行数组
+每项 turnId 表示来源，batchId 表示同批次，callId 标识调用，name 是工具名，arguments 是实际参数。arguments.reason 是调用理由，affectsPage 表示影响页面；定位参数只在相应执行时有意义。
+return 是执行结果：stage=complete 表示返回文本完整，truncated 表示只有部分；totalChars 是原返回字符数；text 是具体工具返回内容（可能自身为 JSON）。理解 text 的 ok、错误与实际证据，不把 return.stage=complete 当作业务成功。images 若存在是本地图片引用，并不代表已读到了图片内容。没有证据支持的结果不能补写。
 
-## goalChanges：本轮目标变更
+## pageObservations：页面观察数组
+每项 id 为观察标识，turnId 为所属轮次，callId/toolName 为工具来源，observedAt 为时间，tab/url/title 为页面身份，description 为观察内容。它们是历史快照，和同来源工具结果可能重复。观察差异表示当时状态变化，不代表当前页面仍如此。
 
-数组，每项的 goal 是本轮创建或修改的工作目标。数组为空表示本轮未更新目标，不代表当时没有持续目标，也不代表没有开展工作。多项表示同轮多次调整方向。目标描述的是计划，不是执行成功的证据。
+## memoryWrites：本轮新增记忆数组
+这里只归集本轮新增会话记忆，长期记忆作为独立状态保留。memoryId 为记录标识，layer=conversation 表示会话层级，turnId 为写入轮次，text 为正文，sourceCallId 为来源工具，createdAt 为写入时间，sourceConversationId（存在时）为来源会话。summary 是记忆条目已有的简述，compressed 标识记忆存储状态，不代表本轮工具事实已被验证。只含本轮增量，不是全部记忆。模型写入的认识不天然比用户原话或执行证据可靠，冲突要保留。
 
-## toolIO：本轮工具执行过程
+## output：本轮对外结果或 null
+kind=reply 的 text 是最终回复；kind=ask 的 question 是等待用户的问题；kind=error 的 faultCode 是失败或停止原因；kind=tool 的 name/callId 仅标识工具输出。null 表示暂无收尾结果。最终回复声称成功但工具失败时，必须明确差异。
 
-数组，每项代表一次工具执行：
-- callId：这次工具调用的内部标识，用于对应页面观察或记忆的来源，不是业务数据。
-- name：执行的工具名称，说明采取了什么操作。
-- arguments：实际调用参数。reason 若存在表示调用理由，不代表操作结果；tab 是目标标签，elementId、ref 等是该次操作的目标定位信息，不能自行替换或推断后续仍然有效。
-- result：该次工具返回的数据。ok 表示工具报告的成功或失败，description/text 等提供返回内容，error 等字段记录失败。字段随工具而异，必须结合具体内容解读。一次点击成功、保存成功，不等于用户的全部要求已经满足。
-
-只记录结果支持的行动和事实，保留重要失败、修正及其顺序。没有对应操作或结果时，不能根据目标或最终回复补写成已经执行。
-
-## pageObservations：本轮页面观察
-
-数组，每项是本轮某次读取所得的页面信息：
-- callId：产生这次观察的工具调用，可与 toolIO.callId 对应。
-- description：当时观察到的页面内容或状态。
-
-这是历史快照，不是实时页面状态。较早和较晚的观察不同，表示观察到了变化；结合工具执行顺序描述变化，不简单丢弃较早状态。与工具记录描述同一次观察时合并表达，避免当成两份独立证据。
-
-## memoryWrites：本轮新增会话记忆
-
-数组，仅含本轮新增内容，不是全部会话记忆：
-- text：模型在本轮写入的记忆正文。
-- sourceCallId：产生记忆写入的工具调用来源。
-
-记忆是模型记录的认识或决定，不天然比用户原话、实际观察更可靠。与执行证据冲突时保留差异。空数组只表示没有新增记忆，不表示会话没有记忆。如果来源调用未出现在本次输入中，不自行补造调用细节。
-
-## output：本轮对外结果
-
-对象或 null，记录这一轮如何收尾：
-- kind=reply，text 是最终回复用户的正文。
-- kind=ask，question 是向用户提出的问题；这是等待补充，不能写成任务已完成。
-- kind=error，faultCode 是失败或停止原因；已有成功步骤仍可保留，但整体结果要说明中断。
-- kind=tool，name 与 callId 仅标识一次工具输出，不等于最终业务结论。
-- null 表示没有可用收尾结果，不推断成功。
-
-output 说明最终表达了什么。应与 toolIO、pageObservations 核对；若回复声称完成但证据显示失败，摘要必须明确两者不一致。
-
-## 缺项与重复
-
-数组为空表示该模块本次没有记录，不等于事情从未发生。相同事实可能同时出现在用户要求、记忆与回复中，应合并表达，但保留“要求、计划、观察、陈述”的来源区别。当前目标、全部记忆、长期记忆和 notes 不会重复塞入本轮输入，不从这些缺项推断状态已被清空。
+## 长轮次与多层输入
+segments 数组存在时，各项是同一 turnId 的连续增量记录，结构同上；结合 summaries 中此前本轮摘要理解，不把已归档部分当作新操作。summaries 是同一轮较早分段或较低层摘要，每项含 tag/userRequest/actions/result，可含 turnId；它们保持当时含义，禁止混入另一轮。
+fragment 用于超长记录的临时拆分：path 为原模块字段路径（数组位置是数字），value 为该字段内容；字符串过长时 offset/totalChars 标识连续字符范围。只概括该片段提供的事实，其余模块缺失不等于不存在。后续 runtime 会汇总同轮片段摘要。不要把片段当完整轮次，不凭片段补写未知结局。

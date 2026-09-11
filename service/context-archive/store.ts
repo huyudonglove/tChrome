@@ -53,7 +53,17 @@ export function resolveSources(dataDir: string, cv: string, module: CompressionM
   };
   ids.forEach(id => { if (!records.has(id)) throw new Error("Unknown archive record"); visit(id); });
   const order = new Map(index.coveredSourceIds.map((id, position) => [id, position]));
-  return output.sort((a, b) => order.get(a.id)! - order.get(b.id)!);
+  const sequence = (source: SourceRecord) => {
+    const value = source.content as { sequence?: { turn?: number; batch?: number } } | null;
+    return value && typeof value === "object" ? value.sequence : undefined;
+  };
+  return output.sort((a, b) => {
+    const left = sequence(a), right = sequence(b);
+    if (typeof left?.turn === "number" && typeof right?.turn === "number") {
+      return left.turn - right.turn || (left.batch ?? 0) - (right.batch ?? 0) || order.get(a.id)! - order.get(b.id)!;
+    }
+    return order.get(a.id)! - order.get(b.id)!;
+  });
 }
 /** Index is the commit point; interrupted writes may leave unreferenced immutable files. */
 export function commitArchive(dataDir: string, cv: string, index: CompressionIndex, sources: SourceRecord[], records: CompressionRecord[]): void {

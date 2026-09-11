@@ -108,7 +108,7 @@ test("missing render targets and unknown body placeholders are rejected while li
 test("generated examples use the current navigation, body order and tool schemas", () => {
   const modules = loadContextModules(root);
   const registry = loadToolRegistry(root);
-  for (const file of readdirSync(join(root, "docs/examples")).filter(name => name.endsWith(".md"))) {
+  for (const file of readdirSync(join(root, "docs/examples")).filter(name => /^0[1-8]-.*\.md$/.test(name))) {
     const text = readFileSync(join(root, "docs/examples", file), "utf8");
     const visit = (value: unknown): void => {
       if (!value || typeof value !== "object") return;
@@ -244,14 +244,14 @@ test("model projection hides archival metadata while preserving operational data
   turn.assembled.currentPage = page;
   turn.assembled.pageObservedHistory = [page];
   const original = JSON.stringify({ ledger, turn });
-  const summaries = { toolIO: [{ tag: "确认失败", summary: "按钮引用过期", id: "hidden_summary", sourceIds: ["hidden_call"] }] };
-  const output = userText({ contextModules: modules, ledger, turn, summaries, memories: { project: "[]", conversation: "[]" }, toolUsage: "", skillText: "" });
+  const conversationSummaries = [{ turnId: "hidden_turn", tag: "确认失败", userRequest: "确认按钮", actions: "点击按钮", result: "按钮引用过期" }];
+  const output = userText({ contextModules: modules, ledger, turn, conversationSummaries, memories: { project: "[]", conversation: "[]" }, toolUsage: "", skillText: "" });
   const section = (tag: string) => output.split(`#${tag}\n\n`)[1]!.split(/\n#[A-Za-z]/)[0]!.trim();
   expect(JSON.parse(section("toolIO"))).toEqual([
     { name: "page.click", arguments: { reason: "确认按钮", tab: 42, ref: "el-7" }, return: { stage: "complete", result: { ok: false, faultCode: "stale_ref", detail: "重新读取页面", elementId: "e1" } } },
     { name: "local.run", arguments: { command: "echo text" }, return: { stage: "truncated", result: "unfinished {text" } },
   ]);
-  expect(JSON.parse(section("toolIOSummary"))).toEqual([{ tag: "确认失败", summary: "按钮引用过期" }]);
+  expect(JSON.parse(section("conversationHistorySummary"))).toEqual([{ tag: "确认失败", userRequest: "确认按钮", actions: "点击按钮", result: "按钮引用过期" }]);
   expect(JSON.parse(section("currentPage"))).toEqual({ tab: 42, url: "https://example.com", title: "页面", description: "按钮 ref=el-7" });
   expect(output).not.toContain("hidden_");
   expect(output).not.toContain("input_fixture");
