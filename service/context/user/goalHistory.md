@@ -2,9 +2,9 @@
 能力：【目标历史，方向变化】
 
 详细描述：
-尚未归档且被替换掉的旧目标，以记录数组按从旧到新的顺序提供，每项包含 id、turnId、sourceCallId 和目标文本 goal。供理解方向变化，历史目标不是当前待办，不自动恢复执行；以当前请求和仍适用的目标为准。已归档的目标变化结合 conversationHistorySummary 阅读，精确原文可通过 context.query（module=conversationHistory）按主题回查。
+我保存被替换且尚未归档的旧目标，按旧到新排列。id 标识目标版本，sourceCallId 关联产生它的工具调用，goal 是目标文本。
 
-id 区分不同目标版本，turnId 表示版本创建轮次，sourceCallId 对应产生变更的工具调用 callId。相同目标文字可能属于不同版本，应以 ID 区分。
+我用于理解方向变化，不是当前待办。已归档的目标可结合 conversationHistorySummary 阅读，需要原文时通过 context.query 回查。
 
 内容：
 {{data}}

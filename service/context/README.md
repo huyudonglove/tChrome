@@ -7,7 +7,7 @@
 | [overview.md](overview.md) | 整份提示词总纲，说明 System 规则与 User 材料如何支撑判断、行动和反馈；置于两份清单之前 |
 | [system-slots.md](system-slots.md) | 仅编号文件名，例如 `1. identity`；对应 system/ 中的文件 |
 | [user-slots.md](user-slots.md) | 仅编号文件名；对应 user/ 中的文件 |
-| [system/](system/) | identity、environment、execution、toolProtocol、boundaries、output、baseTools 七个规则模块 |
+| [system/](system/) | identity、environment、recordIdentity、execution、toolProtocol、boundaries、output、baseTools 八个规则模块 |
 | [user/](user/) | 保留十五个 tag，描述各栏用途并提供数据占位符 |
 | [modules.ts](modules.ts) | 校验顺序与模块格式，读取 tag、能力、详细描述和内容，生成两份导航 |
 | [projections/](projections/) | 模块字段投影，保留记录身份、来源关联、操作引用与完整内容 |

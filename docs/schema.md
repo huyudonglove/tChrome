@@ -242,7 +242,7 @@ conversationHistorySummary 显示当前有效摘要的 {tag, userRequest, action
 
 加载顺序由 `service/context/system-slots.md` 和 `user-slots.md` 的编号文件名决定，例如 `1. identity`，不在目录重复描述能力。system 模块以 `#tag`、`能力：【…】`、`详细描述：` 和正文组成；user 模块还包含独立的 `内容：` 段。user 的详细描述进入 system 内 User 清单，内容段通过 `{{data}}` 注入运行数据。
 
-加载器返回 systemOrder / userOrder，systemSlots / userSlots 保存模块元数据与对应正文。system 先输出 `# System 栏目清单`，七个模块每项 tag --能力之后直接跟详细正文，baseTools 包含工具说明；再输出 `# User 栏目清单`，每项 tag --能力之后直接跟详细描述。system 详细正文与清单项合并，只出现一次；user 渲染十三个 tag 的内容段和数据，不重复能力标签或详细描述。
+加载器返回 systemOrder / userOrder，systemSlots / userSlots 保存模块元数据与对应正文。system 先输出 `# System 栏目清单`，八个模块每项 tag --能力之后直接跟详细正文，baseTools 包含工具说明；再输出 `# User 栏目清单`，每项 tag --能力之后直接跟详细描述。system 详细正文与清单项合并，只出现一次；user 渲染十五个 tag 的内容段和数据，不重复能力标签或详细描述。
 
 system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，boundaries 管授权和证据来源。网页方法维护于 `service/skills/web-observation/SKILL.md`，runtime 按 `service/skills/index.json` 加载后作为数据注入 context，模块描述仍由 `service/context/user/skill.md` 提供。User 模块投影保留记录 ID、轮次与来源关联和完整内容；工具 schema 以 definitions 为准。
 

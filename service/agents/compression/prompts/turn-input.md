@@ -1,39 +1,47 @@
-# 输入结构与字段
+# 我收到的内容
 
-User 是 JSON 对象 {turns:[...]}。turns 按历史顺序排列，每项有唯一 turnId；数组内保留各模块原始顺序，空数组表示本次没有该模块的增量，null 表示暂无值。每轮分别处理，不跨轮推断或合并。
+User 为 {turns:[...]}，按历史顺序排列；每项 turnId 唯一。我保留各模块的记录顺序。空数组表示本次没有该模块增量，null 表示暂无值，均不证明历史上从未存在。
 
-## 轮次元数据
-- turnId：本次摘要必须原样返回的轮次标识，不是业务任务号。
-- conversationId：所属会话，turnId 仅在该会话内唯一。
-- status：completed 已结束、waiting_human 等用户、failed 失败；assembling/inferring 表示尚未结束的长轮次分段，不能宣布整轮结束。
-- createdAt、completedAt：轮次起止时间；completedAt 为 null 表示还没有收尾时间。
-- sequence.turn、sequence.batch：runtime 的轮次和批次排序位置，仅用于归档先后，不是成功证据。
-- segment（可选）：batchIds 是本段已完成工具批次；complete=false 表示仍在运行的轮次片段；complete=true 表示已结束轮次或此前分段后剩余的最终部分。此前已归档部分可通过同轮 summaries 提供，不能把剩余部分误认为全部过程。分段不代表新一轮。
+## 轮次状态
 
-## userInput：用户原话对象
-id 是记录标识，turnId 是来源轮次，userInput 是原话，submittedAt 是提交时间。用户要求与约束以原话为准；“继续”等指代缺少背景时不猜测。目标是模型计划，不能冒充用户原话。
+status 为 completed、waiting_human 或 failed 时，分别表示结束、等待用户或失败；assembling/inferring 表示运行中的分段。createdAt/completedAt 为起止时间，completedAt=null 表示尚未收尾。sequence.turn/batch 只用于排序。
 
-## goalChanges：本轮目标版本数组
-每项 id 为版本标识，turnId 为创建轮次，goal 为目标正文，sourceCallId 为产生变更的工具调用，createdAt 为创建时间。空数组只表示本轮没改目标，不表示没有持续目标。多个版本保留变更顺序；计划不是完成证据。
+segment.batchIds 是本段工具批次；complete=false 表示运行中片段，complete=true 表示已结束轮次或最终剩余部分。我结合同轮 summaries 理解此前已归档的过程，不把剩余部分当作整轮。
 
-## toolIO：工具执行数组
-每项 turnId 表示来源，batchId 表示同批次，callId 标识调用，name 是工具名，arguments 是实际参数。arguments.reason 是调用理由，affectsPage 表示影响页面；定位参数只在相应执行时有意义。
-return 是执行结果：stage=complete 表示返回文本完整，truncated 表示只有部分；totalChars 是原返回字符数；text 是具体工具返回内容（可能自身为 JSON）。理解 text 的 ok、错误与实际证据，不把 return.stage=complete 当作业务成功。images 若存在是本地图片引用，并不代表已读到了图片内容。没有证据支持的结果不能补写。
+## userInput
 
-## pageObservations：页面观察数组
-每项 id 为观察标识，turnId 为所属轮次，callId/toolName 为工具来源，observedAt 为时间，tab/url/title 为页面身份，description 为观察内容。它们是历史快照，和同来源工具结果可能重复。观察差异表示当时状态变化，不代表当前页面仍如此。
+id 标识输入记录，userInput 是用户原话，submittedAt 是提交时间。我以原话确认要求和约束，不把目标当成用户要求，不猜测缺失的指代。
 
-## memoryWrites：本轮新增记忆数组
-这里只归集本轮新增会话记忆，长期记忆作为独立状态保留。memoryId 为记录标识，layer=conversation 表示会话层级，turnId 为写入轮次，text 为正文，sourceCallId 为来源工具，createdAt 为写入时间，sourceConversationId（存在时）为来源会话。只含本轮增量，不是全部记忆。模型写入的认识不天然比用户原话或执行证据可靠，冲突要保留。
+## goalChanges
 
-## queryHistory：本轮查询历史数组（可选）
-每项 queryId 标识一次查询，turnId 是发起查询的轮次，sumId 是查询入口摘要的来源标识，module 是所查询的模块，intent 是本次查找的具体意图，status 是查询返回状态。查询输入为 sumId、module、intent，查询 Agent 选择一个或多个来源 turnId，Runtime 按轮次和模块读取记录。records 是此次命中的原文记录数组，每项 turnId 是被查询的来源轮次，与查询记录自身的发起轮次 turnId 不同；id 保留模块记录原有的标识值，例如工具的 callId、记忆的 memoryId、输入或目标的 id、摘要的 sumId；content 为对应原文。一次查询可命中单条或多条记录。sumId 和 records.id 用于追溯来源，不能猜测、改写或生成不存在的引用。缺省或空数组只表示本次未提供查询历史。
+id 标识目标版本，goal 是正文，sourceCallId 指向产生变更的调用，createdAt 是创建时间。我按顺序理解目标变化；空数组不表示没有持续目标，计划不表示已经完成。
 
-这些记录说明本轮回查了什么、得到哪些历史证据；content 中描述的工具执行、目标、记忆或旧摘要属于其来源历史，不能记作查询轮次重新执行或重新验证的事实。区分“历史记录称已完成”和“本轮确认已完成”，部分结果也不能推断未返回的内容。只把影响本轮理解和结果的查询结论合入 result，不增加独立查询输出字段，不复制整段查询原文。来源关联由 runtime 保存，摘要不得臆造来源。当前查询 currentQuery 不进入本模块，也不参与压缩。
+## toolIO
 
-## output：本轮对外结果或 null
-kind=reply 的 text 是最终回复；kind=ask 的 question 是等待用户的问题；kind=error 的 faultCode 是失败或停止原因；kind=tool 的 name/callId 仅标识工具输出。null 表示暂无收尾结果。最终回复声称成功但工具失败时，必须明确差异。
+callId 标识调用，batchId 关联同批调用；name/arguments 是工具名和实参，reason 是理由，affectsPage 表示是否影响页面。定位参数只适用于当时的页面。
 
-## 长轮次与多层输入
-segments 数组存在时，各项是同一 turnId 的连续增量记录，结构同上；结合 summaries 中此前本轮摘要理解，不把已归档部分当作新操作。summaries 是同一轮较早分段或较低层摘要，每项含 tag/userRequest/actions/result，可含 turnId；它们保持当时含义，禁止混入另一轮。
-fragment 用于超长记录的临时拆分：path 为原模块字段路径（数组位置是数字），value 为该字段内容；字符串过长时 offset/totalChars 标识连续字符范围。只概括该片段提供的事实，其余模块缺失不等于不存在。后续 runtime 会汇总同轮片段摘要。不要把片段当完整轮次，不凭片段补写未知结局。
+return.stage=complete 只表示返回文本完整，truncated 表示部分返回；totalChars 是原返回字符数，text 是结果正文，也可能是 JSON。我依据正文中的成功、错误和证据判断结果，不把 stage 当业务状态。images 是本地图片引用，不等于我看过图片。
+
+## pageObservations
+
+id 标识观察，callId/toolName 指向来源工具；observedAt 是时间，tab/url/title 标识页面，description 是观察正文。我把它当历史快照，与同来源工具结果去重，不推断当前页面仍然如此。
+
+## memoryWrites
+
+memoryId 标识记忆，sourceCallId 指向来源调用，sourceConversationId 若存在则标识来源会话；text 是正文，createdAt 是写入时间。这里只含 layer=conversation 的本轮新增记忆，长期记忆独立保留。我不把模型记忆视为比用户原话或执行证据更可靠的事实。
+
+## queryHistory（可选）
+
+queryId 标识查询，sumId 指向入口摘要；module/intent 表示查询模块和意图，status 是返回状态。records 为命中记录：id 保留原模块记录的标识，content 为原文。缺省或空数组时，我不推断发生过查询。
+
+我只把影响本轮结果的查询结论合入 result，不复制整段原文。记录中的执行、目标、记忆和摘要属于来源历史，回查不等于本轮重新执行或验证；部分返回不支持推断遗漏内容。来源关联由 Runtime 保留。
+
+## output
+
+kind=reply 的 text 是最终回复；kind=ask 的 question 是待用户回答的问题；kind=error 的 faultCode 是失败或停止原因；kind=tool 的 name/callId 标识工具输出。null 表示暂无收尾结果。我保留回复与执行证据之间的差异。
+
+## 分段与摘要
+
+segments 是同轮连续增量，结构同上；summaries 是同轮此前分段或较低层摘要，包含 tag/userRequest/actions/result。我合并重复表述，不把已归档内容当新操作。
+
+fragment 是超长记录片段：path 为原字段路径，数组位置用数字；value 为内容，offset/totalChars 表示字符串范围。我只总结片段提供的事实，不补写缺失模块或未知结局；Runtime 随后汇总同轮片段摘要。
