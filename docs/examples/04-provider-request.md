@@ -199,7 +199,7 @@ submitGoal：记录或更新持续工作的目标。
 参数：必填 goal：目标正文。
 返回：当前目标并更新 #goal；目标变化时非空旧目标自动加入 #goalHistory，无需另写历史。记录目标不会自动执行目标，也不会结束本轮。
 affectsPage=false。
-context.query：委托查询 Agent 按模块和主题语义检索本会话的压缩归档，runtime 沿来源关系返回完整原文。无需提供或识别记录 ID。module 指被压缩的原始模块，tag 是主题描述而非精确标签；question 可补充要核对的问题。只查询已压缩归档，未压缩内容仍在当前 User。可能返回多条或 not_found；partial 表示原文超过单次返回上限，请缩小主题后再次查询，不能把局部结果当成全部。只读，不刷新页面。
+context.query：委托查询 Agent 按模块和主题语义检索本会话的压缩归档，runtime 沿来源关系返回完整原文。无需提供或识别记录 ID。module 指被压缩的原始模块，tag 是主题描述而非精确标签；question 可补充要核对的问题。只查询已压缩归档，未压缩内容仍在当前 User。可能返回多条或 not_found；partial 表示原文超过单次返回上限，请缩小主题后再次查询，不能把局部结果当成全部。只读，不刷新页面。 查询输入不接受 id 或 ids；候选 ID 由 runtime 从该模块目录提供给查询 Agent，匹配完成后仅在内部提交与解析。
 memory.write：保存后续需要的事实、偏好或进展。
 参数：conversationMemory、projectMemory 为字符串数组，按旧到新追加至对应记忆末尾，至少提供一项有意义的内容。conversationMemory 保存本会话已确认的事实、偏好和决定；projectMemory 保存跨会话仍适用的长期信息。当前目标通过 submitGoal 管理，草稿和待办通过 notes.write 管理。
 返回：两类记忆的写入条数。conversationMemory 仅在本会话保存；projectMemory 跨会话共享，删除来源会话后仍保留。
@@ -467,7 +467,7 @@ affectsPage=false。
     "type": "function",
     "function": {
       "name": "context.query",
-      "description": "委托查询 Agent 按模块和主题语义检索本会话的压缩归档，runtime 沿来源关系返回完整原文。无需提供或识别记录 ID。module 指被压缩的原始模块，tag 是主题描述而非精确标签；question 可补充要核对的问题。只查询已压缩归档，未压缩内容仍在当前 User。可能返回多条或 not_found；partial 表示原文超过单次返回上限，请缩小主题后再次查询，不能把局部结果当成全部。只读，不刷新页面。",
+      "description": "委托查询 Agent 按模块和主题语义检索本会话的压缩归档，runtime 沿来源关系返回完整原文。无需提供或识别记录 ID。module 指被压缩的原始模块，tag 是主题描述而非精确标签；question 可补充要核对的问题。只查询已压缩归档，未压缩内容仍在当前 User。可能返回多条或 not_found；partial 表示原文超过单次返回上限，请缩小主题后再次查询，不能把局部结果当成全部。只读，不刷新页面。 查询输入不接受 id 或 ids；候选 ID 由 runtime 从该模块目录提供给查询 Agent，匹配完成后仅在内部提交与解析。",
       "parameters": {
         "type": "object",
         "properties": {

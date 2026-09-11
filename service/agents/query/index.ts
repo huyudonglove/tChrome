@@ -1,7 +1,7 @@
-import type { Provider } from "../types.ts";
-import { runJsonAgent } from "./agent.ts";
-import { loadIndex, resolveSources } from "./store.ts";
-import type { CompressionModule } from "./types.ts";
+import type { Provider } from "../../types.ts";
+import { requestMatches, type QueryCandidate } from "./protocol.ts";
+import { loadIndex, resolveSources } from "../../context-archive/store.ts";
+import type { CompressionModule } from "../../context-archive/types.ts";
 
 const MODULES = ["userInputHistory", "pageObservedHistory", "conversationMemory", "toolIO"];
 const DIRECTORY_CHARS = 24000;
@@ -42,7 +42,7 @@ export async function queryContext(input: QueryInput): Promise<QueryResult> {
     if (input.isCancelled?.()) return cancelled();
     const index = loadIndex(input.dataDir, input.conversationId, input.module);
     if (!index.entries.length) return { ...base, ok: true, status: "not_found", detail: "该模块尚无压缩归档。" };
-    const chunks: { id: string; tag: string; summary: string; level: number; createdAt: string }[][] = [];
+    const chunks: QueryCandidate[][] = [];
     let chunk: typeof chunks[number] = [], size = 2;
     for (const entry of index.entries) {
       const item = { id: entry.id, tag: entry.tag, summary: entry.summary, level: entry.level, createdAt: entry.createdAt };
@@ -56,16 +56,11 @@ export async function queryContext(input: QueryInput): Promise<QueryResult> {
     const selected = new Set<string>();
     for (const entries of chunks) {
       if (input.isCancelled?.()) return cancelled();
-      const result = await runJsonAgent({ provider: input.provider, repoRoot: input.repoRoot,
-        promptNames: ["query-role.md", "query-match.md"],
-        payload: { module: input.module, tag: input.tag, question: input.question ?? "", entries } });
+      const result = await requestMatches({ provider: input.provider, repoRoot: input.repoRoot,
+        request: { module: input.module, tag: input.tag, question: input.question ?? "" },
+        candidates: entries });
       if (input.isCancelled?.()) return cancelled();
-      if (!result || typeof result !== "object" || Array.isArray(result)) throw new Error("查询 Agent 返回格式无效。");
-      const fields = result as Record<string, unknown>;
-      const allowed = new Set(entries.map(entry => entry.id));
-      if (Object.keys(fields).some(key => key !== "ids") || !Array.isArray(fields.ids)
-        || fields.ids.some(id => typeof id !== "string" || !allowed.has(id))) throw new Error("查询 Agent 返回了无效或目录外的 ID。");
-      for (const id of fields.ids as string[]) selected.add(id);
+      for (const id of result) selected.add(id);
     }
     if (!selected.size) return { ...base, ok: true, status: "not_found", detail: "未找到与该主题相关的归档。" };
     // Store traversal follows original source chronology and deduplicates shared ancestors.

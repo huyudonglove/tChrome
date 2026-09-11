@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type { Provider } from "../types.ts";
-import { runJsonAgent } from "./agent.ts";
-import { commitArchive, loadIndex } from "./store.ts";
-import type { CompressionModule, CompressionRecord, SourceRecord } from "./types.ts";
+import type { Provider } from "../../types.ts";
+import { requestSummary } from "./protocol.ts";
+import { commitArchive, loadIndex } from "../../context-archive/store.ts";
+import type { CompressionModule, CompressionRecord, SourceRecord } from "../../context-archive/types.ts";
 
 const CHUNK_CHARS = 24000;
 const SUMMARY_THRESHOLD = 20000;
@@ -42,14 +42,9 @@ async function compress(input: Input): Promise<void> {
   const request = async (payload: unknown): Promise<Summary> => {
     check();
     if (JSON.stringify(payload).length > 60000) throw new Error("Compression request exceeds chunk budget");
-    const output = await runJsonAgent({ ...input, promptNames: ["archive-role.md", "archive-output.md"], payload: { module: input.module, data: payload } });
+    const output = await requestSummary({ ...input, payload: { module: input.module, data: payload } });
     check();
-    if (!output || typeof output !== "object") throw new Error("Invalid compression output");
-    const value = output as Partial<Summary>;
-    if (typeof value.tag !== "string" || !value.tag.trim() || value.tag.length > 500 || typeof value.summary !== "string" || !value.summary.trim() || value.summary.length > 8000) throw new Error("Invalid compression summary or tag");
-    const summary = { tag: value.tag.trim(), summary: value.summary.trim() };
-    if (JSON.stringify(summary).length > 12000) throw new Error("Compression output exceeds chunk budget");
-    return summary;
+    return output;
   };
   const summarize = async (text: string): Promise<Summary> => {
     if (text.length <= CHUNK_CHARS) return request(text);

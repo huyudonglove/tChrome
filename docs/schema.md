@@ -15,6 +15,10 @@ service/                  本机服务，按职责组织
     README.md             维护入口，不进入模型窗口
   tools/                  工具注册、校验与服务端执行
     definitions/          schema、groups.json 分组与 index.json 分类
+  agents/                 工具类 Agent，复用 provider.complete
+    compression/          提示词、输入输出校验与分层压缩流程
+    query/                提示词、输入输出校验与目录语义匹配
+  context-archive/        归档存储、覆盖索引与来源展开
   provider/               模型通信、重试与响应解析
   presentation/           会话消息与列表的纯展示投影
 extension/                Chrome 宿主
@@ -217,6 +221,8 @@ Memory 投影保持全部可见原文，不使用旧 compressed/summary 字段�
 
 ## compression/<module>/
 
+这是运行数据目录，由 `service/context-archive/` 管理，路径保持不变。`service/agents/compression/` 和 `service/agents/query/` 分别负责摘要生成与目录语义匹配，各自的 `protocol.ts` 管理提示词组装与 返回工具参数校验，`index.ts` 管理业务流程。二者直接复用现有无状态 `provider.complete`，不另建 LLM 请求层。
+
 模块为 userInputHistory、pageObservedHistory、conversationMemory、toolIO，每个目录包含：
 
 | 文件 | 内容 |
@@ -337,4 +343,4 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 
 ## 实现职责
 
-工具 schema、分类和分组由 `service/tools/registry.ts` 读取同模块的 `service/tools/definitions/`。Provider 负责模型通信、传输重试及响应/参数解析；所有 provider 返回都由 `service/runtime/loop.ts` 的 `validateCompletion` 调用 `service/tools/schema.ts` 统一检查 schema、工具名和收口顺序，Runtime 根据结果推进状态。Context 接收数据和工具说明，仅生成窗口投影。`service/presentation/session-view.ts` 以纯函数生成 UI 消息和会话列表；store 负责读取记录、持久化和会话命令。
+工具 schema、分类和分组由 `service/tools/registry.ts` 读取同模块的 `service/tools/definitions/`。Provider 负责模型通信、传输重试及响应/参数解析；主 Agent 的 provider 返回由 `service/runtime/loop.ts` 的 `validateCompletion` 调用 `service/tools/schema.ts` 统一检查 schema、工具名和收口顺序，Runtime 根据结果推进状态。Context 接收数据和工具说明，仅生成窗口投影。`service/presentation/session-view.ts` 以纯函数生成 UI 消息和会话列表；store 负责读取记录、持久化和会话命令。

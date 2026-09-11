@@ -12,7 +12,7 @@ conversation 存储于 `<dataDir>/conversations/<conversationId>/memory/<memoryI
 
 首次读取/写入长期记忆或删除会话前，自动将旧会话目录中的 project 记录复制到共享目录，使用 legacy_<conversationId>_<memoryId> 避免旧ID碰撞，保留来源与原文件。完成后写入迁移标记；中断重试幂等。后续读取只使用共享目录，旧账本 project 索引仅作为历史数据保留。
 
-会话记忆压缩由 service/compression 提供，摘要进入 conversationMemorySummary。工具证据进入 toolIOSummary，两者不混合。
+会话记忆压缩由 service/agents/compression 提供，摘要进入 conversationMemorySummary。工具证据进入 toolIOSummary，两者不混合。
 
 读取旧会话账本时，将旧 turn 索引与 conversation 索引按 ID 去重，按记录时间及 ID 数字序合并到 conversation；旧 turn 文件原地更新为 conversation，正文、摘要和来源保持不变，迁移可重复执行。Notes 承担会话草稿用途，不再保留独立的过程记忆层。
 

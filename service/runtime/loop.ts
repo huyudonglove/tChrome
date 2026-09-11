@@ -25,7 +25,7 @@ import type {
 } from "../types.ts";
 import { checkToolCalls } from "../tools/schema.ts";
 import { contextState, compressContext } from "./context-state.ts";
-import { queryContext } from "../compression/query.ts";
+import { queryContext } from "../agents/query/index.ts";
 import { nextId, nowIso, pacificDate } from "./ids.ts";
 import {
   ensureSession,

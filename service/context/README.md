@@ -57,3 +57,5 @@ execution 专注任务推进；toolProtocol 负责调用、返回和错误处理
 常驻 `context.query(module, tag, question?)` 将主题交给查询 Agent 语义匹配本会话对应模块目录，由 runtime 校验内部 ID、沿来源关系读取原文并去重，按原顺序返回。主 Agent 无需提供记录 ID。只检索已压缩归档；支持多条或 not_found，单次原文内容上限 30,000 字符，超过时返回 partial 和遗漏数量，不截断单条原文。请缩小主题或问题后再查；单条原文本身超过上限时也会明确返回 partial。查询不会刷新页面。
 
 每个模块在 LLM 输出校验成功、完整来源与摘要落盘后，才原子更新目录索引。失败或取消不推进该模块覆盖关系，原文继续可用；同一轮中此前成功提交的其他模块可以保留。索引是提交点，中断可能留下未被索引引用的文件。
+
+压缩和查询 Agent 分别位于 `service/agents/compression/`、`service/agents/query/`，各自管理提示词、输入组装与输出校验，共用现有 `provider.complete`。`service/context-archive/` 管理归档存储和来源关系；本目录负责主 Agent 的窗口投影与组装，不发起模型请求。

@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import type { Ledger, Turn } from "../types.ts";
 import type { Memories } from "../memory/types.ts";
-import { loadIndex } from "../compression/store.ts";
-import { compressRecords } from "../compression/compress.ts";
+import { loadIndex } from "../context-archive/store.ts";
+import { compressRecords } from "../agents/compression/index.ts";
 import type { Provider } from "../types.ts";
 
 export const COMPRESSION_MODULES = ["userInputHistory", "pageObservedHistory", "conversationMemory", "toolIO"] as const;

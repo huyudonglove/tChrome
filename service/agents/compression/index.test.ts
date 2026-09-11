@@ -2,20 +2,20 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
-import type { Provider } from "../types.ts";
-import { compressRecords } from "./compress.ts";
-import { archiveDir, loadIndex, readSource, resolveSources } from "./store.ts";
+import type { Provider } from "../../types.ts";
+import { compressRecords } from "./index.ts";
+import { archiveDir, loadIndex, readSource, resolveSources } from "../../context-archive/store.ts";
 
 const dirs: string[] = [];
 afterEach(() => dirs.splice(0).forEach(dir => rmSync(dir, { recursive: true, force: true })));
 function setup(provider: Provider) {
   const dataDir = mkdtempSync(`${tmpdir()}/tchrome-compression-`); dirs.push(dataDir);
-  return { dataDir, conversationId: "cv_test", repoRoot: resolve(import.meta.dir, "../.."), provider, module: "userInputHistory" as const };
+  return { dataDir, conversationId: "cv_test", repoRoot: resolve(import.meta.dir, "../../.."), provider, module: "userInputHistory" as const };
 }
 function model(fn: (text: string) => string | Promise<string>): Provider {
   return { async complete(input) {
-    expect(input.tools).toEqual([]);
-    return { finish: "stop", content: await fn(input.messages[1]!.content), toolCalls: [], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] };
+    expect(input.tools.map(tool => tool.function.name)).toEqual(["submitSummary"]);
+    return { finish: "tool_calls", content: "", toolCalls: [{id: "summary", name: "submitSummary", arguments: JSON.parse(await fn(input.messages[1]!.content))}], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] };
   } };
 }
 const output = (summary = "保留负责人要求和状态约束") => JSON.stringify({ tag: "任务负责人／状态限制", summary });

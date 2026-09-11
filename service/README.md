@@ -13,11 +13,13 @@
 | `runtime/` | 账本、循环、工具证据归档、`session.json`、浏览器桥 |
 | `context/` | modules.ts 加载上下文模块；window.ts 纯投影当轮数据、记忆和已提供的工具说明 |
 | `tools/` | registry.ts 读取本模块 definitions/ 内工具定义、分组和分类；参数检查、工具执行及结构化效果 |
-| `compression/` | 独立 LLM 压缩和查询提示词、分模块归档、覆盖索引与来源展开 |
+| `agents/compression/` | 压缩 Agent 的提示词、输入输出协议、校验与分层压缩流程 |
+| `agents/query/` | 查询 Agent 的提示词、输入输出协议、校验与语义检索流程 |
+| `context-archive/` | 分模块归档存储、覆盖索引与来源展开 |
 | `provider/` | 模型通信、传输重试与响应解析 |
 | `presentation/` | 纯函数生成会话消息、错误文案、待执行工具和列表预览 |
 
-Prompt 正文与加载器都在 `service/context/`。system-slots.md / user-slots.md 只保存编号文件名；每个模块独立声明 tag、能力和详细描述。system 先输出 `service/context/overview.md` 总纲，串联规则、材料、判断与行动，再输出 System 栏目清单，七个模块逐项以 tag --能力接详细正文，baseTools 同时带常驻工具说明；再输出 User 栏目清单，逐项以 tag --能力接详细描述。user 只渲染十六个 tag 的内容段，不重复能力或详细描述。execution 拆出 toolProtocol 与 boundaries；Skill 正文位于独立的 service/skills/<name>/SKILL.md，由 runtime 加载后注入 #skill；context/user/skill.md 只提供模块说明和数据占位。
+主 Agent 的 Prompt 正文与加载器都在 `service/context/`。system-slots.md / user-slots.md 只保存编号文件名；每个模块独立声明 tag、能力和详细描述。system 先输出 `service/context/overview.md` 总纲，串联规则、材料、判断与行动，再输出 System 栏目清单，七个模块逐项以 tag --能力接详细正文，baseTools 同时带常驻工具说明；再输出 User 栏目清单，逐项以 tag --能力接详细描述。user 只渲染十六个 tag 的内容段，不重复能力或详细描述。execution 拆出 toolProtocol 与 boundaries；Skill 正文位于独立的 service/skills/<name>/SKILL.md，由 runtime 加载后注入 #skill；context/user/skill.md 只提供模块说明和数据占位。
 
 工具 API 定义位于 `service/tools/definitions/`，分组在 groups.json。说明唯一来自 function.description，index 只分类；常驻说明进入 #baseTools，动态说明进入 #tools。运行提示位于 service/runtime/messages.json。上下文 README 是维护入口，不进入模型窗口。
 
@@ -31,7 +33,7 @@ HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`�
 
 每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符时，分别调用独立 LLM 压缩请求处理 userInputHistory、pageObservedHistory、conversationMemory 和 toolIO。前三个模块保留最近 3 条原文，toolIO 保留最近 2 个调用批次。压缩只改变窗口覆盖关系，账本和本地完整原文保持不变。各层连续摘要累计达到 20,000 字符后生成更高层摘要，旧摘要与来源关联继续保留。 每个模块在 LLM 输出校验成功、完整来源与摘要落盘后，才原子更新目录索引。失败或取消不推进该模块覆盖关系，原文继续可用；同一轮中此前成功提交的其他模块可以保留。索引是提交点，中断可能留下未被索引引用的文件。
 
-Provider 使用 Chat Completions 的 `stream: false`，解析完整 JSON 响应。统一策略校验位于 `runtime/loop.ts` 的 `validateCompletion`，调用 `tools/schema.ts` 检查所有 provider 返回的工具提交；provider 不承担工具加载策略或批次执行决策。
+主 Agent、压缩 Agent 和查询 Agent 复用现有无状态 `provider.complete` 请求能力，包括模型配置、协议适配、重试和响应解析，不另建 LLM 请求层。两个工具类 Agent 各自通过 `protocol.ts` 组装提示词并校验专用返回工具调用，通过 `index.ts` 执行业务流程，提示词保存在各自的 `prompts/`。主 Agent 的工具提交由 `runtime/loop.ts` 的 `validateCompletion` 调用 `tools/schema.ts` 校验；provider 不承担业务输出校验、工具加载策略或批次执行决策。
 
 长期记忆 projectMemory 位于数据目录的 memory/project/，独立于会话，所有会话共享读取，删除来源会话后仍保留。conversation 记忆继续按会话隔离。首次使用时自动复制迁移旧会话中的 project 记录并保留来源，具体见 memory/README.md。
 

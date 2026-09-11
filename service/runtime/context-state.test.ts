@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { emptyLedger } from "./store.ts";
 import { contextState, compressContext } from "./context-state.ts";
-import { loadIndex } from "../compression/store.ts";
+import { loadIndex } from "../context-archive/store.ts";
 import type { Turn, Provider } from "../types.ts";
 const repoRoot = join(import.meta.dir, "../..");
 
@@ -19,7 +19,7 @@ test("compression retains latest inputs/pages/memories and two complete tool bat
   const memories={project:[],conversation:Array.from({length:5},(_,i)=>({memoryId:`mm_${i}`,layer:'conversation' as const,text:`记忆${i}`,summary:'',compressed:false,createdAt:'2026-09-11',sourceCallId:`call_${i}`}))};
   const before=JSON.stringify({ledger,turn,memories});
   let requests=0;
-  const provider:Provider={complete:async ({tools})=>{requests++;expect(tools).toEqual([]);return {finish:'stop',content:JSON.stringify({tag:'历史事项',summary:'较早的两项记录'}),toolCalls:[],attempts:1,parseOk:true,schemaOk:true,faultCode:null,missing:[]};}};
+  const provider:Provider={complete:async ({tools})=>{requests++;expect(tools.map(tool=>tool.function.name)).toEqual(["submitSummary"]);return {finish:'tool_calls',content:'',toolCalls:[{id:'summary',name:'submitSummary',arguments:{tag:'历史事项',summary:'较早的两项记录'}}],attempts:1,parseOk:true,schemaOk:true,faultCode:null,missing:[]};}};
   await compressContext({dataDir,repoRoot,provider,ledger,turn,memories,isCancelled:()=>false});
   const view=contextState(dataDir,ledger,turn,memories);
   expect(view.ledger.userInputHistory).toEqual(ledger.userInputHistory.slice(-3));
@@ -46,7 +46,7 @@ for (const fail of [false,true]) test(`send boundary compresses before main LLM;
   let main=0,aux=0;
   const provider:Provider={complete:async ({tools,messages})=>{
    const base={attempts:1,parseOk:true,schemaOk:true,faultCode:null,missing:[],toolCalls:[]};
-   if(!tools.length) {aux++;return {...base,finish:fail?'error':'stop',faultCode:fail?'test_error':null,content:JSON.stringify({tag:'此前要求',summary:'较早用户要求的摘要'})};}
+   if(tools[0]?.function.name === "submitSummary") {aux++;return {...base,finish:fail?'error':'tool_calls',faultCode:fail?'test_error':null,content:'',toolCalls:[{id:'summary',name:'submitSummary',arguments:{tag:'此前要求',summary:'较早用户要求的摘要'}}]};}
    main++;
    expect(aux).toBeGreaterThan(0);
    expect(messages[1]!.content).toContain('较早用户要求的摘要');
@@ -71,7 +71,7 @@ test("stop during compression cannot commit coverage or overwrite paused session
   saveLedger(dataDir,ledger);
   let release!:()=>void, started!:()=>void;
   const pending=new Promise<void>(resolve=>{release=resolve;}),entered=new Promise<void>(resolve=>{started=resolve;});
-  const provider:Provider={complete:async ({tools})=>{expect(tools).toEqual([]);started();await pending;return {finish:'stop',content:JSON.stringify({tag:'旧要求',summary:'摘要'}),toolCalls:[],attempts:1,parseOk:true,schemaOk:true,faultCode:null,missing:[]};}};
+  const provider:Provider={complete:async ({tools})=>{expect(tools.map(tool=>tool.function.name)).toEqual(["submitSummary"]);started();await pending;return {finish:'tool_calls',content:'',toolCalls:[{id:'summary',name:'submitSummary',arguments:{tag:'旧要求',summary:'摘要'}}],attempts:1,parseOk:true,schemaOk:true,faultCode:null,missing:[]};}};
   const running=handleTurn({dataDir,repoRoot,provider},{userInput:'继续',submittedAt:'2026-09-11'});
   await entered;
   stopTurn(dataDir);

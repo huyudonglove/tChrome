@@ -1,0 +1,15 @@
+{
+  "type": "function",
+  "function": {
+    "name": "submitMatches",
+    "description": "提交本批归档目录的语义匹配结果。只返回目录内 ID；没有匹配时提交空数组。必须且只能调用一次。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "ids": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      },
+      "required": ["ids"],
+      "additionalProperties": false
+    }
+  }
+}

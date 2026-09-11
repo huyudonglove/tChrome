@@ -2,14 +2,14 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
-import { commitArchive } from "./store.ts";
-import { queryContext } from "./query.ts";
-import type { CompressionRecord, SourceRecord } from "./types.ts";
-import type { Provider } from "../types.ts";
+import { commitArchive } from "../../context-archive/store.ts";
+import { queryContext } from "./index.ts";
+import type { CompressionRecord, SourceRecord } from "../../context-archive/types.ts";
+import type { Provider } from "../../types.ts";
 
 const dirs: string[] = [];
 afterEach(() => dirs.splice(0).forEach(dir => rmSync(dir, { recursive: true, force: true })));
-const repoRoot = resolve(import.meta.dir, "../..");
+const repoRoot = resolve(import.meta.dir, "../../..");
 function fixture(contents: unknown[] = [{ id: "raw_0", turnId: "tn_0", userInput: "只改负责人", submittedAt: "2026-09-01" }, { id: "raw_1", userInput: "状态保持待处理" }]) {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-query-")); dirs.push(dataDir);
   const sources: SourceRecord[] = contents.map((content, i) => ({ id: `raw_${i}`, content }));
@@ -22,15 +22,15 @@ function fixture(contents: unknown[] = [{ id: "raw_0", turnId: "tn_0", userInput
   return { dataDir, conversationId: "cv_test", module: "userInputHistory" as const, tag: "任务的修改限制", repoRoot };
 }
 function providerFor(ids: string[], observe?: (input: Parameters<Provider["complete"]>[0]) => void): Provider {
-  return { async complete(input) { observe?.(input); return { finish: "stop", content: JSON.stringify({ ids }), toolCalls: [], attempts: 1,
+  return { async complete(input) { observe?.(input); return { finish: "tool_calls", content: "", toolCalls: [{ id: "call_matches", name: "submitMatches", arguments: { ids } }], attempts: 1,
     parseOk: true, schemaOk: true, faultCode: null, missing: [] }; } };
 }
 
-test("query uses independent tool-free request, unfolds hierarchy chronologically and removes only storage metadata", async () => {
+test("query uses independent return-tool request, unfolds hierarchy chronologically and removes only storage metadata", async () => {
   const input = fixture();
   const result = await queryContext({ ...input, provider: providerFor(["sum_1", "sum_parent", "sum_0"], request => {
-    expect(request.tools).toEqual([]);
-    expect(JSON.parse(request.messages[1]!.content)).toMatchObject({ module: "userInputHistory", tag: input.tag });
+    expect(request.tools.map(tool => tool.function.name)).toEqual(["submitMatches"]);
+    expect(JSON.parse(request.messages[1]!.content).request).toMatchObject({ module: "userInputHistory", tag: input.tag });
   }) });
   expect(result).toMatchObject({ ok: true, status: "complete", matchedRecords: 2, returnedRecords: 2, omittedRecords: 0 });
   expect(result.contents).toEqual([{ userInput: "只改负责人", submittedAt: "2026-09-01" }, { userInput: "状态保持待处理" }]);
@@ -63,7 +63,7 @@ test("directory batches are bounded and all batches are queried before declaring
   const provider = providerFor([], request => {
     calls++;
     const payload = JSON.parse(request.messages[1]!.content);
-    expect(JSON.stringify(payload.entries).length).toBeLessThanOrEqual(24000);
+    expect(JSON.stringify(payload.catalog).length).toBeLessThanOrEqual(24000);
   });
   const result = await queryContext({ ...input, provider });
   expect(result.status).toBe("not_found");
@@ -77,7 +77,7 @@ test("later directory failure does not return earlier candidates as complete res
     calls++;
     if (calls === 2) throw new Error("provider unavailable");
     const entries = JSON.parse(request.messages[1]!.content).entries;
-    return { finish: "stop", content: JSON.stringify({ ids: [entries[0].id] }), toolCalls: [], attempts: 1,
+    return { finish: "tool_calls", content: "", toolCalls: [{ id: "call_matches", name: "submitMatches", arguments: { ids: [entries[0].id] } }], attempts: 1,
       parseOk: true, schemaOk: true, faultCode: null, missing: [] };
   } };
   const result = await queryContext({ ...input, provider });

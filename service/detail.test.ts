@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { handleTurn } from "./runtime/loop.ts";
 import { ensureSession, loadLedger } from "./runtime/store.ts";
-import { compressRecords } from "./compression/compress.ts";
-import { loadIndex } from "./compression/store.ts";
+import { compressRecords } from "./agents/compression/index.ts";
+import { loadIndex } from "./context-archive/store.ts";
 import type { CompletionResult, Provider } from "./types.ts";
 
 const repoRoot = join(import.meta.dir, "..");
@@ -18,12 +18,12 @@ test("delegated query returns archived originals to next main request without tr
     const session = ensureSession(dataDir);
     await compressRecords({ dataDir, conversationId: session.conversationId, repoRoot, module: "toolIO",
       records: [{ id: "source_tool", content: { callId: "hidden_call", text: full } }],
-      provider: { complete: async () => reply({ content: JSON.stringify({ tag: "详情", summary: "详细证据" }) }) },
+      provider: { complete: async () => reply({ finish: "tool_calls", toolCalls: [{id:"summary",name:"submitSummary",arguments:{tag:"详情",summary:"详细证据"}}] }) },
     });
     const id = loadIndex(dataDir, session.conversationId, "toolIO").activeIds[0]!;
     let requests = 0, queries = 0;
     const provider: Provider = { complete: async ({ messages, tools }) => {
-      if (!tools.length) { queries++; return reply({ content: JSON.stringify({ ids: [id] }) }); }
+      if (tools[0]?.function.name === "submitMatches") { queries++; return reply({ finish:"tool_calls", toolCalls:[{id:"matches",name:"submitMatches",arguments:{ids:[id]}}] }); }
       requests++;
       if (requests === 2) {
         expect(JSON.stringify(messages)).toContain(full);

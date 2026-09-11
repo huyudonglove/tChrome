@@ -160,7 +160,10 @@ service/                  本机服务，按职责组织
   runtime/                循环、账本、持久化、证据归档与浏览器桥
   skills/                 独立 Skill 目录、启用清单与加载器
   memory/                 两层记忆读写、迁移与窗口投影
-  compression/            独立 LLM 压缩、归档目录与语义查询
+  agents/                 工具类 Agent，各自管理提示词、输入输出与业务流程
+    compression/          分模块、多层摘要生成
+    query/                按主题匹配归档目录
+  context-archive/        归档存储、覆盖索引与来源展开
   images/                 截图文件存储、引用校验与模型图片输入
   context/                模块描述、规则加载与文本组装
     system/               固定规则与常驻工具插槽
