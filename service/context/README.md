@@ -46,13 +46,11 @@ execution 专注任务推进；toolProtocol 负责调用、返回和错误处理
 
 修改后运行 `bun run scripts/sync-context-examples.ts`，同步阶段示例中的导航、正文与栏目数组。脚本只刷新真正的 schema，保留实际 tool_calls 的参数数据；再次运行结果应相同。按改动范围执行相关检查。
 
-查询插槽已预留：`currentQuery` 为最近一次精准查询结果对象，缺省 `null`；`queryHistory` 为此前查询结果数组，缺省 `[]`。窗口装配可接收这两项数据，投影保留来源引用、查询意图和原文。压缩 System 已描述可选的本轮 `queryHistory` 输入及其结论合入 `result` 的规则。
+`currentQuery` 保存最近一次查询，缺省 `null`；`queryHistory` 保存此前查询，缺省 `[]`。下一次查询完成（包括失败）或新 Turn 开始时，上一份查询进入历史并保留发起轮次；取消不替换当前查询。原文仅放在查询插槽，toolIO 记录条件、状态和引用。当前查询计入总窗口但不参与压缩；历史查询按发起 Turn 归档，结论合入 result。
 
-当前阶段只接入插槽、投影和提示词。现行 `context.query` 仍使用下文的 tag 查询接口；sumId/module/intent 查询、2000 字符门禁、历史轮转、持久化、压缩输入归集及当前查询保护尚未接入 Runtime，因此真实请求中两个新插槽默认为空。模块说明定义后续装配契约，不代表上述执行机制已经生效。
+历史类数据（用户输入、目标历史、两层记忆、工具记录、轮次摘要、查询历史）按旧到新排列，新增记录追加末尾；最近窗口从尾部选取后仍保持原顺序。待办和工具队列按执行顺序，选项与排名保留其业务含义。
 
-历史类数据（用户输入、目标历史、两层记忆、工具记录、轮次摘要）按旧到新排列，新增记录追加末尾；最近窗口从尾部选取后仍保持原顺序。待办和工具队列按执行顺序，选项与排名保留其业务含义。
-
-记忆读写和分层加载由 service/memory 提供。Runtime 按归档覆盖关系过滤可见原文，再按模块投影记录对象传给 context；不按条数或字符数静默裁剪。模块投影保留具体记录身份与来源关联，各模块说明解释其 ID 含义和规律：
+记忆读写和分层加载由 service/memory 提供。Runtime 按归档覆盖关系过滤可见原文，再按模块投影记录对象传给 context；不按条数或字符数静默裁剪。模块投影保留具体记录身份与来源关联，各模块说明解释其 ID 含义，编号规律集中在 System：
 
 | 模块 | 记录字段 |
 |---|---|
@@ -68,9 +66,9 @@ execution 专注任务推进；toolProtocol 负责调用、返回和错误处理
 
 总纲中的 `{{currentDate}}` 由 runtime 在每次模型请求组装前按 `America/Los_Angeles` 计算，格式为 YYYY-MM-DD，自动处理夏令时。示例使用固定日期 2026-09-06，以保持可重复生成。
 
-每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes 和长期记忆保持可见。没有独立的 20K 摘要阈值，也不把多轮合成一条摘要。
+每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。没有独立的 20K 摘要阈值，也不把多轮合成一条摘要。
 
-常驻 `context.query(module="conversationHistory", tag, question?)` 将主题交给查询 Agent 语义匹配本会话 conversationHistory 目录，由 runtime 校验内部 ID、沿来源关系读取原文并去重，按原顺序返回。主 Agent 无需提供记录 ID。只检索已压缩归档；支持多条或 not_found，单次原文内容上限 30,000 字符，超过时返回 partial 和遗漏数量，不截断单条原文。请缩小主题或问题后再查；单条原文本身超过上限时也会明确返回 partial。查询不会刷新页面。
+常驻 `context.query(sumId, module, intent, cursor?)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，查询 Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将对应记录放入 currentQuery；工具返回只含状态和引用。每次 records 的紧凑 JSON 最多 2000 字符；超出返回 partial 与 nextCursor，可带原查询参数和 cursor 继续读取，无需再次调用查询 Agent。超大单条保留身份字段及 fragment:{offset,totalChars,text}，text 是原记录 JSON 的连续片段，不是摘要。查询不会刷新页面。
 
 模型输出校验成功、完整来源与摘要落盘后，才原子更新目录索引和覆盖关系。失败或取消不提交该批次覆盖，原文继续可用；此前成功提交的归档保留。索引是提交点，中断可能留下未被索引引用的文件。窗口按来源覆盖过滤历史输入、目标版本、页面观察、会话记忆写入和工具记录，本地原文不删除。
 

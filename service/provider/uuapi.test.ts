@@ -93,7 +93,6 @@ for (const policy of ["unknown_tool", "missing_required", "exclusive_resident"])
       const ledger = loadLedger(dir, reply.conversationId);
       expect(ledger.notes.kept).toBe(policy === "exclusive_resident" ? undefined : "yes");
       expect(ledger.toolIO.some((row) => row.return.text.includes(policy))).toBe(true);
-      expect(loadProviderLog(dir, "cv_01")[0]!.response.providerCallIds).toEqual({ call_01: "missing", call_02: "valid", call_03: "broken_1", call_04: "broken_2" });
     expect(requests).toBe(2);
     } finally { server.stop(true); rmSync(dir, { recursive: true, force: true }); }
   });

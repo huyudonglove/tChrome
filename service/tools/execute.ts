@@ -1,4 +1,6 @@
 import runtimeMessages from "../runtime/messages.json";
+import type { QueryModule, QueryResult } from "../agents/query/types.ts";
+import type { QueryRecord } from "../context/projections/queries.ts";
 import type { ToolEffect, ToolExecution } from "./effects.ts";
 import type { BrowserHost, CurrentPage, ToolArguments } from "../types.ts";
 import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
@@ -55,7 +57,7 @@ export type ExecuteInput = {
   conversationId?: string;
   browserNames: string[];
   host?: BrowserHost;
-  queryContext?: (args: {module: "conversationHistory"; tag: string; question: string}) => Promise<unknown>;
+  queryContext?: (args: {sumId: string; module: QueryModule; intent: string; cursor?: string}) => Promise<QueryResult>;
   lookup: {
     unusedTools: string[];
     knownTools: string[];
@@ -114,7 +116,21 @@ export async function executeTool(input: ExecuteInput): Promise<ToolExecution> {
   }
   if (name === "context.query") {
     if (!input.queryContext) return result(JSON.stringify({ status: "error", error: "query_agent_unavailable" }));
-    return result(JSON.stringify(await input.queryContext({ module: args.module as "conversationHistory", tag: String(args.tag), question: String(args.question ?? "") })));
+    const queried = await input.queryContext({ sumId: String(args.sumId), module: args.module as QueryModule,
+      intent: String(args.intent), ...(typeof args.cursor === "string" ? { cursor: args.cursor } : {}) });
+    if (queried.status === "cancelled") return result(JSON.stringify({ ok: false, status: "cancelled" }));
+    const bounded = JSON.stringify(queried.records).length <= 2000;
+    const query = { sumId: queried.sumId, module: queried.module, intent: queried.intent,
+      status: bounded ? queried.status : "error" as const,
+      records: (bounded ? queried.records : []) as QueryRecord[],
+      ...(bounded && queried.nextCursor ? { nextCursor: queried.nextCursor } : {}),
+      detail: bounded ? queried.detail : "查询结果超过 2000 字符门禁，未注入原文。" };
+    const references = query.records.map(record => Object.fromEntries(Object.entries(record)
+      .filter(([key]) => ["id", "turnId", "callId", "memoryId", "sumId", "queryId"].includes(key))));
+    return result(JSON.stringify({ ok: bounded && queried.ok, status: query.status,
+      sumId: query.sumId, module: query.module, records: references,
+      ...(query.nextCursor ? { nextCursor: query.nextCursor } : {}), detail: query.detail }),
+      [{ type: "query.set", query }]);
   }
   if ((LOCAL_TOOL_NAMES as readonly string[]).includes(name)) {
     if (!input.conversationId) return externalResult({ ok: false, error: "本地工具缺少会话标识" });

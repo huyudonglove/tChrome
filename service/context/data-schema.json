@@ -424,6 +424,22 @@
         },
         "result": {
           "type": "string"
+        },
+        "module": {
+          "const": "conversationHistory"
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sourceIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string"
         }
       },
       "required": [
@@ -458,6 +474,12 @@
         },
         {
           "$ref": "#/$defs/query"
+        },
+        {
+          "$ref": "#/$defs/output"
+        },
+        {
+          "$ref": "#/$defs/fragment"
         }
       ]
     },
@@ -474,8 +496,16 @@
           "$ref": "#/$defs/sumId"
         },
         "module": {
-          "type": "string",
-          "minLength": 1
+          "enum": [
+            "userInput",
+            "goalChanges",
+            "toolIO",
+            "pageObservations",
+            "memoryWrites",
+            "output",
+            "queryHistory",
+            "summaries"
+          ]
         },
         "intent": {
           "type": "string"
@@ -493,6 +523,15 @@
           "items": {
             "$ref": "#/$defs/queryRecord"
           }
+        },
+        "sourceCallId": {
+          "$ref": "#/$defs/callId"
+        },
+        "nextCursor": {
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
         }
       },
       "required": [
@@ -503,6 +542,106 @@
         "intent",
         "status",
         "records"
+      ],
+      "additionalProperties": false
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "turnId": {
+          "$ref": "#/$defs/turnId"
+        },
+        "kind": {
+          "enum": [
+            "reply",
+            "ask",
+            "error",
+            "tool"
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "question": {
+          "type": "string"
+        },
+        "faultCode": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "callId": {
+          "$ref": "#/$defs/callId"
+        }
+      },
+      "required": [
+        "turnId",
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    "fragment": {
+      "type": "object",
+      "properties": {
+        "turnId": {
+          "$ref": "#/$defs/turnId"
+        },
+        "id": {
+          "type": "string"
+        },
+        "callId": {
+          "$ref": "#/$defs/callId"
+        },
+        "memoryId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/conversationMemoryId"
+            },
+            {
+              "$ref": "#/$defs/projectMemoryId"
+            }
+          ]
+        },
+        "queryId": {
+          "$ref": "#/$defs/queryId"
+        },
+        "sumId": {
+          "$ref": "#/$defs/sumId"
+        },
+        "batchId": {
+          "$ref": "#/$defs/batchId"
+        },
+        "sourceCallId": {
+          "$ref": "#/$defs/callId"
+        },
+        "fragment": {
+          "type": "object",
+          "properties": {
+            "offset": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "totalChars": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "offset",
+            "totalChars",
+            "text"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "turnId",
+        "fragment"
       ],
       "additionalProperties": false
     }

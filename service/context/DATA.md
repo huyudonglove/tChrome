@@ -22,8 +22,8 @@
 | `currentQuery` | 查询记录或 `null` | `queryId` |
 | `tools` | 字符串 | 工具名 |
 
-查询记录统一为 `{queryId, turnId, sumId, module, intent, status, records}`。`records` 直接保存原模块记录，不新增通用 `id`，不加 `content` 包装；身份字段沿用原记录。查询自身的 `turnId` 与结果记录的 `turnId` 分别表示发起轮次和来源轮次。`status` 为 `complete / partial / not_found / error`。
+查询记录统一为 `{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, nextCursor?, detail?}`。`records` 直接保存原模块记录，不新增通用 `id`，不加 `content` 包装；身份字段沿用原记录。查询自身的 `turnId` 与结果记录的 `turnId` 分别表示发起轮次和来源轮次。`status` 为 `complete / partial / not_found / error`。
 
-工具投影的 `return` 为 `{stage, result}`；查询原始工具记录时也允许 `{stage, totalChars, text}`。工具参数、解析后的结果和图片对象属于工具协议，不限制其内部业务 ID。查询原记录允许已有时间和来源字段；查询记录可包含历史查询记录。
+工具投影的 `return` 为 `{stage, result}`；查询原始工具记录时也允许 `{stage, totalChars, text}`。工具参数、解析后的结果和图片对象属于工具协议，不限制其内部业务 ID。查询原记录允许已有时间和来源字段；查询记录可包含历史查询记录、带 turnId 的最终输出，以及指定摘要的各层来源摘要。超长原记录以身份字段和 fragment:{offset,totalChars,text} 返回；text 是原记录 JSON 的连续字符片段，通过 nextCursor 续页，按 offset 拼接可恢复原文。单次 records 的紧凑 JSON 最多 2000 字符。
 
 Schema 检查字段类型、必填项、ID 格式及已知记录结构，拒绝未声明的顶层模块和记录字段。编号至少两位，前缀来自 ID 清单。Schema 不检查编号唯一性、自增状态、引用是否存在或查询是否命中，也不实现查询链路及 2000 字符门禁；这些由 Runtime 验证。

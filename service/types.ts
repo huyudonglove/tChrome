@@ -1,5 +1,6 @@
 export type { MemoryLayer, MemoryRecord } from "./memory/types.ts";
 import type { ImageReference } from "./images/store.ts";
+import type { QueryEvidence } from "./context/projections/queries.ts";
 export type LedgerStatus = "idle" | "running" | "waiting_human" | "paused" | "failed";
 export type TurnStatus = "assembling" | "inferring" | "completed" | "waiting_human" | "failed";
 
@@ -99,6 +100,8 @@ export type Ledger = {
   liveTool: { name: string; callId: string } | null;
   toolIO: ToolIOItem[];
   notes: Record<string, string>;
+  currentQuery: QueryEvidence | null;
+  queryHistory: QueryEvidence[];
   windowChars: number;
   compressAt: number;
   memoryIds: { conversation: string[]; project: string[] };

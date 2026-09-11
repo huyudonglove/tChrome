@@ -4,11 +4,13 @@ import type { Memories } from "../memory/types.ts";
 import { loadIndex } from "../context-archive/store.ts";
 import { compressRecords } from "../agents/compression/index.ts";
 import type { SourceRecord } from "../context-archive/types.ts";
-import { assembleTurnHistory, loadSettledTurnHistory } from "./turn-history.ts";
+import type { QueryEvidence } from "../context/projections/queries.ts";
+import { assembleTurnHistory, loadSettledTurnHistory, type TurnHistoryRecord } from "./turn-history.ts";
 
 export const HISTORY_MODULE = "conversationHistory" as const;
 const KEEP_TURNS = 3;
 const KEEP_BATCHES = 2;
+const querySourceId = (queryId: string) => `query_${queryId}`;
 const fullTurnId = (turnId: string) => `turn_${turnId}`;
 const batchKey = (row: ToolIOItem) => row.batchId ?? row.callId;
 const batchSourceId = (turnId: string, batch: string) => `segment_${createHash("sha256").update(JSON.stringify([turnId, batch])).digest("hex")}`;
@@ -29,7 +31,8 @@ function sourceCoverage(ledger: Ledger, covered: Set<string>) {
 /** Source coverage controls the view; complete local records and current state are never pruned. */
 export function contextState(dataDir: string, ledger: Ledger, turn: Turn, memories: Memories) {
   const index = loadIndex(dataDir, ledger.conversationId, HISTORY_MODULE);
-  const { turnCovered, toolCovered, originCovered } = sourceCoverage(ledger, new Set(index.coveredSourceIds));
+  const covered = new Set(index.coveredSourceIds);
+  const { turnCovered, toolCovered, originCovered } = sourceCoverage(ledger, covered);
   const byId = new Map(index.entries.map(entry => [entry.id, entry]));
   const turnOrder = new Map(ledger.turnIds.map((id, i) => [id, i]));
   const summaries = index.activeIds.map(id => {
@@ -42,6 +45,7 @@ export function contextState(dataDir: string, ledger: Ledger, turn: Turn, memori
       userInputHistory: ledger.userInputHistory.filter(row => !turnCovered(row.turnId)),
       goalHistory: ledger.goalHistory.filter(row => !originCovered(row.turnId, row.sourceCallId)),
       toolIO: ledger.toolIO.filter(row => !toolCovered(row)),
+      queryHistory: ledger.queryHistory.filter(row => !covered.has(querySourceId(row.queryId))),
     },
     turn: { ...turn, assembled: { ...turn.assembled,
       pageObservedHistory: turn.assembled.pageObservedHistory.filter(row => !originCovered(row.turnId, row.callId)),
@@ -61,13 +65,32 @@ export async function compressContext(input: CompressionInput, phase: "history" 
   const covered = new Set(index.coveredSourceIds);
   const coverage = sourceCoverage(ledger, covered);
   const records: SourceRecord[] = [];
+  // Queries move to history later than their original tool batch. Give each an independent
+  // immutable source so already-covered batches/turns cannot hide newly retired evidence.
+  const addQuerySources = (history: TurnHistoryRecord, queries: QueryEvidence[]) => {
+    const batches = [...new Set(history.toolIO.map(batchKey))];
+    for (const query of queries) {
+      const id = querySourceId(query.queryId);
+      if (covered.has(id)) continue;
+      const tool = history.toolIO.find(row => row.callId === query.sourceCallId);
+      records.push({ id, content: {
+        conversationId: history.conversationId, turnId: history.turnId,
+        status: history.status, createdAt: history.createdAt, completedAt: null,
+        goalChanges: [], toolIO: [], pageObservations: [], memoryWrites: [],
+        queryHistory: [query], output: null,
+        sequence: { turn: ledger.turnIds.indexOf(history.turnId), batch: tool ? batches.indexOf(batchKey(tool)) : batches.length },
+        segment: { complete: false },
+      } });
+    }
+  };
   if (phase === "history") {
     const settled = loadSettledTurnHistory(dataDir, ledger, memories);
     for (const history of settled.slice(0, -KEEP_TURNS)) {
+      addQuerySources(history, history.queryHistory);
       const id = fullTurnId(history.turnId);
       if (covered.has(id)) continue;
       // If this turn was segmented while active, archive only its remaining modules plus final output.
-      const projected = { ...history,
+      const projected = { ...history, queryHistory: [],
         goalChanges: history.goalChanges.filter(row => !coverage.originCovered(row.turnId, row.sourceCallId)),
         toolIO: history.toolIO.filter(row => !coverage.toolCovered(row)),
         pageObservations: history.pageObservations.filter(row => !coverage.originCovered(row.turnId, row.callId)),
@@ -81,13 +104,16 @@ export async function compressContext(input: CompressionInput, phase: "history" 
   } else if (phase === "current") {
     const active = assembleTurnHistory(ledger, turn, memories);
     const batches = [...new Set(active.toolIO.map(batchKey))];
-    for (const batch of batches.slice(0, -KEEP_BATCHES)) {
+    const olderBatches = new Set(batches.slice(0, -KEEP_BATCHES));
+    const olderCalls = new Set(active.toolIO.filter(row => olderBatches.has(batchKey(row))).map(row => row.callId));
+    addQuerySources(active, active.queryHistory.filter(query => query.sourceCallId && olderCalls.has(query.sourceCallId)));
+    for (const batch of olderBatches) {
       const id = batchSourceId(turn.turnId, batch);
       if (covered.has(id)) continue;
       const tools = active.toolIO.filter(row => batchKey(row) === batch);
       const calls = new Set(tools.map(row => row.callId));
       records.push({ id, content: { ...active,
-        completedAt: null, output: null,
+        completedAt: null, output: null, queryHistory: [],
         goalChanges: active.goalChanges.filter(row => calls.has(row.sourceCallId)),
         toolIO: tools,
         pageObservations: active.pageObservations.filter(row => calls.has(row.callId)),

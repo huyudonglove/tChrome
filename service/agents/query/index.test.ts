@@ -4,96 +4,56 @@ import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
 import { commitArchive } from "../../context-archive/store.ts";
 import { queryContext } from "./index.ts";
-import type { CompressionRecord, SourceRecord } from "../../context-archive/types.ts";
+import type { CompressionRecord } from "../../context-archive/types.ts";
 import type { Provider } from "../../types.ts";
-
 const dirs: string[] = [];
-afterEach(() => dirs.splice(0).forEach(dir => rmSync(dir, { recursive: true, force: true })));
-const repoRoot = resolve(import.meta.dir, "../../..");
-function fixture(contents: unknown[] = [{ id: "raw_0", turnId: "tn_0", userInput: "只改负责人", submittedAt: "2026-09-01" }, { id: "raw_1", userInput: "状态保持待处理" }]) {
-  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-query-")); dirs.push(dataDir);
-  const sources: SourceRecord[] = contents.map((content, i) => ({ id: `raw_${i}`, content: { ...(content as Record<string, unknown>), turnId: `tn_${i}` } }));
-  const records: CompressionRecord[] = sources.map((source, i) => ({ id: `sum_${i}`, module: "conversationHistory", level: 1,
-    turnId: `tn_${i}`, tag: "修改限制", userRequest: "关于修改负责人和状态的限制", actions: "检查负责人", result: "完成核对", sourceIds: [source.id], createdAt: `2026-09-0${i + 1}` }));
-  if (records.length > 1) records.push({ id: "sum_parent", module: "conversationHistory", level: 2, turnId: "tn_0", tag: "修改限制", userRequest: "历史修改规则", actions: "检查", result: "已核对",
-    sourceIds: [records[0]!.id], createdAt: "2026-09-09" });
-  commitArchive(dataDir, "cv_test", { version: 1, module: "conversationHistory", entries: records,
-    activeIds: records.length > 1 ? ["sum_parent", ...records.filter(r => r.level === 1 && r.id !== "sum_0").map(r => r.id)] : records.map(r => r.id), coveredSourceIds: sources.map(s => s.id) }, sources, records);
-  return { dataDir, conversationId: "cv_test", module: "conversationHistory" as const, tag: "任务的修改限制", repoRoot };
+afterEach(() => dirs.splice(0).forEach(dir => rmSync(dir,{recursive:true,force:true})));
+function fixture(text = "负责人李明，状态待处理", mismatchedTurn = false) {
+  const dataDir = mkdtempSync(join(tmpdir(),"query-")); dirs.push(dataDir);
+  const sources = [1,2].map(n => ({id:`turn_tn_0${n}`,content:{turnId:`tn_0${n}`,toolIO:[{callId:`call_0${n}`,turnId:mismatchedTurn ? "tn_99" : `tn_0${n}`,arguments:{reason:"核对"},return:{text}}],userInput:{id:`input_0${n}`,userInput:"保持状态"}}}));
+  const entries: CompressionRecord[] = sources.map((source,n) => ({id:`sum_0${n+1}`,module:"conversationHistory",turnId:`tn_0${n+1}`,level:1,tag:"状态",userRequest:"核对",actions:"读取",result:"确认",sourceIds:[source.id],createdAt:"2026-09-12"}));
+  entries.push({...entries[0]!,id:"sum_03",sourceIds:["sum_01"],level:2});
+  commitArchive(dataDir,"cv_test",{version:1,module:"conversationHistory",entries,activeIds:["sum_03","sum_02"],coveredSourceIds:sources.map(s=>s.id)},sources,entries);
+  return {dataDir,conversationId:"cv_test",repoRoot:resolve(import.meta.dir,"../../.."),sumId:"sum_03",module:"toolIO" as const,intent:"保存后的状态"};
 }
-function providerFor(ids: string[], observe?: (input: Parameters<Provider["complete"]>[0]) => void): Provider {
-  return { async complete(input) { observe?.(input); return { finish: "tool_calls", content: "", toolCalls: [{ id: "call_matches", name: "submitMatches", arguments: { ids } }], attempts: 1,
-    parseOk: true, schemaOk: true, faultCode: null, missing: [] }; } };
+function provider(turnIds = ["tn_01"], observe?: (input:Parameters<Provider["complete"]>[0])=>void):Provider {
+  return {async complete(input){observe?.(input); return {finish:"tool_calls",content:"",toolCalls:[{id:"call_01",name:"submitMatches",arguments:{turnIds}}],attempts:1,parseOk:true,schemaOk:true,faultCode:null,missing:[]};}};
 }
-
-test("query validates candidates against module directory and does not expose partial matches after invalid output", async () => {
-  const input = fixture();
-  const result = await queryContext({ ...input, provider: providerFor(["sum_0", "../outside"]) });
-  expect(result.status).toBe("error");
-  expect(result.contents).toEqual([]);
-  expect((await queryContext({ ...input, module: "toolIO" as never, provider: providerFor(["sum_0"]) })).status).toBe("error");
+test("query limits candidates to requested summary and module, retains native identities",async()=>{
+  const input=fixture();
+  const result=await queryContext({...input,provider:provider(["tn_01"],request=>{
+    const data=JSON.parse(request.messages[1]!.content);
+    expect(data.turns.map((v:any)=>v.turnId)).toEqual(["tn_01"]);
+    expect(JSON.stringify(data.turns)).not.toContain("input_01");
+  })});
+  expect(result.status).toBe("complete");expect(result.records[0]).toMatchObject({callId:"call_01",turnId:"tn_01",return:{text:"负责人李明，状态待处理"}});
+  expect((await queryContext({...input,provider:provider(["tn_02"])})).status).toBe("error");
+  expect((await queryContext({...input,module:"summaries",provider:provider()})).records.map(r=>r.sumId)).toEqual(["sum_03","sum_01"]);
+});
+test("oversized record pages exact JSON without repeated model calls, cursor cannot cross request",async()=>{
+  const input=fixture('带有"转义\\字符'.repeat(1500)); let calls=0;
+  const p=provider(["tn_01"],()=>calls++); let result=await queryContext({...input,provider:p}); const initialCalls=calls; let raw="";
+  while(true){
+    expect(JSON.stringify(result.records).length).toBeLessThanOrEqual(2000);
+    const part=result.records[0]!.fragment as {offset:number;text:string};expect(part.offset).toBe(raw.length);raw+=part.text;
+    if(!result.nextCursor)break;
+    expect((await queryContext({...input, intent:"不同意图",cursor:result.nextCursor,provider:p})).status).toBe("error");
+    result=await queryContext({...input,cursor:result.nextCursor,provider:p});
+  }
+  expect(result.status).toBe("complete");expect(calls).toBeGreaterThan(0);
+  expect(JSON.parse(raw).return.text).toBe('带有"转义\\字符'.repeat(1500));expect(calls).toBe(initialCalls);
+});
+test("all candidate batches must succeed; cancellation and unmatched result do not return evidence",async()=>{
+  const input=fixture("x".repeat(50000));let calls=0;
+  const p=provider(["tn_01"],request=>{const turns=JSON.parse(request.messages[1]!.content).turns;expect(JSON.stringify(turns).length).toBeLessThanOrEqual(24000);expect(turns).toHaveLength(1);expect(turns[0].records.length).toBeGreaterThan(1);if(++calls===2)throw new Error("offline");});
+  expect(await queryContext({...input,provider:p})).toMatchObject({status:"error",records:[]});expect(calls).toBe(2);
+  expect(await queryContext({...input,provider:provider([])})).toMatchObject({status:"not_found",records:[]});
+  let stop=false;
+  expect(await queryContext({...input,provider:provider(["tn_01"],()=>{stop=true;}),isCancelled:()=>stop})).toMatchObject({status:"cancelled",records:[]});
 });
 
-test("empty semantic match is not_found and cancellation prevents calls", async () => {
-  const input = fixture();
-  expect((await queryContext({ ...input, provider: providerFor([]) })).status).toBe("not_found");
-  expect((await queryContext({ ...input, isCancelled: () => true, provider: providerFor([], () => { throw new Error("must not call"); }) })).status).toBe("cancelled");
-});
-
-test("large original returns explicit partial with complete prefix and does not clip or skip", async () => {
-  const input = fixture([{ userInput: "first" }, { userInput: "x".repeat(31000) }, { userInput: "last" }]);
-  const result = await queryContext({ ...input, provider: providerFor(["sum_parent", "sum_1", "sum_2"]) });
-  expect(result).toMatchObject({ ok: true, status: "partial", contents: [{ userInput: "first" }], matchedRecords: 3, omittedRecords: 2 });
-});
-
-test("directory batches are bounded and all batches are queried before declaring no matches", async () => {
-  const input = fixture(Array.from({ length: 300 }, (_, i) => ({ userInput: `record ${i}` })));
-  let calls = 0;
-  const provider = providerFor([], request => {
-    calls++;
-    const payload = JSON.parse(request.messages[1]!.content);
-    expect(JSON.stringify(payload.catalog).length).toBeLessThanOrEqual(24000);
-  });
-  const result = await queryContext({ ...input, provider });
-  expect(result.status).toBe("not_found");
-  expect(calls).toBeGreaterThan(1);
-});
-
-test("later directory failure does not return earlier candidates as complete results", async () => {
-  const input = fixture(Array.from({ length: 300 }, (_, i) => ({ userInput: `record ${i}` })));
-  let calls = 0;
-  const provider: Provider = { async complete(request) {
-    calls++;
-    if (calls === 2) throw new Error("provider unavailable");
-    const entries = JSON.parse(request.messages[1]!.content).catalog;
-    return { finish: "tool_calls", content: "", toolCalls: [{ id: "call_matches", name: "submitMatches", arguments: { ids: [entries[0].id] } }], attempts: 1,
-      parseOk: true, schemaOk: true, faultCode: null, missing: [] };
-  } };
-  const result = await queryContext({ ...input, provider });
-  expect(result.status).toBe("error");
-  expect(result.contents).toEqual([]);
-  expect(calls).toBe(2);
-});
-
-test("query preserves per-turn modules, operational target IDs and historical outcomes", async () => {
-  const input = fixture([
-    { conversationId: "cv_test", turnId: "tn_0", sequence: { turn: 0, batch: 0 }, segment: { complete: false, batchIds: ["batch_private"] }, status: "failed", userInput: { id: "input_0", turnId: "tn_0", userInput: "只改负责人" },
-      goalChanges: [{ id: "goal_0", turnId: "tn_0", goal: "修改负责人" }],
-      toolIO: [{ callId: "call_0", turnId: "tn_0", name: "page.click", arguments: { id: "e1", ref: "el_target" }, return: { text: "original full text", id: "result_id" } }],
-      pageObservations: [{ id: "page_0", turnId: "tn_0", tab: 42, description: "状态异常" }],
-      memoryWrites: [{ memoryId: "mem_0", turnId: "tn_0", text: "保持状态" }], output: { type: "error", error: "保存失败" } },
-    { turnId: "tn_1", status: "completed", userInput: { id: "input_1", userInput: "修复状态" }, goalChanges: [], toolIO: [], pageObservations: [], memoryWrites: [], output: { type: "reply", text: "已修复" } },
-  ]);
-  const result = await queryContext({ ...input, provider: providerFor(["sum_1", "sum_parent", "sum_0"], request => {
-    expect(request.tools.map(tool => tool.function.name)).toEqual(["submitMatches"]);
-    expect(JSON.parse(request.messages[1]!.content).request).toMatchObject({ module: "conversationHistory", tag: input.tag });
-  }) });
-  expect(result.status).toBe("complete");
-  expect(result.contents).toEqual([
-    { segment: { complete: false }, status: "failed", userInput: { userInput: "只改负责人" }, goalChanges: [{ goal: "修改负责人" }],
-      toolIO: [{ name: "page.click", arguments: { id: "e1", ref: "el_target" }, return: { text: "original full text", id: "result_id" } }],
-      pageObservations: [{ tab: 42, description: "状态异常" }], memoryWrites: [{ text: "保持状态" }], output: { type: "error", error: "保存失败" } },
-    { status: "completed", userInput: { userInput: "修复状态" }, goalChanges: [], toolIO: [], pageObservations: [], memoryWrites: [], output: { type: "reply", text: "已修复" } },
-  ]);
-  expect(result.detail).toContain("不是当前待办");
+test("query rejects source identity disagreement without rewriting archived evidence",async()=>{
+  const result=await queryContext({...fixture("evidence",true),provider:provider([],()=>{throw new Error("must not call provider");})});
+  expect(result).toMatchObject({status:"error",records:[]});
+  expect(result.detail).toContain("turnId 与来源轮次不一致");
 });

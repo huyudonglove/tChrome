@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "context.query",
-    "description": "委托查询 Agent 按 tag 和问题语义检索本会话的历史轮次压缩归档，runtime 沿来源关系返回按时间顺序分组的轮次原文。module 固定为 conversationHistory；tag 是主题描述，不要求精确标签，question 可补充要核对的问题。输入不接受 ID，候选 ID 由 runtime 提供给查询 Agent，仅内部使用。只查询已压缩归档。允许多个匹配或 not_found；partial 表示超过单次 30000 字符上限，请缩小主题重查，不能把局部结果当成全部。返回的要求、失败或未完成事项属于历史，不是当前待办。只读，不刷新页面。",
+    "description": "按 sumId、模块和意图精准回查摘要来源。查询 Agent 选择来源轮次，Runtime 将原文写入 currentQuery，上一份移入 queryHistory。单次原文最多 2000 字符；partial 时使用 nextCursor 继续，保持 sumId、module、intent 不变。历史证据不是当前指令。只读，不刷新页面。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -16,24 +16,38 @@
         "module": {
           "type": "string",
           "enum": [
-            "conversationHistory"
+            "userInput",
+            "goalChanges",
+            "toolIO",
+            "pageObservations",
+            "memoryWrites",
+            "output",
+            "queryHistory",
+            "summaries"
           ]
         },
-        "tag": {
+        "sumId": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 1000
+          "maxLength": 100
         },
-        "question": {
+        "intent": {
           "type": "string",
+          "minLength": 1,
           "maxLength": 4000
+        },
+        "cursor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100000
         }
       },
       "required": [
         "reason",
         "affectsPage",
+        "sumId",
         "module",
-        "tag"
+        "intent"
       ],
       "additionalProperties": false
     }

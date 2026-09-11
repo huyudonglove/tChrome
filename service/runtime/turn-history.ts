@@ -1,3 +1,4 @@
+import type { QueryEvidence } from "../context/projections/queries.ts";
 import type { Memories, MemoryRecord } from "../memory/types.ts";
 import type { GoalRecord, Ledger, PageObservation, ToolIOItem, Turn, TurnOutput, UserInputRecord } from "../types.ts";
 import { inputRecord } from "./ids.ts";
@@ -15,6 +16,7 @@ export type TurnHistoryRecord = {
   toolIO: ToolIOItem[];
   pageObservations: PageObservation[];
   memoryWrites: MemoryRecord[];
+  queryHistory: QueryEvidence[];
   output: TurnOutput | null;
 };
 
@@ -34,6 +36,7 @@ export function assembleTurnHistory(ledger: Ledger, turn: Turn, memories: Memori
     toolIO: ledger.toolIO.filter(item => item.turnId === turn.turnId),
     pageObservations: turn.assembled.pageObservedHistory.filter(item => item.turnId === turn.turnId),
     memoryWrites: memories.conversation.filter(item => item.turnId === turn.turnId),
+    queryHistory: ledger.queryHistory.filter(item => item.turnId === turn.turnId),
     output: turn.output,
   });
 }

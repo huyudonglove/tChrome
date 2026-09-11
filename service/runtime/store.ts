@@ -70,6 +70,8 @@ export function emptyLedger(conversationId: string): Ledger {
     liveTool: null,
     toolIO: [],
     notes: {},
+    currentQuery: null,
+    queryHistory: [],
     windowChars: 0,
     compressAt: 200000,
     memoryIds: { conversation: [], project: [] },

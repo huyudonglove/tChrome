@@ -164,3 +164,61 @@ test("200K during a live tool loop compresses older batches before the next main
     expect(loadIndex(dataDir, reply.conversationId, "conversationHistory").coveredSourceIds).toHaveLength(1);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
+
+test("retired query evidence is archived independently of an already-covered tool batch", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "context-retired-query-"));
+  try {
+    const ledger = emptyLedger("cv_test"), current = makeTurn(ledger.conversationId, "tn_01");
+    ledger.turnIds = [current.turnId]; ledger.active = { turnId: current.turnId };
+    current.status = "inferring"; current.completedAt = null; current.output = null;
+    ledger.toolIO = Array.from({ length: 3 }, (_, i) => ({ callId: `call_0${i + 1}`, turnId: current.turnId, batchId: `batch_0${i + 1}`, name: "context.query", arguments: {}, return: { stage: "complete" as const, text: "查询成功", totalChars: 4 } }));
+    ledger.currentQuery = { queryId: "query_01", turnId: current.turnId, sourceCallId: "call_01", sumId: "sum_01", module: "toolIO", intent: "核对历史", status: "complete", records: [{ callId: "call_old", turnId: "tn_old", text: "受保护原文" }] };
+    const memories: Memories = { project: [], conversation: [] };
+    let requests = 0;
+    const provider: Provider = { complete: async input => {
+      requests++;
+      expect(input.messages[1]!.content.includes("受保护原文")).toBe(requests > 1);
+      return summaryResponse(input.messages);
+    } };
+    const input = { dataDir, repoRoot, provider, ledger, turn: current, memories, isCancelled: () => false };
+    await compressContext(input, "current");
+    expect(contextState(dataDir, ledger, current, memories).ledger.currentQuery).toEqual(ledger.currentQuery);
+    ledger.queryHistory.push(ledger.currentQuery); ledger.currentQuery = null;
+    // Its call's batch is already covered; the retired query must still be visible.
+    expect(contextState(dataDir, ledger, current, memories).ledger.queryHistory).toHaveLength(1);
+    await compressContext(input, "current");
+    expect(contextState(dataDir, ledger, current, memories).ledger.queryHistory).toEqual([]);
+    expect(ledger.queryHistory).toHaveLength(1);
+    const index = loadIndex(dataDir, ledger.conversationId, "conversationHistory");
+    expect(index.activeIds).toHaveLength(1);
+    const sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
+    expect(sources.filter(row => row.id === "query_query_01")).toHaveLength(1);
+    expect((sources.find(row => row.id === "query_query_01")!.content as { queryHistory: unknown[] }).queryHistory).toEqual(ledger.queryHistory);
+    await compressContext(input, "current");
+    expect(requests).toBe(2);
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+});
+
+test("a later retired query remains archivable after its entire turn is covered", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "context-covered-query-"));
+  try {
+    const ledger = emptyLedger("cv_test"); seed(dataDir, ledger);
+    const current = makeTurn(ledger.conversationId, "tn_06");
+    ledger.turnIds.push(current.turnId); ledger.active = { turnId: current.turnId };
+    const memories: Memories = { project: [], conversation: [] };
+    const provider: Provider = { complete: async input => summaryResponse(input.messages) };
+    const input = { dataDir, repoRoot, provider, ledger, turn: current, memories, isCancelled: () => false };
+    await compressContext(input);
+    ledger.queryHistory.push({ queryId: "query_01", turnId: "tn_01", sumId: "sum_01", module: "userInput", intent: "回查要求", status: "complete", records: [{ id: "input_old", turnId: "tn_old", userInput: "只改负责人" }] });
+    const snapshot = JSON.stringify(ledger);
+    expect(contextState(dataDir, ledger, current, memories).ledger.queryHistory).toHaveLength(1);
+    await compressContext(input);
+    expect(contextState(dataDir, ledger, current, memories).ledger.queryHistory).toEqual([]);
+    expect(JSON.stringify(ledger)).toBe(snapshot);
+    const index = loadIndex(dataDir, ledger.conversationId, "conversationHistory");
+    expect(index.activeIds.map(id => index.entries.find(row => row.id === id)!.turnId)).toEqual(["tn_01", "tn_02"]);
+    const sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
+    expect(sources.filter(row => row.id === "turn_tn_01")).toHaveLength(1);
+    expect(sources.filter(row => row.id === "query_query_01")).toHaveLength(1);
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+});

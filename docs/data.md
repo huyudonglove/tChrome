@@ -8,6 +8,6 @@
 
 摘要通过专用工具返回并校验，原文和摘要写入本地归档后才更新覆盖索引。窗口使用 `#conversationHistorySummary` 展示摘要，原始记录保留；压缩失败或取消不推进覆盖状态。仍然超限时返回 `context_limit`，不裁剪正文。
 
-主模型通过 `context.query` 提交 `module: "conversationHistory"` 和 tag。查询 Agent 匹配目录中的归档 ID，Runtime 展开对应原文。单次查询最多返回 30000 字符的完整记录，超出时明确返回 `partial`。
+常驻 `context.query(sumId, module, intent, cursor?)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，查询 Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将对应记录放入 currentQuery；工具返回只含状态和引用。每次 records 的紧凑 JSON 最多 2000 字符；超出返回 partial 与 nextCursor，可带原查询参数和 cursor 继续读取，无需再次调用查询 Agent。超大单条保留身份字段及 fragment:{offset,totalChars,text}，text 是原记录 JSON 的连续片段，不是摘要。查询不会刷新页面。
 
 当前流程示例见 [上下文装配](examples/02-context-engineering.md)、[模型请求](examples/04-provider-request.md)、[压缩与查询](examples/07-compress.md)和[结束轮次](examples/08-finish-turn.md)。

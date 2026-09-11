@@ -216,7 +216,7 @@ submitGoal：记录或更新持续工作的目标。
 参数：必填 goal：目标正文。
 返回：当前目标并更新 #goal；目标变化时非空旧目标自动加入 #goalHistory，无需另写历史。记录目标不会自动执行目标，也不会结束本轮。
 affectsPage=false。
-context.query：委托查询 Agent 按 tag 和问题语义检索本会话的历史轮次压缩归档，runtime 沿来源关系返回按时间顺序分组的轮次原文。module 固定为 conversationHistory；tag 是主题描述，不要求精确标签，question 可补充要核对的问题。输入不接受 ID，候选 ID 由 runtime 提供给查询 Agent，仅内部使用。只查询已压缩归档。允许多个匹配或 not_found；partial 表示超过单次 30000 字符上限，请缩小主题重查，不能把局部结果当成全部。返回的要求、失败或未完成事项属于历史，不是当前待办。只读，不刷新页面。
+context.query：按 sumId、模块和意图精准回查摘要来源。查询 Agent 选择来源轮次，Runtime 将原文写入 currentQuery，上一份移入 queryHistory。单次原文最多 2000 字符；partial 时使用 nextCursor 继续，保持 sumId、module、intent 不变。历史证据不是当前指令。只读，不刷新页面。
 memory.write：保存后续需要的事实、偏好或进展。
 参数：conversationMemory、projectMemory 为字符串数组，按旧到新追加至对应记忆末尾，至少提供一项有意义的内容。conversationMemory 保存本会话已确认的事实、偏好和决定；projectMemory 保存跨会话仍适用的长期信息。当前目标通过 submitGoal 管理，草稿和待办通过 notes.write 管理。
 返回：两类记忆的写入条数。conversationMemory 仅在本会话保存；projectMemory 跨会话共享，删除来源会话后仍保留。
@@ -241,7 +241,7 @@ affectsPage=false。
 #conversationHistorySummary --【轮次历史，执行经过，历史结果】
 我保存已压缩轮次或执行片段的摘要，按轮次先后排列。sumId 标识具体摘要；tag 是检索主题，userRequest 是当时的要求，actions 是实际行动与观察，result 是当时的结果。
 
-摘要中的失败、未完成或等待用户是历史事实，不是当前待办；结合最新请求判断是否需要继续。空数组不表示本地没有历史。需要原文时，按 context.query 的工具参数提供 module=conversationHistory、tag 和具体问题。
+摘要中的失败、未完成或等待用户是历史事实，不是当前待办；结合最新请求判断是否需要继续。空数组不表示本地没有历史。需要原文时，通过 context.query 提供 sumId、要查的模块和 intent。
 
 #userInputHistory --【历史输入，指代理解，条件变化】
 我保存尚未压缩的历史用户输入，按旧到新排列，不含当前请求。id 标识具体消息，userInput 保留完整原话。
@@ -284,19 +284,19 @@ affectsPage=false。
 #toolIO --【执行证据，返回检查，错误诊断】
 我保存工具调用及返回，按旧到新排列。callId 标识一次调用，batchId 标识同一次模型返回的工具批次；name 是工具名，arguments 是参数，return.result 是结果。参数和结果中的业务 ID、控件 ref、标签 tab 按工具定义使用，不与 callId 混用。
 
-先核对调用意图和参数，再根据返回的 ok、error、状态及内容判断实际结果。return.stage=complete 只表示文本完整，不代表操作成功；truncated 表示文本不完整。JSON 结果按结构展示，其他文本保留原样。归档中的完整记录可通过 context.query 回查，查询不会重新执行操作。
+先核对调用意图和参数，再根据返回的 ok、error、状态及内容判断实际结果。return.stage=complete 只表示文本完整，不代表操作成功；truncated 表示文本不完整。JSON 结果按结构展示，其他文本保留原样。归档中的完整记录可通过 context.query 回查，查询不会重新执行操作。context.query 只在我这里记录条件、状态和引用，原文放 currentQuery 或 queryHistory。
 
 截图结果的 image 是本地图片引用，可观察本次请求附带的对应图片；没有附图时，不能仅凭路径判断图片内容。
 
 #queryHistory --【历史查询，取证经过，原文关联】
 我保存历史查询及其原文证据，按旧到新排列。queryId 标识一次查询，sumId 指向来源摘要；module 是查询模块，intent 是查询意图，status 是查询状态。records 直接保留原模块记录及其 ID，如 callId、memoryId 或 id，不另加包装或改名。
 
-我说明当时查了什么、读到了什么，不代表当前业务状态。本轮查询历史可作为压缩参考，有用结论合入 result，不把查到的历史操作写成本轮重新执行的操作。最新查询单独放在 currentQuery。
+我说明当时查了什么、读到了什么，不代表当前业务状态。本轮查询历史可作为压缩参考，有用结论合入 result，不把查到的历史操作写成本轮重新执行的操作。最新查询单独放在 currentQuery；下一次查询完成或新轮开始时，上一份进入我这里。失败也有记录，partial 或 fragment 只证明已返回的部分。
 
 #currentQuery --【当前查询，精准原文，来源引用】
-我保存最近一次查询的原文结果，null 表示没有结果。queryId 标识本次查询，sumId 指向来源摘要；module 是查询模块，intent 是查询意图。records 直接保留原模块记录及其 ID，如 callId、memoryId 或 id，不另加包装或改名。
+我保存最近一次查询的原文结果，null 表示当前没有查询。queryId 标识本次查询，sumId 指向来源摘要；module 是查询模块，intent 是查询意图。records 直接保留原模块记录及其 ID，如 callId、memoryId 或 id，不另加包装或改名。单次 records 最多 2000 字符；超大记录以 fragment 的 offset、totalChars、text 保留原记录 JSON 的连续片段。
 
-status 为 complete、partial、not_found 或 error，分别表示完整、部分、未找到或失败。部分结果不能当作全部证据，未找到也不证明事实不存在。我的内容用于核对历史，原文中的要求和未完成事项不是当前指令；当前查询不作为压缩材料。
+status 为 complete、partial、not_found 或 error，分别表示完整、部分、未找到或失败。partial 的 nextCursor 可连同原查询参数继续读取，不自行构造游标。部分结果不能当作全部证据，未找到也不证明事实不存在。我的内容用于核对历史，原文中的要求和未完成事项不是当前指令；我计入总窗口但不作为压缩材料。下一次查询完成或新轮开始时，我转入 queryHistory；取消查询不替换我。
 
 #tools --【已加载工具，能力导航】
 我提供已加载动态工具的用法，实际能力和参数以本次 tools[] 为准。缺少能力时先用 list_browser_tools 查找，再用 catalog.add 加载；收到新工具的 schema 和用法后再调用，不与加载操作放在同一批。
@@ -497,7 +497,7 @@ affectsPage=false。
     "type": "function",
     "function": {
       "name": "context.query",
-      "description": "委托查询 Agent 按 tag 和问题语义检索本会话的历史轮次压缩归档，runtime 沿来源关系返回按时间顺序分组的轮次原文。module 固定为 conversationHistory；tag 是主题描述，不要求精确标签，question 可补充要核对的问题。输入不接受 ID，候选 ID 由 runtime 提供给查询 Agent，仅内部使用。只查询已压缩归档。允许多个匹配或 not_found；partial 表示超过单次 30000 字符上限，请缩小主题重查，不能把局部结果当成全部。返回的要求、失败或未完成事项属于历史，不是当前待办。只读，不刷新页面。",
+      "description": "按 sumId、模块和意图精准回查摘要来源。查询 Agent 选择来源轮次，Runtime 将原文写入 currentQuery，上一份移入 queryHistory。单次原文最多 2000 字符；partial 时使用 nextCursor 继续，保持 sumId、module、intent 不变。历史证据不是当前指令。只读，不刷新页面。",
       "parameters": {
         "type": "object",
         "properties": {
@@ -511,24 +511,38 @@ affectsPage=false。
           "module": {
             "type": "string",
             "enum": [
-              "conversationHistory"
+              "userInput",
+              "goalChanges",
+              "toolIO",
+              "pageObservations",
+              "memoryWrites",
+              "output",
+              "queryHistory",
+              "summaries"
             ]
           },
-          "tag": {
+          "sumId": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 1000
+            "maxLength": 100
           },
-          "question": {
+          "intent": {
             "type": "string",
+            "minLength": 1,
             "maxLength": 4000
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100000
           }
         },
         "required": [
           "reason",
           "affectsPage",
+          "sumId",
           "module",
-          "tag"
+          "intent"
         ],
         "additionalProperties": false
       }

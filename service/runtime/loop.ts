@@ -80,6 +80,7 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
   { role: "system", content: systemText(contextModules, toolUsageFor(toolRegistry, turn.assembled.baseToolsIds), pacificDate()) },
   { role: "user", content: userText({
     contextModules, ledger, turn, memories: projectMemories(memories), skillText, conversationSummaries: summaries,
+    currentQuery: ledger.currentQuery, queryHistory: ledger.queryHistory,
     toolUsage: toolUsageFor(toolRegistry, turn.assembled.toolIds),
   }), images: [...new Map(ledger.toolIO.filter(item => item.turnId === turn.turnId)
     .flatMap(item => item.images ?? []).reverse().map(image => [image.id, image])).values()].slice(0, 4).reverse() },
@@ -205,6 +206,10 @@ export async function handleTurn(
     };
   }
   const prevId = ledger.turnIds.at(-1);
+  if (ledger.currentQuery) {
+    ledger.queryHistory.push(ledger.currentQuery);
+    ledger.currentQuery = null;
+  }
   if (prevId) {
     const last = loadTurn(deps.dataDir, ledger.conversationId, prevId);
     ledger.userInputHistory.push(inputRecord(last));

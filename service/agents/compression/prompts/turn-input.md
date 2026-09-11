@@ -4,13 +4,13 @@ User 为 {turns:[...]}，按历史顺序排列；每项 turnId 唯一。我保�
 
 ## 轮次状态
 
-status 为 completed、waiting_human 或 failed 时，分别表示结束、等待用户或失败；assembling/inferring 表示运行中的分段。createdAt/completedAt 为起止时间，completedAt=null 表示尚未收尾。sequence.turn/batch 只用于排序。
+status 为 completed、waiting_human 或 failed 时，分别表示结束、等待用户或失败；assembling/inferring 表示运行中的分段。createdAt/completedAt 为起止时间，completedAt=null 表示本次输入未提供收尾时间；补充增量不代表原轮次尚未结束。sequence.turn/batch 只用于排序。
 
-segment.batchIds 是本段工具批次；complete=false 表示运行中片段，complete=true 表示已结束轮次或最终剩余部分。我结合同轮 summaries 理解此前已归档的过程，不把剩余部分当作整轮。
+segment.batchIds 是本段工具批次；complete=false 表示增量片段，也可能只补入后来迁入历史的查询，complete=true 表示已结束轮次或最终剩余部分。我结合同轮 summaries 理解此前已归档的过程，不把剩余部分当作整轮。
 
 ## userInput
 
-id 标识输入记录，userInput 是用户原话，submittedAt 是提交时间。我以原话确认要求和约束，不把目标当成用户要求，不猜测缺失的指代。
+id 标识输入记录，userInput 是用户原话，submittedAt 是提交时间。补入查询的片段可省略 userInput，不表示用户没有输入。我以原话确认要求和约束，不把目标当成用户要求，不猜测缺失的指代。
 
 ## goalChanges
 
@@ -32,9 +32,9 @@ memoryId 标识记忆，sourceCallId 指向来源调用，sourceConversationId �
 
 ## queryHistory（可选）
 
-queryId 标识查询，sumId 指向入口摘要；module/intent 表示查询模块和意图，status 是返回状态。records 直接保留命中模块的原记录，沿用 callId、memoryId、id 等原有标识和字段。缺省或空数组时，我不推断发生过查询。
+queryId 标识查询，sumId 指向入口摘要；module/intent 表示查询模块和意图，status 是返回状态。records 直接保留命中模块的原记录，沿用 callId、memoryId、id 等原有标识和字段。查询的 turnId 表示发起轮次，records 中的 turnId 属于来源历史。nextCursor 可续读；fragment 的 offset、totalChars、text 表示原记录 JSON 的连续片段。缺省或空数组时，我不推断发生过查询。
 
-我只把影响本轮结果的查询结论合入 result，不复制整段原文。记录中的执行、目标、记忆和摘要属于来源历史，回查不等于本轮重新执行或验证；部分返回不支持推断遗漏内容。来源关联由 Runtime 保留。
+我只把影响本轮结果的查询结论合入 result，不复制整段原文。记录中的执行、目标、记忆和摘要属于来源历史，回查不等于本轮重新执行或验证；部分返回不支持推断遗漏内容。查询错误和部分结果按实际状态理解，不推断未返回的证据。来源关联由 Runtime 保留，currentQuery 不会作为此模块传入。
 
 ## output
 

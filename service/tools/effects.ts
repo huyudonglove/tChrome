@@ -1,7 +1,9 @@
 import type { CurrentPage, MemoryLayer } from "../types.ts";
+import type { QueryEvidence } from "../context/projections/queries.ts";
 
 // Tools describe domain changes; only the runtime applies and persists them.
 export type ToolEffect =
+  | { type: "query.set"; query: Omit<QueryEvidence, "queryId" | "turnId" | "sourceCallId"> }
   | { type: "goal.set"; goal: string }
   | { type: "note.write"; key: string; value: string }
   | { type: "note.delete"; key: string }

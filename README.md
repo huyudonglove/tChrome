@@ -43,7 +43,7 @@ tChrome 运行在 Chrome 侧边栏。它不要求用户预先画好流程，而�
 
 `#currentPage` 表示本轮最新已知页面；`#pageObservedHistory` 按旧到新记录本轮工具返回的页面观察，两者都不是实时页面监控。
 
-常驻 `context.query(module="conversationHistory", tag, question?)` 将主题交给查询 Agent 语义匹配本会话 conversationHistory 目录，由 runtime 校验内部 ID、沿来源关系读取原文并去重，按原顺序返回。主 Agent 无需提供记录 ID。只检索已压缩归档；支持多条或 not_found，单次原文内容上限 30,000 字符，超过时返回 partial 和遗漏数量，不截断单条原文。请缩小主题或问题后再查；单条原文本身超过上限时也会明确返回 partial。查询不会刷新页面。
+常驻 `context.query(sumId, module, intent, cursor?)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，查询 Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将对应记录放入 currentQuery；工具返回只含状态和引用。每次 records 的紧凑 JSON 最多 2000 字符；超出返回 partial 与 nextCursor，可带原查询参数和 cursor 继续读取，无需再次调用查询 Agent。超大单条保留身份字段及 fragment:{offset,totalChars,text}，text 是原记录 JSON 的连续片段，不是摘要。查询不会刷新页面。
 
 ### 执行记录与记忆
 
@@ -54,7 +54,7 @@ tChrome 运行在 Chrome 侧边栏。它不要求用户预先画好流程，而�
 
 当前目标由 `goal` 管理，草稿与中间材料由 `notes` 管理，值得保留的事实与决定写入 `conversationMemory`。
 
-每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes 和长期记忆保持可见。已有摘要的再压缩沿用同一触发流程，每轮分别保留摘要。
+每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。已有摘要的再压缩沿用同一触发流程，每轮分别保留摘要。
 
 ## 架构
 
@@ -215,4 +215,4 @@ Provider 负责模型通信、重试和响应解析。所有接入返回均由 `
 
 目录先按运行端划分，再按职责划分：`service/context/`、`service/tools/`、`service/skills/` 和 `service/memory/` 都是本机服务能力，正文和定义与其实现放在同一模块；`extension/tools/` 仅负责依赖 Chrome API 的宿主执行，由服务注册表发现并经浏览器桥调度。
 
-上下文保留 system / user 分层。两份目录只列编号文件名；system 模块使用 tag、能力和详细描述格式；user 模块另设内容段。system 先输出 `service/context/overview.md` 总纲，串联规则、材料、判断与行动，再输出 System 栏目清单，每项 tag --能力后直接跟详细正文（含 baseTools 工具说明），再输出 User 栏目清单，每项能力后直接跟详细描述；user 保留十三个 tag 的内容段和数据。Skill 正文独立维护于 `service/skills/<name>/SKILL.md`，Runtime 根据 `service/skills/index.json` 每轮加载后注入 `#skill`；context 中只保留模块说明和占位符。
+上下文保留 system / user 分层。两份目录只列编号文件名；system 模块使用 tag、能力和详细描述格式；user 模块另设内容段。system 先输出 `service/context/overview.md` 总纲，串联规则、材料、判断与行动，再输出 System 栏目清单，每项 tag --能力后直接跟详细正文（含 baseTools 工具说明），再输出 User 栏目清单，每项能力后直接跟详细描述；user 保留十五个 tag 的内容段和数据。Skill 正文独立维护于 `service/skills/<name>/SKILL.md`，Runtime 根据 `service/skills/index.json` 每轮加载后注入 `#skill`；context 中只保留模块说明和占位符。

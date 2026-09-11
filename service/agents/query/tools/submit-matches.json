@@ -2,13 +2,21 @@
   "type": "function",
   "function": {
     "name": "submitMatches",
-    "description": "提交本批归档目录的语义匹配结果。只返回目录内 ID；没有匹配时提交空数组。必须且只能调用一次。",
+    "description": "提交与查询意图匹配的候选 turnId；无匹配时返回空数组。只能调用一次，不返回原文。",
     "parameters": {
       "type": "object",
       "properties": {
-        "ids": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+        "turnIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
       },
-      "required": ["ids"],
+      "required": [
+        "turnIds"
+      ],
       "additionalProperties": false
     }
   }

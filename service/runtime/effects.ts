@@ -16,6 +16,13 @@ export function applyToolEffects(input: {
   let output: TurnOutput | null = null;
   for (const effect of effects) {
     switch (effect.type) {
+      case "query.set": {
+        if (ledger.currentQuery) ledger.queryHistory.push(ledger.currentQuery);
+        ledger.currentQuery = { ...effect.query,
+          queryId: allocateRecordId(dataDir, ledger.conversationId, "query"),
+          turnId: turn.turnId, sourceCallId: call.callId };
+        break;
+      }
       case "goal.set":
         if (effect.goal !== ledger.goal?.goal) {
           const record = { id: allocateRecordId(dataDir, ledger.conversationId, "goal"), turnId: turn.turnId, goal: effect.goal, sourceCallId: call.callId, createdAt: nowIso() };

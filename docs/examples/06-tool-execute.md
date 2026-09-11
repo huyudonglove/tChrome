@@ -88,7 +88,7 @@
 
 `totalChars=26`，`stage=complete`。执行记录的 `return.text` 保存全文。
 
-Runtime 把本条追加到 ledger.`toolIO` 末尾。主模型看到投影后的工具名称、参数和结果；已归档记录通过 `context.query` 按 tag 委托查询。页面观察由有效页面返回单独更新。
+Runtime 把本条追加到 ledger.`toolIO` 末尾。主模型看到投影后的工具名称、参数和结果；已归档记录通过 `context.query` 按 sumId、module 和 intent 委托查询。页面观察由有效页面返回单独更新。
 
 askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮主链是 `web_search`，这两条不进本轮写出的）。
 
