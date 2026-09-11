@@ -3,6 +3,7 @@ import { interpolate, renderInventory, renderSlots, type ContextModules } from "
 
 import { goalHistoryView, goalView, inputHistoryView, pageView, turnSummaryView, type TurnSummary } from "./projections/records.ts";
 import { toolHistoryView } from "./projections/tools.ts";
+import { queryView, type QueryEvidence } from "./projections/queries.ts";
 
 const jsonBody = (value: unknown) => JSON.stringify(value, null, 2);
 
@@ -20,6 +21,8 @@ export function userText(input: {
   toolUsage: string;
   skillText: string;
   conversationSummaries?: TurnSummary[];
+  currentQuery?: QueryEvidence | null;
+  queryHistory?: QueryEvidence[];
 }): string {
   const { contextModules, ledger, turn, memories, toolUsage } = input;
   return renderSlots(contextModules.userOrder, contextModules.userSlots, {
@@ -35,6 +38,8 @@ export function userText(input: {
     "#currentPage": turn.assembled.currentPage ? jsonBody(pageView(turn.assembled.currentPage)) : "",
     "#pageObservedHistory": jsonBody((turn.assembled.pageObservedHistory ?? []).map(pageView)),
     "#toolIO": jsonBody(toolHistoryView(ledger.toolIO)),
+    "#queryHistory": jsonBody((input.queryHistory ?? []).map(queryView)),
+    "#currentQuery": jsonBody(input.currentQuery ? queryView(input.currentQuery) : null),
     "#tools": toolUsage,
   });
 }

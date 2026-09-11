@@ -8,7 +8,7 @@
 | [system-slots.md](system-slots.md) | 仅编号文件名，例如 `1. identity`；对应 system/ 中的文件 |
 | [user-slots.md](user-slots.md) | 仅编号文件名；对应 user/ 中的文件 |
 | [system/](system/) | identity、environment、execution、toolProtocol、boundaries、output、baseTools 七个规则模块 |
-| [user/](user/) | 保留十三个 tag，描述各栏用途并提供数据占位符 |
+| [user/](user/) | 保留十五个 tag，描述各栏用途并提供数据占位符 |
 | [modules.ts](modules.ts) | 校验顺序与模块格式，读取 tag、能力、详细描述和内容，生成两份导航 |
 | [projections/](projections/) | 模块字段投影，隐藏归档元数据，保留操作引用与完整内容 |
 | [window.ts](window.ts) | 拼装 system / user，并注入当轮数据、技能正文与工具说明 |
@@ -44,7 +44,11 @@ execution 专注任务推进；toolProtocol 负责调用、返回和错误处理
 
 工具 schema 和说明仍由 [服务工具定义](../tools/definitions/) 提供，常驻说明进入 #baseTools，动态说明进入 #tools。memory.write 提供 conversationMemory 与 projectMemory 两个记忆参数。目标、草稿与事实决定分别由 goal、notes 和 conversationMemory 承担，历史压缩摘要统一使用 conversationHistorySummary 插槽。
 
-修改后运行 `bun run scripts/sync-context-examples.ts`，同步阶段示例中的导航、正文与 7/16 栏目数组。脚本只刷新真正的 schema，保留实际 tool_calls 的参数数据；再次运行结果应相同。然后运行 `bun run check`。
+修改后运行 `bun run scripts/sync-context-examples.ts`，同步阶段示例中的导航、正文与栏目数组。脚本只刷新真正的 schema，保留实际 tool_calls 的参数数据；再次运行结果应相同。按改动范围执行相关检查。
+
+查询插槽已预留：`currentQuery` 为最近一次精准查询结果对象，缺省 `null`；`queryHistory` 为此前查询结果数组，缺省 `[]`。窗口装配可接收这两项数据，投影保留来源引用、查询意图和原文。压缩 System 已描述可选的本轮 `queryHistory` 输入及其结论合入 `result` 的规则。
+
+当前阶段只接入插槽、投影和提示词。现行 `context.query` 仍使用下文的 tag 查询接口；sumId/module/intent 查询、2000 字符门禁、历史轮转、持久化、压缩输入归集及当前查询保护尚未接入 Runtime，因此真实请求中两个新插槽默认为空。模块说明定义后续装配契约，不代表上述执行机制已经生效。
 
 历史类数据（用户输入、目标历史、两层记忆、工具记录、轮次摘要）按旧到新排列，新增记录追加末尾；最近窗口从尾部选取后仍保持原顺序。待办和工具队列按执行顺序，选项与排名保留其业务含义。
 

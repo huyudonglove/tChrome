@@ -67,6 +67,8 @@
     "#conversationMemory",
     "#notes",
     "#toolIO",
+    "#queryHistory",
+    "#currentQuery",
     "#tools"
   ],
   "provider": "uuapi",
@@ -276,6 +278,8 @@
     "#conversationMemory",
     "#notes",
     "#toolIO",
+    "#queryHistory",
+    "#currentQuery",
     "#tools"
   ],
   "provider": "uuapi",
