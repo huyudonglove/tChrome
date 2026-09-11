@@ -30,7 +30,7 @@ test("whole-turn grouping removes covered module increments, retaining current s
     ledger.goalHistory = turns.map(turn => ({ id: `goal_${turn.turnId}`, turnId: turn.turnId, goal: `目标${turn.turnId}`, sourceCallId: `call_${turn.turnId}`, createdAt: "2026-09-11" }));
     ledger.goal = ledger.goalHistory.shift()!;
     ledger.notes = { draft: "当前草稿" };
-    const memories: Memories = { project: [], conversation: turns.map(turn => ({ memoryId: `mm_${turn.turnId}`, turnId: turn.turnId, layer: "conversation", text: `记忆${turn.turnId}`, summary: "", compressed: false, createdAt: "2026-09-11", sourceCallId: `call_${turn.turnId}` })) };
+    const memories: Memories = { project: [], conversation: turns.map(turn => ({ memoryId: `mm_${turn.turnId}`, turnId: turn.turnId, layer: "conversation", text: `记忆${turn.turnId}`, createdAt: "2026-09-11", sourceCallId: `call_${turn.turnId}` })) };
     const current = makeTurn(ledger.conversationId, "tn_06"); current.status = "inferring"; current.output = null; current.completedAt = null;
     ledger.turnIds.push(current.turnId); ledger.active = { turnId: current.turnId };
     let calls = 0;
@@ -128,7 +128,7 @@ test("segmented turn later closes into one active summary without rearchiving co
     first.status = "inferring"; first.completedAt = null; first.output = null;
     ledger.toolIO = Array.from({ length: 3 }, (_, i) => ({ callId: `call_${i}`, turnId: first.turnId, batchId: `batch_${i}`, name: "page.get_summary", arguments: {}, return: { stage: "complete" as const, text: `结果${i}`, totalChars: 3 } }));
     ledger.goal = { id: "goal_1", turnId: first.turnId, goal: "保持状态", sourceCallId: "call_0", createdAt: "2026-09-11" };
-    const memories: Memories = { project: [], conversation: [{ memoryId: "mm_1", turnId: first.turnId, layer: "conversation", text: "只改负责人", summary: "", compressed: false, sourceCallId: "call_0", createdAt: "2026-09-11" }] };
+    const memories: Memories = { project: [], conversation: [{ memoryId: "mm_1", turnId: first.turnId, layer: "conversation", text: "只改负责人", sourceCallId: "call_0", createdAt: "2026-09-11" }] };
     const provider: Provider = { complete: async input => summaryResponse(input.messages) };
     await compressContext({ dataDir, repoRoot, provider, ledger, turn: first, memories, isCancelled: () => false }, "current");
     first.status = "completed"; first.completedAt = "2026-09-11"; first.output = { kind: "reply", text: "已核对" }; saveTurn(dataDir, first);

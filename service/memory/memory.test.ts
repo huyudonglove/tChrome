@@ -2,13 +2,13 @@ import { expect, test } from "bun:test";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadMemories, loadMemory, migrateConversationMemory, saveMemory } from "./store.ts";
+import { loadMemories, loadMemory, saveMemory } from "./store.ts";
 import { projectMemories } from "./window.ts";
 import type { Memories, MemoryRecord } from "./types.ts";
 
 const record = (memoryId: string, layer: MemoryRecord["layer"] = "conversation", overrides: Partial<MemoryRecord> = {}): MemoryRecord => ({
-  memoryId, turnId: "tn_01", layer, text: `text ${memoryId}`, summary: `summary ${memoryId}`,
-  compressed: false, createdAt: "2026-01-01T00:00:00.000Z", sourceCallId: "call_01", ...overrides,
+  memoryId, turnId: "tn_01", layer, text: `text ${memoryId}`,
+  createdAt: "2026-01-01T00:00:00.000Z", sourceCallId: "call_01", ...overrides,
 });
 
 test("memory store reads and writes the existing conversation memory path with isolation", () => {
@@ -16,14 +16,14 @@ test("memory store reads and writes the existing conversation memory path with i
   try {
     const path = join(dir, "conversations", "cv_01", "memory", "mem_01.json");
     mkdirSync(join(dir, "conversations", "cv_01", "memory"), { recursive: true });
-    const legacy = record("mem_01");
-    writeFileSync(path, JSON.stringify(legacy));
-    expect(loadMemory(dir, "cv_01", "mem_01")).toEqual(legacy);
+    const original = record("mem_01");
+    writeFileSync(path, JSON.stringify(original));
+    expect(loadMemory(dir, "cv_01", "mem_01")).toEqual(original);
     const other = record("mem_01", "conversation", { text: "other conversation" });
     saveMemory(dir, "cv_02", other);
     expect(loadMemory(dir, "cv_02", "mem_01")).toEqual(other);
-    expect(loadMemory(dir, "cv_01", "mem_01")).toEqual(legacy);
-    const updated = { ...legacy, text: "updated" };
+    expect(loadMemory(dir, "cv_01", "mem_01")).toEqual(original);
+    const updated = { ...original, text: "updated" };
     saveMemory(dir, "cv_01", updated);
     expect(JSON.parse(readFileSync(path, "utf8"))).toEqual(updated);
     expect(loadMemory(dir, "cv_02", "mem_01")).toEqual(other);
@@ -50,7 +50,7 @@ test("projection keeps every original memory without metadata, clipping or mutat
   const memories: Memories = { conversation: [], project: [] };
   for (const layer of ["conversation", "project"] as const) {
     memories[layer] = Array.from({ length: 10 }, (_, i) => record(`${layer}_${i}`, layer, {
-      text: `  original\n${"x".repeat(120)} ${i}`, compressed: i === 8,
+      text: `  original\n${"x".repeat(120)} ${i}`,
     }));
   }
   const before = JSON.stringify(memories);
@@ -61,30 +61,4 @@ test("projection keeps every original memory without metadata, clipping or mutat
   }
   expect(JSON.stringify(memories)).toBe(before);
   expect(projectMemories({ conversation: [], project: [] })).toEqual({ conversation: "[]", project: "[]" });
-});
-
-test("legacy process records normalize on read and merge chronologically without loss", () => {
-  const dir = mkdtempSync(join(tmpdir(), "tchrome-memory-"));
-  try {
-    const folder = join(dir, "conversations", "cv_01", "memory");
-    mkdirSync(folder, { recursive: true });
-    const older = { ...record("mm_20", "conversation", { createdAt: "2025-12-01T00:00:00.000Z" }), layer: "turn" };
-    const tieEarly = { ...record("mm_2"), layer: "turn" };
-    const tieLate = record("mm_10");
-    const newer = record("mm_1", "conversation", { createdAt: "2026-02-01T00:00:00.000Z" });
-    const records = [older, tieEarly, tieLate, newer];
-    for (const item of records) writeFileSync(join(folder, `${item.memoryId}.json`), JSON.stringify(item));
-    expect(loadMemory(dir, "cv_01", "mm_20")).toEqual({ ...older, layer: "conversation" });
-    const ids = { turn: ["mm_2", "mm_20", "mm_2"], conversation: ["mm_1", "mm_10", "mm_2"], project: ["legacy_project"] };
-    const before = JSON.stringify(ids);
-    const merged = migrateConversationMemory(dir, "cv_01", ids);
-    expect(merged).toEqual({ conversation: ["mm_20", "mm_2", "mm_10", "mm_1"], project: ["legacy_project"] });
-    expect(JSON.stringify(ids)).toBe(before);
-    const content = records.map(item => readFileSync(join(folder, `${item.memoryId}.json`), "utf8"));
-    for (const [i, item] of records.entries()) expect(JSON.parse(content[i]!)).toEqual({ ...item, layer: "conversation" });
-    expect(migrateConversationMemory(dir, "cv_01", ids)).toEqual(merged);
-    expect(migrateConversationMemory(dir, "cv_01", merged)).toEqual(merged);
-    expect(records.map(item => readFileSync(join(folder, `${item.memoryId}.json`), "utf8"))).toEqual(content);
-    expect(loadMemories(dir, "cv_01", merged).conversation).toEqual(records.map(item => ({ ...item, layer: "conversation" })));
-  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

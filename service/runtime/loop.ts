@@ -9,7 +9,7 @@ import { systemText, userText, windowChars } from "../context/window.ts";
 import { loadSkills } from "../skills/loader.ts";
 import { loadContextModules, type ContextModules } from "../context/modules.ts";
 import { loadToolRegistry, coreToolIds, dynamicToolIds, toolSchemas, toolUsageFor, type ToolRegistry } from "../tools/registry.ts";
-import { clipReturn, executeTool } from "../tools/execute.ts";
+import { executeTool } from "../tools/execute.ts";
 import { applyToolEffects } from "./effects.ts";
 import type {
   Assembled,
@@ -125,7 +125,7 @@ const writeFault = (ledger: Ledger, turnId: string, result: CompletionResult) =>
     name,
     turnId,
     arguments: call?.arguments ?? {},
-    return: clipReturn(text),
+    return: { stage: "complete", totalChars: text.length, text },
   });
 };
 
@@ -445,7 +445,7 @@ export async function handleTurn(
         name: "finishTurn",
         turnId,
         arguments: {},
-        return: clipReturn(runtimeMessages.needFinishTurn),
+        return: { stage: "complete", totalChars: runtimeMessages.needFinishTurn.length, text: runtimeMessages.needFinishTurn },
       });
       if (submitFails >= MAX_SUBMIT) {
         turn.status = "failed";
@@ -495,7 +495,7 @@ export async function handleTurn(
       return { conversationId: ledger.conversationId, turnId, output: closed };
     }
     // Successful tool batches are normal progress, not failed submissions.
-    // Empty legacy finishTurn calls must not create an unbounded retry loop.
+    // Empty finishTurn calls must not create an unbounded retry loop.
     if (result.toolCalls.some((call) => call.name !== "finishTurn" && call.name !== "askUser")) {
       submitFails = 0;
     } else {

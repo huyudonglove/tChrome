@@ -404,8 +404,6 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
   });
   const ledger = loadLedger(dir, "cv_01");
   expect(ledger.memoryIds.conversation).toHaveLength(2);
-  expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).compressed).toBe(false);
-  expect(loadMemories(dir, "cv_01", ledger.memoryIds).project[0]!.compressed).toBe(false);
   const turn = loadTurn(dir, "cv_01", reply.turnId);
   turn.assembled.toolIds = ["see_page", "web_search", "capture_page", "cookies_get"];
   ledger.compressAt = 1;
@@ -419,9 +417,6 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
   expect(ledger.memoryIds).toEqual(memoryIdsBefore);
   expect(ledger.toolIO).toHaveLength(3);
   expect(loadIndex(dir, ledger.conversationId, "conversationHistory").coveredSourceIds).toEqual(["tool_old"]);
-  expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).compressed).toBe(false);
-  expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).compressed).toBe(false);
-  expect(loadMemories(dir, "cv_01", ledger.memoryIds).project[0]!.compressed).toBe(false);
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).text).toBe("本轮用户要查鼠标价");
 
   rmSync(dir, { recursive: true, force: true });

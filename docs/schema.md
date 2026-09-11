@@ -196,15 +196,13 @@ Runtime 独占维护。当前会话指针。
 
 两层：project 是跨会话共享的长期记忆；conversation 保存本会话的过程发现和已确认事实。conversation 在本地按会话保存，跨轮读取，新会话不继承，删除会话时一起删除；project 独立于会话保存，删除来源会话不影响长期记忆。notes 保存本会话的草稿、候选和中间材料，按 key 覆盖或删除，不在每轮自动清空。模型调 `memory.write` 提交。Runtime 落盘，会话记忆 ID 挂到 ledger.`memoryIds.conversation`，长期记忆从共享目录读取。下一次出网投影为完整文本数组，存储 ID 和来源元数据不进入 User。
 
-Memory 投影保持全部可见原文，不使用旧 compressed/summary 字段裁剪。会话记忆根据来源 turnId 随轮次归档，覆盖关系由 runtime 管理；最近 3 个已结束轮次的记忆写入保留可见，长期记忆不参与压缩。
+Memory 投影保持全部可见原文。会话记忆根据来源 turnId 随轮次归档，覆盖关系由 runtime 管理；最近 3 个已结束轮次的记忆写入保留可见，长期记忆不参与压缩。
 
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
 | `memoryId` | string | `mm_` |
 | `layer` | string | `conversation` / `project` |
 | `text` | string | 原文 |
-| `summary` | string | 记忆摘要，供展示投影使用 |
-| `compressed` | boolean | 存储字段；模型投影不再依此替换正文，压缩覆盖由模块目录管理 |
 | `createdAt` | string | ISO-8601 |
 | `turnId` | string | 写入这条记忆时的轮次，由 runtime 自动记录；表示来源，不改变记忆层级 |
 | `sourceCallId` | string | 写下这条的 `memory.write` 的 `callId` |

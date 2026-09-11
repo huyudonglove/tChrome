@@ -5,7 +5,6 @@ import type { Ledger, LogEvent, ChatMessage, ProviderExchange, Session, Turn } f
 import { nextId, nowIso } from "./ids.ts";
 import { abortLocalProcesses } from "../tools/local-process.ts";
 import { localScope } from "../tools/local-tools.ts";
-import { migrateConversationMemory, migrateProjectMemories } from "../memory/store.ts";
 import { emptySessionView, projectConversationList, projectSessionView } from "../presentation/session-view.ts";
 import type { ConversationItem, SessionView } from "../presentation/session-view.ts";
 export type { ConversationItem, SessionMessage, SessionView } from "../presentation/session-view.ts";
@@ -82,11 +81,6 @@ export function loadLedger(dataDir: string, cvId: string): Ledger {
   ledger.goal ??= null;
   ledger.goalHistory ??= [];
   ledger.notes ??= {};
-  const memoryIds = migrateConversationMemory(dataDir, cvId, ledger.memoryIds);
-  if (JSON.stringify(memoryIds) !== JSON.stringify(ledger.memoryIds)) {
-    ledger.memoryIds = memoryIds;
-    writeJson(paths(dataDir, cvId).ledger, ledger);
-  }
   return ledger;
 }
 
@@ -224,7 +218,7 @@ export function openConversation(dataDir: string, conversationId: string): Sessi
 }
 
 // Keep the allocation watermark outside deletable conversation directories.
-// Existing installations migrate from their highest surviving conversation ID.
+// Include existing conversation IDs when allocating the next ID.
 const allocateConversationId = (dataDir: string): string => {
   const path = join(dataDir, "conversation-id.json");
   const previous = readJson<string | null>(path, null);
@@ -245,8 +239,7 @@ export function deleteConversation(dataDir: string, conversationId: string): Ses
   if (!listConversationIds(dataDir).includes(conversationId)) {
     throw new Error("没有这个会话");
   }
-  migrateProjectMemories(dataDir);
-  // Persist the high watermark before removing legacy directories too.
+  // Preserve the allocation watermark before deleting the conversation.
   const watermarkPath = join(dataDir, "conversation-id.json");
   const previous = readJson<string | null>(watermarkPath, null);
   const highest = [...listConversationIds(dataDir), ...(previous ? [previous] : [])]

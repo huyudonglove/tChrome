@@ -12,7 +12,7 @@ const c = loadContextModules(root);
 const registry = loadToolRegistry(root);
 function update(value: any): any {
   if (!value || typeof value !== "object") return value;
-  if (value.type === "function" && value.function?.name && value.function.parameters) return toolSchemas(registry, [value.function.name === "record.query" ? "context.query" : value.function.name])[0];
+  if (value.type === "function" && value.function?.name && value.function.parameters) return toolSchemas(registry, [value.function.name])[0];
   if (Array.isArray(value)) return value.map(update);
   return Object.fromEntries(Object.entries(value).map(([key, item]) => [key,
     key === "baseToolsIds" && Array.isArray(item) ? [...registry.toolGroups.baseToolsIds]
@@ -21,7 +21,7 @@ function update(value: any): any {
         : update(item),
   ]));
 }
-// 01–08 are live pipeline examples; later files are dated design/simulation snapshots.
+// Keep the current pipeline examples synchronized with runtime schemas.
 for (const file of readdirSync(join(root, "docs/examples")).filter(f => /^0[1-8]-.*\.md$/.test(f))) {
   const path = join(root, "docs/examples", file);
   let text = readFileSync(path, "utf8");

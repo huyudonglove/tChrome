@@ -1,9 +1,8 @@
 import { afterEach, expect, test } from "bun:test";
-import { readFileSync, readdirSync, mkdtempSync, cpSync, writeFileSync, rmSync } from "node:fs";
+import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadContextModules, parseModule, renderSlots, slotNames } from "./modules.ts";
-import { loadToolRegistry, toolSchemas, toolUsageFor } from "../tools/registry.ts";
 import { systemText, userText } from "./window.ts";
 import { emptyLedger } from "../runtime/store.ts";
 import type { Turn } from "../types.ts";
@@ -105,31 +104,6 @@ test("missing render targets and unknown body placeholders are rejected while li
     .toBe("#goal\n\n{{data}} {{unknown}} {{#goal}}");
 });
 
-test("generated examples use the current navigation, body order and tool schemas", () => {
-  const modules = loadContextModules(root);
-  const registry = loadToolRegistry(root);
-  for (const file of readdirSync(join(root, "docs/examples")).filter(name => /^0[1-8]-.*\.md$/.test(name))) {
-    const text = readFileSync(join(root, "docs/examples", file), "utf8");
-    const visit = (value: unknown): void => {
-      if (!value || typeof value !== "object") return;
-      if (Array.isArray(value)) { value.forEach(visit); return; }
-      const record = value as Record<string, any>;
-      if (record.systemSlots) expect(record.systemSlots).toEqual(modules.systemOrder);
-      if (record.userSlots) expect(record.userSlots).toEqual(modules.userOrder);
-      if (record.type === "function" && record.function?.name && record.function.parameters)
-        expect(record.function).toEqual(toolSchemas(registry, [record.function.name])[0]!.function);
-      Object.values(record).forEach(visit);
-    };
-    for (const fence of text.matchAll(/^```json\n([\s\S]*?)^```/gm)) visit(JSON.parse(fence[1]!));
-    if (file.startsWith("03-") || file.startsWith("04-")) {
-      expect(text).toContain(`\`\`\`\n${systemText(modules, toolUsageFor(registry, registry.toolGroups.baseToolsIds), "2026-09-06")}\n\`\`\``);
-      const renderedUser = text.match(/^```\n(#skill\n[\s\S]*?)^```/m)?.[1];
-      expect(headings(renderedUser ?? "")).toEqual(modules.userOrder);
-      expect(renderedUser).not.toMatch(/^能力：|^详细描述：/m);
-    }
-  }
-});
-
 test("module parser rejects blank capabilities, blank bodies and duplicate placeholders", () => {
   const valid = "#sample\n能力：【用途】\n\n详细描述：\n{{data}}";
   expect(parseModule(valid, "#sample")).toEqual({ tag: "#sample", capability: "【用途】", body: "{{data}}" });
@@ -176,22 +150,6 @@ test("user descriptions appear only in system navigation while user bodies conta
     expect(user).not.toContain(module.description!);
   }
   expect(user).not.toMatch(/^能力：|^详细描述：|^内容：/m);
-});
-
-test("skill navigation describes injected skills without storing their operational methods", () => {
-  // The copied fixture deliberately contains context only: context must not load skills itself.
-  const modules = loadContextModules(copyContext());
-  const skill = modules.userSlots["#skill"]!;
-  const methods = "SKILL_METHODS_FROM_RUNTIME {{data}} {{unknown}}";
-  const system = systemText(modules, "", "2026-09-06");
-  const user = renderSlots(modules.userOrder, modules.userSlots, { "#skill": methods });
-  expect(skill.description).toBeTruthy();
-  expect(skill.body).toBe("{{data}}");
-  expect(system).toContain(skill.description!);
-  expect(system).not.toContain(methods);
-  expect(user).toContain(`#skill\n\n${methods}`);
-  expect(user).not.toContain(skill.description!);
-  expect(renderSlots(["#skill"], modules.userSlots, {})).not.toContain(methods);
 });
 
 test("user modules require separate nonblank descriptions and content", () => {

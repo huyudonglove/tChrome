@@ -5,8 +5,6 @@ export type MemoryRecord = {
   turnId: string;
   layer: MemoryLayer;
   text: string;
-  summary: string;
-  compressed: boolean;
   createdAt: string;
   sourceCallId: string;
   sourceConversationId?: string;

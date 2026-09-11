@@ -1,26 +1,12 @@
 import runtimeMessages from "../runtime/messages.json";
 import type { ToolEffect, ToolExecution } from "./effects.ts";
-import type { BrowserHost, CurrentPage, ToolArguments, ToolReturn } from "../types.ts";
+import type { BrowserHost, CurrentPage, ToolArguments } from "../types.ts";
 import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
 import { LOCAL_TOOL_NAMES, runLocalTool } from "./local-tools.ts";
-
-export const WINDOW_TEXT_LIMIT = 2000;
-
-export function clipReturn(full: string): ToolReturn {
-  const totalChars = full.length;
-  if (totalChars <= WINDOW_TEXT_LIMIT) {
-    return { stage: "complete", totalChars, text: full };
-  }
-  return { stage: "truncated", totalChars, text: full.slice(0, WINDOW_TEXT_LIMIT) };
-}
 
 export function actionFromContent(content: string): string {
   const match = content.match(/(?:^|\n)action\n([\s\S]*)$/i);
   return (match?.[1] ?? "").trim();
-}
-
-export function questionFromContent(content: string, choice: string[]): string {
-  return questionWithChoices(actionFromContent(content), choice);
 }
 
 const questionWithChoices = (question: string, choice: string[]): string =>

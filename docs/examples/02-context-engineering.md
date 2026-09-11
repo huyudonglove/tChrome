@@ -28,7 +28,7 @@
 
 | 选什么 | 干什么 | 本轮选中 |
 |---|---|---|
-| `baseToolsIds` | 常驻工具，每轮都出网 | `askUser` `finishTurn` `submitGoal` `record.query` `memory.write` `notes.write` `notes.delete` |
+| `baseToolsIds` | 常驻工具，每轮都出网 | `askUser` `finishTurn` `submitGoal` `context.query` `memory.write` `notes.write` `notes.delete` |
 | `toolIds` | 动态工具，本轮才挂 | 开 Turn 先挂 core。本样例：`page.get_summary` `open_url` `web_search`。全表见 `service/tools/definitions/index.json`，缺了 `catalog.add` |
 | `conversationMemoryIds` | 这一次会话记忆 | 新会话空 |
 | `projectMemoryIds` | 项目记忆 | 新会话空 |

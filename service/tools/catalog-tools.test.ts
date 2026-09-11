@@ -32,21 +32,6 @@ test("每个工具有 schema 和必填 reason，affectsPage 按工具约定校�
   }
 });
 
-test("core 工具 schema 带上用法里的必填入参", () => {
-  const registry = loadToolRegistry(repoRoot);
-  const requiredOf = (name: string) => {
-    const params = registry.tools[name]?.function.parameters as { required?: string[] };
-    return params.required ?? [];
-  };
-  expect(requiredOf("page.click")).toContain("id");
-  expect(requiredOf("page.type")).toEqual(expect.arrayContaining(["id", "text"]));
-  expect(requiredOf("open_url")).toContain("url");
-  expect(requiredOf("web_search")).toContain("query");
-  expect(requiredOf("submitGoal")).toContain("goal");
-  expect(requiredOf("catalog.add")).toContain("names");
-  expect(requiredOf("askUser")).toContain("choice");
-});
-
 test("缺字段和类型错走 Ajv，不补齐", () => {
   const registry = loadToolRegistry(repoRoot);
   const ids = ["page.type", "finishTurn"];

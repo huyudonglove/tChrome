@@ -52,9 +52,9 @@ tChrome 运行在 Chrome 侧边栏。它不要求用户预先画好流程，而�
 - `conversationMemory`：本会话值得保留的过程事实、偏好和决定，跨轮保留，删除会话时删除。
 - `projectMemory`：独立于会话的长期记忆，所有会话共享读取，删除来源会话后仍保留。
 
-原 `turnMemory` 已合并至会话记忆，旧数据自动迁移。当前目标由 `goal` 管理，草稿与中间材料由 `notes` 管理，值得保留的事实与决定写入 `conversationMemory`。
+当前目标由 `goal` 管理，草稿与中间材料由 `notes` 管理，值得保留的事实与决定写入 `conversationMemory`。
 
-每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes 和长期记忆保持可见。没有独立的 20K 摘要阈值，也不把多轮合成一条摘要。
+每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes 和长期记忆保持可见。已有摘要的再压缩沿用同一触发流程，每轮分别保留摘要。
 
 ## 架构
 

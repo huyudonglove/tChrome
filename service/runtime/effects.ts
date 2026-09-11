@@ -31,7 +31,7 @@ export function applyToolEffects(input: {
         for (const { layer, text } of effect.entries) {
           const memoryId = layer === "project" ? nextId("lm_", loadMemories(dataDir, ledger.conversationId, ledger.memoryIds).project.map(item => item.memoryId)) : nextId("mm_", Object.values(ledger.memoryIds).flat());
           const record: MemoryRecord = {
-            memoryId, turnId: turn.turnId, layer, text, summary: text.slice(0, 40), compressed: false,
+            memoryId, turnId: turn.turnId, layer, text,
             createdAt: nowIso(), sourceCallId: call.callId,
           };
           saveMemory(dataDir, ledger.conversationId, record);
