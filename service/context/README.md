@@ -10,7 +10,7 @@
 | [system/](system/) | identity、environment、execution、toolProtocol、boundaries、output、baseTools 七个规则模块 |
 | [user/](user/) | 保留十五个 tag，描述各栏用途并提供数据占位符 |
 | [modules.ts](modules.ts) | 校验顺序与模块格式，读取 tag、能力、详细描述和内容，生成两份导航 |
-| [projections/](projections/) | 模块字段投影，隐藏归档元数据，保留操作引用与完整内容 |
+| [projections/](projections/) | 模块字段投影，保留记录身份、来源关联、操作引用与完整内容 |
 | [window.ts](window.ts) | 拼装 system / user，并注入当轮数据、技能正文与工具说明 |
 
 system 模块文件使用以下结构：
@@ -52,7 +52,19 @@ execution 专注任务推进；toolProtocol 负责调用、返回和错误处理
 
 历史类数据（用户输入、目标历史、两层记忆、工具记录、轮次摘要）按旧到新排列，新增记录追加末尾；最近窗口从尾部选取后仍保持原顺序。待办和工具队列按执行顺序，选项与排名保留其业务含义。
 
-记忆读写和分层加载由 service/memory 提供。Runtime 按归档覆盖关系过滤可见原文，再投影为完整文本数组传给 context；不按条数或字符数静默裁剪。模块投影负责字段白名单，输入和目标显示文本，历史显示文本数组，页面保留 tab/url/title/description，工具保留名称、操作参数、reason 和解析后的结果。页面控件引用继续保留。
+记忆读写和分层加载由 service/memory 提供。Runtime 按归档覆盖关系过滤可见原文，再按模块投影记录对象传给 context；不按条数或字符数静默裁剪。模块投影保留具体记录身份与来源关联，各模块说明解释其 ID 含义和规律：
+
+| 模块 | 记录字段 |
+|---|---|
+| userInput / userInputHistory | id、turnId、userInput |
+| goal / goalHistory | id、turnId、sourceCallId、goal |
+| currentPage / pageObservedHistory | 观察的 id、turnId、callId，以及 tab、url、title、description；初始标签快照可无观察 ID |
+| conversationMemory / projectMemory | memoryId、turnId、sourceCallId、text；长期记忆有来源会话时保留 sourceConversationId |
+| toolIO | callId、turnId、可选 batchId、name、arguments 和解析后的 return |
+| conversationHistorySummary | sumId、turnId、tag、userRequest、actions、result |
+| currentQuery / queryHistory | queryId、发起查询的 turnId、sumId、module、intent、status、records；records 中保留来源 turnId、模块记录 id 和原文 content |
+
+页面控件引用及工具参数中的业务 ID 继续保留；它们与观察 ID、调用 ID 各自承担不同的定位职责。notes 使用 key 标识条目，工具定义使用工具名，无需新增通用记录 ID。
 
 总纲中的 `{{currentDate}}` 由 runtime 在每次模型请求组装前按 `America/Los_Angeles` 计算，格式为 YYYY-MM-DD，自动处理夏令时。示例使用固定日期 2026-09-06，以保持可重复生成。
 
@@ -64,4 +76,4 @@ execution 专注任务推进；toolProtocol 负责调用、返回和错误处理
 
 压缩和查询 Agent 分别位于 `service/agents/compression/`、`service/agents/query/`，各自管理提示词、输入组装与输出校验，共用现有 `provider.complete`。`service/context-archive/` 管理归档存储和来源关系；本目录负责主 Agent 的窗口投影与组装，不发起模型请求。
 
-`conversationHistorySummary` 位于当前输入之后，承载逐轮或同轮执行片段摘要，仅投影 tag、userRequest、actions、result，不展示 turnId 或 pending。历史结果只描述当时的事实，不产生新的待办。
+`conversationHistorySummary` 位于当前输入之后，承载逐轮或同轮执行片段摘要，投影 sumId、turnId、tag、userRequest、actions、result，不生成 pending。历史结果只描述当时的事实，不产生新的待办。

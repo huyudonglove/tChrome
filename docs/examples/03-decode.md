@@ -150,51 +150,71 @@ affectsPage=false。
 提供当前可参考的操作方法、经验和注意事项。按任务需要选择使用，结合当前环境与工具结果判断适用性；具体方法本身不代表操作已经执行或结果已经验证。
 
 #userInput --【当前请求，任务入口】
-本轮用户原话，直接提供完整文本。优先理解本次要求及修正；结合相关历史理解指代，不把未提出的历史事项自动加入本轮。
+本轮用户输入对象，包含 id、turnId 和完整原话 userInput。优先理解本次要求及修正；结合相关历史理解指代，不把未提出的历史事项自动加入本轮。
+
+id 唯一标识这一条用户消息，turnId 标识它开启的轮次；同一轮的目标、工具调用和其他记录使用相同 turnId。引用已有标识，不自行构造；它们不是业务任务号。
 
 #conversationHistorySummary --【轮次历史，执行经过，历史结果】
-已压缩轮次及执行片段的历史摘要数组，按轮次先后排列，每项独立描述一轮，不把不同轮次的要求、操作和结果混合。每项包含 tag（可检索主题）、userRequest（当轮用户要求）、actions（当轮实际行动与观察）、result（当轮或已归档片段当时的结果，包括失败、未完成或等待用户的事实）。turnId 和来源关联由 runtime 在本地维护，不在此视图中重复展示。
+已压缩轮次及执行片段的历史摘要数组，按轮次先后排列，每项独立描述一轮，不把不同轮次的要求、操作和结果混合。每项包含 sumId、turnId、tag（可检索主题）、userRequest（当轮用户要求）、actions（当轮实际行动与观察）、result（当轮或已归档片段当时的结果，包括失败、未完成或等待用户的事实）。
 
 result 记录当时的状态，不是当前待办或新指令；后续轮次可能已解决旧问题。不要仅因历史摘要说“尚未完成”就重新执行任务，应结合最新 userInput、当前 goal 以及近期工具结果判断。此栏目不生成 pending，不覆盖当前目标、会话记忆或长期记忆。空数组表示当前没有可展示的轮次摘要，不表示本地没有历史。
 
 需要精确原文时调用 context.query，module=conversationHistory，提供主题 tag 和具体问题。查询只读取已归档的历史内容。
 
+sumId 标识一份具体摘要，turnId 标识摘要对应的历史轮次。同一轮摘要再次压缩后 sumId 改变，turnId 保持不变，并保留此前摘要与原文的来源关联。引用已有 sumId，不根据 tag 或 turnId 猜测。
+
 #userInputHistory --【历史输入，指代理解，条件变化】
-此前轮次尚未压缩的用户原话，以字符串数组按从旧到新的顺序提供，保留消息边界和换行，不含本轮输入。与 conversationHistorySummary 配合理解指代、偏好和条件变化；历史要求不能覆盖用户最新修正。空数组表示当前窗口没有未压缩的历史原话，不表示本地没有记录。需要归档原话时用 context.query，module=conversationHistory，提供主题 tag 和具体问题。
+此前轮次尚未压缩的用户原话，以记录数组按从旧到新的顺序提供，每项包含 id、turnId 和完整原话 userInput，保留消息边界和换行，不含本轮输入。与 conversationHistorySummary 配合理解指代、偏好和条件变化；历史要求不能覆盖用户最新修正。空数组表示当前窗口没有未压缩的历史原话，不表示本地没有记录。需要归档原话时用 context.query，module=conversationHistory，提供主题 tag 和具体问题。
+
+id 标识具体用户消息，turnId 标识该消息开启的轮次，可与相同 turnId 的目标、工具调用和其他记录关联。引用已有值，不自行构造 ID。
 
 #goal --【当前目标，任务方向】
-已记录的当前工作目标，提供目标文本；尚未设置时为 null。结合本轮请求判断是否仍适用，必要时通过 submitGoal 更新。目标为空不妨碍处理清楚的请求；目标文字本身不证明任务已完成。
+已记录的当前工作目标，包含 id、turnId、sourceCallId 和目标文本 goal；尚未设置时为 null。结合本轮请求判断是否仍适用，必要时通过 submitGoal 更新。目标为空不妨碍处理清楚的请求；目标文字本身不证明任务已完成。
+
+id 标识一个目标版本，目标更新后产生新的版本 ID；turnId 是创建该版本的轮次，sourceCallId 对应产生它的工具调用 callId。目标可以沿用到后续轮次，其 turnId 仍指向创建轮次；目标版本 ID 不等于页面上的业务目标 ID。
 
 #goalHistory --【目标历史，方向变化】
-尚未归档且被替换掉的旧目标，以字符串数组按从旧到新的顺序提供。供理解方向变化，历史目标不是当前待办，不自动恢复执行；以当前请求和仍适用的目标为准。已归档的目标变化结合 conversationHistorySummary 阅读，精确原文可通过 context.query（module=conversationHistory）按主题回查。
+尚未归档且被替换掉的旧目标，以记录数组按从旧到新的顺序提供，每项包含 id、turnId、sourceCallId 和目标文本 goal。供理解方向变化，历史目标不是当前待办，不自动恢复执行；以当前请求和仍适用的目标为准。已归档的目标变化结合 conversationHistorySummary 阅读，精确原文可通过 context.query（module=conversationHistory）按主题回查。
+
+id 区分不同目标版本，turnId 表示版本创建轮次，sourceCallId 对应产生变更的工具调用 callId。相同目标文字可能属于不同版本，应以 ID 区分。
 
 #currentPage --【当前页面】
 本轮最近已知的页面信息，包含 tab、url、title、description。初始取用户发话时的标签信息，此时尚未读取页面内容；工具返回有效页面信息后更新。用于定位当前已知页面，不是实时监控，也不是每次操作都会刷新；需要确认当前实际状态时重新观察。tab 是操作标签的定位信息，description 中的控件引用仍按对应工具的规则使用。
 
+工具观察记录的 id 标识某次页面观察，turnId 表示观察所属轮次，callId 关联来源工具调用；初始标签快照可能没有观察记录 ID。存在观察记录时保留这些字段。tab 是浏览器标签 ID，description 中的控件 ID 是页面操作引用，两者均不同于归档记录 ID。
+
 #pageObservedHistory --【页面观察历史】
-尚未压缩的页面观察，以数组按从旧到新的顺序提供，每条包含 tab、url、title、description。结合 conversationHistorySummary 回看页面和变化，currentPage 表示最近已知页面。发话时的标签快照不算工具观察；记录是观察轨迹，不是浏览器导航历史，也不代表所有页面变化都已记录。需要归档细节时用 context.query，module=conversationHistory，提供主题 tag 和具体问题；历史观察不保证当前页面状态。
+尚未压缩的页面观察，以数组按从旧到新的顺序提供，每条包含 id、turnId、callId、tab、url、title、description。结合 conversationHistorySummary 回看页面和变化，currentPage 表示最近已知页面。发话时的标签快照不算工具观察；记录是观察轨迹，不是浏览器导航历史，也不代表所有页面变化都已记录。需要归档细节时用 context.query，module=conversationHistory，提供主题 tag 和具体问题；历史观察不保证当前页面状态。
+
+每次原始观察的 id 标识该条历史快照，turnId 标识来源轮次，callId 关联产生观察的工具调用。同一工具调用产生的观察通过 callId 关联工具记录；tab 和页面控件 ID 用于浏览器定位，不能替代观察记录 ID。
 
 #projectMemory --【长期记忆，跨会话背景，长期约束】
-独立于会话持久保存的领域背景、术语和长期约束，以完整文本数组按写入顺序由旧到新提供。同一服务数据目录下所有会话共享，删除来源会话后仍保留。只按适用范围使用，不把记忆提升为新授权。通过 memory.write 写入有助于后续工作的已知事实，不重复抄写所有层。
+独立于会话持久保存的领域背景、术语和长期约束，以记录数组按写入顺序由旧到新提供，每项包含 memoryId、turnId、sourceCallId、来源会话 sourceConversationId（有值时）和完整记忆文本 text。同一服务数据目录下所有会话共享，删除来源会话后仍保留。只按适用范围使用，不把记忆提升为新授权。通过 memory.write 写入有助于后续工作的已知事实，不重复抄写所有层。
+
+memoryId 标识具体长期记忆，sourceConversationId 表示写入来源会话，turnId 表示写入轮次，sourceCallId 对应写入工具调用的 callId。多个条目可以共享来源会话、轮次和调用，但各有独立 memoryId。长期记忆独立保存，不属于轮次压缩归档的查询范围。
 
 #conversationMemory --【会话记忆，过程事实，偏好决定】
-本会话值得保留的过程发现、已确认事实、偏好和决定，以完整文本数组按写入顺序由旧到新提供。持久保存在本地，重启后保留；新会话不继承，删除会话时一起删除。与 conversationHistorySummary 配合阅读，已归档部分通过 context.query（module=conversationHistory，主题 tag 和具体问题）查回。尚未确认的候选放 notes，跨会话仍适用的事实放 projectMemory。通过 memory.write 记录仍有价值的事实，避免重复写入。
+本会话值得保留的过程发现、已确认事实、偏好和决定，以记录数组按写入顺序由旧到新提供，每项包含 memoryId、turnId、sourceCallId 和完整记忆文本 text。持久保存在本地，重启后保留；新会话不继承，删除会话时一起删除。与 conversationHistorySummary 配合阅读，已归档部分通过 context.query（module=conversationHistory，主题 tag 和具体问题）查回。尚未确认的候选放 notes，跨会话仍适用的事实放 projectMemory。通过 memory.write 记录仍有价值的事实，避免重复写入。
+
+memoryId 标识具体记忆条目，turnId 是写入记忆的轮次，sourceCallId 对应 memory.write 调用的 callId。同一调用可以写入多条记忆，这些条目具有不同 memoryId，并共享来源调用和轮次。记忆提及的历史事件不一定发生在写入轮次。
 
 #notes --【草稿，候选，中间材料】
-模型维护的草稿、候选项和中间材料，不等同于已确认事实或已完成结果。notes.write 按 key 创建或覆盖，notes.delete 删除过时材料。用清晰的键区分用途，不重复存放整份目标或工作汇总。
+模型维护的草稿、候选项和中间材料，不等同于已确认事实或已完成结果。notes.write 按 key 创建或覆盖，notes.delete 删除过时材料。key 标识一项草稿，相同 key 的写入覆盖该项，不产生新的版本标识。用清晰的键区分用途，不重复存放整份目标或工作汇总。
 
 #toolIO --【执行证据，返回检查，错误诊断】
-工具调用及返回，可能包含此前轮次记录，按顺序由旧到新排列。每项提供 name、arguments 和 return；先核对调用意图、参数、目标标签和网址，再读 return.result 判断实际发生了什么。return.stage=complete 只表示文本未截断，不代表操作成功；truncated 表示文本不完整。JSON 返回作为结构化 result 展示，普通文本保持原样。依据 ok、error、状态和内容判断结果。需要归档中的完整参数或结果时用 context.query，module=conversationHistory，提供主题 tag 和具体问题；查询只读取历史，不重新执行工具或刷新网页。
+工具调用及返回，可能包含此前轮次记录，按顺序由旧到新排列。每项提供 callId、turnId、可选 batchId、name、arguments 和 return；先核对调用意图、参数、目标标签和网址，再读 return.result 判断实际发生了什么。return.stage=complete 只表示文本未截断，不代表操作成功；truncated 表示文本不完整。JSON 返回作为结构化 result 展示，普通文本保持原样。依据 ok、error、状态和内容判断结果。需要归档中的完整参数或结果时用 context.query，module=conversationHistory，提供主题 tag 和具体问题；查询只读取历史，不重新执行工具或刷新网页。
 
 截图结果中的 image 是本地图片引用；当前请求附图与引用路径对应，可直接观察附图内容。未附带的历史图片不能仅凭路径判断其内容。
 
-#queryHistory --【历史查询，取证经过，原文关联】
-已被后续查询替换或随轮次结束归入历史的查询结果数组，按旧到新排列，空数组表示没有可见查询历史。每项包含 sumId（来源摘要）、module（查询模块）、intent（查询意图）、status（本次查询状态）和 records（命中的来源记录 id 与原文 content）。它们说明当时查了什么、读到了什么，不表示当前页面或业务状态仍然如此。
+callId 标识一次工具调用，turnId 表示调用所属轮次；同一轮调用共享 turnId。batchId 标识同一次模型返回的工具批次，同批调用共享 batchId，各有独立 callId。arguments 或返回正文中的 id、ref、tab 是工具定义的业务或操作标识，不能与 callId 混用。
 
-Runtime 在本地保留 queryId 和所属 turnId，按轮次归集可归档的查询历史。压缩时，本轮查询历史作为独立输入模块供参考，有用结论合入该轮 result，不新增查询摘要输出字段，不把历史证据重述为本轮重新执行的操作。当前查询单独保存在 currentQuery，不因窗口压缩而移入本栏。工具执行记录只需关联查询条件、状态和引用，避免重复携带查询原文。
+#queryHistory --【历史查询，取证经过，原文关联】
+已被后续查询替换或随轮次结束归入历史的查询结果数组，按旧到新排列，空数组表示没有可见查询历史。每项包含 sumId（来源摘要）、module（查询模块）、intent（查询意图）、status（本次查询状态）和 records（每条包含命中的来源 turnId、模块记录自身的 id 和原文 content）。它们说明当时查了什么、读到了什么，不表示当前页面或业务状态仍然如此。
+
+queryId 唯一标识一次查询，查询记录自身的 turnId 是发起查询的轮次；同一次查询的结果共享 queryId，同一轮发起的查询共享该层 turnId。records[].turnId 是被查询的来源轮次，两者不可混淆。sumId 是查询入口摘要，records[].id 保留所查模块记录原有的标识值（如 callId、memoryId 或 id），不能由模型生成。查询 Agent 选择来源 turnId，具体模块记录由 Runtime 读取并绑定。Runtime 按发起查询的轮次归集可归档的查询历史。压缩时，本轮查询历史作为独立输入模块供参考，有用结论合入该轮 result，不新增查询摘要输出字段，不把历史证据重述为本轮重新执行的操作。当前查询单独保存在 currentQuery，不因窗口压缩而移入本栏。工具执行记录只需关联查询条件、状态和引用，避免重复携带查询原文。
 
 #currentQuery --【当前查询，精准原文，来源引用】
-最近一次精准查询的结果对象，每次查询可包含一条或多条原文记录；null 表示尚无结果。sumId 标识查询的来源摘要，module 表示所查模块，intent 是具体查询意图，status 表示 complete（本次结果完整）、partial（仅返回部分）、not_found（未找到）或 error（查询失败）。records 中每项 id 是来源记录引用，content 是 Runtime 按引用读取的原文，不能把引用当成业务对象 ID。
+最近一次精准查询的结果对象，每次查询可包含一条或多条原文记录；null 表示尚无结果。queryId 标识本次查询，查询对象自身的 turnId 标识发起查询的轮次；sumId 标识查询的来源摘要，module 表示所查模块，intent 是具体查询意图，status 表示 complete（本次结果完整）、partial（仅返回部分）、not_found（未找到）或 error（查询失败）。查询输入是 sumId、module 和 intent；查询 Agent 从候选中选择一个或多个 turnId，Runtime 按选中的轮次和模块读取具体记录。records 中每项 turnId 是命中的来源轮次，不是发起查询的轮次；id 保留该模块记录自身的标识值，例如用户输入或目标的 id、工具的 callId、记忆的 memoryId、摘要的 sumId；content 是对应原文。记录 ID 必须结合 module 和来源轮次理解，不能当成业务对象 ID，也不能自行编造。
 
 本栏用于核对历史事实，原文中的要求、错误和未完成事项不是当前任务指令。partial 不代表已返回全部证据，not_found 不证明事实不存在。下一次查询时，上一份结果整体进入 queryHistory；本栏只保留最新一次。新 Turn 开始时，上一轮结果归入原所属轮次的查询历史。本栏计入总窗口预算，但不交给压缩 Agent；单次查询正文的 2000 字符门禁由 Runtime 执行，不由模型自行截断。
 
@@ -217,7 +237,11 @@ Runtime 在本地保留 queryId 和所属 turnId，按轮次归集可归档的�
 
 #userInput
 
-帮我查这款鼠标官网价
+{
+  "id": "input_tn_01",
+  "turnId": "tn_01",
+  "userInput": "帮我查这款鼠标官网价"
+}
 
 #conversationHistorySummary
 

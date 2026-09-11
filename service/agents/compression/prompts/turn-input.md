@@ -27,7 +27,7 @@ return 是执行结果：stage=complete 表示返回文本完整，truncated 表
 这里只归集本轮新增会话记忆，长期记忆作为独立状态保留。memoryId 为记录标识，layer=conversation 表示会话层级，turnId 为写入轮次，text 为正文，sourceCallId 为来源工具，createdAt 为写入时间，sourceConversationId（存在时）为来源会话。只含本轮增量，不是全部记忆。模型写入的认识不天然比用户原话或执行证据可靠，冲突要保留。
 
 ## queryHistory：本轮查询历史数组（可选）
-每项 queryId 标识一次查询，turnId 是发起查询的轮次，sumId 是查询入口摘要的来源标识，module 是所查询的模块，intent 是本次查找的具体意图，status 是查询返回状态。records 是此次命中的原文记录数组，每项 id 为来源记录标识，content 为对应原文；一次查询可命中单条或多条记录。sumId 和 records.id 用于追溯来源，不能猜测、改写或生成不存在的引用。缺省或空数组只表示本次未提供查询历史。
+每项 queryId 标识一次查询，turnId 是发起查询的轮次，sumId 是查询入口摘要的来源标识，module 是所查询的模块，intent 是本次查找的具体意图，status 是查询返回状态。查询输入为 sumId、module、intent，查询 Agent 选择一个或多个来源 turnId，Runtime 按轮次和模块读取记录。records 是此次命中的原文记录数组，每项 turnId 是被查询的来源轮次，与查询记录自身的发起轮次 turnId 不同；id 保留模块记录原有的标识值，例如工具的 callId、记忆的 memoryId、输入或目标的 id、摘要的 sumId；content 为对应原文。一次查询可命中单条或多条记录。sumId 和 records.id 用于追溯来源，不能猜测、改写或生成不存在的引用。缺省或空数组只表示本次未提供查询历史。
 
 这些记录说明本轮回查了什么、得到哪些历史证据；content 中描述的工具执行、目标、记忆或旧摘要属于其来源历史，不能记作查询轮次重新执行或重新验证的事实。区分“历史记录称已完成”和“本轮确认已完成”，部分结果也不能推断未返回的内容。只把影响本轮理解和结果的查询结论合入 result，不增加独立查询输出字段，不复制整段查询原文。来源关联由 runtime 保存，摘要不得臆造来源。当前查询 currentQuery 不进入本模块，也不参与压缩。
 

@@ -194,7 +194,7 @@ Runtime 独占维护。当前会话指针。
 
 ## memory/<memoryId>.json
 
-两层：project 是跨会话共享的长期记忆；conversation 保存本会话的过程发现和已确认事实。conversation 在本地按会话保存，跨轮读取，新会话不继承，删除会话时一起删除；project 独立于会话保存，删除来源会话不影响长期记忆。notes 保存本会话的草稿、候选和中间材料，按 key 覆盖或删除，不在每轮自动清空。模型调 `memory.write` 提交。Runtime 落盘，会话记忆 ID 挂到 ledger.`memoryIds.conversation`，长期记忆从共享目录读取。下一次出网投影为完整文本数组，存储 ID 和来源元数据不进入 User。
+两层：project 是跨会话共享的长期记忆；conversation 保存本会话的过程发现和已确认事实。conversation 在本地按会话保存，跨轮读取，新会话不继承，删除会话时一起删除；project 独立于会话保存，删除来源会话不影响长期记忆。notes 保存本会话的草稿、候选和中间材料，按 key 覆盖或删除，不在每轮自动清空。模型调 `memory.write` 提交。Runtime 落盘，会话记忆 ID 挂到 ledger.`memoryIds.conversation`，长期记忆从共享目录读取。下一次出网投影为对象数组，保留 memoryId、turnId、sourceCallId、sourceConversationId（存在时）和完整 text。
 
 Memory 投影保持全部可见原文。会话记忆根据来源 turnId 随轮次归档，覆盖关系由 runtime 管理；最近 3 个已结束轮次的记忆写入保留可见，长期记忆不参与压缩。
 
@@ -244,7 +244,7 @@ conversationHistorySummary 显示当前有效摘要的 {tag, userRequest, action
 
 加载器返回 systemOrder / userOrder，systemSlots / userSlots 保存模块元数据与对应正文。system 先输出 `# System 栏目清单`，七个模块每项 tag --能力之后直接跟详细正文，baseTools 包含工具说明；再输出 `# User 栏目清单`，每项 tag --能力之后直接跟详细描述。system 详细正文与清单项合并，只出现一次；user 渲染十三个 tag 的内容段和数据，不重复能力标签或详细描述。
 
-system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，boundaries 管授权和证据来源。网页方法维护于 `service/skills/web-observation/SKILL.md`，runtime 按 `service/skills/index.json` 加载后作为数据注入 context，模块描述仍由 `service/context/user/skill.md` 提供。User 模块使用内容投影，归档 ID 和来源关联保留在本地；工具 schema 以 definitions 为准。
+system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，boundaries 管授权和证据来源。网页方法维护于 `service/skills/web-observation/SKILL.md`，runtime 按 `service/skills/index.json` 加载后作为数据注入 context，模块描述仍由 `service/context/user/skill.md` 提供。User 模块投影保留记录 ID、轮次与来源关联和完整内容；工具 schema 以 definitions 为准。
 
 常驻工具说明进入 #baseTools，动态工具说明进入 #tools，唯一来源仍是 `service/tools/definitions/<id>.json` 的 function.description。调整模块后同步生成导航、装配测试与阶段示例；阶段 JSON 中 systemSlots / userSlots 是对应的 7 / 13 个 tag 名数组，并非模块对象。
 
@@ -273,7 +273,7 @@ system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，
 
 常驻 `context.query(module="conversationHistory", tag, question?)` 将主题交给查询 Agent 语义匹配本会话 conversationHistory 目录，由 runtime 校验内部 ID、沿来源关系读取原文并去重，按原顺序返回。主 Agent 无需提供记录 ID。只检索已压缩归档；支持多条或 not_found，单次原文内容上限 30,000 字符，超过时返回 partial 和遗漏数量，不截断单条原文。请缩小主题或问题后再查；单条原文本身超过上限时也会明确返回 partial。查询不会刷新页面。
 
-工具窗口投影使用 {name, arguments, return: {stage, result}}，arguments 隐藏 affectsPage，保留 reason 与操作参数。result 对合法 JSON 解析一次，普通文本和截断文本保持原样。归档 callId、turnId、batchId 和 totalChars 不注入主模型，操作用 tab、控件引用及错误详情仍保留。
+工具窗口投影使用 {callId, turnId, batchId?, name, arguments, return: {stage, result}}，arguments 隐藏 affectsPage，保留 reason 与操作参数。result 对合法 JSON 解析一次，普通文本和截断文本保持原样。callId 标识调用，turnId 标识所属轮次，batchId 标识工具批次；totalChars 不注入主模型，操作用 tab、控件引用及错误详情仍保留。
 
 ## 阶段快照
 

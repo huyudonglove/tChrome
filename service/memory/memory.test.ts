@@ -46,7 +46,7 @@ test("loading follows ledger IDs and layers without modifying IDs or disk record
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("projection keeps every original memory without metadata, clipping or mutation", () => {
+test("projection keeps every original memory with identities and without clipping or mutation", () => {
   const memories: Memories = { conversation: [], project: [] };
   for (const layer of ["conversation", "project"] as const) {
     memories[layer] = Array.from({ length: 10 }, (_, i) => record(`${layer}_${i}`, layer, {
@@ -56,7 +56,7 @@ test("projection keeps every original memory without metadata, clipping or mutat
   const before = JSON.stringify(memories);
   const projected = projectMemories(memories);
   for (const layer of ["conversation", "project"] as const) {
-    expect(JSON.parse(projected[layer])).toEqual(memories[layer].map(item => item.text));
+    expect(JSON.parse(projected[layer])).toEqual(memories[layer].map(({ memoryId, turnId, sourceCallId, text }) => ({ memoryId, turnId, sourceCallId, text })));
     expect(JSON.parse(projected[layer])).toHaveLength(10);
   }
   expect(JSON.stringify(memories)).toBe(before);

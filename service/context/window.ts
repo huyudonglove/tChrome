@@ -31,7 +31,7 @@ export function userText(input: {
     "#conversationMemory": memories.conversation,
     "#notes": jsonBody(ledger.notes),
     "#userInputHistory": jsonBody(inputHistoryView(ledger.userInputHistory)),
-    "#userInput": turn.input.text,
+    "#userInput": jsonBody({ id: turn.input.id, turnId: turn.turnId, userInput: turn.input.text }),
     "#conversationHistorySummary": jsonBody(turnSummaryView(input.conversationSummaries)),
     "#goal": jsonBody(goalView(ledger.goal)),
     "#goalHistory": jsonBody(goalHistoryView(ledger.goalHistory)),

@@ -4,7 +4,7 @@
 
 - `types.ts`：记忆记录、层级、ID 索引和分层集合的类型。
 - `store.ts`：单条记忆读写、按会话索引加载会话记忆和按时间加载共享长期记忆。
-- `window.ts`：输出全部可见记忆的完整文本数组，隐藏 ID 和来源元数据，保持旧到新。投影不修改本地记录。
+- `window.ts`：输出全部可见记忆的对象数组，保留 memoryId、turnId、sourceCallId、sourceConversationId（存在时）和完整 text，保持旧到新。投影不修改本地记录。
 
 Runtime 处理 memory.write 的 effect，分配 ID、写入记忆、更新账本索引并记录事件；每次请求模型前读取记忆并调用投影。Context 只接收两层记录数组，模块文件保留用途说明与数据占位。工具 schema 继续由 tools/definitions/memory.write.json 唯一维护。
 

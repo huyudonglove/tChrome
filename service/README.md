@@ -47,4 +47,4 @@ Responses 适配器负责文本、图片 input_image、扁平 function schema �
 
 conversationHistorySummary 展示历史轮次或执行片段的 {tag, userRequest, actions, result}，与近期原文配合阅读。描述进入 System，摘要数据放在当前输入之后。常驻 `context.query(module="conversationHistory", tag, question?)` 将主题交给查询 Agent 语义匹配本会话 conversationHistory 目录，由 runtime 校验内部 ID、沿来源关系读取原文并去重，按原顺序返回。主 Agent 无需提供记录 ID。只检索已压缩归档；支持多条或 not_found，单次原文内容上限 30,000 字符，超过时返回 partial 和遗漏数量，不截断单条原文。请缩小主题或问题后再查；单条原文本身超过上限时也会明确返回 partial。查询不会刷新页面。
 
-输入、目标版本、页面观察创建时以稳定 ID 写入 context-records；记忆保留本地 memoryId。模型投影只选择内容和操作字段，隐藏归档 ID、轮次、时间等元数据，不修改本地记录。记忆投影保留完整文本；归档覆盖由 runtime 管理。
+输入、目标版本、页面观察创建时以稳定 ID 写入 context-records；记忆保留本地 memoryId。模型投影保留记录 ID、轮次与来源关联以及内容和操作字段，不修改本地记录。记忆投影保留完整文本；归档覆盖由 runtime 管理。
