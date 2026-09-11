@@ -10,7 +10,8 @@ import { executorVersion } from "./executor-version.ts";
 import { createProvider } from "./provider/uuapi.ts";
 import { createToolBridge } from "./runtime/bridge.ts";
 import { stopTurn, emptyLedger, loadEvents, loadLedger, loadProviderLog, loadSession, loadTurn, saveLedger, saveTurn, sessionView } from "./runtime/store.ts";
-import { archiveToolHistory } from "./runtime/compress.ts";
+import { compressRecords } from "./compression/compress.ts";
+import { loadIndex } from "./compression/store.ts";
 import type { CompletionResult, Provider } from "./types.ts";
 
 const repoRoot = join(import.meta.dir, "..");
@@ -410,21 +411,19 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
   ledger.compressAt = 1;
   const memoryIdsBefore = structuredClone(ledger.memoryIds);
   ledger.toolIO.unshift({ callId: "call_old", name: "web_search", turnId: turn.turnId, arguments: {}, return: { stage: "complete", text: "旧证据", totalChars: 3 } });
-  archiveToolHistory({
-    dataDir: dir,
-    ledger,
-    windowChars: 200000,
+  await compressRecords({ dataDir: dir, conversationId: ledger.conversationId, repoRoot,
+    module: "toolIO", records: [{ id: "tool_old", content: ledger.toolIO[0]! }],
+    provider: { complete: async () => ok({ finish: "stop", content: JSON.stringify({ tag: "旧查询", summary: "旧工具提供了旧证据" }) }) },
   });
   expect(turn.assembled.toolIds).toEqual(["see_page", "web_search", "capture_page", "cookies_get"]);
   expect(ledger.memoryIds).toEqual(memoryIdsBefore);
-  expect(ledger.toolIO).toHaveLength(2);
-  expect(ledger.observation.at(-1)?.sourceCallIds).toEqual(["call_old"]);
+  expect(ledger.toolIO).toHaveLength(3);
+  expect(loadIndex(dir, ledger.conversationId, "toolIO").coveredSourceIds).toEqual(["tool_old"]);
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).compressed).toBe(false);
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).compressed).toBe(false);
   expect(loadMemories(dir, "cv_01", ledger.memoryIds).project[0]!.compressed).toBe(false);
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).text).toBe("本轮用户要查鼠标价");
-  const events = loadEvents(dir, "cv_01");
-  expect(events.some((row) => row.kind === "compress")).toBe(true);
+
   rmSync(dir, { recursive: true, force: true });
 });
 

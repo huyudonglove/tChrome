@@ -8,8 +8,9 @@
 | [system-slots.md](system-slots.md) | 仅编号文件名，例如 `1. identity`；对应 system/ 中的文件 |
 | [user-slots.md](user-slots.md) | 仅编号文件名；对应 user/ 中的文件 |
 | [system/](system/) | identity、environment、execution、toolProtocol、boundaries、output、baseTools 七个规则模块 |
-| [user/](user/) | 保留十七个 tag，描述各栏用途并提供数据占位符 |
+| [user/](user/) | 保留十六个 tag，描述各栏用途并提供数据占位符 |
 | [modules.ts](modules.ts) | 校验顺序与模块格式，读取 tag、能力、详细描述和内容，生成两份导航 |
+| [projections/](projections/) | 模块字段投影，隐藏归档元数据，保留操作引用与完整内容 |
 | [window.ts](window.ts) | 拼装 system / user，并注入当轮数据、技能正文与工具说明 |
 
 system 模块文件使用以下结构：
@@ -43,12 +44,16 @@ execution 专注任务推进；toolProtocol 负责调用、返回和错误处理
 
 工具 schema 和说明仍由 [服务工具定义](../tools/definitions/) 提供，常驻说明进入 #baseTools，动态说明进入 #tools。memory.write 提供 conversationMemory 与 projectMemory 两个记忆参数。目标、草稿与事实决定分别由 goal、notes 和 conversationMemory 承担，历史压缩摘要使用各模块独立的 Summary 插槽。
 
-修改后运行 `bun run scripts/sync-context-examples.ts`，同步阶段示例中的导航、正文与 7/17 栏目数组。脚本只刷新真正的 schema，保留实际 tool_calls 的参数数据；再次运行结果应相同。然后运行 `bun run check`。
+修改后运行 `bun run scripts/sync-context-examples.ts`，同步阶段示例中的导航、正文与 7/16 栏目数组。脚本只刷新真正的 schema，保留实际 tool_calls 的参数数据；再次运行结果应相同。然后运行 `bun run check`。
 
-历史类数据（用户输入、目标历史、两层记忆、工具记录、观察摘要）按旧到新排列，新增记录追加末尾；最近窗口从尾部选取后仍保持原顺序。待办和工具队列按执行顺序，选项与排名保留其业务含义。
+历史类数据（用户输入、目标历史、两层记忆、工具记录、分模块摘要）按旧到新排列，新增记录追加末尾；最近窗口从尾部选取后仍保持原顺序。待办和工具队列按执行顺序，选项与排名保留其业务含义。
 
-记忆的文件读写、分层加载和窗口投影由 `service/memory/` 提供。Runtime 读取记忆并生成两层记录数组后传给 context；每项保留 id、text 和来源，context 不读取记忆文件、不选择条数、不生成摘要，只将数组注入对应栏目。
+记忆读写和分层加载由 service/memory 提供。Runtime 按归档覆盖关系过滤可见原文，再投影为完整文本数组传给 context；不按条数或字符数静默裁剪。模块投影负责字段白名单，输入和目标显示文本，历史显示文本数组，页面保留 tab/url/title/description，工具保留名称、操作参数、reason 和解析后的结果。页面控件引用继续保留。
 
 总纲中的 `{{currentDate}}` 由 runtime 在每次模型请求组装前按 `America/Los_Angeles` 计算，格式为 YYYY-MM-DD，自动处理夏令时。示例使用固定日期 2026-09-06，以保持可重复生成。
 
-输入、目标版本和页面观察由 Runtime 在创建时生成稳定 ID 并存入本会话 context-records；记忆沿用 memoryId。当前输入和当前页面进入对应历史时共用 ID，渲染时不生成 ID。record.query 可按 userInput、goal、pageObservation、memory 读取对应原记录。四个 Summary 插槽仍是空数组，摘要生成和摘要查询尚未接入。
+每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符时，分别调用独立 LLM 压缩请求处理 userInputHistory、pageObservedHistory、conversationMemory 和 toolIO。前三个模块保留最近 3 条原文，toolIO 保留最近 2 个调用批次。压缩只改变窗口覆盖关系，账本和本地完整原文保持不变。各层连续摘要累计达到 20,000 字符后生成更高层摘要，旧摘要与来源关联继续保留。
+
+常驻 `context.query(module, tag, question?)` 将主题交给查询 Agent 语义匹配本会话对应模块目录，由 runtime 校验内部 ID、沿来源关系读取原文并去重，按原顺序返回。主 Agent 无需提供记录 ID。只检索已压缩归档；支持多条或 not_found，单次原文内容上限 30,000 字符，超过时返回 partial 和遗漏数量，不截断单条原文。请缩小主题或问题后再查；单条原文本身超过上限时也会明确返回 partial。查询不会刷新页面。
+
+每个模块在 LLM 输出校验成功、完整来源与摘要落盘后，才原子更新目录索引。失败或取消不推进该模块覆盖关系，原文继续可用；同一轮中此前成功提交的其他模块可以保留。索引是提交点，中断可能留下未被索引引用的文件。

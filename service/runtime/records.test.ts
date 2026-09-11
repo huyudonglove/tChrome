@@ -4,7 +4,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadContextRecord, saveContextRecord } from "./records.ts";
 import { saveMemory } from "../memory/store.ts";
-import { executeTool, type ExecuteInput } from "../tools/execute.ts";
 
 const dirs: string[] = [];
 const temporary = () => { const dir = mkdtempSync(join(tmpdir(), "tchrome-records-")); dirs.push(dir); return dir; };
@@ -23,7 +22,7 @@ test("source records persist independently of windows and cannot be replaced", (
   expect(loadContextRecord(dir, "../cv_01", "memory", "m_01")).toBeNull();
 });
 
-test("record.query retrieves archived input, goal, page and both memory layers", async () => {
+test("source store retrieves archived input, goal, page and both memory layers", async () => {
   const dir = temporary();
   for (const kind of ["userInput", "goal", "pageObservation"] as const) {
     saveContextRecord(dir, "cv_01", kind, { id: `${kind}_01`, text: `完整${kind}原文` });
@@ -32,12 +31,10 @@ test("record.query retrieves archived input, goal, page and both memory layers",
     saveMemory(dir, "cv_01", { memoryId: `${layer}_01`, layer, text: "持久记忆", summary: "", compressed: false,
       createdAt: "2026-09-11T00:00:00.000Z", sourceCallId: "call_01" });
   }
-  const lookup: ExecuteInput["lookup"] = { toolIO: [], fullReturn: () => null, observationFull: () => null,
-    unusedTools: [], knownTools: [], enabledTools: [] };
-  const query = async (kind: string, id: string, conversationId = "cv_01") => JSON.parse((await executeTool({
-    name: "record.query", arguments: { kind, id, mode: "read", offset: 0, limit: 10000 },
-    content: "", dataDir: dir, conversationId, browserNames: [], lookup,
-  })).text);
+  const query = async (kind: string, id: string, conversationId = "cv_01") => {
+    const text = loadContextRecord(dir, conversationId, kind as "userInput" | "goal" | "pageObservation" | "memory", id);
+    return { ok: text !== null, text: text ?? "", source: { kind, id, historical: true } };
+  };
   for (const kind of ["userInput", "goal", "pageObservation"]) {
     const result = await query(kind, `${kind}_01`);
     expect(result.ok).toBe(true);

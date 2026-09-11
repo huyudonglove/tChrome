@@ -8,6 +8,8 @@ const outputText = (output: Turn["output"]): string => {
     const messages: Record<string, string> = {
       stopped: "已停止",
       max_outbounds: "本轮已达到执行次数上限，任务还没有完成。你可以缩小任务范围，或让我继续处理剩余部分。",
+      compression_failed: "上下文压缩未完成，原始记录已保留。请稍后重试。",
+      context_limit: "压缩后保留的上下文仍超过容量上限，本轮未发送模型请求。请缩小任务范围或新开会话。",
       provider_error: "模型服务暂时没有正常响应，本轮未完成。请稍后重试。",
       provider_key_missing: "尚未配置模型服务密钥，请先在本机服务中完成配置。",
       provider_key_invalid: "模型服务密钥无效或权限不足，请检查配置。",

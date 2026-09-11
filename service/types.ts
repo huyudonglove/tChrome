@@ -71,6 +71,7 @@ export type ToolReturn = {
 };
 
 export type ToolQueueItem = {
+  batchId?: string;
   callId: string;
   name: string;
   arguments: ToolArguments;
@@ -80,12 +81,6 @@ export type ToolIOItem = ToolQueueItem & {
   turnId: string;
   return: ToolReturn;
   images?: ImageReference[];
-};
-
-export type ObservationItem = {
-  id: string;
-  text: string;
-  sourceCallIds: string[];
 };
 
 export type Ledger = {
@@ -103,20 +98,10 @@ export type Ledger = {
   toolQueue: ToolQueueItem[];
   liveTool: { name: string; callId: string } | null;
   toolIO: ToolIOItem[];
-  observation: ObservationItem[];
   notes: Record<string, string>;
   windowChars: number;
   compressAt: number;
   memoryIds: { conversation: string[]; project: string[] };
-};
-
-export type ObservationRecord = {
-  observationId: string;
-  text: string;
-  full: string;
-  sourceCallIds: string[];
-  totalChars: number;
-  createdAt: string;
 };
 
 export type ToolCall = {

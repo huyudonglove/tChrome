@@ -43,7 +43,7 @@ tChrome 运行在 Chrome 侧边栏。它不要求用户预先画好流程，而�
 
 `#currentPage` 表示本轮最新已知页面；`#pageObservedHistory` 按旧到新记录本轮工具返回的页面观察，两者都不是实时页面监控。
 
-历史记录统一使用 `record.query`：`mode=inspect` 查看长度与结构，`mode=search` 按字面搜索定位，`mode=read` 按字符范围精读；`kind=tool/observation/userInput/goal/pageObservation/memory` 指定来源。输入、目标版本、页面观察和记忆均携带稳定 ID，当前项进入历史或退出窗口后仍可凭 ID 回查本地原文。读取按 `hasMore` 和 `nextOffset` 分页继续，不提供无限全文入口。分页结果不再被统一截断，且只读取已存记录，不刷新网页。
+常驻 `context.query(module, tag, question?)` 将主题交给查询 Agent 语义匹配本会话对应模块目录，由 runtime 校验内部 ID、沿来源关系读取原文并去重，按原顺序返回。主 Agent 无需提供记录 ID。只检索已压缩归档；支持多条或 not_found，单次原文内容上限 30,000 字符，超过时返回 partial 和遗漏数量，不截断单条原文。请缩小主题或问题后再查；单条原文本身超过上限时也会明确返回 partial。查询不会刷新页面。
 
 ### 执行记录与记忆
 
@@ -54,7 +54,7 @@ tChrome 运行在 Chrome 侧边栏。它不要求用户预先画好流程，而�
 
 原 `turnMemory` 已合并至会话记忆，旧数据自动迁移。当前目标由 `goal` 管理，草稿与中间材料由 `notes` 管理，值得保留的事实与决定写入 `conversationMemory`。
 
-上下文达到 200,000 字符阈值时，Runtime 将较早工具记录归档为可回查的 observation，并保留最近两条 toolIO。Memory 能力层每层投影最近 8 条记忆，保持旧到新顺序；超阈值时对 conversation 使用摘要，project 不做摘要压缩。完整记忆及其 ID、已加载工具 ID 保持不变。
+每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符时，分别调用独立 LLM 压缩请求处理 userInputHistory、pageObservedHistory、conversationMemory 和 toolIO。前三个模块保留最近 3 条原文，toolIO 保留最近 2 个调用批次。压缩只改变窗口覆盖关系，账本和本地完整原文保持不变。各层连续摘要累计达到 20,000 字符后生成更高层摘要，旧摘要与来源关联继续保留。 每个模块在 LLM 输出校验成功、完整来源与摘要落盘后，才原子更新目录索引。失败或取消不推进该模块覆盖关系，原文继续可用；同一轮中此前成功提交的其他模块可以保留。索引是提交点，中断可能留下未被索引引用的文件。
 
 ## 架构
 
@@ -160,6 +160,7 @@ service/                  本机服务，按职责组织
   runtime/                循环、账本、持久化、证据归档与浏览器桥
   skills/                 独立 Skill 目录、启用清单与加载器
   memory/                 两层记忆读写、迁移与窗口投影
+  compression/            独立 LLM 压缩、归档目录与语义查询
   images/                 截图文件存储、引用校验与模型图片输入
   context/                模块描述、规则加载与文本组装
     system/               固定规则与常驻工具插槽
@@ -186,7 +187,7 @@ scripts/                  构建与示例同步
 ~/Library/Application Support/tChrome/
 ```
 
-其中 `conversations/<会话ID>/` 保存会话账本、事件日志、`provider.md` 模型交互记录、Turn、会话记忆、观察摘要及工具完整返回；`memory/project/` 独立保存共享长期记忆。
+其中 `conversations/<会话ID>/` 保存会话账本、事件日志、`provider.md` 模型交互记录、Turn、会话记忆、分模块压缩目录及工具完整返回；`memory/project/` 独立保存共享长期记忆。
 
 ## 安全与当前边界
 
@@ -211,4 +212,4 @@ Provider 负责模型通信、重试和响应解析。所有接入返回均由 `
 
 目录先按运行端划分，再按职责划分：`service/context/`、`service/tools/`、`service/skills/` 和 `service/memory/` 都是本机服务能力，正文和定义与其实现放在同一模块；`extension/tools/` 仅负责依赖 Chrome API 的宿主执行，由服务注册表发现并经浏览器桥调度。
 
-上下文保留 system / user 分层。两份目录只列编号文件名；system 模块使用 tag、能力和详细描述格式；user 模块另设内容段。system 先输出 `service/context/overview.md` 总纲，串联规则、材料、判断与行动，再输出 System 栏目清单，每项 tag --能力后直接跟详细正文（含 baseTools 工具说明），再输出 User 栏目清单，每项能力后直接跟详细描述；user 保留十七个 tag 的内容段和数据。Skill 正文独立维护于 `service/skills/<name>/SKILL.md`，Runtime 根据 `service/skills/index.json` 每轮加载后注入 `#skill`；context 中只保留模块说明和占位符。
+上下文保留 system / user 分层。两份目录只列编号文件名；system 模块使用 tag、能力和详细描述格式；user 模块另设内容段。system 先输出 `service/context/overview.md` 总纲，串联规则、材料、判断与行动，再输出 System 栏目清单，每项 tag --能力后直接跟详细正文（含 baseTools 工具说明），再输出 User 栏目清单，每项能力后直接跟详细描述；user 保留十六个 tag 的内容段和数据。Skill 正文独立维护于 `service/skills/<name>/SKILL.md`，Runtime 根据 `service/skills/index.json` 每轮加载后注入 `#skill`；context 中只保留模块说明和占位符。

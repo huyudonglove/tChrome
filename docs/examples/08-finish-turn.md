@@ -99,7 +99,7 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "askUser",
     "finishTurn",
     "submitGoal",
-    "record.query",
+    "context.query",
     "memory.write",
     "notes.write",
     "notes.delete"
@@ -143,7 +143,6 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "#notes",
     "#toolIOSummary",
     "#toolIO",
-    "#observation",
     "#tools"
   ],
   "provider": "uuapi",

@@ -1,10 +1,8 @@
 import runtimeMessages from "../runtime/messages.json";
 import type { ToolEffect, ToolExecution } from "./effects.ts";
-import type { BrowserHost, CurrentPage, ToolArguments, ToolIOItem, ToolReturn } from "../types.ts";
-import { queryRecord } from "./records.ts";
+import type { BrowserHost, CurrentPage, ToolArguments, ToolReturn } from "../types.ts";
 import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
 import { LOCAL_TOOL_NAMES, runLocalTool } from "./local-tools.ts";
-import { loadContextRecord, type ContextRecordKind } from "../runtime/records.ts";
 
 export const WINDOW_TEXT_LIMIT = 2000;
 
@@ -71,10 +69,8 @@ export type ExecuteInput = {
   conversationId?: string;
   browserNames: string[];
   host?: BrowserHost;
+  queryContext?: (args: {module: "userInputHistory" | "pageObservedHistory" | "conversationMemory" | "toolIO"; tag: string; question: string}) => Promise<unknown>;
   lookup: {
-    toolIO: ToolIOItem[];
-    fullReturn: (callId: string) => string | null;
-    observationFull: (observationId: string) => string | null;
     unusedTools: string[];
     knownTools: string[];
     enabledTools: string[];
@@ -130,12 +126,9 @@ export async function executeTool(input: ExecuteInput): Promise<ToolExecution> {
     const count = (layer: string) => entries.filter((entry) => entry.layer === layer).length;
     return result(`落下 conversation=${count("conversation")} project=${count("project")}`, effects);
   }
-  if (name === "record.query") {
-    const id = String(args.id);
-    const full = args.kind === "tool" ? lookup.fullReturn(id)
-      : args.kind === "observation" ? lookup.observationFull(id)
-      : input.conversationId ? loadContextRecord(dataDir, input.conversationId, args.kind as ContextRecordKind | "memory", id) : null;
-    return result(queryRecord(args, full));
+  if (name === "context.query") {
+    if (!input.queryContext) return result(JSON.stringify({ status: "error", error: "query_agent_unavailable" }));
+    return result(JSON.stringify(await input.queryContext({ module: args.module as "userInputHistory" | "pageObservedHistory" | "conversationMemory" | "toolIO", tag: String(args.tag), question: String(args.question ?? "") })));
   }
   if ((LOCAL_TOOL_NAMES as readonly string[]).includes(name)) {
     if (!input.conversationId) return externalResult({ ok: false, error: "本地工具缺少会话标识" });

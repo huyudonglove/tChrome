@@ -2,11 +2,7 @@
 能力：【会话记忆，过程事实，偏好决定】
 
 详细描述：
-本会话值得保留的过程发现、已确认事实、偏好和决定，包含原阶段记忆。持久保存在本地，本会话后续轮次可以读取，服务重启后保留；新会话不继承，删除会话时一起删除。尚未确认的候选和中间材料放 notes，跨会话仍适用的事实放 projectMemory。窗口最多展示最近8条，较大上下文中可能只显示摘要；摘要不代表完整原文。使用时核对来源和当前条件，通过 memory.write 记录仍有价值的事实，避免重复写入。
-
-记录按写入顺序由旧到新排列，新记录追加到末尾；取最近8条时保留这个顺序。
-
-以记录数组提供，每项保留 id（本地 memoryId）、text、sourceCallId、createdAt，存在来源会话时还包括 sourceConversationId。窗口投影不会重新分配 ID；需要完整原文时用 record.query（kind=memory，id=该项 id）回查。
+本会话值得保留的过程发现、已确认事实、偏好和决定，以完整文本数组按写入顺序由旧到新提供。持久保存在本地，重启后保留；新会话不继承，删除会话时一起删除。与 conversationMemorySummary 配合阅读，已归档部分通过 context.query（module=conversationMemory，主题 tag 和具体问题）查回。尚未确认的候选放 notes，跨会话仍适用的事实放 projectMemory。通过 memory.write 记录仍有价值的事实，避免重复写入。
 
 内容：
 {{data}}

@@ -26,7 +26,7 @@
     "askUser",
     "finishTurn",
     "submitGoal",
-    "record.query",
+    "context.query",
     "memory.write",
     "notes.write",
     "notes.delete"
@@ -70,7 +70,6 @@
     "#notes",
     "#toolIOSummary",
     "#toolIO",
-    "#observation",
     "#tools"
   ],
   "provider": "uuapi",
@@ -239,7 +238,7 @@
     "askUser",
     "finishTurn",
     "submitGoal",
-    "record.query",
+    "context.query",
     "memory.write",
     "notes.write",
     "notes.delete"
@@ -283,7 +282,6 @@
     "#notes",
     "#toolIOSummary",
     "#toolIO",
-    "#observation",
     "#tools"
   ],
   "provider": "uuapi",

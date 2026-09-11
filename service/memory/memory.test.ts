@@ -46,56 +46,22 @@ test("loading follows ledger IDs and layers without modifying IDs or disk record
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("projection keeps the latest eight entries in original order for every layer", () => {
+test("projection keeps every original memory without metadata, clipping or mutation", () => {
   const memories: Memories = { conversation: [], project: [] };
   for (const layer of ["conversation", "project"] as const) {
-    memories[layer] = Array.from({ length: 10 }, (_, i) => record(`${layer}_${i}`, layer, { compressed: i === 8 }));
-  }
-  const before = JSON.stringify(memories);
-  const result = projectMemories(memories);
-  for (const layer of ["conversation", "project"] as const) {
-    expect(JSON.parse(result[layer])).toEqual(Array.from({ length: 8 }, (_, offset) => {
-      const i = offset + 2;
-      return {
-        id: `${layer}_${i}`,
-        text: `${i === 8 ? "summary" : "text"} ${layer}_${i}`,
-        sourceCallId: "call_01",
-        createdAt: "2026-01-01T00:00:00.000Z",
-      };
+    memories[layer] = Array.from({ length: 10 }, (_, i) => record(`${layer}_${i}`, layer, {
+      text: `  original\n${"x".repeat(120)} ${i}`, compressed: i === 8,
     }));
   }
+  const before = JSON.stringify(memories);
+  const projected = projectMemories(memories);
+  for (const layer of ["conversation", "project"] as const) {
+    expect(JSON.parse(projected[layer])).toEqual(memories[layer].map(item => item.text));
+    expect(JSON.parse(projected[layer])).toHaveLength(10);
+  }
   expect(JSON.stringify(memories)).toBe(before);
+  expect(projectMemories({ conversation: [], project: [] })).toEqual({ conversation: "[]", project: "[]" });
 });
-
-test("compact projection summarizes conversation only without mutating stored content", () => {
-  const dir = mkdtempSync(join(tmpdir(), "tchrome-memory-"));
-  try {
-    const longText = `  alpha\n\t beta  ${"x".repeat(100)}`;
-    const memories: Memories = { conversation: [], project: [] };
-    for (const layer of ["conversation", "project"] as const) {
-      memories[layer] = [
-        record(`${layer}_1`, layer, { text: longText, summary: "" }),
-        record(`${layer}_2`, layer, { text: "full text", summary: "short summary" }),
-        record(`${layer}_3`, layer, { text: "compressed full text", summary: "compressed summary", compressed: true }),
-      ];
-      for (const item of memories[layer]) saveMemory(dir, "cv_01", item);
-    }
-    const before = JSON.stringify(memories);
-    const projected = projectMemories(memories, true);
-    const conversation = JSON.parse(projected.conversation);
-    expect(conversation.map((item: { text: string }) => item.text)).toEqual([
-      longText.replace(/\s+/g, " ").trim().slice(0, 80), "short summary", "compressed summary",
-    ]);
-    expect(conversation.map((item: { id: string }) => item.id)).toEqual(["conversation_1", "conversation_2", "conversation_3"]);
-    expect(JSON.parse(projected.project).map((item: { text: string }) => item.text)).toEqual([longText, "full text", "compressed summary"]);
-    expect(JSON.stringify(memories)).toBe(before);
-    for (const items of Object.values(memories)) {
-      for (const item of items) expect(loadMemory(dir, "cv_01", item.memoryId)).toEqual(item.layer === "project" ? { ...item, sourceConversationId: "cv_01" } : item);
-    }
-    expect(projectMemories({ conversation: [], project: [] }, true)).toEqual({ conversation: "[]", project: "[]" });
-  } finally { rmSync(dir, { recursive: true, force: true }); }
-});
-
 
 test("legacy process records normalize on read and merge chronologically without loss", () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-memory-"));

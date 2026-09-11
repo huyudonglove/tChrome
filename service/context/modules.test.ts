@@ -159,7 +159,7 @@ test("user input history is an array preserving message boundaries and multiline
   };
   expect(history()).toEqual([]);
   ledger.userInputHistory = ["第一句\n补充一行", '包含"引号"和{{data}}', "第三句"].map((userInput, i) => ({ id: `input_tn_${i}`, turnId: `tn_${i}`, userInput, submittedAt: "2026-09-11" }));
-  expect(history()).toEqual(ledger.userInputHistory);
+  expect(history()).toEqual(ledger.userInputHistory.map(item => item.userInput));
   expect(history()).not.toContain(turn.input.text);
 });
 
@@ -229,4 +229,31 @@ test("system modules combine capability and rules once, including literal dynami
   expect(system.split(usage)).toHaveLength(2);
   expect(headings(system)).toEqual([]);
   expect(system.endsWith(modules.userInventory)).toBe(true);
+});
+
+test("model projection hides archival metadata while preserving operational data and query tags", () => {
+  const modules = loadContextModules(root);
+  const ledger = emptyLedger("cv_slots");
+  const turn = fixtureTurn();
+  ledger.toolIO = [{ callId: "hidden_call", turnId: "hidden_turn", name: "page.click",
+    arguments: { reason: "确认按钮", affectsPage: true, tab: 42, ref: "el-7" },
+    return: { stage: "complete", totalChars: 999, text: JSON.stringify({ ok: false, faultCode: "stale_ref", detail: "重新读取页面", elementId: "e1" }) } },
+    { callId: "hidden_call_2", turnId: "hidden_turn", name: "local.run", arguments: { command: "echo text" },
+      return: { stage: "truncated", totalChars: 999, text: "unfinished {text" } }];
+  const page = { id: "hidden_page", turnId: "hidden_turn", observedAt: "hidden_date", callId: "hidden_call", toolName: "see", tab: 42, url: "https://example.com", title: "页面", description: "按钮 ref=el-7" };
+  turn.assembled.currentPage = page;
+  turn.assembled.pageObservedHistory = [page];
+  const original = JSON.stringify({ ledger, turn });
+  const summaries = { toolIO: [{ tag: "确认失败", summary: "按钮引用过期", id: "hidden_summary", sourceIds: ["hidden_call"] }] };
+  const output = userText({ contextModules: modules, ledger, turn, summaries, memories: { project: "[]", conversation: "[]" }, toolUsage: "", skillText: "" });
+  const section = (tag: string) => output.split(`#${tag}\n\n`)[1]!.split(/\n#[A-Za-z]/)[0]!.trim();
+  expect(JSON.parse(section("toolIO"))).toEqual([
+    { name: "page.click", arguments: { reason: "确认按钮", tab: 42, ref: "el-7" }, return: { stage: "complete", result: { ok: false, faultCode: "stale_ref", detail: "重新读取页面", elementId: "e1" } } },
+    { name: "local.run", arguments: { command: "echo text" }, return: { stage: "truncated", result: "unfinished {text" } },
+  ]);
+  expect(JSON.parse(section("toolIOSummary"))).toEqual([{ tag: "确认失败", summary: "按钮引用过期" }]);
+  expect(JSON.parse(section("currentPage"))).toEqual({ tab: 42, url: "https://example.com", title: "页面", description: "按钮 ref=el-7" });
+  expect(output).not.toContain("hidden_");
+  expect(output).not.toContain("input_fixture");
+  expect(JSON.stringify({ ledger, turn })).toBe(original);
 });

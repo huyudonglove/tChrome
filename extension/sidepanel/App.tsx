@@ -49,7 +49,10 @@ const outputText = (output?: Output) => {
   if (!output) return "服务无响应";
   if (output.kind === "reply") return output.text;
   if (output.kind === "ask") return output.question;
-  if (output.kind === "error") return output.faultCode === "stopped" ? "已停止" : `失败：${output.faultCode}`;
+  if (output.kind === "error") {
+    const messages: Record<string, string> = { stopped: "已停止", compression_failed: "上下文压缩未完成，原始记录已保留，请稍后重试。", context_limit: "压缩后上下文仍超过容量上限，请缩小任务范围或新开会话。" };
+    return messages[output.faultCode] ?? `失败：${output.faultCode}`;
+  }
   return `${output.name} ${output.callId}`;
 };
 

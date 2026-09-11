@@ -59,13 +59,15 @@ conversations/<cvId>/provider.md
 conversations/<cvId>/turns/<turnId>.json
 conversations/<cvId>/memory/<memoryId>.json
 conversations/<cvId>/context-records/<kind>/<id>.json
-conversations/<cvId>/observations/<observationId>.json
+conversations/<cvId>/compression/<module>/index.json
+conversations/<cvId>/compression/<module>/records/<id>.json
+conversations/<cvId>/compression/<module>/sources/<id>.json
 conversations/<cvId>/returns/<callId>.txt
 ```
 
 JSON 快照覆盖写。流水只追加，不改已经写下的行。
 
-前缀：`cv_` 会话 · `tn_` 回合 · `mm_` 记忆 · `ob_` 压缩事实 · `call_` 工具调用。
+前缀：`cv_` 会话 · `tn_` 回合 · `mm_` 记忆 · `cmp_` 压缩记录 · `call_` 工具调用。
 
 ## events.jsonl
 
@@ -84,7 +86,7 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。
 `kind=provider-response` 的 `data`：`finish` `content` `toolCalls` `attempts` `parseOk` `schemaOk` `faultCode` `missing`。
 `kind=tool` 的 `data`：`callId` `name` `arguments` `return`。
 `kind=memory` 的 `data`：`memoryId` `layer` `sourceCallId`。
-`kind=compress` 的 `data`：`observationId` `windowChars` `sourceCallIds` `compressedMemoryIds` `prunedToolIds`。只有超过阈值且 toolIO 多于两条时才归档并写事件，保留最近两条。`compressedMemoryIds` 和 `prunedToolIds` 保持空数组，仅为兼容已有事件形状；Runtime 不改记忆或工具索引。
+`kind=compress` 的 data 为 beforeChars、afterChars；compress-start 记录压缩前 windowChars，compress-error 记录失败 detail。每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符时，分别调用独立 LLM 压缩请求处理 userInputHistory、pageObservedHistory、conversationMemory 和 toolIO。前三个模块保留最近 3 条原文，toolIO 保留最近 2 个调用批次。压缩只改变窗口覆盖关系，账本和本地完整原文保持不变。各层连续摘要累计达到 20,000 字符后生成更高层摘要，旧摘要与来源关联继续保留。 每个模块在 LLM 输出校验成功、完整来源与摘要落盘后，才原子更新目录索引。失败或取消不推进该模块覆盖关系，原文继续可用；同一轮中此前成功提交的其他模块可以保留。索引是提交点，中断可能留下未被索引引用的文件。
 `kind=turn-output` 的 `data`：`output`。
 `kind=session` 的 `data`：`conversationId`，可选 `action`=`new`/`open`。
 
@@ -131,8 +133,7 @@ Runtime 独占维护。当前会话指针。
 | `goalHistory` | object[] | 旧目标版本，与 goal 同结构。Runtime 在目标文字变化时把旧记录连同原 ID 追加进去 |
 | `toolQueue` | object[] | 本 Turn 待执行的工具。模型一次出网交的 `toolCalls` 按数组顺序入队。任务队列按这个顺序跑。跑完一条弹出，写入 `toolIO`。新会话 / 新出网前空。每项 `{callId, name, arguments}` |
 | `liveTool` | object \| null | 正在跑的那条 `{name, callId}`。空闲 / 追问 / 失败为 `null` |
-| `toolIO` | object[] | 本会话已执行、窗口里还带着的工具调用。新会话 `[]`。队列里跑完一条追加一条，最新在最下面。窗口到 200K 时较早的条目收进 `observation`。每项见「toolIO 项」 |
-| `observation` | object[] | 压缩过的事实。新会话 `[]`。每项 `{id, text, sourceCallIds}`。`text` 是摘要。全文在 `observations/<id>.json`，用 `record.query(kind=observation, id=<id>, mode=inspect/read/search)` 回查 |
+| `toolIO` | object[] | 本会话完整工具记录，按执行顺序追加。本地始终保留；模型窗口按压缩目录 coveredSourceIds 过滤已覆盖记录 |
 | `notes` | object | 模型自管的 key/value。新会话 `{}`。`notes.write` 写入或覆盖 `notes[key]`。`notes.delete` 删除 `notes[key]`。进 user `#notes` |
 | `windowChars` | number | 本轮出网窗口已用字符数。开 Turn 装配后、以及本 Turn 每次出网前，Runtime 写入 |
 | `compressAt` | number | 压缩门槛，固定 `200000` |
@@ -182,16 +183,16 @@ Runtime 独占维护。当前会话指针。
 
 `kind`：`tool` / `ask` / `reply` / `error`。
 
-- `tool` → `{kind, name, callId}`（动态工具 / `record.query` / `memory.write`）
+- `tool` → `{kind, name, callId}`（动态工具 / `context.query` / `memory.write`）
 - `ask` → `{kind, question}`（`askUser`）
 - `reply` → `{kind, text}`（`finishTurn`，`text` 取 finishTurn.arguments.text；历史调用可回退 content.action，不用 reason 顶）
 - `error` → `{kind, faultCode}`
 
 ## memory/<memoryId>.json
 
-两层：project 是跨会话共享的长期记忆；conversation 保存本会话的过程发现和已确认事实。conversation 在本地按会话保存，跨轮读取，新会话不继承，删除会话时一起删除；project 独立于会话保存，删除来源会话不影响长期记忆。notes 保存本会话的草稿、候选和中间材料，按 key 覆盖或删除，不在每轮自动清空。模型调 `memory.write` 提交。Runtime 落盘，会话记忆 ID 挂到 ledger.`memoryIds.conversation`，长期记忆从共享目录读取。下一次出网以数组装配进对应 user 槽，每项 `{id: memoryId, text, sourceCallId, createdAt, sourceConversationId?}`，保留本地 ID。
+两层：project 是跨会话共享的长期记忆；conversation 保存本会话的过程发现和已确认事实。conversation 在本地按会话保存，跨轮读取，新会话不继承，删除会话时一起删除；project 独立于会话保存，删除来源会话不影响长期记忆。notes 保存本会话的草稿、候选和中间材料，按 key 覆盖或删除，不在每轮自动清空。模型调 `memory.write` 提交。Runtime 落盘，会话记忆 ID 挂到 ledger.`memoryIds.conversation`，长期记忆从共享目录读取。下一次出网投影为完整文本数组，存储 ID 和来源元数据不进入 User。
 
-Memory 能力层每层仅投影最近 8 条记忆。窗口到 200K 时，conversation 槽优先用 `summary`，缺省时使用归一空白后的前 80 字。project 不做摘要压缩。该过程是纯展示投影，不改磁盘记录、不设置 `compressed`、不裁 ledger 或 Turn 的 memoryIds。
+Memory 投影保持全部可见原文，不使用旧 compressed/summary 字段裁剪。会话记忆归档覆盖由 runtime 管理，压缩时保留最近 3 条原文；长期记忆不参与压缩。
 
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
@@ -199,33 +200,36 @@ Memory 能力层每层仅投影最近 8 条记忆。窗口到 200K 时，convers
 | `layer` | string | `conversation` / `project` |
 | `text` | string | 原文 |
 | `summary` | string | 记忆摘要，供展示投影使用 |
-| `compressed` | boolean | 兼容已有记录；为 true 时普通投影使用 summary，新的窗口压缩不改此字段 |
+| `compressed` | boolean | 存储字段；模型投影不再依此替换正文，压缩覆盖由模块目录管理 |
 | `createdAt` | string | ISO-8601 |
 | `sourceCallId` | string | 写下这条的 `memory.write` 的 `callId` |
 
 ## context-records/<kind>/<id>.json
 
-用户输入、目标版本、页面观察在创建时以稳定 ID 写入本会话的独立原始记录文件，kind 分别为 `userInput`、`goal`、`pageObservation`。记录只创建一次；窗口变化、进入历史、重启和后续压缩不改写原记录。`record.query` 按 kind 和 id 读取，不依赖当前窗口是否还保留该项。
+用户输入、目标版本、页面观察在创建时以稳定 ID 写入本会话独立记录，kind 为 userInput、goal、pageObservation。窗口变化和压缩不修改原始记录。ID 用于内部关联，不要求主 Agent 操作 ID。
 
 - 用户输入：`{id: "input_<UUID>", turnId, userInput, submittedAt}`，当前 `#userInput` 和对应历史项共用 ID。
 - 目标版本：`{id, turnId, goal, sourceCallId, createdAt}`，每次目标文字变化建立新版本。
 - 页面观察：`{id, turnId, tab, url, title, description, observedAt, callId, toolName}`，当前页和对应历史项共用观察 ID。
-- 记忆继续使用现有 memory 文件及 memoryId，不另建副本；注入模型时把 memoryId 映射为 id。
+- 记忆继续使用 memory 文件及 memoryId，注入模型时仅显示原文。
 
-四个 Summary 插槽仍是预留空数组。分层摘要生成、摘要落盘和摘要查询尚未接入，当前查询种类不包含 compression；未来 sourceIds 应引用这些稳定原始记录 ID 或下层摘要 ID。
+四个 Summary 插槽显示当前有效摘要的 {tag, summary}；层级、来源 ID 和归档 ID 仅在本地目录中维护。
 
-## observations/<observationId>.json
+## compression/<module>/
 
-压缩过的事实全文。窗口只带摘要。
+模块为 userInputHistory、pageObservedHistory、conversationMemory、toolIO，每个目录包含：
 
-| 字段 | 类型 | 怎么填 |
-|---|---|---|
-| `observationId` | string | `ob_` |
-| `text` | string | 摘要（窗口用同一段） |
-| `full` | string | 被收走的 toolIO / 记忆原文 |
-| `sourceCallIds` | string[] | 收进来的 `callId` |
-| `totalChars` | number | `full` 的字符数 |
-| `createdAt` | string | ISO-8601 |
+| 文件 | 内容 |
+|---|---|
+| `index.json` | {version, module, entries, activeIds, coveredSourceIds}，目录是提交点 |
+| `records/<id>.json` | {id, module, level, tag, summary, sourceIds, createdAt}，每次压缩追加不可变记录 |
+| `sources/<id>.json` | {id, content}，完整原始内容，工具使用完整落盘结果 |
+
+一级摘要引用原始来源 ID，高层摘要引用下层摘要 ID。activeIds 保存窗口当前摘要，coveredSourceIds 记录已归档覆盖的原始记录。runtime 只过滤发送视图，不清除账本原文。查询沿来源递归展开、去重并保持原顺序。
+
+每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符时，分别调用独立 LLM 压缩请求处理 userInputHistory、pageObservedHistory、conversationMemory 和 toolIO。前三个模块保留最近 3 条原文，toolIO 保留最近 2 个调用批次。压缩只改变窗口覆盖关系，账本和本地完整原文保持不变。各层连续摘要累计达到 20,000 字符后生成更高层摘要，旧摘要与来源关联继续保留。
+
+每个模块在 LLM 输出校验成功、完整来源与摘要落盘后，才原子更新目录索引。失败或取消不推进该模块覆盖关系，原文继续可用；同一轮中此前成功提交的其他模块可以保留。索引是提交点，中断可能留下未被索引引用的文件。
 
 ## 窗口插槽
 
@@ -233,11 +237,11 @@ Memory 能力层每层仅投影最近 8 条记忆。窗口到 200K 时，convers
 
 加载顺序由 `service/context/system-slots.md` 和 `user-slots.md` 的编号文件名决定，例如 `1. identity`，不在目录重复描述能力。system 模块以 `#tag`、`能力：【…】`、`详细描述：` 和正文组成；user 模块还包含独立的 `内容：` 段。user 的详细描述进入 system 内 User 清单，内容段通过 `{{data}}` 注入运行数据。
 
-加载器返回 systemOrder / userOrder，systemSlots / userSlots 保存模块元数据与对应正文。system 先输出 `# System 栏目清单`，七个模块每项 tag --能力之后直接跟详细正文，baseTools 包含工具说明；再输出 `# User 栏目清单`，每项 tag --能力之后直接跟详细描述。system 详细正文与清单项合并，只出现一次；user 渲染十七个 tag 的内容段和数据，不重复能力标签或详细描述。
+加载器返回 systemOrder / userOrder，systemSlots / userSlots 保存模块元数据与对应正文。system 先输出 `# System 栏目清单`，七个模块每项 tag --能力之后直接跟详细正文，baseTools 包含工具说明；再输出 `# User 栏目清单`，每项 tag --能力之后直接跟详细描述。system 详细正文与清单项合并，只出现一次；user 渲染十六个 tag 的内容段和数据，不重复能力标签或详细描述。
 
-system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，boundaries 管授权和证据来源。网页方法维护于 `service/skills/web-observation/SKILL.md`，runtime 按 `service/skills/index.json` 加载后作为数据注入 context，模块描述仍由 `service/context/user/skill.md` 提供。既有 user tag 与字段来源、工具 schema 和输出协议保持不变。
+system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，boundaries 管授权和证据来源。网页方法维护于 `service/skills/web-observation/SKILL.md`，runtime 按 `service/skills/index.json` 加载后作为数据注入 context，模块描述仍由 `service/context/user/skill.md` 提供。User 模块使用内容投影，归档 ID 和来源关联保留在本地；工具 schema 以 definitions 为准。
 
-常驻工具说明进入 #baseTools，动态工具说明进入 #tools，唯一来源仍是 `service/tools/definitions/<id>.json` 的 function.description。调整模块后同步生成导航、装配测试与阶段示例；阶段 JSON 中 systemSlots / userSlots 是对应的 7 / 17 个 tag 名数组，并非模块对象。
+常驻工具说明进入 #baseTools，动态工具说明进入 #tools，唯一来源仍是 `service/tools/definitions/<id>.json` 的 function.description。调整模块后同步生成导航、装配测试与阶段示例；阶段 JSON 中 systemSlots / userSlots 是对应的 7 / 16 个 tag 名数组，并非模块对象。
 
 出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。
 
@@ -248,6 +252,7 @@ system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，
 | `callId` | string | `call_`。模型 `tool_calls[].id` |
 | `name` | string | 工具名，必须在 `baseToolsIds` + `toolIds` |
 | `turnId` | string | 这条工具属于哪一轮。`GET /session` 按这个把过程挂到对话里 |
+| `batchId` | string，可选 | 一次模型响应的工具批次标识；压缩保留最近两个批次，缺省时按 turnId 分组 |
 | `arguments` | object | 已 parse。每个工具都有 `reason` `affectsPage`，其余按 catalog `required` |
 | `return` | object | 队列跑完才有。`{stage, totalChars, text}` |
 
@@ -255,19 +260,15 @@ system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，
 
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
-| `stage` | string | 普通结果全文 ≤ 2000 字时为 `complete`；超出时为 `truncated`，`text` 只留前 2000 字。`record.query` 自身已限制预览和分页大小，完整返回当页结果，不再二次裁剪 |
-| `totalChars` | number | 全文长度（JS `string.length` / Python `len`） |
-| `text` | string | 窗口正文，普通结果最多 2000 字；`record.query` 保留完整的受限预览或当页结果 |
+| `stage` | string | 当前运行记录使用 complete 并保留完整返回；字段表示文本完整度，不证明操作成功。context.query 返回自身限制的完整记录集合，不再二次裁剪 |
+| `totalChars` | number | 全文长度（JavaScript string.length，UTF-16 代码单元） |
+| `text` | string | 完整工具返回正文；context.query 保留受限原文集合，partial 标明未返回的记录 |
 
-`askUser` 的 `text` 是问题和选项。`finishTurn` 的 `text` 是回复用户的正文（优先取 finishTurn.arguments.text，兼容历史 content.action）。动态工具 / `record.query` 的 `text` 是工具跑出来的正文。`memory.write` 的 `text` 是落下的层和条数。
+`askUser` 的 `text` 是问题和选项。`finishTurn` 的 `text` 是回复用户的正文（优先取 finishTurn.arguments.text，兼容历史 content.action）。动态工具 / `context.query` 的 `text` 是工具跑出来的正文。`memory.write` 的 `text` 是落下的层和条数。
 
-历史回查统一使用 `record.query(kind, id, mode)`。`kind=tool` 时 `id` 取 `#toolIO` 的 `callId`；`kind=observation` 时取 `#observation` 的 `id`；`kind=userInput/goal/pageObservation/memory` 时取对应模块记录的 `id`。只读本地历史，不刷新网页。记忆查询允许本会话记忆和共享长期记忆。
+常驻 `context.query(module, tag, question?)` 将主题交给查询 Agent 语义匹配本会话对应模块目录，由 runtime 校验内部 ID、沿来源关系读取原文并去重，按原顺序返回。主 Agent 无需提供记录 ID。只检索已压缩归档；支持多条或 not_found，单次原文内容上限 30,000 字符，超过时返回 partial 和遗漏数量，不截断单条原文。请缩小主题或问题后再查；单条原文本身超过上限时也会明确返回 partial。查询不会刷新页面。
 
-- `mode=inspect`：返回结构与最多 400 字符预览，不传 `offset`、`limit`、`query`。
-- `mode=read`：必填 `offset` 和 `limit`，每页 1～10000 字符。
-- `mode=search`：必填 `query`（1～200 字符）、`offset` 和 `limit`（每页 1～20 条），进行区分大小写的字面搜索。
-
-偏移从 0 开始，以 UTF-16 代码单元计数。返回 `source`、`totalChars`、`positionUnit`、`hasMore` 和 `nextOffset`，沿 `nextOffset` 继续读取；不存在的记录或越界位置返回错误。没有不限长度的全文返回模式；已限制大小的查询结果不再套用普通工具的 2000 字裁剪，保证分页内容与游标一致。
+工具窗口投影使用 {name, arguments, return: {stage, result}}，arguments 隐藏 affectsPage，保留 reason 与操作参数。result 对合法 JSON 解析一次，普通文本和截断文本保持原样。归档 callId、turnId、batchId 和 totalChars 不注入主模型，操作用 tab、控件引用及错误详情仍保留。
 
 ## 阶段快照
 
@@ -281,7 +282,7 @@ system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，
 | `provider-request` | 04 | `provider` `model` `stream` `maxAttempts` |
 | `provider-response` | 05 | `finish` `content` `toolCalls` `attempts` `parseOk` `schemaOk` `faultCode` `missing` |
 | `tool-execute` | 06 | `toolQueue` `toolIO` |
-| `compress` | 07 | `observation` `windowChars` `compressAt`；改写 `toolIO` |
+| `compress` | 07 | 按模块更新压缩目录及覆盖关系，重新计算 windowChars；本地 ledger 原文保持完整 |
 | `finish-turn` | 08 | 同一 Turn 再出网的 `finish` `content` `toolCalls`；`toolIO` 追加 `finishTurn` |
 
 面板入口只有 `userInput` `submittedAt`。其余键 Runtime 写。
@@ -312,7 +313,7 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | `askUser` | `question`、`choice` | 非空问题正文与选项 |
 | `submitGoal` | `goal` | 当前目标。改写时 Runtime 把旧值追加进 `goalHistory` |
 | `finishTurn` | `text` | 非空回复正文，不依赖 content |
-| `record.query` | `kind` `id` `mode`；read/search 另有分页必填项 | 工具结果用 `kind=tool` 和 `callId`；其他来源支持 `observation/userInput/goal/pageObservation/memory`，使用对应记录 `id`，模式见上文 |
+| `context.query` | `module` `tag`，可选 `question` | 按主题委托查询 Agent 匹配压缩目录，runtime 返回完整原文；不要求 ID |
 | `capture_page` | `mode`；element 另需 ref/selector 二选一 | `viewport` / `full_page` / `element`；元素定位不混用 page.* 的 id，PDF 使用 `save_pdf` |
 | `probe_http` | `url` | HTTP(S) 网址，可选 `method=GET/HEAD`；返回状态、耗时、最终网址和响应头，`reachable=true` 表示收到 HTTP 响应（包括 4xx/5xx），`ok=true` 表示 2xx |
 | `notes.write` | `key` `value` | 写入或覆盖 `ledger.notes[key]`。模型自定 key |

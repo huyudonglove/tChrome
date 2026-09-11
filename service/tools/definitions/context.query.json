@@ -1,0 +1,19 @@
+{
+  "type": "function",
+  "function": {
+    "name": "context.query",
+    "description": "委托查询 Agent 按模块和主题语义检索本会话的压缩归档，runtime 沿来源关系返回完整原文。无需提供或识别记录 ID。module 指被压缩的原始模块，tag 是主题描述而非精确标签；question 可补充要核对的问题。只查询已压缩归档，未压缩内容仍在当前 User。可能返回多条或 not_found；partial 表示原文超过单次返回上限，请缩小主题后再次查询，不能把局部结果当成全部。只读，不刷新页面。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
+        "module": { "type": "string", "enum": ["userInputHistory", "pageObservedHistory", "conversationMemory", "toolIO"] },
+        "tag": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "question": { "type": "string", "maxLength": 4000 }
+      },
+      "required": ["reason", "affectsPage", "module", "tag"],
+      "additionalProperties": false
+    }
+  }
+}

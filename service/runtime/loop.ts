@@ -5,7 +5,6 @@ import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
 import { projectMemories } from "../memory/window.ts";
 import runtimeMessages from "./messages.json";
-import { FULL_RETURN_TOOLS } from "../tools/records.ts";
 import { systemText, userText, windowChars } from "../context/window.ts";
 import { loadSkills } from "../skills/loader.ts";
 import { loadContextModules, type ContextModules } from "../context/modules.ts";
@@ -25,14 +24,13 @@ import type {
   TurnReply,
 } from "../types.ts";
 import { checkToolCalls } from "../tools/schema.ts";
-import { archiveToolHistory } from "./compress.ts";
+import { contextState, compressContext } from "./context-state.ts";
+import { queryContext } from "../compression/query.ts";
 import { nextId, nowIso, pacificDate } from "./ids.ts";
 import {
   ensureSession,
   loadLedger,
-  loadObservation,
   loadTurn,
-  loadFullReturn,
   saveFullReturn,
   saveLedger,
   saveTurn,
@@ -79,10 +77,10 @@ const assemble = (toolRegistry: ToolRegistry): Assembled => ({
   currentTab: null,
 });
 
-const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, compactMemory = false): ChatMessage[] => [
+const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, summaries: Parameters<typeof userText>[0]["summaries"] = {}): ChatMessage[] => [
   { role: "system", content: systemText(contextModules, toolUsageFor(toolRegistry, turn.assembled.baseToolsIds), pacificDate()) },
   { role: "user", content: userText({
-    contextModules, ledger, turn, memories: projectMemories(memories, compactMemory), skillText,
+    contextModules, ledger, turn, memories: projectMemories(memories), skillText, summaries,
     toolUsage: toolUsageFor(toolRegistry, turn.assembled.toolIds),
   }), images: [...new Map(ledger.toolIO.filter(item => item.turnId === turn.turnId)
     .flatMap(item => item.images ?? []).reverse().map(image => [image.id, image])).values()].slice(0, 4).reverse() },
@@ -139,6 +137,8 @@ const runQueue = async (input: {
   content: string;
   browserNames: string[];
   host?: BrowserHost;
+  provider: Provider;
+  repoRoot: string;
 }): Promise<TurnOutput | null> => {
   const { dataDir, ledger, turn, toolRegistry, content, host, browserNames } = input;
   while (ledger.toolQueue.length) {
@@ -160,13 +160,10 @@ const runQueue = async (input: {
       conversationId: ledger.conversationId,
       browserNames,
       host,
+      queryContext: args => queryContext({ dataDir, conversationId: ledger.conversationId, repoRoot: input.repoRoot, provider: input.provider, ...args, isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId) }),
       lookup: {
-        toolIO: ledger.toolIO,
         knownTools: Object.keys(toolRegistry.tools),
         enabledTools: [...turn.assembled.toolIds, ...toolRegistry.toolGroups.baseToolsIds],
-        fullReturn: (callId) => loadFullReturn(dataDir, ledger.conversationId, callId),
-        observationFull: (observationId) =>
-          loadObservation(dataDir, ledger.conversationId, observationId)?.full ?? null,
         unusedTools: dynamicToolIds(toolRegistry).filter((id) => !turn.assembled.toolIds.includes(id)),
       },
     });
@@ -180,9 +177,7 @@ const runQueue = async (input: {
       ...item,
       turnId: turn.turnId,
       ...(stored.images.length ? { images: stored.images } : {}),
-      return: FULL_RETURN_TOOLS.includes(item.name)
-        ? { stage: "complete", totalChars: full.length, text: full }
-        : clipReturn(full),
+      return: { stage: "complete", totalChars: full.length, text: full },
     };
     ledger.toolIO.push(row);
     appendEvent(dataDir, ledger.conversationId, {
@@ -266,13 +261,41 @@ export async function handleTurn(
     if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
     const memories = loadMemories(deps.dataDir, ledger.conversationId, ledger.memoryIds);
     turn.assembled.projectMemoryIds = memories.project.map(item => item.memoryId);
-    let messages = messagesOf(contextModules, toolRegistry, ledger, turn, memories, skillText);
+    let state = contextState(deps.dataDir, ledger, turn, memories);
+    let messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, state.summaries);
     const initialChars = windowChars(messages[0]!.content, messages[1]!.content);
     if (initialChars >= ledger.compressAt) {
-      archiveToolHistory({ dataDir: deps.dataDir, ledger, windowChars: initialChars });
-      messages = messagesOf(contextModules, toolRegistry, ledger, turn, memories, skillText, true);
+      appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-start", turnId, data: { windowChars: initialChars } });
+      try {
+        await compressContext({ ...deps, ledger, turn, memories, isCancelled: () => wasStopped(deps.dataDir, ledger.conversationId, turn.turnId) });
+        if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
+        state = contextState(deps.dataDir, ledger, turn, memories);
+        messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, state.summaries);
+        appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress", turnId, data: { beforeChars: initialChars, afterChars: windowChars(messages[0]!.content, messages[1]!.content) } });
+      } catch (error) {
+        if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
+        turn.status = "failed";
+        turn.completedAt = nowIso();
+        turn.output = { kind: "error", faultCode: "compression_failed" };
+        ledger.status = "failed";
+        ledger.active = null;
+        saveTurn(deps.dataDir, turn);
+        saveLedger(deps.dataDir, ledger);
+        appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-error", turnId, data: { detail: String(error) } });
+        return { conversationId: ledger.conversationId, turnId, output: turn.output };
+      }
     }
     ledger.windowChars = windowChars(messages[0]!.content, messages[1]!.content);
+    if (ledger.windowChars >= ledger.compressAt) {
+      turn.status = "failed";
+      turn.completedAt = nowIso();
+      turn.output = { kind: "error", faultCode: "context_limit" };
+      ledger.status = "failed";
+      ledger.active = null;
+      saveTurn(deps.dataDir, turn);
+      saveLedger(deps.dataDir, ledger);
+      return { conversationId: ledger.conversationId, turnId, output: turn.output };
+    }
     saveLedger(deps.dataDir, ledger);
     const tools = toolSchemas(toolRegistry, [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds]);
     turn.usage!.modelRequests += 1;
@@ -365,6 +388,7 @@ export async function handleTurn(
       }
       if (validCalls.length) {
         ledger.toolQueue = validCalls.map((call) => ({
+          batchId: `${turnId}_${turn.usage!.modelRequests}`,
           callId: call.id,
           name: call.name,
           arguments: call.arguments,
@@ -375,6 +399,7 @@ export async function handleTurn(
           turn,
           toolRegistry,
           content: result.content,
+          provider: deps.provider, repoRoot: deps.repoRoot,
           browserNames: toolRegistry.index.browser,
           host,
         });
@@ -440,6 +465,7 @@ export async function handleTurn(
       continue;
     }
     ledger.toolQueue = result.toolCalls.map((call) => ({
+      batchId: `${turnId}_${turn.usage!.modelRequests}`,
       callId: call.id,
       name: call.name,
       arguments: call.arguments,
@@ -450,6 +476,7 @@ export async function handleTurn(
       turn,
       toolRegistry,
       content: result.content,
+      provider: deps.provider, repoRoot: deps.repoRoot,
       browserNames: toolRegistry.index.browser,
       host,
     });

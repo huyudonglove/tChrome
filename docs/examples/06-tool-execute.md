@@ -171,7 +171,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "askUser",
     "finishTurn",
     "submitGoal",
-    "record.query",
+    "context.query",
     "memory.write",
     "notes.write",
     "notes.delete"
@@ -215,7 +215,6 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "#notes",
     "#toolIOSummary",
     "#toolIO",
-    "#observation",
     "#tools"
   ],
   "provider": "uuapi",

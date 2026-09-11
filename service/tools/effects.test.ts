@@ -29,7 +29,7 @@ function setup() {
   const execute = (name: string, args: ToolArguments, options: Partial<ExecuteInput> = {}) => executeTool({
     name, arguments: args, content: "", dataDir, browserNames: [],
     lookup: {
-      toolIO: [], fullReturn: () => null, observationFull: () => null, unusedTools: ["capture_page"],
+      unusedTools: ["capture_page"],
       knownTools: ["finishTurn", "page.click", "capture_page"],
       enabledTools: [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds],
     },

@@ -57,7 +57,7 @@
     "askUser",
     "finishTurn",
     "submitGoal",
-    "record.query",
+    "context.query",
     "memory.write",
     "notes.write",
     "notes.delete"

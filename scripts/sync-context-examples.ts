@@ -12,7 +12,7 @@ const c = loadContextModules(root);
 const registry = loadToolRegistry(root);
 function update(value: any): any {
   if (!value || typeof value !== "object") return value;
-  if (value.type === "function" && value.function?.name && value.function.parameters) return toolSchemas(registry, [value.function.name])[0];
+  if (value.type === "function" && value.function?.name && value.function.parameters) return toolSchemas(registry, [value.function.name === "record.query" ? "context.query" : value.function.name])[0];
   if (Array.isArray(value)) return value.map(update);
   return Object.fromEntries(Object.entries(value).map(([key, item]) => [key,
     key === "baseToolsIds" && Array.isArray(item) ? [...registry.toolGroups.baseToolsIds]
