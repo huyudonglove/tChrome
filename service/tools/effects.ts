@@ -6,7 +6,6 @@ export type ToolEffect =
   | { type: "note.write"; key: string; value: string }
   | { type: "note.delete"; key: string }
   | { type: "memory.append"; entries: { layer: MemoryLayer; text: string }[] }
-  | { type: "context-summary.set"; summary: Record<string, unknown> }
   | { type: "tools.enable"; names: string[] }
   | { type: "page.set"; page: CurrentPage }
   | { type: "turn.ask"; question: string }

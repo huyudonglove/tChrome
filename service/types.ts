@@ -17,7 +17,12 @@ export type CurrentPage = CurrentTab & {
   description: string;
 };
 
+export type UserInputRecord = { id: string; turnId: string; userInput: string; submittedAt: string };
+export type GoalRecord = { id: string; turnId: string; goal: string; sourceCallId: string; createdAt: string };
+
 export type PageObservation = CurrentPage & {
+  id: string;
+  turnId: string;
   observedAt: string;
   callId: string;
   toolName: string;
@@ -46,7 +51,7 @@ export type Turn = {
   status: TurnStatus;
   createdAt: string;
   completedAt: string | null;
-  input: { text: string; submittedAt: string };
+  input: { id: string; text: string; submittedAt: string };
   assembled: Assembled;
   output: TurnOutput | null;
   // Optional for conversations saved before usage counters were introduced.
@@ -92,9 +97,9 @@ export type Ledger = {
   active: { turnId: string } | null;
   pendingAsk: { turnId: string; question: string } | null;
   turnIds: string[];
-  userInputHistory: string[];
-  goal: string;
-  goalHistory: string[];
+  userInputHistory: UserInputRecord[];
+  goal: GoalRecord | null;
+  goalHistory: GoalRecord[];
   toolQueue: ToolQueueItem[];
   liveTool: { name: string; callId: string } | null;
   toolIO: ToolIOItem[];
@@ -103,7 +108,6 @@ export type Ledger = {
   windowChars: number;
   compressAt: number;
   memoryIds: { conversation: string[]; project: string[] };
-  contextSummary: Record<string, unknown> | null;
 };
 
 export type ObservationRecord = {

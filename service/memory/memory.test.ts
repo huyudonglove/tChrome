@@ -54,10 +54,15 @@ test("projection keeps the latest eight entries in original order for every laye
   const before = JSON.stringify(memories);
   const result = projectMemories(memories);
   for (const layer of ["conversation", "project"] as const) {
-    expect(result[layer]).toBe(Array.from({ length: 8 }, (_, offset) => {
+    expect(JSON.parse(result[layer])).toEqual(Array.from({ length: 8 }, (_, offset) => {
       const i = offset + 2;
-      return `${i === 8 ? "summary" : "text"} ${layer}_${i}`;
-    }).join("\n"));
+      return {
+        id: `${layer}_${i}`,
+        text: `${i === 8 ? "summary" : "text"} ${layer}_${i}`,
+        sourceCallId: "call_01",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      };
+    }));
   }
   expect(JSON.stringify(memories)).toBe(before);
 });
@@ -77,14 +82,17 @@ test("compact projection summarizes conversation only without mutating stored co
     }
     const before = JSON.stringify(memories);
     const projected = projectMemories(memories, true);
-    const compact = `${longText.replace(/\s+/g, " ").trim().slice(0, 80)}\nshort summary\ncompressed summary`;
-    expect(projected.conversation).toBe(compact);
-    expect(projected.project).toBe(`${longText}\nfull text\ncompressed summary`);
+    const conversation = JSON.parse(projected.conversation);
+    expect(conversation.map((item: { text: string }) => item.text)).toEqual([
+      longText.replace(/\s+/g, " ").trim().slice(0, 80), "short summary", "compressed summary",
+    ]);
+    expect(conversation.map((item: { id: string }) => item.id)).toEqual(["conversation_1", "conversation_2", "conversation_3"]);
+    expect(JSON.parse(projected.project).map((item: { text: string }) => item.text)).toEqual([longText, "full text", "compressed summary"]);
     expect(JSON.stringify(memories)).toBe(before);
     for (const items of Object.values(memories)) {
       for (const item of items) expect(loadMemory(dir, "cv_01", item.memoryId)).toEqual(item.layer === "project" ? { ...item, sourceConversationId: "cv_01" } : item);
     }
-    expect(projectMemories({ conversation: [], project: [] }, true)).toEqual({ conversation: "", project: "" });
+    expect(projectMemories({ conversation: [], project: [] }, true)).toEqual({ conversation: "[]", project: "[]" });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

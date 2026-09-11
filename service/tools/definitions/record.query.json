@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "record.query",
-    "description": "按模式回查历史工具结果或页面观察记录。kind=tool 时 id 是 callId，kind=observation 时 id 是观察摘要 id。mode=inspect 返回结构和最多 400 字符预览，不传 offset、limit、query；mode=read 必填 offset 和 limit（1～10000 字符）；mode=search 必填 query（1～200 字符）、offset 和 limit（1～20 条），做区分大小写的字面搜索。位置均为从 0 开始的 UTF-16 偏移；返回 source、totalChars、positionUnit、hasMore、nextOffset，read 另含 [start,end) 范围的 text，search 另含 matches 与附近文本。沿 nextOffset 分页，无记录或越界返回 error。只读历史，不刷新网页；affectsPage=false。",
+    "description": "按稳定 ID 回查本地完整原始记录，不依赖记录是否仍在当前上下文中。kind=tool 的 id 为 callId；kind=observation 为旧工具归档摘要的 id；kind=userInput、goal、pageObservation 分别为用户输入、目标版本、页面观察的 id；kind=memory 为会话或长期记忆的 memoryId（也即模块中展示的 id）。输入、目标、页面观察限定当前会话，长期记忆可跨会话读取。mode=inspect 返回结构和最多 400 字符预览，不传 offset、limit、query；mode=read 必填 offset 和 limit（1～10000 字符）；mode=search 必填 query（1～200 字符）、offset 和 limit（1～20 条），做区分大小写的字面搜索。位置均为从 0 开始的 UTF-16 偏移；返回 source、totalChars、positionUnit、hasMore、nextOffset，read 另含 [start,end) 范围的 text，search 另含 matches 与附近文本。沿 nextOffset 分页，无记录或越界返回 error。只读历史，不刷新网页；affectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -17,7 +17,11 @@
           "type": "string",
           "enum": [
             "tool",
-            "observation"
+            "observation",
+            "userInput",
+            "goal",
+            "pageObservation",
+            "memory"
           ]
         },
         "id": {

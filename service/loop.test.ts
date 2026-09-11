@@ -1,3 +1,4 @@
+import { loadContextRecord } from "./runtime/records.ts";
 import { loadMemories, loadMemory } from "./memory/store.ts";
 import { expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -182,7 +183,13 @@ test("下一句开新 Turn 并追加 userInputHistory", async () => {
   const second = await handleTurn(deps, { userInput: "第二句", submittedAt: "2026-09-06T00:00:01.000Z" });
   expect(second.output).toEqual({ kind: "reply", text: "第二回" });
   const ledger = loadLedger(dir, "cv_01");
-  expect(ledger.userInputHistory).toEqual(["第一句"]);
+  expect(ledger.userInputHistory).toEqual([{ id: expect.any(String), turnId: "tn_01", userInput: "第一句", submittedAt: "2026-09-06T00:00:00.000Z" }]);
+  const firstInput = ledger.userInputHistory[0]!;
+  expect(firstInput.id).toBe(loadTurn(dir, "cv_01", "tn_01").input.id);
+  expect(JSON.parse(loadContextRecord(dir, "cv_01", "userInput", firstInput.id)!)).toEqual(firstInput);
+  ledger.userInputHistory = [];
+  saveLedger(dir, ledger);
+  expect(JSON.parse(loadContextRecord(dir, "cv_01", "userInput", firstInput.id)!)).toEqual(firstInput);
   expect(ledger.turnIds).toEqual(["tn_01", "tn_02"]);
   rmSync(dir, { recursive: true, force: true });
 });
@@ -242,7 +249,7 @@ test("开 Turn 不读页，模型 page.get_summary 后才填 currentPage", async
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider, host }, { userInput: "这是什么页", submittedAt: "2026-09-06T00:00:00.000Z" });
   expect(reply.output).toEqual({ kind: "reply", text: "在看罗技" });
   const turn = loadTurn(dir, "cv_01", reply.turnId);
-  expect(turn.assembled.currentPage).toEqual({
+  expect(turn.assembled.currentPage).toMatchObject({
     description: "当前页面信息",
     tab: 12,
     url: "https://item.jd.com/100012345678.html",
@@ -442,7 +449,7 @@ test("队列和正在跑的工具出现在 /session", () => {
     status: "inferring",
     createdAt: "2026-09-06T00:00:00.000Z",
     completedAt: null,
-    input: { text: "测这个站", submittedAt: "2026-09-06T00:00:00.000Z" },
+    input: { id: "input_fixture", text: "测这个站", submittedAt: "2026-09-06T00:00:00.000Z" },
     assembled: {
 
       baseToolsIds: [],
@@ -613,8 +620,8 @@ test("submitGoal 写入当前目标，再交一次旧目标进 history", async (
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "测这个站点", submittedAt: "2026-09-06T00:00:00.000Z" });
   expect(reply.output).toEqual({ kind: "reply", text: "目标改成测登录页" });
   const ledger = loadLedger(dir, "cv_01");
-  expect(ledger.goal).toBe("测登录页");
-  expect(ledger.goalHistory).toEqual(["测这个站点"]);
+  expect(ledger.goal?.goal).toBe("测登录页");
+  expect(ledger.goalHistory.map(item => item.goal)).toEqual(["测这个站点"]);
   rmSync(dir, { recursive: true, force: true });
 });
 

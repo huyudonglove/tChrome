@@ -57,15 +57,18 @@
   "userSlots": [
     "#skill",
     "#userInput",
+    "#userInputHistorySummary",
     "#userInputHistory",
     "#goal",
     "#goalHistory",
     "#currentPage",
+    "#pageObservedHistorySummary",
     "#pageObservedHistory",
     "#projectMemory",
+    "#conversationMemorySummary",
     "#conversationMemory",
-    "#contextSummary",
     "#notes",
+    "#toolIOSummary",
     "#toolIO",
     "#observation",
     "#tools"
@@ -197,10 +200,10 @@ submitGoal：记录或更新持续工作的目标。
 参数：必填 goal：目标正文。
 返回：当前目标并更新 #goal；目标变化时非空旧目标自动加入 #goalHistory，无需另写历史。记录目标不会自动执行目标，也不会结束本轮。
 affectsPage=false。
-record.query：按模式回查历史工具结果或页面观察记录。kind=tool 时 id 是 callId，kind=observation 时 id 是观察摘要 id。mode=inspect 返回结构和最多 400 字符预览，不传 offset、limit、query；mode=read 必填 offset 和 limit（1～10000 字符）；mode=search 必填 query（1～200 字符）、offset 和 limit（1～20 条），做区分大小写的字面搜索。位置均为从 0 开始的 UTF-16 偏移；返回 source、totalChars、positionUnit、hasMore、nextOffset，read 另含 [start,end) 范围的 text，search 另含 matches 与附近文本。沿 nextOffset 分页，无记录或越界返回 error。只读历史，不刷新网页；affectsPage=false。
+record.query：按稳定 ID 回查本地完整原始记录，不依赖记录是否仍在当前上下文中。kind=tool 的 id 为 callId；kind=observation 为旧工具归档摘要的 id；kind=userInput、goal、pageObservation 分别为用户输入、目标版本、页面观察的 id；kind=memory 为会话或长期记忆的 memoryId（也即模块中展示的 id）。输入、目标、页面观察限定当前会话，长期记忆可跨会话读取。mode=inspect 返回结构和最多 400 字符预览，不传 offset、limit、query；mode=read 必填 offset 和 limit（1～10000 字符）；mode=search 必填 query（1～200 字符）、offset 和 limit（1～20 条），做区分大小写的字面搜索。位置均为从 0 开始的 UTF-16 偏移；返回 source、totalChars、positionUnit、hasMore、nextOffset，read 另含 [start,end) 范围的 text，search 另含 matches 与附近文本。沿 nextOffset 分页，无记录或越界返回 error。只读历史，不刷新网页；affectsPage=false。
 memory.write：保存后续需要的事实、偏好或进展。
-参数：可选 conversationMemory、projectMemory：字符串数组，按旧到新排列并追加至对应记忆末尾；contextSummary：对象，替换整个工作汇总而非局部合并，应保留仍有效的重要信息。其中历史事实、已完成进展等记录数组按旧到新排列，新增项放末尾，保留旧项相对顺序；待办按执行顺序，选项或排名按各自含义排列。至少提供一项有意义的内容。
-返回：两类记忆的写入条数。conversationMemory 和工作汇总仅在本会话保存；projectMemory 是独立于会话的长期记忆，跨会话共享，删除来源会话后仍保留。
+参数：conversationMemory、projectMemory 为字符串数组，按旧到新追加至对应记忆末尾，至少提供一项有意义的内容。conversationMemory 保存本会话已确认的事实、偏好和决定；projectMemory 保存跨会话仍适用的长期信息。当前目标通过 submitGoal 管理，草稿和待办通过 notes.write 管理。
+返回：两类记忆的写入条数。conversationMemory 仅在本会话保存；projectMemory 跨会话共享，删除来源会话后仍保留。
 affectsPage=false。
 notes.write：保存或更新工作笔记。
 参数：必填 key、value，均为字符串。创建或覆盖 #notes 中指定 key 的值，同一个 key 不会追加多份。
@@ -217,42 +220,61 @@ affectsPage=false。
 提供当前可参考的操作方法、经验和注意事项。按任务需要选择使用，结合当前环境与工具结果判断适用性；具体方法本身不代表操作已经执行或结果已经验证。
 
 #userInput --【当前请求，任务入口】
-本轮用户原话。优先理解本次要求及修正；结合相关历史理解指代，不把未提出的历史事项自动加入本轮。
+以对象提供本轮用户原话：id 是稳定输入 ID，turnId 标明轮次，userInput 保留原话，submittedAt 是提交时间。当前输入移入历史时沿用同一 ID；需要核对原文时用 record.query（kind=userInput，id=该 id）。优先理解本次要求及修正；结合相关历史理解指代，不把未提出的历史事项自动加入本轮。
+
+#userInputHistorySummary --【历史要求摘要，条件演变，原话线索】
+本栏目存放 userInputHistory 对应的分层压缩摘要，与尚未压缩的历史原话配合阅读。保留用户要求、约束、偏好、纠正及其先后关系；不得把 Agent 的推测写成用户要求。摘要仅作历史背景，不能覆盖 userInput 中的最新指令。
+
+摘要以数组承载，各层分别累积，达到阈值才生成更高层摘要，不与其他模块混合。每项携带压缩记录 ID、层级和下层来源 ID，便于逐层定位精确原文；窗口仅展示未被更高层覆盖的摘要，避免重复理解同一来源。空数组表示当前没有可用摘要，不表示原始记录不存在。
 
 #userInputHistory --【历史输入，指代理解，条件变化】
-此前轮次的用户原话，以字符串数组按从旧到新的顺序提供；每项对应一轮输入，保留原话中的换行。空数组表示尚无历史输入。不含本轮输入，也不等于完整对话。用于理解指代、偏好和条件变化；历史要求仅作背景，不能覆盖用户最新修正。
+此前轮次的用户输入记录，以对象数组按从旧到新的顺序提供；每项包含 id、turnId、userInput、submittedAt，保留原话中的换行和创建时的稳定 ID。空数组表示尚无历史输入。不含本轮输入，也不等于完整对话。用于理解指代、偏好和条件变化；历史要求仅作背景，不能覆盖用户最新修正。需要精确原话时用 record.query（kind=userInput，id=该项 id）回查本地记录。
 
 #goal --【当前目标，任务方向】
-已记录的当前工作目标。结合本轮请求判断是否仍适用，必要时通过 submitGoal 更新。目标为空不妨碍处理清楚的请求；目标文字本身不证明任务已完成。
+已记录的当前工作目标，以对象提供 id、turnId、goal、sourceCallId、createdAt；尚未设置时为 null。每个目标版本有稳定 ID，可用 record.query（kind=goal，id=该 id）回查。结合本轮请求判断是否仍适用，必要时通过 submitGoal 更新。目标为空不妨碍处理清楚的请求；目标文字本身不证明任务已完成。
 
 #goalHistory --【目标历史，方向变化】
-被替换掉的旧目标，供理解方向变化。历史目标不是当前待办，不自动恢复执行；以当前请求和仍适用的目标为准。
+被替换掉的旧目标记录数组，每项保留 id、turnId、goal、sourceCallId、createdAt；目标进入历史时沿用原 ID，可用 record.query（kind=goal，id=该项 id）回查。供理解方向变化，历史目标不是当前待办，不自动恢复执行；以当前请求和仍适用的目标为准。
 
 按目标被替换的先后顺序由旧到新排列，新记录追加到末尾。
 
 #currentPage --【当前页面】
-本轮最近已知的页面信息，包含 tab、url、title、description。初始取用户发话时的标签信息，此时尚未读取页面内容；工具返回有效页面信息后替换为最新快照。用于定位当前已知页面，不是实时监控，也不是每次操作都会刷新；需要确认当前实际状态时重新观察。
+本轮最近已知的页面信息，包含 tab、url、title、description。初始取用户发话时的标签信息，此时尚未读取页面内容，也没有页面观察 ID；工具返回有效页面信息后替换为最新观察记录，与 pageObservedHistory 中对应项共用 id，并保留 turnId、observedAt、callId、toolName。带观察 id 时可用 record.query（kind=pageObservation，id=该 id）回查。用于定位当前已知页面，不是实时监控，也不是每次操作都会刷新；需要确认当前实际状态时重新观察。
+
+#pageObservedHistorySummary --【页面观察摘要，状态变化，观察来源】
+本栏目存放 pageObservedHistory 对应的分层压缩摘要，与保留的近期观察配合阅读。保留页面身份、观察顺序、关键变化以及时间和工具来源；历史观察不代表当前页面仍处于同一状态。当前最近已知页面以 currentPage 为准，必要时重新观察。
+
+摘要以数组承载，各层分别累积，达到阈值才生成更高层摘要，不与其他模块混合。每项携带压缩记录 ID、层级和下层来源 ID，便于逐层定位精确原文；窗口仅展示未被更高层覆盖的摘要，避免重复理解同一来源。空数组表示当前没有可用摘要，不表示原始记录不存在。
 
 #pageObservedHistory --【页面观察历史】
-本轮工具返回的页面观察记录数组，每轮开始为空。每次获得有效页面信息时追加到数组末尾，按旧到新排列，包含最新一次观察；每条保留 tab、url、title、description、observedAt、callId、toolName。用于回看观察过的页面和变化，结合 currentPage 定位最近已知页面。发话时的标签快照不算工具观察，不自动加入历史；这些记录是观察轨迹，不是浏览器导航历史，也不代表所有页面变化都已记录。
+本轮工具返回的页面观察记录数组，每轮开始为空。每次获得有效页面信息时追加到数组末尾，按旧到新排列，包含最新一次观察；每条保留稳定 id、turnId、tab、url、title、description、observedAt、callId、toolName。观察在创建时落盘，可用 record.query（kind=pageObservation，id=该项 id）跨轮回查本会话的原记录。用于回看观察过的页面和变化，结合 currentPage 定位最近已知页面。发话时的标签快照不算工具观察，不自动加入历史；这些记录是观察轨迹，不是浏览器导航历史，也不代表所有页面变化都已记录。
 
 #projectMemory --【长期记忆，跨会话背景，长期约束】
 独立于会话持久保存的领域背景、术语和长期约束，同一服务数据目录下的所有会话共享读取，删除来源会话后仍保留；窗口最多展示最近8条，长期记忆保持原文。只按适用范围使用，不把记忆提升为新授权。通过 memory.write 写入有助于后续工作的已知事实，不重复抄写所有层。
 
 记录按写入顺序由旧到新排列，新记录追加到末尾；取最近8条时保留这个顺序。
 
+以记录数组提供，每项保留 id（本地 memoryId）、text、sourceCallId、createdAt，存在来源会话时还包括 sourceConversationId。窗口投影不会重新分配 ID；需要完整原文时用 record.query（kind=memory，id=该项 id）回查。
+
+#conversationMemorySummary --【会话记忆摘要，已确认事实，决定依据】
+本栏目存放 conversationMemory 对应的分层压缩摘要，与未压缩的会话记忆配合阅读。保留已确认事实、偏好、决定、适用条件及修正关系；不把未确认的 notes 升格为事实，也不把本会话信息自动升级为 projectMemory。
+
+摘要以数组承载，各层分别累积，达到阈值才生成更高层摘要，不与其他模块混合。每项携带压缩记录 ID、层级和下层来源 ID，便于逐层定位精确原文；窗口仅展示未被更高层覆盖的摘要，避免重复理解同一来源。空数组表示当前没有可用摘要，不表示原始记录不存在。
+
 #conversationMemory --【会话记忆，过程事实，偏好决定】
-本会话值得保留的过程发现、已确认事实、偏好和决定，包含原阶段记忆。持久保存在本地，本会话后续轮次可以读取，服务重启后保留；新会话不继承，删除会话时一起删除。尚未确认的候选和中间材料放 notes，整体工作概况放 contextSummary，跨会话仍适用的事实放 projectMemory。窗口最多展示最近8条，较大上下文中可能只显示摘要；摘要不代表完整原文。使用时核对来源和当前条件，通过 memory.write 记录仍有价值的事实，避免重复写入。
+本会话值得保留的过程发现、已确认事实、偏好和决定，包含原阶段记忆。持久保存在本地，本会话后续轮次可以读取，服务重启后保留；新会话不继承，删除会话时一起删除。尚未确认的候选和中间材料放 notes，跨会话仍适用的事实放 projectMemory。窗口最多展示最近8条，较大上下文中可能只显示摘要；摘要不代表完整原文。使用时核对来源和当前条件，通过 memory.write 记录仍有价值的事实，避免重复写入。
 
 记录按写入顺序由旧到新排列，新记录追加到末尾；取最近8条时保留这个顺序。
 
-#contextSummary --【工作概况，进展，阻碍，下一步】
-已记录的工作概况、进展、阻碍和下一步，供恢复工作时参考。它不是当前状态的自动证明；结合最新请求、goal及执行证据核对是否过时。通过 memory.write 的 contextSummary 参数替换完整汇总时，保留仍适用的重要信息，不把未验证的动作写成完成。
-
-汇总中记录历史事实或已完成进展的数组按旧到新排列，新记录放在末尾，保留仍有效旧记录的相对顺序，不把新记录插到头部。待办按计划执行顺序排列，选项和候选排名保留各自顺序含义。
+以记录数组提供，每项保留 id（本地 memoryId）、text、sourceCallId、createdAt，存在来源会话时还包括 sourceConversationId。窗口投影不会重新分配 ID；需要完整原文时用 record.query（kind=memory，id=该项 id）回查。
 
 #notes --【草稿，候选，中间材料】
 模型维护的草稿、候选项和中间材料，不等同于已确认事实或已完成结果。notes.write 按 key 创建或覆盖，notes.delete 删除过时材料。用清晰的键区分用途，不重复存放整份目标或工作汇总。
+
+#toolIOSummary --【执行过程摘要，结果与失败，证据线索】
+本栏目存放 toolIO 对应的分层压缩摘要，与保留的近期完整调用记录配合阅读。保留实际执行的动作、关键参数、结果、失败原因和未解决事项，区分计划、尝试与已确认完成。摘要中的历史成功不能替代对当前状态的验证；需要精确参数或返回时按来源回查。
+
+摘要以数组承载，各层分别累积，达到阈值才生成更高层摘要，不与其他模块混合。每项携带压缩记录 ID、层级和下层来源 ID，便于逐层定位精确原文；窗口仅展示未被更高层覆盖的摘要，避免重复理解同一来源。空数组表示当前没有可用摘要，不表示原始记录不存在。
 
 #toolIO --【执行证据，返回检查，错误诊断】
 工具调用及返回，可能包含此前轮次记录，按顺序由旧到新。先核对 turnId、调用参数、目标标签和网址，再读 return 判断实际发生了什么。stage=complete 只表示文本未截断，不代表操作成功；stage=truncated 表示文本不完整。依据 ok、error、状态和内容判断结果，详情不足时用 record.query（kind=tool，id=原 callId）按需预览、搜索或分页回查。历史回查不会重新执行工具或刷新网页。
@@ -285,13 +307,24 @@ affectsPage=false。
 
 #userInput
 
-帮我查这款鼠标官网价
+{
+  "id": "input_tn_01",
+  "turnId": "tn_01",
+  "userInput": "帮我查这款鼠标官网价",
+  "submittedAt": "2026-09-05T08:00:01.000Z"
+}
+
+#userInputHistorySummary
+
+[]
 
 #userInputHistory
 
 []
 
 #goal
+
+null
 
 #goalHistory
 
@@ -306,19 +339,33 @@ affectsPage=false。
   "description": "用户发话时的标签信息，尚未读取页面内容"
 }
 
+#pageObservedHistorySummary
+
+[]
+
 #pageObservedHistory
 
 []
 
 #projectMemory
 
+[]
+
+#conversationMemorySummary
+
+[]
+
 #conversationMemory
 
-#contextSummary
+[]
 
 #notes
 
 {}
+
+#toolIOSummary
+
+[]
 
 #toolIO
 
@@ -445,7 +492,7 @@ affectsPage=false。
     "type": "function",
     "function": {
       "name": "record.query",
-      "description": "按模式回查历史工具结果或页面观察记录。kind=tool 时 id 是 callId，kind=observation 时 id 是观察摘要 id。mode=inspect 返回结构和最多 400 字符预览，不传 offset、limit、query；mode=read 必填 offset 和 limit（1～10000 字符）；mode=search 必填 query（1～200 字符）、offset 和 limit（1～20 条），做区分大小写的字面搜索。位置均为从 0 开始的 UTF-16 偏移；返回 source、totalChars、positionUnit、hasMore、nextOffset，read 另含 [start,end) 范围的 text，search 另含 matches 与附近文本。沿 nextOffset 分页，无记录或越界返回 error。只读历史，不刷新网页；affectsPage=false。",
+      "description": "按稳定 ID 回查本地完整原始记录，不依赖记录是否仍在当前上下文中。kind=tool 的 id 为 callId；kind=observation 为旧工具归档摘要的 id；kind=userInput、goal、pageObservation 分别为用户输入、目标版本、页面观察的 id；kind=memory 为会话或长期记忆的 memoryId（也即模块中展示的 id）。输入、目标、页面观察限定当前会话，长期记忆可跨会话读取。mode=inspect 返回结构和最多 400 字符预览，不传 offset、limit、query；mode=read 必填 offset 和 limit（1～10000 字符）；mode=search 必填 query（1～200 字符）、offset 和 limit（1～20 条），做区分大小写的字面搜索。位置均为从 0 开始的 UTF-16 偏移；返回 source、totalChars、positionUnit、hasMore、nextOffset，read 另含 [start,end) 范围的 text，search 另含 matches 与附近文本。沿 nextOffset 分页，无记录或越界返回 error。只读历史，不刷新网页；affectsPage=false。",
       "parameters": {
         "type": "object",
         "properties": {
@@ -460,7 +507,11 @@ affectsPage=false。
             "type": "string",
             "enum": [
               "tool",
-              "observation"
+              "observation",
+              "userInput",
+              "goal",
+              "pageObservation",
+              "memory"
             ]
           },
           "id": {
@@ -578,7 +629,7 @@ affectsPage=false。
     "type": "function",
     "function": {
       "name": "memory.write",
-      "description": "保存后续需要的事实、偏好或进展。\n参数：可选 conversationMemory、projectMemory：字符串数组，按旧到新排列并追加至对应记忆末尾；contextSummary：对象，替换整个工作汇总而非局部合并，应保留仍有效的重要信息。其中历史事实、已完成进展等记录数组按旧到新排列，新增项放末尾，保留旧项相对顺序；待办按执行顺序，选项或排名按各自含义排列。至少提供一项有意义的内容。\n返回：两类记忆的写入条数。conversationMemory 和工作汇总仅在本会话保存；projectMemory 是独立于会话的长期记忆，跨会话共享，删除来源会话后仍保留。\naffectsPage=false。",
+      "description": "保存后续需要的事实、偏好或进展。\n参数：conversationMemory、projectMemory 为字符串数组，按旧到新追加至对应记忆末尾，至少提供一项有意义的内容。conversationMemory 保存本会话已确认的事实、偏好和决定；projectMemory 保存跨会话仍适用的长期信息。当前目标通过 submitGoal 管理，草稿和待办通过 notes.write 管理。\n返回：两类记忆的写入条数。conversationMemory 仅在本会话保存；projectMemory 跨会话共享，删除来源会话后仍保留。\naffectsPage=false。",
       "parameters": {
         "type": "object",
         "properties": {
@@ -599,9 +650,6 @@ affectsPage=false。
             "items": {
               "type": "string"
             }
-          },
-          "contextSummary": {
-            "type": "object"
           }
         },
         "required": [
@@ -800,15 +848,18 @@ affectsPage=false。
   "userSlots": [
     "#skill",
     "#userInput",
+    "#userInputHistorySummary",
     "#userInputHistory",
     "#goal",
     "#goalHistory",
     "#currentPage",
+    "#pageObservedHistorySummary",
     "#pageObservedHistory",
     "#projectMemory",
+    "#conversationMemorySummary",
     "#conversationMemory",
-    "#contextSummary",
     "#notes",
+    "#toolIOSummary",
     "#toolIO",
     "#observation",
     "#tools"

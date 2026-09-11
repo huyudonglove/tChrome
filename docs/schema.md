@@ -58,6 +58,7 @@ conversations/<cvId>/events.jsonl
 conversations/<cvId>/provider.md
 conversations/<cvId>/turns/<turnId>.json
 conversations/<cvId>/memory/<memoryId>.json
+conversations/<cvId>/context-records/<kind>/<id>.json
 conversations/<cvId>/observations/<observationId>.json
 conversations/<cvId>/returns/<callId>.txt
 ```
@@ -125,9 +126,9 @@ Runtime 独占维护。当前会话指针。
 | `active` | object \| null | `{turnId}`；没有就 `null` |
 | `pendingAsk` | object \| null | `waiting_human` 时 `{turnId, question}`；否则 `null` |
 | `turnIds` | string[] | 已建的回合，按时间 |
-| `userInputHistory` | string[] | 上一轮及更早的用户原话，按时间。新会话 `[]`。用户下一条输入开新 Turn 时，Runtime 把刚结束那一轮的 `userInput` 追加进去 |
-| `goal` | string | 当前目标。新会话 `""`。模型调 `submitGoal` 写入。空着也能干活 |
-| `goalHistory` | string[] | 旧目标。Runtime 在 `submitGoal` 改写且新值和旧值不同时，把旧目标追加进去。模型不要写 |
+| `userInputHistory` | object[] | 上一轮及更早的输入，按旧到新排列。每项 `{id, turnId, userInput, submittedAt}`；新会话 `[]`。当前输入进入历史时保留原 ID |
+| `goal` | object \| null | 当前目标版本 `{id, turnId, goal, sourceCallId, createdAt}`；新会话 `null`。模型调 `submitGoal` 写入 |
+| `goalHistory` | object[] | 旧目标版本，与 goal 同结构。Runtime 在目标文字变化时把旧记录连同原 ID 追加进去 |
 | `toolQueue` | object[] | 本 Turn 待执行的工具。模型一次出网交的 `toolCalls` 按数组顺序入队。任务队列按这个顺序跑。跑完一条弹出，写入 `toolIO`。新会话 / 新出网前空。每项 `{callId, name, arguments}` |
 | `liveTool` | object \| null | 正在跑的那条 `{name, callId}`。空闲 / 追问 / 失败为 `null` |
 | `toolIO` | object[] | 本会话已执行、窗口里还带着的工具调用。新会话 `[]`。队列里跑完一条追加一条，最新在最下面。窗口到 200K 时较早的条目收进 `observation`。每项见「toolIO 项」 |
@@ -148,6 +149,7 @@ Runtime 独占维护。当前会话指针。
 | `status` | string | `assembling` → `inferring` → `completed` / `waiting_human` / `failed`。工具循环时停在 `inferring` |
 | `createdAt` | string | ISO-8601 |
 | `completedAt` | string \| null | 收口时写；进行中 `null` |
+| `input.id` | string | 创建输入时生成并持久保存的 `input_<UUID>`；不从 turnId 推导，后续渲染和进入历史沿用此 ID |
 | `input.text` | string | 本轮用户原话。用户下一条输入才开新 Turn |
 | `input.submittedAt` | string | 面板提交时间，ISO-8601 |
 | `assembled` | object | 这一轮点名的 catalog IDs + 当前页，见「assembled」 |
@@ -164,8 +166,8 @@ Runtime 独占维护。当前会话指针。
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
 | `mcpIds` | string[] | 本轮 MCP；没有就 `[]` |
 | `currentTab` | object \| null | 本轮输入来源的内部标签快照，仅用于初始化 currentPage，不单独注入模型 |
-| `currentPage` | object \| null | 初始取发话标签，标注尚未读取页面内容；随后由有效页面工具返回替换。注入 `#currentPage` |
-| `pageObservedHistory` | object[] | 本轮工具页面观察，初始 `[]`，按旧到新追加，包含最新一次观察。每条带页面字段及 observedAt、callId、toolName。注入 `#pageObservedHistory` |
+| `currentPage` | object \| null | 初始取发话标签，标注尚未读取页面内容；随后由有效页面工具返回替换，与历史中的最新观察共用 id；初始标签快照没有观察 ID。注入 `#currentPage` |
+| `pageObservedHistory` | object[] | 本轮工具页面观察，初始 `[]`，按旧到新追加，包含最新一次观察。每条带稳定 id、turnId、页面字段及 observedAt、callId、toolName。注入 `#pageObservedHistory` |
 
 `currentPage`：
 
@@ -187,7 +189,7 @@ Runtime 独占维护。当前会话指针。
 
 ## memory/<memoryId>.json
 
-两层：project 是跨会话共享的长期记忆；conversation 保存本会话的过程发现和已确认事实。conversation 在本地按会话保存，跨轮读取，新会话不继承，删除会话时一起删除；project 独立于会话保存，删除来源会话不影响长期记忆。notes 保存本会话的草稿、候选和中间材料，按 key 覆盖或删除，不在每轮自动清空。模型调 `memory.write` 提交。Runtime 落盘，ID 挂到 ledger.`memoryIds`。下一次出网装配进对应 user 槽。
+两层：project 是跨会话共享的长期记忆；conversation 保存本会话的过程发现和已确认事实。conversation 在本地按会话保存，跨轮读取，新会话不继承，删除会话时一起删除；project 独立于会话保存，删除来源会话不影响长期记忆。notes 保存本会话的草稿、候选和中间材料，按 key 覆盖或删除，不在每轮自动清空。模型调 `memory.write` 提交。Runtime 落盘，会话记忆 ID 挂到 ledger.`memoryIds.conversation`，长期记忆从共享目录读取。下一次出网以数组装配进对应 user 槽，每项 `{id: memoryId, text, sourceCallId, createdAt, sourceConversationId?}`，保留本地 ID。
 
 Memory 能力层每层仅投影最近 8 条记忆。窗口到 200K 时，conversation 槽优先用 `summary`，缺省时使用归一空白后的前 80 字。project 不做摘要压缩。该过程是纯展示投影，不改磁盘记录、不设置 `compressed`、不裁 ledger 或 Turn 的 memoryIds。
 
@@ -200,6 +202,17 @@ Memory 能力层每层仅投影最近 8 条记忆。窗口到 200K 时，convers
 | `compressed` | boolean | 兼容已有记录；为 true 时普通投影使用 summary，新的窗口压缩不改此字段 |
 | `createdAt` | string | ISO-8601 |
 | `sourceCallId` | string | 写下这条的 `memory.write` 的 `callId` |
+
+## context-records/<kind>/<id>.json
+
+用户输入、目标版本、页面观察在创建时以稳定 ID 写入本会话的独立原始记录文件，kind 分别为 `userInput`、`goal`、`pageObservation`。记录只创建一次；窗口变化、进入历史、重启和后续压缩不改写原记录。`record.query` 按 kind 和 id 读取，不依赖当前窗口是否还保留该项。
+
+- 用户输入：`{id: "input_<UUID>", turnId, userInput, submittedAt}`，当前 `#userInput` 和对应历史项共用 ID。
+- 目标版本：`{id, turnId, goal, sourceCallId, createdAt}`，每次目标文字变化建立新版本。
+- 页面观察：`{id, turnId, tab, url, title, description, observedAt, callId, toolName}`，当前页和对应历史项共用观察 ID。
+- 记忆继续使用现有 memory 文件及 memoryId，不另建副本；注入模型时把 memoryId 映射为 id。
+
+四个 Summary 插槽仍是预留空数组。分层摘要生成、摘要落盘和摘要查询尚未接入，当前查询种类不包含 compression；未来 sourceIds 应引用这些稳定原始记录 ID 或下层摘要 ID。
 
 ## observations/<observationId>.json
 
@@ -220,11 +233,11 @@ Memory 能力层每层仅投影最近 8 条记忆。窗口到 200K 时，convers
 
 加载顺序由 `service/context/system-slots.md` 和 `user-slots.md` 的编号文件名决定，例如 `1. identity`，不在目录重复描述能力。system 模块以 `#tag`、`能力：【…】`、`详细描述：` 和正文组成；user 模块还包含独立的 `内容：` 段。user 的详细描述进入 system 内 User 清单，内容段通过 `{{data}}` 注入运行数据。
 
-加载器返回 systemOrder / userOrder，systemSlots / userSlots 保存模块元数据与对应正文。system 先输出 `# System 栏目清单`，七个模块每项 tag --能力之后直接跟详细正文，baseTools 包含工具说明；再输出 `# User 栏目清单`，每项 tag --能力之后直接跟详细描述。system 详细正文与清单项合并，只出现一次；user 渲染十四个 tag 的内容段和数据，不重复能力标签或详细描述。
+加载器返回 systemOrder / userOrder，systemSlots / userSlots 保存模块元数据与对应正文。system 先输出 `# System 栏目清单`，七个模块每项 tag --能力之后直接跟详细正文，baseTools 包含工具说明；再输出 `# User 栏目清单`，每项 tag --能力之后直接跟详细描述。system 详细正文与清单项合并，只出现一次；user 渲染十七个 tag 的内容段和数据，不重复能力标签或详细描述。
 
 system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，boundaries 管授权和证据来源。网页方法维护于 `service/skills/web-observation/SKILL.md`，runtime 按 `service/skills/index.json` 加载后作为数据注入 context，模块描述仍由 `service/context/user/skill.md` 提供。既有 user tag 与字段来源、工具 schema 和输出协议保持不变。
 
-常驻工具说明进入 #baseTools，动态工具说明进入 #tools，唯一来源仍是 `service/tools/definitions/<id>.json` 的 function.description。调整模块后同步生成导航、装配测试与阶段示例；阶段 JSON 中 systemSlots / userSlots 是对应的 7 / 14 个 tag 名数组，并非模块对象。
+常驻工具说明进入 #baseTools，动态工具说明进入 #tools，唯一来源仍是 `service/tools/definitions/<id>.json` 的 function.description。调整模块后同步生成导航、装配测试与阶段示例；阶段 JSON 中 systemSlots / userSlots 是对应的 7 / 17 个 tag 名数组，并非模块对象。
 
 出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。
 
@@ -248,7 +261,7 @@ system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，
 
 `askUser` 的 `text` 是问题和选项。`finishTurn` 的 `text` 是回复用户的正文（优先取 finishTurn.arguments.text，兼容历史 content.action）。动态工具 / `record.query` 的 `text` 是工具跑出来的正文。`memory.write` 的 `text` 是落下的层和条数。
 
-历史回查统一使用 `record.query(kind, id, mode)`。`kind=tool` 时 `id` 取 `#toolIO` 的 `callId`；`kind=observation` 时取 `#observation` 的 `id`。只读本地历史，不刷新网页。
+历史回查统一使用 `record.query(kind, id, mode)`。`kind=tool` 时 `id` 取 `#toolIO` 的 `callId`；`kind=observation` 时取 `#observation` 的 `id`；`kind=userInput/goal/pageObservation/memory` 时取对应模块记录的 `id`。只读本地历史，不刷新网页。记忆查询允许本会话记忆和共享长期记忆。
 
 - `mode=inspect`：返回结构与最多 400 字符预览，不传 `offset`、`limit`、`query`。
 - `mode=read`：必填 `offset` 和 `limit`，每页 1～10000 字符。
@@ -299,12 +312,12 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | `askUser` | `question`、`choice` | 非空问题正文与选项 |
 | `submitGoal` | `goal` | 当前目标。改写时 Runtime 把旧值追加进 `goalHistory` |
 | `finishTurn` | `text` | 非空回复正文，不依赖 content |
-| `record.query` | `kind` `id` `mode`；read/search 另有分页必填项 | 工具结果用 `kind=tool` 和 `callId`；归档观察用 `kind=observation` 和观察 `id`，模式见上文 |
+| `record.query` | `kind` `id` `mode`；read/search 另有分页必填项 | 工具结果用 `kind=tool` 和 `callId`；其他来源支持 `observation/userInput/goal/pageObservation/memory`，使用对应记录 `id`，模式见上文 |
 | `capture_page` | `mode`；element 另需 ref/selector 二选一 | `viewport` / `full_page` / `element`；元素定位不混用 page.* 的 id，PDF 使用 `save_pdf` |
 | `probe_http` | `url` | HTTP(S) 网址，可选 `method=GET/HEAD`；返回状态、耗时、最终网址和响应头，`reachable=true` 表示收到 HTTP 响应（包括 4xx/5xx），`ok=true` 表示 2xx |
 | `notes.write` | `key` `value` | 写入或覆盖 `ledger.notes[key]`。模型自定 key |
 | `notes.delete` | `key` | 删除 `ledger.notes[key]` |
-| `memory.write` | （无） | `conversationMemory` `projectMemory` `contextSummary` 有则写 |
+| `memory.write` | （无） | `conversationMemory` `projectMemory` 有则写 |
 | `catalog.add` | `names` | 把缺的动态工具挂进本轮 |
 
 常驻与初始动态工具名单以 `service/tools/definitions/groups.json` 的 baseToolsIds / coreToolIds 为准。动态目录分类见 `service/tools/definitions/index.json`，缺能力通过 catalog.add 加载。浏览器工具经 `/tool-request` 泵到 background。

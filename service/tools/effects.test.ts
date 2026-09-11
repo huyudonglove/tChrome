@@ -1,3 +1,4 @@
+import { loadContextRecord } from "../runtime/records.ts";
 import { loadMemory } from "../memory/store.ts";
 import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -18,7 +19,7 @@ function setup() {
   ledger.active = { turnId: "tn_effects" };
   const turn: Turn = {
     turnId: "tn_effects", conversationId: ledger.conversationId, status: "inferring",
-    createdAt: new Date().toISOString(), completedAt: null, input: { text: "检查", submittedAt: "now" },
+    createdAt: new Date().toISOString(), completedAt: null, input: { id: "input_fixture", text: "检查", submittedAt: "now" },
     output: null, assembled: {
       baseToolsIds: ["finishTurn"], toolIds: ["page.click"],
       conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, currentTab: null,
@@ -58,8 +59,12 @@ test("runtime persists goals and notes from effects without interpreting the ori
   fixture.apply(await fixture.execute("submitGoal", { goal: "第二目标" }));
   fixture.apply(await fixture.execute("notes.write", { key: " candidate ", value: "页面 A" }));
   let saved = loadLedger(fixture.dataDir, fixture.ledger.conversationId);
-  expect(saved.goal).toBe("第二目标");
-  expect(saved.goalHistory).toEqual(["第一目标"]);
+  expect(saved.goal?.goal).toBe("第二目标");
+  expect(saved.goalHistory.map(item => item.goal)).toEqual(["第一目标"]);
+  for (const record of [...saved.goalHistory, saved.goal!]) {
+    expect(JSON.parse(loadContextRecord(fixture.dataDir, saved.conversationId, "goal", record.id)!)).toEqual(record);
+  }
+  expect(saved.goal!.id).not.toBe(saved.goalHistory[0]!.id);
   expect(saved.notes).toEqual({ candidate: "页面 A" });
   fixture.apply(await fixture.execute("notes.delete", { key: "candidate" }));
   saved = loadLedger(fixture.dataDir, fixture.ledger.conversationId);
@@ -70,13 +75,11 @@ test("memory effects contain normalized entries and runtime persists their sourc
   const fixture = setup();
   const execution = await fixture.execute("memory.write", {
     conversationMemory: ["找到按钮", "", null, "用户目标"], projectMemory: [],
-    contextSummary: { next: "打开结果" },
   });
   expect(execution.text).toBe("落下 conversation=2 project=0");
   expect(fixture.ledger.memoryIds.conversation).toEqual([]);
   fixture.apply(execution, "call_memory");
   const saved = loadLedger(fixture.dataDir, fixture.ledger.conversationId);
-  expect(saved.contextSummary).toEqual({ next: "打开结果" });
   expect(saved.memoryIds.conversation).toHaveLength(2);
   expect(loadMemory(fixture.dataDir, saved.conversationId, saved.memoryIds.conversation[0]!)).toMatchObject({
     text: "找到按钮", sourceCallId: "call_memory", layer: "conversation",
@@ -140,11 +143,16 @@ test("page effects update the current page and persist observations in chronolog
     });
   }
 
-  expect(fixture.turn.assembled.currentPage).toEqual(pages[1]!);
+  expect(fixture.turn.assembled.currentPage).toMatchObject(pages[1]!);
   const history = fixture.turn.assembled.pageObservedHistory;
   expect(history).toHaveLength(2);
+  expect(fixture.turn.assembled.currentPage).toEqual(history[1]!);
+  expect(history[0]!.id).not.toBe(history[1]!.id);
+  for (const record of history) {
+    expect(JSON.parse(loadContextRecord(fixture.dataDir, fixture.ledger.conversationId, "pageObservation", record.id)!)).toEqual(record);
+  }
   expect(history).toEqual(pages.map((page, index) => ({
-    ...page, observedAt: expect.any(String), callId: calls[index]!.callId, toolName: calls[index]!.name,
+    ...page, id: expect.any(String), turnId: fixture.turn.turnId, observedAt: expect.any(String), callId: calls[index]!.callId, toolName: calls[index]!.name,
   })));
   const observedTimes = history.map((page) => Date.parse(page.observedAt));
   expect(observedTimes[0]!).toBeGreaterThanOrEqual(startedAt);

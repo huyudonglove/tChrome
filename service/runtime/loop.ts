@@ -1,3 +1,6 @@
+import { randomUUID } from "node:crypto";
+import { saveContextRecord } from "./records.ts";
+import { inputRecord } from "./ids.ts";
 import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
 import { projectMemories } from "../memory/window.ts";
@@ -210,7 +213,7 @@ export async function handleTurn(
   const prevId = ledger.turnIds.at(-1);
   if (prevId) {
     const last = loadTurn(deps.dataDir, ledger.conversationId, prevId);
-    ledger.userInputHistory.push(last.input.text);
+    ledger.userInputHistory.push(inputRecord(last));
   }
   const contextModules = loadContextModules(deps.repoRoot);
   const skillText = loadSkills(deps.repoRoot);
@@ -222,11 +225,12 @@ export async function handleTurn(
     status: "assembling",
     createdAt: nowIso(),
     completedAt: null,
-    input: { text: body.userInput, submittedAt: body.submittedAt },
+    input: { id: `input_${randomUUID()}`, text: body.userInput, submittedAt: body.submittedAt },
     assembled: assemble(toolRegistry),
     output: null,
     usage: { modelRequests: 0, toolCalls: 0 },
   };
+  saveContextRecord(deps.dataDir, ledger.conversationId, "userInput", inputRecord(turn));
   const tab = body.currentTab;
   const tabId = Number(tab?.tab);
   if (tab && Number.isFinite(tabId) && tabId >= 1) {

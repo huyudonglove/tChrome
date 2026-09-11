@@ -8,7 +8,7 @@
 | [system-slots.md](system-slots.md) | 仅编号文件名，例如 `1. identity`；对应 system/ 中的文件 |
 | [user-slots.md](user-slots.md) | 仅编号文件名；对应 user/ 中的文件 |
 | [system/](system/) | identity、environment、execution、toolProtocol、boundaries、output、baseTools 七个规则模块 |
-| [user/](user/) | 保留十四个 tag，描述各栏用途并提供数据占位符 |
+| [user/](user/) | 保留十七个 tag，描述各栏用途并提供数据占位符 |
 | [modules.ts](modules.ts) | 校验顺序与模块格式，读取 tag、能力、详细描述和内容，生成两份导航 |
 | [window.ts](window.ts) | 拼装 system / user，并注入当轮数据、技能正文与工具说明 |
 
@@ -41,12 +41,14 @@ user 模块在详细描述后增加内容段：
 
 execution 专注任务推进；toolProtocol 负责调用、返回和错误处理协议；boundaries 负责授权、来源与证据边界。具体技能由独立的 [service/skills/](../skills/) 能力目录维护：[index.json](../skills/index.json) 只声明成员和加载顺序，[web-observation/SKILL.md](../skills/web-observation/SKILL.md) 保存网页观察与操作方法。runtime 每轮调用一次 `loadSkills(root)`，按清单顺序读取各 `<name>/SKILL.md` 并拼接，再通过 `userText` 的 `skillText` 参数注入 #skill。context 只负责渲染，不能读取 skills 目录；ContextModules 不保存技能正文。
 
-工具 schema 和说明仍由 [服务工具定义](../tools/definitions/) 提供，常驻说明进入 #baseTools，动态说明进入 #tools。memory.write 提供 conversationMemory 与 projectMemory 两个记忆参数，以及完整替换本会话工作汇总的 contextSummary 参数。
+工具 schema 和说明仍由 [服务工具定义](../tools/definitions/) 提供，常驻说明进入 #baseTools，动态说明进入 #tools。memory.write 提供 conversationMemory 与 projectMemory 两个记忆参数。目标、草稿与事实决定分别由 goal、notes 和 conversationMemory 承担，历史压缩摘要使用各模块独立的 Summary 插槽。
 
-修改后运行 `bun run scripts/sync-context-examples.ts`，同步阶段示例中的导航、正文与 7/14 栏目数组。脚本只刷新真正的 schema，保留实际 tool_calls 的参数数据；再次运行结果应相同。然后运行 `bun run check`。
+修改后运行 `bun run scripts/sync-context-examples.ts`，同步阶段示例中的导航、正文与 7/17 栏目数组。脚本只刷新真正的 schema，保留实际 tool_calls 的参数数据；再次运行结果应相同。然后运行 `bun run check`。
 
-历史类数据（用户输入、目标历史、两层记忆、工具记录、观察摘要）按旧到新排列，新增记录追加末尾；最近窗口从尾部选取后仍保持原顺序。contextSummary 中历史事实和已完成进展数组遵守同样约定，由模型在提交整个汇总时维护；runtime 不对任意汇总数组猜测排序。待办和工具队列按执行顺序，选项与排名保留其业务含义。
+历史类数据（用户输入、目标历史、两层记忆、工具记录、观察摘要）按旧到新排列，新增记录追加末尾；最近窗口从尾部选取后仍保持原顺序。待办和工具队列按执行顺序，选项与排名保留其业务含义。
 
-记忆的文件读写、分层加载和窗口投影由 `service/memory/` 提供。Runtime 读取记忆并生成两层文本后传给 context；context 不读取记忆文件、不选择条数、不生成摘要，只将文本注入对应栏目。
+记忆的文件读写、分层加载和窗口投影由 `service/memory/` 提供。Runtime 读取记忆并生成两层记录数组后传给 context；每项保留 id、text 和来源，context 不读取记忆文件、不选择条数、不生成摘要，只将数组注入对应栏目。
 
 总纲中的 `{{currentDate}}` 由 runtime 在每次模型请求组装前按 `America/Los_Angeles` 计算，格式为 YYYY-MM-DD，自动处理夏令时。示例使用固定日期 2026-09-06，以保持可重复生成。
+
+输入、目标版本和页面观察由 Runtime 在创建时生成稳定 ID 并存入本会话 context-records；记忆沿用 memoryId。当前输入和当前页面进入对应历史时共用 ID，渲染时不生成 ID。record.query 可按 userInput、goal、pageObservation、memory 读取对应原记录。四个 Summary 插槽仍是空数组，摘要生成和摘要查询尚未接入。

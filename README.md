@@ -43,7 +43,7 @@ tChrome 运行在 Chrome 侧边栏。它不要求用户预先画好流程，而�
 
 `#currentPage` 表示本轮最新已知页面；`#pageObservedHistory` 按旧到新记录本轮工具返回的页面观察，两者都不是实时页面监控。
 
-历史记录统一使用 `record.query`：`mode=inspect` 查看长度与结构，`mode=search` 按字面搜索定位，`mode=read` 按字符范围精读；`kind=tool/observation` 指定来源。读取按 `hasMore` 和 `nextOffset` 分页继续，不提供无限全文入口。分页结果不再被统一截断，且只读取已存记录，不刷新网页。
+历史记录统一使用 `record.query`：`mode=inspect` 查看长度与结构，`mode=search` 按字面搜索定位，`mode=read` 按字符范围精读；`kind=tool/observation/userInput/goal/pageObservation/memory` 指定来源。输入、目标版本、页面观察和记忆均携带稳定 ID，当前项进入历史或退出窗口后仍可凭 ID 回查本地原文。读取按 `hasMore` 和 `nextOffset` 分页继续，不提供无限全文入口。分页结果不再被统一截断，且只读取已存记录，不刷新网页。
 
 ### 执行记录与记忆
 
@@ -52,7 +52,7 @@ tChrome 运行在 Chrome 侧边栏。它不要求用户预先画好流程，而�
 - `conversationMemory`：本会话值得保留的过程事实、偏好和决定，跨轮保留，删除会话时删除。
 - `projectMemory`：独立于会话的长期记忆，所有会话共享读取，删除来源会话后仍保留。
 
-原 `turnMemory` 已合并至会话记忆，旧数据自动迁移。`contextSummary` 保存本会话的工作概况，通过完整替换更新。
+原 `turnMemory` 已合并至会话记忆，旧数据自动迁移。当前目标由 `goal` 管理，草稿与中间材料由 `notes` 管理，值得保留的事实与决定写入 `conversationMemory`。
 
 上下文达到 200,000 字符阈值时，Runtime 将较早工具记录归档为可回查的 observation，并保留最近两条 toolIO。Memory 能力层每层投影最近 8 条记忆，保持旧到新顺序；超阈值时对 conversation 使用摘要，project 不做摘要压缩。完整记忆及其 ID、已加载工具 ID 保持不变。
 
@@ -211,4 +211,4 @@ Provider 负责模型通信、重试和响应解析。所有接入返回均由 `
 
 目录先按运行端划分，再按职责划分：`service/context/`、`service/tools/`、`service/skills/` 和 `service/memory/` 都是本机服务能力，正文和定义与其实现放在同一模块；`extension/tools/` 仅负责依赖 Chrome API 的宿主执行，由服务注册表发现并经浏览器桥调度。
 
-上下文保留 system / user 分层。两份目录只列编号文件名；system 模块使用 tag、能力和详细描述格式；user 模块另设内容段。system 先输出 `service/context/overview.md` 总纲，串联规则、材料、判断与行动，再输出 System 栏目清单，每项 tag --能力后直接跟详细正文（含 baseTools 工具说明），再输出 User 栏目清单，每项能力后直接跟详细描述；user 保留十四个 tag 的内容段和数据。Skill 正文独立维护于 `service/skills/<name>/SKILL.md`，Runtime 根据 `service/skills/index.json` 每轮加载后注入 `#skill`；context 中只保留模块说明和占位符。
+上下文保留 system / user 分层。两份目录只列编号文件名；system 模块使用 tag、能力和详细描述格式；user 模块另设内容段。system 先输出 `service/context/overview.md` 总纲，串联规则、材料、判断与行动，再输出 System 栏目清单，每项 tag --能力后直接跟详细正文（含 baseTools 工具说明），再输出 User 栏目清单，每项能力后直接跟详细描述；user 保留十七个 tag 的内容段和数据。Skill 正文独立维护于 `service/skills/<name>/SKILL.md`，Runtime 根据 `service/skills/index.json` 每轮加载后注入 `#skill`；context 中只保留模块说明和占位符。

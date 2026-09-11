@@ -4,6 +4,7 @@ import type { BrowserHost, CurrentPage, ToolArguments, ToolIOItem, ToolReturn } 
 import { queryRecord } from "./records.ts";
 import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
 import { LOCAL_TOOL_NAMES, runLocalTool } from "./local-tools.ts";
+import { loadContextRecord, type ContextRecordKind } from "../runtime/records.ts";
 
 export const WINDOW_TEXT_LIMIT = 2000;
 
@@ -33,11 +34,6 @@ const closingText = (value: unknown, content: string): string =>
 export function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
-}
-
-export function asObject(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
 }
 
 export const pageFromBrowser = (result: {
@@ -130,15 +126,15 @@ export async function executeTool(input: ExecuteInput): Promise<ToolExecution> {
   if (name === "memory.write") {
     const entries = (["conversation", "project"] as const).flatMap((layer) =>
       asStringArray(args[`${layer}Memory`]).map((text) => ({ layer, text })));
-    const summary = asObject(args.contextSummary);
     const effects: ToolEffect[] = entries.length ? [{ type: "memory.append", entries }] : [];
-    if (summary) effects.push({ type: "context-summary.set", summary });
     const count = (layer: string) => entries.filter((entry) => entry.layer === layer).length;
     return result(`落下 conversation=${count("conversation")} project=${count("project")}`, effects);
   }
   if (name === "record.query") {
     const id = String(args.id);
-    const full = args.kind === "tool" ? lookup.fullReturn(id) : lookup.observationFull(id);
+    const full = args.kind === "tool" ? lookup.fullReturn(id)
+      : args.kind === "observation" ? lookup.observationFull(id)
+      : input.conversationId ? loadContextRecord(dataDir, input.conversationId, args.kind as ContextRecordKind | "memory", id) : null;
     return result(queryRecord(args, full));
   }
   if ((LOCAL_TOOL_NAMES as readonly string[]).includes(name)) {

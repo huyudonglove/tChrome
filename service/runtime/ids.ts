@@ -1,3 +1,4 @@
+import type { Turn, UserInputRecord } from "../types.ts";
 export function nowIso(): string {
   return new Date().toISOString();
 }
@@ -18,4 +19,9 @@ export function nextId(prefix: string, existing: string[]): string {
     if (Number.isInteger(n) && n > max) max = n;
   }
   return `${prefix}${String(max + 1).padStart(2, "0")}`;
+}
+
+/** A turn owns one immutable input; projection and history share its identity. */
+export function inputRecord(turn: Pick<Turn, "turnId" | "input">): UserInputRecord {
+  return { id: turn.input.id, turnId: turn.turnId, userInput: turn.input.text, submittedAt: turn.input.submittedAt };
 }

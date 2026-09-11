@@ -8,7 +8,7 @@ import type { Turn, TurnOutput } from "./types.ts";
 const makeTurn = (output: TurnOutput | null): Turn => ({
   turnId: "tn_01", conversationId: "cv_01", status: output ? "completed" : "inferring",
   createdAt: "2026-09-07T00:00:00.000Z", completedAt: null,
-  input: { text: "查看当前页面", submittedAt: "2026-09-07T00:00:00.000Z" },
+  input: { id: "input_fixture", text: "查看当前页面", submittedAt: "2026-09-07T00:00:00.000Z" },
   assembled: { baseToolsIds: [], toolIds: [],
      conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, pageObservedHistory: [], currentTab: null },
   output,

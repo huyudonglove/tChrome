@@ -6,5 +6,7 @@
 
 记录按写入顺序由旧到新排列，新记录追加到末尾；取最近8条时保留这个顺序。
 
+以记录数组提供，每项保留 id（本地 memoryId）、text、sourceCallId、createdAt，存在来源会话时还包括 sourceConversationId。窗口投影不会重新分配 ID；需要完整原文时用 record.query（kind=memory，id=该项 id）回查。
+
 内容：
 {{data}}

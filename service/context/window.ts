@@ -1,3 +1,4 @@
+import { inputRecord } from "../runtime/ids.ts";
 import type { Ledger, Turn } from "../types.ts";
 import { interpolate, renderInventory, renderSlots, type ContextModules } from "./modules.ts";
 
@@ -22,16 +23,20 @@ export function userText(input: {
     "#skill": input.skillText,
     "#projectMemory": memories.project,
     "#conversationMemory": memories.conversation,
-    "#contextSummary": ledger.contextSummary ? jsonBody(ledger.contextSummary) : "",
     "#observation": jsonBody(ledger.observation),
     "#notes": jsonBody(ledger.notes),
     "#userInputHistory": jsonBody(ledger.userInputHistory),
-    "#userInput": turn.input.text,
-    "#goal": ledger.goal,
+    "#userInput": jsonBody(inputRecord(turn)),
+    "#goal": jsonBody(ledger.goal),
     "#goalHistory": jsonBody(ledger.goalHistory),
     "#currentPage": turn.assembled.currentPage ? jsonBody(turn.assembled.currentPage) : "",
     "#pageObservedHistory": jsonBody(turn.assembled.pageObservedHistory ?? []),
     "#toolIO": jsonBody(ledger.toolIO),
+    // Compression slots are placeholders until the compression agent is connected.
+    "#userInputHistorySummary": jsonBody([]),
+    "#pageObservedHistorySummary": jsonBody([]),
+    "#conversationMemorySummary": jsonBody([]),
+    "#toolIOSummary": jsonBody([]),
     "#tools": toolUsage,
   });
 }

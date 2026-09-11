@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { saveContextRecord } from "./records.ts";
 import { loadMemories, saveMemory } from "../memory/store.ts";
 import type { Ledger, MemoryRecord, ToolQueueItem, Turn, TurnOutput } from "../types.ts";
 import type { ToolEffect } from "../tools/effects.ts";
@@ -16,9 +18,11 @@ export function applyToolEffects(input: {
   for (const effect of effects) {
     switch (effect.type) {
       case "goal.set":
-        if (effect.goal !== ledger.goal) {
+        if (effect.goal !== ledger.goal?.goal) {
+          const record = { id: `goal_${randomUUID()}`, turnId: turn.turnId, goal: effect.goal, sourceCallId: call.callId, createdAt: nowIso() };
+          saveContextRecord(dataDir, ledger.conversationId, "goal", record);
           if (ledger.goal) ledger.goalHistory.push(ledger.goal);
-          ledger.goal = effect.goal;
+          ledger.goal = record;
         }
         break;
       case "note.write": ledger.notes[effect.key] = effect.value; break;
@@ -38,16 +42,16 @@ export function applyToolEffects(input: {
           });
         }
         break;
-      case "context-summary.set": ledger.contextSummary = effect.summary; break;
       case "tools.enable":
         turn.assembled.toolIds = [...new Set([...turn.assembled.toolIds, ...effect.names])];
         break;
-      case "page.set":
-        turn.assembled.currentPage = { ...effect.page };
-        (turn.assembled.pageObservedHistory ??= []).push({
-          ...effect.page, observedAt: nowIso(), callId: call.callId, toolName: call.name,
-        });
+      case "page.set": {
+        const record = { ...effect.page, id: `page_${randomUUID()}`, turnId: turn.turnId, observedAt: nowIso(), callId: call.callId, toolName: call.name };
+        saveContextRecord(dataDir, ledger.conversationId, "pageObservation", record);
+        turn.assembled.currentPage = record;
+        turn.assembled.pageObservedHistory.push(record);
         break;
+      }
       case "turn.ask":
         turn.status = "waiting_human";
         turn.completedAt = nowIso();

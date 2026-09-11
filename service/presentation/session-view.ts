@@ -131,7 +131,7 @@ export function projectConversationList(rows: { ledger: Ledger; lastTurn: Turn |
     .map(({ ledger, lastTurn }) => {
       let preview = "新会话";
       if (lastTurn) preview = lastTurn.input.text;
-      else if (ledger.userInputHistory.at(-1)) preview = ledger.userInputHistory.at(-1) ?? "新会话";
+      else if (ledger.userInputHistory.at(-1)) preview = ledger.userInputHistory.at(-1)?.userInput ?? "新会话";
       return {
         conversationId: ledger.conversationId,
         createdAt: ledger.createdAt,

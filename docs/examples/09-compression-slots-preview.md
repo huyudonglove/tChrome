@@ -1,68 +1,12 @@
-# 03 解码
+# 压缩插槽组装预览
 
-读 02 的写出。按 `service/context/` 把 ID 展开成**栏目**。JSON 里只留栏目名列表，不写带换行的长字符串，也不塞 tools schema。
+System 使用当前模块文件和实际渲染器生成；User 按当前 17 个模块顺序填入虚构演示数据，不重复放入模块描述。当前日期由 runtime 的太平洋日期函数生成。
 
-怎么看：
+四个摘要插槽目前在实际请求中仍为空数组，独立 LLM 压缩、分层落盘及压缩来源查询尚未接入。下面的摘要字段和 demo_ ID 用来展示设计，不代表已有可查询记录；这里只模拟文本部分，不包含 HTTP 请求的工具 schema 或附图。
 
-- 「读到的」是 02 写出的原样
-- 「system 栏目」每个 `#标题` 单独一段，正文来自 catalog
-- 「user 栏目」每个 `#块` 单独一段，正文在这一页
-- 「写出的」JSON：`systemSlots` / `userSlots` 都是名数组
-- 出网时 Runtime 读取 `service/context/system-slots.md` / `service/context/user-slots.md` 的栏目顺序，加载对应模块并插值拼 `system` / `user`；按 `baseToolsIds` + `toolIds` 取 `service/tools/definitions/<id>.json` 填请求的 `tools[]`
+## System
 
-## 读到的（02 写出的）
-
-```json
-{
-  "stage": "context-engineering-input",
-  "conversationId": "cv_01",
-  "turnId": "tn_01",
-  "userInput": "帮我查这款鼠标官网价",
-  "userInputHistory": [],
-  "submittedAt": "2026-09-05T08:00:01.000Z",
-  "baseToolsIds": [
-    "askUser",
-    "finishTurn",
-    "submitGoal",
-    "record.query",
-    "memory.write",
-    "notes.write",
-    "notes.delete"
-  ],
-  "toolIds": [
-    "page.get_summary",
-    "open_url",
-    "web_search"
-  ],
-  "conversationMemoryIds": [],
-  "projectMemoryIds": [],
-  "mcpIds": [],
-  "currentPage": {
-    "tab": 12,
-    "url": "https://item.jd.com/100012345678.html",
-    "title": "罗技 MX Master 3S 无线鼠标",
-    "description": "用户发话时的标签信息，尚未读取页面内容"
-  },
-  "currentTab": {
-    "tab": 12,
-    "url": "https://item.jd.com/100012345678.html",
-    "title": "罗技 MX Master 3S 无线鼠标"
-  },
-  "pageObservedHistory": []
-}
-```
-
-## catalog 取出
-
-两份编号文件名清单是唯一模块顺序来源；各槽的执行规则或数据占位由 `service/context/system/<name>.md` / `service/context/user/<name>.md` 独立维护。能力导航由模块的 tag、capability 和清单顺序生成。不再加载 Pack，也不携带无实际加载作用的 systemIds / skillIds。
-
-`#skill` 数据由 runtime 根据 `service/skills/index.json` 加载独立 Skill 正文；`service/context/user/skill.md` 仅维护模块说明与占位。常驻工具说明进入 system `#baseTools`，动态工具说明进入 user `#tools`，两者都从 `service/tools/definitions/<id>.json` 的 function.description 生成；index 只做目录分类。API tools[] 仍携带完整 schema。
-
-以下是本样例真实装配结果；system 先输出逐项合并能力与详细正文的 System 清单（baseTools 带工具说明），再输出逐项合并能力与详细描述的 User 清单。user 栏目只保留 tag 和内容段，不重复能力或详细描述，空数据不额外添加说明。输入开始时 currentPage=null，currentTab 是发话时标签快照。
-
-## system 栏目
-
-```
+```text
 # 总纲
 
 你围绕用户当前请求持续推进任务。System 提供行为规则、执行原则和模块说明；User 按模块提供当前请求、目标、工作状态、记忆和执行证据。两者共同支撑本次判断：用 System 的规则理解和使用 User 的材料，再通过工具行动获取新的反馈。
@@ -70,7 +14,7 @@
 每次决策，以当前请求为起点，结合相关模块理解目标和现状，判断还缺什么，再选择能推进任务的行动。根据执行结果修正判断，持续推进，直到完成并验证结果，或需要用户参与；按工具协议回复或询问。
 
 各模块共同描述同一项工作，应结合理解，不逐栏机械执行。只取当前决策需要的信息；历史记录用于参考，当前状态需要证据，模块为空不代表必须先补齐。需要保留的新事实和工作状态按对应模块的用途更新，不必每次行动都写入所有模块。
-当前日期（太平洋时间，America/Los_Angeles）：2026-09-06。
+当前日期（太平洋时间，America/Los_Angeles）：2026-09-10。
 
 # System 栏目清单
 
@@ -220,9 +164,9 @@ affectsPage=false。
 本轮已加载动态工具的用法，实际可调用能力与参数以本次 tools[] 为准。动态目录包含浏览器操作、服务端网络请求和 local.* 本机能力（文件、命令与进程）；缺少能力时先用 list_browser_tools 查找，再用 catalog.add 装载；下一次出网拿到 schema 和用法后再调用，不在装载同批调用新工具。历史出现过的工具不保证当前已加载。本地工具操作的是运行服务的电脑，使用绝对路径，权限以服务进程的操作系统权限为准；进程标识仅在所属会话和本次服务运行中有效。
 ```
 
-## user 栏目
+## User
 
-```
+```text
 #skill
 
 ## 网页观察与操作
@@ -236,68 +180,194 @@ affectsPage=false。
 #userInput
 
 {
-  "id": "input_tn_01",
-  "turnId": "tn_01",
-  "userInput": "帮我查这款鼠标官网价",
-  "submittedAt": "2026-09-05T08:00:01.000Z"
+  "id": "input_demo_turn_06",
+  "turnId": "demo_turn_06",
+  "userInput": "再核对一下任务 42 的负责人和状态，然后告诉我结果。",
+  "submittedAt": "2026-09-11T08:09:00.000Z"
 }
 
 #userInputHistorySummary
 
-[]
+[
+  {
+    "id": "demo_input_s1",
+    "level": 1,
+    "summary": "用户最初要求检查任务列表，后来明确只处理任务 42，负责人改为李明；其他任务不动。",
+    "sourceIds": [
+      "demo_input_01",
+      "demo_input_02"
+    ]
+  }
+]
 
 #userInputHistory
 
-[]
+[
+  {
+    "id": "input_demo_turn_03",
+    "turnId": "demo_turn_03",
+    "userInput": "只修改负责人，状态先不要动。",
+    "submittedAt": "2026-09-11T08:00:00.000Z"
+  },
+  {
+    "id": "input_demo_turn_04",
+    "turnId": "demo_turn_04",
+    "userInput": "可以，保存吧。",
+    "submittedAt": "2026-09-11T08:01:00.000Z"
+  },
+  {
+    "id": "input_demo_turn_05",
+    "turnId": "demo_turn_05",
+    "userInput": "保存之后再确认一次。",
+    "submittedAt": "2026-09-11T08:02:00.000Z"
+  }
+]
 
 #goal
 
-null
+{
+  "id": "demo_goal_02",
+  "turnId": "demo_turn_06",
+  "goal": "核对任务 42 保存后的负责人和状态；以重新读取的详情为依据，向用户报告核对结果。",
+  "sourceCallId": "demo_call_20",
+  "createdAt": "2026-09-11T08:09:30.000Z"
+}
 
 #goalHistory
 
-[]
+[
+  {
+    "id": "demo_goal_01",
+    "turnId": "demo_turn_04",
+    "goal": "将任务 42 的负责人改为李明，保持原状态并保存。",
+    "sourceCallId": "demo_call_10",
+    "createdAt": "2026-09-11T08:05:00.000Z"
+  }
+]
 
 #currentPage
 
 {
-  "tab": 12,
-  "url": "https://item.jd.com/100012345678.html",
-  "title": "罗技 MX Master 3S 无线鼠标",
-  "description": "用户发话时的标签信息，尚未读取页面内容"
+  "id": "demo_page_03",
+  "turnId": "demo_turn_06",
+  "tab": 7,
+  "url": "https://example.com/tasks/42",
+  "title": "任务 42",
+  "description": "详情页显示负责人李明，状态待处理。"
 }
 
 #pageObservedHistorySummary
 
-[]
+[
+  {
+    "id": "demo_page_s1",
+    "level": 1,
+    "summary": "本轮较早观察到任务 42 的编辑页，负责人字段为李明，状态为待处理；随后观察到保存成功提示。此摘要不能代替当前详情核对。",
+    "sourceIds": [
+      "demo_page_01",
+      "demo_page_02"
+    ]
+  }
+]
 
 #pageObservedHistory
 
-[]
+[
+  {
+    "id": "demo_page_03",
+    "turnId": "demo_turn_06",
+    "tab": 7,
+    "url": "https://example.com/tasks/42",
+    "title": "任务 42",
+    "description": "详情页显示负责人李明，状态待处理。",
+    "observedAt": "2026-09-11T08:10:00.000Z",
+    "callId": "demo_call_21",
+    "toolName": "page.get_summary"
+  }
+]
 
 #projectMemory
 
-[]
+[
+  {
+    "id": "demo_lm_01",
+    "text": "用户偏好：完成修改后，重新读取详情再报告结果。",
+    "sourceCallId": "demo_call_05",
+    "createdAt": "2026-09-11T08:00:00.000Z"
+  }
+]
 
 #conversationMemorySummary
 
-[]
+[
+  {
+    "id": "demo_memory_s1",
+    "level": 1,
+    "summary": "本会话确认任务 42 是唯一处理对象；用户明确要求保持状态不变。",
+    "sourceIds": [
+      "demo_memory_01",
+      "demo_memory_02"
+    ]
+  }
+]
 
 #conversationMemory
 
-[]
+[
+  {
+    "id": "demo_memory_03",
+    "text": "保存前任务 42 的状态已确认为待处理。",
+    "sourceCallId": "demo_call_11",
+    "createdAt": "2026-09-11T08:05:30.000Z"
+  }
+]
 
 #notes
 
-{}
+{
+  "replyDraft": "详情核对已取得结果，准备报告负责人和状态。"
+}
 
 #toolIOSummary
 
-[]
+[
+  {
+    "id": "demo_tool_s2_01",
+    "level": 2,
+    "summary": "较早执行已定位任务 42 并读取原详情，确认原状态为待处理；编辑负责人为李明后保存，收到成功提示。保存提示本身不等于详情核对完成。",
+    "sourceIds": [
+      "demo_tool_s1_01",
+      "demo_tool_s1_02"
+    ]
+  },
+  {
+    "id": "demo_tool_s1_03",
+    "level": 1,
+    "summary": "之后一次详情读取超时，没有取得新页面证据；需重新读取确认。",
+    "sourceIds": [
+      "demo_call_19"
+    ]
+  }
+]
 
 #toolIO
 
-[]
+[
+  {
+    "callId": "demo_call_21",
+    "name": "page.get_summary",
+    "turnId": "demo_turn_06",
+    "arguments": {
+      "reason": "读取保存后的详情，核对负责人和状态",
+      "affectsPage": false
+    },
+    "return": {
+      "stage": "complete",
+      "totalChars": 179,
+      "text": "{\n  \"ok\": true,\n  \"id\": \"demo_page_03\",\n  \"turnId\": \"demo_turn_06\",\n  \"tab\": 7,\n  \"url\": \"https://example.com/tasks/42\",\n  \"title\": \"任务 42\",\n  \"description\": \"详情页显示负责人李明，状态待处理。\"\n}"
+    }
+  }
+]
 
 #observation
 
@@ -309,88 +379,12 @@ page.get_summary：读当前页摘要：标题、地址、区域数、可交互�
 参数：可选 tab（目标标签编号）。
 返回：ok（是否成功）、title（页面标题）、url（页面地址）、regionCount、interactiveCount、headings、landmarkNames。
 affectsPage=false。
-open_url：打开指定网址并读回标题正文。
-参数：url（网址），可选 tab（目标标签编号）。
-返回：ok（是否成功）、title（页面标题）、url（页面地址）、text（返回文本）、tab。
-affectsPage=true。
-web_search：搜索公开网页。
-参数：query（搜索词）。
-返回：ok（是否成功）、urls（结果网址列表）。
-affectsPage=false。
 ```
 
-## 字段
+## 这份模拟的读法
 
-见 `docs/schema.md`「阶段快照」`context-engineering-decode` 和「窗口栏目」。
-
-## 写出的（累积快照）
-
-```json
-{
-  "stage": "context-engineering-decode",
-  "conversationId": "cv_01",
-  "turnId": "tn_01",
-  "userInput": "帮我查这款鼠标官网价",
-  "userInputHistory": [],
-  "submittedAt": "2026-09-05T08:00:01.000Z",
-  "baseToolsIds": [
-    "askUser",
-    "finishTurn",
-    "submitGoal",
-    "record.query",
-    "memory.write",
-    "notes.write",
-    "notes.delete"
-  ],
-  "toolIds": [
-    "page.get_summary",
-    "open_url",
-    "web_search"
-  ],
-  "conversationMemoryIds": [],
-  "projectMemoryIds": [],
-  "mcpIds": [],
-  "currentPage": {
-    "tab": 12,
-    "url": "https://item.jd.com/100012345678.html",
-    "title": "罗技 MX Master 3S 无线鼠标",
-    "description": "用户发话时的标签信息，尚未读取页面内容"
-  },
-  "systemSlots": [
-    "#identity",
-    "#environment",
-    "#execution",
-    "#toolProtocol",
-    "#boundaries",
-    "#output",
-    "#baseTools"
-  ],
-  "userSlots": [
-    "#skill",
-    "#userInput",
-    "#userInputHistorySummary",
-    "#userInputHistory",
-    "#goal",
-    "#goalHistory",
-    "#currentPage",
-    "#pageObservedHistorySummary",
-    "#pageObservedHistory",
-    "#projectMemory",
-    "#conversationMemorySummary",
-    "#conversationMemory",
-    "#notes",
-    "#toolIOSummary",
-    "#toolIO",
-    "#observation",
-    "#tools"
-  ],
-  "currentTab": {
-    "tab": 12,
-    "url": "https://item.jd.com/100012345678.html",
-    "title": "罗技 MX Master 3S 无线鼠标"
-  },
-  "pageObservedHistory": []
-}
-```
-
-下一份：LLM 吃按栏目拼好的窗口。
+- 模块能力和详细描述集中在 System，User 只放本次数据。
+- 每种摘要紧挨对应原文；当前输入、当前目标和当前页面独立保留。
+- toolIOSummary 同时展示较早的二级摘要和较新的一级摘要。二级覆盖的两个一级摘要不再进入窗口；较新一级摘要与最近原始调用分别覆盖不同记录。数组仍由旧到新。
+- sourceIds 展示下层来源关系；历史输入现为带稳定 ID 的对象数组，当前输入进入历史时沿用同一 ID。实际原始记录支持通过 record.query 的 userInput、goal、pageObservation、memory 类型回查；本文件的 demo_ 数据为虚构，不会写入运行数据目录。
+- observation 是现有旧归档模块，本例为空；它与新压缩流程的最终整合尚未实现。

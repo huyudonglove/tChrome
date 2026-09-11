@@ -66,7 +66,7 @@ export function emptyLedger(conversationId: string): Ledger {
     pendingAsk: null,
     turnIds: [],
     userInputHistory: [],
-    goal: "",
+    goal: null,
     goalHistory: [],
     toolQueue: [],
     liveTool: null,
@@ -76,13 +76,12 @@ export function emptyLedger(conversationId: string): Ledger {
     windowChars: 0,
     compressAt: 200000,
     memoryIds: { conversation: [], project: [] },
-    contextSummary: null,
   };
 }
 
 export function loadLedger(dataDir: string, cvId: string): Ledger {
   const ledger = readJson(paths(dataDir, cvId).ledger, emptyLedger(cvId));
-  ledger.goal ??= "";
+  ledger.goal ??= null;
   ledger.goalHistory ??= [];
   ledger.notes ??= {};
   const memoryIds = migrateConversationMemory(dataDir, cvId, ledger.memoryIds);
