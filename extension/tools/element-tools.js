@@ -1,5 +1,9 @@
 // Runs in Chrome's isolated world; keep this function self-contained.
 export function elementTool(action, input = {}) {
+  if (action === 'click' && input.targetText !== undefined
+    && (typeof input.targetText !== 'string' || !input.targetText.trim())) {
+    return {ok: false, faultCode: 'invalid_arguments', error: 'targetText 必须是用于定位点击控件的非空字符串'};
+  }
   const selector = 'a,button,input:not([type=hidden]),textarea,select,[role="button"],[contenteditable="true"]';
   const visible = (node) => {
     const rect = node.getBoundingClientRect();
@@ -43,8 +47,8 @@ export function elementTool(action, input = {}) {
     hit = state.refs.get(input.ref);
     if (!hit || !hit.isConnected || !nodes.includes(hit)) return {ok: false, faultCode: 'stale_ref', error: 'ref 已失效或元素不可见，请重新查找；不会按文字回退点击'};
   } else {
-    const query = (action === 'type' ? input.target : input.text)?.trim();
-    if (!query) return {ok: false, error: action === 'type' ? '需要 ref 或非空 target' : '需要 ref 或非空 text'};
+    const query = (action === 'type' ? input.target : action === 'click' ? input.targetText : input.text)?.trim();
+    if (!query) return {ok: false, error: action === 'type' ? '需要 ref 或非空 target' : action === 'click' ? '需要 snapshot_page/find_on_page 返回的 ref，或非空 targetText' : '需要 ref 或非空 text'};
     const hits = nodes.filter(node => textOf(node).toLocaleLowerCase().includes(query.toLocaleLowerCase()));
     if (hits.length !== 1) return {ok: false, faultCode: hits.length ? 'ambiguous_target' : 'target_not_found', error: hits.length ? '多个控件匹配，请用 find_on_page 获取 ref 后指定操作' : '没有匹配控件'};
     hit = hits[0];

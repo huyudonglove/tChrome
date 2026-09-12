@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "page.click",
-    "description": "点击指定元素。\n参数：id（页面工具返回的 e 开头元素标识），可选 tab（目标标签编号）。\n返回：ok、clicked（点击结果）。",
+    "description": "按 page.* 页面观察返回的元素 id 点击控件。\n先从 page.list_interactive_elements 等 page.* 工具取得真实 e... 编号，再传入 id；不接受 el-... 引用或目标文字，按文字/快照引用点击请用 click。\n可选 tab 指定标签，reason 仅用于展示行动说明。返回：ok、clicked、id。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "可选的行动说明，不用于定位控件。"
         },
         "affectsPage": {
           "type": "boolean"
@@ -16,11 +17,11 @@
           "type": "number"
         },
         "id": {
-          "type": "string"
+          "type": "string",
+          "description": "page.* 返回的 e... 元素编号，原样传入。"
         }
       },
       "required": [
-        "reason",
         "affectsPage",
         "id"
       ]

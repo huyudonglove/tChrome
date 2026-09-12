@@ -12,11 +12,11 @@ test("target alternatives stay separate from mandatory arguments", () => {
   const result = check("click", { reason: "操作" });
   expect(result.missing).toEqual(["affectsPage"]);
   expect(result.detail).toContain("at least one alternative");
-  expect(result.detail).toContain('[{"required":["ref"]},{"required":["text"]}]');
-  expect(result.detail).not.toContain("missing required: ref, text");
-  const wrongText = check("click", { reason: "操作", text: true });
+  expect(result.detail).toContain('[{"required":["ref"]},{"required":["targetText"]}]');
+  expect(result.detail).not.toContain("missing required: ref, targetText");
+  const wrongText = check("click", { reason: "操作", targetText: true });
   expect(wrongText.missing).toEqual(["affectsPage"]);
-  expect(wrongText.detail).toContain("data/text must be string");
+  expect(wrongText.detail).toContain("data/targetText must be string");
 });
 
 test("exclusive and conditional capture targets report the actual rule", () => {

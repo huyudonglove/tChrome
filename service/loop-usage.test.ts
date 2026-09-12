@@ -104,10 +104,10 @@ test("finishTurn missing required text is rejected before execution three times"
 });
 
 test("mixed missing and type errors reach model feedback and final output", async () => {
-  const invalidClick = () => result({ toolCalls: [{ id: "bad_click", name: "click", arguments: { reason: "点击文字", text: true } }] });
+  const invalidClick = () => result({ toolCalls: [{ id: "bad_click", name: "click", arguments: { reason: "点击文字", targetText: true } }] });
   await run([result({ toolCalls: [call("enable", "catalog.add", { names: ["click"] })] }), invalidClick(), invalidClick(), invalidClick()], ({ reply, ledger, browserCalls }) => {
     if (reply.output.kind === "error") {
-      expect(reply.output.detail).toContain("data/text must be string");
+      expect(reply.output.detail).toContain("data/targetText must be string");
       expect(reply.output.detail).toContain("affectsPage");
     }
     expect(reply.output).toMatchObject({ kind: "error", faultCode: "missing_required", toolName: "click" });
@@ -116,7 +116,7 @@ test("mixed missing and type errors reach model feedback and final output", asyn
     for (const row of feedback) {
       const failure = JSON.parse(row.return.text);
       expect(failure.missing).toContain("affectsPage");
-      expect(failure.details.reason).toContain("data/text must be string");
+      expect(failure.details.reason).toContain("data/targetText must be string");
     }
     expect(browserCalls).toEqual([]);
   });

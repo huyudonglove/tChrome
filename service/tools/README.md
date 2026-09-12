@@ -45,3 +45,5 @@ HTTP 传输由 `service/network/idle-fetch.ts` 统一检查响应活动，`http-
 查询保留底层错误码；压缩失败在回合输出中使用 compression_failed，并通过可选 causeCode 保留底层原因。侧栏分别显示请求超时、主动取消、连接失败、HTTP 错误和响应格式错误。
 
 参数校验反馈包含参数 schema 和完整诊断；anyOf/oneOf 的候选分支保持替代关系，missing 仅列共同或已适用条件的必填字段。每个失败调用按 callId 独立记录，同名调用不会互相覆盖。模型自行修正调用参数并继续，历史参数保留 affectsPage；连续无效调用仍有停止上限，避免无限请求，达到上限只报告未完成状态，不要求用户补填工具参数。
+
+点击工具：`click(targetText|ref)` 按控件文字或 snapshot_page/find_on_page 引用定位；`page.click(id)` 使用 page.* 的元素编号。两者保留独立引用体系，reason 是可选展示信息，不自动填充。click 不接受旧 text 字段，也不将非字符串强转为目标文字。

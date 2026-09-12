@@ -14,8 +14,7 @@ export type SchemaCheck = {
 
 const allowed = (base: string[], extra: string[]) => new Set([...base, ...extra]);
 
-// Normalize only unambiguous scalar strings at explicitly typed schema paths.
-// Do not coerce text, null, arrays, or guess which schema branch the model meant.
+// Convert scalar encodings according to the declared schema type.
 function normalizeArguments(value: unknown, schema: unknown): unknown {
   if (!schema || typeof schema !== "object") return value;
   const spec = schema as { type?: string; properties?: Record<string, unknown>; items?: unknown };

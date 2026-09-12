@@ -7,7 +7,7 @@ import type { ToolCall } from "../types.ts";
 
 const repoRoot = join(import.meta.dir, "../..");
 
-test("每个工具有 schema 和必填 reason，affectsPage 按工具约定校验", () => {
+test("每个工具有 schema 和 reason，affectsPage 按工具约定校验", () => {
   const registry = loadToolRegistry(repoRoot);
   const listed = [...registry.index.browser, ...registry.index.service, ...registry.toolGroups.baseToolsIds];
   const unique = [...new Set(listed)];
@@ -22,7 +22,7 @@ test("每个工具有 schema 和必填 reason，affectsPage 按工具约定校�
     };
     expect(params.properties?.reason, `${name} reason`).toBeTruthy();
     expect(params.properties?.affectsPage, `${name} affectsPage`).toBeTruthy();
-    expect(params.required ?? [], `${name} required`).toContain("reason");
+    if (!["click", "page.click"].includes(name)) expect(params.required ?? [], `${name} required`).toContain("reason");
     if (name === "catalog.add") expect(params.required ?? []).not.toContain("affectsPage");
     else expect(params.required ?? [], `${name} required`).toContain("affectsPage");
     expect(tool.function.name).toBe(name);
