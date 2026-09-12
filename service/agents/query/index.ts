@@ -1,3 +1,4 @@
+import { runtimeConfig } from "../../config/runtime.ts";
 import { errorInfo } from "../../../shared/errors.ts";
 import { createHash } from "node:crypto";
 import type { Provider } from "../../types.ts";
@@ -8,34 +9,13 @@ export type { QueryRequest, QueryResult, QueryModule } from "./types.ts";
 
 type QueryInput = QueryRequest & { dataDir: string; conversationId: string; repoRoot: string; provider: Provider; isCancelled?: () => boolean };
 type RecordValue = Record<string, unknown>;
-const BATCH_CHARS = 24000, RETURN_CHARS = 2000, MAX_BATCHES = 100;
+const RETURN_CHARS = runtimeConfig.query.returnChars;
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 function identity(record: RecordValue): RecordValue {
   return Object.fromEntries(Object.entries(record).filter(([key]) => ["id", "turnId", "callId", "memoryId", "queryId", "sumId", "batchId", "sourceCallId"].includes(key)));
 }
 function fragment(record: RecordValue, text: string, offset: number, length: number): RecordValue {
   return { ...identity(record), fragment: { offset, totalChars: text.length, text: text.slice(offset, offset + length) } };
-}
-function batches(records: RecordValue[]): QueryCandidate[][] {
-  const chunks: QueryCandidate[][] = []; let chunk: QueryCandidate[] = [];
-  const append = (record: RecordValue) => {
-    const item = { turnId: record.turnId as string, records: [record] };
-    if (JSON.stringify([item]).length > BATCH_CHARS) throw new Error("候选记录身份字段过长。");
-    const previous = chunk.find(candidate => candidate.turnId === item.turnId);
-    const merged = previous
-      ? chunk.map(candidate => candidate === previous ? { ...candidate, records: [...candidate.records, record] } : candidate)
-      : [...chunk, item];
-    if (JSON.stringify(merged).length > BATCH_CHARS) { chunks.push(chunk); chunk = [item]; }
-    else chunk = merged;
-  };
-  for (const record of records) {
-    const raw = JSON.stringify(record);
-    if (JSON.stringify([{turnId:record.turnId,records:[record]}]).length <= BATCH_CHARS) append(record);
-    else for (let offset = 0; offset < raw.length; offset += 4000) append(fragment(record, raw, offset, 4000));
-  }
-  if (chunk.length) chunks.push(chunk);
-  if (chunks.length > MAX_BATCHES) throw new Error("候选内容超过单次查询批次上限，请缩小摘要或模块范围；未执行不完整检索。");
-  return chunks;
 }
 /** Only traverse the requested summary's immutable source graph; retrieval never writes archive state. */
 export async function queryContext(input: QueryInput): Promise<QueryResult> {
@@ -86,15 +66,17 @@ export async function queryContext(input: QueryInput): Promise<QueryResult> {
         || !Number.isSafeInteger(value.position) || value.position < 0 || !Number.isSafeInteger(value.offset) || value.offset < 0) throw new Error("续查游标无效或不属于本次查询。");
       selected = [...new Set<string>(value.turnIds)]; position = value.position; offset = value.offset;
     } else {
-      const matched = new Set<string>();
-      for (const candidates of batches(records)) {
-        if (input.isCancelled?.()) return cancelled();
-        const turnIds = await requestMatches({ provider:input.provider,repoRoot:input.repoRoot,
-          request:{sumId:input.sumId,module:input.module,intent:input.intent},candidates });
-        if (input.isCancelled?.()) return cancelled();
-        turnIds.forEach(id => matched.add(id));
+      const byTurn = new Map<string, QueryCandidate>();
+      for (const record of records) {
+        const turnId = record.turnId as string;
+        const candidate = byTurn.get(turnId);
+        if (candidate) candidate.records.push(record);
+        else byTurn.set(turnId, { turnId, records: [record] });
       }
-      selected = [...matched];
+      if (input.isCancelled?.()) return cancelled();
+      selected = records.length ? await requestMatches({ provider: input.provider, repoRoot: input.repoRoot,
+        request: { sumId: input.sumId, module: input.module, intent: input.intent }, candidates: [...byTurn.values()] }) : [];
+      if (input.isCancelled?.()) return cancelled();
     }
     if (!selected.length) return { ...base, ok: true, status:"not_found",detail:"指定摘要来源中没有匹配的模块记录。" };
     const matches = records.filter(record => selected.includes(record.turnId as string));

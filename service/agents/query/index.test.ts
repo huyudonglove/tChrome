@@ -32,7 +32,7 @@ test("query limits candidates to requested summary and module, retains native id
 });
 test("oversized record pages exact JSON without repeated model calls, cursor cannot cross request",async()=>{
   const input=fixture('带有"转义\\字符'.repeat(1500)); let calls=0;
-  const p=provider(["tn_01"],()=>calls++); let result=await queryContext({...input,provider:p}); const initialCalls=calls; let raw="";
+  const p=provider(["tn_01"],()=>calls++); let result=await queryContext({...input,provider:p}); const initialCalls=calls; expect(initialCalls).toBe(1); let raw="";
   while(true){
     expect(JSON.stringify(result.records).length).toBeLessThanOrEqual(2000);
     const part=result.records[0]!.fragment as {offset:number;text:string};expect(part.offset).toBe(raw.length);raw+=part.text;
@@ -43,10 +43,17 @@ test("oversized record pages exact JSON without repeated model calls, cursor can
   expect(result.status).toBe("complete");expect(calls).toBeGreaterThan(0);
   expect(JSON.parse(raw).return.text).toBe('带有"转义\\字符'.repeat(1500));expect(calls).toBe(initialCalls);
 });
-test("all candidate batches must succeed; cancellation and unmatched result do not return evidence",async()=>{
+test("complete candidates use one request; failure, cancellation and unmatched result do not return evidence",async()=>{
   const input=fixture("x".repeat(50000));let calls=0;
-  const p=provider(["tn_01"],request=>{const turns=JSON.parse(request.messages[1]!.content).turns;expect(JSON.stringify(turns).length).toBeLessThanOrEqual(24000);expect(turns).toHaveLength(1);expect(turns[0].records.length).toBeGreaterThan(1);if(++calls===2)throw new Error("offline");});
-  expect(await queryContext({...input,provider:p})).toMatchObject({status:"error",records:[]});expect(calls).toBe(2);
+  const p=provider(["tn_01"],request=>{
+    const turns=JSON.parse(request.messages[1]!.content).turns;
+    expect(turns).toHaveLength(1);
+    expect(turns[0].records).toHaveLength(1);
+    expect(turns[0].records[0].return.text).toBe("x".repeat(50000));
+    calls++;
+    throw new Error("offline");
+  });
+  expect(await queryContext({...input,provider:p})).toMatchObject({status:"error",records:[]});expect(calls).toBe(1);
   expect(await queryContext({...input,provider:provider([])})).toMatchObject({status:"not_found",records:[]});
   let stop=false;
   expect(await queryContext({...input,provider:provider(["tn_01"],()=>{stop=true;}),isCancelled:()=>stop})).toMatchObject({status:"cancelled",records:[]});
@@ -64,9 +71,10 @@ test("query result retains provider fault codes without partial evidence", async
   const valid = provider();
   const result = await queryContext({ ...input, provider: { async complete(request) {
     const response = await valid.complete(request);
-    return ++calls === 2 ? { ...response, finish: "error", faultCode: "provider_key_invalid", toolCalls: [] } : response;
+    calls++;
+    return { ...response, finish: "error", faultCode: "provider_key_invalid", toolCalls: [] };
   } } });
-  expect(calls).toBe(2);
+  expect(calls).toBe(1);
   expect(result).toMatchObject({ ok: false, status: "error", faultCode: "provider_key_invalid", records: [] });
   expect(await queryContext({ ...input, provider: valid, isCancelled: () => true }))
     .toMatchObject({ faultCode: "stopped", status: "cancelled", records: [] });

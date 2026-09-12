@@ -19,20 +19,6 @@ test("bridge exposes FIFO requests and rejects results for queued or completed r
   } finally { bridge.abort(); }
 });
 
-test("queued requests receive their full timeout only after activation", async () => {
-  const bridge = createToolBridge(100);
-  try {
-    const first = bridge.execute("first", {});
-    const second = bridge.execute("second", {});
-    expect(await first).toEqual({ ok: false, faultCode: "tool_timeout", error: "浏览器工具超时" });
-    expect(bridge.current()!.name).toBe("second");
-    await Bun.sleep(25);
-    expect(bridge.current()!.name).toBe("second");
-    bridge.resolve(bridge.current()!.id, { ok: true });
-    expect(await second).toEqual({ ok: true });
-  } finally { bridge.abort(); }
-});
-
 test("scoped abort removes only its conversation and promotes the next request", async () => {
   const bridge = createToolBridge();
   const a = bridge.forScope!("cv_a");

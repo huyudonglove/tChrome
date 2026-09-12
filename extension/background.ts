@@ -10,6 +10,9 @@ const SERVICE = "http://127.0.0.1:18788";
 const PUMP_ALARM = "tchrome-tool-pump";
 let pumping = false;
 let active = false;
+// Persist the claim before execution so worker restarts never replay an action.
+const EXECUTION_RECORD = "tchrome-tool-execution";
+let completed: { id: string; result: Record<string, unknown> } | undefined;
 
 const pumpTools = async () => {
   if (pumping) return;
@@ -29,17 +32,32 @@ const pumpTools = async () => {
         return;
       }
       active = true;
-      let result: Record<string, unknown>;
-      try {
-        result = await runBrowserTool(body.request.name, body.request.input ?? {});
-      } catch (error) {
-        result = { ok: false, error: error instanceof Error ? error.message : String(error) };
+      if (completed?.id !== body.request.id) {
+        const stored = (await chrome.storage.session.get(EXECUTION_RECORD))[EXECUTION_RECORD] as
+          { id: string; result?: Record<string, unknown> } | undefined;
+        if (stored?.id === body.request.id) {
+          completed = { id: stored.id, result: stored.result ?? {
+            ok: false, faultCode: "tool_execution_failed",
+            error: "扩展执行期间重启，操作结果未知；未重复执行。请检查页面实际状态后再决定下一步。",
+          } };
+        } else {
+          await chrome.storage.session.set({ [EXECUTION_RECORD]: { id: body.request.id } });
+          let result: Record<string, unknown>;
+          try {
+            result = await runBrowserTool(body.request.name, body.request.input ?? {});
+          } catch (error) {
+            result = { ok: false, error: error instanceof Error ? error.message : String(error) };
+          }
+          completed = { id: body.request.id, result };
+          await chrome.storage.session.set({ [EXECUTION_RECORD]: completed });
+        }
       }
-      await fetch(`${SERVICE}/tool-result?executorVersion=${executorVersion}`, {
+      const reported = await fetch(`${SERVICE}/tool-result?executorVersion=${executorVersion}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id: body.request.id, result }),
+        body: JSON.stringify(completed),
       });
+      if (!reported.ok) return;
     }
   } finally {
     pumping = false;

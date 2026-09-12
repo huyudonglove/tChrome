@@ -1,7 +1,7 @@
 import { expect, spyOn, test } from "bun:test";
 import { runServiceTool } from "./service-tools.ts";
 
-test("search parses results beyond the HTTP preview limit and skips malformed links", async () => {
+test("search parses full responses and skips malformed links", async () => {
   const link = (value: string) => `<a href="/?uddg=${value}&rut=x">result</a>`;
   const html = "x".repeat(9000) + link("%ZZ") + link(encodeURIComponent("https://example.com/first"))
     + link(encodeURIComponent("https://example.com/first")) + link(encodeURIComponent("https://example.com/second"));
@@ -11,7 +11,7 @@ test("search parses results beyond the HTTP preview limit and skips malformed li
       ok: true, query: "demo", urls: ["https://example.com/first", "https://example.com/second"],
     });
     const ordinary = await runServiceTool("/tmp", "send_http", { url: "https://example.com" });
-    expect((ordinary as { text: string }).text.length).toBe(8000);
+    expect((ordinary as { text: string }).text).toBe(html);
   } finally { mock.mockRestore(); }
 });
 

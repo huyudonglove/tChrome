@@ -27,7 +27,7 @@ export const initDialogEvents = () => {
     attached.delete(tab); enabled.delete(tab); states.delete(tab); watchers.delete(tab);
   });
 };
-export const withDebugger = async (tabId, run, {retryDetached = true} = {}) => {
+export const withDebugger = async (tabId, run) => {
   initDialogEvents();
   const attach = async () => {
     if (!attached.has(tabId)) {
@@ -40,7 +40,6 @@ export const withDebugger = async (tabId, run, {retryDetached = true} = {}) => {
   catch (error) {
     if (/not attached|Detached|Debugger is not attached/i.test(String(error))) {
       attached.delete(tabId); enabled.delete(tabId); states.delete(tabId);
-      if (retryDetached) { await attach(); return run(); }
     }
     throw error;
   }
@@ -67,7 +66,7 @@ export const handleDialog = async (tab, input) => {
     const previous = dialogState(tab);
     await withDebugger(tab, () => chrome.debugger.sendCommand({tabId: tab}, 'Page.handleJavaScriptDialog', {
       accept: input.action === 'accept', ...(input.promptText !== undefined ? {promptText: input.promptText} : {}),
-    }), {retryDetached: false});
+    }));
     if (dialogState(tab) === previous || dialogState(tab).status === 'unknown') states.set(tab, {status: 'closed', observedAt: new Date().toISOString()});
     // A closing event may already have been followed by a new opening event.
     return {ok: true, tab, action: input.action, dialog: dialogState(tab)};

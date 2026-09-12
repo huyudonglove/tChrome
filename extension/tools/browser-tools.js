@@ -221,25 +221,14 @@ const afterPageAction = async (tabId) => {
   await waitNetworkIdle(tab.id);
 };
 
-// 页面 JS 卡死时 executeScript 会无限挂起，服务端 30s 就判工具超时。
-// 统一 8s 超时：宁可快速失败让模型换路，不挂到服务端上限。
-const withTimeout = async (promise, ms = 8000, what = '页内执行') => {
-  let timer;
-  try {
-    return await Promise.race([promise, new Promise((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`${what}超时（页面可能卡死）`)), ms);
-    })]);
-  } finally { clearTimeout(timer); }
-};
-
 const viewportOf = async (tabId) => {
   const tab = await getTab(tabId);
   if (!tab?.id || !tab.url || isBlocked(tab.url)) return null;
   try {
-    const [{result}] = await withTimeout(chrome.scripting.executeScript({
+    const [{result}] = await chrome.scripting.executeScript({
       target: {tabId: tab.id},
       func: () => [window.innerWidth, window.innerHeight],
-    }), 4000, '读视口');
+    });
     return Array.isArray(result) && result.length === 2 ? result : null;
   } catch {
     return null;
@@ -261,14 +250,14 @@ const inspectTab = async (tabId) => {
   }
   if (!tab.url || isBlocked(tab.url)) return {ok: false, error: `当前页不可读取（${tab.url || '无 URL'}），换普通网页标签`};
   try {
-    const [{result}] = await withTimeout(chrome.scripting.executeScript({
+    const [{result}] = await chrome.scripting.executeScript({
       target: {tabId: tab.id},
       func: () => ({
         title: document.title,
         url: location.href,
         text: document.body?.innerText?.slice(0, 4000) || '',
       }),
-    }));
+    });
     return {ok: true, tab: tab.id, ...result};
   } catch (error) {
     return {ok: false, tab: tab.id, url: tab.url, title: tab.title, error: error instanceof Error ? error.message : String(error)};
@@ -280,7 +269,7 @@ const runPageTool = async (name, input = {}) => {
   const tab = await inspectTab(tabId);
   if (!tab.ok) return tab;
   try {
-    const [{result}] = await withTimeout(chrome.scripting.executeScript({
+    const [{result}] = await chrome.scripting.executeScript({
       target: {tabId: tab.tab},
       args: [name, {
         id: String(input.id || ''),
@@ -471,7 +460,7 @@ const runPageTool = async (name, input = {}) => {
         }
         return {ok: false, error: `${toolName} 未接`};
       },
-    }));
+    });
     const out = {tab: tab.tab, title: tab.title, url: tab.url, ...result};
     if (out.ok && (name === 'page.click' || name === 'page.type')) await afterPageAction(tabId);
     return out;
@@ -484,11 +473,11 @@ const runOnTab = async (tabId, args, func) => {
   const tab = await inspectTab(tabId);
   if (!tab.ok) return tab;
   try {
-    const [{result}] = await withTimeout(chrome.scripting.executeScript({
+    const [{result}] = await chrome.scripting.executeScript({
       target: {tabId: tab.tab},
       args,
       func,
-    }));
+    });
     return {tab: tab.tab, title: tab.title, url: tab.url, ...result};
   } catch (error) {
     return {ok: false, tab: tab.tab, error: error instanceof Error ? error.message : String(error)};
@@ -514,7 +503,7 @@ const capturePage = async (input) => {
         });
         if (!shot?.data) return {ok: false, error: '浏览器未返回截图'};
         return {ok: true, tab: tab.id, image: `data:image/jpeg;base64,${shot.data}`, mime: 'image/jpeg', fullPage: true, page_size: [size.width, size.height]};
-      }, {retryDetached: false});
+      });
     } catch (error) { return {ok: false, error: String(error)}; }
   }
   if (input.mode === 'element') {
@@ -557,11 +546,11 @@ const executeBrowserTool = async (name, input = {}) => {
   const tabId = input.tab ?? input.tabId;
   if (name.startsWith('page.')) return runPageTool(name, input);
   if (name === 'see_page' || name === 'watch_page') return inspectTab(tabId);
-  if (['snapshot_page', 'find_on_page', 'click', 'double_click', 'focus', 'hover', 'type'].includes(name)) {
+  if (['snapshot_page', 'find_on_page', 'click', 'double_click', 'focus', 'hover', 'type', 'select'].includes(name)) {
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可操作的普通网页标签'};
-    const [{result}] = await withTimeout(chrome.scripting.executeScript({target: {tabId: tab.id}, func: elementTool, args: [name, input]}));
-    if (result?.ok && ['click', 'double_click', 'type'].includes(name)) await afterPageAction(tab.id);
+    const [{result}] = await chrome.scripting.executeScript({target: {tabId: tab.id}, func: elementTool, args: [name, input]});
+    if (result?.ok && ['click', 'double_click', 'type', 'select'].includes(name)) await afterPageAction(tab.id);
     return {tab: tab.id, ...result};
   }
   if (name === 'see_page_info') {
@@ -598,19 +587,6 @@ const executeBrowserTool = async (name, input = {}) => {
       el.checked = checked;
       el.dispatchEvent(new Event('change', {bubbles: true}));
       return {ok: true};
-    });
-    if (result.ok) await afterPageAction(tabId);
-    return result;
-  }
-  if (name === 'select') {
-    const result = await runOnTab(tabId, [input.value || input.text || ''], (value) => {
-      const el = document.querySelector('select');
-      if (!el) return {ok: false, error: '没找到下拉框'};
-      const option = [...el.options].find((item) => item.text.includes(value) || item.value === value);
-      if (!option) return {ok: false, error: '没找到匹配选项'};
-      el.value = option.value;
-      el.dispatchEvent(new Event('change', {bubbles: true}));
-      return {ok: true, value: el.value};
     });
     if (result.ok) await afterPageAction(tabId);
     return result;
@@ -1037,56 +1013,31 @@ const executeBrowserTool = async (name, input = {}) => {
   }
   if (name === 'execute_javascript') {
     if (typeof input.code !== 'string' || !input.code.trim()) return {ok: false, error: '缺 code'};
-    const limit = 16000;
     try {
       const tab = await getTab(tabId);
       if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可执行脚本的普通网页标签'};
-      const response = await withDebugger(tab.id, async () => {
-        let timer;
-        try {
-          return await Promise.race([
-            chrome.debugger.sendCommand({tabId: tab.id}, 'Runtime.evaluate', {
-              expression: input.code,
-              awaitPromise: true,
-              returnByValue: true,
-              timeout: 5000,
-              allowUnsafeEvalBlockedByCSP: true,
-            }),
-            new Promise((_, reject) => {
-              timer = setTimeout(() => reject(new Error('等待 JavaScript 结果超时；执行状态未知，脚本可能仍在继续，请先检查页面状态，勿直接重复执行。')), 8000);
-            }),
-          ]);
-        } finally {
-          clearTimeout(timer);
-        }
-      }, {retryDetached: false});
+      const response = await withDebugger(tab.id, () => chrome.debugger.sendCommand({tabId: tab.id}, 'Runtime.evaluate', {
+        expression: input.code,
+        awaitPromise: true,
+        returnByValue: true,
+        allowUnsafeEvalBlockedByCSP: true,
+      }));
       if (response?.exceptionDetails) {
         const details = response.exceptionDetails;
         const error = String(details.exception?.description || details.text || 'JavaScript 执行失败');
-        return {ok: false, tab: tab.id, error: error.slice(0, limit), ...(error.length > limit ? {truncated: true} : {})};
+        return {ok: false, tab: tab.id, error};
       }
       const remote = response?.result;
       if (!remote?.type) return {ok: false, tab: tab.id, error: '执行器未返回 JavaScript 结果'};
       const result = {ok: true, tab: tab.id, type: remote.type};
-      if (Object.hasOwn(remote, 'value')) {
-        const serialized = JSON.stringify(remote.value);
-        if (serialized.length > limit) {
-          return {...result, truncated: true, totalChars: serialized.length, valuePreview: serialized.slice(0, limit)};
-        }
-        return {...result, value: remote.value};
-      }
-      if (remote.unserializableValue != null) {
-        const value = String(remote.unserializableValue);
-        return value.length > limit
-          ? {...result, truncated: true, totalChars: value.length, valuePreview: value.slice(0, limit)}
-          : {...result, unserializableValue: value};
-      }
+      if (Object.hasOwn(remote, 'value')) return {...result, value: remote.value};
+      if (remote.unserializableValue != null) return {...result, unserializableValue: String(remote.unserializableValue)};
       if (remote.type === 'undefined') return result;
       const description = String(remote.description || remote.subtype || remote.type);
-      return {...result, serializable: false, description: description.slice(0, limit), ...(description.length > limit ? {truncated: true} : {})};
+      return {...result, serializable: false, description};
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      return {ok: false, error: message.slice(0, limit), ...(message.length > limit ? {truncated: true} : {})};
+      return {ok: false, error: message};
     }
   }
   if (name === 'handle_dialog') {
@@ -1122,7 +1073,7 @@ const executeBrowserTool = async (name, input = {}) => {
       files: ['content-console.js'],
     }).catch(() => {});
     try {
-      const [{result}] = await withTimeout(chrome.scripting.executeScript({
+      const [{result}] = await chrome.scripting.executeScript({
         target: {tabId: tab.id},
         world: 'MAIN',
         func: (want) => {
@@ -1131,7 +1082,7 @@ const executeBrowserTool = async (name, input = {}) => {
           return {ok: true, count: items.length, items: items.slice(-50)};
         },
         args: [input.level || 'error'],
-      }));
+      });
       return {ok: true, tab: tab.id, ...(result || {count: 0, items: []})};
     } catch (error) {
       return {ok: false, tab: tab.id, error: error instanceof Error ? error.message : String(error)};
@@ -1414,24 +1365,18 @@ const executeBrowserTool = async (name, input = {}) => {
 };
 
 
-// Always release the serial tool pump. A timed-out operation is not replayed.
+// A native dialog releases the caller without replaying the blocked operation.
 const browserOnly = new Set(['open_tab', 'duplicate_tab', 'bind_tab', 'list_browser_tools', 'list_tabs', 'list_windows', 'see_env', 'close_tab', 'close_window', 'switch_tab', 'move_tab', 'update_tab', 'create_window', 'update_window', 'group_tabs', 'ungroup_tabs', 'list_downloads', 'download', 'export_data', 'control_download', 'wait_download', 'wait_new_tab', 'profile_vault']);
 export const runBrowserTool = async (name, input = {}) => {
-  let timer, unwatch;
-  let expired = false;
+  let unwatch;
   let targetTab;
   const blocked = (dialog) => ({ok: false, tab: targetTab, faultCode: 'dialog_open', dialog,
     error: '原生对话框阻塞页面，请用 handle_dialog 确认或取消。原操作可能在关闭后继续，请先检查结果，勿重复执行。'});
   try {
-    const deadline = new Promise((resolve) => {
-      timer = setTimeout(() => { expired = true; resolve({ok: false, tab: targetTab, faultCode: 'tool_timeout',
-        dialog: dialogState(targetTab), error: '工具等待超时，操作状态未知，可能仍在执行。请先用 see_diag 检查；如有原生弹窗，用 handle_dialog 处理，勿直接重试原操作。'}); }, 20000);
-    });
     const operation = async () => {
       let dialogOpened;
       if (!browserOnly.has(name) && name !== 'handle_dialog' && name !== 'see_diag' && globalThis.chrome?.debugger?.onEvent) {
         const tab = await getTab(input.tab ?? input.tabId);
-        if (expired) return {ok: false, faultCode: 'tool_timeout'};
         targetTab = tab?.id;
         if (targetTab && !isBlocked(tab.url)) {
           dialogOpened = new Promise((resolve) => { unwatch = watchDialog(targetTab, (dialog) => resolve(blocked(dialog))); });
@@ -1440,9 +1385,8 @@ export const runBrowserTool = async (name, input = {}) => {
           if (dialogState(targetTab).status === 'open') return blocked(dialogState(targetTab));
         }
       }
-      if (expired) return {ok: false, faultCode: 'tool_timeout'};
       return dialogOpened ? Promise.race([executeBrowserTool(name, input), dialogOpened]) : executeBrowserTool(name, input);
     };
-    return await Promise.race([operation(), deadline]);
-  } finally { clearTimeout(timer); unwatch?.(); }
+    return await operation();
+  } finally { unwatch?.(); }
 };

@@ -18,43 +18,26 @@ type Pending = {
   done: (result: BrowserResult) => void;
 };
 
-export function createToolBridge(timeoutMs = 30000): ToolBridge {
+export function createToolBridge(): ToolBridge {
   const queue: Pending[] = [];
-  let timer: ReturnType<typeof setTimeout> | undefined;
   let seq = 0;
 
-  const clearTimer = () => {
-    if (timer !== undefined) clearTimeout(timer);
-    timer = undefined;
-  };
-  const activate = () => {
-    clearTimer();
-    const next = queue[0];
-    if (!next) return;
-    timer = setTimeout(() => {
-      finish(next.request.id, { ok: false, faultCode: "tool_timeout", error: "浏览器工具超时" });
-    }, timeoutMs);
-  };
   const finish = (id: string, result: BrowserResult): boolean => {
     const next = queue[0];
     if (!next || next.request.id !== id) return false;
     queue.shift();
-    activate();
     next.done(result);
     return true;
   };
   const execute = (scope: string | undefined, name: string, input: Record<string, unknown>): Promise<BrowserResult> =>
     new Promise((done) => {
       queue.push({ request: { id: `br_${Date.now()}_${++seq}`, name, input }, scope, done });
-      if (queue.length === 1) activate();
     });
   const abort = (scope?: string) => {
-    const active = queue[0];
     const removed: Pending[] = [];
     for (let i = queue.length - 1; i >= 0; i--) {
       if (scope === undefined || queue[i]?.scope === scope) removed.push(...queue.splice(i, 1));
     }
-    if (queue[0] !== active) activate();
     for (const item of removed) item.done({ ok: false, faultCode: "stopped", error: "已停止" });
   };
   return {

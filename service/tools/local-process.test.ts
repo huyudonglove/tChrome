@@ -73,19 +73,21 @@ test("background execution retains its snapshot after the saved script is patche
   expect(await waitFor(started.processId, value => value.status === "exited")).toMatchObject({ stdout: "old:value" });
 });
 
-test("stdout and stderr continuously drain with bounded retained tails", async () => {
+test("stdout and stderr retain and persist their complete output", async () => {
   const result = await call("run", { filename: await script("yes x | head -c 200000; printf END; yes e | head -c 200000 >&2; printf ERR >&2"), cwd });
   expect(result.exitCode).toBe(0);
   expect(result.ok).toBe(true);
-  expect(String(result.stdout).length).toBe(65536);
-  expect(String(result.stderr).length).toBe(65536);
+  expect(String(result.stdout).length).toBe(200003);
+  expect(String(result.stderr).length).toBe(200003);
   expect(String(result.stdout).endsWith("END")).toBe(true);
   expect(String(result.stderr).endsWith("ERR")).toBe(true);
-  expect(result.stdoutTruncated).toBe(true);
-  expect(result.stderrTruncated).toBe(true);
+  expect(result.stdoutTruncated).toBe(false);
+  expect(await readFile(String(result.stdoutPath), "utf8")).toBe(String(result.stdout));
+  expect(result.stderrTruncated).toBe(false);
+  expect(await readFile(String(result.stderrPath), "utf8")).toBe(String(result.stderr));
 });
 
-test("timeout kills the shell's children as well as the shell", async () => {
+test("explicit timeout kills the process group while normal parent exit preserves children", async () => {
   const result = await call("run", { filename: await script("sleep 30 & echo $! > child.pid; wait"), cwd, timeoutMs: 250 });
   expect(result.status).toBe("timeout");
   expect(result.ok).toBe(false);
@@ -93,6 +95,9 @@ test("timeout kills the shell's children as well as the shell", async () => {
   const pid = Number(await readFile(join(cwd, "child.pid"), "utf8"));
   await Bun.sleep(30);
   expect(() => process.kill(pid, 0)).toThrow();
+  const normal = await call("run", { filename: await script("(sleep 0.1; printf survived > child-result) & exit 0"), cwd });
+  expect(normal.exitCode).toBe(0);
+  expect(await readFile(join(cwd, "child-result"), "utf8")).toBe("survived");
 });
 
 test("background stdin and EOF reach command; other scopes cannot read or mutate it", async () => {
@@ -120,12 +125,13 @@ test("background processes time out and cancellation stops only its scope", asyn
   expect((await call("process_stop", { processId: other.processId }, "other")).status).toBe("stopped");
 });
 
-test("validates directory, timeout, and global concurrency bound", async () => {
+test("validates directory and explicit timeout without a concurrency cap", async () => {
   expect(await call("run", { filename: await script("echo bad"), cwd: "." })).toMatchObject({ ok: false, error: expect.stringContaining("absolute") });
-  expect(await call("run", { filename: await script("echo bad"), cwd, timeoutMs: 300001 })).toMatchObject({ ok: false, error: expect.stringContaining("timeoutMs") });
+  expect(await call("run", { filename: await script("echo bad"), cwd, timeoutMs: 0 })).toMatchObject({ ok: false, error: expect.stringContaining("timeoutMs") });
   const running = [];
-  for (let i = 0; i < 8; i++) running.push(await call("process_start", { filename: await script("sleep 30"), cwd }));
-  expect(await call("process_start", { filename: await script("sleep 30"), cwd })).toMatchObject({ ok: false, error: expect.stringContaining("Maximum 8") });
+  for (let i = 0; i < 9; i++) running.push(await call("process_start", { filename: await script("sleep 30"), cwd }));
+  expect(running.every(entry => entry.status === "running")).toBe(true);
+  expect(await call("run", { filename: await script("printf valid"), cwd, timeoutMs: 300001 })).toMatchObject({ ok: true, stdout: "valid" });
   abortAllLocalProcesses();
   for (const entry of running) await waitFor(entry.processId, (value) => value.signal === "SIGKILL");
 });

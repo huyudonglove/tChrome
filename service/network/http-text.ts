@@ -8,11 +8,11 @@ export interface HttpTextPolicy {
   retryDelayMs?: number;
 }
 
-/** Keep a bounded preview while draining the stream so active transfers can finish. */
+/** Return the full body unless the caller explicitly requests a preview. */
 export async function fetchText(
   url: string,
   init: RequestInit = {},
-  textLimit: number = runtimeConfig.http.textLimit,
+  textLimit: number = Infinity,
   policyOverrides: HttpTextPolicy = {},
 ) {
   const policy = { ...runtimeConfig.network, ...policyOverrides };
@@ -52,7 +52,7 @@ export async function fetchText(
         status: response.status,
         url: response.url,
         ms: Date.now() - started,
-        headers: Object.fromEntries([...response.headers.entries()].slice(0, runtimeConfig.http.headerLimit)),
+        headers: Object.fromEntries(response.headers.entries()),
         text,
         attempts,
         truncated,

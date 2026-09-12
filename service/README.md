@@ -43,7 +43,7 @@ HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`�
 
 ## 模型 Provider
 
-`TCHROME_PROVIDER=uuapi`（默认）使用 UUAPI Chat Completions；`TCHROME_PROVIDER=shiningspace` 使用 `https://ai.shiningspace.com:8090/v1/responses` 和 `grok-4.6`。后者密钥配置为 `SHININGSPACE_API_KEY`，推理强度配置为 `SHININGSPACE_REASONING_EFFORT=high`（默认，支持 low/medium/high）。密钥和推理强度写入被忽略的 `service/.env`，修改后重启服务。会话列表右下角的设置中切换 provider，无需重启，从下一次模型请求起生效，正在发送的请求继续使用原 provider。选择与代理开关一起保存到 `connection.json`，优先于环境变量；`TCHROME_PROVIDER` 仅作为未保存选择时的默认值。两者共用侧栏代理开关。
+`TCHROME_PROVIDER=uuapi`（默认）使用 UUAPI Chat Completions；`TCHROME_PROVIDER=shiningspace` 使用 `https://ai.shiningspace.com:8090/v1/responses` 和 `grok-4.6`。后者密钥配置为 `SHININGSPACE_API_KEY`，推理强度配置为 `SHININGSPACE_REASONING_EFFORT=medium`（默认，支持 low/medium/high）。密钥和推理强度写入被忽略的 `service/.env`，修改后重启服务。会话列表右下角的设置中切换 provider，无需重启，从下一次模型请求起生效，正在发送的请求继续使用原 provider。选择与代理开关一起保存到 `connection.json`，优先于环境变量；`TCHROME_PROVIDER` 仅作为未保存选择时的默认值。两者共用侧栏代理开关。
 
 Responses 适配器负责文本、图片 input_image、扁平 function schema 和 function_call 返回转换。Runtime 继续统一管理上下文与工具校验；请求使用 store=false，不使用 previous_response_id 串接会话。未完成响应不会执行其中的部分工具调用。
 
@@ -55,4 +55,4 @@ conversationHistorySummary 展示历史轮次或执行片段的 {tag, userReques
 
 压缩 Agent 的每次模型请求独立写入 `conversations/<cvId>/agent-logs/compression/<时间戳>-<唯一标识>.jsonl`。请求发送前记录完整 messages 与 tools；收到后记录 Provider 返回的完整 CompletionResult（正文、工具调用、解析错误等），并记录成功摘要或异常。schema 校验失败包含字段路径、规则和预期类型，轮次覆盖错误包含预期与实际 turnId；会话的 compress-error 附日志路径。日志不包含模型密钥或请求认证头，也不进入主模型上下文。
 
-网络配置统一在 `service/config/runtime.json`，修改后重启服务生效。`network.idleTimeoutMs=90000` 表示等待响应头或响应体连续 90 秒没有数据才超时，非请求总耗时；收到非空数据块重置计时。`network.maxAttempts=3` 包含首次请求，`retryDelayMs=1000` 为尝试间隔。通用 HTTP 工具和主/辅助模型请求共用该策略，用户停止立即取消传输及等待；模型继续采用统一失败分类决定哪些错误可重试，HTTP 工具对空闲超时和连接中断重试，收到 HTTP 错误状态则直接返回。持续响应会继续消费，普通 HTTP 工具只保留 `http.textLimit` 字符预览，避免把整个响应留在内存；搜索需要完整 HTML，probe_http 保持只检查响应头。Tavily SDK 的 `sdk.tavilyTimeoutSeconds` 和 TLS 握手的 `tls.timeoutMs` 属于专用超时，独立配置在同一文件，不冒充流式空闲计时。
+网络配置统一在 `service/config/runtime.json`，修改后重启服务生效。`network.idleTimeoutMs=90000` 表示等待响应头或响应体连续 90 秒没有数据才超时，非请求总耗时；收到非空数据块重置计时。`network.maxAttempts=3` 包含首次请求，`retryDelayMs=1000` 为尝试间隔。通用 HTTP 工具和主/辅助模型请求共用该策略，用户停止立即取消传输及等待；模型继续采用统一失败分类决定哪些错误可重试，HTTP 工具对空闲超时和连接中断重试，收到 HTTP 错误状态则直接返回。持续响应会继续消费，普通 HTTP 工具完整保留正文与响应头，搜索完整保留返回内容，再由发送前上下文门禁处理；probe_http 保持只检查响应头。Tavily SDK 的 `sdk.tavilyTimeoutSeconds` 和 TLS 握手的 `tls.timeoutMs` 属于专用超时，独立配置在同一文件，不冒充流式空闲计时。

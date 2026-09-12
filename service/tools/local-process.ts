@@ -1,16 +1,13 @@
 import { errorInfo } from "../../shared/errors.ts";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { homedir, tmpdir } from "node:os";
-import { isAbsolute, extname, join } from "node:path";
-import { stat, mkdtemp, writeFile } from "node:fs/promises";
-import { rmSync } from "node:fs";
+import { isAbsolute, extname, join, resolve } from "node:path";
+import { stat, mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { appendFileSync, rmSync } from "node:fs";
 import { readScript } from "../scripts/store.ts";
 import { StringDecoder } from "node:string_decoder";
 
 export const LOCAL_PROCESS_TOOL_NAMES = ["local.run", "local.process_start", "local.process_status", "local.process_write", "local.process_stop", "local.open", "local.capabilities"] as const;
-const OUTPUT_LIMIT = 65_536;
-const MAX_RUNNING = 8;
-const MAX_FINISHED = 64;
 type Status = "running" | "exited" | "error" | "timeout" | "stopped";
 interface Entry {
   processId: string;
@@ -23,8 +20,8 @@ interface Entry {
   status: Status;
   stdout: string;
   stderr: string;
-  stdoutTruncated: boolean;
-  stderrTruncated: boolean;
+  stdoutPath: string;
+  stderrPath: string;
   exitCode: number | null;
   signal: string | null;
   error?: string;
@@ -36,7 +33,7 @@ const processes = new Map<string, Entry>();
 // An invocation owns its cancellation token before any asynchronous filesystem work.
 const pendingStarts = new Set<{ scope: string; cancelled: boolean }>();
 function snapshot(entry: Entry): Record<string, unknown> {
-  return { ok: entry.status === "running" || entry.status === "stopped" || (entry.status === "exited" && entry.exitCode === 0), processId: entry.processId, ...(entry.filename ? { filename: entry.filename } : { path: entry.path }), args: entry.args, cwd: entry.cwd, status: entry.status, stdout: entry.stdout, stderr: entry.stderr, stdoutTruncated: entry.stdoutTruncated, stderrTruncated: entry.stderrTruncated, exitCode: entry.exitCode, signal: entry.signal, ...(entry.error ? { error: entry.error } : {}), outputLimit: OUTPUT_LIMIT };
+  return { ok: entry.status === "running" || entry.status === "stopped" || (entry.status === "exited" && entry.exitCode === 0), processId: entry.processId, ...(entry.filename ? { filename: entry.filename } : { path: entry.path }), args: entry.args, cwd: entry.cwd, status: entry.status, stdout: entry.stdout, stderr: entry.stderr, stdoutTruncated: false, stderrTruncated: false, stdoutPath: entry.stdoutPath, stderrPath: entry.stderrPath, exitCode: entry.exitCode, signal: entry.signal, ...(entry.error ? { error: entry.error } : {}) };
 }
 function requiredString(input: Record<string, unknown>, key: string): string {
   const value = input[key];
@@ -51,13 +48,9 @@ function killGroup(entry: Entry): void {
   }
 }
 function stop(entry: Entry, status: "stopped" | "timeout"): void {
-  if (entry.status !== "running") return;
+  if (entry.settled || entry.status === "stopped" || entry.status === "timeout") return;
   entry.status = status;
   killGroup(entry);
-}
-function prune(): void {
-  const finished = [...processes.values()].filter((entry) => entry.settled);
-  for (const entry of finished.slice(0, Math.max(0, finished.length - MAX_FINISHED))) processes.delete(entry.processId);
 }
 function lookup(input: Record<string, unknown>, scope: string): Entry {
   const entry = processes.get(requiredString(input, "processId"));
@@ -68,8 +61,8 @@ async function start(input: Record<string, unknown>, scope: string, token: { can
   if ("command" in input || "code" in input) throw new Error("Inline code is not accepted; save a script with script_patch and provide filename");
   const cwd = open ? homedir() : requiredString(input, "cwd");
   if (!isAbsolute(cwd) || !(await stat(cwd)).isDirectory()) throw new Error("cwd must be an existing absolute directory");
-  const timeoutMs = input.timeoutMs ?? 30_000;
-  if (typeof timeoutMs !== "number" || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 300_000) throw new Error("timeoutMs must be an integer between 1 and 300000");
+  const timeoutMs = input.timeoutMs;
+  if (timeoutMs !== undefined && (typeof timeoutMs !== "number" || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1)) throw new Error("timeoutMs must be a positive integer");
   const args = input.args ?? [];
   if (!Array.isArray(args) || args.some(value => typeof value !== "string" || value.includes("\0"))) throw new Error("args must be an array of strings without NUL characters");
   let filename: string | undefined, path: string | undefined, temporary: string | undefined;
@@ -95,20 +88,23 @@ async function start(input: Record<string, unknown>, scope: string, token: { can
       argv = [snapshotPath, ...args];
     }
     if (token.cancelled) throw new Error("Local process start cancelled");
-    if ([...processes.values()].filter((entry) => !entry.settled).length >= MAX_RUNNING) throw new Error("Maximum 8 local processes can run concurrently");
+    const processId = crypto.randomUUID();
+    const outputDir = join(resolve(dataDir), "process-output", processId);
+    await mkdir(outputDir, { recursive: true });
+    const stdoutPath = join(outputDir, "stdout.txt"), stderrPath = join(outputDir, "stderr.txt");
+    await Promise.all([writeFile(stdoutPath, ""), writeFile(stderrPath, "")]);
+    if (token.cancelled) throw new Error("Local process start cancelled");
     let done!: () => void;
     const finished = new Promise<void>((resolve) => { done = resolve; });
     const child = spawn(executable, argv, { cwd, detached: true, stdio: ["pipe", "pipe", "pipe"] });
-    const entry: Entry = { processId: crypto.randomUUID(), scope, filename, path, args, cwd, child, status: "running", stdout: "", stderr: "", stdoutTruncated: false, stderrTruncated: false, exitCode: null, signal: null, finished, settled: false };
+    const entry: Entry = { processId, scope, filename, path, args, cwd, child, status: "running", stdout: "", stderr: "", stdoutPath, stderrPath, exitCode: null, signal: null, finished, settled: false };
     processes.set(entry.processId, entry);
     for (const key of ["stdout", "stderr"] as const) {
       const decoder = new StringDecoder("utf8");
       const append = (text: string) => {
         entry[key] += text;
-        if (entry[key].length > OUTPUT_LIMIT) {
-          entry[key] = entry[key].slice(-OUTPUT_LIMIT);
-          entry[key === "stdout" ? "stdoutTruncated" : "stderrTruncated"] = true;
-        }
+        try { appendFileSync(key === "stdout" ? stdoutPath : stderrPath, text); }
+        catch (error) { entry.error = `Failed to persist ${key}: ${error instanceof Error ? error.message : String(error)}`; entry.status = "error"; }
       };
       child[key].on("data", (chunk: Buffer) => append(decoder.write(chunk)));
       child[key].on("end", () => append(decoder.end()));
@@ -119,8 +115,6 @@ async function start(input: Record<string, unknown>, scope: string, token: { can
     child.on("exit", (code, signal) => {
       entry.exitCode = code;
       entry.signal = signal;
-      // Commands cannot leave detached shell children alive after their leader exits.
-      killGroup(entry);
     });
     child.on("close", () => {
       if (temporary) rmSync(temporary, { recursive: true, force: true });
@@ -128,9 +122,16 @@ async function start(input: Record<string, unknown>, scope: string, token: { can
       clearTimeout(entry.timer);
       if (entry.status === "running") entry.status = "exited";
       done();
-      prune();
     });
-    entry.timer = setTimeout(() => stop(entry, "timeout"), timeoutMs);
+    if (typeof timeoutMs === "number") {
+      const deadline = Date.now() + timeoutMs;
+      const checkTimeout = () => {
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) stop(entry, "timeout");
+        else entry.timer = setTimeout(checkTimeout, Math.min(remaining, 2_147_483_647));
+      };
+      checkTimeout();
+    }
     return entry;
   } catch (error) {
     if (temporary) rmSync(temporary, { recursive: true, force: true });
@@ -150,7 +151,7 @@ export function abortAllLocalProcesses(): void {
 async function execute(name: string, rawInput: unknown, scope: string, dataDir: string): Promise<Record<string, unknown>> {
   if (!scope) throw new Error("Local tools require a conversation scope");
   const input = (rawInput && typeof rawInput === "object" && !Array.isArray(rawInput) ? rawInput : {}) as Record<string, unknown>;
-  if (name === "local.capabilities") return { ok: true, platform: process.platform, home: homedir(), scriptExtensions: [".sh", ".py", ".js", ".mjs", ".cjs"], scriptExecution: "Save scripts with script_patch, then execute by filename. Each run uses an immutable private snapshot. Arguments are passed as literal strings.", defaultTimeoutMs: 30_000, maxTimeoutMs: 300_000, maxConcurrentProcesses: MAX_RUNNING, outputLimit: OUTPUT_LIMIT, outputRetention: "Last 65536 characters of stdout and stderr, continuously drained; process_status returns the complete retained snapshot.", processLifetime: "Background processes end on timeout, conversation cancellation/deletion, or service shutdown. Child processes are killed when their command exits." };
+  if (name === "local.capabilities") return { ok: true, platform: process.platform, home: homedir(), scriptExtensions: [".sh", ".py", ".js", ".mjs", ".cjs"], scriptExecution: "Save scripts with script_patch, then execute by filename. Each run uses an immutable private snapshot. Arguments are passed as literal strings.", outputRetention: "Complete stdout and stderr are retained and persisted in stdoutPath/stderrPath; process_status returns the complete cumulative output.", processLifetime: "No default timeout. An explicit timeoutMs, process_stop, conversation cancellation/deletion, or service shutdown terminates the process group. Parent exit does not terminate its children." };
   if (name === "local.run" || name === "local.process_start" || name === "local.open") {
     const token = { scope, cancelled: false };
     pendingStarts.add(token);
@@ -175,7 +176,6 @@ async function execute(name: string, rawInput: unknown, scope: string, dataDir: 
     const entry = lookup(input, scope);
     if (entry.status !== "running" || entry.child.stdin.destroyed || entry.child.stdin.writableEnded) throw new Error("Process stdin is closed");
     if (typeof input.text !== "string") throw new Error("text must be a string");
-    if (input.text.length > OUTPUT_LIMIT) throw new Error("text must not exceed 65536 characters per write");
     await new Promise<void>((resolve, reject) => {
       const stdin = entry.child.stdin;
       const finish = (error?: Error | null) => {

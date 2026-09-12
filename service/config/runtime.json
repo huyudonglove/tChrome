@@ -4,14 +4,13 @@
     "maxAttempts": 3,
     "retryDelayMs": 1000
   },
-  "http": {
-    "textLimit": 8000,
-    "headerLimit": 20
-  },
   "sdk": {
     "tavilyTimeoutSeconds": 30
   },
   "tls": {
     "timeoutMs": 8000
+  },
+  "query": {
+    "returnChars": 2000
   }
 }

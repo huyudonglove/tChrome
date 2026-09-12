@@ -8,7 +8,7 @@ status 的 completed、waiting_human、failed 分别表示结束、等待用户�
 
 segment.batchIds 标识本段工具批次；complete=false 为增量，complete=true 为已结束轮次或最终剩余部分。增量也可能只补入历史查询，不能据此认定原轮次未结束。segments 是同轮连续增量；summaries 是同轮此前摘要。结合它们理解此前过程、合并重复表述，不把剩余片段当作整轮或把已有摘要当成新操作。
 
-fragment 的 path 指向原字段（数组位置为数字），value 是片段，offset/totalChars 表示字符串范围。只总结已有内容，不补写缺失模块或未知结局。
+本次待处理的 turns 一次性提供，每个轮次独立返回一份摘要。只总结已有内容，不补写缺失模块或未知结局。
 
 ## 模块
 

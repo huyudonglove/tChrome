@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "submitTurnSummaries",
-    "description": "提交本批次逐轮摘要。每个输入 turnId 对应一项摘要，逐轮记录用户要求、实际行动和结果；所有摘要字段均为非空字符串。每轮摘要序列化后最多 12000 字符（含转义）。",
+    "description": "提交本批次逐轮摘要。每个输入 turnId 对应一项摘要，逐轮记录用户要求、实际行动和结果；所有摘要字段均为非空字符串。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -15,37 +15,32 @@
               "turnId": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 200,
                 "pattern": "\\S",
-                "description": "所属轮次的 ID 字符串，原样复制输入中的 turnId，最多 200 字符。"
+                "description": "所属轮次的 ID 字符串，原样复制输入中的 turnId。"
               },
               "tag": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 500,
                 "pattern": "\\S",
-                "description": "用于检索的主题字符串，概括关键对象、事件或约束，最多 500 字符。"
+                "description": "用于检索的主题字符串，概括关键对象、事件或约束。"
               },
               "userRequest": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 1600,
                 "pattern": "\\S",
-                "description": "用户实际要求与重要条件的文字摘要，最多 1600 字符；输入未提供用户要求时，用文字明确说明。"
+                "description": "用户实际要求与重要条件的文字摘要；输入未提供用户要求时，用文字明确说明。"
               },
               "actions": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 3000,
                 "pattern": "\\S",
-                "description": "实际执行的关键步骤、修正和重要失败，整理为一段字符串，最多 3000 字符。多个步骤用文字串联，区分计划与已执行操作。"
+                "description": "实际执行的关键步骤、修正和重要失败，整理为一段字符串。多个步骤用文字串联，区分计划与已执行操作。"
               },
               "result": {
                 "type": "string",
                 "minLength": 1,
-                "maxLength": 2400,
                 "pattern": "\\S",
-                "description": "本轮或分段的已验证结果、最终回复、错误或等待状态的文字摘要，最多 2400 字符。保留回复与执行证据的差异；查询结论注明来自历史证据。"
+                "description": "本轮或分段的已验证结果、最终回复、错误或等待状态的文字摘要。保留回复与执行证据的差异；查询结论注明来自历史证据。"
               }
             },
             "required": [

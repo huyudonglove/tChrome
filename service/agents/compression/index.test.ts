@@ -47,25 +47,31 @@ test("new segments consolidate only their own turn with exact source ancestry", 
   expect(next.entries[2]!.sourceIds).toEqual([initial.entries[0]!.id, "segment_2"]);
   expect(resolveSources(args.dataDir, args.conversationId, args.module, [next.entries[2]!.id])).toEqual([first, last]);
 });
-test("invalid later batch or cancellation never advances any coverage", async () => {
+test("invalid turn coverage or cancellation never advances any coverage", async () => {
   let calls = 0;
   const good = model();
-  const args = setup({ async complete(input) { const response = await good.complete(input); return ++calls === 2 ? { ...response, parseOk: false } : response; } });
-  await expect(compressRecords({ ...args, records: [source("tn_01", "one", "x".repeat(40000)), source("tn_02", "two", "x".repeat(40000))] })).rejects.toThrow("parse_failed");
+  const args = setup({ async complete(input) {
+    calls++;
+    const response = await good.complete(input);
+    const submission = response.toolCalls[0]!;
+    const summaries = (submission.arguments as { summaries: unknown[] }).summaries;
+    return { ...response, toolCalls: [{ ...submission, arguments: { summaries: summaries.slice(0, 1) } }] };
+  } });
+  await expect(compressRecords({ ...args, records: [source("tn_01", "one", "x".repeat(40000)), source("tn_02", "two", "x".repeat(40000))] })).rejects.toThrow("coverage mismatch");
+  expect(calls).toBe(1);
+  expect(readSource(args.dataDir, args.conversationId, args.module, "one")).toBeNull();
   expect(loadIndex(args.dataDir, args.conversationId, args.module).entries).toEqual([]);
   let cancelled = false;
   await expect(compressRecords({ ...args, provider: model(() => { cancelled = true; }), records: [source("tn_01")], isCancelled: () => cancelled })).rejects.toThrow("cancelled");
   expect(readSource(args.dataDir, args.conversationId, args.module, "tn_01")).toBeNull();
 });
-test("oversized string retains every character across typed field fragments", async () => {
+test("oversized string is sent whole in one request and archived unchanged", async () => {
   const calls: CompressionTurn[][] = [];
   const args = setup(model(turns => calls.push(turns)));
-  const original = source("tn_01", "large", "起" + "\"\\\n文".repeat(30000) + "结束");
+  const original = source("tn_01", "large", "起" + "\"\\\n文".repeat(60000) + "结束");
+  expect(original.content.userInput.userInput.length).toBeGreaterThan(200000);
   await compressRecords({ ...args, records: [original] });
-  const fragments = calls.flat().filter(turn => turn.fragment).map(turn => turn.fragment as { path: string[]; offset?: number; value: unknown });
-  const textParts = fragments.filter(part => part.path.join(".") === "userInput.userInput");
-  expect(textParts.map(part => part.value).join("")).toEqual(original.content.userInput.userInput);
-  expect(calls.every(turns => JSON.stringify({ turns }).length <= 60000)).toBe(true);
+  expect(calls).toEqual([[original.content]]);
   expect(readSource(args.dataDir, args.conversationId, args.module, "large")).toEqual(original);
 });
 test("rollup has no independent threshold and explicit pass keeps turns separate", async () => {
@@ -73,11 +79,16 @@ test("rollup has no independent threshold and explicit pass keeps turns separate
   await compressRecords({ ...args, records: [source("tn_01"), source("tn_02")] });
   const before = loadIndex(args.dataDir, args.conversationId, args.module);
   expect(before.entries).toHaveLength(2);
-  await compressRecords({ ...args, provider: model(), records: [], recompress: true });
+  const calls: CompressionTurn[][] = [];
+  const segment = source("tn_01", "segment_2", "补充证据");
+  await compressRecords({ ...args, provider: model(turns => calls.push(turns)), records: [segment], recompress: true });
+  expect(calls).toHaveLength(1);
+  expect(calls[0]!.map(turn => turn.turnId)).toEqual(["tn_01", "tn_02"]);
+  expect(calls[0]![0]!.segments).toEqual([segment.content]);
   const next = loadIndex(args.dataDir, args.conversationId, args.module);
   expect(next.entries.map(record => record.level)).toEqual([1, 1, 2, 2]);
-  expect(next.entries.slice(2).map(record => record.sourceIds)).toEqual(before.entries.map(record => [record.id]));
-  expect(resolveSources(args.dataDir, args.conversationId, args.module, next.activeIds).map(record => record.id)).toEqual(["tn_01", "tn_02"]);
+  expect(next.entries.slice(2).map(record => record.sourceIds)).toEqual([[before.entries[0]!.id, "segment_2"], [before.entries[1]!.id]]);
+  expect(resolveSources(args.dataDir, args.conversationId, args.module, next.activeIds).map(record => record.id)).toEqual(["tn_01", "tn_02", "segment_2"]);
 });
 
 test("failed index commit never reuses an orphan summary ID on retry", async () => {

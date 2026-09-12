@@ -119,7 +119,7 @@ test("execute_javascript evaluates in the page through CDP and awaits structured
   });
   expect(attachments).toEqual([[{ tabId: tab }, "1.3"]]);
   expect(request).toEqual([{ tabId: tab }, "Runtime.evaluate", {
-    expression: code, awaitPromise: true, returnByValue: true, timeout: 5000, allowUnsafeEvalBlockedByCSP: true,
+    expression: code, awaitPromise: true, returnByValue: true, allowUnsafeEvalBlockedByCSP: true,
   }]);
   await runBrowserTool("execute_javascript", { tab, code });
   expect(attachments).toHaveLength(1);
@@ -168,23 +168,12 @@ test("execute_javascript never replays side effects after debugger disconnect", 
   expect(attachments).toBe(2);
 });
 
-test("execute_javascript bounds large values and labels previews", async () => {
+test("execute_javascript preserves full values and exceptions", async () => {
   const value = { text: "x".repeat(20000) };
-  const tab = mockJavascript(async () => ({ result: { type: "object", value } }));
-  const result = await runBrowserTool("execute_javascript", { tab, code: "largeResult" });
-  expect(result.ok).toBe(true);
-  expect(result.truncated).toBe(true);
-  expect(result.totalChars).toBe(JSON.stringify(value).length);
-  expect(result.valuePreview).toBe(JSON.stringify(value).slice(0, 16000));
-  expect(Object.hasOwn(result, "value")).toBe(false);
-});
-
-test("execute_javascript keeps large exceptions failures and bounds their output", async () => {
-  const tab = mockJavascript(async () => ({ exceptionDetails: { text: "x".repeat(20000) } }));
-  const result = await runBrowserTool("execute_javascript", { tab, code: "throw Error()" });
-  expect(result.ok).toBe(false);
-  expect(result.truncated).toBe(true);
-  expect(result.error).toHaveLength(16000);
+  let tab = mockJavascript(async () => ({ result: { type: "object", value } }));
+  expect(await runBrowserTool("execute_javascript", { tab, code: "largeResult" })).toEqual({ok: true, tab, type: "object", value});
+  tab = mockJavascript(async () => ({ exceptionDetails: { text: value.text } }));
+  expect(await runBrowserTool("execute_javascript", { tab, code: "throw Error()" })).toEqual({ok: false, tab, error: value.text});
 });
 
 test("execute_javascript reports protocol timeouts without retrying", async () => {
@@ -195,38 +184,6 @@ test("execute_javascript reports protocol timeouts without retrying", async () =
   });
   expect(calls).toBe(1);
 });
-
-test("execute_javascript bounds pending promises without claiming cancellation or replaying", async () => {
-  const originalSetTimeout = globals.setTimeout;
-  const originalClearTimeout = globals.clearTimeout;
-  let timeout: (() => void) | undefined;
-  let cleared = false;
-  let calls = 0;
-  globals.setTimeout = (callback: () => void, ms: number) => {
-    if (ms === 20000) return 124;
-    expect(ms).toBe(8000);
-    timeout = callback;
-    return 123;
-  };
-  globals.clearTimeout = (id: number) => { if (id === 124) return; expect(id).toBe(123); cleared = true; };
-  try {
-    const tab = mockJavascript(async () => { calls++; return new Promise(() => {}); });
-    const pending = runBrowserTool("execute_javascript", { tab, code: "new Promise(() => {})" });
-    for (let i = 0; i < 10 && !timeout; i++) await Promise.resolve();
-    expect(timeout).toBeDefined();
-    timeout!();
-    const result = await pending;
-    expect(result.ok).toBe(false);
-    expect(result.error).toContain("执行状态未知");
-    expect(result.error).toContain("脚本可能仍在继续");
-    expect(calls).toBe(1);
-    expect(cleared).toBe(true);
-  } finally {
-    globals.setTimeout = originalSetTimeout;
-    globals.clearTimeout = originalClearTimeout;
-  }
-});
-
 
 test("native dialog detection releases a blocked page operation and accepts prompt without DOM", async () => {
   let event: any, detach: any;

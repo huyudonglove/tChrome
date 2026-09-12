@@ -37,7 +37,7 @@ test("缺字段和类型错走 Ajv，不补齐", () => {
   const registry = loadToolRegistry(repoRoot);
   const ids = ["page.type", "finishTurn"];
   const tools = toolSchemas(registry, ids);
-  const parsed = parseToolArguments('{"id":"e1","text":"a@b.com",}');
+  const parsed = parseToolArguments('{"id":"e1","text":"a@b.com"}');
   expect(parsed.ok).toBe(true);
   if (!parsed.ok) return;
   const missing = checkToolCalls(

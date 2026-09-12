@@ -117,7 +117,7 @@
 }
 ```
 
-`message.content` 保留模型正文，`message.tool_calls` 提供完整调用数组。`function.arguments` 是 JSON 字符串，Provider 使用参数解析器转成对象；正文不进入 Ajv。缺少 choices 或无法解析响应按传输失败处理。
+`message.content` 保留模型正文，`message.tool_calls` 提供完整调用数组。`function.arguments` 是 JSON 字符串，Provider 使用参数解析器转成对象；正文不进入 Ajv。缺少 choices 或无法解析响应属于协议错误，不自动重试。
 
 ## 容错
 
@@ -127,7 +127,7 @@
 
 ### A. 线路失败（同一 body 再打，最多 3 次）
 
-网络 / 超时 / 5xx / 429 / 响应 JSON 无法解析 / 缺少 choices。4xx（除 429）不重试；可重试失败间隔 1 秒，最多 3 次。
+网络 / 空闲超时 / 5xx / 429。响应 JSON 无法解析或缺少 choices 不重试。4xx（除 429）不重试；可重试失败间隔 1 秒，最多 3 次。
 
 ### B. 工具提交失败（把错误类型回给模型再交，同一 turn 最多 3 次）
 
@@ -137,7 +137,7 @@
 
 | `faultCode` | 何时 |
 |---|---|
-| `arguments_not_json` | `function.arguments` 解析失败。对象原样用；字符串 `JSON.parse`；围栏、尾逗号、单引号只修外壳。不补字段 |
+| `arguments_not_json` | `function.arguments` 解析失败。对象原样用；字符串 `JSON.parse`；不修复围栏、尾逗号或单引号。不补字段 |
 | `unknown_tool` | `name` 不在 `baseToolsIds` + `toolIds` |
 | `missing_required` | catalog `required` 缺或空；`missing` 列出字段名 |
 | `wrong_type` | Ajv：类型对不上 schema |
@@ -158,7 +158,7 @@
 
 `arguments_not_json` 时没有对象可查缺，`missing` 为 `[]`，`detail` 写 parse 报错原文。
 
-所有 provider 返回均经过 `service/runtime/loop.ts` 的 `validateCompletion`，由它调用 `service/tools/schema.ts` 完成统一策略校验，不因接入方式不同而绕过检查。落地查缺用 **Ajv** 对 `service/tools/definitions/<name>.json` 的 `function.parameters`。解析在 `service/tools/arguments.ts`：对象原样用，字符串 `JSON.parse`，围栏 / 尾逗号 / 单引号只修外壳。缺字段、类型错不补，faultCode 回给模型再交。
+所有 provider 返回均经过 `service/runtime/loop.ts` 的 `validateCompletion`，由它调用 `service/tools/schema.ts` 完成统一策略校验，不因接入方式不同而绕过检查。落地查缺用 **Ajv** 对 `service/tools/definitions/<name>.json` 的 `function.parameters`。解析在 `service/tools/arguments.ts`：对象原样用，字符串 `JSON.parse`，不修复围栏 / 尾逗号 / 单引号。缺字段、类型错不补，faultCode 回给模型再交。
 
 本轮一次过：
 

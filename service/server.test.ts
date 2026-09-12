@@ -89,7 +89,7 @@ test("连接设置兼容旧文件，provider 与代理独立保存，拒绝无�
 test("扩展构建握手阻止旧工具执行并报告重载指引", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-executor-"));
   const repoRoot = join(import.meta.dir, "..");
-  const bridge = createToolBridge(2000);
+  const bridge = createToolBridge();
   try {
     const server = createServer({ dataDir: dir, repoRoot, bridge });
     const health = async () => (await server.fetch(new Request(`${base}/health`))).json();

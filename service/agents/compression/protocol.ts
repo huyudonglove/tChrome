@@ -40,7 +40,6 @@ export async function requestTurnSummaries(input: { provider: Provider; repoRoot
     if (values.length !== expected.size || byId.size !== expected.size || values.some(value => !expected.has(value.turnId))) throw new Error(`Compression turn coverage mismatch: expected ${JSON.stringify([...expected])}, received ${JSON.stringify(values.map(value => value.turnId))}`);
     const summaries = input.turns.map(({ turnId }) => {
       const value = byId.get(turnId)!;
-      if (JSON.stringify(value).length > 12000) throw new Error("Compression output exceeds per-turn budget");
       return { turnId, tag: value.tag.trim(), userRequest: value.userRequest.trim(), actions: value.actions.trim(), result: value.result.trim() };
     });
     append("complete", { summaries });

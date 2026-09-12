@@ -1,12 +1,13 @@
 import { test, expect, afterEach } from "bun:test";
 import { requestJSON, DOWN } from "./service";
+import { runtimeConfig } from "../../service/config/runtime.ts";
 import { errorMessage } from "../../shared/errors.ts";
 
 const originalFetch = globalThis.fetch;
-const originalTimeout = AbortSignal.timeout;
+const originalSetTimeout = globalThis.setTimeout;
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  AbortSignal.timeout = originalTimeout;
+  globalThis.setTimeout = originalSetTimeout;
 });
 const reply = (body: unknown, status = 200) => {
   globalThis.fetch = (async () => Response.json(body, { status })) as unknown as typeof fetch;
@@ -50,10 +51,8 @@ test("non-JSON HTTP errors retain status and raw body; connection failures are d
   await expect(requestJSON("/session")).rejects.toMatchObject({ faultCode: "service_unreachable", message: DOWN });
 });
 
-test("control timeout applies even when a caller signal is provided; turns only use caller signal", async () => {
+test("control requests use shared idle timeout; turns only use caller signal", async () => {
   const signals: (AbortSignal | null | undefined)[] = [];
-  const timeout = new AbortController();
-  AbortSignal.timeout = () => timeout.signal;
   globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
     signals.push(init?.signal);
     return Response.json({ ok: true });
@@ -65,10 +64,22 @@ test("control timeout applies even when a caller signal is provided; turns only 
   expect(signals[0]).not.toBe(caller.signal);
   expect(signals[1]).toBe(caller.signal);
   expect(signals[2]).toBeUndefined();
-  timeout.abort(new DOMException("Timed out", "TimeoutError"));
-  expect(signals[0]?.aborted).toBe(true);
+  let expire: (() => void) | undefined;
+  globalThis.setTimeout = ((callback: () => void, ms: number) => {
+    expect(ms).toBe(runtimeConfig.network.idleTimeoutMs);
+    expire = callback;
+    return originalSetTimeout(() => {}, ms);
+  }) as typeof setTimeout;
+  let calls = 0;
+  globalThis.fetch = (async (_url: unknown, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+    calls++;
+    init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
+  })) as unknown as typeof fetch;
+  const pending = requestJSON("/health", { signal: caller.signal });
+  expire!();
+  await expect(pending).rejects.toMatchObject({ faultCode: "service_timeout" });
+  expect(calls).toBe(1);
   expect(caller.signal.aborted).toBe(false);
-  await expect(requestJSON("/health", { signal: caller.signal })).rejects.toMatchObject({ faultCode: "service_timeout" });
   caller.abort();
   await expect(requestJSON("/health", { signal: caller.signal })).rejects.toMatchObject({ faultCode: "service_cancelled" });
 });
@@ -84,10 +95,10 @@ test("caller cancellation aborts a pending control request", async () => {
 });
 
 test("body reading classifies timeout, cancellation, and connection failure", async () => {
-  for (const [name, code] of [["TimeoutError", "service_timeout"], ["AbortError", "service_cancelled"], ["TypeError", "service_unreachable"]]) {
-    globalThis.fetch = (async () => ({
-      text: async () => { throw new DOMException("read failed", name); },
-    })) as unknown as typeof fetch;
+  for (const [name, code] of [["HttpIdleTimeoutError", "service_timeout"], ["TimeoutError", "service_timeout"], ["AbortError", "service_cancelled"], ["TypeError", "service_unreachable"]]) {
+    globalThis.fetch = (async () => new Response(new ReadableStream({
+      start(controller) { controller.error(new DOMException("read failed", name)); },
+    }))) as unknown as typeof fetch;
     await expect(requestJSON("/health")).rejects.toMatchObject({ faultCode: code });
   }
 });

@@ -24,8 +24,7 @@ export async function runTavilySearch(
       return { ok: false, faultCode: "tavily_invalid_response", error: "Tavily 返回的搜索结果格式无效。" };
     }
     const results = response.results.slice(0, maxResults).map(item => ({
-      title: item.title, url: item.url, content: item.content.slice(0, 4000), score: item.score,
-      ...(item.content.length > 4000 ? { truncated: true } : {}),
+      title: item.title, url: item.url, content: item.content, score: item.score,
     }));
     return { ok: true, query, searchDepth: "advanced", results, urls: results.map(item => item.url) };
   } catch (error) {

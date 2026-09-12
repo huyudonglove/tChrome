@@ -4,6 +4,9 @@ export function elementTool(action, input = {}) {
     && (typeof input.targetText !== 'string' || !input.targetText.trim())) {
     return {ok: false, faultCode: 'invalid_arguments', error: 'targetText 必须是用于定位点击控件的非空字符串'};
   }
+  if (action === 'select' && (typeof input.ref !== 'string' || !input.ref || typeof input.value !== 'string')) {
+    return {ok: false, faultCode: 'invalid_arguments', error: 'select 需要下拉框 ref 和选项 value 字符串'};
+  }
   const selector = 'a,button,input:not([type=hidden]),textarea,select,[role="button"],[contenteditable="true"]';
   const visible = (node) => {
     const rect = node.getBoundingClientRect();
@@ -30,6 +33,7 @@ export function elementTool(action, input = {}) {
       text: (node.innerText || node.getAttribute('aria-label') || '').trim().slice(0, 100),
       label: labelOf(node).slice(0, 100), placeholder: node.getAttribute('placeholder') || '', name: node.name || '', type: node.type || '',
       value: 'value' in node ? String(node.value).slice(0, 100) : '', href: node.href || '',
+      ...(node.tagName === 'SELECT' ? {options: [...node.options].map(option => ({value: option.value, text: option.text, disabled: option.disabled}))} : {}),
       disabled: Boolean(node.disabled || node.getAttribute('aria-disabled') === 'true'),
       checked: 'checked' in node ? Boolean(node.checked) : undefined, required: Boolean(node.required),
       rect: {x: rect.x, y: rect.y, width: rect.width, height: rect.height}};
@@ -54,6 +58,15 @@ export function elementTool(action, input = {}) {
     hit = hits[0];
   }
   if (hit.disabled || hit.getAttribute('aria-disabled') === 'true') return {ok: false, error: '目标控件不可用'};
+  if (action === 'select') {
+    if (hit.tagName !== 'SELECT') return {ok: false, error: 'ref 指向的目标不是下拉框'};
+    const option = [...hit.options].find(item => item.value === input.value);
+    if (!option || option.disabled) return {ok: false, error: '没有可用的匹配选项 value'};
+    hit.value = option.value;
+    hit.dispatchEvent(new Event('input', {bubbles: true}));
+    hit.dispatchEvent(new Event('change', {bubbles: true}));
+    return {ok: true, value: hit.value};
+  }
   if (action === 'type') {
     if (!hit.matches('input:not([type=hidden]),textarea,[contenteditable="true"]') || hit.readOnly
       || (hit.tagName === 'INPUT' && !['text','search','tel','url','email','password','number','date','datetime-local','month','week','time'].includes(hit.type))) return {ok: false, error: '目标不是可编辑输入框'};

@@ -27,7 +27,6 @@ export async function readScript(dataDir: string, filename: unknown): Promise<{f
   const path = join(await directory(dataDir, false), filename);
   const info = await regular(path);
   if (!info) throw new AppError('file_not_found', '脚本不存在', {path});
-  if (info.size > 1_048_576) throw new Error('脚本超过 1 MiB');
   return {filename, path, code: await readFile(path, 'utf8')};
 }
 export async function listScripts(dataDir: string): Promise<{filename: string; bytes: number}[]> {
@@ -46,14 +45,9 @@ const git = async (cwd: string, args: string[], patch?: string) => {
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
   const proc = Bun.spawn(['git', ...args], {cwd, env: {...env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null'},
     stdin: patch === undefined ? 'ignore' : new Blob([patch]), stdout: 'pipe', stderr: 'pipe'});
-  let timedOut = false;
-  const timer = setTimeout(() => { timedOut = true; proc.kill('SIGKILL'); }, 10_000);
-  try {
-    const [code, out, err] = await Promise.all([proc.exited, new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
-    if (timedOut) throw new Error('git 补丁处理超时');
-    if (code !== 0) throw new Error(err.trim() || '补丁无效');
-    return out;
-  } finally { clearTimeout(timer); }
+  const [code, out, err] = await Promise.all([proc.exited, new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
+  if (code !== 0) throw new Error(err.trim() || '补丁无效');
+  return out;
 };
 
 export async function patchScript(dataDir: string, input: {filename?: unknown; patch?: unknown}): Promise<Record<string, unknown>> {
@@ -65,7 +59,7 @@ export async function patchScript(dataDir: string, input: {filename?: unknown; p
     try {
       const {filename, patch} = input;
       if (!validName(filename)) throw new Error('脚本文件名无效');
-      if (typeof patch !== 'string' || !patch.trim() || Buffer.byteLength(patch, 'utf8') > 2_097_152) throw new Error('需要有效 unified diff，最多 2 MiB');
+      if (typeof patch !== 'string' || !patch.trim()) throw new Error('需要有效 unified diff');
       // Metadata is checked separately; git owns hunk parsing and application.
       if (/^(?:rename |copy |old mode |new mode |new file mode (?!100644$)|deleted file mode (?!100644$))/m.test(patch)) throw new Error('不允许重命名、复制或文件权限变更');
       scratch = await mkdtemp(join(tmpdir(), 'tchrome-script-'));
@@ -76,14 +70,12 @@ export async function patchScript(dataDir: string, input: {filename?: unknown; p
       const dir = await directory(dataDir);
       const path = join(dir, filename);
       const info = await regular(path);
-      if (info && info.size > 1_048_576) throw new Error('脚本超过 1 MiB');
       const original = info ? await readFile(path) : null;
       if (original) await writeFile(join(scratch, filename), original, {mode: 0o644});
       await git(scratch, ['apply', '--check', '-'], patch);
       await git(scratch, ['apply', '-'], patch);
       const resultPath = join(scratch, filename);
       const result = await regular(resultPath);
-      if (result && result.size > 1_048_576) throw new Error('脚本超过 1 MiB');
       // Refuse changes made outside the serialized patch API while git ran.
       await regular(path);
       const current = await stat(path) ? await readFile(path) : null;

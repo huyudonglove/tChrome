@@ -91,7 +91,7 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
       toolGuide: toolGuideFor(toolRegistry, turn.assembled.toolIds),
       ...(dataDir ? { inlineBudget: { dataDir, system } } : {}),
     }), images: [...new Map(ledger.toolIO.filter(item => item.turnId === turn.turnId)
-      .flatMap(item => item.images ?? []).reverse().map(image => [image.id, image])).values()].slice(0, 4).reverse() },
+      .flatMap(item => item.images ?? []).reverse().map(image => [image.id, image])).values()].reverse() },
   ];
 };
 

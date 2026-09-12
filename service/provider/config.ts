@@ -12,7 +12,7 @@ export function isProviderName(value: unknown): value is ProviderName {
 export function configuredProvider(proxy: string | undefined, name = Bun.env.TCHROME_PROVIDER ?? "uuapi") {
   if (name === "uuapi") return createProvider({ proxy });
   if (name !== "shiningspace") throw new Error("TCHROME_PROVIDER must be uuapi or shiningspace");
-  const effort = Bun.env.SHININGSPACE_REASONING_EFFORT ?? "high";
+  const effort = Bun.env.SHININGSPACE_REASONING_EFFORT ?? "medium";
   if (!["low", "medium", "high"].includes(effort)) throw new Error("SHININGSPACE_REASONING_EFFORT must be low, medium or high");
   return createProvider({
     api: "responses",

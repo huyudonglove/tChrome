@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { runTavilySearch } from "./tavily-search.ts";
 import { runServiceTool } from "./service-tools.ts";
 
-test("Tavily SDK sends advanced search and returns bounded evidence without raw upstream data", async () => {
+test("Tavily SDK sends advanced search and returns complete evidence without raw upstream data", async () => {
   const requests: Record<string, unknown>[] = [];
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: async request => {
     expect(new URL(request.url).pathname).toBe("/search");
@@ -18,7 +18,7 @@ test("Tavily SDK sends advanced search and returns bounded evidence without raw 
     expect(requests).toEqual([{ query: "browser tools", search_depth: "advanced", max_results: 1,
       include_answer: false, include_raw_content: false, include_images: false }]);
     expect(result).toEqual({ ok: true, query: "browser tools", searchDepth: "advanced", urls: ["https://example.com"],
-      results: [{ title: "Guide", url: "https://example.com", content: "x".repeat(4000), score: 0.9, truncated: true }] });
+      results: [{ title: "Guide", url: "https://example.com", content: "x".repeat(4100), score: 0.9 }] });
   } finally { server.stop(true); }
 });
 

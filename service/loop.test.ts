@@ -317,7 +317,7 @@ test("web_search 走服务端执行", async () => {
 
 test("GET /tool-request 和 POST /tool-result 对上", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-bridge-"));
-  const bridge = createToolBridge(2000);
+  const bridge = createToolBridge();
   const server = createServer({ dataDir: dir, repoRoot, provider: mock([]), bridge });
   const empty = await server.fetch(new Request(`http://127.0.0.1:18788/tool-request?executorVersion=${executorVersion(repoRoot)}`));
   expect(await empty.json()).toEqual({ request: null, executorVersion: executorVersion(repoRoot) });

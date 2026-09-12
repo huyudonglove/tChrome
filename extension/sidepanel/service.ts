@@ -1,28 +1,27 @@
+import { fetchWithIdleTimeout } from "../../service/network/idle-fetch.ts";
 import { AppError, errorMessage } from "../../shared/errors.ts";
 
 export const SERVICE = "http://127.0.0.1:18788";
 export const DOWN = errorMessage("service_unreachable", "user");
 
-// Control requests must settle so a failed refresh cannot hold the send lock.
-// A turn can legitimately outlive the control-request timeout.
+// Control requests share the network inactivity deadline; turns wait for completion.
 export async function requestJSON<T>(path: string, init?: RequestInit): Promise<T> {
   const caller = init?.signal;
-  const timeout = path === "/turn" ? undefined : AbortSignal.timeout(15_000);
-  const signal = caller && timeout ? AbortSignal.any([caller, timeout]) : caller ?? timeout;
+
   const transportError = (cause: unknown): AppError => {
     const name = cause instanceof Error ? cause.name : undefined;
     const code = caller?.aborted ? "service_cancelled"
-      : timeout?.aborted || name === "TimeoutError" ? "service_timeout"
+      : name === "HttpIdleTimeoutError" || name === "TimeoutError" ? "service_timeout"
       : name === "AbortError" ? "service_cancelled" : "service_unreachable";
     return new AppError(code, errorMessage(code, "user"), { path }, { cause });
   };
   let response: Response;
   let text: string;
   try {
-    signal?.throwIfAborted();
-    response = await fetch(`${SERVICE}${path}`, { ...init, signal });
+    caller?.throwIfAborted();
+    response = await (path === "/turn" ? fetch : fetchWithIdleTimeout)(`${SERVICE}${path}`, init);
     text = await response.text();
-    signal?.throwIfAborted();
+    caller?.throwIfAborted();
   } catch (cause) {
     throw transportError(cause);
   }

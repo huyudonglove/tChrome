@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.run",
-    "description": "Execute a saved script by filename in absolute cwd. Save with script_patch in an earlier call. Extensions: .sh uses zsh, .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches. timeoutMs defaults to 30000, max 300000; timeout kills the process group. stdout/stderr each retain their last 65536 characters. Waits for completion; nonzero exit means failure.",
+    "description": "Execute a saved script by filename in absolute cwd. Save with script_patch in an earlier call. Extensions: .sh uses zsh, .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches. No default timeout; optional timeoutMs terminates the process group when elapsed. Complete stdout/stderr are returned and persisted in stdoutPath/stderrPath. Waits for completion; nonzero exit means failure.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -13,8 +13,7 @@
         "timeoutMs": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 300000,
-          "default": 30000
+          "description": "可选执行时限（毫秒），省略则不设时限；到期终止进程组"
         },
         "reason": {
           "type": "string",

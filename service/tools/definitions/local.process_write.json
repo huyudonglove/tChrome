@@ -10,8 +10,7 @@
           "type": "string"
         },
         "text": {
-          "type": "string",
-          "maxLength": 65536
+          "type": "string"
         },
         "end": {
           "type": "boolean"

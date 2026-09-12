@@ -44,7 +44,7 @@ test('concurrent patches for the same data directory apply in submission order',
  expect(results.map(r=>r.ok)).toEqual([true,true,true]);
  expect((await readScript(dir,'demo.js')).code).toBe('three\n');
 }));
-test('list includes only supported ordinary files and read/patch enforce the file size cap',()=>temp(async dir=>{
+test('list includes ordinary scripts and read/patch preserve large files',()=>temp(async dir=>{
  const {listScripts}=await import('./store.ts');
  expect(await listScripts(dir)).toEqual([]);
  await mkdir(join(dir,'scripts'));
@@ -54,7 +54,7 @@ test('list includes only supported ordinary files and read/patch enforce the fil
  await mkdir(join(dir,'scripts','folder.js'));
  expect(await listScripts(dir)).toEqual([{filename:'good.py',bytes:5}]);
  await writeFile(join(dir,'scripts','big.js'),'x'.repeat(1_048_577));
- await expect(readScript(dir,'big.js')).rejects.toThrow('1 MiB');
- expect((await patchScript(dir,{filename:'demo.js',patch:'--- /dev/null\n+++ b/demo.js\n@@ -0,0 +1 @@\n+'+'x'.repeat(1_048_576)+'\n'})).ok).toBe(false);
- expect((await patchScript(dir,{filename:'demo.js',patch:'x'.repeat(2_097_153)})).ok).toBe(false);
+ expect((await readScript(dir,'big.js')).code.length).toBe(1_048_577);
+ expect((await patchScript(dir,{filename:'demo.js',patch:'--- /dev/null\n+++ b/demo.js\n@@ -0,0 +1 @@\n+'+'x'.repeat(2_097_153)+'\n'})).ok).toBe(true);
+ expect((await readScript(dir,'demo.js')).code.length).toBe(2_097_154);
 }));
