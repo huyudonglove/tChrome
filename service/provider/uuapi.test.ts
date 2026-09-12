@@ -9,9 +9,50 @@ import { loadLedger, loadProviderLog } from "../runtime/store.ts";
 const input = { messages: [], tools: [] };
 const providerFor = (port: number) => createProvider({ apiKey: "local-test", baseURL: `http://127.0.0.1:${port}/v1`, proxy: "" });
 const call = (id: string, name: string, args: string) => ({ id, type: "function", function: { name, arguments: args } });
-const sse = (calls: ReturnType<typeof call>[], content = "") => Response.json({
+const sse = (calls: ReturnType<typeof call>[], content = "", finish = "tool_calls") => Response.json({
   id: "test", object: "chat.completion", choices: [{ index: 0,
-    message: { role: "assistant", content, tool_calls: calls }, finish_reason: "tool_calls" }],
+    message: { role: "assistant", content, tool_calls: calls }, finish_reason: finish }],
+});
+
+for (const finish of ["length", "content_filter", "stop", "unknown"]) {
+  test(`${finish} 工具批次整批拒绝，合法兄弟不执行`, async () => {
+    const dir = mkdtempSync(join(tmpdir(), "tchrome-provider-finish-"));
+    let requests = 0;
+    const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch() {
+      requests++;
+      return sse([
+        call("valid", "notes.write", '{"reason":"test","affectsPage":false,"key":"kept","value":"yes"}'),
+        call("broken", "notes.write", '{"reason":"test"'),
+      ], "partial", finish);
+    } });
+    try {
+      const provider = providerFor(server.port!);
+      const response = await provider.complete(input);
+      expect(response.finish).toBe("error");
+      expect(response.faultCode).toBe("provider_error");
+      expect(response.toolCalls).toEqual([]);
+      expect(response.toolCallFaults).toBeUndefined();
+      expect(response.attempts).toBe(1);
+      const result = await handleTurn({ dataDir: dir, repoRoot: resolve(import.meta.dir, "../.."), provider },
+        { userInput: "测试", submittedAt: "now" });
+      expect(result.output).toEqual({ kind: "error", faultCode: "provider_error" });
+      const ledger = loadLedger(dir, result.conversationId);
+      expect(ledger.notes.kept).toBeUndefined();
+      expect(ledger.toolIO).toEqual([]);
+      expect(requests).toBe(2);
+    } finally { server.stop(true); rmSync(dir, { recursive: true, force: true }); }
+  });
+}
+
+test("正常 stop 文本响应保持成功", async () => {
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => sse([], "完成", "stop") });
+  try {
+    const result = await providerFor(server.port!).complete(input);
+    expect(result.finish).toBe("stop");
+    expect(result.content).toBe("完成");
+    expect(result.faultCode).toBeNull();
+    expect(result.toolCalls).toEqual([]);
+  } finally { server.stop(true); }
 });
 
 for (const status of [500, 429, 401, 400]) {

@@ -33,6 +33,50 @@ export const BROWSER_TOOL_NAMES = [
   'service_worker_list', 'websocket_monitor',
 ];
 
+// Network is shared with network_throttle; stop removes only this monitor's
+// listeners and buffers, leaving the debugger and its other domains intact.
+const socketMonitors = new Map();
+const monitorWebSockets = async (tab, action) => {
+  if (!['start', 'stop', 'read'].includes(action)) return {ok: false, error: '需要 action=start|stop|read'};
+  const existing = socketMonitors.get(tab);
+  if (action === 'read') return {ok: true, tab, monitoring: !!existing, messages: existing?.messages.slice() ?? []};
+  if (action === 'stop') {
+    const messages = existing?.messages.slice() ?? [];
+    existing?.cleanup();
+    return {ok: true, tab, stopped: true, messages};
+  }
+  if (existing) return {ok: true, tab, already: true};
+  const events = chrome.debugger.onEvent;
+  const detached = chrome.debugger.onDetach;
+  const removed = chrome.tabs.onRemoved;
+  const messages = [];
+  const onEvent = (source, method, params) => {
+    if (source.tabId !== tab || !['Network.webSocketFrameSent', 'Network.webSocketFrameReceived'].includes(method)) return;
+    const payload = String(params.response?.payloadData ?? '');
+    messages.push({dir: method === 'Network.webSocketFrameSent' ? 'out' : 'in',
+      data: payload.slice(0, 16000), opcode: params.response?.opcode,
+      requestId: params.requestId, time: Date.now(), ...(payload.length > 16000 ? {truncated: true} : {})});
+    if (messages.length > 50) messages.shift();
+  };
+  const cleanup = () => {
+    events.removeListener(onEvent);
+    detached.removeListener(onDetach);
+    removed.removeListener(onRemoved);
+    socketMonitors.delete(tab);
+  };
+  const onDetach = (source) => { if (source.tabId === tab) cleanup(); };
+  const onRemoved = (id) => { if (id === tab) cleanup(); };
+  events.addListener(onEvent);
+  detached.addListener(onDetach);
+  removed.addListener(onRemoved);
+  socketMonitors.set(tab, {messages, cleanup});
+  try {
+    await withDebugger(tab, () => chrome.debugger.sendCommand({tabId: tab}, 'Network.enable', {}));
+    if (!socketMonitors.has(tab)) throw new Error('WebSocket 监控启动时调试器已断开');
+    return {ok: true, tab, started: true};
+  } catch (error) { cleanup(); return {ok: false, tab, error: String(error)}; }
+};
+
 export const mapImagePointToViewport = (point, imageSize, viewport) => {
   if (!Array.isArray(point) || point.length !== 2) return null;
   if (!Array.isArray(imageSize) || imageSize.length !== 2) return null;
@@ -1352,53 +1396,19 @@ const executeBrowserTool = async (name, input = {}) => {
       return {ok: false, error: `CDP long_press 失败：${message}`};
     }
   }
-  // Service Worker 列表
+  // Query registrations in the target origin, not the extension worker.
   if (name === 'service_worker_list') {
-    if (!chrome.serviceWorker?.getRegistrations) return {ok: false, error: 'Service Worker API 不可用'};
-    const registrations = await chrome.serviceWorker.getRegistrations();
-    const sws = registrations.map((r) => ({scope: r.scope, active: r.active?.scriptURL, installing: r.installing?.scriptURL, waiting: r.waiting?.scriptURL}));
-    return {ok: true, serviceWorkers: sws};
+    return runOnTab(tabId, [], async () => {
+      if (!navigator.serviceWorker?.getRegistrations) return {ok: false, error: '该页面不支持 Service Worker API'};
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      return {ok: true, serviceWorkers: registrations.map((r) => ({scope: r.scope,
+        active: r.active?.scriptURL, installing: r.installing?.scriptURL, waiting: r.waiting?.scriptURL}))};
+    });
   }
-  // WebSocket 监控
   if (name === 'websocket_monitor') {
-    const {action} = input;
-    if (action === 'start') {
-      return runOnTab(tabId, [], () => {
-        if (window.__wsMonitor) return {ok: true, already: true};
-        window.__wsMessages = [];
-        const origSend = WebSocket.prototype.send;
-        WebSocket.prototype.send = function(...args) {
-          window.__wsMessages.push({dir: 'out', data: args[0], time: Date.now()});
-          return origSend.apply(this, args);
-        };
-        const origAddEventListener = EventTarget.prototype.addEventListener;
-        EventTarget.prototype.addEventListener = function(type, ...args) {
-          if (this instanceof WebSocket && type === 'message') {
-            const origHandler = args[0];
-            args[0] = function(event) {
-              window.__wsMessages.push({dir: 'in', data: event.data, time: Date.now()});
-              return origHandler.call(this, event);
-            };
-          }
-          return origAddEventListener.call(this, type, ...args);
-        };
-        window.__wsMonitor = true;
-        return {ok: true, started: true};
-      });
-    }
-    if (action === 'stop') {
-      return runOnTab(tabId, [], () => {
-        window.__wsMonitor = false;
-        const messages = window.__wsMessages || [];
-        return {ok: true, stopped: true, messages: messages.slice(-50)};
-      });
-    }
-    if (action === 'read') {
-      return runOnTab(tabId, [], () => {
-        return {ok: true, messages: (window.__wsMessages || []).slice(-50)};
-      });
-    }
-    return {ok: false, error: '需要 action=start|stop|read'};
+    const tab = await getTab(tabId);
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可监控的普通网页标签'};
+    return monitorWebSockets(tab.id, input.action);
   }
   return {ok: false, error: `未接执行器 ${name}`};
 };

@@ -133,6 +133,21 @@ export function createProvider(config: ProviderConfig = {}) {
         attempts = attempt;
         try {
           const { content, calls, finish } = await once(input.messages, input.tools, input.imageContext);
+          // Only a completed tool-call batch may reach argument parsing and execution.
+          if (finish !== "tool_calls") {
+            const stopped = finish === "stop" && calls.length === 0;
+            return {
+              finish: stopped ? "stop" : "error",
+              content,
+              toolCalls: [],
+              attempts: attempt,
+              parseOk: stopped,
+              schemaOk: stopped,
+              faultCode: stopped ? null : "provider_error",
+              missing: [],
+              ...(stopped ? {} : { detail: `Unexpected provider finish reason: ${finish}` }),
+            };
+          }
           const parsed = parseCalls(calls);
           if (!parsed.parseOk) {
             return {
@@ -149,15 +164,15 @@ export function createProvider(config: ProviderConfig = {}) {
               detail: parsed.faults.map((fault) => `${fault.name}: ${fault.detail}`).join("; "),
             };
           }
-          if (finish !== "tool_calls" || parsed.toolCalls.length === 0) {
+          if (parsed.toolCalls.length === 0) {
             return {
-              finish: finish === "stop" ? "stop" : "error",
+              finish: "error",
               content,
               toolCalls: parsed.toolCalls,
               attempts: attempt,
               parseOk: true,
               schemaOk: true,
-              faultCode: finish === "stop" ? null : "provider_error",
+              faultCode: "provider_error",
               missing: [],
             };
           }

@@ -287,3 +287,86 @@ test("capture_page full_page captures CSS content bounds beyond viewport without
   expect(await runBrowserTool("capture_page", {mode: "full_page",tab: 903})).toMatchObject({ok: true, fullPage: true, page_size: [800, 6000]});
   expect(commands[1]).toEqual(["Page.captureScreenshot", {format: "jpeg", quality: 70, captureBeyondViewport: true, fromSurface: true, clip: {x: 0, y: 0, width: 800, height: 6000, scale: 1}}]);
 });
+
+const eventBus = () => {
+  const listeners = new Set<(...args: any[]) => void>();
+  return { listeners, addListener: (fn: any) => listeners.add(fn), removeListener: (fn: any) => listeners.delete(fn),
+    emit: (...args: any[]) => { for (const fn of [...listeners]) fn(...args); } };
+};
+const mockSocketBrowser = (tab: number, fail = false) => {
+  const onEvent = eventBus(), onDetach = eventBus(), onRemoved = eventBus();
+  const commands: string[] = [];
+  globals.chrome = {
+    tabs: { get: async () => ({id: tab, url: 'https://example.com'}), onRemoved },
+    debugger: { onEvent, onDetach, attach: async () => {}, sendCommand: async (_: any, command: string) => {
+      commands.push(command);
+      if (fail && command === 'Network.enable') throw new Error('network unavailable');
+    } },
+  };
+  return {onEvent, onDetach, onRemoved, commands};
+};
+
+test('WebSocket monitor captures both directions, isolates tabs, bounds data and cleans up on stop/restart', async () => {
+  const tab = 3101;
+  const {onEvent, commands} = mockSocketBrowser(tab);
+  expect(await runBrowserTool('websocket_monitor', {tab, action: 'start'})).toMatchObject({ok: true, started: true});
+  expect(await runBrowserTool('websocket_monitor', {tab, action: 'start'})).toMatchObject({already: true});
+  expect(commands.filter(c => c === 'Network.enable')).toHaveLength(1);
+  const frame = (id: number, dir: string, data: string) => onEvent.emit({tabId: id}, `Network.webSocketFrame${dir}`, {requestId: 'socket', response: {opcode: 1, payloadData: data}});
+  frame(tab + 1, 'Received', 'unrelated');
+  frame(tab, 'Sent', 'outbound'); frame(tab, 'Received', 'inbound');
+  const read = await runBrowserTool('websocket_monitor', {tab, action: 'read'});
+  expect(read.messages.map((m: any) => [m.dir, m.data])).toEqual([['out', 'outbound'], ['in', 'inbound']]);
+  for (let i = 0; i < 55; i++) frame(tab, 'Received', String(i));
+  frame(tab, 'Received', 'x'.repeat(17000));
+  const stopped = await runBrowserTool('websocket_monitor', {tab, action: 'stop'});
+  expect(stopped.messages).toHaveLength(50);
+  expect(stopped.messages.at(-1)).toMatchObject({truncated: true, opcode: 1});
+  expect(stopped.messages.at(-1).data).toHaveLength(16000);
+  expect(onEvent.listeners.size).toBe(1); // shared dialog listener remains
+  frame(tab, 'Received', 'after-stop');
+  expect(await runBrowserTool('websocket_monitor', {tab, action: 'read'})).toMatchObject({monitoring: false, messages: []});
+  expect(commands).not.toContain('Network.disable');
+  await runBrowserTool('websocket_monitor', {tab, action: 'start'});
+  expect(await runBrowserTool('websocket_monitor', {tab, action: 'read'})).toMatchObject({monitoring: true, messages: []});
+  await runBrowserTool('websocket_monitor', {tab, action: 'stop'});
+});
+
+for (const reason of ['detach', 'close', 'failure']) test(`WebSocket monitor releases listeners after ${reason}`, async () => {
+  const tab = reason === 'detach' ? 3102 : reason === 'close' ? 3103 : 3104;
+  const {onEvent, onDetach, onRemoved} = mockSocketBrowser(tab, reason === 'failure');
+  const result = await runBrowserTool('websocket_monitor', {tab, action: 'start'});
+  if (reason === 'failure') expect(result.ok).toBe(false);
+  else {
+    expect(result.ok).toBe(true);
+    if (reason === 'detach') onDetach.emit({tabId: tab});
+    else onRemoved.emit(tab);
+  }
+  expect(onEvent.listeners.size).toBe(1);
+  expect(onDetach.listeners.size).toBe(1);
+  expect(onRemoved.listeners.size).toBe(1);
+  expect(await runBrowserTool('websocket_monitor', {tab, action: 'read'})).toMatchObject({monitoring: false, messages: []});
+});
+
+test('service_worker_list reads registrations from the requested page and reports unsupported origins', async () => {
+  const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  const scripts: number[] = [];
+  const registration = {scope: 'https://example.com/app/', active: {scriptURL: 'https://example.com/sw.js'}};
+  try {
+    Object.defineProperty(globalThis, 'navigator', {configurable: true, value: {serviceWorker: {getRegistrations: async () => [registration]}}});
+    globals.chrome = {
+      tabs: {get: async (id: number) => ({id, url: 'https://example.com'})},
+      scripting: {executeScript: async ({target, func, args}: any) => {
+        scripts.push(target.tabId);
+        return [{result: args ? await func(...args) : {title: 'Example', url: 'https://example.com', text: ''}}];
+      }},
+    };
+    expect(await runBrowserTool('service_worker_list', {tab: 3201})).toMatchObject({ok: true, serviceWorkers: [{scope: registration.scope, active: registration.active.scriptURL}]});
+    expect(scripts.every(id => id === 3201)).toBe(true);
+    Object.defineProperty(globalThis, 'navigator', {configurable: true, value: {}});
+    expect(await runBrowserTool('service_worker_list', {tab: 3201})).toMatchObject({ok: false, error: '该页面不支持 Service Worker API'});
+  } finally {
+    if (originalNavigator) Object.defineProperty(globalThis, 'navigator', originalNavigator);
+    else delete globals.navigator;
+  }
+});

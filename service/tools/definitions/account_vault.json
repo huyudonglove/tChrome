@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "account_vault",
-    "description": "管理本地账号库。\n参数：action=list 列站点账号；action=get 按 id 或 site+username 取完整凭据；action=save 保存或更新 site（站点）、username（账号）、password（密码）、label（标签）、note（备注）；action=delete 按 id 删除。\n返回：ok（是否成功）、account 或 items（结果列表）。\naffectsPage=false。",
+    "description": "管理本地账号库。\n参数：action=list 列站点账号；action=get 按 id 或 site+username 取完整凭据，指定 id 时只匹配该账号；action=save 必须提供 site（站点）、username（账号）、password（密码），可选 label（标签）、note（备注）。指定 id 时更新该账号的全部必填字段，id 不存在或站点+用户名与其他账号冲突时失败；不指定 id 时按 site+username 保存或更新。更新时省略 label/note 保留旧值，传空字符串可清空；action=delete 按 id 删除。\n返回：ok（是否成功）、account 或 items（结果列表）。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -52,19 +52,24 @@ export function runAccountVault(dataDir: string, input: Record<string, unknown> 
   const action = String(input.action || "list");
   if (action === "save") {
     const normalizedSite = normalizeSite(input.site);
+    const username = String(input.username || "").trim();
     if (!normalizedSite) return { ok: false, error: "账号库缺 site" };
-    if (!String(input.username || "").trim()) return { ok: false, error: "账号库缺 username" };
+    if (!username) return { ok: false, error: "账号库缺 username" };
     if (!String(input.password || "")) return { ok: false, error: "账号库缺 password" };
     const accounts = readAccounts(dataDir);
-    const found = accounts.find((item) =>
-      (input.id && item.id === input.id)
-      || (item.site === normalizedSite && item.username === String(input.username).trim()),
-    );
+    const matchingAccount = accounts.find((item) => item.site === normalizedSite && item.username === username);
+    const found = input.id !== undefined ? accounts.find((item) => item.id === input.id) : matchingAccount;
+    if (input.id !== undefined && !found) return { ok: false, error: "没有这个账号" };
+    if (found && matchingAccount && matchingAccount.id !== found.id) {
+      return { ok: false, error: "站点和用户名已被其他账号使用" };
+    }
     const stamp = nowIso();
     if (found) {
+      found.site = normalizedSite;
+      found.username = username;
       found.password = String(input.password);
-      found.label = String(input.label || found.label || "");
-      found.note = String(input.note || found.note || "");
+      found.label = String(input.label ?? found.label ?? "");
+      found.note = String(input.note ?? found.note ?? "");
       found.updatedAt = stamp;
       writeAccounts(dataDir, accounts);
       return { ok: true, account: publicAccount(found, true) };
@@ -72,7 +77,7 @@ export function runAccountVault(dataDir: string, input: Record<string, unknown> 
     const item: Account = {
       id: `account-${randomUUID()}`,
       site: normalizedSite,
-      username: String(input.username).trim(),
+      username,
       password: String(input.password),
       label: String(input.label || ""),
       note: String(input.note || ""),
@@ -85,10 +90,9 @@ export function runAccountVault(dataDir: string, input: Record<string, unknown> 
   }
   if (action === "get") {
     const wantedSite = normalizeSite(input.site);
-    const item = readAccounts(dataDir).find((candidate) =>
-      (input.id && candidate.id === input.id)
-      || (wantedSite && candidate.site === wantedSite && (!input.username || candidate.username === input.username)),
-    );
+    const item = readAccounts(dataDir).find((candidate) => input.id !== undefined
+      ? candidate.id === input.id
+      : wantedSite && candidate.site === wantedSite && (!input.username || candidate.username === input.username));
     return item ? { ok: true, account: publicAccount(item, true) } : { ok: false, error: "没有匹配的账号" };
   }
   if (action === "delete") {

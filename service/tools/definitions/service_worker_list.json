@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "service_worker_list",
-    "description": "列出网页后台服务。\n返回：ok（是否成功）、serviceWorkers（网页后台服务列表）。\naffectsPage=false。",
+    "description": "列出目标网页所属源可见的 Service Worker 注册信息，需要页面支持 Service Worker API。\n返回：ok（是否成功）、serviceWorkers（scope、active、installing、waiting 脚本地址）。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
