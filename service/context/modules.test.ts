@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { loadContextModules, parseModule, renderSlots, slotNames } from "./modules.ts";
 import { systemText, userText } from "./window.ts";
 import { emptyLedger } from "../runtime/store.ts";
+import { catalog, identityRulesText } from "../identity/catalog.ts";
 import type { Turn } from "../types.ts";
 
 const root = join(import.meta.dir, "../..");
@@ -174,16 +175,21 @@ test("user descriptions cannot interpolate runtime data and system modules canno
   expect(() => loadContextModules(dir)).toThrow();
 });
 
-test("system modules contain each rule once without tool description copies", () => {
+test("system modules retain the identity table and separate resident tool navigation", () => {
   const modules = loadContextModules(root);
-  const system = systemText(modules, "2026-09-06");
+  const guide = "- finishTurn：结束本轮 {{literal}}。";
+  const system = systemText(modules, "2026-09-06", guide);
   for (const tag of modules.systemOrder) {
     const module = modules.systemSlots[tag]!;
-    const text = module.body.trimEnd();
+    const text = module.body.replace("{{data}}", () => tag === "#recordIdentity" ? identityRulesText() : guide).trimEnd();
     expect(system.split(`${tag} --${module.capability}\n${text}`)).toHaveLength(2);
   }
-  expect(modules.systemOrder).not.toContain("#baseTools");
-  expect(modules.userOrder).not.toContain("#tools");
+  expect(modules.systemOrder).toContain("#baseTools");
+  expect(modules.userOrder).toContain("#tools");
+  expect(system.split(guide)).toHaveLength(2);
+  for (const row of Object.values(catalog)) {
+    expect(system).toContain(`| ${row.description} | ${row.prefix}_01 | ${row.scope === "service" ? "服务" : "会话"} |`);
+  }
   expect(headings(system)).toEqual([]);
   expect(system.endsWith(modules.userInventory)).toBe(true);
 });

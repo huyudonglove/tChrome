@@ -127,7 +127,8 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "#execution",
     "#toolProtocol",
     "#boundaries",
-    "#output"
+    "#output",
+    "#baseTools"
   ],
   "userSlots": [
     "#skill",
@@ -143,7 +144,8 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "#notes",
     "#toolIO",
     "#queryHistory",
-    "#currentQuery"
+    "#currentQuery",
+    "#tools"
   ],
   "provider": "uuapi",
   "model": "gemini-3.7-flash",

@@ -7,8 +7,10 @@ import { queryView, type QueryEvidence } from "./projections/queries.ts";
 
 const jsonBody = (value: unknown) => JSON.stringify(value, null, 2);
 
-export function systemText(contextModules: ContextModules, currentDate: string): string {
-  return [interpolate(contextModules.overview, { currentDate }), renderInventory("System", contextModules.systemOrder, contextModules.systemSlots), contextModules.userInventory].join("\n\n");
+export function systemText(contextModules: ContextModules, currentDate: string, baseToolGuide = ""): string {
+  return [interpolate(contextModules.overview, { currentDate }), renderInventory("System", contextModules.systemOrder, contextModules.systemSlots, {
+    "#baseTools": baseToolGuide,
+  }), contextModules.userInventory].join("\n\n");
 }
 
 export function userText(input: {
@@ -17,6 +19,7 @@ export function userText(input: {
   turn: Turn;
   memories: { project: string; conversation: string };
   skillText: string;
+  toolGuide?: string;
   conversationSummaries?: TurnSummary[];
   currentQuery?: QueryEvidence | null;
   queryHistory?: QueryEvidence[];
@@ -41,6 +44,7 @@ export function userText(input: {
     "#toolIO": jsonBody(toolHistoryView(ledger.toolIO, pages)),
     "#queryHistory": jsonBody((input.queryHistory ?? []).map(queryView)),
     "#currentQuery": jsonBody(input.currentQuery ? queryView(input.currentQuery) : null),
+    "#tools": input.toolGuide ?? "",
   });
 }
 

@@ -46,3 +46,13 @@ export function toolSchemas(registry: ToolRegistry, ids: string[]): ChatTool[] {
     return tool;
   });
 }
+
+/** Purpose navigation shares its source with the API description, without copying parameter/return details. */
+export function toolGuideFor(registry: ToolRegistry, ids: string[]): string {
+  return toolSchemas(registry, ids).map(tool => {
+    const description = tool.function.description?.trim();
+    if (!description) throw new Error(`missing tool description ${tool.function.name}`);
+    const purpose = description.split(/[。\n]/, 1)[0]!.trim();
+    return `- ${tool.function.name}：${purpose}。`;
+  }).join("\n");
+}

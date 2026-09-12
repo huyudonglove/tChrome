@@ -33,12 +33,12 @@ test("assembled User slots follow the shared data contract and preserve query re
     conversation: [{ memoryId: "mm_01", turnId: "tn_01", sourceCallId: "call_01", layer: "conversation", text: "当时待处理", createdAt: "2026-09-12" }],
   });
   const rendered = userText({ contextModules, ledger, turn, memories, skillText: "核对方法", conversationSummaries: [{ id: "sum_01", turnId: "tn_01", tag: "状态", userRequest: "检查状态", actions: "读取详情", result: "待处理" }], currentQuery: query, queryHistory: [{ ...query, queryId: "query_01" }] });
-  const chunks = rendered.split(/^#([A-Za-z][A-Za-z0-9]*)\n/gm);
+  const chunks = rendered.split(/^#([A-Za-z][A-Za-z0-9]*)(?:\n|$)/gm);
   const values: Record<string, any> = {};
   for (let i = 1; i < chunks.length; i += 2) {
     const name = chunks[i]!;
     const body = chunks[i + 1]!.trim();
-    values[name] = name === "skill" ? body : JSON.parse(body);
+    values[name] = name === "skill" || name === "tools" ? body : JSON.parse(body);
   }
   expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
   expect(values.currentQuery.records).toEqual([tool]);

@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { identityRulesText } from "../identity/catalog.ts";
 
 export type ContextModule = { tag: string; capability: string; description?: string; body: string };
 export type ContextModules = {
@@ -75,7 +76,7 @@ export function renderInventory(role: "System" | "User", order: string[], module
   return `# ${role} 栏目清单\n\n${order.map(tag => {
     const module = modules[tag];
     if (!module) throw new Error(`missing slot file ${tag}`);
-    const text = role === "System" ? interpolate(module.body, { data: data[tag] ?? "" }) : module.description!;
+    const text = role === "System" ? interpolate(module.body, { data: data[tag] ?? (tag === "#recordIdentity" ? identityRulesText() : "") }) : module.description!;
     return `${tag} --${module.capability}\n${text}`.trimEnd();
   }).join("\n\n")}`;
 }

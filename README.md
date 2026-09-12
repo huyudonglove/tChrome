@@ -193,7 +193,7 @@ service/
   presentation/        会话展示投影
 ```
 
-工具定义位于 `service/tools/definitions/`；主 Agent 的提示词按 7 个 System 规则和 14 个 User 数据栏目维护，再由 Runtime 组装；工具说明仅随 tools[] 发送。过程说明取工具参数 reason，最终回复和提问分别取 text、question。压缩与查询 Agent 各自维护提示词和返回工具，共用模型请求能力。
+工具定义位于 `service/tools/definitions/`；主 Agent 的提示词按 8 个 System 规则和 15 个 User 数据栏目维护，再由 Runtime 组装；System #baseTools 展示常驻能力导航，User #tools 展示本轮已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送。过程说明取工具参数 reason，最终回复和提问分别取 text、question。压缩与查询 Agent 各自维护提示词和返回工具，共用模型请求能力。
 
 | 命令 | 用途 |
 | --- | --- |

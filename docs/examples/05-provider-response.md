@@ -52,7 +52,8 @@
     "#execution",
     "#toolProtocol",
     "#boundaries",
-    "#output"
+    "#output",
+    "#baseTools"
   ],
   "userSlots": [
     "#skill",
@@ -68,7 +69,8 @@
     "#notes",
     "#toolIO",
     "#queryHistory",
-    "#currentQuery"
+    "#currentQuery",
+    "#tools"
   ],
   "provider": "uuapi",
   "model": "gemini-3.7-flash",
@@ -262,7 +264,8 @@
     "#execution",
     "#toolProtocol",
     "#boundaries",
-    "#output"
+    "#output",
+    "#baseTools"
   ],
   "userSlots": [
     "#skill",
@@ -278,7 +281,8 @@
     "#notes",
     "#toolIO",
     "#queryHistory",
-    "#currentQuery"
+    "#currentQuery",
+    "#tools"
   ],
   "provider": "uuapi",
   "model": "gemini-3.7-flash",

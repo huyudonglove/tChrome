@@ -19,9 +19,9 @@
 | `provider/` | 模型通信、传输重试与响应解析 |
 | `presentation/` | 纯函数生成会话消息、错误文案、待执行工具和列表预览 |
 
-主 Agent 的 Prompt 正文与加载器都在 `service/context/`。system-slots.md / user-slots.md 只保存编号文件名；每个模块独立声明 tag、能力和详细描述。system 先输出 `service/context/overview.md` 总纲，串联规则、材料、判断与行动，再输出 System 栏目清单，七个模块逐项以 tag --能力接详细正文；再输出 User 栏目清单，逐项以 tag --能力接详细描述。user 只渲染十四个 tag 的内容段，不重复能力或详细描述。Skill 正文位于独立的 service/skills/<name>/SKILL.md，由 runtime 加载后注入 #skill；context/user/skill.md 只提供模块说明和数据占位。
+主 Agent 的 Prompt 正文与加载器都在 `service/context/`。system-slots.md / user-slots.md 只保存编号文件名；每个模块独立声明 tag、能力和详细描述。system 先输出 `service/context/overview.md` 总纲，串联规则、材料、判断与行动，再输出 System 栏目清单，八个模块逐项以 tag --能力接详细正文；再输出 User 栏目清单，逐项以 tag --能力接详细描述。user 只渲染十五个 tag 的内容段，不重复能力或详细描述。Skill 正文位于独立的 service/skills/<name>/SKILL.md，由 runtime 加载后注入 #skill；context/user/skill.md 只提供模块说明和数据占位。
 
-工具 API 定义位于 `service/tools/definitions/`，分组在 groups.json。说明唯一来自 function.description，index 只分类；常驻和动态工具说明仅随 tools[] 发送。过程展示仅使用工具 arguments.reason；最终回复、提问分别使用 finishTurn.arguments.text 和 askUser.arguments.question，不回退到模型 content。运行提示位于 service/runtime/messages.json。上下文 README 是维护入口，不进入模型窗口。
+工具 API 定义位于 `service/tools/definitions/`，分组在 groups.json。说明唯一来自 function.description，index 只分类；System #baseTools 展示常驻能力导航，User #tools 展示本轮已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送。过程展示仅使用工具 arguments.reason；最终回复、提问分别使用 finishTurn.arguments.text 和 askUser.arguments.question，不回退到模型 content。运行提示位于 service/runtime/messages.json。上下文 README 是维护入口，不进入模型窗口。
 
 HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`。密钥在本目录 `.env`。落盘在 `~/Library/Application Support/tChrome/`（`session.json` + `conversations/<cvId>/`）。每次出网的 system/user 和模型交口写 `conversations/<cvId>/provider.md`，正文真换行。
 

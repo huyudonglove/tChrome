@@ -71,7 +71,7 @@ conversations/<cvId>/returns/<callId>.txt
 
 JSON 快照覆盖写。流水只追加，不改已经写下的行。
 
-记录 ID 规则统一见 `service/identity/catalog.json`；System 编号说明和 User 数据校验从同一清单读取。模块 JSON 契约见 `service/context/data-schema.json`，字段速查见 `service/context/DATA.md`。
+记录 ID 规则统一见 `service/identity/catalog.json`；System #recordIdentity 的编号规则表和 User 数据校验从同一清单生成。表格展示类型、示例和范围，配套规则要求原样引用已有 ID，各类型在所属范围独立递增、允许空号，不跨类型或范围比较编号。模块 JSON 契约见 `service/context/data-schema.json`，字段速查见 `service/context/DATA.md`。
 
 ## events.jsonl
 
@@ -167,8 +167,8 @@ Runtime 独占维护。当前会话指针。
 
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
-| `baseToolsIds` | string[] | 常驻工具，对应 `service/tools/definitions/<id>.json`；完整名单以 `service/tools/definitions/groups.json` 为准，schema 和说明进入出网 tools[] |
-| `toolIds` | string[] | 动态工具，对应 `service/tools/definitions/<id>.json`。开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.list_interactive_elements` `page.click` `page.type` `open_url` `web_search` `list_browser_tools` `catalog.add`）。缺了 `catalog.add` 再补。窗口压缩保持已加载工具不变 |
+| `baseToolsIds` | string[] | 常驻工具，对应 `service/tools/definitions/<id>.json`；完整名单以 `service/tools/definitions/groups.json` 为准，能力导航进入 System #baseTools，完整 schema 和说明进入出网 tools[] |
+| `toolIds` | string[] | 动态工具，对应 `service/tools/definitions/<id>.json`。开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.list_interactive_elements` `page.click` `page.type` `open_url` `web_search` `list_browser_tools` `catalog.add`）。缺了 `catalog.add` 再补。能力导航进入 User #tools，窗口压缩保持已加载工具不变 |
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
 | `mcpIds` | string[] | 本轮 MCP；没有就 `[]` |
@@ -244,11 +244,11 @@ conversationHistorySummary 显示当前有效摘要的 {sumId, turnId, tag, user
 
 加载顺序由 `service/context/system-slots.md` 和 `user-slots.md` 的编号文件名决定，例如 `1. identity`，不在目录重复描述能力。system 模块以 `#tag`、`能力：【…】`、`详细描述：` 和正文组成；user 模块还包含独立的 `内容：` 段。user 的详细描述进入 system 内 User 清单，内容段通过 `{{data}}` 注入运行数据。
 
-加载器返回 systemOrder / userOrder，systemSlots / userSlots 保存模块元数据与对应正文。system 先输出 `# System 栏目清单`，七个模块每项 tag --能力之后直接跟详细正文；再输出 `# User 栏目清单`，每项 tag --能力之后直接跟详细描述。system 详细正文与清单项合并，只出现一次；user 渲染十四个 tag 的内容段和数据，不重复能力标签或详细描述。
+加载器返回 systemOrder / userOrder，systemSlots / userSlots 保存模块元数据与对应正文。system 先输出 `# System 栏目清单`，八个模块每项 tag --能力之后直接跟详细正文；再输出 `# User 栏目清单`，每项 tag --能力之后直接跟详细描述。system 详细正文与清单项合并，只出现一次；user 渲染十五个 tag 的内容段和数据，不重复能力标签或详细描述。
 
 system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，boundaries 管授权和证据来源。网页方法维护于 `service/skills/web-observation/SKILL.md`，runtime 按 `service/skills/index.json` 加载后作为数据注入 context，模块描述仍由 `service/context/user/skill.md` 提供。User 模块投影保留记录 ID、轮次与来源关联和完整内容；工具 schema 以 definitions 为准。
 
-常驻和动态工具说明仅随 tools[] 发送，唯一来源仍是 `service/tools/definitions/<id>.json` 的 function.description。调整模块后同步生成导航、装配测试与阶段示例；阶段 JSON 中 systemSlots / userSlots 是对应的 7 / 14 个 tag 名数组，并非模块对象。
+System #baseTools 展示常驻能力导航，User #tools 展示本轮已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送，唯一来源仍是 `service/tools/definitions/<id>.json` 的 function.description。调整模块后同步生成导航、装配测试与阶段示例；阶段 JSON 中 systemSlots / userSlots 是对应的 8 / 15 个 tag 名数组，并非模块对象。
 
 出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。
 
@@ -344,6 +344,6 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 
 ## 实现职责
 
-工具 schema、分类和分组由 `service/tools/registry.ts` 读取同模块的 `service/tools/definitions/`。Provider 负责模型通信、传输重试及响应/参数解析；主 Agent 的 provider 返回由 `service/runtime/loop.ts` 的 `validateCompletion` 调用 `service/tools/schema.ts` 统一检查 schema、工具名和收口顺序，Runtime 根据结果推进状态。Context 接收数据，仅生成窗口投影；工具说明通过 tools[] 发送。`service/presentation/session-view.ts` 以纯函数生成 UI 消息和会话列表；store 负责读取记录、持久化和会话命令。
+工具 schema、分类和分组由 `service/tools/registry.ts` 读取同模块的 `service/tools/definitions/`。Provider 负责模型通信、传输重试及响应/参数解析；主 Agent 的 provider 返回由 `service/runtime/loop.ts` 的 `validateCompletion` 调用 `service/tools/schema.ts` 统一检查 schema、工具名和收口顺序，Runtime 根据结果推进状态。Context 接收数据与能力导航，生成窗口投影；完整工具说明通过 tools[] 发送。`service/presentation/session-view.ts` 以纯函数生成 UI 消息和会话列表；store 负责读取记录、持久化和会话命令。
 
 查询状态保存 currentQuery 与 queryHistory。下一次查询结果或新 Turn 将当前查询迁入历史，保留原发起 turnId；取消不替换。查询历史作为独立来源补入对应轮次，避免原调用批次已归档后漏收。超大记录的 fragment 是原记录 JSON 连续片段；nextCursor 是 Runtime 提供的续读位置，调用方不得自行构造。

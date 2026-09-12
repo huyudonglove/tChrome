@@ -14,3 +14,4 @@
 12. toolIO
 13. queryHistory
 14. currentQuery
+15. tools

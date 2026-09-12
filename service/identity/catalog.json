@@ -67,7 +67,7 @@
     "prefix": "sum",
     "scope": "conversation",
     "allocation": "counter",
-    "description": "压缩摘要（归档文件字段为 id）"
+    "description": "压缩摘要"
   },
   "query": {
     "field": "queryId",

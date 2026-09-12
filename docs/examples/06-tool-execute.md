@@ -199,7 +199,8 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "#execution",
     "#toolProtocol",
     "#boundaries",
-    "#output"
+    "#output",
+    "#baseTools"
   ],
   "userSlots": [
     "#skill",
@@ -215,7 +216,8 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "#notes",
     "#toolIO",
     "#queryHistory",
-    "#currentQuery"
+    "#currentQuery",
+    "#tools"
   ],
   "provider": "uuapi",
   "model": "gemini-3.7-flash",

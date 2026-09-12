@@ -1,8 +1,8 @@
 # User 数据清单
 
-`data-schema.json` 汇总模型可见的 14 个插槽结构；修改投影时同步更新它。`../identity/catalog.json` 统一维护 ID 字段、前缀及编号范围。Schema 的 ID 定义引用由此生成的 `tchrome:identity`；使用 `data-schema.ts` 的 validateUserData 校验，不重复维护前缀正则。模块提示词解释含义，本清单约束数据结构，不注入提示词。
+`data-schema.json` 汇总模型可见的 15 个插槽结构；修改投影时同步更新它。`../identity/catalog.json` 统一维护 ID 字段、前缀及编号范围。Schema 的 ID 定义引用由此生成的 `tchrome:identity`；使用 `data-schema.ts` 的 validateUserData 校验，不重复维护前缀正则。模块提示词解释含义，本清单约束数据结构，不注入提示词。
 
-验证对象使用不带 `#` 的模块名。`skill` 保留文本，其余插槽取 JSON 解析后的值；全部模块必须存在，空数组用 `[]`，空对象槽按下表处理。它不是带 Markdown 标签的完整 User 文本，也不是磁盘存储格式。
+验证对象使用不带 `#` 的模块名。`skill`、`tools` 保留文本，其余插槽取 JSON 解析后的值；全部模块必须存在，空数组用 `[]`，空对象槽按下表处理。它不是带 Markdown 标签的完整 User 文本，也不是磁盘存储格式。
 
 | 模块 | 数据结构 | 身份字段 |
 | --- | --- | --- |
@@ -20,6 +20,7 @@
 | `toolIO` | `[{callId, turnId, batchId?, name, arguments, return}]` | `callId` |
 | `queryHistory` | 查询记录数组 | `queryId` |
 | `currentQuery` | 查询记录或 `null` | `queryId` |
+| `tools` | 本轮已加载动态工具的能力导航文本，每项为工具名和说明首句 | 工具名 |
 
 查询记录统一为 `{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, nextCursor?, detail?}`。`records` 直接保存原模块记录，不新增通用 `id`，不加 `content` 包装；身份字段沿用原记录。查询自身的 `turnId` 与结果记录的 `turnId` 分别表示发起轮次和来源轮次。`status` 为 `complete / partial / not_found / error`。
 

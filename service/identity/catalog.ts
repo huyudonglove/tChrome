@@ -9,3 +9,10 @@ export const identitySchema = {
   }])),
 };
 export { catalog };
+
+export const identityRulesText = () => [
+  "| 记录 | 示例 | 编号范围 |",
+  "| --- | --- | --- |",
+  ...Object.values(catalog).map(item =>
+    `| ${item.description} | ${item.prefix}_01 | ${item.scope === "service" ? "服务" : "会话"} |`),
+].join("\n");
