@@ -749,6 +749,8 @@ test("content 为空时 askUser.question 仍能展示问题和选项", async () 
 
 test("工具抛错写入记录，清空执行状态并允许下一次模型请求正常收口", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-tool-throw-"));
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => { throw new Error("connection reset"); }) as unknown as typeof fetch;
   let requests = 0;
   const provider: Provider = { complete: async ({ messages }) => {
     requests += 1;
@@ -756,7 +758,7 @@ test("工具抛错写入记录，清空执行状态并允许下一次模型请�
       { id: "load", name: "catalog.add", arguments: { reason: "测试请求", affectsPage: false, names: ["send_http"] } },
     ] });
     if (requests === 2) return ok({ finish: "tool_calls", toolCalls: [
-      { id: "http", name: "send_http", arguments: { reason: "读取", affectsPage: false, url: "not a URL" } },
+      { id: "http", name: "send_http", arguments: { reason: "读取", affectsPage: false, url: "https://example.com" } },
       { id: "note", name: "notes.write", arguments: { reason: "继续", affectsPage: false, key: "progress", value: "continued" } },
     ] });
     const ledger = loadLedger(dir, "cv_01");
@@ -781,5 +783,5 @@ test("工具抛错写入记录，清空执行状态并允许下一次模型请�
     expect(JSON.parse(failure.return.text)).toMatchObject({ ok: false, faultCode: "tool_execution_failed", toolName: "send_http" });
     expect(loadEvents(dir, reply.conversationId).some(event => event.kind === "tool" && event.data.callId === failure.callId)).toBe(true);
     expect(loadTurn(dir, reply.conversationId, reply.turnId).status).toBe("completed");
-  } finally { rmSync(dir, { recursive: true, force: true }); }
+  } finally { globalThis.fetch = originalFetch; rmSync(dir, { recursive: true, force: true }); }
 });

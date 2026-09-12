@@ -2,25 +2,27 @@
   "type": "function",
   "function": {
     "name": "open_tab",
-    "description": "新开一个标签。\n参数：可选 url（网址）。\n返回：ok（是否成功）、tab、url（页面地址）、title（页面标题）。\naffectsPage=true。",
+    "description": "新开一个标签。\n参数：可选 url（要打开的完整浏览器链接地址），省略时打开 about:blank。\n返回：ok（是否成功）、tabId（新标签编号）、url（页面地址）、title（页面标题）。\naffectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number"
-        },
         "reason": {
           "type": "string"
         },
         "affectsPage": {
           "type": "boolean"
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "description": "要打开的完整浏览器链接地址，例如 https://example.com 或 about:blank。省略时打开 about:blank。"
         }
       },
       "required": [
         "reason",
         "affectsPage"
       ],
-      "additionalProperties": true
+      "additionalProperties": false
     }
   }
 }

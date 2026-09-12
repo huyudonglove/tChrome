@@ -55,3 +55,31 @@ test("HTTP probe validates its target and method before sending and reports netw
     expect(mock.mock.calls[0]?.[1]?.method).toBe("GET");
   } finally { mock.mockRestore(); }
 });
+
+test("HTTP execution rejects invalid link addresses without making a request", async () => {
+  const mock = spyOn(globalThis, "fetch").mockImplementation((async () => new Response("ok")) as unknown as typeof fetch);
+  try {
+    for (const url of [true, undefined, "file:///tmp/a", "/path", "https://example.com:bad/", "https://"]) {
+      expect(await runServiceTool("/tmp", "send_http", { url })).toMatchObject({ ok: false, error: expect.any(String) });
+    }
+    expect(mock).not.toHaveBeenCalled();
+  } finally { mock.mockRestore(); }
+});
+
+test("batch HTTP validates every address before fetching and preserves partial failures", async () => {
+  const mock = spyOn(globalThis, "fetch").mockImplementation((async (url: string) => {
+    if (url.endsWith('/fail')) throw new Error("connection reset");
+    return new Response("ok");
+  }) as unknown as typeof fetch);
+  try {
+    for (const urls of [undefined, [], "https://example.com", [true], ["https://example.com", "file:///tmp/a"], Array(6).fill("https://example.com")]) {
+      expect(await runServiceTool("/tmp", "send_http_batch", { urls })).toMatchObject({ ok: false, results: [] });
+    }
+    expect(mock).not.toHaveBeenCalled();
+    const result = await runServiceTool("/tmp", "send_http_batch", { urls: ["https://example.com/a", "https://example.com/fail", "https://example.com/b"] }) as {ok:boolean;results:{ok:boolean;error?:string}[]};
+    expect(result.ok).toBe(false);
+    expect(result.results.map(row => row.ok)).toEqual([true, false, true]);
+    expect(result.results[1]!.error).toBe("connection reset");
+    expect(mock.mock.calls.map(call => call[0])).toEqual(["https://example.com/a", "https://example.com/fail", "https://example.com/b"]);
+  } finally { mock.mockRestore(); }
+});

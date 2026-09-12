@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "update_tab",
-    "description": "固定或静音标签。\n参数：可选 tab（目标标签编号）、pinned（是否固定）、muted（是否静音）。\n返回：ok（是否成功）。\naffectsPage=true。",
+    "description": "固定或静音标签。\n参数：可选 tab（目标标签编号）；pinned（是否固定）和 muted（是否静音）至少提供一个，未提供的状态保持原状。\n返回：ok（是否成功）。\naffectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -14,13 +14,33 @@
         },
         "affectsPage": {
           "type": "boolean"
+        },
+        "pinned": {
+          "type": "boolean",
+          "description": "是否固定标签：true 固定，false 取消固定；省略时保持原状。"
+        },
+        "muted": {
+          "type": "boolean",
+          "description": "是否静音标签：true 静音，false 取消静音；省略时保持原状。"
         }
       },
       "required": [
         "reason",
         "affectsPage"
       ],
-      "additionalProperties": true
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "pinned"
+          ]
+        },
+        {
+          "required": [
+            "muted"
+          ]
+        }
+      ]
     }
   }
 }

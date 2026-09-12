@@ -29,6 +29,15 @@ const hostOf = (input: Record<string, unknown>) => {
   }
 };
 
+const httpAddressError = (value: unknown): string | null => {
+  if (typeof value !== "string" || !/^https?:\/\/\S+$/.test(value)) {
+    return "url 必须是以 http:// 或 https:// 开头的完整链接地址字符串";
+  }
+  try { if (!new URL(value).hostname) throw new Error("missing host"); }
+  catch { return "url 不是有效的 HTTP/HTTPS 链接地址"; }
+  return null;
+};
+
 const fetchText = async (url: string, init: RequestInit = {}, textLimit = 8000) => {
   const started = Date.now();
   const response = await fetch(url, { redirect: "follow", ...init });
@@ -54,18 +63,28 @@ export async function runServiceTool(
     return { ok: true, operations: [] };
   }
   if (name === "send_http" || name === "api_execute") {
-    if (!input.url) return { ok: false, error: "缺 url" };
-    return fetchText(String(input.url), {
+    const error = httpAddressError(input.url);
+    if (error) return { ok: false, error };
+    return fetchText(input.url as string, {
       method: String(input.method || "GET"),
       headers: input.headers as HeadersInit | undefined,
       body: input.body == null ? undefined : String(input.body),
     });
   }
   if (name === "send_http_batch") {
-    const urls = Array.isArray(input.urls) ? input.urls.map(String) : [];
+    if (!Array.isArray(input.urls) || input.urls.length < 1 || input.urls.length > 5) {
+      return { ok: false, error: "urls 必须是包含 1 至 5 个 HTTP/HTTPS 链接地址的数组", results: [] };
+    }
+    for (const [index, url] of input.urls.entries()) {
+      const error = httpAddressError(url);
+      if (error) return { ok: false, error: `urls[${index}]: ${error}`, results: [] };
+    }
     const results = [];
-    for (const url of urls.slice(0, 5)) results.push(await fetchText(url));
-    return { ok: true, results };
+    for (const url of input.urls as string[]) {
+      try { results.push(await fetchText(url)); }
+      catch (error) { results.push({ ok: false, url, error: error instanceof Error ? error.message : String(error) }); }
+    }
+    return { ok: results.every(result => result.ok), results };
   }
   if (
     name === "web_search"

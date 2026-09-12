@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "move_tab",
-    "description": "移动标签位置。\n参数：可选 tab（目标标签编号）、index（目标位置）。\n返回：ok（是否成功）。\naffectsPage=true。",
+    "description": "移动标签在当前窗口中的位置。\n参数：可选 tab（目标标签编号）、index（从 0 开始的目标位置；省略或 -1 表示末尾）。\n返回：ok（是否成功）。\naffectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -14,13 +14,19 @@
         },
         "affectsPage": {
           "type": "boolean"
+        },
+        "index": {
+          "type": "integer",
+          "minimum": -1,
+          "default": -1,
+          "description": "标签在当前窗口中的目标位置，从 0 开始；-1 表示移到末尾，省略时也是末尾。"
         }
       },
       "required": [
         "reason",
         "affectsPage"
       ],
-      "additionalProperties": true
+      "additionalProperties": false
     }
   }
 }

@@ -2,25 +2,27 @@
   "type": "function",
   "function": {
     "name": "create_window",
-    "description": "新开一个窗口。\n参数：可选 url（网址）。\n返回：ok（是否成功）、windowId（窗口编号）。\naffectsPage=true。",
+    "description": "新开一个窗口。\n参数：可选 url（要打开的完整浏览器链接地址），省略时使用浏览器默认的新建页面。\n返回：ok（是否成功）、windowId（窗口编号）。\naffectsPage=true。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number"
-        },
         "reason": {
           "type": "string"
         },
         "affectsPage": {
           "type": "boolean"
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "description": "要打开的完整浏览器链接地址，例如 https://example.com 或 about:blank。省略时使用浏览器默认的新建页面。"
         }
       },
       "required": [
         "reason",
         "affectsPage"
       ],
-      "additionalProperties": true
+      "additionalProperties": false
     }
   }
 }

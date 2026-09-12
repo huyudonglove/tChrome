@@ -2,25 +2,35 @@
   "type": "function",
   "function": {
     "name": "send_http_batch",
-    "description": "对多个地址发 HTTP。\n参数：urls（网址列表）。\n返回：ok（是否成功）、results。\naffectsPage=false。",
+    "description": "按数组顺序向 1 至 5 个完整 HTTP/HTTPS 链接地址分别发送 GET 请求。\n参数：urls 为链接地址字符串数组，例如 [\"https://example.com/a\", \"https://example.com/b\"]，不是开关或单个字符串。\n返回：ok（所有请求是否成功）、results（按输入顺序返回每个地址的响应或错误）。单个请求失败不会丢弃其他结果；不接受超过 5 个地址，更多地址请分批调用。\naffectsPage=false。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number"
+        "urls": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "items": {
+            "type": "string",
+            "pattern": "^https?://[^\\s/?#]+(?:[/?#][^\\s]*)?$",
+            "description": "要请求的完整 HTTP/HTTPS 链接地址字符串，必须包含协议和主机名，例如 \"https://example.com/api/items?id=1\"。不可传 true/false、相对路径或文件路径。"
+          },
+          "description": "要依次请求的完整 HTTP/HTTPS 链接地址数组，包含 1 至 5 项。"
         },
         "reason": {
           "type": "string"
         },
         "affectsPage": {
-          "type": "boolean"
+          "type": "boolean",
+          "const": false
         }
       },
       "required": [
+        "urls",
         "reason",
         "affectsPage"
       ],
-      "additionalProperties": true
+      "additionalProperties": false
     }
   }
 }

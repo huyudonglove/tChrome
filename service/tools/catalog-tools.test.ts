@@ -113,3 +113,29 @@ test("capture_page validates mode-specific target parameters", () => {
   for (const args of [{mode: "viewport"}, {mode: "full_page"}, {mode: "element", ref: "el-example"}, {mode: "element", selector: "#target"}]) expect(valid(args)).toBe(true);
   for (const args of [{}, {mode: "pdf"}, {mode: "element"}, {mode: "element", ref: "e1"}, {mode: "element", ref: "el-example", selector: "#target"}, {mode: "viewport", selector: "#target"}]) expect(valid(args)).toBe(false);
 });
+
+test("send_http requires an HTTP link string and documents all request fields", () => {
+  const registry = loadToolRegistry(repoRoot);
+  const tools = toolSchemas(registry, ["send_http"]);
+  const check = (args: Record<string, unknown>) => checkToolCalls([
+    { id: "call_01", name: "send_http", arguments: { reason: "请求", affectsPage: false, ...args } },
+  ], tools, [], ["send_http"]);
+  expect(check({}).faultCode).toBe("missing_required");
+  for (const url of [true, false, 123, "example.com", "/path", "file:///tmp/a", "ftp://example.com", "https://", "https://example.com/a b"]) {
+    expect(check({ url }).schemaOk).toBe(false);
+  }
+  expect(check({ url: "https://example.com/path?q=test", method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).schemaOk).toBe(true);
+  expect(check({ url: "http://localhost:8080/" }).schemaOk).toBe(true);
+  expect(check({ url: "https://example.com", headers: { x: true } }).schemaOk).toBe(false);
+});
+
+test("HTTP aliases and batches expose their business fields and reject incomplete calls", () => {
+  const registry = loadToolRegistry(repoRoot);
+  const check = (name: string, args: Record<string, unknown>) => checkToolCalls([
+    { id: "call_01", name, arguments: { reason: "读取", affectsPage: false, ...args } },
+  ], toolSchemas(registry, [name]), [], [name]).schemaOk;
+  expect(check("api_execute", {url:"https://example.com", method:"POST", headers:{x:"value"}, body:"{}"})).toBe(true);
+  for (const args of [{}, {url:true}, {url:{address:"https://example.com"}}]) expect(check("api_execute",args)).toBe(false);
+  expect(check("send_http_batch", {urls:["https://example.com"]})).toBe(true);
+  for (const urls of [undefined, [], "https://example.com", [true], Array(6).fill("https://example.com")]) expect(check("send_http_batch", {urls})).toBe(false);
+});
