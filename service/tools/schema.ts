@@ -1,4 +1,4 @@
-import Ajv from "ajv";
+import Ajv, { type ErrorObject } from "ajv";
 import type { ChatTool, ToolCall } from "../types.ts";
 
 const ajv = new Ajv({ allErrors: true, strict: false });
@@ -36,6 +36,43 @@ function normalizeArguments(value: unknown, schema: unknown): unknown {
       [key, normalizeArguments(item, spec.properties?.[key])]));
   }
   return value;
+}
+
+// AJV emits branch failures before the union error. Keep each branch together:
+// a missing field in one alternative is not a globally required field.
+function schemaAt(schema: unknown, pointer: string): unknown {
+  return pointer.replace(/^#\/?/, "").split("/").filter(Boolean).reduce<unknown>((node, key) =>
+    node && typeof node === "object"
+      ? (node as Record<string, unknown>)[key.replace(/~1/g, "/").replace(/~0/g, "~")]
+      : undefined, schema);
+}
+
+const requiredPath = (error: ErrorObject) => error.instancePath
+  ? `${error.instancePath}/${String(error.params.missingProperty).replace(/~/g, "~0").replace(/\//g, "~1")}`
+  : String(error.params.missingProperty);
+const isUnion = (error: ErrorObject) => error.keyword === "anyOf" || error.keyword === "oneOf";
+const withinInstance = (path: string, parent: string) => path === parent || path.startsWith(`${parent}/`);
+const inBranch = (error: ErrorObject, union: ErrorObject) =>
+  withinInstance(error.instancePath, union.instancePath)
+  && error.schemaPath.startsWith(`${union.schemaPath}/`);
+
+function validationDetails(errors: ErrorObject[], schema: unknown): { missing: string[]; detail: string } {
+  const unions = errors.filter(isUnion);
+  const missing = [...new Set(errors.filter(error => error.keyword === "required"
+    && !unions.some(union => inBranch(error, union))).map(requiredPath))];
+  const roots = unions.filter(union => !unions.some(parent => inBranch(union, parent)));
+  const ordinary = errors.filter(error => !isUnion(error) && error.keyword !== "required" && error.keyword !== "if"
+    && !roots.some(union => inBranch(error, union)));
+  const parts = missing.length ? [`missing required: ${missing.join(", ")}`] : [];
+  for (const error of ordinary) {
+    const constraint = error.keyword === "not" ? schemaAt(schema, error.schemaPath) : error.params;
+    parts.push(`${ajv.errorsText([error])}${Object.keys(constraint ?? {}).length ? `: ${JSON.stringify(constraint)}` : ""}`);
+  }
+  for (const union of roots) {
+    // The original schema already describes nested alternatives; do not build a second schema renderer.
+    parts.push(`data${union.instancePath} must satisfy ${union.keyword === "anyOf" ? "at least one" : "exactly one"} alternative: ${JSON.stringify(schemaAt(schema, union.schemaPath))}`);
+  }
+  return { missing, detail: parts.join("; ") };
 }
 
 export function checkToolCalls(
@@ -81,28 +118,14 @@ export function checkToolCalls(
     const validate = ajv.compile(schema);
     const normalized = normalizeArguments(call.arguments, schema) as ToolCall["arguments"];
     if (!validate(normalized)) {
-      const missing = (validate.errors ?? [])
-        .filter((err: { keyword: string }) => err.keyword === "required")
-        .map((err: { params: { missingProperty?: string } }) => String(err.params.missingProperty ?? ""))
-        .filter(Boolean);
-      const otherErrors = (validate.errors ?? []).filter(error => error.keyword !== "required");
-      if (missing.length) {
-        return {
-          parseOk: true,
-          schemaOk: false,
-          faultCode: "missing_required",
-          missing,
-          badName: call.name,
-          detail: `${call.name} missing required: ${missing.join(", ")}${otherErrors.length ? `; ${ajv.errorsText(otherErrors)}` : ""}`,
-        };
-      }
+      const { missing, detail } = validationDetails(validate.errors ?? [], schema);
       return {
         parseOk: true,
         schemaOk: false,
-        faultCode: "wrong_type",
-        missing: [],
+        faultCode: missing.length ? "missing_required" : "wrong_type",
+        missing,
         badName: call.name,
-        detail: `${call.name} ${ajv.errorsText(validate.errors)}`,
+        detail: `${call.name} ${detail}`,
       };
     }
     call.arguments = normalized;

@@ -47,7 +47,10 @@
               "mode": {
                 "const": "element"
               }
-            }
+            },
+            "required": [
+              "mode"
+            ]
           },
           "then": {
             "oneOf": [

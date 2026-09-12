@@ -43,3 +43,5 @@ HTTP 传输由 `service/network/idle-fetch.ts` 统一检查响应活动，`http-
 模型可见的工具失败由 `result.ts` 统一输出 `{ok:false, faultCode, message, recovery, details}`，并保留 tab、HTTP 状态、批量结果等业务字段。`shared/error-messages.json` 是模型提示、用户提示和恢复建议的唯一文案来源；原始原因放在 details，未知错误保留错误码并使用通用提示。recovery 是下一步建议，不控制网络自动重试；超时后先检查操作是否生效，避免重复副作用。批量 HTTP 的失败子项使用同一格式，成功数据与 effects 保留。
 
 查询保留底层错误码；压缩失败在回合输出中使用 compression_failed，并通过可选 causeCode 保留底层原因。侧栏分别显示请求超时、主动取消、连接失败、HTTP 错误和响应格式错误。
+
+参数校验反馈包含参数 schema 和完整诊断；anyOf/oneOf 的候选分支保持替代关系，missing 仅列共同或已适用条件的必填字段。每个失败调用按 callId 独立记录，同名调用不会互相覆盖。模型自行修正调用参数并继续，历史参数保留 affectsPage；连续无效调用仍有停止上限，避免无限请求，达到上限只报告未完成状态，不要求用户补填工具参数。

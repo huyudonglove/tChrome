@@ -119,7 +119,7 @@ const validateCompletion = (
   };
 };
 
-const writeFault = (dataDir: string, ledger: Ledger, turnId: string, result: CompletionResult) => {
+const writeFault = (dataDir: string, ledger: Ledger, turnId: string, result: CompletionResult, tools: Parameters<typeof checkToolCalls>[1]) => {
   const name = result.badName || result.toolCalls.at(-1)?.name || "unknown";
   const call = result.toolCalls.find((row) => row.name === name) ?? result.toolCalls.at(-1);
   const text = JSON.stringify(toolFailure({
@@ -128,6 +128,7 @@ const writeFault = (dataDir: string, ledger: Ledger, turnId: string, result: Com
     missing: result.missing,
     toolName: name,
     detail: result.detail ?? "",
+    details: { parameterSchema: tools.find(tool => tool.function.name === name)?.function.parameters },
   }));
   ledger.toolIO.push({
     callId: call?.id ?? allocateRecordId(dataDir, ledger.conversationId, "call"),
@@ -416,26 +417,20 @@ export async function handleTurn(
       }
       if (!result.parseOk || !result.schemaOk) {
         submitFails += 1;
-        if (result.toolCallFaults?.length) {
-          for (const fault of result.toolCallFaults) {
-            writeFault(deps.dataDir, ledger, turnId, {
-              ...result,
-              badName: fault.name,
-              detail: fault.detail,
-              toolCalls: [{ id: fault.callId, name: fault.name, arguments: { rawArguments: fault.rawArguments } }],
-            });
-          }
+        const batchBlocked = ["exclusive_resident", "script_steps_separate"].includes(batchCheck.faultCode ?? "");
+        for (const fault of result.toolCallFaults ?? []) {
+          writeFault(deps.dataDir, ledger, turnId, {
+            ...result, badName: fault.name, faultCode: "arguments_not_json", detail: fault.detail, missing: [],
+            toolCalls: [{ id: fault.callId, name: fault.name, arguments: { rawArguments: fault.rawArguments } }],
+          }, tools);
+        }
+        if (!result.parseOk && !result.toolCallFaults?.length) writeFault(deps.dataDir, ledger, turnId, result, tools);
+        if (batchBlocked) {
+          writeFault(deps.dataDir, ledger, turnId, { ...result, ...batchCheck }, tools);
         } else {
-          writeFault(deps.dataDir, ledger, turnId, result);
-        }
-        for (const { call, check } of checks) {
-          if (["exclusive_resident", "script_steps_separate"].includes(batchCheck.faultCode ?? "")) break;
-          if (!check.schemaOk && (result.toolCallFaults?.length || call.name !== result.badName)) {
-            writeFault(deps.dataDir, ledger, turnId, { ...result, ...check, toolCalls: [call] });
+          for (const { call, check } of checks) {
+            if (!check.schemaOk) writeFault(deps.dataDir, ledger, turnId, { ...result, ...check, toolCalls: [call] }, tools);
           }
-        }
-        if (!result.parseOk && ["exclusive_resident", "script_steps_separate"].includes(batchCheck.faultCode ?? "")) {
-          writeFault(deps.dataDir, ledger, turnId, { ...result, ...batchCheck });
         }
         if (validCalls.length) {
           ledger.toolQueue = validCalls.map((call) => ({

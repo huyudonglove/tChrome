@@ -38,7 +38,9 @@ const messageFor = (code: string): ErrorMessage =>
   Object.hasOwn(catalog, code) ? catalog[code]! : catalog.tool_execution_failed!;
 
 export function errorMessage(code: string, audience: "model" | "user"): string {
-  return messageFor(code)[audience];
+  const entry = messageFor(code);
+  return entry[audience] + (audience === "model" && entry.recovery === "correct_arguments"
+    ? "由你核对工具定义并修正调用，不要让用户补填工具参数。" : "");
 }
 
 /** Recovery advice for the model, distinct from transport retry policy. */

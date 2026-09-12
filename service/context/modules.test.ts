@@ -211,7 +211,7 @@ test("model projection preserves record identities and operational data without 
   const output = userText({ contextModules: modules, ledger, turn, conversationSummaries, memories: { project: "[]", conversation: "[]" }, skillText: "" });
   const section = (tag: string) => output.split(`#${tag}\n\n`)[1]!.split(/\n#[A-Za-z]/)[0]!.trim();
   expect(JSON.parse(section("toolIO"))).toEqual([
-    { callId: "hidden_call", turnId: "hidden_turn", name: "page.click", arguments: { reason: "确认按钮", tab: 42, ref: "el-7" }, return: { stage: "complete", result: { ok: false, faultCode: "stale_ref", detail: "重新读取页面", elementId: "e1" } } },
+    { callId: "hidden_call", turnId: "hidden_turn", name: "page.click", arguments: { reason: "确认按钮", affectsPage: true, tab: 42, ref: "el-7" }, return: { stage: "complete", result: { ok: false, faultCode: "stale_ref", detail: "重新读取页面", elementId: "e1" } } },
     { callId: "hidden_call_2", turnId: "hidden_turn", name: "local.run", arguments: { filename: "echo.sh", cwd: "/tmp" }, return: { stage: "truncated", result: "unfinished {text" } },
   ]);
   expect(JSON.parse(section("conversationHistorySummary"))).toEqual([{ sumId: "sum_fixture", turnId: "hidden_turn", tag: "确认失败", userRequest: "确认按钮", actions: "点击按钮", result: "按钮引用过期" }]);
@@ -240,6 +240,7 @@ test("page descriptions appear once in the model view while original tool result
   const output = render();
   for (const page of pages) expect(output.split(page.description)).toHaveLength(2);
   const tools = JSON.parse(output.split("#toolIO\n\n")[1]!.split(/\n#[A-Za-z]/)[0]!);
+  expect(tools.map((row: any) => row.arguments)).toEqual(pages.map(() => ({ reason: "核对页面", affectsPage: false })));
   expect(tools.map((row: any) => row.return.result)).toEqual(pages.map(page => ({ ok: true,
     tab: page.tab, url: page.url, title: page.title, extraEvidence: "keep this", pageObservationId: page.id })));
   expect(JSON.stringify({ ledger, turn })).toBe(original);

@@ -77,7 +77,10 @@
                   "delete"
                 ]
               }
-            }
+            },
+            "required": [
+              "action"
+            ]
           },
           "then": {
             "required": [
@@ -96,7 +99,10 @@
               "required": [
                 "id"
               ]
-            }
+            },
+            "required": [
+              "action"
+            ]
           },
           "then": {
             "required": [

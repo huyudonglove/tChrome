@@ -6,7 +6,6 @@ function resultView(text: string): unknown {
 
 export function toolHistoryView(records: ToolIOItem[], pages: (CurrentPage & Partial<PageObservation>)[] = []) {
   return records.map(record => {
-    const { affectsPage: _affectsPage, ...args } = record.arguments;
     let result = resultView(record.return.text);
     if (record.return.stage === "complete" && result && typeof result === "object" && !Array.isArray(result)) {
       const fields = result as Record<string, unknown>;
@@ -23,7 +22,7 @@ export function toolHistoryView(records: ToolIOItem[], pages: (CurrentPage & Par
       turnId: record.turnId,
       batchId: record.batchId,
       name: record.name,
-      arguments: args,
+      arguments: { ...record.arguments },
       return: { stage: record.return.stage, result },
     };
   });

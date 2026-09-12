@@ -121,3 +121,23 @@ test("mixed missing and type errors reach model feedback and final output", asyn
     expect(browserCalls).toEqual([]);
   });
 });
+
+test("same-name invalid calls retain independent diagnostics and schema before self repair", async () => {
+  const bad = (id: string, args: Record<string, unknown>) => ({ id, name: "page.type", arguments: args });
+  await run([result({ toolCalls: [
+    bad("missing", { id: "e1", text: "x" }),
+    bad("type", { id: "e2", text: false, reason: "输入", affectsPage: true }),
+  ] }), result({ toolCalls: [call("fixed", "page.type", { id: "e2", text: "x", affectsPage: true })] }), finish()], ({ reply, ledger, browserCalls }) => {
+    expect(reply.output).toEqual({ kind: "reply", text: "任务完成" });
+    const rows = ledger.toolIO.filter(row => row.name === "page.type");
+    expect(rows).toHaveLength(3);
+    expect(rows[0]!.callId).not.toBe(rows[1]!.callId);
+    const first = JSON.parse(rows[0]!.return.text);
+    const second = JSON.parse(rows[1]!.return.text);
+    expect(first.faultCode).toBe("missing_required");
+    expect(second.faultCode).toBe("wrong_type");
+    expect(second.details.parameterSchema.properties.text.type).toBe("string");
+    expect(second.recovery).toBe("correct_arguments");
+    expect(browserCalls).toEqual(["page.type"]);
+  });
+});
