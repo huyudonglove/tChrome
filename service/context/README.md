@@ -50,7 +50,7 @@ execution 专注任务推进；toolProtocol 负责调用、返回和错误处理
 
 历史类数据（用户输入、目标历史、两层记忆、工具记录、轮次摘要、查询历史）按旧到新排列，新增记录追加末尾；最近窗口从尾部选取后仍保持原顺序。待办和工具队列按执行顺序，选项与排名保留其业务含义。
 
-记忆读写和分层加载由 service/memory 提供。Runtime 按归档覆盖关系过滤可见原文，再按模块投影记录对象传给 context；不按条数或字符数静默裁剪。模块投影保留具体记录身份与来源关联，各模块说明解释其 ID 含义，ID 格式与范围由 identity/catalog.json 维护，System #recordIdentity 从该清单生成类型、示例、范围表，并说明原样引用、各类型在所属范围独立递增、允许空号及不跨类型或范围比较编号的规则：
+记忆读写和分层加载由 service/memory 提供。Runtime 按归档覆盖关系过滤可见原文，再按模块投影记录对象传给 context；不按条数或字符数静默裁剪；发送预算不足时将模块完整正文写入文件，并显式展示文件引用。模块投影保留具体记录身份与来源关联，各模块说明解释其 ID 含义，ID 格式与范围由 identity/catalog.json 维护，System #recordIdentity 从该清单生成类型、示例、范围表，并说明原样引用、各类型在所属范围独立递增、允许空号及不跨类型或范围比较编号的规则：
 
 | 模块 | 记录字段 |
 |---|---|
@@ -68,7 +68,9 @@ currentPage 展示最新观察，pageObservedHistory 排除同 id 的观察。to
 
 总纲中的 `{{currentDate}}` 由 runtime 在每次模型请求组装前按 `America/Los_Angeles` 计算，格式为 YYYY-MM-DD，自动处理夏令时。示例使用固定日期 2026-09-06，以保持可重复生成。
 
-每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
+每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 不参与历史压缩，正文或文件引用保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
+
+主模型发送前另设 System + User 合计 250000 字符硬内联上限。先执行上述 200000 字符门槛的压缩检查，再检查内联预算；压缩后仍超过 250000 时，优先将 notes 正文完整写入 `TCHROME_DATA/context-files/`，以文件引用替换内联正文，直到满足发送预算。notes 外置后仍超限时，再外置其他大块内容。数组模块也允许将大记录单独替换为文件引用，保留后续较小记录内联，便于模型看到分页读取结果。JSON 数据模块或数组记录的引用为 `{contextFile:{path,chars,format}}`，其中 path 为绝对路径、chars 为原文字符数、format 为 `json` 或 `text`；skill 仍为字符串，以文本说明文件路径。System #baseTools、User #tools 和编号规则保持内联。文件替换仅影响本次请求的展示，不删除历史记录，也不改变记忆和 notes 的存储内容。引用契约见 [data-schema.json](data-schema.json)。模型可通过 `catalog.add` 加载 `local.fs_read`，使用 `offset` / `limit` 按字节分段读取所需原文，后续页使用返回的 `nextOffset`，避免一次回读全文再次撑大上下文。若固定规则与文件引用本身仍无法装入，返回 `context_limit`。
 
 常驻 `context.query(sumId, module, intent, cursor?)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，查询 Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将对应记录放入 currentQuery；工具返回只含状态和引用。每次 records 的紧凑 JSON 最多 2000 字符；超出返回 partial 与 nextCursor，可带原查询参数和 cursor 继续读取，无需再次调用查询 Agent。超大单条保留身份字段及 fragment:{offset,totalChars,text}，text 是原记录 JSON 的连续片段，不是摘要。查询不会刷新页面。
 

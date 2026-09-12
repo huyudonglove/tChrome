@@ -1,96 +1,243 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "User 模块数据契约",
-  "description": "模型窗口各插槽的逻辑值。文本槽保持字符串，其余槽取 JSON 解析后的值；不含 # 标签。ID 前缀与分配范围由 service/identity/catalog.json 定义。",
+  "description": "模型窗口各插槽的逻辑值。文本槽保持字符串，其余槽取 JSON 解析后的值；不含 # 标签。ID 前缀与分配范围由 service/identity/catalog.json 定义。 发送前受 250000 字符内联预算约束，除 tools 外的数据模块可用本地文件引用替代；skill 保持字符串并在文本中给出文件路径。",
   "type": "object",
   "properties": {
     "skill": {
       "type": "string"
     },
     "userInput": {
-      "$ref": "#/$defs/input"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/input"
+        },
+        {
+          "$ref": "#/$defs/contextFileReference"
+        }
+      ]
     },
     "conversationHistorySummary": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/summary"
-      }
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/summary"
+              },
+              {
+                "$ref": "#/$defs/contextFileReference"
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/$defs/contextFileReference"
+        }
+      ]
     },
     "userInputHistory": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/input"
-      }
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/input"
+              },
+              {
+                "$ref": "#/$defs/contextFileReference"
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/$defs/contextFileReference"
+        }
+      ]
     },
     "goal": {
       "anyOf": [
         {
-          "$ref": "#/$defs/goal"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/goal"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         {
-          "type": "null"
+          "$ref": "#/$defs/contextFileReference"
         }
       ]
     },
     "goalHistory": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/goal"
-      }
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/goal"
+              },
+              {
+                "$ref": "#/$defs/contextFileReference"
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/$defs/contextFileReference"
+        }
+      ]
     },
     "currentPage": {
       "anyOf": [
         {
-          "$ref": "#/$defs/page"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/page"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         {
-          "type": "null"
+          "$ref": "#/$defs/contextFileReference"
         }
       ]
     },
     "pageObservedHistory": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/pageObservation"
-      }
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/pageObservation"
+              },
+              {
+                "$ref": "#/$defs/contextFileReference"
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/$defs/contextFileReference"
+        }
+      ]
     },
     "projectMemory": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/projectMemory"
-      }
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/projectMemory"
+              },
+              {
+                "$ref": "#/$defs/contextFileReference"
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/$defs/contextFileReference"
+        }
+      ]
     },
     "conversationMemory": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/conversationMemory"
-      }
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/conversationMemory"
+              },
+              {
+                "$ref": "#/$defs/contextFileReference"
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/$defs/contextFileReference"
+        }
+      ]
     },
     "notes": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "string"
-      }
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        {
+          "$ref": "#/$defs/contextFileReference"
+        }
+      ]
     },
     "toolIO": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/tool"
-      }
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/tool"
+              },
+              {
+                "$ref": "#/$defs/contextFileReference"
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/$defs/contextFileReference"
+        }
+      ]
     },
     "queryHistory": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/query"
-      }
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/query"
+              },
+              {
+                "$ref": "#/$defs/contextFileReference"
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/$defs/contextFileReference"
+        }
+      ]
     },
     "currentQuery": {
       "anyOf": [
         {
-          "$ref": "#/$defs/query"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/query"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         {
-          "type": "null"
+          "$ref": "#/$defs/contextFileReference"
         }
       ]
     },
@@ -642,6 +789,39 @@
       "required": [
         "turnId",
         "fragment"
+      ],
+      "additionalProperties": false
+    },
+    "contextFileReference": {
+      "type": "object",
+      "properties": {
+        "contextFile": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "chars": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "format": {
+              "enum": [
+                "json",
+                "text"
+              ]
+            }
+          },
+          "required": [
+            "path",
+            "chars",
+            "format"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "contextFile"
       ],
       "additionalProperties": false
     }

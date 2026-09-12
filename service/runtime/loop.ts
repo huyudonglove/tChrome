@@ -5,6 +5,7 @@ import { storeToolImages } from "../images/tool-result.ts";
 import { projectMemories } from "../memory/window.ts";
 import runtimeMessages from "./messages.json";
 import { systemText, userText, windowChars } from "../context/window.ts";
+import { ContextBudgetError } from "../context/overflow.ts";
 import { loadSkills } from "../skills/loader.ts";
 import { loadContextModules, type ContextModules } from "../context/modules.ts";
 import { loadToolRegistry, coreToolIds, dynamicToolIds, toolSchemas, toolGuideFor, type ToolRegistry } from "../tools/registry.ts";
@@ -77,15 +78,19 @@ const assemble = (toolRegistry: ToolRegistry): Assembled => ({
   currentTab: null,
 });
 
-const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, summaries: Parameters<typeof userText>[0]["conversationSummaries"] = []): ChatMessage[] => [
-  { role: "system", content: systemText(contextModules, pacificDate(), toolGuideFor(toolRegistry, turn.assembled.baseToolsIds)) },
-  { role: "user", content: userText({
-    contextModules, ledger, turn, memories: projectMemories(memories), skillText, conversationSummaries: summaries,
-    currentQuery: ledger.currentQuery, queryHistory: ledger.queryHistory,
-    toolGuide: toolGuideFor(toolRegistry, turn.assembled.toolIds),
-  }), images: [...new Map(ledger.toolIO.filter(item => item.turnId === turn.turnId)
-    .flatMap(item => item.images ?? []).reverse().map(image => [image.id, image])).values()].slice(0, 4).reverse() },
-];
+const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, summaries: Parameters<typeof userText>[0]["conversationSummaries"] = [], dataDir?: string): ChatMessage[] => {
+  const system = systemText(contextModules, pacificDate(), toolGuideFor(toolRegistry, turn.assembled.baseToolsIds));
+  return [
+    { role: "system", content: system },
+    { role: "user", content: userText({
+      contextModules, ledger, turn, memories: projectMemories(memories), skillText, conversationSummaries: summaries,
+      currentQuery: ledger.currentQuery, queryHistory: ledger.queryHistory,
+      toolGuide: toolGuideFor(toolRegistry, turn.assembled.toolIds),
+      ...(dataDir ? { inlineBudget: { dataDir, system } } : {}),
+    }), images: [...new Map(ledger.toolIO.filter(item => item.turnId === turn.turnId)
+      .flatMap(item => item.images ?? []).reverse().map(image => [image.id, image])).values()].slice(0, 4).reverse() },
+  ];
+};
 
 // Every provider result crosses the same policy boundary before execution.
 // Providers parse transport data; only runtime decides which tools may run.
@@ -303,17 +308,22 @@ export async function handleTurn(
         return { conversationId: ledger.conversationId, turnId, output: turn.output };
       }
     }
-    ledger.windowChars = windowChars(messages[0]!.content, messages[1]!.content);
-    if (ledger.windowChars >= ledger.compressAt) {
+    // The send boundary first compresses at 200K, then externalizes notes first only
+    // if the resulting view exceeds 250K. File publication precedes model dispatch.
+    try {
+      messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, state.summaries, deps.dataDir);
+    } catch (error) {
       turn.status = "failed";
       turn.completedAt = nowIso();
-      turn.output = { kind: "error", faultCode: "context_limit" };
+      turn.output = { kind: "error", faultCode: error instanceof ContextBudgetError ? "context_limit" : "context_storage_failed" };
       ledger.status = "failed";
       ledger.active = null;
       saveTurn(deps.dataDir, turn);
       saveLedger(deps.dataDir, ledger);
+      appendEvent(deps.dataDir, ledger.conversationId, { kind: "context-budget-error", turnId, data: { detail: String(error) } });
       return { conversationId: ledger.conversationId, turnId, output: turn.output };
     }
+    ledger.windowChars = windowChars(messages[0]!.content, messages[1]!.content);
     saveLedger(deps.dataDir, ledger);
     const tools = toolSchemas(toolRegistry, [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds]);
     turn.usage!.modelRequests += 1;

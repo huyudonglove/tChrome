@@ -6,7 +6,11 @@
 
 每次发送主模型前，Runtime 统计 System + User 文本字符数，达到 200000 时启动模型压缩。历史记录按 Turn 分组并批量压缩，保留最近 3 个已结束轮次和当前轮次。当前轮次仍过长时，归档较早的完整工具批次并保留最近 2 个批次；必要时在同一触发流程中继续压缩已有摘要。
 
-摘要通过专用工具返回并校验，原文和摘要写入本地归档后才更新覆盖索引。窗口使用 `#conversationHistorySummary` 展示摘要，原始记录保留；压缩失败或取消不推进覆盖状态。仍然超限时返回 `context_limit`，不裁剪正文。
+摘要通过专用工具返回并校验，原文和摘要写入本地归档后才更新覆盖索引。窗口使用 `#conversationHistorySummary` 展示摘要，原始记录保留；压缩失败或取消不推进覆盖状态。压缩处理之后，发送前还会执行下面的硬内联预算检查。
+
+主模型 System + User 的硬内联上限为 250000 字符，与 200000 字符的历史压缩触发门槛分开。Runtime 先按既有门槛检查压缩，再检查发送预算；压缩后仍超过 250000 时，优先将 notes 正文写入 `TCHROME_DATA/context-files/`，以 `{contextFile:{path,chars,format}}` 替换相应模块正文，直到满足预算。notes 外置后仍超限时，再外置其他大块内容。数组模块也允许单独外置大记录，保留后续较小记录内联，便于看到分页读取结果。path 为绝对路径，chars 为原文字符数，format 为 `json` 或 `text`；skill 保持文本格式并给出文件路径。System #baseTools、User #tools 和编号规则保持内联。notes、长期记忆等不参与历史压缩的材料同样可以通过文件引用展示，保存内容和历史原文不会被删除或截断。
+
+模型需要原文时，先通过 `catalog.add` 加载 `local.fs_read`，按 `offset` / `limit` 按字节分段读取，后续页使用返回的 `nextOffset`，不一次回读全文。固定规则和引用本身仍无法装入预算时返回 `context_limit`。
 
 常驻 `context.query(sumId, module, intent, cursor?)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，查询 Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将对应记录放入 currentQuery；工具返回只含状态和引用。每次 records 的紧凑 JSON 最多 2000 字符；超出返回 partial 与 nextCursor，可带原查询参数和 cursor 继续读取，无需再次调用查询 Agent。超大单条保留身份字段及 fragment:{offset,totalChars,text}，text 是原记录 JSON 的连续片段，不是摘要。查询不会刷新页面。
 

@@ -4,6 +4,7 @@ import { interpolate, renderInventory, renderSlots, type ContextModules } from "
 import { goalHistoryView, goalView, inputHistoryView, pageView, turnSummaryView, type TurnSummary } from "./projections/records.ts";
 import { toolHistoryView } from "./projections/tools.ts";
 import { queryView, type QueryEvidence } from "./projections/queries.ts";
+import { externalizeContext } from "./overflow.ts";
 
 const jsonBody = (value: unknown) => JSON.stringify(value, null, 2);
 
@@ -23,13 +24,14 @@ export function userText(input: {
   conversationSummaries?: TurnSummary[];
   currentQuery?: QueryEvidence | null;
   queryHistory?: QueryEvidence[];
+  inlineBudget?: { dataDir: string; system: string };
 }): string {
   const { contextModules, ledger, turn, memories } = input;
   const currentPage = turn.assembled.currentPage;
   const pageHistory = (turn.assembled.pageObservedHistory ?? []).filter(page =>
     !currentPage?.id || page.id !== currentPage.id || page.turnId !== currentPage.turnId);
   const pages = [...pageHistory, ...(currentPage ? [currentPage] : [])];
-  return renderSlots(contextModules.userOrder, contextModules.userSlots, {
+  const slots = {
     "#skill": input.skillText,
     "#projectMemory": memories.project,
     "#conversationMemory": memories.conversation,
@@ -45,7 +47,12 @@ export function userText(input: {
     "#queryHistory": jsonBody((input.queryHistory ?? []).map(queryView)),
     "#currentQuery": jsonBody(input.currentQuery ? queryView(input.currentQuery) : null),
     "#tools": input.toolGuide ?? "",
-  });
+  };
+  const render = (values: Record<string, string>) => renderSlots(contextModules.userOrder, contextModules.userSlots, values);
+  return render(input.inlineBudget ? externalizeContext({
+    dataDir: input.inlineBudget.dataDir, slots,
+    measure: values => windowChars(input.inlineBudget!.system, render(values)),
+  }) : slots);
 }
 
 export function windowChars(system: string, user: string): number {

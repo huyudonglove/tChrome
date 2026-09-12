@@ -90,7 +90,7 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。
 `kind=provider-response` 的 `data`：`finish` `content` `toolCalls` `attempts` `parseOk` `schemaOk` `faultCode` `missing`。
 `kind=tool` 的 `data`：`callId` `name` `arguments` `return`。
 `kind=memory` 的 `data`：`memoryId` `layer` `sourceCallId`。
-`kind=compress` 的 data 为 beforeChars、afterChars；compress-start 记录压缩前 windowChars，compress-error 记录失败 detail。每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
+`kind=compress` 的 data 为 beforeChars、afterChars；compress-start 记录压缩前 windowChars，compress-error 记录失败 detail。每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 以正文或文件引用保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
 `kind=turn-output` 的 `data`：`output`。
 `kind=session` 的 `data`：`conversationId`，可选 `action`=`new`/`open`。
 
@@ -143,6 +143,8 @@ Runtime 独占维护。当前会话指针。
 | `notes` | object | 模型自管的 key/value。新会话 `{}`。`notes.write` 写入或覆盖 `notes[key]`。`notes.delete` 删除 `notes[key]`。进 user `#notes` |
 | `windowChars` | number | 本轮出网窗口已用字符数。开 Turn 装配后、以及本 Turn 每次出网前，Runtime 写入 |
 | `compressAt` | number | 压缩门槛，固定 `200000` |
+
+统一在发送前按原始 System + User 文本执行 `200000` 字符压缩检查；压缩后仍超过 `250000` 字符，优先外置 notes，必要时继续外置其他模块或数组大记录，完整存入 `TCHROME_DATA/context-files/`，模型使用 `{contextFile:{path,chars,format}}` 引用，原记录保留；格式见 `service/context/data-schema.json`。压缩按原始视图触发，`windowChars` 记录文件引用替换后的实际发送文本。固定内容无法满足预算时返回 `context_limit`，文件保存失败返回 `context_storage_failed`，详细原因记录在 `context-budget-error` 事件。
 | `memoryIds` | object | `{conversation, project}`，各是 string[] |
 
 ## turns/<turnId>.json
@@ -234,7 +236,7 @@ conversationHistorySummary 显示当前有效摘要的 {sumId, turnId, tag, user
 
 每条摘要关联一个真实 turnId 和对应原始轮次或执行片段来源 ID，同批次的不同轮次分别保存。level 是记录结构字段，不触发额外的分层合并。activeIds 保存窗口当前摘要，coveredSourceIds 记录已归档覆盖的来源。runtime 按来源内容过滤发送视图，不清除账本原文。查询展开来源、去重并保持原顺序。
 
-每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
+每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 以正文或文件引用保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
 
 模型输出校验成功、完整来源与摘要落盘后，才原子更新目录索引和覆盖关系。失败或取消不提交该批次覆盖，原文继续可用；此前成功提交的归档保留。索引是提交点，中断可能留下未被索引引用的文件。窗口按来源覆盖过滤历史输入、目标版本、页面观察、会话记忆写入和工具记录，本地原文不删除。
 
