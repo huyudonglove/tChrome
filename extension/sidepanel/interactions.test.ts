@@ -77,7 +77,9 @@ test("current stop errors preserve the session and report the server failure", a
   await pending;
   expect(fixture.visible()).toBe("A running");
   expect(fixture.submission.current).toBe(1);
-  expect(String(fixture.errors[0])).toContain("stop unavailable");
+  expect(fixture.errors[0]).toMatchObject({
+    faultCode: "service_http_error", details: { status: 500, body: { error: "stop unavailable" } },
+  });
 });
 
 test("Enter submits only after IME composition ends; Shift+Enter keeps a newline", () => {

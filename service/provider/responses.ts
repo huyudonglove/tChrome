@@ -1,7 +1,8 @@
 import type OpenAI from "openai";
-import type { ResponseInput } from "openai/resources/responses/responses";
+import type { ResponseInput, Response as ModelResponse } from "openai/resources/responses/responses";
 import { readImageDataUrl } from "../images/store.ts";
 import type { ChatMessage, ChatTool } from "../types.ts";
+import { ProviderFailure } from "./failures.ts";
 
 export async function completeResponses(client: OpenAI, input: {
   model: string;
@@ -34,7 +35,7 @@ export async function completeResponses(client: OpenAI, input: {
       ],
     };
   });
-  const response = await client.responses.create({
+  const rawResponse = await client.responses.create({
     model: input.model,
     reasoning: { effort: input.reasoningEffort },
     stream: false,
@@ -47,30 +48,47 @@ export async function completeResponses(client: OpenAI, input: {
       parameters: tool.function.parameters,
       strict: false,
     })),
-  }, { signal: input.signal });
+  }, { signal: input.signal }).asResponse();
+  const response = await rawResponse.json() as ModelResponse;
 
   // Never execute partial calls, including ones preceding an incomplete message.
-  if (response.status !== "completed" || response.error) {
-    throw new Error(`responses_${response.status ?? "missing_status"}: ${response.error?.message ?? response.incomplete_details?.reason ?? "response not completed"}`);
+  if (response?.error) {
+    const code = String(response.error.code);
+    const kind = code === "server_error" ? "server_error" : code === "rate_limit_exceeded" ? "rate_limit"
+      : code === "content_filter" ? "refused" : "invalid_response";
+    throw new ProviderFailure(kind, `responses_error: ${code}; ${response.error.message}`);
   }
+  if (response?.status !== "completed") {
+    const reason = response?.incomplete_details?.reason;
+    const kind = reason === "max_output_tokens" ? "output_limit" : reason === "content_filter" ? "refused"
+      : ["incomplete", "in_progress", "queued", "cancelled"].includes(response?.status ?? "") ? "incomplete" : "invalid_response";
+    throw new ProviderFailure(kind, `responses_${response?.status ?? "missing_status"}: ${reason ?? "response not completed"}`);
+  }
+  if (!Array.isArray(response.output)) throw new ProviderFailure("invalid_response", "responses_missing_output");
   const calls: { id: string; name: string; arguments: string }[] = [];
   const text: string[] = [];
-  for (const item of response.output ?? []) {
+  for (const item of response.output) {
+    if (!item || typeof item !== "object") throw new ProviderFailure("invalid_response", "responses_invalid_output_item");
     if (item.type === "function_call") {
-      if (item.status && item.status !== "completed") throw new Error(`responses_call_${item.status}`);
-      if (!item.call_id || !item.name || typeof item.arguments !== "string") {
-        throw new Error("responses_invalid_function_call");
+      if (item.status && item.status !== "completed") throw new ProviderFailure("incomplete", `responses_call_${item.status}`);
+      if (typeof item.call_id !== "string" || !item.call_id.trim() || typeof item.name !== "string" || !item.name.trim() || typeof item.arguments !== "string") {
+        throw new ProviderFailure("invalid_response", "responses_invalid_function_call");
       }
       calls.push({ id: item.call_id, name: item.name, arguments: item.arguments });
     } else if (item.type === "message") {
-      if (item.status && item.status !== "completed") throw new Error(`responses_message_${item.status}`);
+      if (item.status && item.status !== "completed") throw new ProviderFailure("incomplete", `responses_message_${item.status}`);
+      if (!Array.isArray(item.content)) throw new ProviderFailure("invalid_response", "responses_invalid_content");
       for (const part of item.content) {
-        if (part.type === "refusal") throw new Error(`responses_refusal: ${part.refusal}`);
-        if (part.type === "output_text") text.push(part.text);
+        if (!part) throw new ProviderFailure("invalid_response", "responses_invalid_content_part");
+        if (part.type === "refusal") throw new ProviderFailure("refused", "responses_content_refused");
+        if (part.type === "output_text") {
+          if (typeof part.text !== "string") throw new ProviderFailure("invalid_response", "responses_invalid_text");
+          text.push(part.text);
+        }
       }
     }
   }
   const content = text.join("\n");
-  if (!calls.length && !content.trim()) throw new Error("responses_empty_output");
+  if (!calls.length && !content.trim()) throw new ProviderFailure("invalid_response", "responses_empty_output");
   return { content, calls, finish: calls.length ? "tool_calls" : "stop" };
 }

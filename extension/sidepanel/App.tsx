@@ -81,6 +81,7 @@ export function App() {
   const [syncError, setSyncError] = useState("");
   const [listError, setListError] = useState("");
   const [serviceDown, setServiceDown] = useState(false);
+  const [healthError, setHealthError] = useState("");
   const [extensionIssue, setExtensionIssue] = useState("");
   const [listOpen, setListOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -126,12 +127,16 @@ export function App() {
         const body = await requestJSON<{ ok: boolean; extension?: { status: string; error?: string } }>("/health");
         if (alive) {
           setServiceDown(!body.ok);
+          setHealthError(body.ok ? "" : DOWN);
           setExtensionIssue(!body.extension ? "本地服务版本过旧，请重启服务并重新加载扩展。"
             : body.extension.status === "mismatch" ? body.extension.error || "扩展版本不一致，请重新打包并加载扩展。"
             : body.extension.status === "disconnected" ? "浏览器执行器已断开，请重新加载扩展。" : "");
         }
-      } catch {
-        if (alive) setServiceDown(true);
+      } catch (error) {
+        if (alive) {
+          setServiceDown(true);
+          setHealthError(errorText(error));
+        }
       }
     };
     void loadAll();
@@ -413,7 +418,7 @@ export function App() {
           </div>
         </header>
         {extensionIssue && !serviceDown ? <div className="status down" role="alert">{extensionIssue}</div> : null}
-        {serviceDown || status ? <div className={`status ${serviceDown || status === DOWN ? "down" : ""}`}>{serviceDown ? DOWN : status}</div> : null}
+        {serviceDown || status ? <div className={`status ${serviceDown || status === DOWN ? "down" : ""}`}>{serviceDown ? healthError : status}</div> : null}
         {syncError && !serviceDown ? <div className="status down" role="alert">会话状态同步失败，正在重试。{syncError}</div> : null}
         {listOpen && listError && !serviceDown ? <div className="status down" role="alert">会话列表更新失败。{listError}<button type="button" onClick={() => void loadAll()}>重试</button></div> : null}
         {compressing && !serviceDown ? <div className="status" role="status" aria-live="polite">{compressionText}，完成后自动继续。你也可以停止。</div> : null}

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "send_http_batch",
-    "description": "依次向 1 至 5 个完整 HTTP/HTTPS URL 发送 GET 请求。\n返回：ok（全部请求成功）、results（按输入顺序排列的响应或错误）；单个失败不丢弃其他结果，更多地址分批调用。",
+    "description": "依次向 1 至 5 个完整 HTTP/HTTPS URL 发送 GET 请求。\n返回：ok（全部请求成功）、results（按输入顺序排列的响应或错误）；单个失败不丢弃其他结果，更多地址分批调用。\n空闲超时和重试次数由服务端统一网络配置控制；持续收到数据时继续读取，停止会话会取消请求和重试。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -1,3 +1,4 @@
+import { errorInfo } from "../../shared/errors.ts";
 import { constants } from "node:fs";
 import { cp, lstat, mkdir, open, opendir, rename, rm } from "node:fs/promises";
 import { isAbsolute, join, resolve, sep } from "node:path";
@@ -136,6 +137,6 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
       default: throw new Error(`Unknown local file tool: ${name}`);
     }
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    return { ok: false, ...errorInfo(error), error: error instanceof Error ? error.message : String(error) };
   }
 }

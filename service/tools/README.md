@@ -12,7 +12,7 @@
 
 `web_search` 搜索公开网页链接；`tavily_search` 通过 Tavily 高级搜索返回网页及相关内容，单次 HTTP 请求入口为 `send_http`。旧搜索名称、`api_execute` 和未实现的接口登记入口已删除；未知工具调用明确失败。
 
-`tavily_search` 属于动态服务工具，默认不加载，通过 `catalog.add` 启用。服务环境需配置 `TAVILY_API_KEY`（空配置示例见 `service/.env.example`）。搜索固定为 advanced，query 去除首尾空白，maxResults 默认 5、范围 1 至 10；每条 content 最多 4000 字符，截断标注 truncated。结果包含 query、searchDepth、results 和 urls；失败返回 faultCode、error。
+`tavily_search` 属于动态服务工具，默认不加载，通过 `catalog.add` 启用。服务环境需配置 `TAVILY_API_KEY`（空配置示例见 `service/.env.example`）。搜索固定为 advanced，query 去除首尾空白，maxResults 默认 5、范围 1 至 10；每条 content 最多 4000 字符，截断标注 truncated。结果包含 query、searchDepth、results 和 urls；失败使用下述统一错误格式。
 
 新增工具时维护定义、分类和必要的分组，并在对应执行端实现。修改说明后运行 `bun run scripts/sync-context-examples.ts` 更新示例，再运行 `bun run check`。
 
@@ -35,3 +35,11 @@
 `execute_javascript` 使用 filename（仅 .js/.mjs/.cjs）和可选 tab，不接受内联 code；内容为页面表达式，多语句或异步逻辑使用 IIFE。`local.run` / `local.process_start` 使用 filename 和绝对路径 cwd，可选 args 字符串数组及 timeoutMs；.sh 由 zsh、.py 由 python3、.js/.mjs/.cjs 由 bun 执行，不接受内联 command。补丁只返回状态，必须在确认成功后的下一次模型调用执行；Runtime 拒绝同批 script_patch 与脚本执行。
 
 本机每次执行读取已保存文件并创建私有快照，后续补丁不会改变正在运行的脚本。普通相对文件路径按 cwd 解析；脚本自身路径和相对 import 按快照位置解析，不支持依赖托管目录中相邻脚本的相对导入。服务运行环境需安装 Git，补丁解析与应用直接使用 `git apply`。
+
+HTTP 传输由 `service/network/idle-fetch.ts` 统一检查响应活动，`http-text.ts` 管理工具重试和文本预览。网络时限、尝试次数、重试间隔及预览大小统一读取 `service/config/runtime.json`；空闲超时随响应数据重置，持续传输不会因总耗时过长被中止。服务工具接收回合的取消信号，批量请求取消后不再访问后续地址。
+
+## 统一错误返回
+
+模型可见的工具失败由 `result.ts` 统一输出 `{ok:false, faultCode, message, recovery, details}`，并保留 tab、HTTP 状态、批量结果等业务字段。`shared/error-messages.json` 是模型提示、用户提示和恢复建议的唯一文案来源；原始原因放在 details，未知错误保留错误码并使用通用提示。recovery 是下一步建议，不控制网络自动重试；超时后先检查操作是否生效，避免重复副作用。批量 HTTP 的失败子项使用同一格式，成功数据与 effects 保留。
+
+查询保留底层错误码；压缩失败在回合输出中使用 compression_failed，并通过可选 causeCode 保留底层原因。侧栏分别显示请求超时、主动取消、连接失败、HTTP 错误和响应格式错误。

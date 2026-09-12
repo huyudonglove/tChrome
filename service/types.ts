@@ -44,7 +44,7 @@ export type TurnOutput =
   | { kind: "tool"; name: string; callId: string }
   | { kind: "ask"; question: string }
   | { kind: "reply"; text: string }
-  | { kind: "error"; faultCode: string };
+  | { kind: "error"; faultCode: string; causeCode?: string };
 
 export type Turn = {
   turnId: string;
@@ -181,6 +181,7 @@ export type Provider = {
 
 export type BrowserResult = {
   ok: boolean;
+  faultCode?: string;
   error?: string;
   tab?: number | null;
   url?: string;

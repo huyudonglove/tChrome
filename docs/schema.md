@@ -194,7 +194,7 @@ Runtime 独占维护。当前会话指针。
 - `tool` → `{kind, name, callId}`（动态工具 / `context.query` / `memory.write`）
 - `ask` → `{kind, question}`（`askUser`）
 - `reply` → `{kind, text}`（`finishTurn`，`text` 取 finishTurn.arguments.text；不回退到 content 或 reason）
-- `error` → `{kind, faultCode}`
+- `error` → `{kind, faultCode, causeCode?}`；压缩失败保留顶层 compression_failed，causeCode 标识底层原因
 
 ## memory/<memoryId>.json
 
@@ -309,7 +309,7 @@ System #baseTools 展示常驻能力导航，User #tools 展示本轮已加载�
 | `missing_required` | catalog `required` 缺或空。`missing` 列出字段名，写进 `#toolIO` 再出网。不补字段。同一 Turn 最多 3 次 |
 | `wrong_type` | Ajv：类型对不上 schema。写进 `#toolIO` 再出网。同一 Turn 最多 3 次 |
 | `exclusive_resident` | 同一次出网里 `finishTurn` / `askUser` 不在最后一条。写进 `#toolIO` 再出网 |
-| `need_finish_turn` | `finish=stop` 且 `tool_calls` 为空，连续 3 次。每次先写 `service/runtime/messages.json 的 needFinishTurn` 进 `#toolIO` 再出网 |
+| `need_finish_turn` | `finish=stop` 且 `tool_calls` 为空，连续 3 次。每次先写 `shared/error-messages.json` 的 `need_finish_turn` 进 `#toolIO` 再出网 |
 
 Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 
@@ -342,7 +342,7 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 
 `api_discover` / `api_manage` 迁了 schema 和执行入口，登记表第一期空数组。
 
-运行提示独立维护在 `service/runtime/messages.json`，由运行层按需写入工具记录。
+运行提示独立维护在 `shared/error-messages.json`，由运行层按需写入工具记录。
 
 ## 实现职责
 

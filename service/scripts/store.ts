@@ -1,3 +1,4 @@
+import { AppError, errorInfo } from "../../shared/errors.ts";
 import { lstat, readdir, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -22,10 +23,10 @@ const regular = async (path: string) => {
   return info;
 };
 export async function readScript(dataDir: string, filename: unknown): Promise<{filename: string; path: string; code: string}> {
-  if (!validName(filename)) throw new Error('脚本文件名无效');
+  if (!validName(filename)) throw new AppError('invalid_arguments', '脚本文件名无效');
   const path = join(await directory(dataDir, false), filename);
   const info = await regular(path);
-  if (!info) throw new Error('脚本不存在');
+  if (!info) throw new AppError('file_not_found', '脚本不存在', {path});
   if (info.size > 1_048_576) throw new Error('脚本超过 1 MiB');
   return {filename, path, code: await readFile(path, 'utf8')};
 }
@@ -98,7 +99,7 @@ export async function patchScript(dataDir: string, input: {filename?: unknown; p
       await writeFile(next, code, {mode: 0o600});
       await rename(next, path);
       return {ok: true, filename, operation: original === null ? 'created' : 'updated', bytes: Buffer.byteLength(code, 'utf8')};
-    } catch (error) { return {ok: false, error: error instanceof Error ? error.message : String(error)}; }
+    } catch (error) { return {ok: false, ...errorInfo(error), error: error instanceof Error ? error.message : String(error)}; }
     finally {
       if (scratch) await rm(scratch, {recursive: true, force: true}).catch(() => {});
       if (staging) await rm(staging, {recursive: true, force: true}).catch(() => {});

@@ -1,3 +1,4 @@
+import { errorMessage } from "../../shared/errors.ts";
 import type { Ledger, LogEvent, Turn } from "../types.ts";
 
 const outputText = (output: Turn["output"]): string => {
@@ -5,19 +6,8 @@ const outputText = (output: Turn["output"]): string => {
   if (output.kind === "reply") return output.text;
   if (output.kind === "ask") return output.question;
   if (output.kind === "error") {
-    const messages: Record<string, string> = {
-      stopped: "已停止",
-      max_outbounds: "本轮已达到执行次数上限，任务还没有完成。你可以缩小任务范围，或让我继续处理剩余部分。",
-      compression_failed: "上下文压缩未完成，原始记录已保留。请稍后重试。",
-      context_limit: "压缩与文件外置后，保留的上下文仍超过容量上限，本次模型请求未发送。请检查上下文配置。",
-      context_storage_failed: "上下文文件保存失败，本次模型请求未发送，原始记录已保留。请检查数据目录权限和可用空间后重试。",
-      provider_error: "模型服务暂时没有正常响应，本轮未完成。请稍后重试。",
-      provider_key_missing: "尚未配置模型服务密钥，请先在本机服务中完成配置。",
-      provider_key_invalid: "模型服务密钥无效或权限不足，请检查配置。",
-      need_finish_turn: "模型没有生成有效的最终回复，本轮未完成。请重试。",
-      empty_finish_turn: "模型连续返回了空回复，本轮已停止。请重试。",
-    };
-    return messages[output.faultCode] ?? "本轮执行遇到错误，未能完成。请重试；详细错误已保留在服务日志中。";
+    const message = errorMessage(output.faultCode, "user");
+    return output.causeCode && output.causeCode !== output.faultCode ? `${message}\n原因：${errorMessage(output.causeCode, "user")}` : message;
   }
   return `${output.name} ${output.callId}`;
 };

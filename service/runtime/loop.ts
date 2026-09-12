@@ -3,7 +3,8 @@ import { allocateRecordId, idPrefix, inputRecord } from "./ids.ts";
 import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
 import { projectMemories } from "../memory/window.ts";
-import runtimeMessages from "./messages.json";
+import { errorInfo, errorMessage } from "../../shared/errors.ts";
+import { failedTool, toolFailure } from "../tools/result.ts";
 import { systemText, userText, windowChars } from "../context/window.ts";
 import { ContextBudgetError } from "../context/overflow.ts";
 import { beginExecution } from "./execution.ts";
@@ -65,6 +66,7 @@ export type LoopDeps = {
   repoRoot: string;
   provider: Provider;
   host?: BrowserHost;
+  signal?: AbortSignal;
 };
 
 const assemble = (toolRegistry: ToolRegistry): Assembled => ({
@@ -120,13 +122,13 @@ const validateCompletion = (
 const writeFault = (dataDir: string, ledger: Ledger, turnId: string, result: CompletionResult) => {
   const name = result.badName || result.toolCalls.at(-1)?.name || "unknown";
   const call = result.toolCalls.find((row) => row.name === name) ?? result.toolCalls.at(-1);
-  const text = JSON.stringify({
+  const text = JSON.stringify(toolFailure({
     ok: false,
     faultCode: result.faultCode,
     missing: result.missing,
     toolName: name,
     detail: result.detail ?? "",
-  });
+  }));
   ledger.toolIO.push({
     callId: call?.id ?? allocateRecordId(dataDir, ledger.conversationId, "call"),
     name,
@@ -145,6 +147,7 @@ const runQueue = async (input: {
   host?: BrowserHost;
   provider: Provider;
   repoRoot: string;
+  signal?: AbortSignal;
 }): Promise<TurnOutput | null> => {
   const { dataDir, ledger, turn, toolRegistry, host, browserNames } = input;
   while (ledger.toolQueue.length) {
@@ -167,6 +170,7 @@ const runQueue = async (input: {
         conversationId: ledger.conversationId,
         browserNames,
         host,
+        signal: input.signal,
         queryContext: args => queryContext({ dataDir, conversationId: ledger.conversationId, repoRoot: input.repoRoot, provider: input.provider, ...args, isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId) }),
         lookup: {
           knownTools: Object.keys(toolRegistry.tools),
@@ -177,11 +181,7 @@ const runQueue = async (input: {
     } catch (error) {
       // A failed tool is evidence for the model to correct its next call. It must
       // pass through the same recording/effect boundary as any normal result.
-      execution = {
-        text: JSON.stringify({ ok: false, faultCode: "tool_execution_failed", toolName: item.name,
-          detail: error instanceof Error ? error.message : String(error) }),
-        effects: [],
-      };
+      execution = failedTool(error, "tool_execution_failed", { toolName: item.name });
     }
     if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
       return { kind: "error", faultCode: "stopped" };
@@ -277,7 +277,7 @@ export async function handleTurn(
     data: { assembled: turn.assembled },
   });
   const execution = beginExecution(deps.dataDir, ledger.conversationId, turn.turnId, deps.provider);
-  deps = { ...deps, provider: execution.provider };
+  deps = { ...deps, provider: execution.provider, signal: execution.signal };
   try {
     let submitFails = 0;
     while (true) {
@@ -303,12 +303,13 @@ export async function handleTurn(
           if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
           turn.status = "failed";
           turn.completedAt = nowIso();
-          turn.output = { kind: "error", faultCode: "compression_failed" };
+          const cause = errorInfo(error, "compression_failed");
+          turn.output = { kind: "error", faultCode: "compression_failed", ...(cause.faultCode !== "compression_failed" ? { causeCode: cause.faultCode } : {}) };
           ledger.status = "failed";
           ledger.active = null;
           saveTurn(deps.dataDir, turn);
           saveLedger(deps.dataDir, ledger);
-          appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-error", turnId, data: { detail: String(error) } });
+          appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-error", turnId, data: { ...cause } });
           return { conversationId: ledger.conversationId, turnId, output: turn.output };
         }
       }
@@ -448,7 +449,7 @@ export async function handleTurn(
             ledger,
             turn,
             toolRegistry,
-            provider: deps.provider, repoRoot: deps.repoRoot,
+            provider: deps.provider, repoRoot: deps.repoRoot, signal: deps.signal,
             browserNames: toolRegistry.index.browser,
             host,
           });
@@ -486,12 +487,13 @@ export async function handleTurn(
       }
       if (result.finish === "stop" && result.toolCalls.length === 0) {
         submitFails += 1;
+        const failure = failedTool(errorMessage("need_finish_turn", "model"), "need_finish_turn");
         ledger.toolIO.push({
           callId: allocateRecordId(deps.dataDir, ledger.conversationId, "call"),
           name: "finishTurn",
           turnId,
           arguments: {},
-          return: { stage: "complete", totalChars: runtimeMessages.needFinishTurn.length, text: runtimeMessages.needFinishTurn },
+          return: { stage: "complete", totalChars: failure.text.length, text: failure.text },
         });
         if (submitFails >= MAX_SUBMIT) {
           turn.status = "failed";
@@ -524,7 +526,7 @@ export async function handleTurn(
         ledger,
         turn,
         toolRegistry,
-        provider: deps.provider, repoRoot: deps.repoRoot,
+        provider: deps.provider, repoRoot: deps.repoRoot, signal: deps.signal,
         browserNames: toolRegistry.index.browser,
         host,
       });

@@ -715,6 +715,9 @@
         "faultCode": {
           "type": "string"
         },
+        "causeCode": {
+          "type": "string"
+        },
         "name": {
           "type": "string"
         },

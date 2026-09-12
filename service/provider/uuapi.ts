@@ -1,13 +1,15 @@
 import OpenAI from "openai";
 import { setTimeout as sleep } from "node:timers/promises";
 import { completeResponses } from "./responses.ts";
+import { ProviderFailure, classifyProviderFailure } from "./failures.ts";
+import { runtimeConfig } from "../config/runtime.ts";
+import { fetchWithIdleTimeout } from "../network/idle-fetch.ts";
 import { readImageDataUrl } from "../images/store.ts";
-import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import type { ChatCompletion, ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { parseToolArguments } from "../tools/arguments.ts";
 import type { ChatMessage, ChatTool, CompletionResult, ToolCall, ToolCallFault } from "../types.ts";
 
 const MODEL = "gemini-3.8-flash";
-const MAX_ATTEMPTS = 3;
 
 export type ProviderConfig = {
   apiKey?: string;
@@ -41,15 +43,6 @@ type CompletionInput = {
   tools: ChatTool[];
   imageContext?: { dataDir: string; conversationId: string };
   signal?: AbortSignal;
-};
-
-const retryable = (error: unknown) => {
-  if (error && typeof error === "object" && "status" in error) {
-    const status = Number((error as { status: number }).status);
-    if (status === 429 || status >= 500) return true;
-    if (status >= 400) return false;
-  }
-  return true;
 };
 
 const keyMissing = () => {
@@ -101,12 +94,10 @@ export function createProvider(config: ProviderConfig = {}) {
     apiKey,
     baseURL,
     maxRetries: 0,
-    ...(proxy
-      ? {
-          fetch: (url: RequestInfo | URL, init?: RequestInit) =>
-            fetch(url, { ...init, proxy } as RequestInit),
-        }
-      : {}),
+    // Match the initial-response deadline; bodies use the shared idle transport below.
+    timeout: runtimeConfig.network.idleTimeoutMs,
+    fetch: (url: RequestInfo | URL, init?: RequestInit) =>
+      fetchWithIdleTimeout(url, { ...init, ...(proxy ? { proxy } : {}) } as RequestInit),
   });
 
   const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: { dataDir: string; conversationId: string }, signal?: AbortSignal) => {
@@ -122,19 +113,32 @@ export function createProvider(config: ProviderConfig = {}) {
         ]),
       ] };
     });
-    const response = await client.chat.completions.create({
+    const rawResponse = await client.chat.completions.create({
       model,
       reasoning_effort: reasoningEffort,
       stream: false,
       messages: outgoing,
       tools,
-    }, { signal });
-    const choice = response.choices[0];
-    if (!choice) throw new Error("empty_choices");
+    }, { signal }).asResponse();
+    // Avoid the SDK's total body-duration timeout: received chunks reset our idle timer.
+    const response = await rawResponse.json() as ChatCompletion;
+    const choice = response?.choices?.[0];
+    if (!choice?.message) throw new ProviderFailure("invalid_response", "chat_missing_choice_or_message");
+    if (choice.finish_reason === "content_filter" || choice.message.refusal) throw new ProviderFailure("refused", "chat_content_refused");
+    if (choice.finish_reason === "length") throw new ProviderFailure("output_limit", "chat_output_limit");
+    if (!["stop", "tool_calls"].includes(choice.finish_reason)) throw new ProviderFailure("invalid_response", `chat_unexpected_finish: ${choice.finish_reason}`);
+    if (choice.message.tool_calls != null && !Array.isArray(choice.message.tool_calls)) throw new ProviderFailure("invalid_response", "chat_invalid_tool_calls");
     const calls: AccCall[] = (choice.message.tool_calls ?? []).map((call) => {
-      if (call.type !== "function") throw new Error("unsupported_tool_call");
+      if (call?.type !== "function" || typeof call.id !== "string" || !call.id.trim()
+        || typeof call.function?.name !== "string" || !call.function.name.trim() || typeof call.function.arguments !== "string") {
+        throw new ProviderFailure("invalid_response", "chat_invalid_function_call");
+      }
       return { id: call.id, name: call.function.name, arguments: call.function.arguments };
     });
+    if (choice.message.content != null && typeof choice.message.content !== "string") throw new ProviderFailure("invalid_response", "chat_invalid_content");
+    if (choice.finish_reason === "stop" && calls.length) throw new ProviderFailure("invalid_response", "chat_stop_with_tool_calls");
+    if (choice.finish_reason === "tool_calls" && !calls.length) throw new ProviderFailure("invalid_response", "chat_missing_tool_calls");
+    if (!calls.length && !choice.message.content?.trim()) throw new ProviderFailure("invalid_response", "chat_empty_output");
     return { content: choice.message.content ?? "", calls, finish: choice.finish_reason };
   };
 
@@ -142,25 +146,23 @@ export function createProvider(config: ProviderConfig = {}) {
     complete: async (input: CompletionInput): Promise<CompletionResult> => {
       let lastError: unknown;
       let attempts = 0;
-      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      for (let attempt = 1; attempt <= runtimeConfig.network.maxAttempts; attempt++) {
         if (input.signal?.aborted) return stoppedResult(attempts);
         attempts = attempt;
         try {
           const { content, calls, finish } = await once(input.messages, input.tools, input.imageContext, input.signal);
           if (input.signal?.aborted) return stoppedResult(attempts);
-          // Only a completed tool-call batch may reach argument parsing and execution.
-          if (finish !== "tool_calls") {
-            const stopped = finish === "stop" && calls.length === 0;
+          // Both adapters reject incomplete or invalid batches before argument parsing.
+          if (finish === "stop") {
             return {
-              finish: stopped ? "stop" : "error",
+              finish: "stop",
               content,
               toolCalls: [],
               attempts: attempt,
-              parseOk: stopped,
-              schemaOk: stopped,
-              faultCode: stopped ? null : "provider_error",
+              parseOk: true,
+              schemaOk: true,
+              faultCode: null,
               missing: [],
-              ...(stopped ? {} : { detail: `Unexpected provider finish reason: ${finish}` }),
             };
           }
           const parsed = parseCalls(calls);
@@ -179,18 +181,6 @@ export function createProvider(config: ProviderConfig = {}) {
               detail: parsed.faults.map((fault) => `${fault.name}: ${fault.detail}`).join("; "),
             };
           }
-          if (parsed.toolCalls.length === 0) {
-            return {
-              finish: "error",
-              content,
-              toolCalls: parsed.toolCalls,
-              attempts: attempt,
-              parseOk: true,
-              schemaOk: true,
-              faultCode: "provider_error",
-              missing: [],
-            };
-          }
           return {
             finish: "tool_calls",
             content,
@@ -204,9 +194,9 @@ export function createProvider(config: ProviderConfig = {}) {
         } catch (error) {
           if (input.signal?.aborted) return stoppedResult(attempts);
           lastError = error;
-          if (!retryable(error) || attempt === MAX_ATTEMPTS) break;
+          if (!classifyProviderFailure(error).retryable || attempt === runtimeConfig.network.maxAttempts) break;
           try {
-            await sleep(1000, undefined, { signal: input.signal });
+            await sleep(runtimeConfig.network.retryDelayMs, undefined, { signal: input.signal });
           } catch (waitError) {
             if (input.signal?.aborted) return stoppedResult(attempts);
             throw waitError;
@@ -223,7 +213,7 @@ export function createProvider(config: ProviderConfig = {}) {
         attempts,
         parseOk: false,
         schemaOk: false,
-        faultCode: status === 401 || status === 403 ? "provider_key_invalid" : "provider_error",
+        faultCode: classifyProviderFailure(lastError).faultCode,
         detail: `status=${status}; ${lastError instanceof Error ? lastError.message : "unknown provider error"}`.replaceAll(apiKey, "[REDACTED]"),
         missing: [],
       };

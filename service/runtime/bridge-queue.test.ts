@@ -24,7 +24,7 @@ test("queued requests receive their full timeout only after activation", async (
   try {
     const first = bridge.execute("first", {});
     const second = bridge.execute("second", {});
-    expect(await first).toEqual({ ok: false, error: "浏览器工具超时" });
+    expect(await first).toEqual({ ok: false, faultCode: "tool_timeout", error: "浏览器工具超时" });
     expect(bridge.current()!.name).toBe("second");
     await Bun.sleep(25);
     expect(bridge.current()!.name).toBe("second");
@@ -41,14 +41,14 @@ test("scoped abort removes only its conversation and promotes the next request",
   const b1 = b.execute("b1", {});
   const a2 = a.execute("a2", {});
   bridge.abort("cv_a");
-  expect(await a1).toEqual({ ok: false, error: "已停止" });
-  expect(await a2).toEqual({ ok: false, error: "已停止" });
+  expect(await a1).toEqual({ ok: false, faultCode: "stopped", error: "已停止" });
+  expect(await a2).toEqual({ ok: false, faultCode: "stopped", error: "已停止" });
   expect(bridge.current()!.name).toBe("b1");
   bridge.resolve(bridge.current()!.id, { ok: true });
   expect(await b1).toEqual({ ok: true });
   const final = b.execute("final", {});
   b.abort!();
-  expect(await final).toEqual({ ok: false, error: "已停止" });
+  expect(await final).toEqual({ ok: false, faultCode: "stopped", error: "已停止" });
   expect(bridge.current()).toBeNull();
 });
 
@@ -58,8 +58,8 @@ test("global abort drains current and waiting requests and ignores late results"
   const id = bridge.current()!.id;
   const second = bridge.execute("second", {});
   bridge.abort();
-  expect(await first).toEqual({ ok: false, error: "已停止" });
-  expect(await second).toEqual({ ok: false, error: "已停止" });
+  expect(await first).toEqual({ ok: false, faultCode: "stopped", error: "已停止" });
+  expect(await second).toEqual({ ok: false, faultCode: "stopped", error: "已停止" });
   expect(bridge.current()).toBeNull();
   expect(bridge.resolve(id, { ok: true })).toBe(false);
 });

@@ -1,4 +1,5 @@
 import { tavily, type TavilyClientOptions } from "@tavily/core";
+import { runtimeConfig } from "../config/runtime.ts";
 
 export async function runTavilySearch(
   input: Record<string, unknown>,
@@ -14,7 +15,7 @@ export async function runTavilySearch(
   if (!apiKey) return { ok: false, faultCode: "tavily_key_missing", error: "请在服务端配置 TAVILY_API_KEY。" };
   try {
     const response = await tavily({ ...config, apiKey }).search(query, {
-      searchDepth: "advanced", maxResults, timeout: 30,
+      searchDepth: "advanced", maxResults, timeout: runtimeConfig.sdk.tavilyTimeoutSeconds,
       includeAnswer: false, includeRawContent: false, includeImages: false,
     });
     if (!Array.isArray(response.results) || response.results.some(item =>

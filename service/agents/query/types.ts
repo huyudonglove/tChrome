@@ -4,5 +4,5 @@ export type QueryRequest = { sumId: string; module: QueryModule; intent: string;
 export type QueryResult = {
   ok: boolean; status: "complete" | "partial" | "not_found" | "error" | "cancelled";
   sumId: string; module: QueryModule; intent: string; records: Record<string, unknown>[];
-  detail?: string; nextCursor?: string;
+  faultCode?: string; detail?: string; nextCursor?: string;
 };

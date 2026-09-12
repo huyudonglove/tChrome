@@ -15,6 +15,7 @@ const sse = (calls: ReturnType<typeof call>[], content = "", finish = "tool_call
 });
 
 for (const finish of ["length", "content_filter", "stop", "unknown"]) {
+  const faultCode = finish === "length" ? "provider_output_limit" : finish === "content_filter" ? "provider_refused" : "provider_invalid_response";
   test(`${finish} 工具批次整批拒绝，合法兄弟不执行`, async () => {
     const dir = mkdtempSync(join(tmpdir(), "tchrome-provider-finish-"));
     let requests = 0;
@@ -29,13 +30,13 @@ for (const finish of ["length", "content_filter", "stop", "unknown"]) {
       const provider = providerFor(server.port!);
       const response = await provider.complete(input);
       expect(response.finish).toBe("error");
-      expect(response.faultCode).toBe("provider_error");
+      expect(response.faultCode).toBe(faultCode);
       expect(response.toolCalls).toEqual([]);
       expect(response.toolCallFaults).toBeUndefined();
       expect(response.attempts).toBe(1);
       const result = await handleTurn({ dataDir: dir, repoRoot: resolve(import.meta.dir, "../.."), provider },
         { userInput: "测试", submittedAt: "now" });
-      expect(result.output).toEqual({ kind: "error", faultCode: "provider_error" });
+      expect(result.output).toEqual({ kind: "error", faultCode });
       const ledger = loadLedger(dir, result.conversationId);
       expect(ledger.notes.kept).toBeUndefined();
       expect(ledger.toolIO).toEqual([]);

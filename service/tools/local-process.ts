@@ -1,3 +1,4 @@
+import { errorInfo } from "../../shared/errors.ts";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { homedir, tmpdir } from "node:os";
 import { isAbsolute, extname, join } from "node:path";
@@ -198,5 +199,5 @@ async function execute(name: string, rawInput: unknown, scope: string, dataDir: 
 
 export async function runLocalProcessTool(name: string, rawInput: unknown, scope: string, dataDir: string): Promise<Record<string, unknown>> {
   try { return await execute(name, rawInput, scope, dataDir); }
-  catch (error) { return { ok: false, error: error instanceof Error ? error.message : String(error) }; }
+  catch (error) { return { ok: false, ...errorInfo(error), error: error instanceof Error ? error.message : String(error) }; }
 }

@@ -57,3 +57,19 @@ test("query rejects source identity disagreement without rewriting archived evid
   expect(result).toMatchObject({status:"error",records:[]});
   expect(result.detail).toContain("turnId 与来源轮次不一致");
 });
+
+test("query result retains provider fault codes without partial evidence", async () => {
+  const input = fixture("x".repeat(50000));
+  let calls = 0;
+  const valid = provider();
+  const result = await queryContext({ ...input, provider: { async complete(request) {
+    const response = await valid.complete(request);
+    return ++calls === 2 ? { ...response, finish: "error", faultCode: "provider_key_invalid", toolCalls: [] } : response;
+  } } });
+  expect(calls).toBe(2);
+  expect(result).toMatchObject({ ok: false, status: "error", faultCode: "provider_key_invalid", records: [] });
+  expect(await queryContext({ ...input, provider: valid, isCancelled: () => true }))
+    .toMatchObject({ faultCode: "stopped", status: "cancelled", records: [] });
+  expect(await queryContext({ ...input, sumId: "missing", provider: valid }))
+    .toMatchObject({ faultCode: "query_failed", status: "error", records: [] });
+});

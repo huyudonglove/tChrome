@@ -1,3 +1,4 @@
+import { errorInfo } from "../../shared/errors.ts";
 import { resolve, dirname, basename, join, sep, isAbsolute } from "node:path";
 import { realpath } from "node:fs/promises";
 import { LOCAL_FILE_TOOL_NAMES, runLocalFileTool } from "./local-files.ts";
@@ -34,7 +35,7 @@ async function protectScripts(name: string, input: Record<string, unknown>, data
 export async function runLocalTool(name: string, input: Record<string, unknown>, dataDir: string, conversationId: string) {
   if ((LOCAL_FILE_TOOL_NAMES as readonly string[]).includes(name)) {
     try { await protectScripts(name, input, dataDir); }
-    catch (error) { return { ok: false, error: error instanceof Error ? error.message : String(error) }; }
+    catch (error) { return { ok: false, ...errorInfo(error), error: error instanceof Error ? error.message : String(error) }; }
     return runLocalFileTool(name, input);
   }
   return runLocalProcessTool(name, input, localScope(dataDir, conversationId), dataDir);

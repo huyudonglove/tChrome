@@ -1,5 +1,8 @@
+import { errorInfo } from "../../shared/errors.ts";
 import { promises as dns } from "node:dns";
 import tls from "node:tls";
+import { runtimeConfig } from "../config/runtime.ts";
+import { fetchText } from "../network/http-text.ts";
 import { runAccountVault } from "./account-vault.ts";
 import { runTavilySearch } from "./tavily-search.ts";
 import { patchScript, readScript, listScripts } from "../scripts/store.ts";
@@ -35,25 +38,11 @@ const httpAddressError = (value: unknown): string | null => {
   return null;
 };
 
-const fetchText = async (url: string, init: RequestInit = {}, textLimit = 8000) => {
-  const started = Date.now();
-  const response = await fetch(url, { redirect: "follow", ...init });
-  const text = textLimit === 0 ? "" : await response.text();
-  if (textLimit === 0) void response.body?.cancel().catch(() => {});
-  return {
-    ok: response.ok,
-    status: response.status,
-    url: response.url,
-    ms: Date.now() - started,
-    headers: Object.fromEntries([...response.headers.entries()].slice(0, 20)),
-    text: text.slice(0, textLimit),
-  };
-};
-
 export async function runServiceTool(
   dataDir: string,
   name: string,
   input: Record<string, unknown> = {},
+  signal?: AbortSignal,
 ) {
   if (name === "script_patch") return patchScript(dataDir, input);
   if (name === "script_read" || name === "script_list") {
@@ -62,7 +51,7 @@ export async function runServiceTool(
       const { filename, code } = await readScript(dataDir, input.filename);
       return { ok: true, filename, code };
     } catch (error) {
-      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+      return { ok: false, ...errorInfo(error), error: error instanceof Error ? error.message : String(error) };
     }
   }
   if (name === "account_vault") return runAccountVault(dataDir, input);
@@ -71,6 +60,7 @@ export async function runServiceTool(
     const error = httpAddressError(input.url);
     if (error) return { ok: false, error };
     return fetchText(input.url as string, {
+      signal,
       method: String(input.method || "GET"),
       headers: input.headers as HeadersInit | undefined,
       body: input.body == null ? undefined : String(input.body),
@@ -86,8 +76,9 @@ export async function runServiceTool(
     }
     const results = [];
     for (const url of input.urls as string[]) {
-      try { results.push(await fetchText(url)); }
-      catch (error) { results.push({ ok: false, url, error: error instanceof Error ? error.message : String(error) }); }
+      signal?.throwIfAborted();
+      try { results.push(await fetchText(url, { signal })); }
+      catch (error) { signal?.throwIfAborted(); results.push({ ok: false, url, ...errorInfo(error), error: error instanceof Error ? error.message : String(error) }); }
     }
     return { ok: results.every(result => result.ok), results };
   }
@@ -97,7 +88,7 @@ export async function runServiceTool(
     const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(String(query))}`;
     try {
       // Parse the complete HTML before limiting the extracted result count.
-      const page = await fetchText(url, {}, Infinity);
+      const page = await fetchText(url, { signal }, Infinity);
       if (!page.ok) return { ok: false, query, status: page.status, error: `搜索服务返回 HTTP ${page.status}`, urls: [] };
       const hits = new Set<string>();
       for (const item of page.text.matchAll(/uddg=([^&"'<>\s]+)/g)) {
@@ -109,7 +100,7 @@ export async function runServiceTool(
       }
       return { ok: true, query, urls: [...hits] };
     } catch (error) {
-      return { ok: false, query, error: error instanceof Error ? error.message : String(error), urls: [] };
+      return { ok: false, query, ...errorInfo(error), error: error instanceof Error ? error.message : String(error), urls: [] };
     }
   }
   if (name === "probe_http") {
@@ -124,10 +115,10 @@ export async function runServiceTool(
     if (method !== "GET" && method !== "HEAD") return { ok: false, error: "method 仅支持 GET 或 HEAD" };
     const started = Date.now();
     try {
-      const page = await fetchText(url, { method }, 0);
+      const page = await fetchText(url, { method, signal }, 0);
       return { ok: page.ok, reachable: true, status: page.status, ms: page.ms, url: page.url, headers: page.headers };
     } catch (error) {
-      return { ok: false, reachable: false, url, ms: Date.now() - started, error: error instanceof Error ? error.message : String(error) };
+      return { ok: false, reachable: false, url, ms: Date.now() - started, ...errorInfo(error), error: error instanceof Error ? error.message : String(error) };
     }
   }
   if (name === "probe_dns") {
@@ -141,7 +132,7 @@ export async function runServiceTool(
     if (!host) return { ok: false, error: "缺 host" };
     const port = Number(input.port) || 443;
     const cert = await new Promise<tls.PeerCertificate>((resolve, reject) => {
-      const socket = tls.connect({ host, port, servername: host, timeout: 8000 }, () => {
+      const socket = tls.connect({ host, port, servername: host, timeout: runtimeConfig.tls.timeoutMs }, () => {
         const peer = socket.getPeerCertificate();
         socket.end();
         resolve(peer);

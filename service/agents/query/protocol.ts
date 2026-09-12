@@ -1,3 +1,4 @@
+import { AppError } from "../../../shared/errors.ts";
 import Ajv from "ajv";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -20,16 +21,16 @@ export async function requestMatches(input: {
   ] });
   if (response.finish !== "tool_calls" || response.toolCalls.length !== 1 || response.faultCode
     || !response.parseOk || !response.schemaOk || response.toolCallFaults?.length || response.missing.length) {
-    throw new Error(`Query agent failed: ${response.faultCode ?? "invalid_return_tool_call"}`);
+    throw new AppError(response.faultCode ?? "query_failed", `Query agent failed: ${response.faultCode ?? "invalid_return_tool_call"}`);
   }
   const call = response.toolCalls[0]!;
   if (call.name !== "submitMatches" || typeof call.id !== "string" || !call.id.trim()) {
-    throw new Error("查询 Agent 必须通过一次 submitMatches 工具调用返回结果。");
+    throw new AppError("query_failed", "查询 Agent 必须通过一次 submitMatches 工具调用返回结果。");
   }
   const value = call.arguments;
   const validate = new Ajv({ allErrors: true, strict: false }).compile(tool.function.parameters);
-  if (!validate(value)) throw new Error("查询 Agent 返回的工具参数不符合 schema。");
+  if (!validate(value)) throw new AppError("query_failed", "查询 Agent 返回的工具参数不符合 schema。");
   const allowed = new Set(input.candidates.map(entry => entry.turnId));
-  if ((value.turnIds as string[]).some(id => !allowed.has(id))) throw new Error("查询 Agent 返回了无效或候选范围外的 turnId。");
+  if ((value.turnIds as string[]).some(id => !allowed.has(id))) throw new AppError("query_failed", "查询 Agent 返回了无效或候选范围外的 turnId。");
   return [...new Set(value.turnIds as string[])];
 }

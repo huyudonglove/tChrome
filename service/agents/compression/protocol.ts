@@ -1,3 +1,4 @@
+import { AppError, errorInfo } from "../../../shared/errors.ts";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import Ajv from "ajv";
@@ -8,7 +9,11 @@ export type CompressionTurn = { turnId: string; [field: string]: unknown };
 
 export async function requestTurnSummaries(input: { provider: Provider; repoRoot: string; turns: CompressionTurn[]; dataDir: string; conversationId: string; module?: string }): Promise<TurnSummary[]> {
   const log = compressionLog(input.dataDir, input.conversationId);
-  log.append("start", { conversationId: input.conversationId, module: input.module, turnIds: input.turns.map(turn => turn.turnId) });
+  const append = (stage: string, data: unknown) => {
+    // Diagnostic storage must never hide a provider or validation failure.
+    try { log.append(stage, data); } catch {}
+  };
+  append("start", { conversationId: input.conversationId, module: input.module, turnIds: input.turns.map(turn => turn.turnId) });
   try {
     const expected = new Set(input.turns.map(turn => turn.turnId));
     if (!expected.size || expected.size !== input.turns.length) throw new Error("Invalid compression input turns");
@@ -19,15 +24,15 @@ export async function requestTurnSummaries(input: { provider: Provider; repoRoot
     const request: Parameters<Provider["complete"]>[0] = { tools: [tool], messages: [
       { role: "system", content: system }, { role: "user", content: JSON.stringify({ turns: input.turns }) },
     ] };
-    log.append("request", request);
+    append("request", request);
     const response = await input.provider.complete(request);
-    log.append("response", response);
-    if (response.finish !== "tool_calls" || response.toolCalls.length !== 1 || response.faultCode || !response.parseOk || !response.schemaOk || response.toolCallFaults?.length || response.missing.length) throw new Error(`Compression agent failed: ${response.faultCode ?? (!response.parseOk ? "parse_failed" : !response.schemaOk ? "schema_failed" : response.finish)}`);
+    append("response", response);
+    if (response.finish !== "tool_calls" || response.toolCalls.length !== 1 || response.faultCode || !response.parseOk || !response.schemaOk || response.toolCallFaults?.length || response.missing.length) throw new AppError(response.faultCode ?? "compression_failed", `Compression agent failed: ${response.faultCode ?? (!response.parseOk ? "parse_failed" : !response.schemaOk ? "schema_failed" : response.finish)}`);
     const call = response.toolCalls[0]!;
     if (typeof call.id !== "string" || !call.id.trim()) throw new Error("Compression submission missing valid call ID");
     if (call.name !== tool.function.name) throw new Error(`Compression submission tool mismatch: expected ${tool.function.name}, received ${call.name}`);
     if (!validate(call.arguments)) {
-      log.append("validation-error", { errors: validate.errors });
+      append("validation-error", { errors: validate.errors });
       throw new Error(`Compression submission schema failed: ${JSON.stringify(validate.errors)}`);
     }
     const values = (call.arguments as { summaries: TurnSummary[] }).summaries;
@@ -38,11 +43,11 @@ export async function requestTurnSummaries(input: { provider: Provider; repoRoot
       if (JSON.stringify(value).length > 12000) throw new Error("Compression output exceeds per-turn budget");
       return { turnId, tag: value.tag.trim(), userRequest: value.userRequest.trim(), actions: value.actions.trim(), result: value.result.trim() };
     });
-    log.append("complete", { summaries });
+    append("complete", { summaries });
     return summaries;
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    log.append("error", { detail, stack: error instanceof Error ? error.stack : undefined });
-    throw new Error(`${detail}; compression log: ${log.path}`, { cause: error });
+    const { faultCode, detail, details } = errorInfo(error, "compression_failed");
+    append("error", { faultCode, detail, stack: error instanceof Error ? error.stack : undefined });
+    throw new AppError(faultCode, `${detail}; compression log: ${log.path}`, { ...details, logPath: log.path }, { cause: error });
   }
 }

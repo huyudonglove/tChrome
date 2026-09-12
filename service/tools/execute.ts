@@ -1,4 +1,4 @@
-import runtimeMessages from "../runtime/messages.json";
+import { errorMessage } from "../../shared/errors.ts";
 import type { QueryModule, QueryResult } from "../agents/query/types.ts";
 import type { QueryRecord } from "../context/projections/queries.ts";
 import type { ToolEffect, ToolExecution } from "./effects.ts";
@@ -7,6 +7,7 @@ import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
 import { LOCAL_TOOL_NAMES, runLocalTool } from "./local-tools.ts";
 import { listItems, saveItem, deleteItem } from "../library/store.ts";
 import { readScript } from "../scripts/store.ts";
+import { failedTool, normalizeToolExecution } from "./result.ts";
 
 const questionWithChoices = (question: string, choice: string[]): string =>
   choice.length === 0 ? question : `${question}\n选项：${choice.join(" / ")}`;
@@ -50,6 +51,7 @@ export type ExecuteInput = {
   conversationId?: string;
   browserNames: string[];
   host?: BrowserHost;
+  signal?: AbortSignal;
   queryContext?: (args: {sumId: string; module: QueryModule; intent: string; cursor?: string}) => Promise<QueryResult>;
   lookup: {
     unusedTools: string[];
@@ -66,17 +68,22 @@ const externalResult = (value: Record<string, unknown>): ToolExecution => {
 };
 
 export async function executeTool(input: ExecuteInput): Promise<ToolExecution> {
+  try { return normalizeToolExecution(await dispatchTool(input), input.name); }
+  catch (error) { return failedTool(error, "tool_execution_failed", { toolName: input.name }); }
+}
+
+async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   const { name, arguments: args, lookup, host, dataDir, browserNames } = input;
   if (name === "execute_javascript") {
     try {
       if ("code" in args || typeof args.filename !== "string" || !/\.(?:js|mjs|cjs)$/.test(args.filename)) {
-        return result(JSON.stringify({ ok: false, error: "请先用 script_patch 保存 JavaScript 文件，再传 filename 执行。" }));
+        return failedTool("请先用 script_patch 保存 JavaScript 文件，再传 filename 执行。", "invalid_arguments");
       }
-      if (!host) return result(JSON.stringify({ ok: false, error: "浏览器未连接" }));
+      if (!host) return failedTool("浏览器未连接", "browser_unavailable");
       const script = await readScript(dataDir, args.filename);
       return externalResult(await host.execute(name, { code: script.code, ...(args.tab !== undefined ? { tab: args.tab } : {}) }));
     } catch (error) {
-      return result(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+      return failedTool(error);
     }
   }
   if (name === "library") {
@@ -84,7 +91,7 @@ export async function executeTool(input: ExecuteInput): Promise<ToolExecution> {
       if (args.action === "list") return result(JSON.stringify({ ok: true, items: listItems(dataDir, typeof args.query === "string" ? args.query : undefined) }));
       if (args.action === "get") {
         const item = listItems(dataDir).find(item => item.id === args.id);
-        return result(JSON.stringify(item ? { ok: true, item } : { ok: false, error: "资料不存在" }));
+        return item ? result(JSON.stringify({ ok: true, item })) : failedTool("资料不存在", "file_not_found");
       }
       if (args.action === "save") {
         const fields = hostArgs(args);
@@ -96,41 +103,41 @@ export async function executeTool(input: ExecuteInput): Promise<ToolExecution> {
         deleteItem(dataDir, String(args.id ?? ""));
         return result(JSON.stringify({ ok: true }));
       }
-      return result(JSON.stringify({ ok: false, error: "未知资料操作" }));
+      return failedTool("未知资料操作", "invalid_arguments");
     } catch (error) {
-      return result(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+      return failedTool(error);
     }
   }
   if (name === "finishTurn") {
     const text = typeof args.text === "string" ? args.text.trim() : "";
     return text ? result(text, [{ type: "turn.reply", text }])
-      : result(runtimeMessages.emptyFinishTurn, [{ type: "queue.clear" }]);
+      : { ...failedTool(errorMessage("empty_finish_turn", "model"), "empty_finish_turn"), effects: [{ type: "queue.clear" }] };
   }
   if (name === "askUser") {
     const text = typeof args.question === "string" ? args.question.trim() : "";
-    if (!text) return result(runtimeMessages.emptyAskUser, [{ type: "queue.clear" }]);
+    if (!text) return { ...failedTool(errorMessage("empty_ask_user", "model"), "empty_ask_user"), effects: [{ type: "queue.clear" }] };
     const question = questionWithChoices(text, asStringArray(args.choice));
     return result(question, [{ type: "turn.ask", question }]);
   }
   if (name === "submitGoal") {
     const goal = String(args.goal ?? "").trim();
-    return goal ? result(`当前目标：${goal}`, [{ type: "goal.set", goal }]) : result("goal 空着");
+    return goal ? result(`当前目标：${goal}`, [{ type: "goal.set", goal }]) : failedTool("goal 空着", "invalid_arguments");
   }
   if (name === "notes.write") {
     const key = String(args.key ?? "").trim();
     const value = String(args.value ?? "");
-    return key ? result(`notes[${key}]=${value}`, [{ type: "note.write", key, value }]) : result("key 空着");
+    return key ? result(`notes[${key}]=${value}`, [{ type: "note.write", key, value }]) : failedTool("key 空着", "invalid_arguments");
   }
   if (name === "notes.delete") {
     const key = String(args.key ?? "").trim();
-    return key ? result(`deleted notes[${key}]`, [{ type: "note.delete", key }]) : result("key 空着");
+    return key ? result(`deleted notes[${key}]`, [{ type: "note.delete", key }]) : failedTool("key 空着", "invalid_arguments");
   }
   if (name === "catalog.add") {
     const names = [...new Set(asStringArray(args.names))];
     const added = names.filter((id) => lookup.knownTools.includes(id) && !lookup.enabledTools.includes(id));
     const alreadyEnabled = names.filter((id) => lookup.enabledTools.includes(id));
     const unknown = names.filter((id) => !lookup.knownTools.includes(id) && !lookup.enabledTools.includes(id));
-    return result(JSON.stringify({ ok: unknown.length === 0, added, alreadyEnabled, unknown }),
+    return result(JSON.stringify({ ok: unknown.length === 0, ...(unknown.length ? { faultCode: "unknown_tool" } : {}), added, alreadyEnabled, unknown }),
       added.length ? [{ type: "tools.enable", names: added }] : []);
   }
   if (name === "list_browser_tools") {
@@ -144,7 +151,7 @@ export async function executeTool(input: ExecuteInput): Promise<ToolExecution> {
     return result(`落下 conversation=${count("conversation")} project=${count("project")}`, effects);
   }
   if (name === "context.query") {
-    if (!input.queryContext) return result(JSON.stringify({ status: "error", error: "query_agent_unavailable" }));
+    if (!input.queryContext) return failedTool("query_agent_unavailable", "query_failed");
     const queried = await input.queryContext({ sumId: String(args.sumId), module: args.module as QueryModule,
       intent: String(args.intent), ...(typeof args.cursor === "string" ? { cursor: args.cursor } : {}) });
     if (queried.status === "cancelled") return result(JSON.stringify({ ok: false, status: "cancelled" }));
@@ -157,20 +164,21 @@ export async function executeTool(input: ExecuteInput): Promise<ToolExecution> {
     const references = query.records.map(record => Object.fromEntries(Object.entries(record)
       .filter(([key]) => ["id", "turnId", "callId", "memoryId", "sumId", "queryId"].includes(key))));
     return result(JSON.stringify({ ok: bounded && queried.ok, status: query.status,
+      ...(!queried.ok || !bounded ? { faultCode: queried.faultCode ?? "query_failed" } : {}),
       sumId: query.sumId, module: query.module, records: references,
       ...(query.nextCursor ? { nextCursor: query.nextCursor } : {}), detail: query.detail }),
       [{ type: "query.set", query }]);
   }
   if ((LOCAL_TOOL_NAMES as readonly string[]).includes(name)) {
-    if (!input.conversationId) return externalResult({ ok: false, error: "本地工具缺少会话标识" });
+    if (!input.conversationId) return failedTool("本地工具缺少会话标识", "invalid_arguments");
     return externalResult(await runLocalTool(name, hostArgs(args), dataDir, input.conversationId));
   }
   if ((SERVICE_TOOL_NAMES as readonly string[]).includes(name)) {
-    return externalResult(await runServiceTool(dataDir, name, hostArgs(args)));
+    return externalResult(await runServiceTool(dataDir, name, hostArgs(args), input.signal));
   }
   if (browserNames.includes(name)) {
-    if (!host) return result(`${name} 没有浏览器桥`);
+    if (!host) return failedTool(`${name} 没有浏览器桥`, "browser_unavailable");
     return externalResult(await host.execute(name, hostArgs(args)));
   }
-  return result(`${name} 未接`);
+  return failedTool(`${name} 未接`, "unknown_tool");
 }

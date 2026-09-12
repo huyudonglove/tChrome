@@ -21,7 +21,7 @@
 
 主 Agent 的 Prompt 正文与加载器都在 `service/context/`。system-slots.md / user-slots.md 只保存编号文件名；每个模块独立声明 tag、能力和详细描述。system 先输出 `service/context/overview.md` 总纲，串联规则、材料、判断与行动，再输出 System 栏目清单，八个模块逐项以 tag --能力接详细正文；再输出 User 栏目清单，逐项以 tag --能力接详细描述。user 只渲染十五个 tag 的内容段，不重复能力或详细描述。Skill 正文位于独立的 service/skills/<name>/SKILL.md，由 runtime 加载后注入 #skill；context/user/skill.md 只提供模块说明和数据占位。
 
-工具 API 定义位于 `service/tools/definitions/`，分组在 groups.json。说明唯一来自 function.description，index 只分类；System #baseTools 展示常驻能力导航，User #tools 展示本轮已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送。过程展示仅使用工具 arguments.reason；最终回复、提问分别使用 finishTurn.arguments.text 和 askUser.arguments.question，不回退到模型 content。运行提示位于 service/runtime/messages.json。上下文 README 是维护入口，不进入模型窗口。
+工具 API 定义位于 `service/tools/definitions/`，分组在 groups.json。说明唯一来自 function.description，index 只分类；System #baseTools 展示常驻能力导航，User #tools 展示本轮已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送。过程展示仅使用工具 arguments.reason；最终回复、提问分别使用 finishTurn.arguments.text 和 askUser.arguments.question，不回退到模型 content。运行提示位于 shared/error-messages.json。上下文 README 是维护入口，不进入模型窗口。
 
 HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`。密钥在本目录 `.env`。落盘在 `~/Library/Application Support/tChrome/`（`session.json` + `conversations/<cvId>/`）。每次出网的 system/user 和模型交口写 `conversations/<cvId>/provider.md`，正文真换行。
 
@@ -47,8 +47,12 @@ HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`�
 
 Responses 适配器负责文本、图片 input_image、扁平 function schema 和 function_call 返回转换。Runtime 继续统一管理上下文与工具校验；请求使用 store=false，不使用 previous_response_id 串接会话。未完成响应不会执行其中的部分工具调用。
 
+Chat 与 Responses 的失败分类和重试决策统一由 `provider/failures.ts` 管理。输出超限、内容拒绝、未完整结束及响应格式无效分别返回 `provider_output_limit`、`provider_refused`、`provider_incomplete`、`provider_invalid_response`，直接终止，不自动重试，也不执行部分工具调用。只对连接错误、超时、HTTP 408/429/5xx，以及 Responses 明确的 server_error/rate_limit_exceeded 重试，最多 3 次；401/403 返回密钥或权限错误，其他 HTTP 错误和本地异常不重试。取消始终优先，返回 stopped。
+
 conversationHistorySummary 展示历史轮次或执行片段的 {tag, userRequest, actions, result}，与近期原文配合阅读。描述进入 System，摘要数据放在当前输入之后。常驻 `context.query(sumId, module, intent, cursor?)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，查询 Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将对应记录放入 currentQuery；工具返回只含状态和引用。每次 records 的紧凑 JSON 最多 2000 字符；超出返回 partial 与 nextCursor，可带原查询参数和 cursor 继续读取，无需再次调用查询 Agent。超大单条保留身份字段及 fragment:{offset,totalChars,text}，text 是原记录 JSON 的连续片段，不是摘要。查询不会刷新页面。
 
 输入、目标版本、页面观察创建时以稳定 ID 写入 context-records；记忆保留本地 memoryId。模型投影保留记录 ID、轮次与来源关联以及内容和操作字段，不修改本地记录。记忆投影保留完整文本；归档覆盖由 runtime 管理。currentPage 展示最新观察，pageObservedHistory 排除同 id 观察；toolIO 中与已展示观察完全相同的 description 替换为 pageObservationId 引用，其余返回字段保留。
 
 压缩 Agent 的每次模型请求独立写入 `conversations/<cvId>/agent-logs/compression/<时间戳>-<唯一标识>.jsonl`。请求发送前记录完整 messages 与 tools；收到后记录 Provider 返回的完整 CompletionResult（正文、工具调用、解析错误等），并记录成功摘要或异常。schema 校验失败包含字段路径、规则和预期类型，轮次覆盖错误包含预期与实际 turnId；会话的 compress-error 附日志路径。日志不包含模型密钥或请求认证头，也不进入主模型上下文。
+
+网络配置统一在 `service/config/runtime.json`，修改后重启服务生效。`network.idleTimeoutMs=90000` 表示等待响应头或响应体连续 90 秒没有数据才超时，非请求总耗时；收到非空数据块重置计时。`network.maxAttempts=3` 包含首次请求，`retryDelayMs=1000` 为尝试间隔。通用 HTTP 工具和主/辅助模型请求共用该策略，用户停止立即取消传输及等待；模型继续采用统一失败分类决定哪些错误可重试，HTTP 工具对空闲超时和连接中断重试，收到 HTTP 错误状态则直接返回。持续响应会继续消费，普通 HTTP 工具只保留 `http.textLimit` 字符预览，避免把整个响应留在内存；搜索需要完整 HTML，probe_http 保持只检查响应头。Tavily SDK 的 `sdk.tavilyTimeoutSeconds` 和 TLS 握手的 `tls.timeoutMs` 属于专用超时，独立配置在同一文件，不冒充流式空闲计时。

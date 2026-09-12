@@ -1,3 +1,4 @@
+import { errorInfo } from "../../../shared/errors.ts";
 import { createHash } from "node:crypto";
 import type { Provider } from "../../types.ts";
 import { requestMatches, type QueryCandidate } from "./protocol.ts";
@@ -39,7 +40,7 @@ function batches(records: RecordValue[]): QueryCandidate[][] {
 /** Only traverse the requested summary's immutable source graph; retrieval never writes archive state. */
 export async function queryContext(input: QueryInput): Promise<QueryResult> {
   const base = { sumId: input.sumId, module: input.module, intent: input.intent, records: [] };
-  const cancelled = (): QueryResult => ({ ...base, ok: false, status: "cancelled", detail: "查询已取消。" });
+  const cancelled = (): QueryResult => ({ ...base, ok: false, status: "cancelled", faultCode: "stopped", detail: "查询已取消。" });
   try {
     if (!queryModules.includes(input.module) || typeof input.sumId !== "string" || !/^[A-Za-z0-9_-]{1,100}$/.test(input.sumId)
       || typeof input.intent !== "string" || !input.intent.trim() || input.intent.length > 4000
@@ -120,6 +121,6 @@ export async function queryContext(input: QueryInput): Promise<QueryResult> {
     };
   } catch(error) {
     if (input.isCancelled?.()) return cancelled();
-    return { ...base,ok:false,status:"error",detail:error instanceof Error ? error.message : "查询失败。" };
+    return { ...base,ok:false,status:"error",...errorInfo(error, "query_failed") };
   }
 }

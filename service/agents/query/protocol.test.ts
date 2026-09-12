@@ -52,3 +52,12 @@ test("query enforces return schema and module membership even if provider report
     await expect(run(response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: args as Record<string, unknown> }] }))).rejects.toThrow();
   }
 });
+
+test("query preserves provider error codes and classifies invalid submissions", async () => {
+  for (const faultCode of ["provider_key_invalid", "provider_output_limit", "stopped"]) {
+    await expect(run(response({ finish: "error", faultCode }))).rejects.toMatchObject({ faultCode });
+  }
+  await expect(run(response({ toolCalls: [] }))).rejects.toMatchObject({ faultCode: "query_failed" });
+  await expect(run(response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: { turnIds: ["outside"] } }] })))
+    .rejects.toMatchObject({ faultCode: "query_failed" });
+});

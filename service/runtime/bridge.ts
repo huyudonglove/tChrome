@@ -32,7 +32,7 @@ export function createToolBridge(timeoutMs = 30000): ToolBridge {
     const next = queue[0];
     if (!next) return;
     timer = setTimeout(() => {
-      finish(next.request.id, { ok: false, error: "浏览器工具超时" });
+      finish(next.request.id, { ok: false, faultCode: "tool_timeout", error: "浏览器工具超时" });
     }, timeoutMs);
   };
   const finish = (id: string, result: BrowserResult): boolean => {
@@ -55,7 +55,7 @@ export function createToolBridge(timeoutMs = 30000): ToolBridge {
       if (scope === undefined || queue[i]?.scope === scope) removed.push(...queue.splice(i, 1));
     }
     if (queue[0] !== active) activate();
-    for (const item of removed) item.done({ ok: false, error: "已停止" });
+    for (const item of removed) item.done({ ok: false, faultCode: "stopped", error: "已停止" });
   };
   return {
     execute: (name, input) => execute(undefined, name, input),

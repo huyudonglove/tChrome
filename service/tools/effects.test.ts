@@ -5,6 +5,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ToolArguments, Turn } from "../types.ts";
+import { errorMessage } from "../../shared/errors.ts";
 import { executeTool, type ExecuteInput } from "./execute.ts";
 import { applyToolEffects } from "../runtime/effects.ts";
 import { emptyLedger, loadLedger, loadTurn } from "../runtime/store.ts";
@@ -43,7 +44,7 @@ function setup() {
 test("catalog.add reports only enabled names and distinguishes duplicates and unknown tools", async () => {
   const fixture = setup();
   const execution = await fixture.execute("catalog.add", { names: ["capture_page", "capture_page", "page.click", "finishTurn", "missing"] });
-  expect(JSON.parse(execution.text)).toEqual({ ok: false, added: ["capture_page"], alreadyEnabled: ["page.click", "finishTurn"], unknown: ["missing"] });
+  expect(JSON.parse(execution.text)).toEqual({ ok: false, faultCode: "unknown_tool", message: errorMessage("unknown_tool", "model"), recovery: "correct_arguments", details: {}, toolName: "catalog.add", added: ["capture_page"], alreadyEnabled: ["page.click", "finishTurn"], unknown: ["missing"] });
   expect(fixture.turn.assembled.toolIds).toEqual(["page.click"]);
   fixture.apply(execution);
   expect(loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId).assembled.toolIds).toEqual(["page.click", "capture_page"]);

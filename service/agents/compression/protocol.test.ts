@@ -58,3 +58,23 @@ test("compression request is persisted before provider failure and success is lo
   expect(logs.find(rows => rows.at(-1).stage === "error")!.map(row => row.stage)).toEqual(["start", "request", "error"]);
   expect(logs.find(rows => rows.at(-1).stage === "complete")!.map(row => row.stage)).toEqual(["start", "request", "response", "complete"]);
 });
+
+test("compression preserves provider fault codes through log wrapping", async () => {
+  for (const faultCode of ["provider_key_invalid", "provider_output_limit", "stopped"]) {
+    await expect(requestTurnSummaries({ ...input, provider: { complete: async () => ({ ...valid, finish: "error", faultCode }) } }))
+      .rejects.toMatchObject({ faultCode, message: expect.stringContaining("compression log:"), cause: expect.objectContaining({ faultCode }) });
+  }
+  await expect(requestTurnSummaries({ ...input, provider: { complete: async () => ({ ...valid, toolCalls: [] }) } }))
+    .rejects.toMatchObject({ faultCode: "compression_failed" });
+  await expect(requestTurnSummaries({ ...input, provider: { complete: async () => ({ ...valid, toolCalls: [{ ...valid.toolCalls[0]!, arguments: { summaries: [] } }] }) } }))
+    .rejects.toMatchObject({ faultCode: "compression_failed" });
+});
+
+test("unavailable compression logs cannot replace a provider failure", async () => {
+  const conversationId = "cv_log_removed";
+  const dir = join(dataDir, "conversations", conversationId, "agent-logs", "compression");
+  await expect(requestTurnSummaries({ ...input, conversationId, provider: { complete: async () => {
+    rmSync(dir, { recursive: true, force: true });
+    return { ...valid, finish: "error", faultCode: "provider_key_invalid" };
+  } } })).rejects.toMatchObject({ faultCode: "provider_key_invalid" });
+});
