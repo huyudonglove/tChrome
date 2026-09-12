@@ -9,6 +9,7 @@ export async function completeResponses(client: OpenAI, input: {
   messages: ChatMessage[];
   tools: ChatTool[];
   imageContext?: { dataDir: string; conversationId: string };
+  signal?: AbortSignal;
 }): Promise<{
   content: string;
   calls: { id: string; name: string; arguments: string }[];
@@ -46,7 +47,7 @@ export async function completeResponses(client: OpenAI, input: {
       parameters: tool.function.parameters,
       strict: false,
     })),
-  });
+  }, { signal: input.signal });
 
   // Never execute partial calls, including ones preceding an incomplete message.
   if (response.status !== "completed" || response.error) {

@@ -35,6 +35,8 @@ HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`�
 
 主 Agent、压缩 Agent 和查询 Agent 复用现有无状态 `provider.complete` 请求能力，包括模型配置、协议适配、重试和响应解析，不另建 LLM 请求层。两个工具类 Agent 各自通过 `protocol.ts` 组装提示词并校验专用返回工具调用，通过 `index.ts` 执行业务流程，提示词保存在各自的 `prompts/`。主 Agent 的工具提交由 `runtime/loop.ts` 的 `validateCompletion` 调用 `tools/schema.ts` 校验；provider 不承担业务输出校验、工具加载策略或批次执行决策。
 
+运行中的请求由 `runtime/execution.ts` 按数据目录、会话和回合统一管理，状态只允许 `active → cancelled` 或 `active → finished`，终态不能再次发出请求。Runtime 在回合入口给 Provider 绑定同一个 AbortSignal，主模型、压缩和查询自动共享；停止、删除会话或服务退出触发取消，Chat/Responses 网络请求及重试等待同时中止。新回合使用独立状态，切换或新建会话不取消其他会话。持久化 ledger 继续管理会话业务状态并检查迟到写入；执行状态机负责内存中的请求生命周期，回合退出统一释放。
+
 长期记忆 projectMemory 位于数据目录的 memory/project/，独立于会话，所有会话共享读取，删除来源会话后仍保留。conversation 记忆继续按会话隔离。具体存储规则见 memory/README.md。
 
 模型请求默认发送 `reasoning_effort: "high"`。可在 `service/.env` 配置 `UUAPI_REASONING_EFFORT=low|medium|high`，修改后重启服务；代码创建 Provider 时也可传 `reasoningEffort` 覆盖。上游是否实际采用该强度取决于所选模型及网关支持。

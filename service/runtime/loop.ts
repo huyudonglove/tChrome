@@ -6,6 +6,7 @@ import { projectMemories } from "../memory/window.ts";
 import runtimeMessages from "./messages.json";
 import { systemText, userText, windowChars } from "../context/window.ts";
 import { ContextBudgetError } from "../context/overflow.ts";
+import { beginExecution } from "./execution.ts";
 import { loadSkills } from "../skills/loader.ts";
 import { loadContextModules, type ContextModules } from "../context/modules.ts";
 import { loadToolRegistry, coreToolIds, dynamicToolIds, toolSchemas, toolGuideFor, type ToolRegistry } from "../tools/registry.ts";
@@ -275,288 +276,292 @@ export async function handleTurn(
     turnId,
     data: { assembled: turn.assembled },
   });
-  let submitFails = 0;
-  while (true) {
-    if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
-    const memories = loadMemories(deps.dataDir, ledger.conversationId, ledger.memoryIds);
-    turn.assembled.projectMemoryIds = memories.project.map(item => item.memoryId);
-    let state = contextState(deps.dataDir, ledger, turn, memories);
-    let messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, state.summaries);
-    const initialChars = windowChars(messages[0]!.content, messages[1]!.content);
-    if (initialChars >= ledger.compressAt) {
-      appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-start", turnId, data: { windowChars: initialChars } });
-      try {
-        for (const phase of ["history", "current", "summaries"] as const) {
-          if (windowChars(messages[0]!.content, messages[1]!.content) < ledger.compressAt) break;
-          appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-phase", turnId, data: { phase } });
-          await compressContext({ ...deps, ledger, turn, memories, isCancelled: () => wasStopped(deps.dataDir, ledger.conversationId, turn.turnId) }, phase);
+  const execution = beginExecution(deps.dataDir, ledger.conversationId, turn.turnId, deps.provider);
+  deps = { ...deps, provider: execution.provider };
+  try {
+    let submitFails = 0;
+    while (true) {
+      if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
+      const memories = loadMemories(deps.dataDir, ledger.conversationId, ledger.memoryIds);
+      turn.assembled.projectMemoryIds = memories.project.map(item => item.memoryId);
+      let state = contextState(deps.dataDir, ledger, turn, memories);
+      let messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, state.summaries);
+      const initialChars = windowChars(messages[0]!.content, messages[1]!.content);
+      if (initialChars >= ledger.compressAt) {
+        appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-start", turnId, data: { windowChars: initialChars } });
+        try {
+          for (const phase of ["history", "current", "summaries"] as const) {
+            if (windowChars(messages[0]!.content, messages[1]!.content) < ledger.compressAt) break;
+            appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-phase", turnId, data: { phase } });
+            await compressContext({ ...deps, ledger, turn, memories, isCancelled: () => wasStopped(deps.dataDir, ledger.conversationId, turn.turnId) }, phase);
+            if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
+            state = contextState(deps.dataDir, ledger, turn, memories);
+            messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, state.summaries);
+          }
+          appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress", turnId, data: { beforeChars: initialChars, afterChars: windowChars(messages[0]!.content, messages[1]!.content) } });
+        } catch (error) {
           if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
-          state = contextState(deps.dataDir, ledger, turn, memories);
-          messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, state.summaries);
+          turn.status = "failed";
+          turn.completedAt = nowIso();
+          turn.output = { kind: "error", faultCode: "compression_failed" };
+          ledger.status = "failed";
+          ledger.active = null;
+          saveTurn(deps.dataDir, turn);
+          saveLedger(deps.dataDir, ledger);
+          appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-error", turnId, data: { detail: String(error) } });
+          return { conversationId: ledger.conversationId, turnId, output: turn.output };
         }
-        appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress", turnId, data: { beforeChars: initialChars, afterChars: windowChars(messages[0]!.content, messages[1]!.content) } });
+      }
+      // The send boundary first compresses at 200K, then externalizes notes first only
+      // if the resulting view exceeds 250K. File publication precedes model dispatch.
+      try {
+        messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, state.summaries, deps.dataDir);
       } catch (error) {
-        if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
         turn.status = "failed";
         turn.completedAt = nowIso();
-        turn.output = { kind: "error", faultCode: "compression_failed" };
+        turn.output = { kind: "error", faultCode: error instanceof ContextBudgetError ? "context_limit" : "context_storage_failed" };
         ledger.status = "failed";
         ledger.active = null;
         saveTurn(deps.dataDir, turn);
         saveLedger(deps.dataDir, ledger);
-        appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-error", turnId, data: { detail: String(error) } });
+        appendEvent(deps.dataDir, ledger.conversationId, { kind: "context-budget-error", turnId, data: { detail: String(error) } });
         return { conversationId: ledger.conversationId, turnId, output: turn.output };
       }
-    }
-    // The send boundary first compresses at 200K, then externalizes notes first only
-    // if the resulting view exceeds 250K. File publication precedes model dispatch.
-    try {
-      messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, state.summaries, deps.dataDir);
-    } catch (error) {
-      turn.status = "failed";
-      turn.completedAt = nowIso();
-      turn.output = { kind: "error", faultCode: error instanceof ContextBudgetError ? "context_limit" : "context_storage_failed" };
-      ledger.status = "failed";
-      ledger.active = null;
-      saveTurn(deps.dataDir, turn);
+      ledger.windowChars = windowChars(messages[0]!.content, messages[1]!.content);
       saveLedger(deps.dataDir, ledger);
-      appendEvent(deps.dataDir, ledger.conversationId, { kind: "context-budget-error", turnId, data: { detail: String(error) } });
-      return { conversationId: ledger.conversationId, turnId, output: turn.output };
-    }
-    ledger.windowChars = windowChars(messages[0]!.content, messages[1]!.content);
-    saveLedger(deps.dataDir, ledger);
-    const tools = toolSchemas(toolRegistry, [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds]);
-    turn.usage!.modelRequests += 1;
-    saveTurn(deps.dataDir, turn);
-    appendEvent(deps.dataDir, ledger.conversationId, {
-      kind: "provider-request",
-      turnId,
-      data: { windowChars: ledger.windowChars, toolIds: [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds], usage: { ...turn.usage } },
-    });
-    const providerResult = await deps.provider.complete({
-      messages,
-      tools,
-      imageContext: { dataDir: deps.dataDir, conversationId: ledger.conversationId },
-    });
-    if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
-    const providerCallIds: Record<string, string> = {};
-    const byProviderId = new Map<string, string>();
-    const localCallId = (providerId: string) => {
-      let id = byProviderId.get(providerId);
-      if (!id) {
-        id = allocateRecordId(deps.dataDir, ledger.conversationId, "call");
-        byProviderId.set(providerId, id);
-        providerCallIds[id] = providerId;
-      }
-      return id;
-    };
-    const rawResult = { ...providerResult,
-      toolCalls: providerResult.toolCalls.map(call => ({ ...call, id: localCallId(call.id) })),
-      ...(providerResult.toolCallFaults ? { toolCallFaults: providerResult.toolCallFaults.map(fault => ({ ...fault, callId: localCallId(fault.callId) })) } : {}),
-    };
-    const batchId = rawResult.toolCalls.length || rawResult.toolCallFaults?.length
-      ? allocateRecordId(deps.dataDir, ledger.conversationId, "batch") : undefined;
-    const { result, batch: batchCheck, checks, validCalls } = validateCompletion(
-      rawResult, tools, turn.assembled.baseToolsIds, turn.assembled.toolIds,
-    );
-    const toolIds = [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds];
-    appendProviderExchange(deps.dataDir, ledger.conversationId, {
-      turnId,
-      messages,
-      content: result.content,
-      request: { toolIds },
-      response: {
-        providerCallIds,
-        finish: result.finish,
-        toolCalls: result.toolCalls,
-        attempts: result.attempts,
-        parseOk: result.parseOk,
-        schemaOk: result.schemaOk,
-        faultCode: result.faultCode,
-        missing: result.missing,
-        badName: result.badName,
-        detail: result.detail ?? "",
-      },
-    });
-    appendEvent(deps.dataDir, ledger.conversationId, {
-      kind: "provider-response",
-      turnId,
-      data: {
-        finish: result.finish,
-        content: result.content,
-        toolCalls: result.toolCalls,
-        attempts: result.attempts,
-        parseOk: result.parseOk,
-        schemaOk: result.schemaOk,
-        faultCode: result.faultCode,
-        missing: result.missing,
-        detail: result.detail ?? "",
-      },
-    });
-    if (result.finish === "error") {
-      turn.status = "failed";
-      turn.completedAt = nowIso();
-      turn.output = { kind: "error", faultCode: result.faultCode ?? "provider_error" };
-      ledger.status = "failed";
-      ledger.active = null;
-      ledger.liveTool = null;
+      const tools = toolSchemas(toolRegistry, [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds]);
+      turn.usage!.modelRequests += 1;
       saveTurn(deps.dataDir, turn);
-      saveLedger(deps.dataDir, ledger);
       appendEvent(deps.dataDir, ledger.conversationId, {
-        kind: "turn-output",
+        kind: "provider-request",
         turnId,
-        data: { output: turn.output },
+        data: { windowChars: ledger.windowChars, toolIds: [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds], usage: { ...turn.usage } },
       });
-      return { conversationId: ledger.conversationId, turnId, output: turn.output };
-    }
-    if (!result.parseOk || !result.schemaOk) {
-      submitFails += 1;
-      if (result.toolCallFaults?.length) {
-        for (const fault of result.toolCallFaults) {
-          writeFault(deps.dataDir, ledger, turnId, {
-            ...result,
-            badName: fault.name,
-            detail: fault.detail,
-            toolCalls: [{ id: fault.callId, name: fault.name, arguments: { rawArguments: fault.rawArguments } }],
-          });
+      const providerResult = await deps.provider.complete({
+        messages,
+        tools,
+        imageContext: { dataDir: deps.dataDir, conversationId: ledger.conversationId },
+      });
+      if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
+      const providerCallIds: Record<string, string> = {};
+      const byProviderId = new Map<string, string>();
+      const localCallId = (providerId: string) => {
+        let id = byProviderId.get(providerId);
+        if (!id) {
+          id = allocateRecordId(deps.dataDir, ledger.conversationId, "call");
+          byProviderId.set(providerId, id);
+          providerCallIds[id] = providerId;
         }
-      } else {
-        writeFault(deps.dataDir, ledger, turnId, result);
-      }
-      for (const { call, check } of checks) {
-        if (["exclusive_resident", "script_steps_separate"].includes(batchCheck.faultCode ?? "")) break;
-        if (!check.schemaOk && (result.toolCallFaults?.length || call.name !== result.badName)) {
-          writeFault(deps.dataDir, ledger, turnId, { ...result, ...check, toolCalls: [call] });
-        }
-      }
-      if (!result.parseOk && ["exclusive_resident", "script_steps_separate"].includes(batchCheck.faultCode ?? "")) {
-        writeFault(deps.dataDir, ledger, turnId, { ...result, ...batchCheck });
-      }
-      if (validCalls.length) {
-        ledger.toolQueue = validCalls.map((call) => ({
-          batchId,
-          callId: call.id,
-          name: call.name,
-          arguments: call.arguments,
-        }));
-        const closed = await runQueue({
-          dataDir: deps.dataDir,
-          ledger,
-          turn,
-          toolRegistry,
-          provider: deps.provider, repoRoot: deps.repoRoot,
-          browserNames: toolRegistry.index.browser,
-          host,
-        });
-        if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId, ledger.status)) return stoppedReply(ledger, turn);
+        return id;
+      };
+      const rawResult = { ...providerResult,
+        toolCalls: providerResult.toolCalls.map(call => ({ ...call, id: localCallId(call.id) })),
+        ...(providerResult.toolCallFaults ? { toolCallFaults: providerResult.toolCallFaults.map(fault => ({ ...fault, callId: localCallId(fault.callId) })) } : {}),
+      };
+      const batchId = rawResult.toolCalls.length || rawResult.toolCallFaults?.length
+        ? allocateRecordId(deps.dataDir, ledger.conversationId, "batch") : undefined;
+      const { result, batch: batchCheck, checks, validCalls } = validateCompletion(
+        rawResult, tools, turn.assembled.baseToolsIds, turn.assembled.toolIds,
+      );
+      const toolIds = [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds];
+      appendProviderExchange(deps.dataDir, ledger.conversationId, {
+        turnId,
+        messages,
+        content: result.content,
+        request: { toolIds },
+        response: {
+          providerCallIds,
+          finish: result.finish,
+          toolCalls: result.toolCalls,
+          attempts: result.attempts,
+          parseOk: result.parseOk,
+          schemaOk: result.schemaOk,
+          faultCode: result.faultCode,
+          missing: result.missing,
+          badName: result.badName,
+          detail: result.detail ?? "",
+        },
+      });
+      appendEvent(deps.dataDir, ledger.conversationId, {
+        kind: "provider-response",
+        turnId,
+        data: {
+          finish: result.finish,
+          content: result.content,
+          toolCalls: result.toolCalls,
+          attempts: result.attempts,
+          parseOk: result.parseOk,
+          schemaOk: result.schemaOk,
+          faultCode: result.faultCode,
+          missing: result.missing,
+          detail: result.detail ?? "",
+        },
+      });
+      if (result.finish === "error") {
+        turn.status = "failed";
+        turn.completedAt = nowIso();
+        turn.output = { kind: "error", faultCode: result.faultCode ?? "provider_error" };
+        ledger.status = "failed";
+        ledger.active = null;
+        ledger.liveTool = null;
         saveTurn(deps.dataDir, turn);
         saveLedger(deps.dataDir, ledger);
-        if (closed) {
+        appendEvent(deps.dataDir, ledger.conversationId, {
+          kind: "turn-output",
+          turnId,
+          data: { output: turn.output },
+        });
+        return { conversationId: ledger.conversationId, turnId, output: turn.output };
+      }
+      if (!result.parseOk || !result.schemaOk) {
+        submitFails += 1;
+        if (result.toolCallFaults?.length) {
+          for (const fault of result.toolCallFaults) {
+            writeFault(deps.dataDir, ledger, turnId, {
+              ...result,
+              badName: fault.name,
+              detail: fault.detail,
+              toolCalls: [{ id: fault.callId, name: fault.name, arguments: { rawArguments: fault.rawArguments } }],
+            });
+          }
+        } else {
+          writeFault(deps.dataDir, ledger, turnId, result);
+        }
+        for (const { call, check } of checks) {
+          if (["exclusive_resident", "script_steps_separate"].includes(batchCheck.faultCode ?? "")) break;
+          if (!check.schemaOk && (result.toolCallFaults?.length || call.name !== result.badName)) {
+            writeFault(deps.dataDir, ledger, turnId, { ...result, ...check, toolCalls: [call] });
+          }
+        }
+        if (!result.parseOk && ["exclusive_resident", "script_steps_separate"].includes(batchCheck.faultCode ?? "")) {
+          writeFault(deps.dataDir, ledger, turnId, { ...result, ...batchCheck });
+        }
+        if (validCalls.length) {
+          ledger.toolQueue = validCalls.map((call) => ({
+            batchId,
+            callId: call.id,
+            name: call.name,
+            arguments: call.arguments,
+          }));
+          const closed = await runQueue({
+            dataDir: deps.dataDir,
+            ledger,
+            turn,
+            toolRegistry,
+            provider: deps.provider, repoRoot: deps.repoRoot,
+            browserNames: toolRegistry.index.browser,
+            host,
+          });
+          if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId, ledger.status)) return stoppedReply(ledger, turn);
+          saveTurn(deps.dataDir, turn);
+          saveLedger(deps.dataDir, ledger);
+          if (closed) {
+            appendEvent(deps.dataDir, ledger.conversationId, {
+              kind: "turn-output",
+              turnId,
+              data: { output: closed },
+            });
+            return { conversationId: ledger.conversationId, turnId, output: closed };
+          }
+        }
+        if (submitFails >= MAX_SUBMIT) {
+          turn.status = "failed";
+          turn.completedAt = nowIso();
+          turn.output = { kind: "error", faultCode: result.faultCode ?? "missing_required" };
+          ledger.status = "failed";
+          ledger.active = null;
+          ledger.liveTool = null;
+          saveTurn(deps.dataDir, turn);
+          saveLedger(deps.dataDir, ledger);
           appendEvent(deps.dataDir, ledger.conversationId, {
             kind: "turn-output",
             turnId,
-            data: { output: closed },
+            data: { output: turn.output },
           });
-          return { conversationId: ledger.conversationId, turnId, output: closed };
+          return { conversationId: ledger.conversationId, turnId, output: turn.output };
         }
-      }
-      if (submitFails >= MAX_SUBMIT) {
-        turn.status = "failed";
-        turn.completedAt = nowIso();
-        turn.output = { kind: "error", faultCode: result.faultCode ?? "missing_required" };
-        ledger.status = "failed";
-        ledger.active = null;
-        ledger.liveTool = null;
         saveTurn(deps.dataDir, turn);
         saveLedger(deps.dataDir, ledger);
-        appendEvent(deps.dataDir, ledger.conversationId, {
-          kind: "turn-output",
-          turnId,
-          data: { output: turn.output },
-        });
-        return { conversationId: ledger.conversationId, turnId, output: turn.output };
+        continue;
       }
-      saveTurn(deps.dataDir, turn);
-      saveLedger(deps.dataDir, ledger);
-      continue;
-    }
-    if (result.finish === "stop" && result.toolCalls.length === 0) {
-      submitFails += 1;
-      ledger.toolIO.push({
-        callId: allocateRecordId(deps.dataDir, ledger.conversationId, "call"),
-        name: "finishTurn",
-        turnId,
-        arguments: {},
-        return: { stage: "complete", totalChars: runtimeMessages.needFinishTurn.length, text: runtimeMessages.needFinishTurn },
+      if (result.finish === "stop" && result.toolCalls.length === 0) {
+        submitFails += 1;
+        ledger.toolIO.push({
+          callId: allocateRecordId(deps.dataDir, ledger.conversationId, "call"),
+          name: "finishTurn",
+          turnId,
+          arguments: {},
+          return: { stage: "complete", totalChars: runtimeMessages.needFinishTurn.length, text: runtimeMessages.needFinishTurn },
+        });
+        if (submitFails >= MAX_SUBMIT) {
+          turn.status = "failed";
+          turn.completedAt = nowIso();
+          turn.output = { kind: "error", faultCode: "need_finish_turn" };
+          ledger.status = "failed";
+          ledger.active = null;
+          ledger.liveTool = null;
+          saveTurn(deps.dataDir, turn);
+          saveLedger(deps.dataDir, ledger);
+          appendEvent(deps.dataDir, ledger.conversationId, {
+            kind: "turn-output",
+            turnId,
+            data: { output: turn.output },
+          });
+          return { conversationId: ledger.conversationId, turnId, output: turn.output };
+        }
+        saveTurn(deps.dataDir, turn);
+        saveLedger(deps.dataDir, ledger);
+        continue;
+      }
+      ledger.toolQueue = result.toolCalls.map((call) => ({
+        batchId,
+        callId: call.id,
+        name: call.name,
+        arguments: call.arguments,
+      }));
+      const closed = await runQueue({
+        dataDir: deps.dataDir,
+        ledger,
+        turn,
+        toolRegistry,
+        provider: deps.provider, repoRoot: deps.repoRoot,
+        browserNames: toolRegistry.index.browser,
+        host,
       });
-      if (submitFails >= MAX_SUBMIT) {
-        turn.status = "failed";
-        turn.completedAt = nowIso();
-        turn.output = { kind: "error", faultCode: "need_finish_turn" };
-        ledger.status = "failed";
-        ledger.active = null;
-        ledger.liveTool = null;
-        saveTurn(deps.dataDir, turn);
-        saveLedger(deps.dataDir, ledger);
+      if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId, ledger.status)) return stoppedReply(ledger, turn);
+      saveTurn(deps.dataDir, turn);
+      saveLedger(deps.dataDir, ledger);
+      if (closed) {
         appendEvent(deps.dataDir, ledger.conversationId, {
           kind: "turn-output",
           turnId,
-          data: { output: turn.output },
+          data: { output: closed },
         });
-        return { conversationId: ledger.conversationId, turnId, output: turn.output };
+        return { conversationId: ledger.conversationId, turnId, output: closed };
       }
-      saveTurn(deps.dataDir, turn);
-      saveLedger(deps.dataDir, ledger);
-      continue;
+      // Successful tool batches are normal progress, not failed submissions.
+      // Empty finishTurn calls must not create an unbounded retry loop.
+      if (result.toolCalls.some((call) => call.name !== "finishTurn" && call.name !== "askUser")) {
+        submitFails = 0;
+      } else {
+        submitFails += 1;
+        if (submitFails >= MAX_SUBMIT) break;
+      }
     }
-    ledger.toolQueue = result.toolCalls.map((call) => ({
-      batchId,
-      callId: call.id,
-      name: call.name,
-      arguments: call.arguments,
-    }));
-    const closed = await runQueue({
-      dataDir: deps.dataDir,
-      ledger,
-      turn,
-      toolRegistry,
-      provider: deps.provider, repoRoot: deps.repoRoot,
-      browserNames: toolRegistry.index.browser,
-      host,
-    });
-    if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId, ledger.status)) return stoppedReply(ledger, turn);
+    turn.status = "failed";
+    turn.completedAt = nowIso();
+    turn.output = { kind: "error", faultCode: "empty_finish_turn" };
+    ledger.status = "failed";
+    ledger.active = null;
+    ledger.liveTool = null;
+    ledger.toolQueue = [];
     saveTurn(deps.dataDir, turn);
     saveLedger(deps.dataDir, ledger);
-    if (closed) {
-      appendEvent(deps.dataDir, ledger.conversationId, {
-        kind: "turn-output",
-        turnId,
-        data: { output: closed },
-      });
-      return { conversationId: ledger.conversationId, turnId, output: closed };
-    }
-    // Successful tool batches are normal progress, not failed submissions.
-    // Empty finishTurn calls must not create an unbounded retry loop.
-    if (result.toolCalls.some((call) => call.name !== "finishTurn" && call.name !== "askUser")) {
-      submitFails = 0;
-    } else {
-      submitFails += 1;
-      if (submitFails >= MAX_SUBMIT) break;
-    }
-  }
-  turn.status = "failed";
-  turn.completedAt = nowIso();
-  turn.output = { kind: "error", faultCode: "empty_finish_turn" };
-  ledger.status = "failed";
-  ledger.active = null;
-  ledger.liveTool = null;
-  ledger.toolQueue = [];
-  saveTurn(deps.dataDir, turn);
-  saveLedger(deps.dataDir, ledger);
-  appendEvent(deps.dataDir, ledger.conversationId, {
-    kind: "turn-output",
-    turnId,
-    data: { output: turn.output },
-  });
-  return { conversationId: ledger.conversationId, turnId, output: turn.output };
+    appendEvent(deps.dataDir, ledger.conversationId, {
+      kind: "turn-output",
+      turnId,
+      data: { output: turn.output },
+    });
+    return { conversationId: ledger.conversationId, turnId, output: turn.output };
+  } finally { execution.finish(); }
 }

@@ -9,7 +9,7 @@ type Input = {
   dataDir: string; conversationId: string; repoRoot: string; provider: Provider;
   module: CompressionModule; records: SourceRecord[]; isCancelled?: () => boolean; recompress?: boolean;
 };
-const running = new Set<string>();
+const running = new Map<string, { isCancelled?: () => boolean }>();
 const size = (turns: CompressionTurn[]) => JSON.stringify({ turns }).length;
 function asTurn(content: unknown): CompressionTurn {
   if (!content || typeof content !== "object" || !("turnId" in content) || typeof content.turnId !== "string" || !content.turnId.trim()) throw new Error("Compression source missing turnId");
@@ -19,9 +19,12 @@ function asTurn(content: unknown): CompressionTurn {
 /** Called only by the runtime's shared window-budget flow; index commit is all-or-none. */
 export async function compressRecords(input: Input): Promise<void> {
   const lock = JSON.stringify([input.dataDir, input.conversationId, input.module]);
-  if (running.has(lock)) throw new Error("Compression already running for this conversation");
-  running.add(lock);
-  try { await compress(input); } finally { running.delete(lock); }
+  const previous = running.get(lock);
+  if (previous && !previous.isCancelled?.()) throw new Error("Compression already running for this conversation");
+  const owner = { isCancelled: input.isCancelled };
+  running.set(lock, owner);
+  try { await compress(input); }
+  finally { if (running.get(lock) === owner) running.delete(lock); }
 }
 
 async function compress(input: Input): Promise<void> {

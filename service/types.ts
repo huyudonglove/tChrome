@@ -175,6 +175,7 @@ export type Provider = {
     messages: ChatMessage[];
     tools: ChatTool[];
     imageContext?: { dataDir: string; conversationId: string };
+    signal?: AbortSignal;
   }): Promise<CompletionResult>;
 };
 

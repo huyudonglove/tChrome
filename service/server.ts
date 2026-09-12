@@ -8,6 +8,7 @@ import { createToolBridge, type ToolBridge } from "./runtime/bridge.ts";
 import type { BrowserResult } from "./types.ts";
 import { executorVersion, executorMismatchMessage } from "./executor-version.ts";
 import { abortAllLocalProcesses } from "./tools/local-process.ts";
+import { cancelAllExecutions } from "./runtime/execution.ts";
 import { listItems, saveItem, deleteItem, LibraryError } from "./library/store.ts";
 
 const loadEnv = () => {
@@ -227,6 +228,7 @@ if (isMain) {
   Bun.serve({ hostname, port, fetch: server.fetch });
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.once(signal, () => {
+      cancelAllExecutions();
       abortAllLocalProcesses();
       process.exit(0);
     });

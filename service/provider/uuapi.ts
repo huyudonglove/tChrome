@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { setTimeout as sleep } from "node:timers/promises";
 import { completeResponses } from "./responses.ts";
 import { readImageDataUrl } from "../images/store.ts";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
@@ -24,7 +25,23 @@ export function resolveProxy(env: Record<string, string | undefined>) {
   return address;
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const stoppedResult = (attempts: number): CompletionResult => ({
+  finish: "error",
+  content: "",
+  toolCalls: [],
+  attempts,
+  parseOk: false,
+  schemaOk: false,
+  faultCode: "stopped",
+  missing: [],
+});
+
+type CompletionInput = {
+  messages: ChatMessage[];
+  tools: ChatTool[];
+  imageContext?: { dataDir: string; conversationId: string };
+  signal?: AbortSignal;
+};
 
 const retryable = (error: unknown) => {
   if (error && typeof error === "object" && "status" in error) {
@@ -79,7 +96,7 @@ export function createProvider(config: ProviderConfig = {}) {
     throw new Error("UUAPI_REASONING_EFFORT must be low, medium or high");
   }
   const proxy = config.proxy ?? resolveProxy(Bun.env);
-  if (!apiKey) return { complete: async () => keyMissing() };
+  if (!apiKey) return { complete: async (input: CompletionInput) => input.signal?.aborted ? stoppedResult(0) : keyMissing() };
   const client = new OpenAI({
     apiKey,
     baseURL,
@@ -92,8 +109,8 @@ export function createProvider(config: ProviderConfig = {}) {
       : {}),
   });
 
-  const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: { dataDir: string; conversationId: string }) => {
-    if (config.api === "responses") return completeResponses(client, { model, reasoningEffort, messages, tools, imageContext });
+  const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: { dataDir: string; conversationId: string }, signal?: AbortSignal) => {
+    if (config.api === "responses") return completeResponses(client, { model, reasoningEffort, messages, tools, imageContext, signal });
     const outgoing: ChatCompletionMessageParam[] = messages.map(message => {
       if (!message.images?.length) return { role: message.role, content: message.content };
       if (message.role !== "user" || !imageContext) throw new Error("图片请求缺少有效会话上下文");
@@ -111,7 +128,7 @@ export function createProvider(config: ProviderConfig = {}) {
       stream: false,
       messages: outgoing,
       tools,
-    });
+    }, { signal });
     const choice = response.choices[0];
     if (!choice) throw new Error("empty_choices");
     const calls: AccCall[] = (choice.message.tool_calls ?? []).map((call) => {
@@ -122,17 +139,15 @@ export function createProvider(config: ProviderConfig = {}) {
   };
 
   return {
-    complete: async (input: {
-      messages: ChatMessage[];
-      tools: ChatTool[];
-      imageContext?: { dataDir: string; conversationId: string };
-    }): Promise<CompletionResult> => {
+    complete: async (input: CompletionInput): Promise<CompletionResult> => {
       let lastError: unknown;
       let attempts = 0;
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        if (input.signal?.aborted) return stoppedResult(attempts);
         attempts = attempt;
         try {
-          const { content, calls, finish } = await once(input.messages, input.tools, input.imageContext);
+          const { content, calls, finish } = await once(input.messages, input.tools, input.imageContext, input.signal);
+          if (input.signal?.aborted) return stoppedResult(attempts);
           // Only a completed tool-call batch may reach argument parsing and execution.
           if (finish !== "tool_calls") {
             const stopped = finish === "stop" && calls.length === 0;
@@ -187,9 +202,15 @@ export function createProvider(config: ProviderConfig = {}) {
             missing: [],
           };
         } catch (error) {
+          if (input.signal?.aborted) return stoppedResult(attempts);
           lastError = error;
           if (!retryable(error) || attempt === MAX_ATTEMPTS) break;
-          await sleep(1000);
+          try {
+            await sleep(1000, undefined, { signal: input.signal });
+          } catch (waitError) {
+            if (input.signal?.aborted) return stoppedResult(attempts);
+            throw waitError;
+          }
         }
       }
       const status = lastError && typeof lastError === "object" && "status" in lastError

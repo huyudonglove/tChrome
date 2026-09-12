@@ -7,7 +7,7 @@
 - `prompts/`：本 Agent 的 System、User 提示词。
 - `index.test.ts`：业务及协议行为验证。
 
-两个 Agent 直接复用现有无状态 `provider.complete`，使用同一套模型配置、协议适配、传输重试和响应解析。Provider 不处理摘要结构、查询候选或其他 Agent 业务规则；这里不另建公共 LLM 请求封装。
+两个 Agent 直接复用现有无状态 `provider.complete`，使用同一套模型配置、协议适配、传输重试和响应解析。Provider 不处理摘要结构、查询候选或其他 Agent 业务规则；这里不另建公共 LLM 请求封装。 Runtime 传入绑定当前回合执行状态的 Provider，两个 Agent 自动复用主模型的取消信号；停止会同时中止网络请求和重试等待。索引提交前仍检查回合有效性，已取消压缩的锁可由新回合接管，旧任务退出不能清除新任务的锁。
 
 `service/context-archive/` 负责不可变原文与摘要存储、目录索引、覆盖关系和来源展开。运行数据继续保存在 `conversations/<conversationId>/compression/<module>/`。Runtime 在发送主请求前触发压缩，`context.query` 工具触发查询；主 Agent 的窗口投影与提示词组装仍由 `service/context/` 管理。
 
