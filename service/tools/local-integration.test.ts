@@ -1,5 +1,7 @@
+import { patchScript } from "../scripts/store.ts";
 import { expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
+import { symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { handleTurn } from "../runtime/loop.ts";
@@ -15,6 +17,25 @@ const response = (name: string, args: Record<string, unknown>): CompletionResult
   toolCalls: [{ id: name, name, arguments: { ...args, reason: "验证本地工具", affectsPage: false } }],
 });
 
+test("filesystem tools preserve the managed scripts patch boundary", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-script-boundary-"));
+  try {
+    expect(await patchScript(dataDir, { filename: "saved.sh", patch: "--- /dev/null\n+++ b/saved.sh\n@@ -0,0 +1 @@\n+printf saved\n" })).toMatchObject({ ok: true });
+    const scripts = join(dataDir, "scripts"), saved = join(scripts, "saved.sh");
+    await symlink(scripts, join(dataDir, "alias"));
+    for (const [name, args] of [
+      ["local.fs_write", { path: saved, content: "overwrite" }],
+      ["local.fs_write", { path: join(dataDir, "alias", "new.sh"), content: "bypass" }],
+      ["local.fs_mkdir", { path: join(scripts, "nested") }],
+      ["local.fs_delete", { path: dataDir, recursive: true }],
+      ["local.fs_copy", { source: saved, destination: join(scripts, "copied.sh") }],
+      ["local.fs_move", { source: saved, destination: join(dataDir, "moved.sh") }],
+    ] as const) expect(await runLocalTool(name, args, dataDir, "cv_01")).toMatchObject({ ok: false, error: expect.stringContaining("script_patch") });
+    expect(await runLocalTool("local.fs_read", { path: saved }, dataDir, "cv_01")).toMatchObject({ ok: true, content: "printf saved\n" });
+    expect(await runLocalTool("local.fs_write", { path: join(dataDir, "ordinary.txt"), content: "data" }, dataDir, "cv_01")).toMatchObject({ ok: true });
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+});
+
 test("local tools are discoverable and load through the existing catalog before executing in the loop", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-local-loop-"));
   let step = 0;
@@ -24,9 +45,10 @@ test("local tools are discoverable and load through the existing catalog before 
     expect(registry.tools[name]).toBeTruthy();
   }
   try {
+    expect(await patchScript(dataDir, { filename: "run.sh", patch: "--- /dev/null\n+++ b/run.sh\n@@ -0,0 +1 @@\n+printf local-execution-ok\n" })).toMatchObject({ ok: true });
     const reply = await handleTurn({ dataDir, repoRoot, provider: { complete: async () => {
       if (step++ === 0) return response("catalog.add", { names: ["local.run"] });
-      if (step === 2) return response("local.run", { command: "printf local-execution-ok", cwd: dataDir });
+      if (step === 2) return response("local.run", { filename: "run.sh", cwd: dataDir });
       return response("finishTurn", { text: "完成" });
     } } }, { userInput: "验证本地命令", submittedAt: new Date().toISOString() });
     expect(reply.output).toEqual({ kind: "reply", text: "完成" });
@@ -40,9 +62,10 @@ test("stop and delete terminate only their conversation's local processes even w
   const first = newConversation(dataDir).conversationId!;
   let second = "";
   try {
-    const a = await runLocalTool("local.process_start", { command: "sleep 30", cwd: dataDir }, dataDir, first);
+    expect(await patchScript(dataDir, { filename: "sleep.sh", patch: "--- /dev/null\n+++ b/sleep.sh\n@@ -0,0 +1 @@\n+sleep 30\n" })).toMatchObject({ ok: true });
+    const a = await runLocalTool("local.process_start", { filename: "sleep.sh", cwd: dataDir }, dataDir, first);
     second = newConversation(dataDir).conversationId!;
-    const b = await runLocalTool("local.process_start", { command: "sleep 30", cwd: dataDir }, dataDir, second);
+    const b = await runLocalTool("local.process_start", { filename: "sleep.sh", cwd: dataDir }, dataDir, second);
     stopTurn(dataDir);
     expect(await runLocalTool("local.process_status", { processId: b.processId }, dataDir, second)).toMatchObject({ status: "stopped" });
     expect(await runLocalTool("local.process_status", { processId: a.processId }, dataDir, first)).toMatchObject({ status: "running" });

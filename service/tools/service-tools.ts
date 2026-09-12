@@ -2,8 +2,10 @@ import { promises as dns } from "node:dns";
 import tls from "node:tls";
 import { runAccountVault } from "./account-vault.ts";
 import { runTavilySearch } from "./tavily-search.ts";
+import { patchScript, readScript, listScripts } from "../scripts/store.ts";
 
 export const SERVICE_TOOL_NAMES = [
+  "script_patch", "script_read", "script_list",
   "send_http",
   "send_http_batch",
   "web_search",
@@ -53,6 +55,16 @@ export async function runServiceTool(
   name: string,
   input: Record<string, unknown> = {},
 ) {
+  if (name === "script_patch") return patchScript(dataDir, input);
+  if (name === "script_read" || name === "script_list") {
+    try {
+      if (name === "script_list") return { ok: true, files: await listScripts(dataDir) };
+      const { filename, code } = await readScript(dataDir, input.filename);
+      return { ok: true, filename, code };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
   if (name === "account_vault") return runAccountVault(dataDir, input);
   if (name === "tavily_search") return runTavilySearch(input);
   if (name === "send_http") {

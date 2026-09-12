@@ -6,6 +6,7 @@ import type { BrowserHost, CurrentPage, ToolArguments } from "../types.ts";
 import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
 import { LOCAL_TOOL_NAMES, runLocalTool } from "./local-tools.ts";
 import { listItems, saveItem, deleteItem } from "../library/store.ts";
+import { readScript } from "../scripts/store.ts";
 
 const questionWithChoices = (question: string, choice: string[]): string =>
   choice.length === 0 ? question : `${question}\n选项：${choice.join(" / ")}`;
@@ -66,6 +67,18 @@ const externalResult = (value: Record<string, unknown>): ToolExecution => {
 
 export async function executeTool(input: ExecuteInput): Promise<ToolExecution> {
   const { name, arguments: args, lookup, host, dataDir, browserNames } = input;
+  if (name === "execute_javascript") {
+    try {
+      if ("code" in args || typeof args.filename !== "string" || !/\.(?:js|mjs|cjs)$/.test(args.filename)) {
+        return result(JSON.stringify({ ok: false, error: "请先用 script_patch 保存 JavaScript 文件，再传 filename 执行。" }));
+      }
+      if (!host) return result(JSON.stringify({ ok: false, error: "浏览器未连接" }));
+      const script = await readScript(dataDir, args.filename);
+      return externalResult(await host.execute(name, { code: script.code, ...(args.tab !== undefined ? { tab: args.tab } : {}) }));
+    } catch (error) {
+      return result(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+    }
+  }
   if (name === "library") {
     try {
       if (args.action === "list") return result(JSON.stringify({ ok: true, items: listItems(dataDir, typeof args.query === "string" ? args.query : undefined) }));

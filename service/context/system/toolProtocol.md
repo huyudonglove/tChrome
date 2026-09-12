@@ -7,3 +7,5 @@
 affectsPage 声明本次操作是否改变浏览器页面状态：点击、输入、导航等填 true；读取、查询、本地保存等填 false。是否必填和固定取值以 schema 为准。false 也可能涉及本地或网络写入，我按真实行为核对授权。
 
 我从对应观察结果取得真实 tab、ref、id、regionId，使用与目标工具匹配的引用。
+
+脚本先用 script_patch 保存；确认补丁成功后，在下一次模型调用中执行。补丁与 execute_javascript、local.run 或 local.process_start 不放在同批，运行时会拒绝该批次。

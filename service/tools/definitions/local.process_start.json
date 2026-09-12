@@ -2,13 +2,10 @@
   "type": "function",
   "function": {
     "name": "local.process_start",
-    "description": "后台启动 zsh -lc 命令，立即返回 processId。cwd 必须是绝对路径，timeoutMs 默认30000、最大300000。用 process_status 查询、process_write 写入、process_stop 停止。每个进程输出各保留末尾65536字符，进程ID限本会话和本次服务运行有效。",
+    "description": "Execute a saved script by filename in absolute cwd. Save with script_patch in an earlier call. Extensions: .sh uses zsh, .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches. timeoutMs defaults to 30000, max 300000; timeout kills the process group. stdout/stderr each retain their last 65536 characters. Returns processId immediately; use local.process_status, local.process_write and local.process_stop to interact.",
     "parameters": {
       "type": "object",
       "properties": {
-        "command": {
-          "type": "string"
-        },
         "cwd": {
           "type": "string",
           "description": "运行目录的绝对路径"
@@ -26,10 +23,20 @@
         "affectsPage": {
           "type": "boolean",
           "const": false
+        },
+        "filename": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*\\.(?:js|mjs|cjs|sh|py)$"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
-        "command",
+        "filename",
         "cwd",
         "reason",
         "affectsPage"

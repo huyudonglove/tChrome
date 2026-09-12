@@ -27,3 +27,5 @@ GUI。Side Panel + background。样式对标 telance，组件放 `ui/`。浏览�
 `save_pdf` 通过 Chrome 的 Page.printToPDF 生成打印版 PDF，下载到本机并确认下载完成后返回绝对路径。文件名相对浏览器下载目录，重名自动改名；下载仍进行时返回 pending 和 downloadId，可继续 wait_download，不重复打印。工具历史不包含 PDF/base64。
 
 验证码工具检查受支持组件及其 frame，点击实际可访问的勾选控件，不能用点击 iframe 代替。`see_captcha` / `wait_captcha` 的检测成功不等于验证成功；`solve_captcha` 仅在唯一组件出现非空响应字段且状态可确认时成功。仅勾选、多组件、无法访问的 frame 或图像拼图挑战不会假报通过，返回 requiresUser 交给用户处理；工具不返回响应令牌。
+
+`execute_javascript` 的模型参数为 filename 和可选 tab。服务从数据目录 scripts 读取已保存的 .js/.mjs/.cjs 文件，再将脚本交给扩展执行；扩展负责在目标页面主环境求值。模型先用 script_patch 保存并确认成功，下一次模型调用才能执行，同批补丁与执行由 Runtime 拒绝。

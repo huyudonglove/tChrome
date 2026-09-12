@@ -3,6 +3,7 @@ import { readFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { executeTool, type ExecuteInput } from "./execute.ts";
+import { patchScript } from "../scripts/store.ts";
 import { checkToolCalls } from "./schema.ts";
 import type { ChatTool } from "../types.ts";
 
@@ -58,11 +59,18 @@ test.each([{ name: "finishTurn", field: "text" }, { name: "askUser", field: "que
 );
 
 test("JavaScript values with only a target tab do not overwrite the current page", async () => {
-  const execution = await executeTool({
-    name: "execute_javascript", arguments: { code: "1 + 1", tab: 7 }, dataDir: "",
-    browserNames: ["execute_javascript"], host: { execute: async () => ({ ok: true, tab: 7, type: "number", value: 2 }) },
-    lookup: { unusedTools: [], knownTools: [], enabledTools: [] },
-  });
-  expect(JSON.parse(execution.text)).toMatchObject({ ok: true, value: 2 });
-  expect(execution.effects).toEqual([]);
+  const dataDir = mkdtempSync(join(tmpdir(), "script-execute-"));
+  try {
+    expect((await patchScript(dataDir, { filename: "value.js", patch: "--- /dev/null\n+++ b/value.js\n@@ -0,0 +1 @@\n+1 + 1\n" })).ok).toBe(true);
+    const execution = await executeTool({
+      name: "execute_javascript", arguments: { filename: "value.js", tab: 7 }, dataDir,
+      browserNames: ["execute_javascript"], host: { execute: async (_name, args) => {
+        expect(args).toEqual({ code: "1 + 1\n", tab: 7 });
+        return { ok: true, tab: 7, type: "number", value: 2 };
+      } },
+      lookup: { unusedTools: [], knownTools: [], enabledTools: [] },
+    });
+    expect(JSON.parse(execution.text)).toMatchObject({ ok: true, value: 2 });
+    expect(execution.effects).toEqual([]);
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });

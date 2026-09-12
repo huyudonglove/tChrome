@@ -2,13 +2,10 @@
   "type": "function",
   "function": {
     "name": "local.run",
-    "description": "在服务所在电脑用 zsh -lc 执行命令并等待结束。cwd 必须是绝对路径。timeoutMs 默认30000，最大300000，超时会终止进程组。返回 ok、processId、status、exitCode、signal、stdout/stderr及各自截断标志；输出各保留末尾65536字符，非零退出表示失败。",
+    "description": "Execute a saved script by filename in absolute cwd. Save with script_patch in an earlier call. Extensions: .sh uses zsh, .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches. timeoutMs defaults to 30000, max 300000; timeout kills the process group. stdout/stderr each retain their last 65536 characters. Waits for completion; nonzero exit means failure.",
     "parameters": {
       "type": "object",
       "properties": {
-        "command": {
-          "type": "string"
-        },
         "cwd": {
           "type": "string",
           "description": "运行目录的绝对路径"
@@ -26,10 +23,20 @@
         "affectsPage": {
           "type": "boolean",
           "const": false
+        },
+        "filename": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*\\.(?:js|mjs|cjs|sh|py)$"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
-        "command",
+        "filename",
         "cwd",
         "reason",
         "affectsPage"

@@ -18,9 +18,9 @@
 
 ## 本机工具
 
-`local-files.ts` 提供绝对路径的文件读写、列表、搜索、复制、移动与删除；`local-process.ts` 提供命令执行、后台进程、标准输入、终止和系统打开。`local-tools.ts` 统一分派本机工具并建立会话作用域。工具定义仍只维护在 `definitions/local.*.json`，通过现有动态目录发现和 `catalog.add` 加载，不另建浏览器到本机的通信通道。
+`local-files.ts` 提供绝对路径的文件读写、列表、搜索、复制、移动与删除；`local-process.ts` 提供脚本执行、后台进程、标准输入、终止和系统打开。`local-tools.ts` 统一分派本机工具并建立会话作用域。工具定义仍只维护在 `definitions/local.*.json`，通过现有动态目录发现和 `catalog.add` 加载，不另建浏览器到本机的通信通道。
 
-命令在服务电脑上由 zsh 执行，必须提供绝对 cwd。默认30秒、最长300秒超时，每个输出流持续读取并保留末尾65536字符，最多并行8个进程。后台进程ID只属于创建它的会话，服务重启后失效；停止会话、删除会话和服务正常退出会终止对应进程组。新建或切换会话不停止原会话任务；需要停止时先停止原会话。已结束进程记录最多保留64条。
+脚本在服务电脑上按扩展名选择解释器执行，必须提供绝对 cwd。默认30秒、最长300秒超时，每个输出流持续读取并保留末尾65536字符，最多并行8个进程。后台进程ID只属于创建它的会话，服务重启后失效；停止会话、删除会话和服务正常退出会终止对应进程组。新建或切换会话不停止原会话任务；需要停止时先停止原会话。已结束进程记录最多保留64条。
 
 本地能力使用服务进程的操作系统权限，不绕过macOS权限；文件修改即时生效，不随聊天记录删除而回滚。`affectsPage=false` 仅说明不影响浏览器页面，不表示本地操作没有副作用。文件复制/移动默认拒绝已存在目标，移动的默认实现是复制成功后删除源，操作期间应避免源被其他程序修改。
 
@@ -29,3 +29,9 @@
 常驻 `context.query(sumId, module, intent, cursor?)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，查询 Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将对应记录放入 currentQuery；工具返回只含状态和引用。每次 records 的紧凑 JSON 最多 2000 字符；超出返回 partial 与 nextCursor，可带原查询参数和 cursor 继续读取，无需再次调用查询 Agent。超大单条保留身份字段及 fragment:{offset,totalChars,text}，text 是原记录 JSON 的连续片段，不是摘要。查询不会刷新页面。
 
 查询模块统一为 conversationHistory；每份归档保留轮次内部的输入、目标变化、工具、页面观察、记忆增量及最终输出。目录与原文由 `service/context-archive/` 管理，工具层只校验参数并调度 `service/agents/query/`。查询 Agent 自己管理提示词、输入输出协议与业务校验，模型请求复用现有 `provider.complete`。查询 Agent 仅选择候选，返回 ID 不能作为文件路径。查询结果不再经过普通工具的二次截断。
+
+脚本保存在服务数据目录 `data/scripts`：`script_patch(filename, patch)` 仅应用单文件 git unified diff，支持新增、修改和删除；`script_read(filename)` 返回代码，`script_list()` 返回文件名，三者的 affectsPage 固定为 false。文件名为单层 .sh/.py/.js/.mjs/.cjs。
+
+`execute_javascript` 使用 filename（仅 .js/.mjs/.cjs）和可选 tab，不接受内联 code；内容为页面表达式，多语句或异步逻辑使用 IIFE。`local.run` / `local.process_start` 使用 filename 和绝对路径 cwd，可选 args 字符串数组及 timeoutMs；.sh 由 zsh、.py 由 python3、.js/.mjs/.cjs 由 bun 执行，不接受内联 command。补丁只返回状态，必须在确认成功后的下一次模型调用执行；Runtime 拒绝同批 script_patch 与脚本执行。
+
+本机每次执行读取已保存文件并创建私有快照，后续补丁不会改变正在运行的脚本。普通相对文件路径按 cwd 解析；脚本自身路径和相对 import 按快照位置解析，不支持依赖托管目录中相邻脚本的相对导入。服务运行环境需安装 Git，补丁解析与应用直接使用 `git apply`。

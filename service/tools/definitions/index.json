@@ -124,6 +124,9 @@
     "local.process_stop",
     "local.process_write",
     "local.run",
-    "library"
+    "library",
+    "script_patch",
+    "script_read",
+    "script_list"
   ]
 }

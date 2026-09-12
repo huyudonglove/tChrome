@@ -1,14 +1,13 @@
 {
   "type": "function",
   "function": {
-    "name": "local.capabilities",
-    "description": "Report local platform, home directory, supported script extensions, timeout and output limits. Save scripts with script_patch before executing by filename.",
+    "name": "script_list",
+    "description": "列出 data/scripts 中可用脚本的文件名。返回 ok 和 files 数组，每项包含 filename、bytes，用于查找可读取、修改或执行的脚本。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
-          "type": "string",
-          "description": "本次操作的目的"
+          "type": "string"
         },
         "affectsPage": {
           "type": "boolean",

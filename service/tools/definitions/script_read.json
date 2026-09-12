@@ -1,0 +1,30 @@
+{
+  "type": "function",
+  "function": {
+    "name": "script_read",
+    "description": "读取 data/scripts 中指定脚本的完整代码。filename 为单层文件名；返回 ok、filename 和 code，文件上限 1 MiB。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "filename": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*\\.(sh|py|js|mjs|cjs)$",
+          "description": "data/scripts 下的单层脚本文件名，不含目录"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean",
+          "const": false
+        }
+      },
+      "required": [
+        "filename",
+        "reason",
+        "affectsPage"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

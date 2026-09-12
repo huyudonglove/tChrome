@@ -204,3 +204,5 @@ service/
 | `bun run check` | 测试与扩展构建，不含独立类型检查 |
 
 详细实现见 [服务说明](service/README.md)、[扩展说明](extension/README.md)、[资料库](service/library/README.md)、[字段协议](docs/schema.md) 与 [数据存储](docs/data.md)。
+
+脚本统一保存在服务数据目录的 `scripts/`。Agent 先用 `script_patch` 提交单文件补丁，确认成功后，在下一次模型调用中通过 `execute_javascript` 操作页面，或用 `local.run` / `local.process_start` 在本机运行；`script_read` 和 `script_list` 用于查看和查找脚本。

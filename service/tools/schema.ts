@@ -46,6 +46,11 @@ export function checkToolCalls(
 ): SchemaCheck {
   const names = allowed(baseToolsIds, toolIds);
   const byName = new Map(tools.map((tool) => [tool.function.name, tool]));
+  if (toolCalls.some(call => call.name === "script_patch")
+    && toolCalls.some(call => ["execute_javascript", "local.run", "local.process_start"].includes(call.name))) {
+    return { parseOk: true, schemaOk: false, faultCode: "script_steps_separate", missing: [],
+      badName: "script_patch", detail: "先单独提交 script_patch，查看写入结果后在下一次调用中执行脚本。" };
+  }
   const closers = toolCalls.filter((call) => call.name === "finishTurn" || call.name === "askUser");
   if (closers.length > 1 || (closers[0] && toolCalls.at(-1)?.name !== closers[0].name)) {
     const name = closers[0]?.name ?? "finishTurn";

@@ -107,7 +107,7 @@ const validateCompletion = (
     ...(!raw.parseOk ? { faultCode: raw.faultCode, badName: raw.badName, detail: raw.detail, missing: raw.missing } : {}),
   };
   return { result, batch, checks,
-    validCalls: batch.faultCode === "exclusive_resident" ? [] : checks.filter(({ check }) => check.schemaOk).map(({ call }) => call),
+    validCalls: ["exclusive_resident", "script_steps_separate"].includes(batch.faultCode ?? "") ? [] : checks.filter(({ check }) => check.schemaOk).map(({ call }) => call),
   };
 };
 
@@ -414,12 +414,12 @@ export async function handleTurn(
         writeFault(deps.dataDir, ledger, turnId, result);
       }
       for (const { call, check } of checks) {
-        if (batchCheck.faultCode === "exclusive_resident") break;
+        if (["exclusive_resident", "script_steps_separate"].includes(batchCheck.faultCode ?? "")) break;
         if (!check.schemaOk && (result.toolCallFaults?.length || call.name !== result.badName)) {
           writeFault(deps.dataDir, ledger, turnId, { ...result, ...check, toolCalls: [call] });
         }
       }
-      if (!result.parseOk && batchCheck.faultCode === "exclusive_resident") {
+      if (!result.parseOk && ["exclusive_resident", "script_steps_separate"].includes(batchCheck.faultCode ?? "")) {
         writeFault(deps.dataDir, ledger, turnId, { ...result, ...batchCheck });
       }
       if (validCalls.length) {
