@@ -80,12 +80,20 @@
             },
             "required": [
               "action"
-            ]
+            ],
+            "type": "object"
           },
           "then": {
             "required": [
               "id"
-            ]
+            ],
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "资料 ID；get、delete 必填，save 传入时更新已有条目"
+              }
+            }
           }
         },
         {
@@ -98,17 +106,40 @@
             "not": {
               "required": [
                 "id"
-              ]
+              ],
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "资料 ID；get、delete 必填，save 传入时更新已有条目"
+                }
+              }
             },
             "required": [
               "action"
-            ]
+            ],
+            "type": "object"
           },
           "then": {
             "required": [
               "type",
               "title"
-            ]
+            ],
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "website",
+                  "account",
+                  "note"
+                ]
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
           }
         }
       ]

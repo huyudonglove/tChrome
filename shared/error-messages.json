@@ -36,7 +36,7 @@
   },
   "provider_error": {
     "model": "模型服务请求失败。检查错误详情，确认原因后再决定是否重试。",
-    "user": "模型服务暂时没有正常响应，本轮未完成。",
+    "user": "模型请求失败，本轮未完成。具体原因已保留在服务日志中。",
     "recovery": "inspect_state"
   },
   "provider_output_limit": {

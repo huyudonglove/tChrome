@@ -1,3 +1,4 @@
+import { errorMessage } from "../shared/errors.ts";
 import { expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -20,7 +21,7 @@ const outputs: { output: TurnOutput; expected: string }[] = [
   { output: { kind: "reply", text: "这是商品详情页。" }, expected: "这是商品详情页。" },
   { output: { kind: "ask", question: "选择哪个商品？" }, expected: "选择哪个商品？" },
   { output: { kind: "error", faultCode: "stopped" }, expected: "已停止" },
-  { output: { kind: "error", faultCode: "provider_error" }, expected: "模型服务暂时没有正常响应，本轮未完成。" },
+  { output: { kind: "error", faultCode: "provider_error" }, expected: errorMessage("provider_error", "user") },
   { output: { kind: "error", faultCode: "max_outbounds" }, expected: "本轮已达到执行次数上限，任务还没有完成。" },
 ];
 

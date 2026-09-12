@@ -50,19 +50,35 @@
             },
             "required": [
               "mode"
-            ]
+            ],
+            "type": "object"
           },
           "then": {
             "oneOf": [
               {
                 "required": [
                   "ref"
-                ]
+                ],
+                "type": "object",
+                "properties": {
+                  "ref": {
+                    "type": "string",
+                    "pattern": "^el_[0-9]{2,}$",
+                    "minLength": 1
+                  }
+                }
               },
               {
                 "required": [
                   "selector"
-                ]
+                ],
+                "type": "object",
+                "properties": {
+                  "selector": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
               }
             ]
           },
@@ -72,12 +88,27 @@
                 {
                   "required": [
                     "ref"
-                  ]
+                  ],
+                  "type": "object",
+                  "properties": {
+                    "ref": {
+                      "type": "string",
+                      "pattern": "^el_[0-9]{2,}$",
+                      "minLength": 1
+                    }
+                  }
                 },
                 {
                   "required": [
                     "selector"
-                  ]
+                  ],
+                  "type": "object",
+                  "properties": {
+                    "selector": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
                 }
               ]
             }

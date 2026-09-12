@@ -25,6 +25,15 @@ test("每个工具有 schema 和 reason，affectsPage 按工具约定校验", ()
     if (!["click", "page.click"].includes(name)) expect(params.required ?? [], `${name} required`).toContain("reason");
     if (name === "catalog.add") expect(params.required ?? []).not.toContain("affectsPage");
     else expect(params.required ?? [], `${name} required`).toContain("affectsPage");
+    const checkBranches = (schema: any) => {
+      if (schema.required) {
+        expect(schema.type, `${name} required schema type`).toBe("object");
+        for (const key of schema.required) expect(schema.properties?.[key], `${name} required ${key}`).toBeDefined();
+      }
+      for (const key of ["anyOf", "oneOf", "allOf"]) for (const branch of schema[key] ?? []) checkBranches(branch);
+      for (const key of ["if", "then", "else", "not"]) if (schema[key]) checkBranches(schema[key]);
+    };
+    checkBranches(params);
     expect(tool.function.name).toBe(name);
     expect(registry.tools[name]?.function.description, `${name} usage`).toBeTruthy();
   }

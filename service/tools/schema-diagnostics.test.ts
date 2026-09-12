@@ -12,7 +12,8 @@ test("target alternatives stay separate from mandatory arguments", () => {
   const result = check("click", { reason: "操作" });
   expect(result.missing).toEqual(["affectsPage"]);
   expect(result.detail).toContain("at least one alternative");
-  expect(result.detail).toContain('[{"required":["ref"]},{"required":["targetText"]}]');
+  expect(result.detail).toContain('"required":["ref"]');
+  expect(result.detail).toContain('"required":["targetText"]');
   expect(result.detail).not.toContain("missing required: ref, targetText");
   const wrongText = check("click", { reason: "操作", targetText: true });
   expect(wrongText.missing).toEqual(["affectsPage"]);
@@ -24,9 +25,10 @@ test("exclusive and conditional capture targets report the actual rule", () => {
   const missing = check("capture_page", base);
   expect(missing.missing).toEqual([]);
   expect(missing.detail).toContain("exactly one alternative");
-  expect(missing.detail).toContain('[{"required":["ref"]},{"required":["selector"]}]');
+  expect(missing.detail).toContain('"required":["ref"]');
+  expect(missing.detail).toContain('"required":["selector"]');
   const both = check("capture_page", { ...base, ref: "el_01", selector: "button" });
-  expect(both.detail).toContain('exactly one alternative: [{"required":["ref"]},{"required":["selector"]}]');
+  expect(both.detail).toContain('exactly one alternative');
   const viewport = check("capture_page", { ...base, mode: "viewport", selector: "button" });
   expect(viewport.detail).toContain('must NOT be valid');
   expect(viewport.detail).toContain('"ref"');

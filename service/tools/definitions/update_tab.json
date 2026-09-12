@@ -33,12 +33,26 @@
         {
           "required": [
             "pinned"
-          ]
+          ],
+          "type": "object",
+          "properties": {
+            "pinned": {
+              "type": "boolean",
+              "description": "是否固定标签：true 固定，false 取消固定；省略时保持原状。"
+            }
+          }
         },
         {
           "required": [
             "muted"
-          ]
+          ],
+          "type": "object",
+          "properties": {
+            "muted": {
+              "type": "boolean",
+              "description": "是否静音标签：true 静音，false 取消静音；省略时保持原状。"
+            }
+          }
         }
       ]
     }
