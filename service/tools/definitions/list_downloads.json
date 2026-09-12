@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "list_downloads",
-    "description": "列出下载项。\n返回：ok（是否成功）、downloads（下载记录）。\naffectsPage=false。",
+    "description": "列出下载项。\n返回：ok、downloads（下载记录）。",
     "parameters": {
       "type": "object",
       "properties": {

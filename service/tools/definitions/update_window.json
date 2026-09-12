@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "update_window",
-    "description": "改变窗口状态。\n参数：可选 state（窗口状态）。\n返回：ok（是否成功）。\naffectsPage=true。",
+    "description": "改变窗口状态。\n参数：可选 state（窗口状态）。\n返回：ok。",
     "parameters": {
       "type": "object",
       "properties": {

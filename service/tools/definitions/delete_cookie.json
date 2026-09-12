@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "delete_cookie",
-    "description": "删除指定 Cookie。\n参数：name（名称），可选 url（网址）/domain（域名）/path（路径）。\n返回：ok（是否成功）、deleted。\naffectsPage=true。",
+    "description": "删除指定 Cookie。\n参数：name（名称），可选 url（网址）/domain（域名）/path（路径）。\n返回：ok、deleted。",
     "parameters": {
       "type": "object",
       "properties": {

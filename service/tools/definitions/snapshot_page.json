@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "snapshot_page",
-    "description": "列出当前页可见交互控件快照，不附带整页正文。参数：可选 text（筛选文本）、limit（默认40，最多100）、tab。返回：ok、title、url、elements、total、truncated。elements.ref 可用于 click/type 等工具；不可作为 page.* 的 id。导航或元素移除后需重新获取。affectsPage=false。",
+    "description": "列出当前页可见交互控件快照，不附带整页正文。参数：可选 text（筛选文本）、limit（默认40，最多100）、tab。返回：ok、title、url、elements、total、truncated。elements.ref 可用于 click/type 等工具；不可作为 page.* 的 id。导航或元素移除后需重新获取。",
     "parameters": {
       "type": "object",
       "properties": {

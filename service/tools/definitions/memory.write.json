@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "memory.write",
-    "description": "保存后续需要的事实、偏好或进展。\n参数：conversationMemory、projectMemory 为字符串数组，按旧到新追加至对应记忆末尾，至少提供一项有意义的内容。conversationMemory 保存本会话已确认的事实、偏好和决定；projectMemory 保存跨会话仍适用的长期信息。当前目标通过 submitGoal 管理，草稿和待办通过 notes.write 管理。\n返回：两类记忆的写入条数。conversationMemory 仅在本会话保存；projectMemory 跨会话共享，删除来源会话后仍保留。\naffectsPage=false。",
+    "description": "保存后续需要的事实、偏好或进展。\n参数：conversationMemory、projectMemory 为字符串数组，按旧到新追加至对应记忆末尾，至少提供一项有意义的内容。conversationMemory 保存本会话已确认的事实、偏好和决定；projectMemory 保存跨会话仍适用的长期信息。当前目标通过 submitGoal 管理，草稿和待办通过 notes.write 管理。\n返回：两类记忆的写入条数。conversationMemory 仅在本会话保存；projectMemory 跨会话共享，删除来源会话后仍保留。",
     "parameters": {
       "type": "object",
       "properties": {

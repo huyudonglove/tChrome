@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.fs_list",
-    "description": "列出目录直接子项。limit默认200最大1000。返回entries（name/path/type）和truncated；目录过大时可用fs_search缩小范围。\n操作服务所在电脑，路径必须绝对；affectsPage=false 不表示没有文件副作用。",
+    "description": "列出目录直接子项。limit默认200最大1000。返回entries（name/path/type）和truncated；目录过大时可用 local.fs_search缩小范围。",
     "parameters": {
       "type": "object",
       "properties": {

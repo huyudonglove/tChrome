@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "download",
-    "description": "按网址下载文件。\n参数：url（网址）。\n返回：ok（是否成功）、downloadId（下载编号）。\naffectsPage=false。",
+    "description": "按网址下载文件。\n参数：url（网址）。\n返回：ok、downloadId（下载编号）。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.fs_write",
-    "description": "写入UTF-8文本文件，默认替换整个文件内容，append=true则追加。父目录必须已存在。返回写入字节数。\n操作服务所在电脑，路径必须绝对；affectsPage=false 不表示没有文件副作用。",
+    "description": "写入UTF-8文本文件，默认替换整个文件内容，append=true则追加。父目录必须已存在。返回写入字节数。",
     "parameters": {
       "type": "object",
       "properties": {

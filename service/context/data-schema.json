@@ -93,9 +93,6 @@
           "type": "null"
         }
       ]
-    },
-    "tools": {
-      "type": "string"
     }
   },
   "required": [
@@ -112,8 +109,7 @@
     "notes",
     "toolIO",
     "queryHistory",
-    "currentQuery",
-    "tools"
+    "currentQuery"
   ],
   "additionalProperties": false,
   "$defs": {

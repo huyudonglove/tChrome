@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "send_http_batch",
-    "description": "按数组顺序向 1 至 5 个完整 HTTP/HTTPS 链接地址分别发送 GET 请求。\n参数：urls 为链接地址字符串数组，例如 [\"https://example.com/a\", \"https://example.com/b\"]，不是开关或单个字符串。\n返回：ok（所有请求是否成功）、results（按输入顺序返回每个地址的响应或错误）。单个请求失败不会丢弃其他结果；不接受超过 5 个地址，更多地址请分批调用。\naffectsPage=false。",
+    "description": "依次向 1 至 5 个完整 HTTP/HTTPS URL 发送 GET 请求。\n返回：ok（全部请求成功）、results（按输入顺序排列的响应或错误）；单个失败不丢弃其他结果，更多地址分批调用。",
     "parameters": {
       "type": "object",
       "properties": {

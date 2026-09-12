@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "web_search",
-    "description": "搜索公开网页。\n参数：query（搜索词）。\n返回：ok（是否成功）、urls（结果网址列表）。\naffectsPage=false。",
+    "description": "搜索公开网页。\n参数：query（搜索词）。\n返回：ok、urls（结果网址列表）。",
     "parameters": {
       "type": "object",
       "properties": {

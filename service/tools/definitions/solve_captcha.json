@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "solve_captcha",
-    "description": "尝试点击可访问验证码勾选框并等待可观察的验证通过状态，最多 12 秒。仅观察到唯一验证码的非空响应字段（勾选状态不等于验证通过）才返回 ok=true、status=solved；不解答图像/拼图挑战，不绕过验证码。未完成或不可访问时 ok=false、requiresUser=true，请用户处理。不会返回令牌。 可选 tab（标签编号）、timeoutMs（总超时毫秒，1～12000）。affectsPage=true。 多个验证码或响应字段返回 ambiguous=true，不宣称全部通过。",
+    "description": "尝试点击可访问验证码勾选框并等待可观察的验证通过状态，最多 12 秒。仅观察到唯一验证码的非空响应字段（勾选状态不等于验证通过）才返回 ok=true、status=solved；不解答图像/拼图挑战，不绕过验证码。未完成或不可访问时 ok=false、requiresUser=true，请用户处理。不会返回令牌。 可选 tab（标签编号）、timeoutMs（总超时毫秒，1～12000）。 多个验证码或响应字段返回 ambiguous=true，不宣称全部通过。",
     "parameters": {
       "type": "object",
       "properties": {

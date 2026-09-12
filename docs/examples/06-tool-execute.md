@@ -104,17 +104,18 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "choice": [
       "MX Master 3S",
       "MX Master 3"
-    ]
+    ],
+    "question": "当前页型号看不清，要查哪一款？"
   },
   "return": {
     "stage": "complete",
-    "totalChars": 44,
-    "text": "当前页型号看不清，要查哪一款？\n- MX Master 3S\n- MX Master 3"
+    "totalChars": 45,
+    "text": "当前页型号看不清，要查哪一款？\n选项：MX Master 3S / MX Master 3"
   }
 }
 ```
 
-`finishTurn`：`return.text` 是回复用户的正文（取 content 的 action）。本 Turn `status=completed`。
+`finishTurn`：`return.text` 是回复用户的正文（取 `arguments.text`）。本 Turn `status=completed`。
 
 ```json
 {
@@ -122,7 +123,8 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   "name": "finishTurn",
   "arguments": {
     "reason": "官网价已核对，回复用户。",
-    "affectsPage": false
+    "affectsPage": false,
+    "text": "罗技官网 MX Master 3S 标价 999 元，和当前页一致。"
   },
   "return": {
     "stage": "complete",
@@ -197,8 +199,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "#execution",
     "#toolProtocol",
     "#boundaries",
-    "#output",
-    "#baseTools"
+    "#output"
   ],
   "userSlots": [
     "#skill",
@@ -214,15 +215,14 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "#notes",
     "#toolIO",
     "#queryHistory",
-    "#currentQuery",
-    "#tools"
+    "#currentQuery"
   ],
   "provider": "uuapi",
   "model": "gemini-3.7-flash",
   "stream": true,
   "maxAttempts": 3,
   "finish": "tool_calls",
-  "content": "seen\n当前页是京东商品页，标题罗技 MX Master 3S 无线鼠标。用户要查官网价。\n\nreason\n商品和要查的价格已经明确，直接搜官网价。\n\naction\n调用 web_search，查询罗技 MX Master 3S 官网价。",
+  "content": "",
   "toolCalls": [
     {
       "id": "call_01",

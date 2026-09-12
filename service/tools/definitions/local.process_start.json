@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.process_start",
-    "description": "后台启动 zsh -lc 命令，立即返回 processId。cwd 必须是绝对路径，timeoutMs 默认30000、最大300000。用 process_status 查询、process_write 写入、process_stop 停止。每个进程输出各保留末尾65536字符，进程ID限本会话和本次服务运行有效。\n本机操作，affectsPage=false；这不表示没有文件或系统副作用。",
+    "description": "后台启动 zsh -lc 命令，立即返回 processId。cwd 必须是绝对路径，timeoutMs 默认30000、最大300000。用 process_status 查询、process_write 写入、process_stop 停止。每个进程输出各保留末尾65536字符，进程ID限本会话和本次服务运行有效。",
     "parameters": {
       "type": "object",
       "properties": {

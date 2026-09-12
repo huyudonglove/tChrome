@@ -16,9 +16,8 @@ import type { CompletionResult, Provider } from "./types.ts";
 
 const repoRoot = join(import.meta.dir, "..");
 
-const ok = (partial: Partial<CompletionResult> & Pick<CompletionResult, "finish">): CompletionResult => {
-  const value: CompletionResult = {
-  content: "seen\n已收到\nreason\n收口\naction\n你好",
+const ok = (partial: Partial<CompletionResult> & Pick<CompletionResult, "finish">): CompletionResult => ({
+  content: "",
   toolCalls: [],
   attempts: 1,
   parseOk: true,
@@ -26,14 +25,7 @@ const ok = (partial: Partial<CompletionResult> & Pick<CompletionResult, "finish"
   faultCode: null,
   missing: [],
   ...partial,
-};
-  const action = value.content.match(/(?:^|\n)action\n([\s\S]*)$/i)?.[1]?.trim() ?? "";
-  value.toolCalls = value.toolCalls.map((call) => ({ ...call, arguments: {
-    ...(call.name === "finishTurn" ? { text: action } : call.name === "askUser" ? { question: action } : {}),
-    ...call.arguments,
-  } }));
-  return value;
-};
+});
 
 const mock = (results: CompletionResult[]): Provider => {
   let i = 0;
@@ -52,8 +44,8 @@ test("开 Turn 写入 currentTab，不调 page 工具", async () => {
   const provider = mock([
     ok({
       finish: "tool_calls",
-      content: "seen\n看到标题\nreason\n收口\naction\n当前是京东",
-      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
+      content: "",
+      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { text: "当前是京东", reason: "答完", affectsPage: false } }],
     }),
   ]);
   const reply = await handleTurn(
@@ -86,7 +78,7 @@ test("finishTurn 收口回复", async () => {
   const provider = mock([
     ok({
       finish: "tool_calls",
-      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
+      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { text: "你好", reason: "答完", affectsPage: false } }],
     }),
   ]);
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "你好", submittedAt: "2026-09-06T00:00:00.000Z" });
@@ -125,23 +117,22 @@ test("finishTurn 收口回复", async () => {
   expect(transcript).toContain("### user");
   expect(transcript).toContain("你好");
   expect(transcript).toContain("### content");
-  expect(transcript).toContain("action");
   expect(transcript).toContain("finishTurn");
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("finishTurn 没有 action 就再出网一次", async () => {
+test("finishTurn 正文为空时要求修正参数后再调用", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-empty-"));
   const provider = mock([
     ok({
       finish: "tool_calls",
       content: "",
-      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { reason: "用户问候，无需浏览器操作，结束本轮对话。", affectsPage: false } }],
+      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { text: "", reason: "用户问候，无需浏览器操作，结束本轮对话。", affectsPage: false } }],
     }),
     ok({
       finish: "tool_calls",
-      content: "seen\n已问好\nreason\n收口\naction\n你好",
-      toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "补 action", affectsPage: false } }],
+      content: "",
+      toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { text: "你好", reason: "补充回复正文", affectsPage: false } }],
     }),
   ]);
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "你好啊", submittedAt: "2026-09-06T00:00:00.000Z" });
@@ -154,8 +145,8 @@ test("askUser 冻在追问", async () => {
   const provider = mock([
     ok({
       finish: "tool_calls",
-      content: "seen\n缺尺码\nreason\n问用户\naction\n要哪个尺码",
-      toolCalls: [{ id: "call_02", name: "askUser", arguments: { reason: "缺尺码", affectsPage: false, choice: ["S", "M"] } }],
+      content: "",
+      toolCalls: [{ id: "call_02", name: "askUser", arguments: { question: "要哪个尺码", reason: "缺尺码", affectsPage: false, choice: ["S", "M"] } }],
     }),
   ]);
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "买这件", submittedAt: "2026-09-06T00:00:00.000Z" });
@@ -166,17 +157,36 @@ test("askUser 冻在追问", async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
+test.each([
+  { name: "finishTurn", args: {}, faultCode: "missing_required" },
+  { name: "finishTurn", args: { text: "   " }, faultCode: "wrong_type" },
+  { name: "askUser", args: { choice: [] }, faultCode: "missing_required" },
+  { name: "askUser", args: { question: 42, choice: [] }, faultCode: "wrong_type" },
+])("$name 的无效正文不能由模型 content 补齐", async ({ name, args, faultCode }) => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-explicit-message-"));
+  try {
+    const provider = mock([ok({
+      finish: "tool_calls", content: "reason\n这是旧协议内容\naction\n不应展示的正文",
+      toolCalls: [{ id: "bad", name, arguments: { reason: "完成当前步骤", affectsPage: false, ...args } }],
+    })]);
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "测试", submittedAt: "now" });
+    expect(reply.output).toEqual({ kind: "error", faultCode });
+    expect(loadLedger(dir, reply.conversationId).pendingAsk).toBeNull();
+    expect(JSON.stringify(sessionView(dir, reply.conversationId).messages)).not.toContain("不应展示的正文");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("下一句开新 Turn 并追加 userInputHistory", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-hist-"));
   const provider = mock([
     ok({
       finish: "tool_calls",
-      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { reason: "先回", affectsPage: false } }],
+      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { text: "你好", reason: "先回", affectsPage: false } }],
     }),
     ok({
       finish: "tool_calls",
-      content: "seen\n第二句\nreason\n收口\naction\n第二回",
-      toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "再回", affectsPage: false } }],
+      content: "",
+      toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { text: "第二回", reason: "再回", affectsPage: false } }],
     }),
   ]);
   const deps = { dataDir: dir, repoRoot, provider };
@@ -204,7 +214,7 @@ test("POST /turn 走完 mock 收口", async () => {
     provider: mock([
       ok({
         finish: "tool_calls",
-        toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
+        toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { text: "你好", reason: "答完", affectsPage: false } }],
       }),
     ]),
   });
@@ -226,13 +236,13 @@ test("开 Turn 不读页，模型 page.get_summary 后才填 currentPage", async
   const provider = mock([
     ok({
       finish: "tool_calls",
-      content: "seen\n要看当前页\nreason\n先摘要\naction\npage.get_summary",
+      content: "",
       toolCalls: [{ id: "call_01", name: "page.get_summary", arguments: { reason: "看当前页", affectsPage: false } }],
     }),
     ok({
       finish: "tool_calls",
-      content: "seen\n已看到页\nreason\n收口\naction\n在看罗技",
-      toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
+      content: "",
+      toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { text: "在看罗技", reason: "答完", affectsPage: false } }],
     }),
   ]);
   const host = {
@@ -260,12 +270,10 @@ test("开 Turn 不读页，模型 page.get_summary 后才填 currentPage", async
   expect(ledger.toolIO[0]?.name).toBe("page.get_summary");
   expect(ledger.toolIO[0]?.turnId).toBe(reply.turnId);
   const session = await (await createServer({ dataDir: dir, repoRoot, provider: mock([]) }).fetch(new Request("http://127.0.0.1:18788/session"))).json() as { messages: { role: string; name?: string; text: string }[] };
-  expect(session.messages.map((row) => row.role)).toEqual(["user", "tool", "tool", "tool", "assistant"]);
-  expect(session.messages[1]?.text).toBe("先摘要");
-  expect(session.messages[2]?.name).toBe("page.get_summary");
-  expect(session.messages[2]?.text).toBe("看当前页");
-  expect(session.messages[3]?.text).toBe("收口");
-  expect(session.messages[4]?.text).toBe("在看罗技");
+  expect(session.messages.map((row) => row.role)).toEqual(["user", "tool", "assistant"]);
+  expect(session.messages[1]?.name).toBe("page.get_summary");
+  expect(session.messages[1]?.text).toBe("看当前页");
+  expect(session.messages[2]?.text).toBe("在看罗技");
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -274,13 +282,13 @@ test("web_search 走服务端执行", async () => {
   const provider = mock([
     ok({
       finish: "tool_calls",
-      content: "seen\n要搜价\nreason\n搜官网\naction\nweb_search",
+      content: "",
       toolCalls: [{ id: "call_01", name: "web_search", arguments: { reason: "搜价", affectsPage: false, query: "罗技 MX Master 3S" } }],
     }),
     ok({
       finish: "tool_calls",
-      content: "seen\n搜到了\nreason\n收口\naction\n官价 699",
-      toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "有价了", affectsPage: false } }],
+      content: "",
+      toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { text: "官价 699", reason: "有价了", affectsPage: false } }],
     }),
   ]);
   const originalFetch = globalThis.fetch;
@@ -332,7 +340,7 @@ test("GET /session 还原消息，切会话改 session.json", async () => {
   const provider = mock([
     ok({
       finish: "tool_calls",
-      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
+      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { text: "你好", reason: "答完", affectsPage: false } }],
     }),
   ]);
   const server = createServer({ dataDir: dir, repoRoot, provider, host: { execute: async () => ({ ok: false }) } });
@@ -345,7 +353,6 @@ test("GET /session 还原消息，切会话改 session.json", async () => {
   expect(session.conversationId).toBe("cv_01");
   expect(session.messages).toEqual([
     { turnId: "tn_01", role: "user", text: "你好" },
-    { turnId: "tn_01", role: "tool", text: "收口" },
     { turnId: "tn_01", role: "assistant", text: "你好" },
   ]);
   const created = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations/new", { method: "POST" }))).json();
@@ -382,7 +389,7 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
   const provider = mock([
     ok({
       finish: "tool_calls",
-      content: "seen\n记下\nreason\n写记忆并收口\naction\n记下了",
+      content: "",
       toolCalls: [
         {
           id: "call_01",
@@ -394,7 +401,7 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
             projectMemory: ["项目偏好：查官网价"],
           },
         },
-        { id: "call_02", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } },
+        { id: "call_02", name: "finishTurn", arguments: { text: "记下了", reason: "答完", affectsPage: false } },
       ],
     }),
   ]);
@@ -479,7 +486,7 @@ test("POST /stop 把 running 标成 paused", async () => {
   const provider = mock([
     ok({
       finish: "tool_calls",
-      content: "seen\n读页\nreason\n看\naction\nsee_page",
+      content: "",
       toolCalls: [{ id: "call_01", name: "page.get_summary", arguments: { reason: "看当前页", affectsPage: false } }],
     }),
   ]);
@@ -511,13 +518,13 @@ test("arguments 不是 JSON 时好的工具照跑，坏的退回再出网", asyn
       faultCode: "arguments_not_json",
       detail: "page.type: Unexpected token",
       badName: "page.type",
-      content: "seen\n输入\nreason\n填邮箱\naction\npage.type",
+      content: "",
       toolCalls: [{ id: "call_01", name: "page.get_summary", arguments: { reason: "看页", affectsPage: false } }],
     }),
     ok({
       finish: "tool_calls",
-      content: "seen\n已看到\nreason\n收口\naction\n注册页在",
-      toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
+      content: "",
+      toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { text: "注册页在", reason: "答完", affectsPage: false } }],
     }),
   ]);
   const host = {
@@ -546,13 +553,13 @@ test("缺字段写进 toolIO 再出网，不补齐", async () => {
       missing: ["reason", "affectsPage"],
       badName: "page.type",
       detail: "page.type missing required: reason, affectsPage",
-      content: "seen\n填邮箱\nreason\n输入\naction\npage.type",
+      content: "",
       toolCalls: [{ id: "call_01", name: "page.type", arguments: { id: "e1", text: "a@b.com" } }],
     }),
     ok({
       finish: "tool_calls",
-      content: "seen\n已记下缺字段\nreason\n收口\naction\n缺 reason 和 affectsPage",
-      toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
+      content: "",
+      toolCalls: [{ id: "call_02", name: "finishTurn", arguments: { text: "缺 reason 和 affectsPage", reason: "答完", affectsPage: false } }],
     }),
   ]);
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "填邮箱", submittedAt: "2026-09-06T00:00:00.000Z" });
@@ -575,13 +582,13 @@ test("stop 没有 tool_calls 就写 needFinishTurn 再出网", async () => {
   const provider = mock([
     ok({
       finish: "stop",
-      content: "seen\n说完了\nreason\n收口\naction\n测完了",
+      content: "",
       toolCalls: [],
     }),
     ok({
       finish: "tool_calls",
-      content: "seen\n已看到提示\nreason\n收口\naction\n测完了",
-      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
+      content: "",
+      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { text: "测完了", reason: "答完", affectsPage: false } }],
     }),
   ]);
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "测完了吗", submittedAt: "2026-09-06T00:00:00.000Z" });
@@ -597,18 +604,18 @@ test("submitGoal 写入当前目标，再交一次旧目标进 history", async (
   const provider = mock([
     ok({
       finish: "tool_calls",
-      content: "seen\n空目标\nreason\n先交目标\naction\nsubmitGoal",
+      content: "",
       toolCalls: [{ id: "call_01", name: "submitGoal", arguments: { reason: "立目标", affectsPage: false, goal: "测这个站点" } }],
     }),
     ok({
       finish: "tool_calls",
-      content: "seen\n目标改了\nreason\n收窄\naction\nsubmitGoal",
+      content: "",
       toolCalls: [{ id: "call_02", name: "submitGoal", arguments: { reason: "改目标", affectsPage: false, goal: "测登录页" } }],
     }),
     ok({
       finish: "tool_calls",
-      content: "seen\n已记下\nreason\n收口\naction\n目标改成测登录页",
-      toolCalls: [{ id: "call_03", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
+      content: "",
+      toolCalls: [{ id: "call_03", name: "finishTurn", arguments: { text: "目标改成测登录页", reason: "答完", affectsPage: false } }],
     }),
   ]);
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "测这个站点", submittedAt: "2026-09-06T00:00:00.000Z" });
@@ -624,23 +631,23 @@ test("notes.write 按 key 写入，notes.delete 删除", async () => {
   const provider = mock([
     ok({
       finish: "tool_calls",
-      content: "seen\n记下候选\nreason\n自管\naction\nnotes.write",
+      content: "",
       toolCalls: [{ id: "call_01", name: "notes.write", arguments: { reason: "记下", affectsPage: false, key: "candidate", value: "罗技 MX Master 3S" } }],
     }),
     ok({
       finish: "tool_calls",
-      content: "seen\n改候选\nreason\n覆盖\naction\nnotes.write",
+      content: "",
       toolCalls: [{ id: "call_02", name: "notes.write", arguments: { reason: "改", affectsPage: false, key: "candidate", value: "MX Master 3S 黑" } }],
     }),
     ok({
       finish: "tool_calls",
-      content: "seen\n删掉\nreason\n不用了\naction\nnotes.delete",
+      content: "",
       toolCalls: [{ id: "call_03", name: "notes.delete", arguments: { reason: "删", affectsPage: false, key: "candidate" } }],
     }),
     ok({
       finish: "tool_calls",
-      content: "seen\n已空\nreason\n收口\naction\n笔记已删",
-      toolCalls: [{ id: "call_04", name: "finishTurn", arguments: { reason: "答完", affectsPage: false } }],
+      content: "",
+      toolCalls: [{ id: "call_04", name: "finishTurn", arguments: { text: "笔记已删", reason: "答完", affectsPage: false } }],
     }),
   ]);
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "先记下再删", submittedAt: "2026-09-06T00:00:00.000Z" });
@@ -653,8 +660,8 @@ test("notes.write 按 key 写入，notes.delete 删除", async () => {
 
 test.each(["provider", "browser", "browser-reject"])("停止后启动新轮，旧 %s 返回不会覆盖新轮", async (waitingOn) => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-stop-restart-"));
-  const finish = ok({ finish: "tool_calls", content: "action\n完成", toolCalls: [
-    { id: "finish", name: "finishTurn", arguments: { reason: "完成", affectsPage: false } },
+  const finish = ok({ finish: "tool_calls", content: "", toolCalls: [
+    { id: "finish", name: "finishTurn", arguments: { text: "完成", reason: "完成", affectsPage: false } },
   ] });
   let releaseOld!: () => void;
   let releaseNew!: (value: CompletionResult) => void;
@@ -702,8 +709,8 @@ test.each([
     const provider = mock([
       ok({ finish: "tool_calls", parseOk: false, schemaOk: false, faultCode: "arguments_not_json",
         badName: "page.type", toolCalls: [{ id: "bad-prefix", name: invalid.name, arguments: invalid.arguments }] }),
-      ok({ finish: "tool_calls", content: "action\n结束", toolCalls: [
-        { id: "finish", name: "finishTurn", arguments: { reason: "完成", affectsPage: false } },
+      ok({ finish: "tool_calls", content: "", toolCalls: [
+        { id: "finish", name: "finishTurn", arguments: { text: "结束", reason: "完成", affectsPage: false } },
       ] }),
     ]);
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider, host: { execute: async (name) => {

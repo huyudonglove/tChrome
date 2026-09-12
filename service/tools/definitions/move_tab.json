@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "move_tab",
-    "description": "移动标签在当前窗口中的位置。\n参数：可选 tab（目标标签编号）、index（从 0 开始的目标位置；省略或 -1 表示末尾）。\n返回：ok（是否成功）。\naffectsPage=true。",
+    "description": "移动标签在当前窗口中的位置。\n参数：可选 tab（目标标签编号）、index（从 0 开始的目标位置；省略或 -1 表示末尾）。\n返回：ok。",
     "parameters": {
       "type": "object",
       "properties": {

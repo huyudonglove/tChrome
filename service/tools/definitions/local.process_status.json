@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.process_status",
-    "description": "查询本会话后台进程。返回 status、exitCode、signal、stdout/stderr及截断标志。每次返回累计输出的末尾65536字符，不是新增增量。\n本机操作，affectsPage=false；这不表示没有文件或系统副作用。",
+    "description": "查询本会话后台进程。返回 status、exitCode、signal、stdout/stderr及截断标志。每次返回累计输出的末尾65536字符，不是新增增量。",
     "parameters": {
       "type": "object",
       "properties": {

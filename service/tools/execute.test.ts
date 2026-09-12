@@ -6,15 +6,15 @@ import { executeTool, type ExecuteInput } from "./execute.ts";
 import { checkToolCalls } from "./schema.ts";
 import type { ChatTool } from "../types.ts";
 
-const run = (name: string, args: ExecuteInput["arguments"], content = "") => executeTool({
-  name, arguments: args, content, dataDir: "", browserNames: [],
+const run = (name: string, args: ExecuteInput["arguments"]) => executeTool({
+  name, arguments: args, dataDir: "", browserNames: [],
   lookup: { unusedTools: [], knownTools: [], enabledTools: [] },
 }).then((result) => result.text);
 
 test("library tool persists and manages the same cross-conversation items as the panel", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "library-tool-"));
   const invoke = async (arguments_: ExecuteInput["arguments"], conversationId = "cv_01") => JSON.parse((await executeTool({
-    name: "library", arguments: arguments_, content: "", dataDir, conversationId, browserNames: [],
+    name: "library", arguments: arguments_, dataDir, conversationId, browserNames: [],
     lookup: { unusedTools: [], knownTools: [], enabledTools: [] },
   })).text);
   try {
@@ -29,16 +29,20 @@ test("library tool persists and manages the same cross-conversation items as the
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
-test("explicit closing arguments take precedence over legacy content", async () => {
-  expect(await run("finishTurn", { text: " 新回复 " }, "action\n旧回复")).toBe("新回复");
-  expect(await run("askUser", { question: "新问题", choice: [] }, "action\n旧问题")).toBe("新问题");
+test("closing tools use their explicit message arguments", async () => {
+  expect(await run("finishTurn", { text: " 新回复 " })).toBe("新回复");
+  expect(await run("askUser", { question: " 新问题 ", choice: ["是", "否"] })).toBe("新问题\n选项：是 / 否");
 });
 
-test("legacy closing calls retain action fallback", async () => {
-  expect(await run("finishTurn", {}, "seen\n页面已读\nreason\n完成\naction\n旧版回复")).toBe("旧版回复");
-  expect(await run("askUser", { choice: ["是", "否"] }, "action\n是否继续？")).toBe("是否继续？\n选项：是 / 否");
-  expect(await run("finishTurn", { text: "  " }, "action\n兼容回复")).toBe("兼容回复");
-  expect(await run("finishTurn", {})).toContain("finishTurn 的回复为空");
+test.each([undefined, "", "  ", 42, null])("invalid closing text %j cannot end or pause a turn", async (value) => {
+  for (const [name, field] of [["finishTurn", "text"], ["askUser", "question"]] as const) {
+    const execution = await executeTool({
+      name, arguments: { [field]: value, choice: ["是", "否"] }, dataDir: "", browserNames: [],
+      lookup: { unusedTools: [], knownTools: [], enabledTools: [] },
+    });
+    expect(execution.text).toContain(name === "finishTurn" ? "finishTurn 的回复为空" : "askUser 的问题为空");
+    expect(execution.effects).toEqual([{ type: "queue.clear" }]);
+  }
 });
 
 test.each([{ name: "finishTurn", field: "text" }, { name: "askUser", field: "question" }])(
@@ -55,7 +59,7 @@ test.each([{ name: "finishTurn", field: "text" }, { name: "askUser", field: "que
 
 test("JavaScript values with only a target tab do not overwrite the current page", async () => {
   const execution = await executeTool({
-    name: "execute_javascript", arguments: { code: "1 + 1", tab: 7 }, content: "", dataDir: "",
+    name: "execute_javascript", arguments: { code: "1 + 1", tab: 7 }, dataDir: "",
     browserNames: ["execute_javascript"], host: { execute: async () => ({ ok: true, tab: 7, type: "number", value: 2 }) },
     lookup: { unusedTools: [], knownTools: [], enabledTools: [] },
   });

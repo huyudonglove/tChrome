@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "probe_http",
-    "description": "探测指定 HTTP/HTTPS 网址的连通性、响应状态和耗时，不是 ICMP ping。\n参数：url（必填网址）；method（可选 GET 或 HEAD，默认 GET）。\n返回：ok（HTTP 状态是否为 2xx）、reachable（收到 HTTP 响应即为 true，4xx/5xx 也表示可达）、status（响应状态码）、ms（耗时毫秒数）、url（重定向后的网址）、headers（最多 20 个响应头）；网络失败返回 reachable=false 和 error；不返回页面正文。\naffectsPage=false。",
+    "description": "探测指定 HTTP/HTTPS 网址的连通性、响应状态和耗时，不是 ICMP ping。\n参数：url（必填网址）；method（可选 GET 或 HEAD，默认 GET）。\n返回：ok（HTTP 状态是否为 2xx）、reachable（收到 HTTP 响应即为 true，4xx/5xx 也表示可达）、status（响应状态码）、ms（耗时毫秒数）、url（重定向后的网址）、headers（最多 20 个响应头）；网络失败返回 reachable=false 和 error；不返回页面正文。",
     "parameters": {
       "type": "object",
       "properties": {

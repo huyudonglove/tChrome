@@ -2,14 +2,14 @@
   "type": "function",
   "function": {
     "name": "send_http",
-    "description": "向指定的完整 HTTP/HTTPS 链接地址发送一次请求。\n参数：url 必须是以 http:// 或 https:// 开头的完整链接地址字符串，例如 https://example.com/path?q=test；不是布尔开关，不接受相对路径或本地文件路径。可选 method（默认 GET）、headers（请求头）、body（请求正文字符串）。\n返回：ok（是否成功）、status（HTTP 状态码）、url（最终请求地址）、text（响应文本，最多 8000 字符）。请求会跟随重定向。\naffectsPage=false；请求仍可能修改远端数据。",
+    "description": "向完整 HTTP/HTTPS URL 发送一次请求，跟随重定向；method 默认 GET。请求可能修改远端数据。\n返回：ok、status、url（最终地址）、text（最多 8000 字符）。",
     "parameters": {
       "type": "object",
       "properties": {
         "url": {
           "type": "string",
           "pattern": "^https?://[^\\s/?#]+(?:[/?#][^\\s]*)?$",
-          "description": "要请求的完整 HTTP/HTTPS 链接地址字符串，必须包含协议和主机名，例如 \"https://example.com/api/items?id=1\"。不可传 true/false、相对路径或文件路径。"
+          "description": "完整 HTTP/HTTPS URL，包含协议和主机名。"
         },
         "method": {
           "type": "string",

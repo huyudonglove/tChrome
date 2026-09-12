@@ -94,7 +94,7 @@ test("真实 Provider 到 Runtime：多个坏调用留账，合法兄弟照跑",
       call("missing", "notes.write", '{"reason":"test","affectsPage":false}'),
       call("valid", "notes.write", '{"reason":"test","affectsPage":false,"key":"kept","value":"yes"}'),
       call("broken_2", "notes.write", "{broken"),
-    ]) : sse([call("done", "finishTurn", '{"reason":"done","affectsPage":false,"text":"完成"}')], "seen\n测试完成\nreason\n收口\naction\n完成");
+    ]) : sse([call("done", "finishTurn", '{"reason":"done","affectsPage":false,"text":"完成"}')]);
   } });
   try {
     const result = await handleTurn({ dataDir: dir, repoRoot: resolve(import.meta.dir, "../.."), provider: providerFor(server.port!) }, { userInput: "测试", submittedAt: "2026-09-08T00:00:00.000Z" });

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.open",
-    "description": "使用系统默认应用打开本机绝对路径。成功表示启动请求成功，不代表已验证应用显示内容。\n本机操作，affectsPage=false；这不表示没有文件或系统副作用。",
+    "description": "使用系统默认应用打开本机绝对路径。成功表示启动请求成功，不代表已验证应用显示内容。",
     "parameters": {
       "type": "object",
       "properties": {

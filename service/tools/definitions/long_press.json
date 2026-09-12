@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "long_press",
-    "description": "长按页面元素。\n参数：text（文本），可选 durationMs（长按毫秒数）。\n返回：ok（是否成功）、durationMs、point；浏览器调试操作失败则 ok=false。\naffectsPage=true。",
+    "description": "长按页面元素。\n参数：text（文本），可选 durationMs（长按毫秒数）。\n返回：ok、durationMs、point。",
     "parameters": {
       "type": "object",
       "properties": {

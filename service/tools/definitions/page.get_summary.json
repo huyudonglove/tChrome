@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.get_summary",
-    "description": "读当前页摘要：标题、地址、区域数、可交互数、标题列表。\n参数：可选 tab（目标标签编号）。\n返回：ok（是否成功）、title（页面标题）、url（页面地址）、regionCount、interactiveCount、headings、landmarkNames。\naffectsPage=false。",
+    "description": "读当前页摘要：标题、地址、区域数、可交互数、标题列表。\n参数：可选 tab（目标标签编号）。\n返回：ok、title（页面标题）、url（页面地址）、regionCount、interactiveCount、headings、landmarkNames。",
     "parameters": {
       "type": "object",
       "properties": {

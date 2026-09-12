@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page_storage",
-    "description": "读或写页内 localStorage。\n参数：可选 action、key（键名）、value（值）、tab（目标标签编号）。\n返回：ok（是否成功）、storage（存储内容）。\naffectsPage=false。",
+    "description": "读或写页内 localStorage。\n参数：可选 action、key（键名）、value（值）、tab（目标标签编号）。\n返回：ok、storage（存储内容）。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "cache_storage",
-    "description": "读写浏览器缓存。\n参数：action（read/write/delete/list）、cache（缓存名）、可选 key（键名）、value（值）。\n返回：ok（是否成功）、value（当前值）/keys/caches。\naffectsPage=false。",
+    "description": "读写浏览器缓存。\n参数：action（read/write/delete/list）、cache（缓存名）、可选 key（键名）、value（值）。\n返回：ok、value（当前值）/keys/caches。",
     "parameters": {
       "type": "object",
       "properties": {

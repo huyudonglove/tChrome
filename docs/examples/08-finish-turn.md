@@ -43,14 +43,15 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
 ```json
 {
   "finish": "tool_calls",
-  "content": "seen\n官网价 999 元，当前页是同一款 MX Master 3S。\n\nreason\n官网价已经查到，和当前页标价核对完，可以回复用户。\n\naction\n罗技官网 MX Master 3S 标价 999 元，和当前页一致。",
+  "content": "",
   "toolCalls": [
     {
       "id": "call_02",
       "name": "finishTurn",
       "arguments": {
         "reason": "官网价已经查到，和当前页标价核对完，可以回复用户。",
-        "affectsPage": false
+        "affectsPage": false,
+        "text": "罗技官网 MX Master 3S 标价 999 元，和当前页一致。"
       }
     }
   ]
@@ -61,7 +62,7 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
 
 ## 执行
 
-入队后队列一条。Runtime 跑完，`return.text` 取 content 的 action：
+入队后队列一条。Runtime 跑完，`return.text` 取 `arguments.text`：
 
 ```json
 {
@@ -69,7 +70,8 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
   "name": "finishTurn",
   "arguments": {
     "reason": "官网价已经查到，和当前页标价核对完，可以回复用户。",
-    "affectsPage": false
+    "affectsPage": false,
+    "text": "罗技官网 MX Master 3S 标价 999 元，和当前页一致。"
   },
   "return": {
     "stage": "complete",
@@ -125,8 +127,7 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "#execution",
     "#toolProtocol",
     "#boundaries",
-    "#output",
-    "#baseTools"
+    "#output"
   ],
   "userSlots": [
     "#skill",
@@ -142,22 +143,22 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "#notes",
     "#toolIO",
     "#queryHistory",
-    "#currentQuery",
-    "#tools"
+    "#currentQuery"
   ],
   "provider": "uuapi",
   "model": "gemini-3.7-flash",
   "stream": true,
   "maxAttempts": 3,
   "finish": "tool_calls",
-  "content": "seen\n官网价 999 元，当前页是同一款 MX Master 3S。\n\nreason\n官网价已经查到，和当前页标价核对完，可以回复用户。\n\naction\n罗技官网 MX Master 3S 标价 999 元，和当前页一致。",
+  "content": "",
   "toolCalls": [
     {
       "id": "call_02",
       "name": "finishTurn",
       "arguments": {
         "reason": "官网价已经查到，和当前页标价核对完，可以回复用户。",
-        "affectsPage": false
+        "affectsPage": false,
+        "text": "罗技官网 MX Master 3S 标价 999 元，和当前页一致。"
       }
     }
   ],
@@ -187,7 +188,8 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
       "name": "finishTurn",
       "arguments": {
         "reason": "官网价已经查到，和当前页标价核对完，可以回复用户。",
-        "affectsPage": false
+        "affectsPage": false,
+        "text": "罗技官网 MX Master 3S 标价 999 元，和当前页一致。"
       },
       "return": {
         "stage": "complete",

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "open_tab",
-    "description": "新开一个标签。\n参数：可选 url（要打开的完整浏览器链接地址），省略时打开 about:blank。\n返回：ok（是否成功）、tabId（新标签编号）、url（页面地址）、title（页面标题）。\naffectsPage=true。",
+    "description": "新开一个标签。\n参数：可选 url（要打开的完整浏览器链接地址），省略时打开 about:blank。\n返回：ok、tabId（新标签编号）、url（页面地址）、title（页面标题）。",
     "parameters": {
       "type": "object",
       "properties": {

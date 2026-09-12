@@ -1,4 +1,3 @@
-import { identityRulesText } from "../identity/catalog.ts";
 import { afterEach, expect, test } from "bun:test";
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -36,7 +35,7 @@ test("reordering only inventories changes both navigations and corresponding bod
   const reordered = loadContextModules(dir);
   expect(reordered.systemOrder).toEqual([...original.systemOrder].reverse());
   expect(reordered.userOrder).toEqual([...original.userOrder].reverse());
-  const system = systemText(reordered, "", "2026-09-06");
+  const system = systemText(reordered, "2026-09-06");
   expect(system).toBe(`${reordered.overview.replace("{{currentDate}}", "2026-09-06")}\n\n${reordered.systemInventory}\n\n${reordered.userInventory}`);
   expect(navigationTags(system)).toEqual([...reordered.systemOrder, ...reordered.userOrder]);
   expect(headings(system)).toEqual([]);
@@ -50,11 +49,10 @@ test("user data is interpolated once and remains separate from navigation and mo
   ledger.goal = { id: "goal_test", turnId: "tn_01", goal: "当前目标", sourceCallId: "call_01", createdAt: "2026-09-11" };
   ledger.notes = { candidate: "来自用户的 {{unknown}}" };
   const turn = fixtureTurn();
-  const output = userText({ contextModules: modules, ledger, turn, memories: { project: "", conversation: "" }, toolUsage: "工具说明 {{data}}", skillText: "独立技能正文 {{data}} {{unknown}}" });
+  const output = userText({ contextModules: modules, ledger, turn, memories: { project: "", conversation: "" }, skillText: "独立技能正文 {{data}} {{unknown}}" });
   expect(headings(output)).toEqual(modules.userOrder);
   expect(output).toContain(turn.input.text);
   expect(output).toContain(ledger.notes.candidate!);
-  expect(output).toContain("工具说明 {{data}}");
   expect(output).not.toContain(modules.systemInventory);
   expect(output).not.toContain(modules.userInventory);
   expect(output).not.toMatch(/^能力：|^详细描述：/m);
@@ -127,7 +125,7 @@ test("user input history is an array preserving message boundaries and multiline
   const ledger = emptyLedger("cv_slots");
   const turn = fixtureTurn();
   const render = () => userText({ contextModules: modules, ledger, turn,
-    memories: { project: "", conversation: "" }, toolUsage: "", skillText: "测试技能" });
+    memories: { project: "", conversation: "" }, skillText: "测试技能" });
   const history = () => {
     const section = render().split("\n#userInputHistory\n")[1]!.split("\n#goal\n")[0]!;
     return JSON.parse(section.trim());
@@ -140,7 +138,7 @@ test("user input history is an array preserving message boundaries and multiline
 
 test("user descriptions appear only in system navigation while user bodies contain data", () => {
   const modules = loadContextModules(root);
-  const system = systemText(modules, "", "2026-09-06");
+  const system = systemText(modules, "2026-09-06");
   const data = Object.fromEntries(modules.userOrder.map(tag => [tag, `VALUE_${tag}`]));
   const user = renderSlots(modules.userOrder, modules.userSlots, data);
   for (const tag of modules.userOrder) {
@@ -176,16 +174,16 @@ test("user descriptions cannot interpolate runtime data and system modules canno
   expect(() => loadContextModules(dir)).toThrow();
 });
 
-test("system modules combine capability and rules once, including literal dynamic tool usage", () => {
+test("system modules contain each rule once without tool description copies", () => {
   const modules = loadContextModules(root);
-  const usage = "TOOL_DESCRIPTION {{data}} {{literal}}";
-  const system = systemText(modules, usage, "2026-09-06");
+  const system = systemText(modules, "2026-09-06");
   for (const tag of modules.systemOrder) {
     const module = modules.systemSlots[tag]!;
-    const text = module.body.replace("{{data}}", () => tag === "#recordIdentity" ? identityRulesText() : usage).trimEnd();
+    const text = module.body.trimEnd();
     expect(system.split(`${tag} --${module.capability}\n${text}`)).toHaveLength(2);
   }
-  expect(system.split(usage)).toHaveLength(2);
+  expect(modules.systemOrder).not.toContain("#baseTools");
+  expect(modules.userOrder).not.toContain("#tools");
   expect(headings(system)).toEqual([]);
   expect(system.endsWith(modules.userInventory)).toBe(true);
 });
@@ -204,7 +202,7 @@ test("model projection preserves record identities and operational data without 
   turn.assembled.pageObservedHistory = [page];
   const original = JSON.stringify({ ledger, turn });
   const conversationSummaries = [{ id: "sum_fixture", turnId: "hidden_turn", tag: "确认失败", userRequest: "确认按钮", actions: "点击按钮", result: "按钮引用过期" }];
-  const output = userText({ contextModules: modules, ledger, turn, conversationSummaries, memories: { project: "[]", conversation: "[]" }, toolUsage: "", skillText: "" });
+  const output = userText({ contextModules: modules, ledger, turn, conversationSummaries, memories: { project: "[]", conversation: "[]" }, skillText: "" });
   const section = (tag: string) => output.split(`#${tag}\n\n`)[1]!.split(/\n#[A-Za-z]/)[0]!.trim();
   expect(JSON.parse(section("toolIO"))).toEqual([
     { callId: "hidden_call", turnId: "hidden_turn", name: "page.click", arguments: { reason: "确认按钮", tab: 42, ref: "el-7" }, return: { stage: "complete", result: { ok: false, faultCode: "stale_ref", detail: "重新读取页面", elementId: "e1" } } },
@@ -212,7 +210,39 @@ test("model projection preserves record identities and operational data without 
   ]);
   expect(JSON.parse(section("conversationHistorySummary"))).toEqual([{ sumId: "sum_fixture", turnId: "hidden_turn", tag: "确认失败", userRequest: "确认按钮", actions: "点击按钮", result: "按钮引用过期" }]);
   expect(JSON.parse(section("currentPage"))).toEqual({ id: "hidden_page", turnId: "hidden_turn", callId: "hidden_call", tab: 42, url: "https://example.com", title: "页面", description: "按钮 ref=el-7" });
+  expect(JSON.parse(section("pageObservedHistory"))).toEqual([]);
   expect(output).not.toContain("hidden_date");
   expect(JSON.parse(section("userInput"))).toEqual({ id: "input_fixture", turnId: turn.turnId, userInput: turn.input.text });
   expect(JSON.stringify({ ledger, turn })).toBe(original);
+});
+
+test("page descriptions appear once in the model view while original tool results remain intact", () => {
+  const modules = loadContextModules(root);
+  const ledger = emptyLedger("cv_slots");
+  const turn = fixtureTurn();
+  const pages = [1, 2].map(n => ({ id: `page_0${n}`, turnId: turn.turnId, callId: `call_0${n}`,
+    observedAt: "now", toolName: "page.get_summary", tab: 42, url: "https://example.com", title: "页面",
+    description: `UNIQUE_PAGE_BODY_${n}` }));
+  turn.assembled.currentPage = pages[1]!;
+  turn.assembled.pageObservedHistory = pages;
+  ledger.toolIO = pages.map(page => ({ callId: page.callId, turnId: page.turnId, name: page.toolName,
+    arguments: { reason: "核对页面", affectsPage: false }, return: { stage: "complete", totalChars: 999,
+      text: JSON.stringify({ ok: true, tab: page.tab, url: page.url, title: page.title,
+        description: page.description, extraEvidence: "keep this" }) } }));
+  const original = JSON.stringify({ ledger, turn });
+  const render = () => userText({ contextModules: modules, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: "" });
+  const output = render();
+  for (const page of pages) expect(output.split(page.description)).toHaveLength(2);
+  const tools = JSON.parse(output.split("#toolIO\n\n")[1]!.split(/\n#[A-Za-z]/)[0]!);
+  expect(tools.map((row: any) => row.return.result)).toEqual(pages.map(page => ({ ok: true,
+    tab: page.tab, url: page.url, title: page.title, extraEvidence: "keep this", pageObservationId: page.id })));
+  expect(JSON.stringify({ ledger, turn })).toBe(original);
+  // Once a historical observation is absent, its tool body must remain available.
+  turn.assembled.pageObservedHistory = [];
+  const withoutHistory = render();
+  expect(withoutHistory).toContain(pages[0]!.description);
+  expect(withoutHistory).not.toContain('"pageObservationId": "page_01"');
+  // A similar response from a different turn must never reference this turn's page.
+  ledger.toolIO[1]!.turnId = "tn_other";
+  expect(render().split(pages[1]!.description)).toHaveLength(3);
 });

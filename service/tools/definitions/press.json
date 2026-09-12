@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "press",
-    "description": "对当前焦点元素按下一个键盘键。\n参数：key（键名），可选 tab（目标标签编号）。\n返回：ok（是否成功）；没有焦点失败。\naffectsPage=true。",
+    "description": "对当前焦点元素按下一个键盘键。\n参数：key（键名），可选 tab（目标标签编号）。\n返回：ok；没有焦点失败。",
     "parameters": {
       "type": "object",
       "properties": {

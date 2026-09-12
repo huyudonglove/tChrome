@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "set_geolocation",
-    "description": "模拟地理位置。\n参数：latitude（纬度）、longitude（经度），可选 accuracy（精度）。\n返回：ok（是否成功）、latitude、longitude；浏览器调试操作失败则 ok=false。\naffectsPage=true。",
+    "description": "模拟地理位置。\n参数：latitude（纬度）、longitude（经度），可选 accuracy（精度）。\n返回：ok、latitude、longitude。",
     "parameters": {
       "type": "object",
       "properties": {

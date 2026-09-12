@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadContextModules } from "../service/context/modules.ts";
-import { loadToolRegistry, toolSchemas, toolUsageFor } from "../service/tools/registry.ts";
+import { loadToolRegistry, toolSchemas } from "../service/tools/registry.ts";
 import { systemText, userText } from "../service/context/window.ts";
 import { emptyLedger } from "../service/runtime/store.ts";
 import { loadSkills } from "../service/skills/loader.ts";
@@ -30,8 +30,8 @@ for (const file of readdirSync(join(root, "docs/examples")).filter(f => /^0[1-8]
     const turn = { turnId: snapshot.turnId, input: { id: `input_${snapshot.turnId.slice(3)}`, text: snapshot.userInput, submittedAt: snapshot.submittedAt }, assembled: snapshot } as Turn;
     const ledger = emptyLedger(snapshot.conversationId);
     ledger.userInputHistory = snapshot.userInputHistory;
-    const user = userText({ contextModules: c, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: loadSkills(root), toolUsage: toolUsageFor(registry, snapshot.toolIds) });
-    text = text.replace(/^```\n# (?:总纲|System 栏目清单)\n[\s\S]*?^```/m, () => `\`\`\`\n${systemText(c, toolUsageFor(registry, registry.toolGroups.baseToolsIds), "2026-09-06")}\n\`\`\``);
+    const user = userText({ contextModules: c, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: loadSkills(root) });
+    text = text.replace(/^```\n# (?:总纲|System 栏目清单)\n[\s\S]*?^```/m, () => `\`\`\`\n${systemText(c, "2026-09-06")}\n\`\`\``);
     text = text.replace(/^```\n#skill\n[\s\S]*?^```/m, () => `\`\`\`\n${user}\n\`\`\``);
   }
   text = text.replace(/^```json\n([\s\S]*?)^```/gm, (_, body) => `\`\`\`json\n${JSON.stringify(update(JSON.parse(body)), null, 2)}\n\`\`\``);

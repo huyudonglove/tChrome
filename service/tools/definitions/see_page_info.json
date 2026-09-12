@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "see_page_info",
-    "description": "读当前页标题、地址和描述。\n参数：可选 tab（目标标签编号）。\n返回：ok（是否成功）、title（页面标题）、url（页面地址）、description。\naffectsPage=false。",
+    "description": "读当前页标题、地址和描述。\n参数：可选 tab（目标标签编号）。\n返回：ok、title（页面标题）、url（页面地址）、description。",
     "parameters": {
       "type": "object",
       "properties": {

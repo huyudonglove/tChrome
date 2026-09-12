@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "cookies",
-    "description": "读当前站 Cookie。\n参数：可选 url（网址）、tab（目标标签编号）。\n返回：ok（是否成功）、cookies。\naffectsPage=false。",
+    "description": "读当前站 Cookie。\n参数：可选 url（网址）、tab（目标标签编号）。\n返回：ok、cookies。",
     "parameters": {
       "type": "object",
       "properties": {

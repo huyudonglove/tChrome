@@ -35,7 +35,7 @@ export type Assembled = {
   conversationMemoryIds: string[];
   projectMemoryIds: string[];
   mcpIds: string[];
-  currentPage: CurrentPage | null;
+  currentPage: (CurrentPage & Partial<PageObservation>) | null;
   pageObservedHistory: PageObservation[];
   currentTab: CurrentTab | null;
 };

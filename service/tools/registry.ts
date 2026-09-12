@@ -46,15 +46,3 @@ export function toolSchemas(registry: ToolRegistry, ids: string[]): ChatTool[] {
     return tool;
   });
 }
-
-export function toolUsageFor(registry: ToolRegistry, ids: string[]): string {
-  return ids
-    .map((id) => {
-      const line = registry.tools[id]?.function.description;
-      if (!line?.trim()) throw new Error(`missing tool description ${id}`);
-      return `${id}：${line}`;
-    })
-    .filter(Boolean)
-    .join("\n");
-}
-

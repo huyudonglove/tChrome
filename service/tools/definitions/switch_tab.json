@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "switch_tab",
-    "description": "切到指定标签并读页。\n参数：tab（目标标签编号），也可传 tabId（目标标签编号）。\n返回：ok（是否成功）、title（页面标题）、url（页面地址）、text（返回文本）。\naffectsPage=true。",
+    "description": "切到指定标签并读页。\n参数：tab（目标标签编号），也可传 tabId（目标标签编号）。\n返回：ok、title（页面标题）、url（页面地址）、text（返回文本）。",
     "parameters": {
       "type": "object",
       "properties": {

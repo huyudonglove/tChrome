@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "scroll",
-    "description": "滚动当前页。\n参数：可选 amount（滚动像素数，负数向上）、tab（目标标签编号）。\n返回：ok（是否成功）。\naffectsPage=true。",
+    "description": "滚动当前页。\n参数：可选 amount（滚动像素数，负数向上）、tab（目标标签编号）。\n返回：ok。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "close_window",
-    "description": "关闭当前窗口。\n返回：ok（是否成功）。\naffectsPage=true。",
+    "description": "关闭当前窗口。\n返回：ok。",
     "parameters": {
       "type": "object",
       "properties": {

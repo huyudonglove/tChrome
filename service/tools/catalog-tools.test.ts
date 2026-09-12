@@ -129,13 +129,24 @@ test("send_http requires an HTTP link string and documents all request fields", 
   expect(check({ url: "https://example.com", headers: { x: true } }).schemaOk).toBe(false);
 });
 
-test("HTTP aliases and batches expose their business fields and reject incomplete calls", () => {
+test("HTTP requests and batches expose their business fields and reject incomplete calls", () => {
   const registry = loadToolRegistry(repoRoot);
   const check = (name: string, args: Record<string, unknown>) => checkToolCalls([
     { id: "call_01", name, arguments: { reason: "读取", affectsPage: false, ...args } },
   ], toolSchemas(registry, [name]), [], [name]).schemaOk;
-  expect(check("api_execute", {url:"https://example.com", method:"POST", headers:{x:"value"}, body:"{}"})).toBe(true);
-  for (const args of [{}, {url:true}, {url:{address:"https://example.com"}}]) expect(check("api_execute",args)).toBe(false);
+  expect(check("send_http", {url:"https://example.com", method:"POST", headers:{x:"value"}, body:"{}"})).toBe(true);
+  for (const args of [{}, {url:true}, {url:{address:"https://example.com"}}]) expect(check("send_http",args)).toBe(false);
   expect(check("send_http_batch", {urls:["https://example.com"]})).toBe(true);
   for (const urls of [undefined, [], "https://example.com", [true], Array(6).fill("https://example.com")]) expect(check("send_http_batch", {urls})).toBe(false);
+});
+
+test('model tool registry exposes canonical capabilities and rejects retired aliases', () => {
+  const registry = loadToolRegistry(repoRoot);
+  const retired = ['deep_search', 'search_plus', 'osint_intel', 'web_search_free', 'api_execute', 'api_discover', 'api_manage'];
+  for (const name of retired) {
+    expect(registry.index.service).not.toContain(name);
+    expect(registry.tools[name]).toBeUndefined();
+    expect(() => toolSchemas(registry, [name])).toThrow(`unknown tool ${name}`);
+  }
+  expect(toolSchemas(registry, ['web_search', 'send_http']).map(t => t.function.name)).toEqual(['web_search', 'send_http']);
 });

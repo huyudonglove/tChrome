@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "group_tabs",
-    "description": "把标签编成一组。\n参数：可选 tabs（标签编号列表）。\n返回：ok（是否成功）、groupId（分组编号）。\naffectsPage=true。",
+    "description": "把标签编成一组。\n参数：可选 tabs（标签编号列表）。\n返回：ok、groupId（分组编号）。",
     "parameters": {
       "type": "object",
       "properties": {

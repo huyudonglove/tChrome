@@ -9,7 +9,7 @@ import { commitArchive, loadIndex } from "./context-archive/store.ts";
 import { loadContextModules } from "./context/modules.ts";
 import { validateUserData } from "./context/data-schema.ts";
 import { systemText, userText } from "./context/window.ts";
-import { loadToolRegistry, coreToolIds, toolUsageFor } from "./tools/registry.ts";
+import { loadToolRegistry, coreToolIds } from "./tools/registry.ts";
 import { loadSkills } from "./skills/loader.ts";
 import { contextState } from "./runtime/context-state.ts";
 import type { CompletionResult, Provider, Turn } from "./types.ts";
@@ -38,7 +38,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
     const next: Turn = { ...f.turns[5]!, turnId: "tn_07", input: { id: "input_07", text: "读取详情", submittedAt: "2026-09-12" }, assembled: { ...f.turns[5]!.assembled, baseToolsIds: registry.toolGroups.baseToolsIds, toolIds: coreToolIds(registry) } };
     const previewLedger = { ...f.ledger, userInputHistory: f.turns.map(inputRecord) };
     const view = contextState(dataDir, previewLedger, next, { project: [], conversation: [] });
-    const overhead = systemText(modules, toolUsageFor(registry, registry.toolGroups.baseToolsIds), pacificDate()).length + userText({ contextModules: modules, ledger: view.ledger, turn: next, conversationSummaries: view.summaries, memories: { project: "[]", conversation: "[]" }, skillText: loadSkills(repoRoot), toolUsage: toolUsageFor(registry, next.assembled.toolIds) }).length;
+    const overhead = systemText(modules, pacificDate()).length + userText({ contextModules: modules, ledger: view.ledger, turn: next, conversationSummaries: view.summaries, memories: { project: "[]", conversation: "[]" }, skillText: loadSkills(repoRoot) }).length;
     f.turns[1]!.input.text += "x".repeat(200000 - overhead - 500);
     saveTurn(dataDir, f.turns[1]!); f.ledger.userInputHistory = f.turns.slice(0, -1).map(inputRecord); saveLedger(dataDir, f.ledger);
     let main = 0, compressed = 0;
@@ -57,7 +57,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
         expect(sessionView(dataDir, f.cv).activity).toBeNull();
         const values = Object.fromEntries(modules.userOrder.map(tag => {
           const body = input.messages[1]!.content.split(`${tag}\n\n`)[1]!.split(/\n#[A-Za-z]/)[0]!.trim();
-          return [tag.slice(1), tag === "#skill" || tag === "#tools" ? body : JSON.parse(body)];
+          return [tag.slice(1), tag === "#skill" ? body : JSON.parse(body)];
         }));
         expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
         expect(section(input.messages[1]!.content, "currentQuery").records).toEqual([f.tool]);

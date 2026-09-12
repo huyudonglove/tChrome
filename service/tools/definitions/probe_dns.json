@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "probe_dns",
-    "description": "解析域名地址。\n参数：host（域名） 或 url（网址）。\n返回：ok（是否成功）、addresses（解析地址）。\naffectsPage=false。",
+    "description": "解析域名地址。\n参数：host（域名） 或 url（网址）。\n返回：ok、addresses（解析地址）。",
     "parameters": {
       "type": "object",
       "properties": {

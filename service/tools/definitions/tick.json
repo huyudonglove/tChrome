@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "tick",
-    "description": "勾选或取消匹配 text 的复选框。\n参数：text（文本），可选 checked（是否勾选）、tab（目标标签编号）。\n返回：ok（是否成功）；找不到匹配项失败，不点第一个。\naffectsPage=true。",
+    "description": "勾选或取消匹配 text 的复选框。\n参数：text（文本），可选 checked（是否勾选）、tab（目标标签编号）。\n返回：ok；找不到匹配项失败，不点第一个。",
     "parameters": {
       "type": "object",
       "properties": {

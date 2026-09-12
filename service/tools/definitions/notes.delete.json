@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "notes.delete",
-    "description": "删除过时的工作笔记。\n参数：必填 key：#notes 中要删除的项。\n返回：已删除的 key，不删除其他笔记或记忆。\naffectsPage=false。",
+    "description": "删除过时的工作笔记。\n参数：必填 key：#notes 中要删除的项。\n返回：已删除的 key，不删除其他笔记或记忆。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "permission_deny",
-    "description": "权限弹窗（受 Chrome 安全限制，需用户手动点）。\n参数：可选 permission（权限名称）。\n返回：ok=false、error（失败原因）。\naffectsPage=false。",
+    "description": "权限弹窗（受 Chrome 安全限制，需用户手动点）。\n参数：可选 permission（权限名称）。\n返回：ok=false、error（失败原因）。",
     "parameters": {
       "type": "object",
       "properties": {

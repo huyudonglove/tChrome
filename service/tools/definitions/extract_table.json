@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "extract_table",
-    "description": "把当前页表格和列表抽成结构化数据。\n参数：可选 tab（目标标签编号）。\n返回：ok（是否成功）、tables、lists。\naffectsPage=false。",
+    "description": "把当前页表格和列表抽成结构化数据。\n参数：可选 tab（目标标签编号）。\n返回：ok、tables、lists。",
     "parameters": {
       "type": "object",
       "properties": {

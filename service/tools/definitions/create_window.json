@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "create_window",
-    "description": "新开一个窗口。\n参数：可选 url（要打开的完整浏览器链接地址），省略时使用浏览器默认的新建页面。\n返回：ok（是否成功）、windowId（窗口编号）。\naffectsPage=true。",
+    "description": "新开一个窗口。\n参数：可选 url（要打开的完整浏览器链接地址），省略时使用浏览器默认的新建页面。\n返回：ok、windowId（窗口编号）。",
     "parameters": {
       "type": "object",
       "properties": {

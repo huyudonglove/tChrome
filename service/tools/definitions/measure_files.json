@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "measure_files",
-    "description": "统计当前页资源数量和体积。\n参数：可选 tab（目标标签编号）。\n返回：ok（是否成功）、count（数量）、transferBytes（传输字节数）、items（结果列表）。\naffectsPage=false。",
+    "description": "统计当前页资源数量和体积。\n参数：可选 tab（目标标签编号）。\n返回：ok、count（数量）、transferBytes（传输字节数）、items（结果列表）。",
     "parameters": {
       "type": "object",
       "properties": {

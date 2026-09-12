@@ -80,11 +80,11 @@ test.each(outputs)("session uses authoritative $output.kind and preserves diagno
     const view = sessionView(dir, "cv_01");
     expect(view.messages).toEqual([
       { turnId: "tn_01", role: "user", text: "查看当前页面" },
-      { turnId: "tn_01", role: "tool", text: "INTERNAL_REASON" },
       { turnId: "tn_01", role: "tool", name: "page.get_summary", text: "读取页面摘要" },
       { turnId: "tn_01", role: "assistant", text: expected },
     ]);
     expect(JSON.stringify(view)).not.toContain("INTERNAL_PAGE_DATA");
+    expect(JSON.stringify(view)).not.toContain("INTERNAL_REASON");
     expect(JSON.stringify(view)).not.toContain("INTERMEDIATE_ACTION");
     expect(JSON.stringify(view)).not.toContain("RAW_TOOL_RETURN");
     expect(loadEvents(dir, "cv_01")).toEqual(eventsBefore);

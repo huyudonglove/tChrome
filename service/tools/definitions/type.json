@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "type",
-    "description": "向指定可编辑控件输入 text。必须提供 ref 或非空 target；不会默认选择当前焦点。ref 来自 snapshot_page 或 find_on_page，不可混用 page.* 的 id。ref 失效不回退按文字定位；target 多项匹配时明确失败。返回：ok、value。affectsPage=true。",
+    "description": "向指定可编辑控件输入 text。必须提供 ref 或非空 target；不会默认选择当前焦点。ref 来自 snapshot_page 或 find_on_page，不可混用 page.* 的 id。ref 失效不回退按文字定位；target 多项匹配时明确失败。返回：ok、value。",
     "parameters": {
       "type": "object",
       "properties": {

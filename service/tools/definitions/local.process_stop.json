@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.process_stop",
-    "description": "终止本会话指定进程及其进程组。返回进程状态。\n本机操作，affectsPage=false；这不表示没有文件或系统副作用。",
+    "description": "终止本会话指定进程及其进程组。返回进程状态。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "wait_download",
-    "description": "按 downloadId 等待指定下载完成。ID 来自 download、export_data 或 list_downloads；已完成则立即返回，进行中则监听到完成、中断或超时。默认等待 10000ms，最多 15000ms；超时可用相同 ID 再次等待。不会触发或恢复下载。\n返回：ok、download（id、filename 本地路径、state、字节进度等）；失败含 code 和 error。查看最近下载请用 list_downloads。\naffectsPage=false。",
+    "description": "按 downloadId 等待指定下载完成。ID 来自 download、export_data 或 list_downloads；已完成则立即返回，进行中则监听到完成、中断或超时。默认等待 10000ms，最多 15000ms；超时可用相同 ID 再次等待。不会触发或恢复下载。\n返回：ok、download（id、filename 本地路径、state、字节进度等）；失败含 code 和 error。查看最近下载请用 list_downloads。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -41,7 +41,7 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 | GET | `/health` | 无 | `{ok:true}` |
 | POST | `/turn` | `{userInput, submittedAt, currentTab?}` | `{conversationId, turnId, output}`。`currentTab` 是 `{tab, url, title}`，开 Turn 写入 `#currentPage`。没有就槽空着 |
 | POST | `/stop` | 无 | 停当前 Turn。账本 `paused`，投影回 `{conversationId, status, pendingAsk, liveTool, messages}`。下一句可再开 Turn |
-| GET | `/session` | 无 | 当前 `session.json` 指向的会话投影：`{conversationId, status, pendingAsk, liveTool, messages}`。`messages` 按流水：user / 每次出网的 `content` / 已跑工具的 `return` / 正在跑（`live:true`）/ 排队工具。没有 `content` 时才用收口 `output` |
+| GET | `/session` | 无 | 当前 `session.json` 指向的会话投影：`{conversationId, status, pendingAsk, liveTool, messages}`。`messages` 按流水展示用户输入、工具 arguments.reason、最终 output，以及正在执行（`live:true`）和排队工具的状态；原始 content 和工具 return 不作为助手回复 |
 | GET | `/conversations` | 无 | `{items:[{conversationId, updatedAt, status, preview}]}`。当前 `session.json` 指向的排第一，其余按 `updatedAt` 新到旧。空会话 preview 是「新会话」 |
 | POST | `/conversations/open` | `{conversationId}` | 该会话投影，并写入 `session.json` |
 | POST | `/conversations/new` | 无 | 新建空 `cv_`，写入 `session.json`，回空投影 |
@@ -49,7 +49,7 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 | GET | `/tool-request` | 无 | `{request}`，没有就 `request=null`。`request` 是 `{id, name, input}` |
 | POST | `/tool-result` | `{id, result}` | `{ok:true}` |
 
-`output` 见「output」。整轮收口再回一次。面板读 `/session`：模型和工具的 reason 作为过程说明，Turn.output 作为助手回复；工具原始 return 不显示。`pendingAsk.choice` 取最近一次 `askUser` 的 `choice`。`/turn` 仍不带 id，用当前 `session.json`。
+`output` 见「output」。整轮收口再回一次。面板读 `/session`：工具 arguments.reason 作为唯一过程说明，Turn.output 作为助手回复；工具原始 return 不显示。`pendingAsk.choice` 取最近一次 `askUser` 的 `choice`。`/turn` 仍不带 id，用当前 `session.json`。
 
 ## 落盘文件
 
@@ -90,7 +90,7 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。
 `kind=provider-response` 的 `data`：`finish` `content` `toolCalls` `attempts` `parseOk` `schemaOk` `faultCode` `missing`。
 `kind=tool` 的 `data`：`callId` `name` `arguments` `return`。
 `kind=memory` 的 `data`：`memoryId` `layer` `sourceCallId`。
-`kind=compress` 的 data 为 beforeChars、afterChars；compress-start 记录压缩前 windowChars，compress-error 记录失败 detail。每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。没有独立的 20K 摘要阈值，也不把多轮合成一条摘要。
+`kind=compress` 的 data 为 beforeChars、afterChars；compress-start 记录压缩前 windowChars，compress-error 记录失败 detail。每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
 `kind=turn-output` 的 `data`：`output`。
 `kind=session` 的 `data`：`conversationId`，可选 `action`=`new`/`open`。
 
@@ -167,14 +167,14 @@ Runtime 独占维护。当前会话指针。
 
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
-| `baseToolsIds` | string[] | 常驻工具，对应 `service/tools/definitions/<id>.json`；完整名单以 `service/tools/definitions/groups.json` 为准，说明进入 system `#baseTools` |
+| `baseToolsIds` | string[] | 常驻工具，对应 `service/tools/definitions/<id>.json`；完整名单以 `service/tools/definitions/groups.json` 为准，schema 和说明进入出网 tools[] |
 | `toolIds` | string[] | 动态工具，对应 `service/tools/definitions/<id>.json`。开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.list_interactive_elements` `page.click` `page.type` `open_url` `web_search` `list_browser_tools` `catalog.add`）。缺了 `catalog.add` 再补。窗口压缩保持已加载工具不变 |
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
 | `mcpIds` | string[] | 本轮 MCP；没有就 `[]` |
 | `currentTab` | object \| null | 本轮输入来源的内部标签快照，仅用于初始化 currentPage，不单独注入模型 |
-| `currentPage` | object \| null | 初始取发话标签，标注尚未读取页面内容；随后由有效页面工具返回替换，与历史中的最新观察共用 id；初始标签快照没有观察 ID。注入 `#currentPage` |
-| `pageObservedHistory` | object[] | 本轮工具页面观察，初始 `[]`，按旧到新追加，包含最新一次观察。每条带稳定 id、turnId、页面字段及 observedAt、callId、toolName。注入 `#pageObservedHistory` |
+| `currentPage` | object \| null | 初始取发话标签，标注尚未读取页面内容；随后由有效页面工具返回替换，使用对应观察 id；初始标签快照没有观察 ID。注入 `#currentPage` |
+| `pageObservedHistory` | object[] | 内部工具页面观察，初始 `[]`，按旧到新追加，包含最新一次观察。每条带稳定 id、turnId、页面字段及 observedAt、callId、toolName。注入 `#pageObservedHistory` 时排除与 currentPage 同 id 的观察 |
 
 `currentPage`：
 
@@ -191,7 +191,7 @@ Runtime 独占维护。当前会话指针。
 
 - `tool` → `{kind, name, callId}`（动态工具 / `context.query` / `memory.write`）
 - `ask` → `{kind, question}`（`askUser`）
-- `reply` → `{kind, text}`（`finishTurn`，`text` 取 finishTurn.arguments.text；历史调用可回退 content.action，不用 reason 顶）
+- `reply` → `{kind, text}`（`finishTurn`，`text` 取 finishTurn.arguments.text；不回退到 content 或 reason）
 - `error` → `{kind, faultCode}`
 
 ## memory/<memoryId>.json
@@ -234,7 +234,7 @@ conversationHistorySummary 显示当前有效摘要的 {sumId, turnId, tag, user
 
 每条摘要关联一个真实 turnId 和对应原始轮次或执行片段来源 ID，同批次的不同轮次分别保存。level 是记录结构字段，不触发额外的分层合并。activeIds 保存窗口当前摘要，coveredSourceIds 记录已归档覆盖的来源。runtime 按来源内容过滤发送视图，不清除账本原文。查询展开来源、去重并保持原顺序。
 
-每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。没有独立的 20K 摘要阈值，也不把多轮合成一条摘要。
+每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
 
 模型输出校验成功、完整来源与摘要落盘后，才原子更新目录索引和覆盖关系。失败或取消不提交该批次覆盖，原文继续可用；此前成功提交的归档保留。索引是提交点，中断可能留下未被索引引用的文件。窗口按来源覆盖过滤历史输入、目标版本、页面观察、会话记忆写入和工具记录，本地原文不删除。
 
@@ -244,11 +244,11 @@ conversationHistorySummary 显示当前有效摘要的 {sumId, turnId, tag, user
 
 加载顺序由 `service/context/system-slots.md` 和 `user-slots.md` 的编号文件名决定，例如 `1. identity`，不在目录重复描述能力。system 模块以 `#tag`、`能力：【…】`、`详细描述：` 和正文组成；user 模块还包含独立的 `内容：` 段。user 的详细描述进入 system 内 User 清单，内容段通过 `{{data}}` 注入运行数据。
 
-加载器返回 systemOrder / userOrder，systemSlots / userSlots 保存模块元数据与对应正文。system 先输出 `# System 栏目清单`，八个模块每项 tag --能力之后直接跟详细正文，baseTools 包含工具说明；再输出 `# User 栏目清单`，每项 tag --能力之后直接跟详细描述。system 详细正文与清单项合并，只出现一次；user 渲染十五个 tag 的内容段和数据，不重复能力标签或详细描述。
+加载器返回 systemOrder / userOrder，systemSlots / userSlots 保存模块元数据与对应正文。system 先输出 `# System 栏目清单`，七个模块每项 tag --能力之后直接跟详细正文；再输出 `# User 栏目清单`，每项 tag --能力之后直接跟详细描述。system 详细正文与清单项合并，只出现一次；user 渲染十四个 tag 的内容段和数据，不重复能力标签或详细描述。
 
 system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，boundaries 管授权和证据来源。网页方法维护于 `service/skills/web-observation/SKILL.md`，runtime 按 `service/skills/index.json` 加载后作为数据注入 context，模块描述仍由 `service/context/user/skill.md` 提供。User 模块投影保留记录 ID、轮次与来源关联和完整内容；工具 schema 以 definitions 为准。
 
-常驻工具说明进入 #baseTools，动态工具说明进入 #tools，唯一来源仍是 `service/tools/definitions/<id>.json` 的 function.description。调整模块后同步生成导航、装配测试与阶段示例；阶段 JSON 中 systemSlots / userSlots 是对应的 8 / 15 个 tag 名数组，并非模块对象。
+常驻和动态工具说明仅随 tools[] 发送，唯一来源仍是 `service/tools/definitions/<id>.json` 的 function.description。调整模块后同步生成导航、装配测试与阶段示例；阶段 JSON 中 systemSlots / userSlots 是对应的 7 / 14 个 tag 名数组，并非模块对象。
 
 出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。
 
@@ -271,11 +271,11 @@ system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，
 | `totalChars` | number | 全文长度（JavaScript string.length，UTF-16 代码单元） |
 | `text` | string | 完整工具返回正文；context.query 不在此重复原文，partial 表示可继续读取 |
 
-`askUser` 的 `text` 是问题和选项。`finishTurn` 的 `text` 是回复用户的正文（优先取 finishTurn.arguments.text，兼容历史 content.action）。动态工具的 `text` 是工具正文；`context.query` 的 `text` 仅含状态和引用。`memory.write` 的 `text` 是落下的层和条数。
+`askUser` 的 `text` 是根据 arguments.question 和选项生成的工具返回文本。`finishTurn` 的 `text` 是回复用户的正文（仅取 finishTurn.arguments.text，不使用 content 回退）。动态工具的 `text` 是工具正文；`context.query` 的 `text` 仅含状态和引用。`memory.write` 的 `text` 是落下的层和条数。
 
 常驻 `context.query(sumId, module, intent, cursor?)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，查询 Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将对应记录放入 currentQuery；工具返回只含状态和引用。每次 records 的紧凑 JSON 最多 2000 字符；超出返回 partial 与 nextCursor，可带原查询参数和 cursor 继续读取，无需再次调用查询 Agent。超大单条保留身份字段及 fragment:{offset,totalChars,text}，text 是原记录 JSON 的连续片段，不是摘要。查询不会刷新页面。
 
-工具窗口投影使用 {callId, turnId, batchId?, name, arguments, return: {stage, result}}，arguments 隐藏 affectsPage，保留 reason 与操作参数。result 对合法 JSON 解析一次，普通文本和截断文本保持原样。callId 标识调用，turnId 标识所属轮次，batchId 标识工具批次；totalChars 不注入主模型，操作用 tab、控件引用及错误详情仍保留。
+工具窗口投影使用 {callId, turnId, batchId?, name, arguments, return: {stage, result}}，arguments 隐藏 affectsPage，保留 reason 与操作参数。result 对合法 JSON 解析一次，普通文本和截断文本保持原样。callId 标识调用，turnId 标识所属轮次，batchId 标识工具批次；totalChars 不注入主模型，操作用 tab、控件引用及错误详情仍保留。与 currentPage 或 pageObservedHistory 中已展示观察完全相同的 description 用 pageObservationId 引用替代，其他结果字段不变；本地原始返回保持完整。
 
 ## 阶段快照
 
@@ -296,7 +296,7 @@ system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，
 
 `provider`：`uuapi`。`model`：`gemini-3.7-flash`。`stream`：`false`。`maxAttempts`：`3`。
 
-`finish`：`tool_calls` / `stop` / `error`。`content`：system `#output` 三段 seen / reason / action。`toolCalls`：`{id, name, arguments}`，已 parse。
+`finish`：`tool_calls` / `stop` / `error`。`content`：Provider 返回的可选文本，保留供日志检查；过程展示仅使用工具 arguments.reason，最终输出仅使用 finishTurn.arguments.text 或 askUser.arguments.question。`toolCalls`：`{id, name, arguments}`，已 parse。
 
 `faultCode`：
 
@@ -344,6 +344,6 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 
 ## 实现职责
 
-工具 schema、分类和分组由 `service/tools/registry.ts` 读取同模块的 `service/tools/definitions/`。Provider 负责模型通信、传输重试及响应/参数解析；主 Agent 的 provider 返回由 `service/runtime/loop.ts` 的 `validateCompletion` 调用 `service/tools/schema.ts` 统一检查 schema、工具名和收口顺序，Runtime 根据结果推进状态。Context 接收数据和工具说明，仅生成窗口投影。`service/presentation/session-view.ts` 以纯函数生成 UI 消息和会话列表；store 负责读取记录、持久化和会话命令。
+工具 schema、分类和分组由 `service/tools/registry.ts` 读取同模块的 `service/tools/definitions/`。Provider 负责模型通信、传输重试及响应/参数解析；主 Agent 的 provider 返回由 `service/runtime/loop.ts` 的 `validateCompletion` 调用 `service/tools/schema.ts` 统一检查 schema、工具名和收口顺序，Runtime 根据结果推进状态。Context 接收数据，仅生成窗口投影；工具说明通过 tools[] 发送。`service/presentation/session-view.ts` 以纯函数生成 UI 消息和会话列表；store 负责读取记录、持久化和会话命令。
 
 查询状态保存 currentQuery 与 queryHistory。下一次查询结果或新 Turn 将当前查询迁入历史，保留原发起 turnId；取消不替换。查询历史作为独立来源补入对应轮次，避免原调用批次已归档后漏收。超大记录的 fragment 是原记录 JSON 连续片段；nextCursor 是 Runtime 提供的续读位置，调用方不得自行构造。

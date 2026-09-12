@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "attach_file",
-    "description": "当前不支持附加文件。\n返回：ok=false、error（没有已附加文件）。\naffectsPage=true。",
+    "description": "当前不支持附加文件。\n返回：ok=false、error（没有已附加文件）。",
     "parameters": {
       "type": "object",
       "properties": {

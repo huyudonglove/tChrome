@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "click_captcha",
-    "description": "点击可访问验证码 frame 内的实际勾选框，不点击 iframe 或页面普通复选框。支持 Turnstile、reCAPTCHA、hCaptcha；点击不代表验证通过。无法访问、需要图像挑战或存在歧义时 ok=false、requiresUser=true，请用户处理。返回 present、type、status、clickable、clicked。 可选 tab（标签编号）、timeoutMs（总超时毫秒，1～12000）。affectsPage=true。 多个验证码或响应字段返回 ambiguous=true，不宣称全部通过。",
+    "description": "点击可访问验证码 frame 内的实际勾选框，不点击 iframe 或页面普通复选框。支持 Turnstile、reCAPTCHA、hCaptcha；点击不代表验证通过。无法访问、需要图像挑战或存在歧义时 ok=false、requiresUser=true，请用户处理。返回 present、type、status、clickable、clicked。 可选 tab（标签编号）、timeoutMs（总超时毫秒，1～12000）。 多个验证码或响应字段返回 ambiguous=true，不宣称全部通过。",
     "parameters": {
       "type": "object",
       "properties": {

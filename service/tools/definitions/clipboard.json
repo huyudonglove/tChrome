@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "clipboard",
-    "description": "当前后台环境不能读写系统剪贴板。\n参数：text（文本） 为拟写入的内容，不传表示读取。\n返回：ok=false、error（后台环境限制）。\naffectsPage=false。",
+    "description": "当前后台环境不能读写系统剪贴板。\n参数：text（文本） 为拟写入的内容，不传表示读取。\n返回：ok=false、error（后台环境限制）。",
     "parameters": {
       "type": "object",
       "properties": {

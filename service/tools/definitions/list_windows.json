@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "list_windows",
-    "description": "列出浏览器窗口。\n返回：ok、windows[{id,focused,type}]。\naffectsPage=false。",
+    "description": "列出浏览器窗口。\n返回：ok、windows[{id,focused,type}]。",
     "parameters": {
       "type": "object",
       "properties": {

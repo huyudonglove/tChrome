@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "context_menu",
-    "description": "触发页面右键菜单。\n参数：可选 text（文本）。\n返回：ok（是否成功）、triggered、point；浏览器调试操作失败则 ok=false。\naffectsPage=true。",
+    "description": "触发页面右键菜单。\n参数：可选 text（文本）。\n返回：ok、triggered、point。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "submitGoal",
-    "description": "记录或更新持续工作的目标。\n参数：必填 goal：目标正文。\n返回：当前目标并更新 #goal；目标变化时非空旧目标自动加入 #goalHistory，无需另写历史。记录目标不会自动执行目标，也不会结束本轮。\naffectsPage=false。",
+    "description": "记录或更新持续工作的目标。\n参数：必填 goal：目标正文。\n返回：当前目标并更新 #goal；目标变化时非空旧目标自动加入 #goalHistory，无需另写历史。记录目标不会自动执行目标，也不会结束本轮。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "see_env",
-    "description": "看浏览器环境快照：优先用面板发话时带来的当前页，否则取本窗口活动页。\n参数：可选 tab（目标标签编号）。\n返回：ok、activeTab{url,title}、tabs[{id,title,url}]、windowCount、tabCount。\naffectsPage=false。",
+    "description": "看浏览器环境快照：优先用面板发话时带来的当前页，否则取本窗口活动页。\n参数：可选 tab（目标标签编号）。\n返回：ok、activeTab{url,title}、tabs[{id,title,url}]、windowCount、tabCount。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.inspect_element",
-    "description": "看一个可交互元素的标签、名字、位置。\n参数：id（页面工具返回的 e 开头元素标识），可选 tab（目标标签编号）。\n返回：ok（是否成功）、element（元素详情）。\naffectsPage=false。",
+    "description": "看一个可交互元素的标签、名字、位置。\n参数：id（页面工具返回的 e 开头元素标识），可选 tab（目标标签编号）。\n返回：ok、element（元素详情）。",
     "parameters": {
       "type": "object",
       "properties": {

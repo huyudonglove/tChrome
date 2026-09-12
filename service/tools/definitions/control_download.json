@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "control_download",
-    "description": "暂停、继续或取消下载。\n参数：downloadId（下载编号），可选 action。\n返回：ok（是否成功）。\naffectsPage=false。",
+    "description": "暂停、继续或取消下载。\n参数：downloadId（下载编号），可选 action。\n返回：ok。",
     "parameters": {
       "type": "object",
       "properties": {

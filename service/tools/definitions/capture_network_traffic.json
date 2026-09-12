@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "capture_network_traffic",
-    "description": "看最近网络请求摘要。\n返回：ok（是否成功）、items（结果列表）。\naffectsPage=false。",
+    "description": "看最近网络请求摘要。\n返回：ok、items（结果列表）。",
     "parameters": {
       "type": "object",
       "properties": {

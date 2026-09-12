@@ -7,16 +7,8 @@ import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
 import { LOCAL_TOOL_NAMES, runLocalTool } from "./local-tools.ts";
 import { listItems, saveItem, deleteItem } from "../library/store.ts";
 
-export function actionFromContent(content: string): string {
-  const match = content.match(/(?:^|\n)action\n([\s\S]*)$/i);
-  return (match?.[1] ?? "").trim();
-}
-
 const questionWithChoices = (question: string, choice: string[]): string =>
   choice.length === 0 ? question : `${question}\n选项：${choice.join(" / ")}`;
-
-const closingText = (value: unknown, content: string): string =>
-  typeof value === "string" && value.trim() ? value.trim() : actionFromContent(content);
 
 export function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -53,7 +45,6 @@ const hostArgs = (args: ToolArguments): Record<string, unknown> => {
 export type ExecuteInput = {
   name: string;
   arguments: ToolArguments;
-  content: string;
   dataDir: string;
   conversationId?: string;
   browserNames: string[];
@@ -74,7 +65,7 @@ const externalResult = (value: Record<string, unknown>): ToolExecution => {
 };
 
 export async function executeTool(input: ExecuteInput): Promise<ToolExecution> {
-  const { name, arguments: args, content, lookup, host, dataDir, browserNames } = input;
+  const { name, arguments: args, lookup, host, dataDir, browserNames } = input;
   if (name === "library") {
     try {
       if (args.action === "list") return result(JSON.stringify({ ok: true, items: listItems(dataDir, typeof args.query === "string" ? args.query : undefined) }));
@@ -98,12 +89,14 @@ export async function executeTool(input: ExecuteInput): Promise<ToolExecution> {
     }
   }
   if (name === "finishTurn") {
-    const text = closingText(args.text, content);
+    const text = typeof args.text === "string" ? args.text.trim() : "";
     return text ? result(text, [{ type: "turn.reply", text }])
       : result(runtimeMessages.emptyFinishTurn, [{ type: "queue.clear" }]);
   }
   if (name === "askUser") {
-    const question = questionWithChoices(closingText(args.question, content), asStringArray(args.choice));
+    const text = typeof args.question === "string" ? args.question.trim() : "";
+    if (!text) return result(runtimeMessages.emptyAskUser, [{ type: "queue.clear" }]);
+    const question = questionWithChoices(text, asStringArray(args.choice));
     return result(question, [{ type: "turn.ask", question }]);
   }
   if (name === "submitGoal") {

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.get_dom",
-    "description": "取区域或元素的 HTML 片段。\n参数：id（页面工具返回的目标标识），可选 tab（目标标签编号）。\n返回：ok（是否成功）、html（页面结构片段）。\naffectsPage=false。",
+    "description": "取区域或元素的 HTML 片段。\n参数：id（页面工具返回的目标标识），可选 tab（目标标签编号）。\n返回：ok、html（页面结构片段）。",
     "parameters": {
       "type": "object",
       "properties": {

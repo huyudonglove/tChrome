@@ -5,14 +5,7 @@ import { runAccountVault } from "./account-vault.ts";
 export const SERVICE_TOOL_NAMES = [
   "send_http",
   "send_http_batch",
-  "api_discover",
-  "api_execute",
-  "api_manage",
   "web_search",
-  "web_search_free",
-  "deep_search",
-  "search_plus",
-  "osint_intel",
   "probe_http",
   "probe_dns",
   "probe_ssl",
@@ -59,10 +52,7 @@ export async function runServiceTool(
   input: Record<string, unknown> = {},
 ) {
   if (name === "account_vault") return runAccountVault(dataDir, input);
-  if (name === "api_discover" || name === "api_manage") {
-    return { ok: true, operations: [] };
-  }
-  if (name === "send_http" || name === "api_execute") {
+  if (name === "send_http") {
     const error = httpAddressError(input.url);
     if (error) return { ok: false, error };
     return fetchText(input.url as string, {
@@ -86,13 +76,7 @@ export async function runServiceTool(
     }
     return { ok: results.every(result => result.ok), results };
   }
-  if (
-    name === "web_search"
-    || name === "web_search_free"
-    || name === "deep_search"
-    || name === "search_plus"
-    || name === "osint_intel"
-  ) {
+  if (name === "web_search") {
     const query = input.query || input.q || input.text;
     if (!query) return { ok: false, error: "缺 query" };
     const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(String(query))}`;

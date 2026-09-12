@@ -1,12 +1,12 @@
 #toolIO
-能力：【执行证据，返回检查，错误诊断】
+能力：【执行证据，错误诊断】
 
 详细描述：
-我保存工具调用及返回，按旧到新排列。callId 标识一次调用，batchId 标识同一次模型返回的工具批次；name 是工具名，arguments 是参数，return.result 是结果。参数和结果中的业务 ID、控件 ref、标签 tab 按工具定义使用，不与 callId 混用。
+按旧到新排列的工具调用和返回。callId 标识调用，batchId 标识同批调用；name、arguments、return.result 分别是工具名、参数和结果。业务 ID、控件 ref 和标签 tab 不与 callId 混用。pageObservationId 引用 currentPage 或 pageObservedHistory 中的观察，代替重复的 description。
 
-先核对调用意图和参数，再根据返回的 ok、error、状态及内容判断实际结果。return.stage=complete 只表示文本完整，不代表操作成功；truncated 表示文本不完整。JSON 结果按结构展示，其他文本保留原样。归档中的完整记录可通过 context.query 回查，查询不会重新执行操作。context.query 只在我这里记录条件、状态和引用，原文放 currentQuery 或 queryHistory。
+根据返回的 ok、error、状态及内容判断结果。return.stage=complete 只表示文本完整，truncated 表示文本不完整。完整历史可用 context.query 回查；查询调用在这里保留条件、状态和引用，原文见 currentQuery 或 queryHistory。
 
-截图结果的 image 是本地图片引用，可观察本次请求附带的对应图片；没有附图时，不能仅凭路径判断图片内容。
+截图结果的 image 是本地图片引用；只有附带的图片可供观察，不能仅凭路径判断内容。
 
 内容：
 {{data}}

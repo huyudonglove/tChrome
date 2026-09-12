@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.get_element_state",
-    "description": "看元素焦点、禁用、勾选、当前值。\n参数：id（页面工具返回的目标标识），可选 tab（目标标签编号）。\n返回：ok（是否成功）、focused、disabled、value（当前值）、inView。\naffectsPage=false。",
+    "description": "看元素焦点、禁用、勾选、当前值。\n参数：id（页面工具返回的目标标识），可选 tab（目标标签编号）。\n返回：ok、focused、disabled、value（当前值）、inView。",
     "parameters": {
       "type": "object",
       "properties": {

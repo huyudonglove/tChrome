@@ -50,11 +50,6 @@ const toolText = (row: { arguments?: { reason?: unknown } }, fallback = "工具�
   return typeof reason === "string" && reason.trim() ? reason.trim() : fallback;
 };
 
-const providerReason = (content: unknown): string => {
-  if (typeof content !== "string") return "";
-  return content.replaceAll("\r\n", "\n").match(/(?:^|\n)reason\n([\s\S]*?)(?=\naction\n|$)/i)?.[1]?.trim() ?? "";
-};
-
 const pushLiveTools = (input: {
   messages: SessionMessage[];
   ledger: Ledger;
@@ -104,13 +99,9 @@ export function projectSessionView({ ledger, events, turns }: {
     const turnId = turn.turnId;
     messages.push({ turnId, role: "user", text: turn.input.text });
     const turnEvents = events.filter((event) => event.turnId === turnId);
-    // Reasons are progress messages; only turn.output supplies the final reply.
-    // Observations, intermediate actions and raw tool results stay in the logs.
+    // Tool arguments supply progress; only turn.output supplies the final reply.
+    // Provider content and raw tool results stay in the logs.
     for (const event of turnEvents) {
-      if (event.kind === "provider-response") {
-        const reason = providerReason(event.data.content);
-        if (reason) messages.push({ turnId, role: "tool", text: reason });
-      }
       if (event.kind !== "tool") continue;
       const name = String(event.data.name ?? "");
       if (name === "finishTurn" || name === "askUser") continue;

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.fs_read",
-    "description": "按字节分页读取UTF-8文本文件，offset默认0，limit默认65536，范围4..1048576。返回content、size、nextOffset、truncated。后续页使用返回的nextOffset，保持UTF-8字符完整；不用于二进制。\n操作服务所在电脑，路径必须绝对；affectsPage=false 不表示没有文件副作用。",
+    "description": "按字节分页读取UTF-8文本文件，offset默认0，limit默认65536，范围4..1048576。返回content、size、nextOffset、truncated。后续页使用返回的nextOffset，保持UTF-8字符完整；不用于二进制。",
     "parameters": {
       "type": "object",
       "properties": {

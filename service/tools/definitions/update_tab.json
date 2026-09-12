@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "update_tab",
-    "description": "固定或静音标签。\n参数：可选 tab（目标标签编号）；pinned（是否固定）和 muted（是否静音）至少提供一个，未提供的状态保持原状。\n返回：ok（是否成功）。\naffectsPage=true。",
+    "description": "固定或静音标签。\n参数：可选 tab（目标标签编号）；pinned（是否固定）和 muted（是否静音）至少提供一个，未提供的状态保持原状。\n返回：ok。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -1,4 +1,5 @@
 {
   "emptyFinishTurn": "finishTurn 的回复为空。请将对用户说的话写入非空 text 参数，再调用 finishTurn。",
+  "emptyAskUser": "askUser 的问题为空。请将具体问题写入非空 question 参数，再调用 askUser。",
   "needFinishTurn": "没有 tool_calls。请将最终回复写入 text 参数并调用 finishTurn；需要用户补充信息时用 question 参数调用 askUser。"
 }

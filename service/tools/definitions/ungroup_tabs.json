@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "ungroup_tabs",
-    "description": "取消标签分组。\n参数：可选 tabs（标签编号列表）。\n返回：ok（是否成功）。\naffectsPage=true。",
+    "description": "取消标签分组。\n参数：可选 tabs（标签编号列表）。\n返回：ok。",
     "parameters": {
       "type": "object",
       "properties": {

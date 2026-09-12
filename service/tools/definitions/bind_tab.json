@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "bind_tab",
-    "description": "确认可操作的普通网页标签。\n参数：可选 tab（目标标签编号）。\n返回：ok（是否成功）、tab、tabId（标签编号）、url（地址）、title（标题）；没有可用标签时返回 error（失败原因）。\naffectsPage=false。",
+    "description": "确认可操作的普通网页标签。\n参数：可选 tab（目标标签编号）。\n返回：ok、tab、tabId（标签编号）、url（地址）、title（标题）；没有可用标签时返回 error（失败原因）。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "see_console",
-    "description": "读当前页控制台日志。\n参数：可选 level=error|warn|log|all、tab（目标标签编号）。\n返回：ok、count、items[{level,text}]。\naffectsPage=false。",
+    "description": "读当前页控制台日志。\n参数：可选 level=error|warn|log|all、tab（目标标签编号）。\n返回：ok、count、items[{level,text}]。",
     "parameters": {
       "type": "object",
       "properties": {

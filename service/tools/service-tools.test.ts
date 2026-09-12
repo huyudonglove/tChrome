@@ -83,3 +83,13 @@ test("batch HTTP validates every address before fetching and preserves partial f
     expect(mock.mock.calls.map(call => call[0])).toEqual(["https://example.com/a", "https://example.com/fail", "https://example.com/b"]);
   } finally { mock.mockRestore(); }
 });
+
+test('retired service names reject calls without executing network requests', async () => {
+  const mock = spyOn(globalThis, 'fetch');
+  try {
+    for (const name of ['web_search_free', 'deep_search', 'search_plus', 'osint_intel', 'api_execute', 'api_discover', 'api_manage']) {
+      expect(await runServiceTool('/tmp', name, {query: 'demo', url: 'https://example.com'})).toEqual({ok: false, error: `未接执行器 ${name}`});
+    }
+    expect(mock).not.toHaveBeenCalled();
+  } finally { mock.mockRestore(); }
+});

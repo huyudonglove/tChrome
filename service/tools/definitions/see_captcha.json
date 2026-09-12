@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "see_captcha",
-    "description": "检测 Turnstile、reCAPTCHA、hCaptcha 的 iframe、组件、响应字段及可访问勾选框。返回 present、type、status（solved/challenge/unknown）、clickable；partial=true 表示部分 frame 无法访问。iframe 存在不等于验证通过，不返回响应令牌。 可选 tab（标签编号）、timeoutMs（总超时毫秒，1～12000）。affectsPage=false。 多个验证码或响应字段返回 ambiguous=true，不宣称全部通过。",
+    "description": "检测 Turnstile、reCAPTCHA、hCaptcha 的 iframe、组件、响应字段及可访问勾选框。返回 present、type、status（solved/challenge/unknown）、clickable；partial=true 表示部分 frame 无法访问。iframe 存在不等于验证通过，不返回响应令牌。 可选 tab（标签编号）、timeoutMs（总超时毫秒，1～12000）。 多个验证码或响应字段返回 ambiguous=true，不宣称全部通过。",
     "parameters": {
       "type": "object",
       "properties": {

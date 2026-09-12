@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "network_throttle",
-    "description": "模拟网络条件。\n参数：profile（offline/slow-3g/fast-3g/4g/online）。\n返回：ok（是否成功）、profile；浏览器调试操作失败则 ok=false。\naffectsPage=true。",
+    "description": "模拟网络条件。\n参数：profile（offline/slow-3g/fast-3g/4g/online）。\n返回：ok、profile。",
     "parameters": {
       "type": "object",
       "properties": {

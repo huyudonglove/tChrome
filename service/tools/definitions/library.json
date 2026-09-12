@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "library",
-    "description": "管理用户面板中的本地资料库，保存值得收藏的网站、账号和普通资料。跨会话保留，删除会话不会删除资料，面板明文显示所有字段。\n先用 list+query 查找已有资料，避免重复保存；get 按 id 读取；save 不传 id 创建（必填 type、title），传 id 更新（未传字段保留，空字符串或空数组清空）；delete 按 id 删除。type 为 website、account 或 note，website 类型必须填写 url；url 为完整 http(s) 地址，username/password 保存账号密码，content 保存备注或正文，tags 为标签数组。\n返回 items、item 或删除结果。资料 ID 为 lib_ 开头，用于精确读取、更新、删除；不作为会话记忆，也不会自动整库注入上下文。affectsPage=false，写操作会修改本地资料库。",
+    "description": "管理用户面板中的本地资料库，保存值得收藏的网站、账号和普通资料。跨会话保留，删除会话不会删除资料，面板明文显示所有字段。\n先用 list+query 查找已有资料，避免重复保存；get 按 id 读取；save 不传 id 创建（必填 type、title），传 id 更新（未传字段保留，空字符串或空数组清空）；delete 按 id 删除。type 为 website、account 或 note，website 类型必须填写 url；url 为完整 http(s) 地址，username/password 保存账号密码，content 保存备注或正文，tags 为标签数组。\n返回 items、item 或删除结果。资料 ID 为 lib_ 开头，用于精确读取、更新、删除。写操作会修改本地资料库。",
     "parameters": {
       "type": "object",
       "properties": {

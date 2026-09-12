@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "websocket_monitor",
-    "description": "监控目标标签的 WebSocket 帧，自 start 后捕获收发，不依赖网页事件监听方式。\n参数：action=start|stop|read。重复 start 保留已有记录；stop 返回记录后清空缓冲并释放监听；read 返回 monitoring 状态及最近 50 帧。每帧 data 最多 16000 字符，超限标注 truncated；opcode 非 1 时 data 为 CDP 提供的 Base64 数据。标签关闭或调试连接断开会清空缓冲，之后需重新 start。\n返回：ok、messages（dir、data、opcode、requestId、time）。\naffectsPage=false。",
+    "description": "监控目标标签的 WebSocket 帧，自 start 后捕获收发，不依赖网页事件监听方式。\n参数：action=start|stop|read。重复 start 保留已有记录；stop 返回记录后清空缓冲并释放监听；read 返回 monitoring 状态及最近 50 帧。每帧 data 最多 16000 字符，超限标注 truncated；opcode 非 1 时 data 为 CDP 提供的 Base64 数据。标签关闭或调试连接断开会清空缓冲，之后需重新 start。\n返回：ok、messages（dir、data、opcode、requestId、time）。",
     "parameters": {
       "type": "object",
       "properties": {

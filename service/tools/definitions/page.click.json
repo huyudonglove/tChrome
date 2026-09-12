@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.click",
-    "description": "点击指定元素。\n参数：id（页面工具返回的 e 开头元素标识），可选 tab（目标标签编号）。\n返回：ok（是否成功）、clicked（点击结果）。\naffectsPage=true。",
+    "description": "点击指定元素。\n参数：id（页面工具返回的 e 开头元素标识），可选 tab（目标标签编号）。\n返回：ok、clicked（点击结果）。",
     "parameters": {
       "type": "object",
       "properties": {

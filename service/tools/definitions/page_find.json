@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page_find",
-    "description": "使用 window.find 在页面内查找并选中文本，可能滚动页面；不会打开浏览器 Ctrl+F 面板，也不返回可点击元素编号。参数：query 必填，可选 tab。返回：ok、found、text（选中文本）、rect（匹配位置，未找到为null）。affectsPage=true。",
+    "description": "使用 window.find 在页面内查找并选中文本，可能滚动页面；不会打开浏览器 Ctrl+F 面板，也不返回可点击元素编号。参数：query 必填，可选 tab。返回：ok、found、text（选中文本）、rect（匹配位置，未找到为null）。",
     "parameters": {
       "type": "object",
       "properties": {
