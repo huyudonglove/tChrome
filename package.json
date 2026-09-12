@@ -12,6 +12,7 @@
     "check": "bun test && bun run scripts/build-extension.ts"
   },
   "dependencies": {
+    "@tavily/core": "^0.7.11",
     "ajv": "^8.20.0",
     "openai": "^7.10.0",
     "react": "^19.2.8",

@@ -102,6 +102,7 @@
     "send_http",
     "send_http_batch",
     "web_search",
+    "tavily_search",
     "probe_http",
     "probe_dns",
     "probe_ssl",

@@ -1,11 +1,13 @@
 import { promises as dns } from "node:dns";
 import tls from "node:tls";
 import { runAccountVault } from "./account-vault.ts";
+import { runTavilySearch } from "./tavily-search.ts";
 
 export const SERVICE_TOOL_NAMES = [
   "send_http",
   "send_http_batch",
   "web_search",
+  "tavily_search",
   "probe_http",
   "probe_dns",
   "probe_ssl",
@@ -52,6 +54,7 @@ export async function runServiceTool(
   input: Record<string, unknown> = {},
 ) {
   if (name === "account_vault") return runAccountVault(dataDir, input);
+  if (name === "tavily_search") return runTavilySearch(input);
   if (name === "send_http") {
     const error = httpAddressError(input.url);
     if (error) return { ok: false, error };
