@@ -129,6 +129,7 @@
     "local.process_status",
     "local.process_stop",
     "local.process_write",
-    "local.run"
+    "local.run",
+    "library"
   ]
 }

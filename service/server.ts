@@ -8,6 +8,7 @@ import { createToolBridge, type ToolBridge } from "./runtime/bridge.ts";
 import type { BrowserResult } from "./types.ts";
 import { executorVersion, executorMismatchMessage } from "./executor-version.ts";
 import { abortAllLocalProcesses } from "./tools/local-process.ts";
+import { listItems, saveItem, deleteItem, LibraryError } from "./library/store.ts";
 
 const loadEnv = () => {
   const envPath = join(import.meta.dir, ".env");
@@ -122,6 +123,21 @@ export function createServer(options: ServeOptions = {}) {
       }
       if (request.method === "GET" && url.pathname === "/session") {
         return respond(currentSessionView(dataDir));
+      }
+      if ((request.method === "GET" && url.pathname === "/library")
+        || (request.method === "POST" && ["/library/save", "/library/delete"].includes(url.pathname))) {
+        try {
+          if (request.method === "GET") return respond({ items: listItems(dataDir, url.searchParams.get("q") ?? "") });
+          const body = await request.json().catch(() => { throw new LibraryError("请求内容必须是有效的 JSON"); });
+          if (url.pathname === "/library/save") return respond({ item: saveItem(dataDir, body) });
+          if (!body || typeof body !== "object" || Array.isArray(body) || typeof body.id !== "string") throw new LibraryError("缺少资料 id");
+          deleteItem(dataDir, body.id);
+          return respond({ ok: true });
+        } catch (error) {
+          if (error instanceof LibraryError) return respond({ error: error.message }, error.status);
+          console.error("资料库读写失败", error);
+          return respond({ error: "资料库读写失败，请检查本地目录权限与服务日志" }, 500);
+        }
       }
       if (request.method === "GET" && url.pathname === "/conversations") {
         return respond({ items: listConversations(dataDir) });

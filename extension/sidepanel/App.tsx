@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { renderMarkdown } from "./markdown";
 import { SERVICE, DOWN, requestJSON, errorText } from "./service";
 import { shouldSubmitOnEnter, stopCurrentSession } from "./interactions";
+import { LibraryPanel } from "./LibraryPanel";
 
 type Output =
   | { kind: "reply"; text: string }
@@ -14,6 +15,7 @@ type Message = { turnId?: string; role: "user" | "assistant" | "tool"; text: str
 type SessionView = {
   conversationId: string | null;
   status: string;
+  activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null } | null;
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
   liveTool: { name: string; callId: string } | null;
   messages: Message[];
@@ -32,7 +34,7 @@ type ConversationItem = {
   preview: string;
 };
 
-const emptySession = (): SessionView => ({ conversationId: null, status: "idle", pendingAsk: null, liveTool: null, messages: [] });
+const emptySession = (): SessionView => ({ conversationId: null, status: "idle", activity: null, pendingAsk: null, liveTool: null, messages: [] });
 
 const SUGGESTIONS = [
   { label: "看当前页", text: "当前页标题是什么" },
@@ -91,6 +93,7 @@ export function App() {
   const [extensionIssue, setExtensionIssue] = useState("");
   const [listOpen, setListOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   useEffect(() => { if (!listOpen) setSettingsOpen(false); }, [listOpen]);
   const [query, setQuery] = useState("");
   const [pendingDelete, setPendingDelete] = useState<{ conversationId: string; preview: string } | null>(null);
@@ -106,6 +109,10 @@ export function App() {
   const refreshVersion = useRef(0);
   const switching = useRef(false);
   const running = sending || session.status === "running";
+  const compressing = session.status === "running" && session.activity?.kind === "compressing";
+  const compressionText = session.activity?.phase
+    ? { history: "正在压缩历史记录", current: "正在压缩当前轮记录", summaries: "正在压缩已有摘要" }[session.activity.phase]
+    : "正在压缩上下文";
 
   const loadAll = async () => {
     const generation = submission.current;
@@ -384,9 +391,13 @@ export function App() {
           <div className="brand-mark"><img className="brand-logo" src="./icons/icon-48.png" alt="tChrome" /></div>
           <div className="app-identity">
             <strong>{session.conversationId ?? "tChrome"}</strong>
-            <small>{running ? "正在处理" : statusText(session.status)}</small>
+            <small>{compressing ? "正在压缩上下文" : running ? "正在处理" : statusText(session.status)}</small>
           </div>
           <div className="app-actions">
+            <button className="icon-button" type="button" title="资料库" aria-label="资料库" aria-expanded={libraryOpen}
+              onClick={() => { setListOpen(false); setLibraryOpen(true); }}>
+              <Icon path="M5 3h14v18l-7-4-7 4V3z" />
+            </button>
             <button className="icon-button" type="button" title="会话" onClick={() => setListOpen((open) => !open)}>
               <Icon path="M4 6h16M4 12h16M4 18h10" />
             </button>
@@ -397,6 +408,7 @@ export function App() {
         </header>
         {extensionIssue && !serviceDown ? <div className="status down" role="alert">{extensionIssue}</div> : null}
         {serviceDown || status ? <div className={`status ${serviceDown || status === DOWN ? "down" : ""}`}>{serviceDown ? DOWN : status}</div> : null}
+        {compressing && !serviceDown ? <div className="status" role="status" aria-live="polite">{compressionText}，完成后自动继续。你也可以停止。</div> : null}
       </div>
 
       <div className="conversation-pane">
@@ -438,7 +450,7 @@ export function App() {
               </div>
             </article>
           ))}
-          {running && !session.liveTool && session.messages.at(-1)?.role === "user" ? (
+          {running && !compressing && !session.liveTool && session.messages.at(-1)?.role === "user" ? (
             <article className="message-row assistant muted">
               <Avatar who="assistant" />
               <div className="message-body"><p>在想</p></div>
@@ -571,6 +583,7 @@ export function App() {
         </>
       ) : null}
 
+      {libraryOpen ? <LibraryPanel onClose={() => setLibraryOpen(false)} /> : null}
       {pendingDelete ? (
         <div className="confirm-layer">
           <button className="confirm-backdrop" type="button" onClick={() => setPendingDelete(null)} />

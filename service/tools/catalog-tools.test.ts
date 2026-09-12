@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { loadToolRegistry, toolSchemas } from "./registry.ts";
 import { parseToolArguments } from "./arguments.ts";
 import { checkToolCalls } from "./schema.ts";
+import type { ToolCall } from "../types.ts";
 
 const repoRoot = join(import.meta.dir, "../..");
 
@@ -74,6 +75,32 @@ test("catalog.add accepts the reported names/reason call without affectsPage and
   expect(check({ ...args, affectsPage: false }).schemaOk).toBe(true);
   expect(check({ ...args, affectsPage: true }).schemaOk).toBe(false);
   expect(check({ names: args.names }).schemaOk).toBe(false);
+});
+
+test("tool calls normalize explicit boolean and numeric strings before execution", () => {
+  const registry = loadToolRegistry(repoRoot);
+  const ids = ["catalog.add", "page.type"];
+  const calls: ToolCall[] = JSON.parse(JSON.stringify([
+    { id: "call_01", name: "catalog.add", arguments: { reason: "加载", names: ["execute_javascript"], affectsPage: "false" } },
+    { id: "call_02", name: "page.type", arguments: { reason: "填写", affectsPage: "true", tab: "1502828910", id: "e1", text: "false" } },
+  ]));
+  expect(checkToolCalls(calls, toolSchemas(registry, ids), [], ids).schemaOk).toBe(true);
+  expect(calls[0]!.arguments.affectsPage).toBe(false);
+  expect(calls[1]!.arguments).toEqual({ reason: "填写", affectsPage: true, tab: 1502828910, id: "e1", text: "false" });
+});
+
+test("normalization preserves schema constraints and rejects ambiguous values", () => {
+  const registry = loadToolRegistry(repoRoot);
+  const check = (name: string, args: Record<string, unknown>) => checkToolCalls(
+    [{ id: "call_01", name, arguments: args }], toolSchemas(registry, [name]), [], [name],
+  ).schemaOk;
+  for (const affectsPage of ["true", "False", "0", "", 0, null]) {
+    expect(check("catalog.add", { reason: "加载", names: ["execute_javascript"], affectsPage })).toBe(false);
+  }
+  expect(check("catalog.add", { reason: "加载", names: "execute_javascript", affectsPage: "false" })).toBe(false);
+  for (const tab of ["", " ", "0x10", "12px", "Infinity", "1e999", "9007199254740993"]) {
+    expect(check("page.type", { reason: "填写", affectsPage: "true", tab, id: "e1", text: "12" })).toBe(false);
+  }
 });
 
 

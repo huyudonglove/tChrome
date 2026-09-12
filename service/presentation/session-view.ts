@@ -34,6 +34,7 @@ export type SessionView = {
   status: Ledger["status"] | "idle";
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
   liveTool: { name: string; callId: string } | null;
+  activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null } | null;
   messages: SessionMessage[];
 };
 
@@ -76,6 +77,21 @@ const pushLiveTools = (input: {
     if (item.name === "finishTurn" || item.name === "askUser") continue;
     messages.push({ turnId, role: "tool", text: toolText(item, "等待执行工具"), name: item.name });
   }
+};
+
+const compressionActivity = (ledger: Ledger, events: LogEvent[]): SessionView["activity"] => {
+  if (ledger.status !== "running" || !ledger.active) return null;
+  let activity: SessionView["activity"] = null;
+  for (const event of events) {
+    if (event.turnId !== ledger.active.turnId) continue;
+    if (event.kind === "compress-start") activity = { kind: "compressing", phase: null };
+    if (event.kind === "compress-phase" && activity) {
+      const phase = event.data.phase;
+      if (phase === "history" || phase === "current" || phase === "summaries") activity.phase = phase;
+    }
+    if (event.kind === "compress" || event.kind === "compress-error") activity = null;
+  }
+  return activity;
 };
 
 export function projectSessionView({ ledger, events, turns }: {
@@ -121,11 +137,12 @@ export function projectSessionView({ ledger, events, turns }: {
     const choice = Array.isArray(raw) ? raw.filter((item): item is string => typeof item === "string") : [];
     pendingAsk = { turnId: ledger.pendingAsk.turnId, question: ledger.pendingAsk.question, choice };
   }
-  return { conversationId: ledger.conversationId, status: ledger.status, pendingAsk, liveTool: ledger.liveTool, messages };
+  return { conversationId: ledger.conversationId, status: ledger.status, pendingAsk, liveTool: ledger.liveTool,
+    activity: compressionActivity(ledger, events), messages };
 }
 
 export const emptySessionView = (): SessionView => ({
-  conversationId: null, status: "idle", pendingAsk: null, liveTool: null, messages: [],
+  conversationId: null, status: "idle", pendingAsk: null, liveTool: null, activity: null, messages: [],
 });
 
 export function projectConversationList(rows: { ledger: Ledger; lastTurn: Turn | null }[]): ConversationItem[] {
@@ -147,4 +164,3 @@ export function projectConversationList(rows: { ledger: Ledger; lastTurn: Turn |
       return b.conversationId.localeCompare(a.conversationId, undefined, { numeric: true });
     });
 }
-

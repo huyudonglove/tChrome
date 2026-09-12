@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { executeTool, type ExecuteInput } from "./execute.ts";
 import { checkToolCalls } from "./schema.ts";
 import type { ChatTool } from "../types.ts";
@@ -8,6 +10,24 @@ const run = (name: string, args: ExecuteInput["arguments"], content = "") => exe
   name, arguments: args, content, dataDir: "", browserNames: [],
   lookup: { unusedTools: [], knownTools: [], enabledTools: [] },
 }).then((result) => result.text);
+
+test("library tool persists and manages the same cross-conversation items as the panel", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "library-tool-"));
+  const invoke = async (arguments_: ExecuteInput["arguments"], conversationId = "cv_01") => JSON.parse((await executeTool({
+    name: "library", arguments: arguments_, content: "", dataDir, conversationId, browserNames: [],
+    lookup: { unusedTools: [], knownTools: [], enabledTools: [] },
+  })).text);
+  try {
+    const created = await invoke({ action: "save", type: "account", title: "测试站点", username: "demo", password: "plain-password", tags: ["常用"] });
+    expect(created.ok).toBe(true);
+    const id = created.item.id;
+    expect((await invoke({ action: "get", id }, "cv_02")).item.password).toBe("plain-password");
+    expect((await invoke({ action: "save", id, content: "新备注" })).item.username).toBe("demo");
+    expect((await invoke({ action: "list", query: "常用" })).items).toHaveLength(1);
+    expect((await invoke({ action: "delete", id })).ok).toBe(true);
+    expect((await invoke({ action: "get", id })).ok).toBe(false);
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+});
 
 test("explicit closing arguments take precedence over legacy content", async () => {
   expect(await run("finishTurn", { text: " 新回复 " }, "action\n旧回复")).toBe("新回复");

@@ -3,7 +3,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { appendEvent, emptyLedger, loadEvents, saveLedger, saveTurn, sessionView } from "./runtime/store.ts";
-import type { Turn, TurnOutput } from "./types.ts";
+import type { LogEvent, Turn, TurnOutput } from "./types.ts";
+import { emptySessionView, projectSessionView } from "./presentation/session-view.ts";
 
 const makeTurn = (output: TurnOutput | null): Turn => ({
   turnId: "tn_01", conversationId: "cv_01", status: output ? "completed" : "inferring",
@@ -21,6 +22,45 @@ const outputs: { output: TurnOutput; expected: string }[] = [
   { output: { kind: "error", faultCode: "provider_error" }, expected: "模型服务暂时没有正常响应，本轮未完成。请稍后重试。" },
   { output: { kind: "error", faultCode: "max_outbounds" }, expected: "本轮已达到执行次数上限，任务还没有完成。你可以缩小任务范围，或让我继续处理剩余部分。" },
 ];
+
+test("session compression activity follows the active turn and clears after completion or failure", () => {
+  const ledger = emptyLedger("cv_01");
+  ledger.status = "running";
+  ledger.active = { turnId: "tn_01" };
+  const events: LogEvent[] = [];
+  const view = () => projectSessionView({ ledger, events, turns: [makeTurn(null)] });
+  const emit = (kind: string, data: Record<string, unknown> = {}, turnId = "tn_01") => {
+    events.push({ at: "2026-09-07T00:00:00.000Z", kind, turnId, data });
+  };
+  emit("compress-start", {}, "tn_old");
+  expect(view().activity).toBeNull();
+  emit("compress-start");
+  expect(view().activity).toEqual({ kind: "compressing", phase: null });
+  for (const phase of ["history", "current", "summaries"] as const) {
+    emit("compress-phase", { phase });
+    expect(view().activity).toEqual({ kind: "compressing", phase });
+  }
+  emit("compress", {}, "tn_old");
+  expect(view().activity?.phase).toBe("summaries");
+  emit("compress");
+  expect(view().activity).toBeNull();
+  emit("compress-start");
+  emit("compress-error");
+  expect(view().activity).toBeNull();
+  emit("compress-phase", { phase: "history" });
+  expect(view().activity).toBeNull();
+  emit("compress-start");
+  for (const status of ["idle", "waiting_human", "paused", "failed"] as const) {
+    ledger.status = status;
+    expect(view().activity).toBeNull();
+  }
+  ledger.status = "running";
+  ledger.active = { turnId: "tn_02" };
+  expect(view().activity).toBeNull();
+  ledger.active = null;
+  expect(view().activity).toBeNull();
+  expect(emptySessionView().activity).toBeNull();
+});
 
 test.each(outputs)("session uses authoritative $output.kind and preserves diagnostic logs", ({ output, expected }) => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-session-output-"));

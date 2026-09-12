@@ -75,5 +75,12 @@
     "scope": "conversation",
     "allocation": "counter",
     "description": "查询记录"
+  },
+  "library": {
+    "field": "id",
+    "prefix": "lib",
+    "scope": "service",
+    "allocation": "existing",
+    "description": "跨会话资料库条目"
   }
 }

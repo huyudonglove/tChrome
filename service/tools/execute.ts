@@ -5,6 +5,7 @@ import type { ToolEffect, ToolExecution } from "./effects.ts";
 import type { BrowserHost, CurrentPage, ToolArguments } from "../types.ts";
 import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
 import { LOCAL_TOOL_NAMES, runLocalTool } from "./local-tools.ts";
+import { listItems, saveItem, deleteItem } from "../library/store.ts";
 
 export function actionFromContent(content: string): string {
   const match = content.match(/(?:^|\n)action\n([\s\S]*)$/i);
@@ -74,6 +75,28 @@ const externalResult = (value: Record<string, unknown>): ToolExecution => {
 
 export async function executeTool(input: ExecuteInput): Promise<ToolExecution> {
   const { name, arguments: args, content, lookup, host, dataDir, browserNames } = input;
+  if (name === "library") {
+    try {
+      if (args.action === "list") return result(JSON.stringify({ ok: true, items: listItems(dataDir, typeof args.query === "string" ? args.query : undefined) }));
+      if (args.action === "get") {
+        const item = listItems(dataDir).find(item => item.id === args.id);
+        return result(JSON.stringify(item ? { ok: true, item } : { ok: false, error: "资料不存在" }));
+      }
+      if (args.action === "save") {
+        const fields = hostArgs(args);
+        delete fields.action;
+        delete fields.query;
+        return result(JSON.stringify({ ok: true, item: saveItem(dataDir, fields) }));
+      }
+      if (args.action === "delete") {
+        deleteItem(dataDir, String(args.id ?? ""));
+        return result(JSON.stringify({ ok: true }));
+      }
+      return result(JSON.stringify({ ok: false, error: "未知资料操作" }));
+    } catch (error) {
+      return result(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+    }
+  }
   if (name === "finishTurn") {
     const text = closingText(args.text, content);
     return text ? result(text, [{ type: "turn.reply", text }])

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { handleTurn } from "./runtime/loop.ts";
-import { ensureSession, loadLedger, saveLedger, saveTurn, stopTurn } from "./runtime/store.ts";
+import { ensureSession, loadLedger, saveLedger, saveTurn, stopTurn, sessionView } from "./runtime/store.ts";
 import { allocateRecordId, inputRecord, pacificDate } from "./runtime/ids.ts";
 import { commitArchive, loadIndex } from "./context-archive/store.ts";
 import { loadContextModules } from "./context/modules.ts";
@@ -46,12 +46,15 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
       if (input.tools[0]?.function.name === "submitMatches") return reply([{ id: "matches", name: "submitMatches", arguments: { turnIds: ["tn_01"] } }]);
       if (input.tools[0]?.function.name === "submitTurnSummaries") {
         compressed++; expect(input.messages[1]!.content).not.toContain(f.tool.return.text);
+        expect(main).toBe(1);
+        expect(sessionView(dataDir, f.cv).activity).toEqual({ kind: "compressing", phase: "history" });
         return reply([{ id: "summaries", name: "submitTurnSummaries", arguments: { summaries: JSON.parse(input.messages[1]!.content).turns.map((turn: {turnId: string}) => ({ turnId: turn.turnId, tag: "早期要求", userRequest: "早期要求", actions: "已处理", result: "已完成" })) } }]);
       }
       main++;
       if (main === 1) { expect(compressed).toBe(0); return queryCall(f.sumId); }
       if (main === 2) {
         expect(compressed).toBeGreaterThan(0);
+        expect(sessionView(dataDir, f.cv).activity).toBeNull();
         const values = Object.fromEntries(modules.userOrder.map(tag => {
           const body = input.messages[1]!.content.split(`${tag}\n\n`)[1]!.split(/\n#[A-Za-z]/)[0]!.trim();
           return [tag.slice(1), tag === "#skill" || tag === "#tools" ? body : JSON.parse(body)];

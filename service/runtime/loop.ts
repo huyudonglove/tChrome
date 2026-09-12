@@ -273,6 +273,7 @@ export async function handleTurn(
       try {
         for (const phase of ["history", "current", "summaries"] as const) {
           if (windowChars(messages[0]!.content, messages[1]!.content) < ledger.compressAt) break;
+          appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-phase", turnId, data: { phase } });
           await compressContext({ ...deps, ledger, turn, memories, isCancelled: () => wasStopped(deps.dataDir, ledger.conversationId, turn.turnId) }, phase);
           if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
           state = contextState(deps.dataDir, ledger, turn, memories);
