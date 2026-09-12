@@ -23,7 +23,8 @@ function setupStop() {
   });
   return {
     submission, switching, errors, stop, bodies,
-    respond: (index: number, body: unknown, status = 200) => replies[index]!(Response.json(body, { status })),
+    respond: (index: number, body: Record<string, unknown>, status = 200) => replies[index]!(Response.json(
+      status === 200 ? { conversationId: "A", status: "paused", messages: [], ...body } : body, { status })),
     switchToB: () => { submission.current++; visible = "B idle"; },
     visible: () => visible,
     requests: () => replies.length,

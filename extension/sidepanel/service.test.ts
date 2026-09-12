@@ -19,6 +19,16 @@ test("failed switch is rejected before its error body can become the session", a
   await expect(requestJSON("/conversations/open")).rejects.toThrow("没有这个会话");
 });
 
+test("session refresh rejects HTTP errors and malformed success responses, then recovers", async () => {
+  reply({ error: "temporary failure" }, 500);
+  await expect(requestJSON("/session")).rejects.toThrow("temporary failure");
+  reply({ error: "not a session" });
+  await expect(requestJSON("/session")).rejects.toThrow("无效的会话状态");
+  const session = { conversationId: "cv_01", status: "idle", messages: [] };
+  reply(session);
+  await expect(requestJSON("/session")).resolves.toEqual(session);
+});
+
 test("non-JSON errors include HTTP status and network errors are explicit", async () => {
   globalThis.fetch = (async () => new Response("error", { status: 500 })) as unknown as typeof fetch;
   await expect(requestJSON("/turn")).rejects.toThrow("HTTP 500");

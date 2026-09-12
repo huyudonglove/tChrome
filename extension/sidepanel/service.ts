@@ -19,6 +19,12 @@ export async function requestJSON<T>(path: string, init?: RequestInit): Promise<
     throw new Error(typeof detail === "string" ? `失败：${detail}` : `服务请求失败（HTTP ${response.status}）`);
   }
   if (body === null) throw new Error("服务返回了无效响应");
+  if (["/session", "/stop", "/conversations/open", "/conversations/new", "/conversations/delete"].includes(path)
+    && (typeof body !== "object" || !Array.isArray(body.messages)
+      || !["idle", "running", "waiting_human", "paused", "failed"].includes(body.status)
+      || !(body.conversationId === null || typeof body.conversationId === "string"))) {
+    throw new Error("服务返回了无效的会话状态");
+  }
   return body as T;
 }
 

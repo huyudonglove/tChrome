@@ -9,6 +9,7 @@ import { loadSkills } from "../skills/loader.ts";
 import { loadContextModules, type ContextModules } from "../context/modules.ts";
 import { loadToolRegistry, coreToolIds, dynamicToolIds, toolSchemas, toolUsageFor, type ToolRegistry } from "../tools/registry.ts";
 import { executeTool } from "../tools/execute.ts";
+import type { ToolExecution } from "../tools/effects.ts";
 import { applyToolEffects } from "./effects.ts";
 import type {
   Assembled,
@@ -152,21 +153,32 @@ const runQueue = async (input: {
     turn.usage ??= { modelRequests: 0, toolCalls: 0 };
     turn.usage.toolCalls += 1;
     saveTurn(dataDir, turn);
-    const execution = await executeTool({
-      name: item.name,
-      arguments: item.arguments,
-      content,
-      dataDir,
-      conversationId: ledger.conversationId,
-      browserNames,
-      host,
-      queryContext: args => queryContext({ dataDir, conversationId: ledger.conversationId, repoRoot: input.repoRoot, provider: input.provider, ...args, isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId) }),
-      lookup: {
-        knownTools: Object.keys(toolRegistry.tools),
-        enabledTools: [...turn.assembled.toolIds, ...toolRegistry.toolGroups.baseToolsIds],
-        unusedTools: dynamicToolIds(toolRegistry).filter((id) => !turn.assembled.toolIds.includes(id)),
-      },
-    });
+    let execution: ToolExecution;
+    try {
+      execution = await executeTool({
+        name: item.name,
+        arguments: item.arguments,
+        content,
+        dataDir,
+        conversationId: ledger.conversationId,
+        browserNames,
+        host,
+        queryContext: args => queryContext({ dataDir, conversationId: ledger.conversationId, repoRoot: input.repoRoot, provider: input.provider, ...args, isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId) }),
+        lookup: {
+          knownTools: Object.keys(toolRegistry.tools),
+          enabledTools: [...turn.assembled.toolIds, ...toolRegistry.toolGroups.baseToolsIds],
+          unusedTools: dynamicToolIds(toolRegistry).filter((id) => !turn.assembled.toolIds.includes(id)),
+        },
+      });
+    } catch (error) {
+      // A failed tool is evidence for the model to correct its next call. It must
+      // pass through the same recording/effect boundary as any normal result.
+      execution = {
+        text: JSON.stringify({ ok: false, faultCode: "tool_execution_failed", toolName: item.name,
+          detail: error instanceof Error ? error.message : String(error) }),
+        effects: [],
+      };
+    }
     if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
       return { kind: "error", faultCode: "stopped" };
     }

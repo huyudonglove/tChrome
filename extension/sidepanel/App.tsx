@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { renderMarkdown } from "./markdown";
-import { SERVICE, DOWN, requestJSON, errorText } from "./service";
+import { DOWN, requestJSON, errorText } from "./service";
 import { shouldSubmitOnEnter, stopCurrentSession } from "./interactions";
 import { LibraryPanel } from "./LibraryPanel";
 
@@ -47,17 +47,6 @@ const statusText = (status: string) => ({
   idle: "就绪", running: "正在处理", waiting_human: "等待你的回复", paused: "已停止", failed: "未完成",
 }[status] ?? "就绪");
 
-const outputText = (output?: Output) => {
-  if (!output) return "服务无响应";
-  if (output.kind === "reply") return output.text;
-  if (output.kind === "ask") return output.question;
-  if (output.kind === "error") {
-    const messages: Record<string, string> = { stopped: "已停止", compression_failed: "上下文压缩未完成，原始记录已保留，请稍后重试。", context_limit: "压缩后上下文仍超过容量上限，请缩小任务范围或新开会话。" };
-    return messages[output.faultCode] ?? `失败：${output.faultCode}`;
-  }
-  return `${output.name} ${output.callId}`;
-};
-
 const Icon = ({ path }: { path: string }) => (
   <svg viewBox="0 0 24 24"><path d={path} /></svg>
 );
@@ -89,6 +78,8 @@ export function App() {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState("");
+  const [syncError, setSyncError] = useState("");
+  const [listError, setListError] = useState("");
   const [serviceDown, setServiceDown] = useState(false);
   const [extensionIssue, setExtensionIssue] = useState("");
   const [listOpen, setListOpen] = useState(false);
@@ -116,15 +107,16 @@ export function App() {
 
   const loadAll = async () => {
     const generation = submission.current;
-    const [next, listed] = await Promise.all([
-      requestJSON<SessionView>("/session"),
-      requestJSON<{ items: ConversationItem[] }>("/conversations"),
+    const version = refreshVersion.current;
+    const valid = () => !switching.current && generation === submission.current && version === refreshVersion.current;
+    await Promise.allSettled([
+      requestJSON<SessionView>("/session").then(next => {
+        if (valid()) { setSession(next); setSyncError(""); }
+      }).catch(error => { if (valid()) setSyncError(errorText(error)); }),
+      requestJSON<{ items: ConversationItem[] }>("/conversations").then(listed => {
+        if (valid()) { setItems(listed.items ?? []); setListError(""); }
+      }).catch(error => { if (valid()) setListError(errorText(error)); }),
     ]);
-    if (!switching.current && generation === submission.current) {
-      setSession(next);
-      setItems(listed.items ?? []);
-    }
-    return next;
   };
 
   useEffect(() => {
@@ -142,7 +134,7 @@ export function App() {
         if (alive) setServiceDown(true);
       }
     };
-    void loadAll().catch(() => setStatus(DOWN));
+    void loadAll();
     probe();
     const timer = setInterval(probe, 3000);
     return () => {
@@ -152,18 +144,22 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (!running) return undefined;
     let alive = true;
+    let inFlight = false;
     const tick = async () => {
+      if (inFlight || switching.current) return;
+      inFlight = true;
+      const generation = submission.current;
+      const version = refreshVersion.current;
+      const valid = () => !switching.current && alive && generation === submission.current && version === refreshVersion.current;
       try {
-        const generation = submission.current;
-        const version = refreshVersion.current;
-        const response = await fetch(`${SERVICE}/session`);
-        const next = await response.json() as SessionView;
-        if (!switching.current && alive && generation === submission.current && version === refreshVersion.current) setSession(next);
-      } catch {}
+        const next = await requestJSON<SessionView>("/session");
+        if (valid()) { setSession(next); setSyncError(""); }
+      } catch (error) {
+        if (valid()) setSyncError(errorText(error));
+      } finally { inFlight = false; }
     };
-    const timer = setInterval(tick, 700);
+    const timer = setInterval(tick, running ? 700 : 3000);
     tick();
     return () => {
       alive = false;
@@ -199,13 +195,15 @@ export function App() {
       ...current,
       messages: [...current.messages, { role: "user", text }],
     }));
+    let requestStarted = false;
     try {
       void chrome.runtime.sendMessage({ type: "ping" }).catch(() => {});
       const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
       const currentTab = tab?.id
         ? { tab: tab.id, url: tab.url ?? "", title: tab.title ?? "" }
         : null;
-      const body = await requestJSON<{ output?: Output }>("/turn", {
+      requestStarted = true;
+      await requestJSON<{ output?: Output }>("/turn", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ conversationId: session.conversationId, userInput: text, submittedAt: new Date().toISOString(), currentTab }),
@@ -218,11 +216,17 @@ export function App() {
       await loadAll();
       if (submission.current !== currentSubmission) return;
       refreshVersion.current++;
-      setStatus(body.output?.kind === "error" ? outputText(body.output) : "");
+      setStatus("");
     } catch (error) {
       if (submission.current === currentSubmission) {
-        setStatus(errorText(error));
-        setDraft((current) => current || text);
+        if (requestStarted) {
+          setSyncError(`发送请求出错，正在同步会话状态：${errorText(error)}`);
+          refreshVersion.current++;
+          void loadAll();
+        } else setStatus(errorText(error));
+        // After dispatch, the service may already own the message even if
+        // the response or subsequent session refresh fails.
+        if (!requestStarted) setDraft((current) => current || text);
       }
     } finally {
       if (submission.current === currentSubmission) {
@@ -239,6 +243,8 @@ export function App() {
     onStopped: (stopped) => {
       refreshVersion.current++;
       setSession(stopped);
+      setStatus("");
+      setSyncError("");
       sendingRef.current = false;
       setSending(false);
     },
@@ -408,6 +414,8 @@ export function App() {
         </header>
         {extensionIssue && !serviceDown ? <div className="status down" role="alert">{extensionIssue}</div> : null}
         {serviceDown || status ? <div className={`status ${serviceDown || status === DOWN ? "down" : ""}`}>{serviceDown ? DOWN : status}</div> : null}
+        {syncError && !serviceDown ? <div className="status down" role="alert">会话状态同步失败，正在重试。{syncError}</div> : null}
+        {listOpen && listError && !serviceDown ? <div className="status down" role="alert">会话列表更新失败。{listError}<button type="button" onClick={() => void loadAll()}>重试</button></div> : null}
         {compressing && !serviceDown ? <div className="status" role="status" aria-live="polite">{compressionText}，完成后自动继续。你也可以停止。</div> : null}
       </div>
 
@@ -453,7 +461,9 @@ export function App() {
           {running && !compressing && !session.liveTool && session.messages.at(-1)?.role === "user" ? (
             <article className="message-row assistant muted">
               <Avatar who="assistant" />
-              <div className="message-body"><p>在想</p></div>
+              <div className="message-body"><div className="waiting-dots" role="status" aria-label="正在处理">
+                <span aria-hidden="true">.</span><span aria-hidden="true">.</span><span aria-hidden="true">.</span>
+              </div></div>
             </article>
           ) : null}
         </div>

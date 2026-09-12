@@ -1,6 +1,8 @@
 # 服务工具
 
-本目录是本机服务的工具能力模块，统一管理定义、注册、参数校验和服务端执行。工具 API 的唯一 schema 与说明来源位于本模块 `definitions/`。
+本目录是本机服务的工具能力模块，统一管理定义、注册、参数校验和服务端执行。工具 API 的 schema 与专用说明来源位于本模块 `definitions/`。
+
+`affectsPage` 的通用含义统一写在 System 的 `#toolProtocol` 中；各工具定义只维护自身类型、必填、固定值和专用说明，不重复装配通用解释。
 
 - `definitions/<工具名>.json`：工具名称、`function.description`、参数 schema。
 - `definitions/index.json`：动态工具的 browser / service 分类。

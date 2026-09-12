@@ -651,7 +651,7 @@ test("notes.write 按 key 写入，notes.delete 删除", async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-test.each(["provider", "browser"])("停止后启动新轮，旧 %s 返回不会覆盖新轮", async (waitingOn) => {
+test.each(["provider", "browser", "browser-reject"])("停止后启动新轮，旧 %s 返回不会覆盖新轮", async (waitingOn) => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-stop-restart-"));
   const finish = ok({ finish: "tool_calls", content: "action\n完成", toolCalls: [
     { id: "finish", name: "finishTurn", arguments: { reason: "完成", affectsPage: false } },
@@ -663,13 +663,13 @@ test.each(["provider", "browser"])("停止后启动新轮，旧 %s 返回不会�
   let calls = 0;
   const provider: Provider = { complete: () => {
     if (calls++ > 0) return new Promise((resolve) => { releaseNew = resolve; });
-    if (waitingOn === "browser") return Promise.resolve(ok({ finish: "tool_calls", toolCalls: [
+    if (waitingOn.startsWith("browser")) return Promise.resolve(ok({ finish: "tool_calls", toolCalls: [
       { id: "page", name: "page.get_summary", arguments: { reason: "读取", affectsPage: false } },
     ] }));
     return new Promise((resolve) => { releaseOld = () => resolve(finish); started(); });
   } };
-  const deps = { dataDir: dir, repoRoot, provider, host: { execute: () => new Promise<{ ok: boolean }>((resolve) => {
-    releaseOld = () => resolve({ ok: true });
+  const deps = { dataDir: dir, repoRoot, provider, host: { execute: () => new Promise<{ ok: boolean }>((resolve, reject) => {
+    releaseOld = () => waitingOn === "browser-reject" ? reject(new Error("aborted host")) : resolve({ ok: true });
     started();
   }) } };
   try {
@@ -744,5 +744,42 @@ test("content 为空时 askUser.question 仍能展示问题和选项", async () 
     }] })]) }, { userInput: "检查网站", submittedAt: new Date().toISOString() });
     expect(reply.output).toEqual({ kind: "ask", question: "先检查哪个页面？\n选项：首页 / 搜索页" });
     expect(sessionView(dir, reply.conversationId).pendingAsk).toMatchObject({ question: "先检查哪个页面？\n选项：首页 / 搜索页", choice: ["首页", "搜索页"] });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("工具抛错写入记录，清空执行状态并允许下一次模型请求正常收口", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-tool-throw-"));
+  let requests = 0;
+  const provider: Provider = { complete: async ({ messages }) => {
+    requests += 1;
+    if (requests === 1) return ok({ finish: "tool_calls", toolCalls: [
+      { id: "load", name: "catalog.add", arguments: { reason: "测试请求", affectsPage: false, names: ["send_http"] } },
+    ] });
+    if (requests === 2) return ok({ finish: "tool_calls", toolCalls: [
+      { id: "http", name: "send_http", arguments: { reason: "读取", affectsPage: false, url: "not a URL" } },
+      { id: "note", name: "notes.write", arguments: { reason: "继续", affectsPage: false, key: "progress", value: "continued" } },
+    ] });
+    const ledger = loadLedger(dir, "cv_01");
+    expect(ledger.liveTool).toBeNull();
+    expect(ledger.toolQueue).toEqual([]);
+    expect(ledger.notes.progress).toBe("continued");
+    expect(messages[1]!.content).toContain("tool_execution_failed");
+    return ok({ finish: "tool_calls", toolCalls: [
+      { id: "finish", name: "finishTurn", arguments: { reason: "已处理失败", affectsPage: false, text: "完成" } },
+    ] });
+  } };
+  try {
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "执行请求", submittedAt: "now" });
+    expect(reply.output).toEqual({ kind: "reply", text: "完成" });
+    expect(requests).toBe(3);
+    const ledger = loadLedger(dir, reply.conversationId);
+    expect(ledger.status).toBe("idle");
+    expect(ledger.active).toBeNull();
+    expect(ledger.liveTool).toBeNull();
+    expect(ledger.toolQueue).toEqual([]);
+    const failure = ledger.toolIO.find(row => row.name === "send_http")!;
+    expect(JSON.parse(failure.return.text)).toMatchObject({ ok: false, faultCode: "tool_execution_failed", toolName: "send_http" });
+    expect(loadEvents(dir, reply.conversationId).some(event => event.kind === "tool" && event.data.callId === failure.callId)).toBe(true);
+    expect(loadTurn(dir, reply.conversationId, reply.turnId).status).toBe("completed");
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
