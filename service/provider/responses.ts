@@ -25,7 +25,7 @@ export async function completeResponses(client: OpenAI, input: {
       content: [
         { type: "input_text", text: message.content },
         ...message.images.flatMap(image => [
-          { type: "input_text" as const, text: `附图：${image.path}（${image.width}×${image.height}）` },
+          { type: "input_text" as const, text: `附图：${image.id}${image.callId ? `，callId=${image.callId}` : ""}，${image.path}（${image.width}×${image.height}）` },
           {
             type: "input_image" as const,
             image_url: readImageDataUrl(context.dataDir, context.conversationId, image),

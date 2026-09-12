@@ -108,7 +108,7 @@ export function createProvider(config: ProviderConfig = {}) {
       return { role: "user", content: [
         { type: "text", text: message.content },
         ...message.images.flatMap(image => [
-          { type: "text" as const, text: `附图：${image.path}（${image.width}×${image.height}）` },
+          { type: "text" as const, text: `附图：${image.id}${image.callId ? `，callId=${image.callId}` : ""}，${image.path}（${image.width}×${image.height}）` },
           { type: "image_url" as const, image_url: { url: readImageDataUrl(imageContext.dataDir, imageContext.conversationId, image) } },
         ]),
       ] };

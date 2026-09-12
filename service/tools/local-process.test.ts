@@ -35,6 +35,9 @@ async function waitFor(processId: unknown, predicate: (value: Record<string, unk
 
 test("foreground commands capture both streams, cwd, and exit status", async () => {
   const result = await call("run", { filename: await script("pwd; printf hello; printf error >&2; exit 7"), cwd });
+  expect(result.processId).toBe("proc_01");
+  const next = await call("run", { filename: await script("exit 0"), cwd }, "another-conversation");
+  expect(next.processId).toBe("proc_02");
   expect(result.status).toBe("exited");
   expect(result.exitCode).toBe(7);
   expect(result.ok).toBe(false);

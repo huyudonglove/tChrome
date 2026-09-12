@@ -1,11 +1,20 @@
-import { expect, test } from "bun:test";
+import { afterEach, expect, test } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createToolBridge } from "./bridge.ts";
 
+const roots: string[] = [];
+const root = () => { const dir = mkdtempSync(join(tmpdir(), "tchrome-bridge-")); roots.push(dir); return dir; };
+afterEach(() => { for (const dir of roots.splice(0)) rmSync(dir, { recursive: true, force: true }); });
+
 test("bridge exposes FIFO requests and rejects results for queued or completed requests", async () => {
-  const bridge = createToolBridge();
+  const dir = root();
+  const bridge = createToolBridge(dir);
   try {
     const first = bridge.execute("first", {});
     const firstId = bridge.current()!.id;
+    expect(firstId).toBe("br_01");
     const second = bridge.execute("second", {});
     expect(bridge.current()!.id).toBe(firstId);
     expect(bridge.resolve("unknown", { ok: true })).toBe(false);
@@ -16,11 +25,16 @@ test("bridge exposes FIFO requests and rejects results for queued or completed r
     bridge.resolve(bridge.current()!.id, { ok: true });
     expect(await second).toEqual({ ok: true });
     expect(bridge.current()).toBeNull();
+    const restarted = createToolBridge(dir);
+    const pending = restarted.execute("after-restart", {});
+    expect(restarted.current()!.id).toBe("br_03");
+    restarted.abort();
+    await pending;
   } finally { bridge.abort(); }
 });
 
 test("scoped abort removes only its conversation and promotes the next request", async () => {
-  const bridge = createToolBridge();
+  const bridge = createToolBridge(root());
   const a = bridge.forScope!("cv_a");
   const b = bridge.forScope!("cv_b");
   const a1 = a.execute("a1", {});
@@ -39,7 +53,7 @@ test("scoped abort removes only its conversation and promotes the next request",
 });
 
 test("global abort drains current and waiting requests and ignores late results", async () => {
-  const bridge = createToolBridge();
+  const bridge = createToolBridge(root());
   const first = bridge.execute("first", {});
   const id = bridge.current()!.id;
   const second = bridge.execute("second", {});

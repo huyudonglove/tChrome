@@ -1,7 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { randomUUID } from "node:crypto";
-import { nowIso } from "../runtime/ids.ts";
+import { allocateRecordId, nowIso } from "../runtime/ids.ts";
 
 type Account = {
   id: string;
@@ -75,7 +74,7 @@ export function runAccountVault(dataDir: string, input: Record<string, unknown> 
       return { ok: true, account: publicAccount(found, true) };
     }
     const item: Account = {
-      id: `account-${randomUUID()}`,
+      id: allocateRecordId(dataDir, null, "account"),
       site: normalizedSite,
       username,
       password: String(input.password),

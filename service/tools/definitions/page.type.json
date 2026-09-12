@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.type",
-    "description": "向指定输入框输入文字。\n参数：id（页面工具返回的 e 开头元素标识），可选 tab（目标标签编号）、text（文本）。\n返回：ok、value（当前值）。",
+    "description": "向指定输入框输入文字。\n参数：id（页面工具返回的 e_01 格式元素标识），可选 tab（目标标签编号）、text（文本）。\n返回：ok、value（当前值）。",
     "parameters": {
       "type": "object",
       "properties": {

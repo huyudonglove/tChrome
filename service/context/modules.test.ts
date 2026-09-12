@@ -188,7 +188,7 @@ test("system modules retain the identity table and separate resident tool naviga
   expect(modules.userOrder).toContain("#tools");
   expect(system.split(guide)).toHaveLength(2);
   for (const row of Object.values(catalog)) {
-    expect(system).toContain(`| ${row.description} | ${row.prefix}_01 | ${row.scope === "service" ? "服务" : "会话"} |`);
+    expect(system).toContain(`| ${row.description} | ${row.prefix}_01 | ${row.scope === "service" ? "服务" : row.scope === "browser" ? "浏览器" : "会话"} |`);
   }
   expect(headings(system)).toEqual([]);
   expect(system.endsWith(modules.userInventory)).toBe(true);

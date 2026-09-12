@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { allocateRecordId, idPrefix } from "../runtime/ids.ts";
 
 export interface ImageReference {
   id: string;
@@ -10,6 +11,10 @@ export interface ImageReference {
   height: number;
   bytes: number;
 }
+
+interface StoredImage { hash: string; ref: ImageReference }
+type ImageIndex = Record<string, StoredImage>;
+const shortId = new RegExp(`^${idPrefix("image")}[0-9]{2,}$`);
 
 const MAX_BYTES = 20 * 1024 * 1024;
 const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -75,9 +80,16 @@ function directory(dataDir: string, cvId: string): string {
   return images;
 }
 
+function readIndex(dir: string): ImageIndex {
+  const path = join(dir, "index.json");
+  if (!existsSync(path)) return {};
+  if (!lstatSync(path).isFile()) fail("invalid image index");
+  return JSON.parse(readFileSync(path, "utf8"));
+}
+
 export function imageFilePath(dataDir: string, cvId: string, ref: ImageReference): string {
   const extension = ref.mimeType === "image/png" ? "png" : ref.mimeType === "image/jpeg" ? "jpg" : fail("unsupported image type");
-  if (!/^[a-f0-9]{64}$/.test(ref.id) || ref.path !== `images/${ref.id}.${extension}`) fail("invalid image reference path");
+  if (!shortId.test(ref.id) || ref.path !== `images/${ref.id}.${extension}`) fail("invalid image reference path");
   return join(directory(dataDir, cvId), `${ref.id}.${extension}`);
 }
 
@@ -91,12 +103,22 @@ export function saveImage(dataDir: string, cvId: string, dataUrl: string): Image
   if (!bytes.length || bytes.toString("base64") !== encoded) fail("invalid base64 encoding");
   if (bytes.length > MAX_BYTES) fail("image exceeds 20 MiB limit");
   const size = dimensions(bytes, mimeType);
-  const id = digest(bytes);
+  const dir = directory(dataDir, cvId);
+  mkdirSync(dir, { recursive: true });
+  const index = readIndex(dir);
+  const hash = digest(bytes);
+  const existing = Object.values(index).find(image => image.hash === hash);
+  if (existing) {
+    readImageDataUrl(dataDir, cvId, existing.ref);
+    return existing.ref;
+  }
+  const id = allocateRecordId(dataDir, cvId, "image");
   const ref = { id, path: `images/${id}.${mimeType === "image/png" ? "png" : "jpg"}`, mimeType, ...size, bytes: bytes.length };
-  const path = imageFilePath(dataDir, cvId, ref);
-  mkdirSync(directory(dataDir, cvId), { recursive: true });
-  if (existsSync(path)) readImageDataUrl(dataDir, cvId, ref);
-  else writeFileSync(path, bytes, { flag: "wx" });
+  writeFileSync(imageFilePath(dataDir, cvId, ref), bytes, { flag: "wx" });
+  index[id] = { hash, ref };
+  const temporary = join(dir, `${id}.index.tmp`);
+  writeFileSync(temporary, JSON.stringify(index), { flag: "wx" });
+  renameSync(temporary, join(dir, "index.json"));
   return ref;
 }
 
@@ -105,7 +127,8 @@ export function readImageDataUrl(dataDir: string, cvId: string, ref: ImageRefere
   const stat = lstatSync(path);
   if (!stat.isFile() || stat.size > MAX_BYTES || stat.size !== ref.bytes) fail("image file size or type mismatch");
   const bytes = readFileSync(path);
-  if (digest(bytes) !== ref.id) fail("image content hash mismatch");
+  const hash = readIndex(directory(dataDir, cvId))[ref.id]?.hash;
+  if (digest(bytes) !== hash) fail("image content hash mismatch");
   const size = dimensions(bytes, ref.mimeType);
   if (size.width !== ref.width || size.height !== ref.height) fail("image dimensions mismatch");
   return `data:${ref.mimeType};base64,${bytes.toString("base64")}`;

@@ -3,6 +3,7 @@ import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadContextRecord, saveContextRecord } from "./records.ts";
+import { allocateRecordId } from "./ids.ts";
 import { saveMemory } from "../memory/store.ts";
 
 const dirs: string[] = [];
@@ -46,4 +47,17 @@ test("source store retrieves archived input, goal, page and both memory layers",
   expect(JSON.parse((await query("memory", "project_01", "cv_02")).text).layer).toBe("project");
   expect((await query("memory", "missing")).ok).toBe(false);
   expect((await query("userInput", "../input_tn_01")).ok).toBe(false);
+});
+
+test("record counters survive record deletion and isolate conversation and service scopes", () => {
+  const dir = temporary();
+  expect(allocateRecordId(dir, "cv_01", "turn")).toBe("tn_01");
+  expect(allocateRecordId(dir, "cv_01", "conversationMemory")).toBe("mm_01");
+  saveMemory(dir, "cv_01", { memoryId: "mm_01", turnId: "tn_01", layer: "conversation", text: "test", createdAt: "2026-01-01", sourceCallId: "call_01" });
+  rmSync(join(dir, "conversations/cv_01/memory/mm_01.json"));
+  expect(allocateRecordId(dir, "cv_01", "conversationMemory")).toBe("mm_02");
+  expect(allocateRecordId(dir, "cv_02", "conversationMemory")).toBe("mm_01");
+  expect(allocateRecordId(dir, "cv_01", "projectMemory")).toBe("lm_01");
+  rmSync(join(dir, "conversations/cv_01"), { recursive: true });
+  expect(allocateRecordId(dir, "cv_02", "projectMemory")).toBe("lm_02");
 });

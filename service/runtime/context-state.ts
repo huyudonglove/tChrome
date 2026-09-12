@@ -1,7 +1,9 @@
-import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync, renameSync } from "node:fs";
+import { join } from "node:path";
+import { allocateRecordId } from "./ids.ts";
 import type { Ledger, Turn, Provider, ToolIOItem } from "../types.ts";
 import type { Memories } from "../memory/types.ts";
-import { loadIndex } from "../context-archive/store.ts";
+import { archiveDir, loadIndex } from "../context-archive/store.ts";
 import { compressRecords } from "../agents/compression/index.ts";
 import type { SourceRecord } from "../context-archive/types.ts";
 import type { QueryEvidence } from "../context/projections/queries.ts";
@@ -10,14 +12,35 @@ import { assembleTurnHistory, loadSettledTurnHistory, type TurnHistoryRecord } f
 export const HISTORY_MODULE = "conversationHistory" as const;
 const KEEP_TURNS = 3;
 const KEEP_BATCHES = 2;
-const querySourceId = (queryId: string) => `query_${queryId}`;
-const fullTurnId = (turnId: string) => `turn_${turnId}`;
+const querySourceKey = (queryId: string) => JSON.stringify(["query", queryId]);
+const fullTurnKey = (turnId: string) => JSON.stringify(["turn", turnId]);
 const batchKey = (row: ToolIOItem) => row.batchId ?? row.callId;
-const batchSourceId = (turnId: string, batch: string) => `segment_${createHash("sha256").update(JSON.stringify([turnId, batch])).digest("hex")}`;
+const batchSourceKey = (turnId: string, batch: string) => JSON.stringify(["batch", turnId, batch]);
 
-function sourceCoverage(ledger: Ledger, covered: Set<string>) {
-  const turnCovered = (turnId: string) => covered.has(fullTurnId(turnId));
-  const toolCovered = (row: ToolIOItem) => turnCovered(row.turnId) || covered.has(batchSourceId(row.turnId, batchKey(row)));
+/** Logical keys stay internal; only selected archive sources reserve a public ID. */
+function sourceIdentities(dataDir: string, conversationId: string) {
+  const dir = archiveDir(dataDir, conversationId, HISTORY_MODULE);
+  const path = join(dir, "source-ids.json");
+  let ids: Record<string, string> = {};
+  try { ids = JSON.parse(readFileSync(path, "utf8")); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  return {
+    covered: (key: string, covered: Set<string>) => ids[key] !== undefined && covered.has(ids[key]!),
+    reserve: (key: string) => {
+      if (ids[key]) return ids[key]!;
+      const id = allocateRecordId(dataDir, conversationId, "source");
+      ids[key] = id;
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(`${path}.tmp`, JSON.stringify(ids));
+      renameSync(`${path}.tmp`, path);
+      return id;
+    },
+  };
+}
+
+function sourceCoverage(ledger: Ledger, isCovered: (key: string) => boolean) {
+  const turnCovered = (turnId: string) => isCovered(fullTurnKey(turnId));
+  const toolCovered = (row: ToolIOItem) => turnCovered(row.turnId) || isCovered(batchSourceKey(row.turnId, batchKey(row)));
   // Include the turn in the key: provider call IDs can be reused across different turns.
   const callBatches = new Map(ledger.toolIO.map(row => [JSON.stringify([row.turnId, row.callId]), row]));
   const originCovered = (turnId: string, callId: string) => {
@@ -32,7 +55,9 @@ function sourceCoverage(ledger: Ledger, covered: Set<string>) {
 export function contextState(dataDir: string, ledger: Ledger, turn: Turn, memories: Memories) {
   const index = loadIndex(dataDir, ledger.conversationId, HISTORY_MODULE);
   const covered = new Set(index.coveredSourceIds);
-  const { turnCovered, toolCovered, originCovered } = sourceCoverage(ledger, covered);
+  const identities = sourceIdentities(dataDir, ledger.conversationId);
+  const isCovered = (key: string) => identities.covered(key, covered);
+  const { turnCovered, toolCovered, originCovered } = sourceCoverage(ledger, isCovered);
   const byId = new Map(index.entries.map(entry => [entry.id, entry]));
   const turnOrder = new Map(ledger.turnIds.map((id, i) => [id, i]));
   const summaries = index.activeIds.map(id => {
@@ -45,7 +70,7 @@ export function contextState(dataDir: string, ledger: Ledger, turn: Turn, memori
       userInputHistory: ledger.userInputHistory.filter(row => !turnCovered(row.turnId)),
       goalHistory: ledger.goalHistory.filter(row => !originCovered(row.turnId, row.sourceCallId)),
       toolIO: ledger.toolIO.filter(row => !toolCovered(row)),
-      queryHistory: ledger.queryHistory.filter(row => !covered.has(querySourceId(row.queryId))),
+      queryHistory: ledger.queryHistory.filter(row => !isCovered(querySourceKey(row.queryId))),
     },
     turn: { ...turn, assembled: { ...turn.assembled,
       pageObservedHistory: turn.assembled.pageObservedHistory.filter(row => !originCovered(row.turnId, row.callId)),
@@ -63,15 +88,18 @@ export async function compressContext(input: CompressionInput, phase: "history" 
   const { ledger, turn, memories, dataDir } = input;
   const index = loadIndex(dataDir, ledger.conversationId, HISTORY_MODULE);
   const covered = new Set(index.coveredSourceIds);
-  const coverage = sourceCoverage(ledger, covered);
+  const identities = sourceIdentities(dataDir, ledger.conversationId);
+  const isCovered = (key: string) => identities.covered(key, covered);
+  const coverage = sourceCoverage(ledger, isCovered);
   const records: SourceRecord[] = [];
   // Queries move to history later than their original tool batch. Give each an independent
   // immutable source so already-covered batches/turns cannot hide newly retired evidence.
   const addQuerySources = (history: TurnHistoryRecord, queries: QueryEvidence[]) => {
     const batches = [...new Set(history.toolIO.map(batchKey))];
     for (const query of queries) {
-      const id = querySourceId(query.queryId);
-      if (covered.has(id)) continue;
+      const key = querySourceKey(query.queryId);
+      if (isCovered(key)) continue;
+      const id = identities.reserve(key);
       const tool = history.toolIO.find(row => row.callId === query.sourceCallId);
       records.push({ id, content: {
         conversationId: history.conversationId, turnId: history.turnId,
@@ -87,8 +115,9 @@ export async function compressContext(input: CompressionInput, phase: "history" 
     const settled = loadSettledTurnHistory(dataDir, ledger, memories);
     for (const history of settled.slice(0, -KEEP_TURNS)) {
       addQuerySources(history, history.queryHistory);
-      const id = fullTurnId(history.turnId);
-      if (covered.has(id)) continue;
+      const key = fullTurnKey(history.turnId);
+      if (isCovered(key)) continue;
+      const id = identities.reserve(key);
       // If this turn was segmented while active, archive only its remaining modules plus final output.
       const projected = { ...history, queryHistory: [],
         goalChanges: history.goalChanges.filter(row => !coverage.originCovered(row.turnId, row.sourceCallId)),
@@ -108,8 +137,9 @@ export async function compressContext(input: CompressionInput, phase: "history" 
     const olderCalls = new Set(active.toolIO.filter(row => olderBatches.has(batchKey(row))).map(row => row.callId));
     addQuerySources(active, active.queryHistory.filter(query => query.sourceCallId && olderCalls.has(query.sourceCallId)));
     for (const batch of olderBatches) {
-      const id = batchSourceId(turn.turnId, batch);
-      if (covered.has(id)) continue;
+      const key = batchSourceKey(turn.turnId, batch);
+      if (isCovered(key)) continue;
+      const id = identities.reserve(key);
       const tools = active.toolIO.filter(row => batchKey(row) === batch);
       const calls = new Set(tools.map(row => row.callId));
       records.push({ id, content: { ...active,

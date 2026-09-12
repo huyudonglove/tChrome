@@ -8,8 +8,8 @@
       "properties": {
         "ref": {
           "type": "string",
-          "description": "snapshot_page 或 find_on_page 返回的 el-... 引用；不可使用 page.* 返回的 e... 编号。",
-          "pattern": "^el-",
+          "description": "snapshot_page 或 find_on_page 返回的 el_01 引用；不可使用 page.* 返回的 e_01 格式编号。",
+          "pattern": "^el_[0-9]{2,}$",
           "minLength": 1
         },
         "tab": {

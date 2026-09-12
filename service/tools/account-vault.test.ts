@@ -8,6 +8,7 @@ test("account ID updates persist the full identity and allow clearing optional f
   const dir = mkdtempSync(join(tmpdir(), "tchrome-vault-"));
   try {
     const original = runAccountVault(dir, { action: "save", site: "old.example.com", username: "old", password: "old-secret", label: "work", note: "obsolete" }).account!;
+    expect(original.id).toBe("account_01");
     const updated = runAccountVault(dir, { action: "save", id: original.id, site: "https://NEW.example.com/path", username: " new ", password: "new-secret", note: "" });
     expect(updated).toMatchObject({ ok: true, account: { id: original.id, site: "new.example.com", username: "new", password: "new-secret", label: "work", note: "", createdAt: original.createdAt } });
     expect(runAccountVault(dir, { action: "get", site: "old.example.com", username: "old" }).ok).toBe(false);
@@ -15,6 +16,8 @@ test("account ID updates persist the full identity and allow clearing optional f
     const upserted = runAccountVault(dir, { action: "save", site: "new.example.com", username: "new", password: "rotated", label: "" });
     expect(upserted).toMatchObject({ ok: true, account: { id: original.id, label: "", note: "", password: "rotated" } });
     expect(JSON.parse(readFileSync(join(dir, "accounts.json"), "utf8"))).toEqual([upserted.account]);
+    runAccountVault(dir, { action: "delete", id: original.id });
+    expect(runAccountVault(dir, { action: "save", site: "next.example.com", username: "next", password: "next" }).account!.id).toBe("account_02");
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

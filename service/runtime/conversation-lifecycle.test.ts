@@ -45,7 +45,7 @@ test("legacy conversation deletion records the watermark before removing its dir
 
 test("loop scopes bridge requests so stopping a queued conversation leaves the active one intact", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-scoped-loops-"));
-  const bridge = createToolBridge();
+  const bridge = createToolBridge(dataDir);
   let calls = 0;
   const provider: Provider = { complete: async () => calls++ < 2
     ? { ...completed, toolCalls: [{ id: `page_${calls}`, name: "page.get_summary", arguments: { reason: "读取", affectsPage: false } }] }

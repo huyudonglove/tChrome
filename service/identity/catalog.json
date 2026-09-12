@@ -10,7 +10,7 @@
     "field": "turnId",
     "prefix": "tn",
     "scope": "conversation",
-    "allocation": "existing",
+    "allocation": "counter",
     "description": "用户输入开启的轮次"
   },
   "input": {
@@ -52,14 +52,14 @@
     "field": "memoryId",
     "prefix": "mm",
     "scope": "conversation",
-    "allocation": "existing",
+    "allocation": "counter",
     "description": "会话记忆"
   },
   "projectMemory": {
     "field": "memoryId",
     "prefix": "lm",
     "scope": "service",
-    "allocation": "existing",
+    "allocation": "counter",
     "description": "共享长期记忆"
   },
   "sum": {
@@ -82,5 +82,61 @@
     "scope": "service",
     "allocation": "existing",
     "description": "跨会话资料库条目"
+  },
+  "image": {
+    "field": "id",
+    "prefix": "img",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "图片附件"
+  },
+  "process": {
+    "field": "processId",
+    "prefix": "proc",
+    "scope": "service",
+    "allocation": "counter",
+    "description": "本地进程"
+  },
+  "account": {
+    "field": "id",
+    "prefix": "account",
+    "scope": "service",
+    "allocation": "counter",
+    "description": "账号记录"
+  },
+  "bridge": {
+    "field": "id",
+    "prefix": "br",
+    "scope": "service",
+    "allocation": "counter",
+    "description": "浏览器桥请求"
+  },
+  "source": {
+    "field": "id",
+    "prefix": "src",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "归档来源"
+  },
+  "elementRef": {
+    "field": "ref",
+    "prefix": "el",
+    "scope": "browser",
+    "allocation": "browser-counter",
+    "description": "浏览器元素引用"
+  },
+  "pageElement": {
+    "field": "id",
+    "prefix": "e",
+    "scope": "browser",
+    "allocation": "browser-counter",
+    "description": "页面元素"
+  },
+  "pageRegion": {
+    "field": "id",
+    "prefix": "r",
+    "scope": "browser",
+    "allocation": "browser-counter",
+    "description": "页面区域"
   }
 }

@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { handleTurn } from "./runtime/loop.ts";
 import { ensureSession, loadLedger, saveLedger, saveTurn, stopTurn, sessionView } from "./runtime/store.ts";
 import { allocateRecordId, inputRecord, pacificDate } from "./runtime/ids.ts";
-import { commitArchive, loadIndex } from "./context-archive/store.ts";
+import { archiveDir, commitArchive, loadIndex } from "./context-archive/store.ts";
 import { loadContextModules } from "./context/modules.ts";
 import { validateUserData } from "./context/data-schema.ts";
 import { systemText, userText } from "./context/window.ts";
@@ -19,13 +19,15 @@ const finish = () => reply([{ id: "finish", name: "finishTurn", arguments: { rea
 const section = (user: string, tag: string) => JSON.parse(user.split(`#${tag}\n\n`)[1]!.split(/\n#[A-Za-z]/)[0]!.trim());
 function fixture(dataDir: string, text = "精确证据".repeat(250)) {
   const { conversationId: cv } = ensureSession(dataDir), ledger = loadLedger(dataDir, cv);
-  const turns = Array.from({ length: 6 }, (_, i): Turn => ({ conversationId: cv, turnId: `tn_0${i + 1}`, status: "completed", createdAt: "2026-09-12", completedAt: "2026-09-12", input: { id: allocateRecordId(dataDir, cv, "input"), text: `要求${i}`, submittedAt: "2026-09-12" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null, pageObservedHistory: [] }, output: { kind: "reply", text: "完成" } }));
+  const turns = Array.from({ length: 6 }, (_, i): Turn => ({ conversationId: cv, turnId: allocateRecordId(dataDir, cv, "turn"), status: "completed", createdAt: "2026-09-12", completedAt: "2026-09-12", input: { id: allocateRecordId(dataDir, cv, "input"), text: `要求${i}`, submittedAt: "2026-09-12" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null, pageObservedHistory: [] }, output: { kind: "reply", text: "完成" } }));
   ledger.turnIds = turns.map(row => row.turnId); ledger.userInputHistory = turns.slice(0, -1).map(inputRecord);
   turns.forEach(turn => saveTurn(dataDir, turn));
   const tool = { callId: allocateRecordId(dataDir, cv, "call"), turnId: "tn_01", batchId: allocateRecordId(dataDir, cv, "batch"), name: "page.get_summary", arguments: {}, return: { stage: "complete", totalChars: text.length, text } };
   const sumId = allocateRecordId(dataDir, cv, "sum");
-  const summary = { id: sumId, module: "conversationHistory" as const, level: 1, turnId: "tn_01", tag: "详情", userRequest: "读取详情", actions: "读取页面", result: "已取得证据", sourceIds: ["turn_tn_01"], createdAt: "2026-09-12" };
-  commitArchive(dataDir, cv, { version: 1, module: "conversationHistory", entries: [summary], activeIds: [sumId], coveredSourceIds: ["turn_tn_01"] }, [{ id: "turn_tn_01", content: { turnId: "tn_01", userInput: inputRecord(turns[0]!), toolIO: [tool] } }], [summary]);
+  const sourceId = allocateRecordId(dataDir, cv, "source");
+  const summary = { id: sumId, module: "conversationHistory" as const, level: 1, turnId: "tn_01", tag: "详情", userRequest: "读取详情", actions: "读取页面", result: "已取得证据", sourceIds: [sourceId], createdAt: "2026-09-12" };
+  commitArchive(dataDir, cv, { version: 1, module: "conversationHistory", entries: [summary], activeIds: [sumId], coveredSourceIds: [sourceId] }, [{ id: sourceId, content: { turnId: "tn_01", userInput: inputRecord(turns[0]!), toolIO: [tool] } }], [summary]);
+  writeFileSync(join(archiveDir(dataDir, cv, "conversationHistory"), "source-ids.json"), JSON.stringify({ [JSON.stringify(["turn", "tn_01"])]: sourceId }));
   saveLedger(dataDir, ledger);
   return { cv, ledger, turns, sumId, tool };
 }
@@ -75,7 +77,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
     } };
     expect((await handleTurn({ repoRoot, dataDir, provider }, { userInput: "读取详情", submittedAt: "2026-09-12" })).output).toEqual({ kind: "reply", text: "完成" });
     expect(loadLedger(dataDir, f.cv).currentQuery?.queryId).toBe("query_02");
-    expect(loadIndex(dataDir, f.cv, "conversationHistory").coveredSourceIds).toContain("turn_tn_02");
+    expect(loadIndex(dataDir, f.cv, "conversationHistory").coveredSourceIds).toContain("src_02");
     await handleTurn({ repoRoot, dataDir, provider }, { userInput: "继续", submittedAt: "2026-09-12" });
     expect(loadLedger(dataDir, f.cv).currentQuery).toBeNull();
   } finally { rmSync(dataDir, { recursive: true, force: true }); }

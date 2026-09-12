@@ -79,3 +79,5 @@ currentPage 展示最新观察，pageObservedHistory 排除同 id 的观察。to
 压缩和查询 Agent 分别位于 `service/agents/compression/`、`service/agents/query/`，各自管理提示词、输入组装与输出校验，共用现有 `provider.complete`。`service/context-archive/` 管理归档存储和来源关系；本目录负责主 Agent 的窗口投影与组装，不发起模型请求。
 
 `conversationHistorySummary` 位于当前输入之后，承载逐轮或同轮执行片段摘要，投影 sumId、turnId、tag、userRequest、actions、result。历史结果只描述当时的事实，不产生新的待办。
+
+发送前先按最近一次模型返回的工具批次选择图片附件，再进行 200K 压缩判断与 250K 文本裁剪。工具结果入库时已保存图片文件和引用；同批多个截图全部保留 callId 与图片 ID 的对应关系，旧批次只保留本地引用，不重发图片。无图片批次、无工具调用或新用户回合均不携带历史图片；原始记录和图片文件不修改。

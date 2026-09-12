@@ -1,5 +1,5 @@
 import { saveContextRecord } from "./records.ts";
-import { allocateRecordId, idPrefix, inputRecord } from "./ids.ts";
+import { allocateRecordId, inputRecord } from "./ids.ts";
 import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
 import { projectMemories } from "../memory/window.ts";
@@ -29,7 +29,7 @@ import type {
 import { checkToolCalls } from "../tools/schema.ts";
 import { contextState, compressContext } from "./context-state.ts";
 import { queryContext } from "../agents/query/index.ts";
-import { nextId, nowIso, pacificDate } from "./ids.ts";
+import { nowIso, pacificDate } from "./ids.ts";
 import {
   ensureSession,
   loadLedger,
@@ -81,7 +81,7 @@ const assemble = (toolRegistry: ToolRegistry): Assembled => ({
   currentTab: null,
 });
 
-const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, summaries: Parameters<typeof userText>[0]["conversationSummaries"] = [], dataDir?: string): ChatMessage[] => {
+const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, images: ChatMessage["images"], summaries: Parameters<typeof userText>[0]["conversationSummaries"] = [], dataDir?: string): ChatMessage[] => {
   const system = systemText(contextModules, pacificDate(), toolGuideFor(toolRegistry, turn.assembled.baseToolsIds));
   return [
     { role: "system", content: system },
@@ -90,8 +90,7 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
       currentQuery: ledger.currentQuery, queryHistory: ledger.queryHistory,
       toolGuide: toolGuideFor(toolRegistry, turn.assembled.toolIds),
       ...(dataDir ? { inlineBudget: { dataDir, system } } : {}),
-    }), images: [...new Map(ledger.toolIO.filter(item => item.turnId === turn.turnId)
-      .flatMap(item => item.images ?? []).reverse().map(image => [image.id, image])).values()].reverse() },
+    }), images },
   ];
 };
 
@@ -234,7 +233,7 @@ export async function handleTurn(
   const contextModules = loadContextModules(deps.repoRoot);
   const skillText = loadSkills(deps.repoRoot);
   const toolRegistry = loadToolRegistry(deps.repoRoot);
-  const turnId = nextId(idPrefix("turn"), ledger.turnIds);
+  const turnId = allocateRecordId(deps.dataDir, ledger.conversationId, "turn");
   const turn: Turn = {
     turnId,
     conversationId: ledger.conversationId,
@@ -281,12 +280,18 @@ export async function handleTurn(
   deps = { ...deps, provider: execution.provider, signal: execution.signal };
   try {
     let submitFails = 0;
+    let imageBatchId: string | undefined;
     while (true) {
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
       const memories = loadMemories(deps.dataDir, ledger.conversationId, ledger.memoryIds);
       turn.assembled.projectMemoryIds = memories.project.map(item => item.memoryId);
+      // Tool results already contain persisted image paths. Select attachments before
+      // measuring/compressing text; only the preceding model response's batch is visual.
+      const images: ChatMessage["images"] = imageBatchId === undefined ? [] : ledger.toolIO
+        .filter(item => item.turnId === turn.turnId && item.batchId === imageBatchId)
+        .flatMap(item => (item.images ?? []).map(image => ({ ...image, callId: item.callId })));
       let state = contextState(deps.dataDir, ledger, turn, memories);
-      let messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, state.summaries);
+      let messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries);
       const initialChars = windowChars(messages[0]!.content, messages[1]!.content);
       if (initialChars >= ledger.compressAt) {
         appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-start", turnId, data: { windowChars: initialChars } });
@@ -297,7 +302,7 @@ export async function handleTurn(
             await compressContext({ ...deps, ledger, turn, memories, isCancelled: () => wasStopped(deps.dataDir, ledger.conversationId, turn.turnId) }, phase);
             if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
             state = contextState(deps.dataDir, ledger, turn, memories);
-            messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, state.summaries);
+            messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries);
           }
           appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress", turnId, data: { beforeChars: initialChars, afterChars: windowChars(messages[0]!.content, messages[1]!.content) } });
         } catch (error) {
@@ -317,7 +322,7 @@ export async function handleTurn(
       // The send boundary first compresses at 200K, then externalizes notes first only
       // if the resulting view exceeds 250K. File publication precedes model dispatch.
       try {
-        messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, state.summaries, deps.dataDir);
+        messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, deps.dataDir);
       } catch (error) {
         turn.status = "failed";
         turn.completedAt = nowIso();
@@ -362,6 +367,7 @@ export async function handleTurn(
       };
       const batchId = rawResult.toolCalls.length || rawResult.toolCallFaults?.length
         ? allocateRecordId(deps.dataDir, ledger.conversationId, "batch") : undefined;
+      imageBatchId = batchId;
       const { result, batch: batchCheck, checks, validCalls } = validateCompletion(
         rawResult, tools, turn.assembled.baseToolsIds, turn.assembled.toolIds,
       );

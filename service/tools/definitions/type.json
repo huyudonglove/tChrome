@@ -12,7 +12,7 @@
         "ref": {
           "type": "string",
           "description": "参数含义见工具说明。",
-          "pattern": "^el-"
+          "pattern": "^el_[0-9]{2,}$"
         },
         "target": {
           "type": "string",

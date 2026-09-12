@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { emptyLedger, saveTurn, ensureSession, saveLedger, loadLedger, stopTurn } from "./store.ts";
-import { inputRecord } from "./ids.ts";
+import { allocateRecordId, inputRecord } from "./ids.ts";
 import { contextState, compressContext } from "./context-state.ts";
 import { loadIndex, resolveSources } from "../context-archive/store.ts";
 import type { Ledger, Turn, Provider, CompletionResult } from "../types.ts";
@@ -14,7 +14,7 @@ const makeTurn = (cv: string, id: string, text = id): Turn => ({ conversationId:
 const result = (partial: Partial<CompletionResult>): CompletionResult => ({ finish: "tool_calls", content: "", toolCalls: [], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [], ...partial });
 const summaryResponse = (messages: Parameters<Provider["complete"]>[0]["messages"]) => result({ toolCalls: [{ id: "submit", name: "submitTurnSummaries", arguments: { summaries: JSON.parse(messages[1]!.content).turns.map((turn: { turnId: string }) => ({ turnId: turn.turnId, tag: "历史事项", userRequest: "此前要求", actions: "已检查", result: "该轮已完成" })) } }] });
 function seed(dataDir: string, ledger: Ledger, count = 5, big = false) {
-  const turns = Array.from({ length: count }, (_, i) => makeTurn(ledger.conversationId, `tn_0${i + 1}`, big ? "原始要求".repeat(12000) : `要求${i}`));
+  const turns = Array.from({ length: count }, (_, i) => makeTurn(ledger.conversationId, allocateRecordId(dataDir, ledger.conversationId, "turn"), big ? "原始要求".repeat(12000) : `要求${i}`));
   ledger.turnIds = turns.map(turn => turn.turnId);
   ledger.userInputHistory = turns.slice(0, -1).map(inputRecord);
   turns.forEach(turn => saveTurn(dataDir, turn));
@@ -53,6 +53,7 @@ test("whole-turn grouping removes covered module increments, retaining current s
     expect(JSON.stringify({ ledger, current, memories })).toBe(before);
     await compressContext({ dataDir, repoRoot, provider, ledger, turn: current, memories, isCancelled: () => false });
     expect(calls).toBe(1);
+    expect(loadIndex(dataDir, ledger.conversationId, "conversationHistory").coveredSourceIds).toEqual(["src_01", "src_02"]);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
@@ -138,7 +139,7 @@ test("segmented turn later closes into one active summary without rearchiving co
     const index = loadIndex(dataDir, ledger.conversationId, "conversationHistory");
     expect(index.activeIds.map(id => index.entries.find(row => row.id === id)!.turnId)).toEqual(["tn_01", "tn_02"]);
     const sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
-    const tail = sources.find(row => row.id === "turn_tn_01")!.content as { toolIO: unknown[]; memoryWrites: unknown[]; goalChanges: unknown[]; output: unknown };
+    const tail = sources.find(row => row.id === "src_02")!.content as { toolIO: unknown[]; memoryWrites: unknown[]; goalChanges: unknown[]; output: unknown };
     expect(tail.toolIO).toHaveLength(2); expect(tail.goalChanges).toEqual([]); expect(tail.memoryWrites).toEqual([]); expect(tail.output).toEqual(first.output);
     expect((sources[0]!.content as { segment: { complete: boolean } }).segment.complete).toBe(false);
     expect(contextState(dataDir, ledger, current, memories).ledger.goal).toEqual(ledger.goal);
@@ -192,8 +193,8 @@ test("retired query evidence is archived independently of an already-covered too
     const index = loadIndex(dataDir, ledger.conversationId, "conversationHistory");
     expect(index.activeIds).toHaveLength(1);
     const sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
-    expect(sources.filter(row => row.id === "query_query_01")).toHaveLength(1);
-    expect((sources.find(row => row.id === "query_query_01")!.content as { queryHistory: unknown[] }).queryHistory).toEqual(ledger.queryHistory);
+    expect(sources.filter(row => row.id === "src_02")).toHaveLength(1);
+    expect((sources.find(row => row.id === "src_02")!.content as { queryHistory: unknown[] }).queryHistory).toEqual(ledger.queryHistory);
     await compressContext(input, "current");
     expect(requests).toBe(2);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
@@ -218,7 +219,7 @@ test("a later retired query remains archivable after its entire turn is covered"
     const index = loadIndex(dataDir, ledger.conversationId, "conversationHistory");
     expect(index.activeIds.map(id => index.entries.find(row => row.id === id)!.turnId)).toEqual(["tn_01", "tn_02"]);
     const sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
-    expect(sources.filter(row => row.id === "turn_tn_01")).toHaveLength(1);
-    expect(sources.filter(row => row.id === "query_query_01")).toHaveLength(1);
+    expect(sources.filter(row => row.id === "src_01")).toHaveLength(1);
+    expect(sources.filter(row => row.id === "src_03")).toHaveLength(1);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });

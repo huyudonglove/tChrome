@@ -5,10 +5,11 @@ import { catalog, idPrefix, type IdentityKind } from "../identity/catalog.ts";
 export { idPrefix } from "../identity/catalog.ts";
 
 /** Reserve before publishing records; failed operations may leave gaps, never reused IDs. */
-export function allocateRecordId(dataDir: string, conversationId: string, kind: IdentityKind): string {
+export function allocateRecordId(dataDir: string, conversationId: string | null, kind: IdentityKind): string {
   if (catalog[kind].allocation !== "counter") throw new Error(`ID kind ${kind} uses its existing record index`);
-  if (!/^[A-Za-z0-9_-]+$/.test(conversationId)) throw new Error("Invalid conversation ID");
-  const dir = join(dataDir, "conversations", conversationId);
+  const serviceScoped = catalog[kind].scope === "service";
+  if (!serviceScoped && (conversationId === null || !/^[A-Za-z0-9_-]+$/.test(conversationId))) throw new Error("Invalid conversation ID");
+  const dir = serviceScoped ? dataDir : join(dataDir, "conversations", conversationId!);
   const path = join(dir, "id-counters.json");
   mkdirSync(dir, { recursive: true });
   let counters: Record<string, number> = {};

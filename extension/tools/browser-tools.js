@@ -276,7 +276,15 @@ const runPageTool = async (name, input = {}) => {
         regionId: String(input.regionId || ''),
         text: String(input.text ?? ''),
       }],
-      func: (toolName, payload) => {
+      func: async (toolName, payload) => {
+        const state = globalThis.__tChromePageIds ??= {pageElement: new WeakMap(), pageRegion: new WeakMap()};
+        const idOf = async (node, kind) => {
+          if (!state[kind].has(node)) state[kind].set(node, chrome.runtime.sendMessage({type: "allocate-browser-id", kind}).then(result => {
+            if (!result?.id) throw new Error(result?.error || "无法分配页面编号");
+            return result.id;
+          }));
+          return state[kind].get(node);
+        };
         const visible = (node) => {
           if (!(node instanceof Element)) return false;
           const style = getComputedStyle(node);
@@ -298,7 +306,7 @@ const runPageTool = async (name, input = {}) => {
           used.add(node);
           const rect = node.getBoundingClientRect();
           regions.push({
-            id: `r${regions.length + 1}`,
+            id: await idOf(node, 'pageRegion'),
             role: roleOf(node),
             tag: node.tagName.toLowerCase(),
             name: labelOf(node) || clip(node.innerText, 40),
@@ -309,7 +317,7 @@ const runPageTool = async (name, input = {}) => {
         }
         if (regions.length === 0 && document.body) {
           const rect = document.body.getBoundingClientRect();
-          regions.push({id: 'r1', role: 'document', tag: 'body', name: clip(document.title, 40), heading: '', rect: {x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height)}, node: document.body});
+          regions.push({id: await idOf(document.body, 'pageRegion'), role: 'document', tag: 'body', name: clip(document.title, 40), heading: '', rect: {x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height)}, node: document.body});
         }
         const elements = [];
         for (const node of document.querySelectorAll('a[href],button,input:not([type=hidden]),textarea,select,[role="button"],[role="link"],[role="tab"],[role="menuitem"],[role="checkbox"],[role="radio"],[role="textbox"],[contenteditable="true"],summary')) {
@@ -318,8 +326,8 @@ const runPageTool = async (name, input = {}) => {
           const rect = node.getBoundingClientRect();
           const inView = rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
           elements.push({
-            id: `e${elements.length + 1}`,
-            regionId: region?.id || 'r1',
+            id: await idOf(node, 'pageElement'),
+            regionId: region?.id || null,
             tag: node.tagName.toLowerCase(),
             role: roleOf(node),
             type: node.getAttribute('type') || '',

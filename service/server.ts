@@ -58,7 +58,7 @@ export function createServer(options: ServeOptions = {}) {
   const proxyURL = resolveProxy({ ...Bun.env, TCHROME_PROXY_MODE: "proxy" });
   let activeProvider = configuredProvider(proxyEnabled ? proxyURL : "", providerName);
   const provider = options.provider ?? { complete: (input: Parameters<typeof activeProvider.complete>[0]) => activeProvider.complete(input) };
-  const bridge = options.bridge ?? createToolBridge();
+  const bridge = options.bridge ?? createToolBridge(dataDir);
   const host = options.host ?? bridge;
   const deps: LoopDeps = { dataDir, repoRoot, provider, host };
   const expectedVersion = executorVersion(repoRoot);

@@ -1,3 +1,4 @@
+import { allocateRecordId } from "../runtime/ids.ts";
 import { errorInfo } from "../../shared/errors.ts";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { homedir, tmpdir } from "node:os";
@@ -88,7 +89,7 @@ async function start(input: Record<string, unknown>, scope: string, token: { can
       argv = [snapshotPath, ...args];
     }
     if (token.cancelled) throw new Error("Local process start cancelled");
-    const processId = crypto.randomUUID();
+    const processId = allocateRecordId(dataDir, null, "process");
     const outputDir = join(resolve(dataDir), "process-output", processId);
     await mkdir(outputDir, { recursive: true });
     const stdoutPath = join(outputDir, "stdout.txt"), stderrPath = join(outputDir, "stderr.txt");

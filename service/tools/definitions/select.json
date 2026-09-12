@@ -21,7 +21,7 @@
         },
         "ref": {
           "type": "string",
-          "description": "下拉框的 el-... 引用",
+          "description": "下拉框的 el_01 引用",
           "minLength": 1
         }
       },

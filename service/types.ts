@@ -137,7 +137,7 @@ export type CompletionResult = {
 export type ChatMessage = {
   role: "system" | "user";
   content: string;
-  images?: ImageReference[];
+  images?: (ImageReference & { callId?: string })[];
 };
 
 export type ProviderExchange = {

@@ -1,3 +1,4 @@
+import { allocateRecordId } from "./ids.ts";
 import type { BrowserHost, BrowserResult } from "../types.ts";
 
 export type ToolRequest = {
@@ -18,9 +19,8 @@ type Pending = {
   done: (result: BrowserResult) => void;
 };
 
-export function createToolBridge(): ToolBridge {
+export function createToolBridge(dataDir: string): ToolBridge {
   const queue: Pending[] = [];
-  let seq = 0;
 
   const finish = (id: string, result: BrowserResult): boolean => {
     const next = queue[0];
@@ -31,7 +31,7 @@ export function createToolBridge(): ToolBridge {
   };
   const execute = (scope: string | undefined, name: string, input: Record<string, unknown>): Promise<BrowserResult> =>
     new Promise((done) => {
-      queue.push({ request: { id: `br_${Date.now()}_${++seq}`, name, input }, scope, done });
+      queue.push({ request: { id: allocateRecordId(dataDir, null, "bridge"), name, input }, scope, done });
     });
   const abort = (scope?: string) => {
     const removed: Pending[] = [];

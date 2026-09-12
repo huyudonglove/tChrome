@@ -327,3 +327,58 @@ test('service_worker_list reads registrations from the requested page and report
     else delete globals.navigator;
   }
 });
+
+test('page element IDs survive reorder and never target replacement nodes', async () => {
+  const keys = ['document', 'Element', 'getComputedStyle', '__tChromePageIds', 'innerWidth', 'innerHeight'];
+  const originals = keys.map(key => Object.getOwnPropertyDescriptor(globals, key));
+  class Node {
+    isConnected = true;
+    tagName = 'BUTTON';
+    clicks = 0;
+    constructor(public innerText: string) {}
+    getBoundingClientRect() {return {x: 0, y: 0, width: 100, height: 30, bottom: 30, right: 100, top: 0, left: 0};}
+    getAttribute() {return null;}
+    closest() {return null;}
+    contains() {return true;}
+    click() {this.clicks++;}
+  }
+  let nodes = [new Node('first'), new Node('second')];
+  const first = nodes[0]!;
+  const second = nodes[1]!;
+  const counters: Record<string, number> = {};
+  let closedAfterClick = false;
+  try {
+    delete globals.__tChromePageIds;
+    globals.Element = Node;
+    globals.innerWidth = 800;
+    globals.innerHeight = 600;
+    globals.getComputedStyle = () => ({display: 'block', visibility: 'visible', opacity: '1'});
+    globals.document = {body: new Node('body'), title: 'Example', querySelectorAll: (selector: string) => selector.startsWith('header') ? [] : nodes};
+    globals.chrome = {
+      runtime: {sendMessage: async ({kind}: any) => ({id: `${kind === 'pageRegion' ? 'r' : 'e'}_${String(counters[kind] = (counters[kind] ?? 0) + 1).padStart(2, '0')}`})},
+      tabs: {get: async () => {if (closedAfterClick) {closedAfterClick = false; return null;} return {id: 1, url: 'https://example.com'};}},
+      scripting: {executeScript: async ({func, args}: any) => {
+        const result = args ? await func(...args) : {title: 'Example', url: 'https://example.com'};
+        if (args?.[0] === 'page.click' && result.ok) closedAfterClick = true;
+        return [{result}];
+      }},
+    };
+    const observed = await runBrowserTool('page.list_interactive_elements', {tab: 1});
+    expect(observed.elements.map((el: any) => el.id)).toEqual(['e_01', 'e_02']);
+    nodes.reverse();
+    expect((await runBrowserTool('page.click', {tab: 1, id: 'e_01'})).ok).toBe(true);
+    expect(first.clicks).toBe(1);
+    expect(second.clicks).toBe(0);
+    first.isConnected = false;
+    nodes = [new Node('replacement'), second];
+    expect((await runBrowserTool('page.click', {tab: 1, id: 'e_01'})).ok).toBe(false);
+    const replacement = await runBrowserTool('page.list_interactive_elements', {tab: 1});
+    expect(replacement.elements.map((el: any) => el.id)).toEqual(['e_03', 'e_02']);
+    expect(replacement.elements[0].regionId).toBe('r_01');
+  } finally {
+    keys.forEach((key, index) => {
+      if (originals[index]) Object.defineProperty(globals, key, originals[index]!);
+      else delete globals[key];
+    });
+  }
+});

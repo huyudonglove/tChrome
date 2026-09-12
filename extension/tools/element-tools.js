@@ -1,5 +1,5 @@
 // Runs in Chrome's isolated world; keep this function self-contained.
-export function elementTool(action, input = {}) {
+export async function elementTool(action, input = {}) {
   if (action === 'click' && input.targetText !== undefined
     && (typeof input.targetText !== 'string' || !input.targetText.trim())) {
     return {ok: false, faultCode: 'invalid_arguments', error: 'targetText 必须是用于定位点击控件的非空字符串'};
@@ -14,11 +14,14 @@ export function elementTool(action, input = {}) {
     return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
   };
   const nodes = [...document.querySelectorAll(selector)].filter(visible);
-  const state = globalThis.__tChromeElementRefs ??= {epoch: crypto.randomUUID(), next: 0, refs: new Map(), ids: new WeakMap()};
+  const state = globalThis.__tChromeElementRefs ??= {refs: new Map(), ids: new WeakMap()};
   for (const [ref, node] of state.refs) if (!node.isConnected) state.refs.delete(ref);
-  const refOf = (node) => {
-    if (!state.ids.has(node)) state.ids.set(node, `el-${state.epoch}-${++state.next}`);
-    const ref = state.ids.get(node);
+  const refOf = async (node) => {
+    if (!state.ids.has(node)) state.ids.set(node, chrome.runtime.sendMessage({type: "allocate-browser-id", kind: "elementRef"}).then(result => {
+      if (!result?.id) throw new Error(result?.error || "无法分配元素编号");
+      return result.id;
+    }));
+    const ref = await state.ids.get(node);
     state.refs.set(ref, node);
     return ref;
   };
@@ -27,9 +30,9 @@ export function elementTool(action, input = {}) {
     return (explicit || node.closest('label')?.innerText || '').trim();
   };
   const textOf = (node) => [node.innerText, node.value, node.getAttribute('aria-label'), node.getAttribute('placeholder'), node.name, labelOf(node)].filter(Boolean).join(' ');
-  const row = (node) => {
+  const row = async (node) => {
     const rect = node.getBoundingClientRect();
-    return {ref: refOf(node), tag: node.tagName.toLowerCase(), role: node.getAttribute('role') || '',
+    return {ref: await refOf(node), tag: node.tagName.toLowerCase(), role: node.getAttribute('role') || '',
       text: (node.innerText || node.getAttribute('aria-label') || '').trim().slice(0, 100),
       label: labelOf(node).slice(0, 100), placeholder: node.getAttribute('placeholder') || '', name: node.name || '', type: node.type || '',
       value: 'value' in node ? String(node.value).slice(0, 100) : '', href: node.href || '',
@@ -43,11 +46,11 @@ export function elementTool(action, input = {}) {
     const query = (input.text || '').trim().toLocaleLowerCase();
     const hits = nodes.filter(node => !query || textOf(node).toLocaleLowerCase().includes(query) || String(node.href || '').toLocaleLowerCase().includes(query));
     const limit = Math.min(100, Math.max(1, Number(input.limit) || 40));
-    return {ok: true, title: document.title, url: location.href, elements: hits.slice(0, limit).map(row), total: hits.length, truncated: hits.length > limit};
+    return {ok: true, title: document.title, url: location.href, elements: await Promise.all(hits.slice(0, limit).map(row)), total: hits.length, truncated: hits.length > limit};
   }
   let hit;
   if (input.ref !== undefined) {
-    if (typeof input.ref !== 'string' || !input.ref.startsWith('el-')) return {ok: false, faultCode: 'invalid_ref', error: 'ref 必须来自 snapshot_page 或 find_on_page，不能使用 page.* 的 id'};
+    if (typeof input.ref !== 'string' || !/^el_[0-9]{2,}$/.test(input.ref)) return {ok: false, faultCode: 'invalid_ref', error: 'ref 必须来自 snapshot_page 或 find_on_page，不能使用 page.* 的 id'};
     hit = state.refs.get(input.ref);
     if (!hit || !hit.isConnected || !nodes.includes(hit)) return {ok: false, faultCode: 'stale_ref', error: 'ref 已失效或元素不可见，请重新查找；不会按文字回退点击'};
   } else {

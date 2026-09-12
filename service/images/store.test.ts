@@ -16,11 +16,14 @@ test("images persist as deduplicated binary files and round trip exactly", () =>
       expect([ref.width, ref.height]).toEqual([2, 1]);
       expect(saveImage(root, "cv_1", data)).toEqual(ref);
       expect(readImageDataUrl(root, "cv_1", ref)).toBe(data);
-      expect(ref.path).toMatch(/^images\/[a-f0-9]{64}\.(png|jpg)$/);
+      expect(ref.path).toMatch(/^images\/img_[0-9]{2,}\.(png|jpg)$/);
       expect(JSON.stringify(ref)).not.toContain("base64");
       expect(() => readImageDataUrl(root, "cv_2", ref)).toThrow();
     }
-    expect(readdirSync(join(root, "conversations/cv_1/images"))).toHaveLength(2);
+    expect(readdirSync(join(root, "conversations/cv_1/images")).filter(name => /\.(png|jpg)$/.test(name))).toHaveLength(2);
+    expect(saveImage(root, "cv_1", png).id).toBe("img_01");
+    expect(saveImage(root, "cv_1", jpeg).id).toBe("img_02");
+    expect(saveImage(root, "cv_2", jpeg).id).toBe("img_01");
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

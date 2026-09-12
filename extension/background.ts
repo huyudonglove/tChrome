@@ -1,7 +1,9 @@
+import { createBrowserIdAllocator } from "./tools/element-ids.js";
 import { initDialogEvents } from "./tools/dialogs.js";
 import { runBrowserTool } from "./tools/browser-tools.js";
 
 initDialogEvents();
+const allocateBrowserId = createBrowserIdAllocator(chrome.storage.local);
 
 declare const __TCHROME_EXECUTOR_VERSION__: string;
 const executorVersion = typeof __TCHROME_EXECUTOR_VERSION__ === "string" ? __TCHROME_EXECUTOR_VERSION__ : "unbundled";
@@ -81,6 +83,13 @@ tick();
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === "allocate-browser-id") {
+    allocateBrowserId(message.kind).then(
+      id => sendResponse({id}),
+      error => sendResponse({error: error instanceof Error ? error.message : String(error)}),
+    );
+    return true;
+  }
   if (message?.type === "ping") {
     tick();
     sendResponse({ ok: true });

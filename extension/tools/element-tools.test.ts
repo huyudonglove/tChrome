@@ -1,7 +1,8 @@
 import {expect, test} from 'bun:test';
+import {createBrowserIdAllocator} from './element-ids.js';
 import {elementTool} from './element-tools.js';
 
-test('element actions require explicit targets and preserve exact selection values', () => {
+test('element actions require explicit targets and preserve exact selection values', async () => {
   const globals = globalThis as any;
   const keys = ['document', 'getComputedStyle', '__tChromeElementRefs'];
   const originals = keys.map(key => Object.getOwnPropertyDescriptor(globals, key));
@@ -14,12 +15,12 @@ test('element actions require explicit targets and preserve exact selection valu
   try {
     globals.document = {querySelectorAll: () => [button], title: 'Example'};
     globals.getComputedStyle = () => ({display: 'block', visibility: 'visible'});
-    globals.__tChromeElementRefs = {refs: new Map([['el-test', button]]), ids: new WeakMap()};
-    for (const input of [{targetText: '登录'}, {ref: 'el-test', targetText: '其他文字'}]) {
-      expect(elementTool('click', input)).toMatchObject({ok: true});
+    globals.__tChromeElementRefs = {refs: new Map([['el_01', button]]), ids: new WeakMap()};
+    for (const input of [{targetText: '登录'}, {ref: 'el_01', targetText: '其他文字'}]) {
+      expect(await elementTool('click', input)).toMatchObject({ok: true});
     }
-    expect(elementTool('click', {ref: 'e1'})).toMatchObject({ok: false, faultCode: 'invalid_ref'});
-    expect(elementTool('click', {ref: 'el-missing', targetText: '登录'})).toMatchObject({ok: false, faultCode: 'stale_ref'});
+    expect(await elementTool('click', {ref: 'e1'})).toMatchObject({ok: false, faultCode: 'invalid_ref'});
+    expect(await elementTool('click', {ref: 'el_99', targetText: '登录'})).toMatchObject({ok: false, faultCode: 'stale_ref'});
     expect(clicks).toBe(2);
     let changes = 0;
     const dropdown = {...button, tagName: 'SELECT', value: 'first',
@@ -27,15 +28,50 @@ test('element actions require explicit targets and preserve exact selection valu
       dispatchEvent: () => { changes++; },
     };
     globals.document.querySelectorAll = () => [dropdown];
-    globals.__tChromeElementRefs.refs.set('el-select', dropdown);
-    expect(elementTool('select', {value: 'chosen'})).toMatchObject({ok: false});
-    expect(elementTool('select', {ref: 'el-select'})).toMatchObject({ok: false});
-    expect(elementTool('select', {ref: 'el-select', value: 'cho'})).toMatchObject({ok: false});
+    globals.__tChromeElementRefs.refs.set('el_02', dropdown);
+    expect(await elementTool('select', {value: 'chosen'})).toMatchObject({ok: false});
+    expect(await elementTool('select', {ref: 'el_02'})).toMatchObject({ok: false});
+    expect(await elementTool('select', {ref: 'el_02', value: 'cho'})).toMatchObject({ok: false});
     expect(dropdown.value).toBe('first');
     expect(changes).toBe(0);
-    expect(elementTool('select', {ref: 'el-select', value: 'chosen'})).toMatchObject({ok: true, value: 'chosen'});
-    expect(elementTool('select', {ref: 'el-select', value: ''})).toMatchObject({ok: true, value: ''});
+    expect(await elementTool('select', {ref: 'el_02', value: 'chosen'})).toMatchObject({ok: true, value: 'chosen'});
+    expect(await elementTool('select', {ref: 'el_02', value: ''})).toMatchObject({ok: true, value: ''});
     expect(changes).toBe(4);
+  } finally {
+    keys.forEach((key, index) => {
+      if (originals[index]) Object.defineProperty(globals, key, originals[index]!);
+      else delete globals[key];
+    });
+  }
+});
+
+test('browser IDs persist across allocator and document restarts and keep node identity', async () => {
+  const globals = globalThis as any;
+  const keys = ['chrome', 'document', 'getComputedStyle', '__tChromeElementRefs', 'location'];
+  const originals = keys.map(key => Object.getOwnPropertyDescriptor(globals, key));
+  const values: Record<string, unknown> = {};
+  const storage = {get: async () => structuredClone(values), set: async (next: any) => {Object.assign(values, next);}};
+  let allocate = createBrowserIdAllocator(storage);
+  const button = {innerText: '按钮', isConnected: true, tagName: 'BUTTON',
+    getBoundingClientRect: () => ({x: 0, y: 0, width: 100, height: 30}),
+    getAttribute: () => null, closest: () => null, click: () => {},
+  };
+  try {
+    globals.chrome = {runtime: {sendMessage: async ({kind}: any) => ({id: await allocate(kind)})}};
+    globals.document = {querySelectorAll: () => [button], title: 'Example'};
+    globals.location = {href: 'https://example.com'};
+    globals.getComputedStyle = () => ({display: 'block', visibility: 'visible'});
+    delete globals.__tChromeElementRefs;
+    const first = await elementTool('snapshot_page');
+    expect(first.elements?.[0]?.ref).toBe('el_01');
+    allocate = createBrowserIdAllocator(storage);
+    expect((await elementTool('snapshot_page')).elements?.[0]?.ref).toBe('el_01');
+    button.isConnected = false;
+    globals.document.querySelectorAll = () => [{...button, isConnected: true}];
+    expect(await elementTool('click', {ref: 'el_01'})).toMatchObject({ok: false, faultCode: 'stale_ref'});
+    delete globals.__tChromeElementRefs;
+    expect((await elementTool('snapshot_page')).elements?.[0]?.ref).toBe('el_02');
+    expect(await Promise.all([allocate('pageElement'), allocate('pageElement'), allocate('pageRegion')])).toEqual(['e_01', 'e_02', 'r_01']);
   } finally {
     keys.forEach((key, index) => {
       if (originals[index]) Object.defineProperty(globals, key, originals[index]!);

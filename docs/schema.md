@@ -231,6 +231,7 @@ conversationHistorySummary 显示当前有效摘要的 {sumId, turnId, tag, user
 | 文件 | 内容 |
 |---|---|
 | `index.json` | {version, module, entries, activeIds, coveredSourceIds}，目录是提交点 |
+| `source-ids.json` | 原始轮次、批次、查询的内部逻辑键到 `src_01` 短编号的持久映射；仅选中归档材料时从会话计数器分配，重复检查不分配新号 |
 | `records/<id>.json` | {id, module, level, tag, turnId, userRequest, actions, result, sourceIds, createdAt}，每次压缩追加不可变记录 |
 | `sources/<id>.json` | {id, content}，完整原始内容，工具使用完整落盘结果 |
 

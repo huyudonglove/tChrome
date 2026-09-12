@@ -1,8 +1,8 @@
 import { saveContextRecord } from "./records.ts";
-import { loadMemories, saveMemory } from "../memory/store.ts";
+import { saveMemory } from "../memory/store.ts";
 import type { Ledger, MemoryRecord, ToolQueueItem, Turn, TurnOutput } from "../types.ts";
 import type { ToolEffect } from "../tools/effects.ts";
-import { allocateRecordId, idPrefix, nextId, nowIso } from "./ids.ts";
+import { allocateRecordId, nowIso } from "./ids.ts";
 import { appendEvent, saveLedger, saveTurn } from "./store.ts";
 
 export function applyToolEffects(input: {
@@ -35,7 +35,7 @@ export function applyToolEffects(input: {
       case "note.delete": delete ledger.notes[effect.key]; break;
       case "memory.append":
         for (const { layer, text } of effect.entries) {
-          const memoryId = layer === "project" ? nextId(idPrefix("projectMemory"), loadMemories(dataDir, ledger.conversationId, ledger.memoryIds).project.map(item => item.memoryId)) : nextId(idPrefix("conversationMemory"), Object.values(ledger.memoryIds).flat());
+          const memoryId = allocateRecordId(dataDir, ledger.conversationId, layer === "project" ? "projectMemory" : "conversationMemory");
           const record: MemoryRecord = {
             memoryId, turnId: turn.turnId, layer, text,
             createdAt: nowIso(), sourceCallId: call.callId,
