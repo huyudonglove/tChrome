@@ -194,7 +194,7 @@ Runtime 独占维护。当前会话指针。
 - `tool` → `{kind, name, callId}`（动态工具 / `context.query` / `memory.write`）
 - `ask` → `{kind, question}`（`askUser`）
 - `reply` → `{kind, text}`（`finishTurn`，`text` 取 finishTurn.arguments.text；不回退到 content 或 reason）
-- `error` → `{kind, faultCode, causeCode?}`；压缩失败保留顶层 compression_failed，causeCode 标识底层原因
+- `error` → `{kind, faultCode, causeCode?, toolName?, detail?}`；压缩失败保留顶层 compression_failed，causeCode 标识底层原因
 
 ## memory/<memoryId>.json
 

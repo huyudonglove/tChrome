@@ -7,7 +7,8 @@ const outputText = (output: Turn["output"]): string => {
   if (output.kind === "ask") return output.question;
   if (output.kind === "error") {
     const message = errorMessage(output.faultCode, "user");
-    return output.causeCode && output.causeCode !== output.faultCode ? `${message}\n原因：${errorMessage(output.causeCode, "user")}` : message;
+    return [message, output.causeCode && output.causeCode !== output.faultCode ? `原因：${errorMessage(output.causeCode, "user")}` : "",
+      output.toolName ? `工具：${output.toolName}` : "", output.detail || ""].filter(Boolean).join("\n");
   }
   return `${output.name} ${output.callId}`;
 };

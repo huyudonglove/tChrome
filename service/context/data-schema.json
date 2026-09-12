@@ -718,6 +718,8 @@
         "causeCode": {
           "type": "string"
         },
+        "toolName": { "type": "string" },
+        "detail": { "type": "string" },
         "name": {
           "type": "string"
         },

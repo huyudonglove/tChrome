@@ -44,7 +44,7 @@ export type TurnOutput =
   | { kind: "tool"; name: string; callId: string }
   | { kind: "ask"; question: string }
   | { kind: "reply"; text: string }
-  | { kind: "error"; faultCode: string; causeCode?: string };
+  | { kind: "error"; faultCode: string; causeCode?: string; toolName?: string; detail?: string };
 
 export type Turn = {
   turnId: string;

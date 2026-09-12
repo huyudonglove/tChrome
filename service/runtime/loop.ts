@@ -468,7 +468,8 @@ export async function handleTurn(
         if (submitFails >= MAX_SUBMIT) {
           turn.status = "failed";
           turn.completedAt = nowIso();
-          turn.output = { kind: "error", faultCode: result.faultCode ?? "missing_required" };
+          turn.output = { kind: "error", faultCode: result.faultCode ?? "missing_required",
+            toolName: result.badName, detail: result.detail };
           ledger.status = "failed";
           ledger.active = null;
           ledger.liveTool = null;

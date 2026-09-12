@@ -84,7 +84,7 @@ test("a valid tool round resets consecutive invalid submission count", async () 
 
 test("three consecutive invalid submissions still stop without executing invalid calls", async () => {
   await run([invalid(), emptyReply(), invalid(), finish()], ({ reply, turn, ledger, modelRequests, browserCalls }) => {
-    expect(reply.output).toEqual({ kind: "error", faultCode: "missing_required" });
+    expect(reply.output).toMatchObject({ kind: "error", faultCode: "missing_required", toolName: expect.any(String), detail: expect.stringContaining("missing required") });
     expect(ledger.status).toBe("failed");
     expect(modelRequests).toBe(3);
     expect(browserCalls).toEqual([]);
@@ -95,10 +95,29 @@ test("three consecutive invalid submissions still stop without executing invalid
 test("finishTurn missing required text is rejected before execution three times", async () => {
   const emptyFinish = () => result({ toolCalls: [call("empty_finish", "finishTurn")] });
   await run([emptyFinish(), emptyFinish(), emptyFinish(), finish()], ({ reply, turn, ledger, modelRequests, browserCalls }) => {
-    expect(reply.output).toEqual({ kind: "error", faultCode: "missing_required" });
+    expect(reply.output).toMatchObject({ kind: "error", faultCode: "missing_required", toolName: expect.any(String), detail: expect.stringContaining("missing required") });
     expect(ledger.status).toBe("failed");
     expect(modelRequests).toBe(3);
     expect(browserCalls).toEqual([]);
     expect(turn.usage).toEqual({ modelRequests: 3, toolCalls: 0 });
+  });
+});
+
+test("mixed missing and type errors reach model feedback and final output", async () => {
+  const invalidClick = () => result({ toolCalls: [{ id: "bad_click", name: "click", arguments: { reason: "点击文字", text: true } }] });
+  await run([result({ toolCalls: [call("enable", "catalog.add", { names: ["click"] })] }), invalidClick(), invalidClick(), invalidClick()], ({ reply, ledger, browserCalls }) => {
+    if (reply.output.kind === "error") {
+      expect(reply.output.detail).toContain("data/text must be string");
+      expect(reply.output.detail).toContain("affectsPage");
+    }
+    expect(reply.output).toMatchObject({ kind: "error", faultCode: "missing_required", toolName: "click" });
+    const feedback = ledger.toolIO.filter(row => row.name === "click");
+    expect(feedback).toHaveLength(3);
+    for (const row of feedback) {
+      const failure = JSON.parse(row.return.text);
+      expect(failure.missing).toContain("affectsPage");
+      expect(failure.details.reason).toContain("data/text must be string");
+    }
+    expect(browserCalls).toEqual([]);
   });
 });

@@ -16,6 +16,7 @@ const makeTurn = (output: TurnOutput | null): Turn => ({
 });
 
 const outputs: { output: TurnOutput; expected: string }[] = [
+  { output: { kind: "error", faultCode: "missing_required", toolName: "click", detail: "click missing required: affectsPage; data/text must be string" }, expected: "工具调用缺少必填参数。\n工具：click\nclick missing required: affectsPage; data/text must be string" },
   { output: { kind: "reply", text: "这是商品详情页。" }, expected: "这是商品详情页。" },
   { output: { kind: "ask", question: "选择哪个商品？" }, expected: "选择哪个商品？" },
   { output: { kind: "error", faultCode: "stopped" }, expected: "已停止" },

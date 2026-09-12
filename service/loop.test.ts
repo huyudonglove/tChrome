@@ -170,7 +170,7 @@ test.each([
       toolCalls: [{ id: "bad", name, arguments: { reason: "完成当前步骤", affectsPage: false, ...args } }],
     })]);
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "测试", submittedAt: "now" });
-    expect(reply.output).toEqual({ kind: "error", faultCode });
+    expect(reply.output).toEqual({ kind: "error", faultCode, toolName: name, detail: expect.any(String) });
     expect(loadLedger(dir, reply.conversationId).pendingAsk).toBeNull();
     expect(JSON.stringify(sessionView(dir, reply.conversationId).messages)).not.toContain("不应展示的正文");
   } finally { rmSync(dir, { recursive: true, force: true }); }

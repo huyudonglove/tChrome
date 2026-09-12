@@ -85,6 +85,7 @@ export function checkToolCalls(
         .filter((err: { keyword: string }) => err.keyword === "required")
         .map((err: { params: { missingProperty?: string } }) => String(err.params.missingProperty ?? ""))
         .filter(Boolean);
+      const otherErrors = (validate.errors ?? []).filter(error => error.keyword !== "required");
       if (missing.length) {
         return {
           parseOk: true,
@@ -92,7 +93,7 @@ export function checkToolCalls(
           faultCode: "missing_required",
           missing,
           badName: call.name,
-          detail: `${call.name} missing required: ${missing.join(", ")}`,
+          detail: `${call.name} missing required: ${missing.join(", ")}${otherErrors.length ? `; ${ajv.errorsText(otherErrors)}` : ""}`,
         };
       }
       return {
