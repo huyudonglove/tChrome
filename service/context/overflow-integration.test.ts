@@ -173,7 +173,7 @@ test("history above 250K is compressed before any content is externalized", () =
   const conversationId = newConversation(dataDir).conversationId!;
   const ledger = loadLedger(dataDir, conversationId);
   const turns: Turn[] = Array.from({length: 9}, (_, i) => ({
-    conversationId, turnId: `tn_${String(i + 1).padStart(2, "0")}`, status: "completed",
+    goalChanges: [], conversationId, turnId: `tn_${String(i + 1).padStart(2, "0")}`, status: "completed",
     createdAt: "2026-09-11", completedAt: "2026-09-11",
     input: {id: `input_${String(i + 1).padStart(2, "0")}`, text: "H".repeat(35000), submittedAt: "2026-09-11"},
     assembled: {baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null, pageObservedHistory: []},

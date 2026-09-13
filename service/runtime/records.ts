@@ -2,10 +2,11 @@ import { mkdirSync, readFileSync, writeFileSync, linkSync, rmSync } from "node:f
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
+import { loadLedger } from "./store.ts";
 import { loadMemory } from "../memory/store.ts";
 
-export type ContextRecordKind = "userInput" | "goal" | "pageObservation";
-const kinds = new Set<string>(["userInput", "goal", "pageObservation"]);
+export type ContextRecordKind = "userInput" | "pageObservation";
+const kinds = new Set<string>(["userInput", "pageObservation"]);
 const safeId = (id: string) => /^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(id);
 const recordDirectory = (dataDir: string, conversationId: string, kind: ContextRecordKind) =>
   join(dataDir, "conversations", conversationId, "context-records", kind);
@@ -36,9 +37,13 @@ export function saveContextRecord<T extends { id: string }>(dataDir: string, con
 }
 
 /** Read sources independently of the live context window; memory uses its existing store. */
-export function loadContextRecord(dataDir: string, conversationId: string, kind: ContextRecordKind | "memory", id: string): string | null {
-  if (!safeId(conversationId) || !safeId(id) || (!kinds.has(kind) && kind !== "memory")) return null;
+export function loadContextRecord(dataDir: string, conversationId: string, kind: ContextRecordKind | "goal" | "memory", id: string): string | null {
+  if (!safeId(conversationId) || !safeId(id) || (!kinds.has(kind) && kind !== "memory" && kind !== "goal")) return null;
   try {
+    if (kind === "goal") {
+      const record = loadLedger(dataDir, conversationId).goals.find(row => row.id === id);
+      return record ? `${JSON.stringify(record, null, 2)}\n` : null;
+    }
     if (kind === "memory") return `${JSON.stringify(loadMemory(dataDir, conversationId, id), null, 2)}\n`;
     return readFileSync(join(recordDirectory(dataDir, conversationId, kind), `${id}.json`), "utf8");
   } catch (error) {

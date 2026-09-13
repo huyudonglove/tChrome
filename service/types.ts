@@ -19,7 +19,16 @@ export type CurrentPage = CurrentTab & {
 };
 
 export type UserInputRecord = { id: string; turnId: string; userInput: string; submittedAt: string };
-export type GoalRecord = { id: string; turnId: string; goal: string; sourceCallId: string; createdAt: string };
+export type GoalRecord = {
+  id: string;
+  parentId: string | null;
+  goal: string;
+  status: "active" | "completed" | "cancelled";
+  turnId: string;
+  sourceCallId: string;
+  createdAt: string;
+  updatedAt: string;
+};
 
 export type PageObservation = CurrentPage & {
   id: string;
@@ -47,6 +56,7 @@ export type TurnOutput =
   | { kind: "error"; faultCode: string; causeCode?: string; toolName?: string; detail?: string };
 
 export type Turn = {
+  goalChanges: GoalRecord[];
   turnId: string;
   conversationId: string;
   status: TurnStatus;
@@ -95,8 +105,8 @@ export type Ledger = {
   turnIds: string[];
   loadedToolIds: string[];
   userInputHistory: UserInputRecord[];
-  goal: GoalRecord | null;
-  goalHistory: GoalRecord[];
+  goals: GoalRecord[];
+  currentGoalId: string | null;
   toolQueue: ToolQueueItem[];
   liveTool: { name: string; callId: string } | null;
   toolIO: ToolIOItem[];

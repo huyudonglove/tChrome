@@ -7,7 +7,7 @@ import { appendEvent, emptyLedger, loadEvents, saveLedger, saveTurn, sessionView
 import type { LogEvent, Turn, TurnOutput } from "./types.ts";
 import { emptySessionView, projectSessionView } from "./presentation/session-view.ts";
 
-const makeTurn = (output: TurnOutput | null): Turn => ({
+const makeTurn = (output: TurnOutput | null): Turn => ({ goalChanges: [],
   turnId: "tn_01", conversationId: "cv_01", status: output ? "completed" : "inferring",
   createdAt: "2026-09-07T00:00:00.000Z", completedAt: null,
   input: { id: "input_fixture", text: "查看当前页面", submittedAt: "2026-09-07T00:00:00.000Z" },

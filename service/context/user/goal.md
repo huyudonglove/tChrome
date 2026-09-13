@@ -1,8 +1,8 @@
 #goal
-能力：【当前目标】
+能力：【总目标与当前子目标】
 
 详细描述：
-当前工作目标；null 表示尚未设置。id 标识目标版本，sourceCallId 关联来源调用，goal 是正文。需要调整时用 submitGoal 更新；目标文字不证明任务完成。
+currentGoalId 指向当前目标，未选择时为 null；goals 保留全部 active 目标及其父级记录。总目标使用 goal_ 编号、parentId=null，子目标使用 subgoal_ 编号、parentId 指向总目标；id 固定，status 表示 active/completed/cancelled。阶段切换时用 submitGoal 新建或选中子目标，完成或取消须明确提交，不因切换自动结束旧目标。具体尝试放 notes，已确认的阶段结论放会话记忆；目标文字和状态本身不是完成证据。
 
 内容：
 {{data}}

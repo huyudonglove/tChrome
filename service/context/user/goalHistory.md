@@ -1,8 +1,8 @@
 #goalHistory
-能力：【目标历史】
+能力：【已结束目标】
 
 详细描述：
-按旧到新排列的旧目标。id 标识版本，sourceCallId 关联来源调用，goal 是正文。用于理解方向变化；更早内容可结合 conversationHistorySummary 或 context.query 回查。
+completed 或 cancelled 的目标记录，保留原 id、parentId、status、goal 和来源 turnId/sourceCallId，不因修改目标另建版本。parentId 关联总目标；重新激活的目标回到 #goal。历史变更快照随所属轮次归档，可通过 context.query 的 goalChanges 回查。
 
 内容：
 {{data}}

@@ -23,14 +23,14 @@ export function applyToolEffects(input: {
           turnId: turn.turnId, sourceCallId: call.callId };
         break;
       }
-      case "goal.set":
-        if (effect.goal !== ledger.goal?.goal) {
-          const record = { id: allocateRecordId(dataDir, ledger.conversationId, "goal"), turnId: turn.turnId, goal: effect.goal, sourceCallId: call.callId, createdAt: nowIso() };
-          saveContextRecord(dataDir, ledger.conversationId, "goal", record);
-          if (ledger.goal) ledger.goalHistory.push(ledger.goal);
-          ledger.goal = record;
-        }
+      case "goal.upsert": {
+        const index = ledger.goals.findIndex(record => record.id === effect.record.id);
+        if (index === -1) ledger.goals.push(effect.record);
+        else ledger.goals[index] = effect.record;
+        ledger.currentGoalId = effect.currentGoalId;
+        turn.goalChanges.push(structuredClone(effect.record));
         break;
+      }
       case "note.write": ledger.notes[effect.key] = effect.value; break;
       case "note.delete": delete ledger.notes[effect.key]; break;
       case "memory.append":

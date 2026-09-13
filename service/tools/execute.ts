@@ -1,3 +1,4 @@
+import { prepareGoalUpdate, type GoalContext } from "../runtime/goals.ts";
 import { errorMessage } from "../../shared/errors.ts";
 import type { QueryModule, QueryResult } from "../agents/query/types.ts";
 import type { QueryRecord } from "../context/projections/queries.ts";
@@ -49,6 +50,7 @@ export type ExecuteInput = {
   arguments: ToolArguments;
   dataDir: string;
   conversationId?: string;
+  goalContext?: GoalContext;
   browserNames: string[];
   host?: BrowserHost;
   signal?: AbortSignal;
@@ -120,8 +122,14 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     return result(question, [{ type: "turn.ask", question }]);
   }
   if (name === "submitGoal") {
-    const goal = String(args.goal ?? "").trim();
-    return goal ? result(`当前目标：${goal}`, [{ type: "goal.set", goal }]) : failedTool("goal 空着", "invalid_arguments");
+    if (!input.conversationId || !input.goalContext) return failedTool("目标工具缺少会话上下文。", "invalid_arguments");
+    try {
+      const update = prepareGoalUpdate(dataDir, input.conversationId, input.goalContext, args);
+      return result(JSON.stringify({ ok: true, record: update.record, currentGoalId: update.currentGoalId }),
+        [{ type: "goal.upsert", ...update }]);
+    } catch (error) {
+      return failedTool(error, "invalid_arguments");
+    }
   }
   if (name === "notes.write") {
     const key = String(args.key ?? "").trim();

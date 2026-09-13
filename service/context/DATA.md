@@ -10,8 +10,8 @@
 | `userInput` | `{id, turnId, userInput}` | `id` |
 | `conversationHistorySummary` | `[{sumId, turnId, tag, userRequest, actions, result}]` | `sumId` |
 | `userInputHistory` | 用户输入记录数组 | `id` |
-| `goal` | `{id, turnId, sourceCallId?, goal}` 或 `null` | `id` |
-| `goalHistory` | 目标记录数组 | `id` |
+| `goal` | `{currentGoalId, goals}`；goals 为全部 active 目标及其父级记录 | `currentGoalId`、记录 `id` / `parentId` |
+| `goalHistory` | completed / cancelled 的目标记录数组 | `id` / `parentId` |
 | `currentPage` | `{id?, turnId?, callId?, tab, url, title, description}` 或 `null` | 有观察来源时带 `id` |
 | `pageObservedHistory` | 页面观察数组，排除 currentPage 的同 id 观察；`id / turnId / callId` 必填 | `id` |
 | `projectMemory` | `[{memoryId, turnId, sourceCallId?, sourceConversationId?, text}]` | `memoryId`（`lm_`） |
@@ -21,6 +21,8 @@
 | `queryHistory` | 查询记录数组 | `queryId` |
 | `currentQuery` | 查询记录或 `null` | `queryId` |
 | `tools` | 本轮已加载动态工具的能力导航文本，每项为工具名和说明首句 | 工具名 |
+
+目标记录统一为 `{id, parentId, status, turnId, sourceCallId?, goal}`。总目标 `goal_01` 的 parentId 为 null；子目标 `subgoal_01` 的 parentId 指向总目标。两类编号在会话内分别持久自增，更新保留原 ID。currentGoalId 可为 null；新会话 goal 为 `{currentGoalId:null,goals:[]}`，goalHistory 为 `[]`。磁盘以 Ledger.goals 保存全部最新记录、currentGoalId 保存选择，Turn.goalChanges 保存调用时的变更快照。
 
 查询记录统一为 `{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, nextCursor?, detail?}`。`records` 直接保存原模块记录，不新增通用 `id`，不加 `content` 包装；身份字段沿用原记录。查询自身的 `turnId` 与结果记录的 `turnId` 分别表示发起轮次和来源轮次。`status` 为 `complete / partial / not_found / error`。
 

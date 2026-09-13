@@ -25,7 +25,14 @@
     "prefix": "goal",
     "scope": "conversation",
     "allocation": "counter",
-    "description": "目标版本"
+    "description": "总目标（稳定 ID）"
+  },
+  "subgoal": {
+    "field": "id",
+    "prefix": "subgoal",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "子目标（parentId 关联总目标）"
   },
   "page": {
     "field": "id",

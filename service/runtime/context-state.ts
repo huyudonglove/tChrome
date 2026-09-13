@@ -1,3 +1,4 @@
+import { activeGoalIds } from "../context/projections/records.ts";
 import { mkdirSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { allocateRecordId } from "./ids.ts";
@@ -64,10 +65,11 @@ export function contextState(dataDir: string, ledger: Ledger, turn: Turn, memori
     if (!entry) throw new Error(`Missing active turn summary: ${id}`);
     return entry;
   }).sort((a, b) => (turnOrder.get(a.turnId) ?? Infinity) - (turnOrder.get(b.turnId) ?? Infinity));
+  const retainedGoals = activeGoalIds(ledger.goals);
   return {
     ledger: { ...ledger,
       userInputHistory: ledger.userInputHistory.filter(row => !turnCovered(row.turnId)),
-      goalHistory: ledger.goalHistory.filter(row => !originCovered(row.turnId, row.sourceCallId)),
+      goals: ledger.goals.filter(row => retainedGoals.has(row.id) || !originCovered(row.turnId, row.sourceCallId)),
       toolIO: ledger.toolIO.filter(row => !toolCovered(row)),
       queryHistory: ledger.queryHistory.filter(row => !isCovered(querySourceKey(row.queryId))),
     },

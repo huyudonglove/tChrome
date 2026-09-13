@@ -169,6 +169,7 @@ const runQueue = async (input: {
         dataDir,
         conversationId: ledger.conversationId,
         browserNames,
+        goalContext: { goals: ledger.goals, currentGoalId: ledger.currentGoalId, turnId: turn.turnId, sourceCallId: item.callId },
         host,
         signal: input.signal,
         queryContext: args => queryContext({ dataDir, conversationId: ledger.conversationId, repoRoot: input.repoRoot, provider: input.provider, ...args, isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId) }),
@@ -235,6 +236,7 @@ export async function handleTurn(
   const toolRegistry = loadToolRegistry(deps.repoRoot);
   const turnId = allocateRecordId(deps.dataDir, ledger.conversationId, "turn");
   const turn: Turn = {
+    goalChanges: [],
     turnId,
     conversationId: ledger.conversationId,
     status: "assembling",

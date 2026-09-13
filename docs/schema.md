@@ -133,8 +133,8 @@ Runtime 独占维护。当前会话指针。
 | `pendingAsk` | object \| null | `waiting_human` 时 `{turnId, question}`；否则 `null` |
 | `turnIds` | string[] | 已建的回合，按时间 |
 | `userInputHistory` | object[] | 上一轮及更早的输入，按旧到新排列。每项 `{id, turnId, userInput, submittedAt}`；新会话 `[]`。当前输入进入历史时保留原 ID |
-| `goal` | object \| null | 当前目标版本 `{id, turnId, goal, sourceCallId, createdAt}`；新会话 `null`。模型调 `submitGoal` 写入 |
-| `goalHistory` | object[] | 旧目标版本，与 goal 同结构。Runtime 在目标文字变化时把旧记录连同原 ID 追加进去 |
+| `goals` | object[] | 全部目标的最新记录 `{id, parentId, status, turnId, goal, sourceCallId, createdAt, updatedAt}`；总目标 `goal_01`、子目标 `subgoal_01` 分别持久自增。parentId 为 null 或所属总目标 ID，status 为 active/completed/cancelled；更新保留 ID。新会话 `[]` |
+| `currentGoalId` | string \| null | 当前选择的 active 目标。#goal 展示此指针、全部 active 目标及所需父级；#goalHistory 展示已结束目标。新会话 null |
 | `toolQueue` | object[] | 本 Turn 待执行的工具。模型一次出网交的 `toolCalls` 按数组顺序入队。任务队列按这个顺序跑。跑完一条弹出，写入 `toolIO`。新会话 / 新出网前空。每项 `{callId, name, arguments}` |
 | `liveTool` | object \| null | 正在跑的那条 `{name, callId}`。空闲 / 追问 / 失败为 `null` |
 | `toolIO` | object[] | 本会话完整工具记录，按执行顺序追加。本地始终保留；模型窗口按压缩目录 coveredSourceIds 过滤已覆盖记录 |
@@ -161,6 +161,7 @@ Runtime 独占维护。当前会话指针。
 | `input.id` | string | 创建输入时生成并持久保存的 `input_01`；不从 turnId 推导，后续渲染和进入历史沿用此 ID |
 | `input.text` | string | 本轮用户原话。用户下一条输入才开新 Turn |
 | `input.submittedAt` | string | 面板提交时间，ISO-8601 |
+| `goalChanges` | object[] | 本轮每次 submitGoal 更新后的目标快照，按调用顺序保留；同一目标可多次出现，sourceCallId 区分变更，供归档和历史查询使用 |
 | `assembled` | object | 这一轮点名的 catalog IDs + 当前页，见「assembled」 |
 | `output` | object | 见「output」 |
 | `usage` | object，可选 | 新 Turn 分别记录 `modelRequests` 与 `toolCalls`。工具批次逐个计数，包含常驻与收口工具；未通过校验而未执行的调用不计入。旧 Turn 可缺省。统计不作为累计 20 次的停止条件。 |
@@ -213,10 +214,10 @@ Memory 投影保持全部可见原文。会话记忆根据来源 turnId 随轮�
 
 ## context-records/<kind>/<id>.json
 
-用户输入、目标版本、页面观察在创建时以稳定 ID 写入本会话独立记录，kind 为 userInput、goal、pageObservation。窗口变化和压缩不修改原始记录。ID 用于内部关联，不要求主 Agent 操作 ID。
+用户输入和页面观察以稳定 ID 写入本会话独立记录，kind 为 userInput、pageObservation。目标最新状态统一保存在 Ledger.goals，读取 kind=goal 时按 ID 从账本查找；不另存目标文件。窗口变化和压缩不修改原记录。主模型用目标 ID 更新、选择目标，用 parentId 关联子目标。
 
 - 用户输入：`{id: "input_01", turnId, userInput, submittedAt}`，当前 `#userInput` 和对应历史项共用 ID。
-- 目标版本：`{id, turnId, goal, sourceCallId, createdAt}`，每次目标文字变化建立新版本。
+- 目标：`{id, parentId, status, turnId, goal, sourceCallId, createdAt, updatedAt}`，按稳定 ID 查询取得最新状态；历史变更快照保存在 Turn.goalChanges，按归档 goalChanges 回查。
 - 页面观察：`{id, turnId, tab, url, title, description, observedAt, callId, toolName}`，当前页和对应历史项共用观察 ID。
 - 记忆继续使用 memory 文件及 memoryId，注入模型时仅显示原文。
 
@@ -239,7 +240,7 @@ conversationHistorySummary 显示当前有效摘要的 {sumId, turnId, tag, user
 
 每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 以正文或文件引用保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
 
-模型输出校验成功、完整来源与摘要落盘后，才原子更新目录索引和覆盖关系。失败或取消不提交该批次覆盖，原文继续可用；此前成功提交的归档保留。索引是提交点，中断可能留下未被索引引用的文件。窗口按来源覆盖过滤历史输入、目标版本、页面观察、会话记忆写入和工具记录，本地原文不删除。
+模型输出校验成功、完整来源与摘要落盘后，才原子更新目录索引和覆盖关系。失败或取消不提交该批次覆盖，原文继续可用；此前成功提交的归档保留。索引是提交点，中断可能留下未被索引引用的文件。窗口按来源覆盖过滤历史输入、已结束目标、页面观察、会话记忆写入和工具记录，本地原文不删除。
 
 ## 窗口插槽
 
@@ -321,7 +322,7 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | 工具 | required 其余 | 谁填其余 |
 |---|---|---|
 | `askUser` | `question`、`choice` | 非空问题正文与选项 |
-| `submitGoal` | `goal` | 当前目标。改写时 Runtime 把旧值追加进 `goalHistory` |
+| `submitGoal` | 创建时 `goal`；更新时 `id` | 创建子目标时传 parentId；创建默认 active。按 id 更新正文、状态或选中 active 目标，parentId 创建后不变。关闭当前目标时转回 active 父目标，否则清空当前选择；不自动关闭其他目标，也不级联修改子目标 |
 | `finishTurn` | `text` | 非空回复正文，不依赖 content |
 | `context.query` | `sumId` `module` `intent`，可选 `cursor` | 查询 Agent 选择来源轮次，Runtime 将最多 2000 字符的原文记录或片段写入 currentQuery；partial 可续读 |
 | `capture_page` | `mode`；element 另需 ref/selector 二选一 | `viewport` / `full_page` / `element`；元素定位不混用 page.* 的 id，PDF 使用 `save_pdf` |

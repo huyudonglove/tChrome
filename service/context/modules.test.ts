@@ -19,7 +19,7 @@ const copyContext = () => {
 };
 const headings = (text: string): string[] => Array.from(text.match(/^#[A-Za-z][A-Za-z0-9]*$/gm) ?? []);
 const navigationTags = (text: string) => Array.from(text.matchAll(/^(#[A-Za-z][A-Za-z0-9]*) --【[^\n]+】$/gm), match => match[1]);
-const fixtureTurn = (): Turn => ({
+const fixtureTurn = (): Turn => ({ goalChanges: [],
   turnId: "tn_slots", conversationId: "cv_slots", status: "inferring", createdAt: "", completedAt: null,
   input: { id: "input_fixture", text: "用户输入 {{#goal}} {{data}}", submittedAt: "" }, output: null,
   assembled: { baseToolsIds: [], toolIds: [],  conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null, pageObservedHistory: [] },
@@ -47,7 +47,7 @@ test("reordering only inventories changes both navigations and corresponding bod
 test("user data is interpolated once and remains separate from navigation and module capabilities", () => {
   const modules = loadContextModules(root);
   const ledger = emptyLedger("cv_slots");
-  ledger.goal = { id: "goal_test", turnId: "tn_01", goal: "当前目标", sourceCallId: "call_01", createdAt: "2026-09-11" };
+  ledger.goals = [{ parentId: null, status: "active", updatedAt: "2026-09-11", ...{ id: "goal_test", turnId: "tn_01", goal: "当前目标", sourceCallId: "call_01", createdAt: "2026-09-11" } }]; ledger.currentGoalId = ledger.goals[0]!.id;
   ledger.notes = { candidate: "来自用户的 {{unknown}}" };
   const turn = fixtureTurn();
   const output = userText({ contextModules: modules, ledger, turn, memories: { project: "", conversation: "" }, skillText: "独立技能正文 {{data}} {{unknown}}" });

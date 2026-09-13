@@ -16,13 +16,17 @@ test("assembled User slots follow the shared data contract and preserve query re
   expect(schema.required).toEqual(names);
   const ledger = emptyLedger("cv_01");
   ledger.userInputHistory = [{ id: "input_01", turnId: "tn_01", userInput: "检查状态", submittedAt: "2026-09-12" }];
-  ledger.goal = { id: "goal_02", turnId: "tn_02", sourceCallId: "call_02", goal: "核对历史", createdAt: "2026-09-12" };
-  ledger.goalHistory = [{ ...ledger.goal, id: "goal_01", turnId: "tn_01" }];
+  ledger.goals = [{ parentId: null, status: "active", updatedAt: "2026-09-12", id: "goal_02", turnId: "tn_02", sourceCallId: "call_02", goal: "核对历史", createdAt: "2026-09-12" }];
+  ledger.currentGoalId = "goal_02";
+  ledger.goals.push({ ...ledger.goals[0]!, id: "subgoal_01", parentId: "goal_02", status: "completed", turnId: "tn_01" });
+  ledger.goals.push({ ...ledger.goals[0]!, id: "goal_03", status: "cancelled" });
+  ledger.goals.push({ ...ledger.goals[0]!, id: "subgoal_02", parentId: "goal_03" });
+  ledger.currentGoalId = "subgoal_02";
   ledger.notes = { scope: "仅核对" };
   const tool: ToolIOItem = { callId: "call_01", turnId: "tn_01", batchId: "batch_01", name: "page.get_summary", arguments: { reason: "核对状态", affectsPage: false, businessId: "task-A" }, return: { stage: "complete", totalChars: 3, text: "待处理" } };
   ledger.toolIO = [tool];
   const page = { id: "page_01", turnId: "tn_01", callId: "call_01", tab: 42, url: "https://example.com", title: "任务", description: "待处理", observedAt: "2026-09-12", toolName: tool.name };
-  const turn: Turn = {
+  const turn: Turn = { goalChanges: [],
     turnId: "tn_02", conversationId: "cv_01", status: "inferring", createdAt: "2026-09-12", completedAt: null, output: null,
     input: { id: "input_02", text: "当时状态是什么？", submittedAt: "2026-09-12" },
     assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: page, currentTab: null, pageObservedHistory: [page] },
@@ -41,6 +45,9 @@ test("assembled User slots follow the shared data contract and preserve query re
     values[name] = name === "skill" || name === "tools" ? body : JSON.parse(body);
   }
   expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
+  expect(values.goal.currentGoalId).toBe("subgoal_02");
+  expect(values.goal.goals.map((row: { id: string }) => row.id)).toEqual(["goal_02", "goal_03", "subgoal_02"]);
+  expect(values.goalHistory.map((row: { id: string; status: string }) => [row.id, row.status])).toEqual([["subgoal_01", "completed"], ["goal_03", "cancelled"]]);
   expect(values.currentQuery.records).toEqual([tool]);
   expect(values.currentQuery.records[0]).not.toHaveProperty("content");
   const wrapped = structuredClone(values);

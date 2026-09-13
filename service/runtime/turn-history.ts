@@ -32,7 +32,7 @@ export function assembleTurnHistory(ledger: Ledger, turn: Turn, memories: Memori
     createdAt: turn.createdAt,
     completedAt: turn.completedAt,
     userInput: inputRecord(turn),
-    goalChanges: [...ledger.goalHistory, ...(ledger.goal ? [ledger.goal] : [])].filter(item => item.turnId === turn.turnId),
+    goalChanges: turn.goalChanges,
     toolIO: ledger.toolIO.filter(item => item.turnId === turn.turnId),
     pageObservations: turn.assembled.pageObservedHistory.filter(item => item.turnId === turn.turnId),
     memoryWrites: memories.conversation.filter(item => item.turnId === turn.turnId),

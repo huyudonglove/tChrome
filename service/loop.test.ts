@@ -448,6 +448,7 @@ test("队列和正在跑的工具出现在 /session", () => {
   saveTurn(dir, {
     turnId: "tn_01",
     conversationId: "cv_01",
+    goalChanges: [],
     status: "inferring",
     createdAt: "2026-09-06T00:00:00.000Z",
     completedAt: null,
@@ -600,7 +601,7 @@ test("stop 没有 tool_calls 就写 needFinishTurn 再出网", async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("submitGoal 写入当前目标，再交一次旧目标进 history", async () => {
+test("submitGoal 创建父子目标并在后续轮次按稳定 ID 更新", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-goal-"));
   const provider = mock([
     ok({
@@ -611,7 +612,7 @@ test("submitGoal 写入当前目标，再交一次旧目标进 history", async (
     ok({
       finish: "tool_calls",
       content: "",
-      toolCalls: [{ id: "call_02", name: "submitGoal", arguments: { reason: "改目标", affectsPage: false, goal: "测登录页" } }],
+      toolCalls: [{ id: "call_02", name: "submitGoal", arguments: { reason: "开始子任务", affectsPage: false, parentId: "goal_01", goal: "测登录页" } }],
     }),
     ok({
       finish: "tool_calls",
@@ -622,8 +623,22 @@ test("submitGoal 写入当前目标，再交一次旧目标进 history", async (
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "测这个站点", submittedAt: "2026-09-06T00:00:00.000Z" });
   expect(reply.output).toEqual({ kind: "reply", text: "目标改成测登录页" });
   const ledger = loadLedger(dir, "cv_01");
-  expect(ledger.goal?.goal).toBe("测登录页");
-  expect(ledger.goalHistory.map(item => item.goal)).toEqual(["测这个站点"]);
+  expect(ledger.currentGoalId).toBe("subgoal_01");
+  expect(ledger.goals.map(({ id, parentId, goal, status }) => ({ id, parentId, goal, status }))).toEqual([
+    { id: "goal_01", parentId: null, goal: "测这个站点", status: "active" },
+    { id: "subgoal_01", parentId: "goal_01", goal: "测登录页", status: "active" },
+  ]);
+  expect(JSON.parse(ledger.toolIO.find(item => item.name === "submitGoal")!.return.text)).toMatchObject({ ok: true, record: { id: "goal_01" } });
+  const nextProvider = mock([
+    ok({ finish: "tool_calls", toolCalls: [{ id: "call_04", name: "submitGoal", arguments: { reason: "已验证", affectsPage: false, id: "subgoal_01", status: "completed" } }] }),
+    ok({ finish: "tool_calls", toolCalls: [{ id: "call_05", name: "finishTurn", arguments: { text: "登录页通过" } }] }),
+  ]);
+  await handleTurn({ dataDir: dir, repoRoot, provider: nextProvider }, { userInput: "登录页通过了", submittedAt: "2026-09-06T00:01:00.000Z" });
+  const completed = loadLedger(dir, "cv_01");
+  expect(completed.currentGoalId).toBe("goal_01");
+  expect(completed.goals).toHaveLength(2);
+  expect(completed.goals.find(goal => goal.id === "subgoal_01")).toMatchObject({ parentId: "goal_01", status: "completed", goal: "测登录页" });
+  expect(loadTurn(dir, "cv_01", reply.turnId).goalChanges.at(-1)?.status).toBe("active");
   rmSync(dir, { recursive: true, force: true });
 });
 

@@ -1,10 +1,10 @@
-import type { CurrentPage, MemoryLayer } from "../types.ts";
+import type { CurrentPage, GoalRecord, MemoryLayer } from "../types.ts";
 import type { QueryEvidence } from "../context/projections/queries.ts";
 
 // Tools describe domain changes; only the runtime applies and persists them.
 export type ToolEffect =
   | { type: "query.set"; query: Omit<QueryEvidence, "queryId" | "turnId" | "sourceCallId"> }
-  | { type: "goal.set"; goal: string }
+  | { type: "goal.upsert"; record: GoalRecord; currentGoalId: string | null }
   | { type: "note.write"; key: string; value: string }
   | { type: "note.delete"; key: string }
   | { type: "memory.append"; entries: { layer: MemoryLayer; text: string }[] }

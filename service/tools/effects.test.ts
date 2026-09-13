@@ -21,14 +21,15 @@ function setup() {
   const turn: Turn = {
     turnId: "tn_effects", conversationId: ledger.conversationId, status: "inferring",
     createdAt: new Date().toISOString(), completedAt: null, input: { id: "input_fixture", text: "检查", submittedAt: "now" },
-    output: null, assembled: {
+    output: null, goalChanges: [], assembled: {
       baseToolsIds: ["finishTurn"], toolIds: ["page.click"],
       conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, currentTab: null,
       pageObservedHistory: [],
     },
   };
   const execute = (name: string, args: ToolArguments, options: Partial<ExecuteInput> = {}) => executeTool({
-    name, arguments: args, dataDir, browserNames: [],
+    name, arguments: args, dataDir, browserNames: [], conversationId: ledger.conversationId,
+    goalContext: { goals: ledger.goals, currentGoalId: ledger.currentGoalId, turnId: turn.turnId, sourceCallId: "call_effects" },
     lookup: {
       unusedTools: ["capture_page"],
       knownTools: ["finishTurn", "page.click", "capture_page"],
@@ -53,19 +54,47 @@ test("catalog.add reports only enabled names and distinguishes duplicates and un
   expect(repeated.effects).toEqual([]);
 });
 
-test("runtime persists goals and notes from effects without interpreting the original tool name or arguments", async () => {
+test("runtime persists stable hierarchical goals, explicit lifecycle and notes through effects", async () => {
   const fixture = setup();
-  fixture.apply(await fixture.execute("submitGoal", { goal: "第一目标" }));
-  fixture.apply(await fixture.execute("submitGoal", { goal: "第二目标" }));
-  fixture.apply(await fixture.execute("submitGoal", { goal: "第二目标" }));
+  const submit = async (args: ToolArguments) => {
+    const execution = await fixture.execute("submitGoal", args);
+    const returned = JSON.parse(execution.text);
+    expect(returned.ok).toBe(true);
+    fixture.apply(execution);
+    return { ...returned.record, currentGoalId: returned.currentGoalId };
+  };
+  const root = await submit({ goal: "测试站点" });
+  const child = await submit({ parentId: root.id, goal: "测试登录" });
+  const sibling = await submit({ parentId: root.id, goal: "测试设置" });
+  const otherRoot = await submit({ goal: "整理报告" });
+  expect([root.id, child.id, sibling.id, otherRoot.id]).toEqual(["goal_01", "subgoal_01", "subgoal_02", "goal_02"]);
+  const updated = await submit({ id: child.id, goal: "验证登录结果" });
+  expect(updated).toMatchObject({ id: child.id, parentId: root.id, createdAt: child.createdAt, currentGoalId: child.id });
+  const complete = await submit({ id: child.id, status: "completed" });
+  expect(complete).toMatchObject({ id: child.id, goal: "验证登录结果", status: "completed", currentGoalId: root.id });
+  await submit({ id: sibling.id });
+  expect((await submit({ id: sibling.id, status: "cancelled" })).currentGoalId).toBe(root.id);
+  expect((await submit({ id: root.id, status: "completed" })).currentGoalId).toBeNull();
+  await submit({ id: sibling.id, status: "active" });
+  await submit({ id: root.id, status: "cancelled" });
+  expect(fixture.ledger.currentGoalId).toBe(sibling.id);
+  for (const args of [{ goal: "missing parent", parentId: "goal_99" }, { goal: "nested", parentId: sibling.id }, { id: "subgoal_99", status: "completed" }, { id: child.id, parentId: otherRoot.id }]) {
+    const execution = await fixture.execute("submitGoal", args);
+    expect(JSON.parse(execution.text)).toMatchObject({ ok: false, faultCode: "invalid_arguments" });
+    expect(execution.effects).toEqual([]);
+  }
   fixture.apply(await fixture.execute("notes.write", { key: " candidate ", value: "页面 A" }));
   let saved = loadLedger(fixture.dataDir, fixture.ledger.conversationId);
-  expect(saved.goal?.goal).toBe("第二目标");
-  expect(saved.goalHistory.map(item => item.goal)).toEqual(["第一目标"]);
-  for (const record of [...saved.goalHistory, saved.goal!]) {
+  expect(saved.goals).toHaveLength(4);
+  expect(saved.goals.find(record => record.id === otherRoot.id)?.status).toBe("active");
+  expect(saved.goals.find(record => record.id === sibling.id)?.status).toBe("active");
+  expect(saved.currentGoalId).toBe(sibling.id);
+  for (const record of saved.goals) {
     expect(JSON.parse(loadContextRecord(fixture.dataDir, saved.conversationId, "goal", record.id)!)).toEqual(record);
   }
-  expect(saved.goal!.id).not.toBe(saved.goalHistory[0]!.id);
+  const changes = loadTurn(fixture.dataDir, saved.conversationId, fixture.turn.turnId).goalChanges;
+  expect(changes.find(record => record.id === child.id)).toMatchObject({ goal: "测试登录", status: "active" });
+  expect(changes.filter(record => record.id === child.id).at(-1)).toMatchObject({ goal: "验证登录结果", status: "completed" });
   expect(saved.notes).toEqual({ candidate: "页面 A" });
   fixture.apply(await fixture.execute("notes.delete", { key: "candidate" }));
   saved = loadLedger(fixture.dataDir, fixture.ledger.conversationId);

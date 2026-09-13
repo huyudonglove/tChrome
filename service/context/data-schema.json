@@ -60,14 +60,30 @@
     "goal": {
       "anyOf": [
         {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/goal"
+          "type": "object",
+          "properties": {
+            "currentGoalId": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/goalId"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
-            {
-              "type": "null"
+            "goals": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/goal"
+              }
             }
-          ]
+          },
+          "required": [
+            "currentGoalId",
+            "goals"
+          ],
+          "additionalProperties": false
         },
         {
           "$ref": "#/$defs/contextFileReference"
@@ -274,7 +290,14 @@
       "$ref": "tchrome:identity#/$defs/input"
     },
     "goalId": {
-      "$ref": "tchrome:identity#/$defs/goal"
+      "anyOf": [
+        {
+          "$ref": "tchrome:identity#/$defs/goal"
+        },
+        {
+          "$ref": "tchrome:identity#/$defs/subgoal"
+        }
+      ]
     },
     "pageId": {
       "$ref": "tchrome:identity#/$defs/page"
@@ -337,12 +360,34 @@
         },
         "createdAt": {
           "type": "string"
+        },
+        "parentId": {
+          "anyOf": [
+            {
+              "$ref": "tchrome:identity#/$defs/goal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "active",
+            "completed",
+            "cancelled"
+          ]
+        },
+        "updatedAt": {
+          "type": "string"
         }
       },
       "required": [
         "id",
         "turnId",
-        "goal"
+        "goal",
+        "parentId",
+        "status"
       ],
       "additionalProperties": false
     },
@@ -718,8 +763,12 @@
         "causeCode": {
           "type": "string"
         },
-        "toolName": { "type": "string" },
-        "detail": { "type": "string" },
+        "toolName": {
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        },
         "name": {
           "type": "string"
         },
