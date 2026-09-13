@@ -1,142 +1,144 @@
-# tChrome · 驭舟 (Helm)
+# tChrome · Helm (驭舟)
 
-**在日常 Chrome 中为你掌舵、观察、操作与沉淀记忆的自主 AI 伙伴。**
+[English](README.md) | [简体中文](README_zh.md)
 
----
-
-### 你好，我是驭舟（Helm）
-
-我寄宿在你的 Chrome 侧栏中，以你熟悉的真实浏览器为窗口，向下打通本机系统，向上连接大语言模型。
-
-我不是一个仅停留在对话框里的文字聊天机器人，而是一个**能够替你观察网页、操作控件、管理标签、调度本机文件与终端的自主浏览器智能体（Autonomous Browser Agent）**。
-
-在与你的协作中，我秉持以下原则：
-- **不凭空假设，严谨取证**：我不会盲目推测网页状态。每走一步，我都会读取真实 DOM、可访问性树或页面截图，根据页面回显和执行反馈决定下一步；未经验证，我不宣称成功。
-- **目标驱动，层次分明**：面对复杂长流程任务，我会将总目标自顶向下拆解为结构化子目标，阶段切换清晰，保留完整历史轨迹。
-- **记忆沉淀，本地优先**：草稿放笔记、事实存会话、经验入长期记忆、网址与账号存本地资料库。你所有的运行数据、日志和资料库全部完整保存在你的本机电脑上，开放透明，完全由你掌控。
-
-**tChrome** 是我的躯干与工程载体（由 **Chrome 扩展 + 本机 Bun 服务 + 模型服务** 组成），而我——**Helm（驭舟）**，负责在网页与数字世界中为你把握方向、执行行动、达成所托。
+**An autonomous AI partner steering, observing, operating, and preserving memory in your everyday Chrome browser.**
 
 ---
 
-## 能做什么
+### Hello, I am Helm (驭舟)
 
-| 场景 | 可以交给我的任务 |
+I reside in your Chrome side panel, using your familiar real browser as my window to the web, connecting down to your local operating system and up to large language models.
+
+I am not just a chatbot confined to a dialog box. I am an **autonomous browser agent capable of inspecting web pages, operating interactive controls, managing tabs, and orchestrating local files and terminal commands on your behalf**.
+
+When collaborating with you, I adhere to the following principles:
+- **Evidence-based, no assumptions**: I never guess page states. Every step is verified against the real DOM, accessibility tree, or screen captures. I decide the next move based on real feedback and never claim success without verification.
+- **Goal-driven with clear hierarchy**: For complex, multi-step workflows, I decompose high-level goals into structured subgoals, ensuring explicit phase transitions and complete historical audit trails.
+- **Memory-retaining, local-first**: Notes for temporary drafts, conversation memory for confirmed facts, project memory for long-term knowledge, and the Library for high-value URLs and credentials. All your session data, logs, screenshots, and library records are stored locally on your machine—completely open, inspectable, and under your control.
+
+**tChrome** is my host framework (composed of **Chrome Extension + Local Bun Service + Model Provider**), and I—**Helm**—am the autonomous intelligence taking the helm, acting, and delivering results for you across the web.
+
+---
+
+## Capabilities
+
+| Scenario | What You Can Entrust to Me |
 | --- | --- |
-| **阅读与深度整理** | 总结当前页面要点，提取复杂表格，在多标签页间交叉对比信息，定位长文档关键细节 |
-| **真实网页操作** | 打开网址、切换/分组标签、点击、输入、滚动、填写提交表单，结合页面反馈完成多步业务流 |
-| **多源调研与核对** | 自主搜索资料、深入来源网页核对事实，将关键发现提炼为报告或沉淀进本地资料库 |
-| **前端与页面检查** | 读取 DOM 树、可访问性树和元素状态，截图观察画面变化，执行页面 JS 辅助诊断网页行为 |
-| **浏览器环境管理** | 管理标签页与窗口、监控下载进度、读取 Cookie 与存储状态、妥善处理浏览器原生弹窗 |
-| **本机跨界协作** | 读写本地文件、检索目录、执行 Shell 脚本、管理后台进程，以及调用系统应用打开产物 |
-| **长效资料沉淀** | 将高价值网站、账号与结构化资料一键存入本地资料库，在侧栏随时查看、检索或复用 |
-| **多轮持续演进** | 在同一会话中无缝延续复杂任务，跨轮次调用会话记忆，并将跨会话适用的经验持久保留 |
+| **Reading & In-Depth Synthesis** | Summarize page highlights, extract tables, cross-check information across tabs, and pinpoint critical details in long documents. |
+| **Real Web Operations** | Open URLs, switch/group tabs, click, type, scroll, fill and submit forms, completing multi-step workflows based on feedback. |
+| **Multi-Source Research & Fact-Checking** | Autonomously search the web, verify facts across source pages, and distill findings into structured reports or Library items. |
+| **Frontend & Page Inspection** | Inspect DOM and accessibility trees, monitor element states, take visual screenshots, and execute in-page JavaScript for diagnostic debugging. |
+| **Browser Environment Management** | Manage tabs and windows, track download progress, inspect cookies and page storage, and handle native browser dialogs. |
+| **Local System Collaboration** | Read/write local files, search directories, execute shell scripts, manage background processes, and open files with system apps. |
+| **Long-Term Asset Preservation** | Save curated websites, credentials, and reference notes directly into your local Library, with side panel search and inspection. |
+| **Multi-Turn Continuous Evolution** | Seamlessly continue complex tasks in the same conversation, leverage conversation memory, and persist cross-session knowledge. |
 
-### 你可以这样唤醒我：
+### How You Can Prompt Me:
 
-> “看一下当前页面，整理出它的核心亮点以及需要特别注意的使用限制。”
+> "Inspect the current page, summarize key takeaways, and list any usage constraints or limitations."
 >
-> “去搜一下最近热门的 WebGPU 开源学习项目，逐个打开看 README，提炼出主要特色与 Star 数，帮我存入资料库。”
+> "Search for trending open-source WebGPU learning resources on GitHub, check their READMEs, extract highlights and star counts, and save the best to my Library."
 >
-> “检查当前注册表单在各种边界输入下的校验提示，执行后把实际观察到的报错截图记录下来。”
+> "Test the validation hints on this registration form under various boundary inputs, take screenshots of errors observed, and report back."
 >
-> “把刚才确认的配置项记在本会话里，接下来帮我继续分析第二套对比方案。”
+> "Record our confirmed configuration items into conversation memory, then proceed to analyze the second architectural option."
 
 ---
 
-## 核心设计与工程优势
+## Core Engineering & Design Advantages
 
-### 1. 立足真实工作环境，而非无头孤岛
-我不跑在隔离的无头（Headless）浏览器容器里，而是**直接运行在你日常登录好账号、带有 Cookie 和浏览历史的真实 Chrome 浏览器中**。
-你可以随时看到我点击了哪里、输入了什么，也可以在任何需要人工介入的关键时刻直接接管。对于路径多变、需要即时探索的复杂任务，无需预先编排固定脚本。
+### 1. Embedded in Your Real Workspace, Not an Isolated Headless Sandbox
+I do not run in an isolated headless browser. I **operate directly inside your daily Chrome browser with your active logins, cookies, and browsing context**.
+You can watch every click and keystroke in real time, or step in and take over whenever human intervention is needed. No fragile predefined workflows required for dynamic exploratory tasks.
 
-### 2. 严谨的可观测执行循环
-通过标准工具调用（Tool Calls）驱动闭环，Runtime 提供健壮的队列调度、容错重试、状态追踪与主动熔断机制。
-侧栏面板清晰呈现每一步的**行动理由（Reason）**与**执行证据**；工具执行异常会作为客观反馈传回模型以自主纠错，避免死循环。
+### 2. Observable, Resilient Execution Loop
+Driven by standardized tool calls, the Runtime manages queue scheduling, error handling, retries, state tracking, and circuit breakers.
+The side panel transparently displays the **action reason** and **execution evidence** for each step. Tool execution failures are returned as objective feedback to the model for automated self-correction.
 
-### 3. 工具生态丰富，按需动态加载
-启动时仅保留常驻核心能力与工具发现入口。其他浏览器进阶能力、网络探针、本机文件系统操作及资料库工具由我按需动态声明并挂载。
-让每次模型请求保持精炼，避免上下文冗余膨胀，同时极大方便开发者自行扩展定制专属工具。
+### 3. Dynamic, On-Demand Tool Discovery
+Only core resident tools and discovery endpoints are injected at startup. Advanced browser operations, network probes, local file systems, and library capabilities are dynamically registered on demand.
+This keeps prompt context minimal and token-efficient while making custom tool extensions straightforward.
 
-### 4. 独特的长会话智能压缩与原文无损回查
-当单会话上下文接近阈值（200,000 字符）时，Runtime 会调度独立的**压缩 Agent** 对历史轮次进行结构化提炼（意图、行动、客观结果），平滑保留最近上下文。
-所有原始交互日志与工具细节均完整保留在本地底层；需要深入考证时，**查询 Agent** 可按需精准回查原文，在控制 Token 成本的同时做到历史不失真。
+### 4. Intelligent Context Compression with Lossless Raw Retrieval
+When context approaches the threshold (200,000 characters), the Runtime schedules an independent **Compression Agent** to summarize previous turns into structured records (user goals, actions taken, objective outcomes).
+Raw logs, tool arguments, and outputs remain intact on disk. When detailed verification is required, a **Query Agent** accurately retrieves original excerpts, preventing context bloat without losing fidelity.
 
-### 5. 分层记忆与结构化资料库各司其职
-| 存储层级 | 职能定位 | 作用范围 |
+### 5. Tiered Memory & Structured Library
+| Tier | Purpose | Scope |
 | --- | --- | --- |
-| **工作笔记 (#notes)** | 任务推进中的临时草稿、候选集与中间过程材料 | 当前会话有效 |
-| **会话记忆 (#conversationMemory)** | 当前任务中已确认的事实、用户偏好与关键决定 | 当前会话跨轮次保留 |
-| **长期记忆 (#projectMemory)** | 跨任务适用的长期知识、系统习惯与背景共识 | 所有会话全局共享 |
-| **本地资料库 (Library)** | 人机共用的结构化资产（网站收藏、账号凭证、常规资料） | 独立本地存储，侧栏直观管理 |
+| **Work Notes (`#notes`)** | Ephemeral drafts, candidates, and intermediate work | Current session |
+| **Conversation Memory (`#conversationMemory`)** | Confirmed facts, user preferences, and key decisions | Preserved across turns in session |
+| **Long-Term Memory (`#projectMemory`)** | Shared conventions, background knowledge, and preferences | Globally shared across sessions |
+| **Local Library** | Curated bookmarks, account credentials, and general references | Persistent local storage, side panel UI |
 
-### 6. 数据本地优先，透明可控
-会话记录、工具日志、交互详情、视觉截图、记忆与资料库均存储在你的本机。所有系统提示词、工具实现、模型适配代码完全开源。
-*注：本地优先强调的是数据的持久化归属与控制权，模型推理仍会向你配置的大模型服务发送当前轮次必要的上下文。*
+### 6. Local-First, Transparent & Controllable
+Session logs, tool traces, screenshots, memories, and library items reside locally on your machine. System prompts, tool implementations, and adapters are open and auditable.
+*(Note: Local-first refers to data ownership and storage; model inference sends necessary context to your chosen LLM provider.)*
 
 ---
 
-## 与主流方案的定位对比
+## Comparison with Mainstream Alternatives
 
-| 方案 | 核心定位与常见用法 | 适用场景 | 与 tChrome / Helm 的取舍 |
+| Solution | Core Focus & Typical Usage | Best Fit | Trade-offs vs. tChrome / Helm |
 | --- | --- | --- | --- |
-| **普通聊天助手** (ChatBot / Search AI) | 对话、检索、写作、思路答疑 | 文本生成、通用咨询、无需操作浏览器的场景 | Helm 核心聚焦在**真实浏览器操作、多步任务闭环与本机联动**；纯文本问答类任务传统聊天更轻量。 |
-| **browser-use 等开源框架** | Python/Node 编程框架，在代码中编排 Agent | 开发者自主构建独立浏览器 Agent 应用 | tChrome 开箱即用，提供完整的 Chrome 侧栏交互、会话记忆与本地资料库；框架更适合作为底层组件二次开发。 |
-| **Playwright / Puppeteer 自动化** | 编写固定选择器、动作序列与断言 | 严格可重复的回归测试、爬虫、确定流程自动化 | Playwright 适合确定性高、步骤固定的流程；Helm 适合**路径未知、依赖实时视觉与 DOM 反馈随机应变**的复杂探索任务。 |
-| **n8n / Dify / 流程编排平台** | 可视化节点流、API 连接器、流程自动化 | 跨企业系统的数据流打通与后台自动化任务 | 平台更擅长后端多系统集成；Helm 专注于**个人在日常浏览器桌面环境下的沉浸式实时协同**。 |
+| **Standard Chat Assistants** (ChatBot / Search AI) | Conversational Q&A, writing, search | Pure text generation and consulting without browser interaction | Helm specializes in **active browser operation, multi-step execution, and local system integration**; standard chatbots are simpler for text-only tasks. |
+| **Browser Agent Frameworks** (e.g. browser-use) | Code-first Python/Node libraries | Developers building standalone custom browser agents | tChrome is ready to use out-of-the-box with a Chrome side panel, tiered memory, and local Library; frameworks are better suited as building blocks. |
+| **Browser Automation** (Playwright / Puppeteer) | Fixed selectors, scripted action sequences, assertions | Deterministic regression testing, scrapers, rigid automation | Playwright excels at deterministic, predefined scripts; Helm thrives in **dynamic, ambiguous tasks requiring runtime visual and DOM observation**. |
+| **Workflow Platforms** (n8n / Dify) | Node-based workflows, API orchestration, automated pipelines | Cross-enterprise system integrations and backend automation | Workflow platforms focus on backend services; Helm focuses on **desktop-level, immersive real-time collaboration in your daily browser**. |
 
 ---
 
-## 快速安装与使用
+## Quick Start & Installation
 
-### 运行环境准备
-- **Google Chrome 135** 或更高版本。
-- **[Bun](https://bun.sh/)**：用于依赖安装、编译扩展与驱动本机服务。
+### Prerequisites
+- **Google Chrome 135+**
+- **[Bun](https://bun.sh/)** for dependency management, extension builds, and the local service.
 
-> *当前默认文件路径与本机系统能力以 macOS 为最佳体验；Linux / Windows 环境亦可支持核心功能。*
+> *Default file paths and native features are optimized for macOS; core features also run on Linux and Windows.*
 
-### 1. 克隆代码与依赖安装
+### 1. Clone & Install
 ```bash
 git clone https://github.com/huyudonglove/tChrome.git
 cd tChrome
 bun install
 ```
 
-### 2. 编译并启动本机服务
+### 2. Build & Launch Service
 ```bash
 bun run build
 bun run service
 ```
-本机服务默认监听 `http://127.0.0.1:18788`，可访问 `http://127.0.0.1:18788/health` 检查服务连通性。
+The local service listens on `http://127.0.0.1:18788`. Check `http://127.0.0.1:18788/health` to verify connectivity.
 
-### 3. 加载 Chrome 侧栏扩展
-1. 打开 Chrome 访问 `chrome://extensions/`，右上角开启 **“开发者模式”**。
-2. 点击 **“加载已解压的扩展程序”**，选中项目中的 **`dist/`** 目录。
-3. 打开任意网页，点击扩展栏的 tChrome 图标唤起侧栏。
-4. 在侧栏设置中配置好你的模型 API Key 与端点，即可开始与 Helm 协作！
+### 3. Load Chrome Extension
+1. Open Chrome and navigate to `chrome://extensions/`. Enable **"Developer mode"** in the top right.
+2. Click **"Load unpacked"** and select the project's **`dist/`** directory.
+3. Open any webpage and click the tChrome icon in your toolbar to open the side panel.
+4. Configure your model API Key and endpoint in the settings, and start collaborating with Helm!
 
 ---
 
-## 目录结构概览
+## Project Structure
 
 ```text
 tChrome/
-├── extension/             # Chrome 侧栏扩展前端 (React + Tailwind)
-│   ├── sidepanel/         # 侧栏交互界面、资料库管理面板
-│   └── tools/             # 浏览器宿主端工具执行适配器
-├── service/               # 本机 Bun 核心服务
-│   ├── runtime/           # 执行循环、任务调度、容错与状态机
-│   ├── context/           # 上下文组装、System 规则与栏目编排
-│   ├── tools/             # 工具定义库、参数校验与注册中心
-│   ├── agents/            # 专用子智能体 (压缩 Agent、精准回查 Agent)
-│   ├── memory/            # 分层记忆引擎 (会话记忆与长期记忆)
-│   ├── library/           # 本地持久化结构化资料库
-│   └── provider/          # 多模型协议适配器 (OpenAI 兼容协议等)
-└── docs/                  # 字段协议与数据存储设计文档
+├── extension/             # Chrome side panel frontend (React + Tailwind)
+│   ├── sidepanel/         # Side panel UI, Library management interface
+│   └── tools/             # Browser host-side tool execution adapters
+├── service/               # Local Bun core service
+│   ├── runtime/           # Execution loop, scheduler, error handling, state machine
+│   ├── context/           # Prompt composition, System rules, and section layout
+│   ├── tools/             # Tool definitions, schema validation, registry
+│   ├── agents/            # Specialized sub-agents (Compression & Query agents)
+│   ├── memory/            # Tiered memory engine (conversation & project memory)
+│   ├── library/           # Local persistent structured asset store
+│   └── provider/          # LLM protocol adapters (OpenAI-compatible, etc.)
+└── docs/                  # Protocol specifications and data architecture docs
 ```
 
 ---
 
-## 开源协议与交流
+## License & Community
 
-欢迎提交 Issue 与 Pull Request，共同打磨更懂浏览器、更省心的自主个人 Agent！
+Contributions, issues, and pull requests are welcome as we shape a more capable, intuitive autonomous browser agent!
