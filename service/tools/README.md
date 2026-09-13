@@ -8,7 +8,7 @@
 - `definitions/index.json`：动态工具的 browser / service 分类。
 - `definitions/groups.json`：常驻工具和初始动态工具分组。
 
-`registry.ts` 读取本模块定义。System #baseTools 展示常驻能力导航，User #tools 展示本轮已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送。`schema.ts` 校验调用，Runtime 对主 Agent 响应统一执行校验后调度。校验前按 schema 中明确声明的字段类型，将精确的 `"true"` / `"false"` 转为布尔值，将 JSON 数字字符串转为有限数字（绝对值不超过安全整数上限，integer 字段必须为安全整数）；嵌套对象和数组沿 properties/items 处理。转换后的参数通过原有校验后交给执行器；不补必填项、不转换文本、不把单值包装成数组，也不猜测联合分支的类型。`service/context/` 负责同一服务内的上下文装配。Chrome API 操作由 `extension/tools/` 的宿主执行器完成，经浏览器桥接收服务调度；工具注册和 schema 仍统一维护在本模块。工具返回结构化结果与 effects，`service/runtime/effects.ts` 统一应用状态和持久化。
+`registry.ts` 读取本模块定义。System #baseTools 展示常驻能力导航，User #tools 展示本会话已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送。`schema.ts` 校验调用，Runtime 对主 Agent 响应统一执行校验后调度。校验前按 schema 中明确声明的字段类型，将精确的 `"true"` / `"false"` 转为布尔值，将 JSON 数字字符串转为有限数字（绝对值不超过安全整数上限，integer 字段必须为安全整数）；嵌套对象和数组沿 properties/items 处理。转换后的参数通过原有校验后交给执行器；不补必填项、不转换文本、不把单值包装成数组，也不猜测联合分支的类型。`service/context/` 负责同一服务内的上下文装配。Chrome API 操作由 `extension/tools/` 的宿主执行器完成，经浏览器桥接收服务调度；工具注册和 schema 仍统一维护在本模块。工具返回结构化结果与 effects，`service/runtime/effects.ts` 统一应用状态和持久化。
 
 浏览器元素引用使用 `el_01`（snapshot/find）、`e_01`（page.* 元素）和 `r_01`（page.* 区域）。扩展通过统一编号目录生成前缀，由 service worker 在 `chrome.storage.local` 持久自增分配；跨标签、导航和 worker 重启不复用。编号绑定实际 DOM 节点，同一节点重复观察保持编号；旧节点消失或不可见时操作失败，不按新枚举位置重新解释旧编号。
 
@@ -36,7 +36,7 @@
 
 `execute_javascript` 使用 filename（仅 .js/.mjs/.cjs）和可选 tab，不接受内联 code；内容为页面表达式，多语句或异步逻辑使用 IIFE。`local.run` / `local.process_start` 使用 filename 和绝对路径 cwd，可选 args 字符串数组及 timeoutMs；.sh 由 zsh、.py 由 python3、.js/.mjs/.cjs 由 bun 执行，不接受内联 command。补丁只返回状态，必须在确认成功后的下一次模型调用执行；Runtime 拒绝同批 script_patch 与脚本执行。
 
-本机每次执行读取已保存文件并创建私有快照，后续补丁不会改变正在运行的脚本。普通相对文件路径按 cwd 解析；脚本自身路径和相对 import 按快照位置解析，不支持依赖托管目录中相邻脚本的相对导入。服务运行环境需安装 Git，补丁解析与应用直接使用 `git apply`。
+本机每次执行读取已保存文件并创建私有快照，后续补丁不会改变正在运行的脚本。普通相对文件路径按 cwd 解析；脚本自身路径和相对 import 按快照位置解析，不支持依赖托管目录中相邻脚本的相对导入。服务运行环境需安装 Git，补丁解析、检查与应用统一使用 `git apply --recount`，由 Git 按正文计算 hunk 行数。补丁仍需合法 unified diff 结构、匹配原文上下文及末尾换行；不猜测修复正文。
 
 HTTP 传输由 `service/network/idle-fetch.ts` 统一检查响应活动，`http-text.ts` 管理工具重试和完整文本读取。网络空闲时限、尝试次数和重试间隔统一读取 `service/config/runtime.json`；空闲超时随响应数据重置，持续传输不会因总耗时过长被中止。服务工具接收回合的取消信号，批量请求取消后不再访问后续地址。
 
@@ -51,3 +51,5 @@ HTTP 传输由 `service/network/idle-fetch.ts` 统一检查响应活动，`http-
 点击工具：`click(targetText|ref)` 按控件文字或 snapshot_page/find_on_page 引用定位；`page.click(id)` 使用 page.* 的元素编号。两者保留独立引用体系，reason 是可选展示信息，不自动填充。click 不接受旧 text 字段，也不将非字符串强转为目标文字。
 
 工具参数对象原样接收，字符串仅执行一次标准 JSON.parse，不修复围栏、尾逗号或单引号。HTTP 正文、响应头、搜索正文和脚本输出不再隐式截断；发送主模型前由统一上下文门禁处理文本。浏览器桥不设独立总执行时限；已执行请求只重发结果，扩展 worker 恢复时结果未知则返回错误而不重做动作。
+
+动态加载成功后将工具名持久写入会话 ledger.loadedToolIds，新 turn 合并默认工具与会话清单生成 tools[]；重新打开会话和服务重启不清空，新会话独立。finishTurn 仅 text 必填，reason 和 affectsPage 可省略；正文仍必须非空，不从 content 补齐。

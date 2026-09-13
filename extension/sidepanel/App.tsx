@@ -402,7 +402,7 @@ export function App() {
           <div className="brand-mark"><img className="brand-logo" src="./icons/icon-48.png" alt="tChrome" /></div>
           <div className="app-identity">
             <strong>{session.conversationId ?? "tChrome"}</strong>
-            <small>{compressing ? "正在压缩上下文" : running ? "正在处理" : statusText(session.status)}</small>
+            <small>{running ? "正在处理" : statusText(session.status)}</small>
           </div>
           <div className="app-actions">
             <button className="icon-button" type="button" title="资料库" aria-label="资料库" aria-expanded={libraryOpen}
@@ -421,7 +421,6 @@ export function App() {
         {serviceDown || status ? <div className={`status ${serviceDown || status === DOWN ? "down" : ""}`}>{serviceDown ? healthError : status}</div> : null}
         {syncError && !serviceDown ? <div className="status down" role="alert">会话状态同步失败，正在重试。{syncError}</div> : null}
         {listOpen && listError && !serviceDown ? <div className="status down" role="alert">会话列表更新失败。{listError}<button type="button" onClick={() => void loadAll()}>重试</button></div> : null}
-        {compressing && !serviceDown ? <div className="status" role="status" aria-live="polite">{compressionText}，完成后自动继续。你也可以停止。</div> : null}
       </div>
 
       <div className="conversation-pane">
@@ -494,6 +493,12 @@ export function App() {
         </section>
       ) : null}
 
+      {compressing && !serviceDown ? (
+        <div className="compression-status" role="status" aria-live="polite">
+          <strong>{compressionText}</strong>
+          <span>完成后自动继续，可随时停止。</span>
+        </div>
+      ) : null}
       <form
           className="composer"
           onSubmit={(event) => {

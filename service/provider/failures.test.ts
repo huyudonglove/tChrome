@@ -78,7 +78,7 @@ for (const status of [400, 401, 403, 408, 429, 500, 503]) {
       try {
         const result = await createProvider({ api, apiKey: "local-test", proxy: "", baseURL: `http://127.0.0.1:${server.port}/v1` }).complete(input);
         const expectedAttempts = status === 408 || status === 429 || status >= 500 ? 3 : 1;
-        expect(result).toMatchObject({ finish: "error", faultCode: status === 401 || status === 403 ? "provider_key_invalid" : "provider_error", attempts: expectedAttempts, toolCalls: [] });
+        expect(result).toMatchObject({ finish: "error", faultCode: status === 401 ? "provider_key_invalid" : status === 403 ? "provider_forbidden" : "provider_error", attempts: expectedAttempts, toolCalls: [] });
         expect(requests).toBe(expectedAttempts);
       } finally { server.stop(true); }
     }));

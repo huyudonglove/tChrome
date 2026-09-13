@@ -2,11 +2,12 @@ import { expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { loadLedger, newConversation, openConversation } from "./runtime/store.ts";
 import { handleTurn } from "./runtime/loop.ts";
 import type { Provider } from "./types.ts";
 import { coreToolIds, loadToolRegistry } from "./tools/registry.ts";
 
-test("resident and dynamic guides remain separate, update on loading and reset on the next turn", async () => {
+test("resident and dynamic guides remain separate, persist loaded schemas across turns and reopen while isolating new conversations", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-model-input-"));
   const registry = loadToolRegistry(join(import.meta.dir, ".."));
   let requests = 0;
@@ -19,7 +20,7 @@ test("resident and dynamic guides remain separate, update on loading and reset o
     const dynamicGuide = user.split("#tools\n\n")[1]!;
     const names = (guide: string) => [...guide.matchAll(/^- ([^：]+)：/gm)].map(match => match[1]);
     expect(names(baseGuide)).toEqual(registry.toolGroups.baseToolsIds);
-    expect(names(dynamicGuide)).toEqual([...coreToolIds(registry), ...(requests === 2 ? ["send_http"] : [])]);
+    expect(names(dynamicGuide)).toEqual([...coreToolIds(registry), ...([2, 3, 5].includes(requests) ? ["send_http"] : [])]);
     expect(user).not.toContain("#baseTools");
     if (requests === 1) initialSystem = system;
     else expect(system).toBe(initialSystem);
@@ -28,7 +29,7 @@ test("resident and dynamic guides remain separate, update on loading and reset o
     }
     expect(baseGuide).not.toContain("参数：");
     expect(dynamicGuide).not.toContain("返回：");
-    if (requests === 2) {
+    if ([2, 3, 5].includes(requests)) {
       expect(tools.map(tool => tool.function.name)).toContain("send_http");
       expect(tools.find(tool => tool.function.name === "send_http")!.function.parameters).toHaveProperty("properties.url");
     }
@@ -44,5 +45,14 @@ test("resident and dynamic guides remain separate, update on loading and reset o
     const next = await handleTurn({ dataDir, repoRoot: join(import.meta.dir, ".."), provider }, { userInput: "下一轮", submittedAt: "now" });
     expect(next.output).toEqual({ kind: "reply", text: "完成" });
     expect(requests).toBe(3);
+    expect(loadLedger(dataDir, result.conversationId).loadedToolIds).toEqual(["send_http"]);
+    const fresh = newConversation(dataDir);
+    expect(loadLedger(dataDir, fresh.conversationId!).loadedToolIds).toEqual([]);
+    expect((await handleTurn({ dataDir, repoRoot: join(import.meta.dir, ".."), provider }, { userInput: "新会话", submittedAt: "now" })).output).toEqual({ kind: "reply", text: "完成" });
+    expect(requests).toBe(4);
+    openConversation(dataDir, result.conversationId);
+    expect((await handleTurn({ dataDir, repoRoot: join(import.meta.dir, ".."), provider }, { userInput: "重新打开", submittedAt: "now" })).output).toEqual({ kind: "reply", text: "完成" });
+    expect(requests).toBe(5);
+    expect(loadLedger(dataDir, result.conversationId).toolIO.filter(row => row.name === "catalog.add")).toHaveLength(1);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });

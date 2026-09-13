@@ -60,11 +60,11 @@ export async function patchScript(dataDir: string, input: {filename?: unknown; p
       const {filename, patch} = input;
       if (!validName(filename)) throw new Error('脚本文件名无效');
       if (typeof patch !== 'string' || !patch.trim()) throw new Error('需要有效 unified diff');
-      // Metadata is checked separately; git owns hunk parsing and application.
+      // Git calculates hunk lengths from the body; structure and matching context remain required.
       if (/^(?:rename |copy |old mode |new mode |new file mode (?!100644$)|deleted file mode (?!100644$))/m.test(patch)) throw new Error('不允许重命名、复制或文件权限变更');
       scratch = await mkdtemp(join(tmpdir(), 'tchrome-script-'));
       await git(scratch, ['init', '--quiet']);
-      const counts = await git(scratch, ['apply', '--numstat', '-z', '-'], patch);
+      const counts = await git(scratch, ['apply', '--recount', '--numstat', '-z', '-'], patch);
       const records = counts.split('\0').filter(Boolean);
       if (records.length !== 1 || !/^\d+\t\d+\t/.test(records[0]!) || records[0]!.split('\t').slice(2).join('\t') !== filename) throw new Error('补丁只能修改指定脚本文件');
       const dir = await directory(dataDir);
@@ -72,8 +72,8 @@ export async function patchScript(dataDir: string, input: {filename?: unknown; p
       const info = await regular(path);
       const original = info ? await readFile(path) : null;
       if (original) await writeFile(join(scratch, filename), original, {mode: 0o644});
-      await git(scratch, ['apply', '--check', '-'], patch);
-      await git(scratch, ['apply', '-'], patch);
+      await git(scratch, ['apply', '--recount', '--check', '-'], patch);
+      await git(scratch, ['apply', '--recount', '-'], patch);
       const resultPath = join(scratch, filename);
       const result = await regular(resultPath);
       // Refuse changes made outside the serialized patch API while git ran.

@@ -78,7 +78,7 @@ test("finishTurn 收口回复", async () => {
   const provider = mock([
     ok({
       finish: "tool_calls",
-      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { text: "你好", reason: "答完", affectsPage: false } }],
+      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { text: "你好" } }],
     }),
   ]);
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "你好", submittedAt: "2026-09-06T00:00:00.000Z" });
@@ -160,6 +160,7 @@ test("askUser 冻在追问", async () => {
 test.each([
   { name: "finishTurn", args: {}, faultCode: "missing_required" },
   { name: "finishTurn", args: { text: "   " }, faultCode: "wrong_type" },
+  { name: "finishTurn", args: { text: "完成", affectsPage: true }, faultCode: "wrong_type" },
   { name: "askUser", args: { choice: [] }, faultCode: "missing_required" },
   { name: "askUser", args: { question: 42, choice: [] }, faultCode: "wrong_type" },
 ])("$name 的无效正文不能由模型 content 补齐", async ({ name, args, faultCode }) => {

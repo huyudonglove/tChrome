@@ -90,7 +90,7 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。
 `kind=provider-response` 的 `data`：`finish` `content` `toolCalls` `attempts` `parseOk` `schemaOk` `faultCode` `missing`。
 `kind=tool` 的 `data`：`callId` `name` `arguments` `return`。
 `kind=memory` 的 `data`：`memoryId` `layer` `sourceCallId`。
-`kind=compress` 的 data 为 beforeChars、afterChars；compress-start 记录压缩前 windowChars，compress-error 记录失败 detail。每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 以正文或文件引用保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
+`kind=compress` 的 data 为 beforeChars、afterChars；compress-start 记录压缩前 windowChars，compress-error 记录失败 detail。每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 以正文或文件引用保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
 `kind=turn-output` 的 `data`：`output`。
 `kind=session` 的 `data`：`conversationId`，可选 `action`=`new`/`open`。
 
@@ -200,7 +200,7 @@ Runtime 独占维护。当前会话指针。
 
 两层：project 是跨会话共享的长期记忆；conversation 保存本会话的过程发现和已确认事实。conversation 在本地按会话保存，跨轮读取，新会话不继承，删除会话时一起删除；project 独立于会话保存，删除来源会话不影响长期记忆。notes 保存本会话的草稿、候选和中间材料，按 key 覆盖或删除，不在每轮自动清空。模型调 `memory.write` 提交。Runtime 落盘，会话记忆 ID 挂到 ledger.`memoryIds.conversation`，长期记忆从共享目录读取。下一次出网投影为对象数组，保留 memoryId、turnId、sourceCallId、sourceConversationId（存在时）和完整 text。
 
-Memory 投影保持全部可见原文。会话记忆根据来源 turnId 随轮次归档，覆盖关系由 runtime 管理；最近 3 个已结束轮次的记忆写入保留可见，长期记忆不参与压缩。
+Memory 投影保持全部可见原文。会话记忆根据来源 turnId 随轮次归档，覆盖关系由 runtime 管理；会话记忆随对应来源归档，长期记忆不参与压缩。
 
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
@@ -237,7 +237,7 @@ conversationHistorySummary 显示当前有效摘要的 {sumId, turnId, tag, user
 
 每条摘要关联一个真实 turnId 和对应原始轮次或执行片段来源 ID，同批次的不同轮次分别保存。level 是记录结构字段，不触发额外的分层合并。activeIds 保存窗口当前摘要，coveredSourceIds 记录已归档覆盖的来源。runtime 按来源内容过滤发送视图，不清除账本原文。查询展开来源、去重并保持原顺序。
 
-每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 以正文或文件引用保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
+每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 以正文或文件引用保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
 
 模型输出校验成功、完整来源与摘要落盘后，才原子更新目录索引和覆盖关系。失败或取消不提交该批次覆盖，原文继续可用；此前成功提交的归档保留。索引是提交点，中断可能留下未被索引引用的文件。窗口按来源覆盖过滤历史输入、目标版本、页面观察、会话记忆写入和工具记录，本地原文不删除。
 
@@ -251,7 +251,7 @@ conversationHistorySummary 显示当前有效摘要的 {sumId, turnId, tag, user
 
 system 的 execution 聚焦推进流程，toolProtocol 管调用/返回协议，boundaries 管授权和证据来源。网页方法维护于 `service/skills/web-observation/SKILL.md`，runtime 按 `service/skills/index.json` 加载后作为数据注入 context，模块描述仍由 `service/context/user/skill.md` 提供。User 模块投影保留记录 ID、轮次与来源关联和完整内容；工具 schema 以 definitions 为准。
 
-System #baseTools 展示常驻能力导航，User #tools 展示本轮已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送，唯一来源仍是 `service/tools/definitions/<id>.json` 的 function.description。调整模块后同步生成导航、装配测试与阶段示例；阶段 JSON 中 systemSlots / userSlots 是对应的 8 / 15 个 tag 名数组，并非模块对象。
+System #baseTools 展示常驻能力导航，User #tools 展示本会话已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送，唯一来源仍是 `service/tools/definitions/<id>.json` 的 function.description。调整模块后同步生成导航、装配测试与阶段示例；阶段 JSON 中 systemSlots / userSlots 是对应的 8 / 15 个 tag 名数组，并非模块对象。
 
 出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。
 
@@ -350,3 +350,5 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 工具 schema、分类和分组由 `service/tools/registry.ts` 读取同模块的 `service/tools/definitions/`。Provider 负责模型通信、传输重试及响应/参数解析；主 Agent 的 provider 返回由 `service/runtime/loop.ts` 的 `validateCompletion` 调用 `service/tools/schema.ts` 统一检查 schema、工具名和收口顺序，Runtime 根据结果推进状态。Context 接收数据与能力导航，生成窗口投影；完整工具说明通过 tools[] 发送。`service/presentation/session-view.ts` 以纯函数生成 UI 消息和会话列表；store 负责读取记录、持久化和会话命令。
 
 查询状态保存 currentQuery 与 queryHistory。下一次查询结果或新 Turn 将当前查询迁入历史，保留原发起 turnId；取消不替换。查询历史作为独立来源补入对应轮次，避免原调用批次已归档后漏收。超大记录的 fragment 是原记录 JSON 连续片段；nextCursor 是 Runtime 提供的续读位置，调用方不得自行构造。
+
+ledger.loadedToolIds 保存本会话通过 catalog.add 成功加载的工具名。Turn 的 assembled.toolIds 是本轮执行快照，初始来自默认工具与会话清单，加载成功时两者同时更新。

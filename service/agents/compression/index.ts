@@ -6,7 +6,7 @@ import type { CompressionModule, CompressionRecord, SourceRecord } from "../../c
 
 type Input = {
   dataDir: string; conversationId: string; repoRoot: string; provider: Provider;
-  module: CompressionModule; records: SourceRecord[]; isCancelled?: () => boolean; recompress?: boolean;
+  module: CompressionModule; records: SourceRecord[]; isCancelled?: () => boolean;
 };
 const running = new Map<string, { isCancelled?: () => boolean }>();
 function asTurn(content: unknown): CompressionTurn {
@@ -50,9 +50,6 @@ async function compress(input: Input): Promise<void> {
     groups.set(id, [...(groups.get(id) ?? []), record]);
   }
   const activeEntries = index.activeIds.map(id => index.entries.find(record => record.id === id)!);
-  if (input.recompress) {
-    for (const entry of activeEntries) if (!groups.has(entry.turnId)) groups.set(entry.turnId, []);
-  }
   const previousByTurn = new Map([...groups.keys()].map(turnId => [turnId, activeEntries.filter(record => record.turnId === turnId)]));
   const turns = [...groups].map(([turnId, sources]) => {
     const previous = previousByTurn.get(turnId)!;
@@ -66,8 +63,6 @@ async function compress(input: Input): Promise<void> {
   for (const summary of summaries) {
     const sources = groups.get(summary.turnId)!;
     const previous = previousByTurn.get(summary.turnId)!;
-    // A summary-only pass must shrink; new source coverage is committed with its summary.
-    if (!sources.length && JSON.stringify(summary).length >= JSON.stringify(previous.map(({ turnId, tag, userRequest, actions, result }) => ({ turnId, tag, userRequest, actions, result }))).length - 2) continue;
     const record = append(summary, previous.length ? Math.max(...previous.map(item => item.level)) + 1 : 1, [...previous.map(item => item.id), ...sources.map(source => source.id)]);
     if (previous.length) {
       const replaced = new Set(previous.map(item => item.id));

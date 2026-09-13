@@ -199,6 +199,20 @@ svg { width: 17px; height: 17px; stroke-width: 1.8; fill: none; stroke: currentC
   font-size: 12px;
 }
 
+.compression-status {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-size: 12px;
+}
+.compression-status span { color: var(--muted); }
+
 .composer {
   position: relative;
   flex-shrink: 0;

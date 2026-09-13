@@ -74,20 +74,23 @@ test("oversized string is sent whole in one request and archived unchanged", asy
   expect(calls).toEqual([[original.content]]);
   expect(readSource(args.dataDir, args.conversationId, args.module, "large")).toEqual(original);
 });
-test("rollup has no independent threshold and explicit pass keeps turns separate", async () => {
+test("new sources merge only their own turn summaries; no sources skip model requests", async () => {
   const args = setup(model(undefined, "已验证".repeat(600)));
   await compressRecords({ ...args, records: [source("tn_01"), source("tn_02")] });
   const before = loadIndex(args.dataDir, args.conversationId, args.module);
   expect(before.entries).toHaveLength(2);
   const calls: CompressionTurn[][] = [];
   const segment = source("tn_01", "segment_2", "补充证据");
-  await compressRecords({ ...args, provider: model(turns => calls.push(turns)), records: [segment], recompress: true });
+  await compressRecords({ ...args, provider: model(turns => calls.push(turns)), records: [segment] });
   expect(calls).toHaveLength(1);
-  expect(calls[0]!.map(turn => turn.turnId)).toEqual(["tn_01", "tn_02"]);
+  expect(calls[0]!.map(turn => turn.turnId)).toEqual(["tn_01"]);
   expect(calls[0]![0]!.segments).toEqual([segment.content]);
   const next = loadIndex(args.dataDir, args.conversationId, args.module);
-  expect(next.entries.map(record => record.level)).toEqual([1, 1, 2, 2]);
-  expect(next.entries.slice(2).map(record => record.sourceIds)).toEqual([[before.entries[0]!.id, "segment_2"], [before.entries[1]!.id]]);
+  await compressRecords({ ...args, provider: model(turns => calls.push(turns)), records: [segment] });
+  await compressRecords({ ...args, provider: model(turns => calls.push(turns)), records: [] });
+  expect(calls).toHaveLength(1);
+  expect(next.entries.map(record => record.level)).toEqual([1, 1, 2]);
+  expect(next.entries.slice(2).map(record => record.sourceIds)).toEqual([[before.entries[0]!.id, "segment_2"]]);
   expect(resolveSources(args.dataDir, args.conversationId, args.module, next.activeIds).map(record => record.id)).toEqual(["tn_01", "tn_02", "segment_2"]);
 });
 

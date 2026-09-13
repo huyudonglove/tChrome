@@ -49,6 +49,7 @@ export function applyToolEffects(input: {
         }
         break;
       case "tools.enable":
+        ledger.loadedToolIds = [...new Set([...ledger.loadedToolIds, ...effect.names])];
         turn.assembled.toolIds = [...new Set([...turn.assembled.toolIds, ...effect.names])];
         break;
       case "page.set": {

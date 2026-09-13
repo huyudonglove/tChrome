@@ -21,7 +21,7 @@ function seed(dataDir: string, ledger: Ledger, count = 5, big = false) {
   return turns;
 }
 
-test("whole-turn grouping removes covered module increments, retaining current state and three recent turns", async () => {
+test("whole-turn grouping removes covered module increments, retaining current state without protecting recent settled turns", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "context-turns-"));
   try {
     const ledger = emptyLedger("cv_test"), turns = seed(dataDir, ledger);
@@ -37,7 +37,7 @@ test("whole-turn grouping removes covered module increments, retaining current s
     const provider: Provider = { complete: async input => {
       calls++; expect(input.tools.map(tool => tool.function.name)).toEqual(["submitTurnSummaries"]);
       const sources = JSON.parse(input.messages[1]!.content).turns;
-      expect(sources.map((row: Turn) => row.turnId)).toEqual(["tn_01", "tn_02"]);
+      expect(sources.map((row: Turn) => row.turnId)).toEqual(["tn_01", "tn_02", "tn_03", "tn_04", "tn_05"]);
       expect(sources[0].memoryWrites[0].turnId).toBe("tn_01");
       expect(sources[0].output.text).toBe("完成tn_01");
       return summaryResponse(input.messages);
@@ -45,15 +45,15 @@ test("whole-turn grouping removes covered module increments, retaining current s
     const before = JSON.stringify({ ledger, current, memories });
     await compressContext({ dataDir, repoRoot, provider, ledger, turn: current, memories, isCancelled: () => false });
     const view = contextState(dataDir, ledger, current, memories);
-    expect(view.ledger.userInputHistory.map(row => row.turnId)).toEqual(["tn_03", "tn_04", "tn_05"]);
-    expect(view.ledger.goalHistory.map(row => row.turnId)).toEqual(["tn_03", "tn_04", "tn_05"]);
-    expect(view.ledger.toolIO).toHaveLength(3); expect(view.memories.conversation).toHaveLength(3);
+    expect(view.ledger.userInputHistory.map(row => row.turnId)).toEqual([]);
+    expect(view.ledger.goalHistory.map(row => row.turnId)).toEqual([]);
+    expect(view.ledger.toolIO).toHaveLength(0); expect(view.memories.conversation).toHaveLength(0);
     expect(view.ledger.goal).toEqual(ledger.goal); expect(view.ledger.notes).toEqual(ledger.notes);
-    expect(view.summaries.map(row => row.turnId)).toEqual(["tn_01", "tn_02"]);
+    expect(view.summaries.map(row => row.turnId)).toEqual(["tn_01", "tn_02", "tn_03", "tn_04", "tn_05"]);
     expect(JSON.stringify({ ledger, current, memories })).toBe(before);
     await compressContext({ dataDir, repoRoot, provider, ledger, turn: current, memories, isCancelled: () => false });
     expect(calls).toBe(1);
-    expect(loadIndex(dataDir, ledger.conversationId, "conversationHistory").coveredSourceIds).toEqual(["src_01", "src_02"]);
+    expect(loadIndex(dataDir, ledger.conversationId, "conversationHistory").coveredSourceIds).toEqual(["src_01", "src_02", "src_03", "src_04", "src_05"]);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
@@ -72,7 +72,7 @@ for (const fail of [false, true]) test(`single 200K send gate batches old turns;
     expect(reply.output).toEqual(fail ? { kind: "error", faultCode: "compression_failed", causeCode: "test_error" } : { kind: "reply", text: "完成" });
     expect(main).toBe(fail ? 0 : 1);
     expect(loadLedger(dataDir, session.conversationId).userInputHistory).toHaveLength(5);
-    expect(loadIndex(dataDir, session.conversationId, "conversationHistory").coveredSourceIds.length).toBe(fail ? 0 : 2);
+    expect(loadIndex(dataDir, session.conversationId, "conversationHistory").coveredSourceIds.length).toBe(fail ? 0 : 5);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
@@ -137,7 +137,7 @@ test("segmented turn later closes into one active summary without rearchiving co
     const current = makeTurn(ledger.conversationId, "tn_06"); ledger.turnIds.push(current.turnId); ledger.active = { turnId: current.turnId };
     await compressContext({ dataDir, repoRoot, provider, ledger, turn: current, memories, isCancelled: () => false });
     const index = loadIndex(dataDir, ledger.conversationId, "conversationHistory");
-    expect(index.activeIds.map(id => index.entries.find(row => row.id === id)!.turnId)).toEqual(["tn_01", "tn_02"]);
+    expect(index.activeIds.map(id => index.entries.find(row => row.id === id)!.turnId)).toEqual(["tn_01", "tn_02", "tn_03", "tn_04", "tn_05"]);
     const sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
     const tail = sources.find(row => row.id === "src_02")!.content as { toolIO: unknown[]; memoryWrites: unknown[]; goalChanges: unknown[]; output: unknown };
     expect(tail.toolIO).toHaveLength(2); expect(tail.goalChanges).toEqual([]); expect(tail.memoryWrites).toEqual([]); expect(tail.output).toEqual(first.output);
@@ -217,7 +217,7 @@ test("a later retired query remains archivable after its entire turn is covered"
     expect(contextState(dataDir, ledger, current, memories).ledger.queryHistory).toEqual([]);
     expect(JSON.stringify(ledger)).toBe(snapshot);
     const index = loadIndex(dataDir, ledger.conversationId, "conversationHistory");
-    expect(index.activeIds.map(id => index.entries.find(row => row.id === id)!.turnId)).toEqual(["tn_01", "tn_02"]);
+    expect(index.activeIds.map(id => index.entries.find(row => row.id === id)!.turnId)).toEqual(["tn_01", "tn_02", "tn_03", "tn_04", "tn_05"]);
     const sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
     expect(sources.filter(row => row.id === "src_01")).toHaveLength(1);
     expect(sources.filter(row => row.id === "src_03")).toHaveLength(1);

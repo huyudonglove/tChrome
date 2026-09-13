@@ -14,7 +14,7 @@
         "patch": {
           "type": "string",
           "minLength": 1,
-          "description": "单文件 git unified diff，新增或删除使用 /dev/null；修改路径必须对应 filename"
+          "description": "单文件 git unified diff，新增或删除使用 /dev/null；修改路径必须对应 filename。Git 按补丁正文重新计算 @@ 中的行数；仍需合法文件头、@@ 块头、每行的空格/+/- 前缀和匹配的原文上下文，补丁以换行结束"
         },
         "reason": {
           "type": "string"

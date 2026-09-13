@@ -93,6 +93,7 @@ export type Ledger = {
   active: { turnId: string } | null;
   pendingAsk: { turnId: string; question: string } | null;
   turnIds: string[];
+  loadedToolIds: string[];
   userInputHistory: UserInputRecord[];
   goal: GoalRecord | null;
   goalHistory: GoalRecord[];

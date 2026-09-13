@@ -12,6 +12,6 @@ conversation 存储于 `<dataDir>/conversations/<conversationId>/memory/<memoryI
 
 会话记忆写入记录来源 turnId，与当轮要求、执行过程和结果一起交给 service/agents/compression，摘要进入 conversationHistorySummary。原记忆独立落盘，窗口按归档来源覆盖过滤。
 
-Runtime 在请求前过滤已有轮次摘要覆盖的会话记忆；总窗口达到 200,000 字符才触发压缩，保留最近 3 个已结束轮次的原文。长期记忆保持全部原文，不参与轮次压缩。常驻 `context.query(sumId, module, intent, cursor?)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，查询 Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将对应记录放入 currentQuery；工具返回只含状态和引用。每次 records 的紧凑 JSON 最多 2000 字符；超出返回 partial 与 nextCursor，可带原查询参数和 cursor 继续读取，无需再次调用查询 Agent。超大单条保留身份字段及 fragment:{offset,totalChars,text}，text 是原记录 JSON 的连续片段，不是摘要。查询不会刷新页面。
+Runtime 在请求前过滤已有轮次摘要覆盖的会话记忆；总窗口达到 200,000 字符才触发压缩，不再固定保留最近三轮原文。长期记忆保持全部原文，不参与轮次压缩。常驻 `context.query(sumId, module, intent, cursor?)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，查询 Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将对应记录放入 currentQuery；工具返回只含状态和引用。每次 records 的紧凑 JSON 最多 2000 字符；超出返回 partial 与 nextCursor，可带原查询参数和 cursor 继续读取，无需再次调用查询 Agent。超大单条保留身份字段及 fragment:{offset,totalChars,text}，text 是原记录 JSON 的连续片段，不是摘要。查询不会刷新页面。
 
 新记忆记录持久保存来源 turnId，由 runtime 在 memory.write 执行时填写，与 sourceCallId 一同用于轮次归档关联。两层记忆沿用相同的来源记录结构；记忆层级与有效期不因此改变。User 投影只展示正文。

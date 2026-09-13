@@ -69,9 +69,9 @@ export type LoopDeps = {
   signal?: AbortSignal;
 };
 
-const assemble = (toolRegistry: ToolRegistry): Assembled => ({
+const assemble = (toolRegistry: ToolRegistry, loadedToolIds: string[]): Assembled => ({
   baseToolsIds: [...toolRegistry.toolGroups.baseToolsIds],
-  toolIds: coreToolIds(toolRegistry),
+  toolIds: [...new Set([...coreToolIds(toolRegistry), ...loadedToolIds])],
 
   conversationMemoryIds: [],
   projectMemoryIds: [],
@@ -241,7 +241,7 @@ export async function handleTurn(
     createdAt: nowIso(),
     completedAt: null,
     input: { id: allocateRecordId(deps.dataDir, ledger.conversationId, "input"), text: body.userInput, submittedAt: body.submittedAt },
-    assembled: assemble(toolRegistry),
+    assembled: assemble(toolRegistry, ledger.loadedToolIds),
     output: null,
     usage: { modelRequests: 0, toolCalls: 0 },
   };
@@ -294,17 +294,20 @@ export async function handleTurn(
       let messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries);
       const initialChars = windowChars(messages[0]!.content, messages[1]!.content);
       if (initialChars >= ledger.compressAt) {
-        appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-start", turnId, data: { windowChars: initialChars } });
+        let compressionStarted = false;
         try {
-          for (const phase of ["history", "current", "summaries"] as const) {
+          for (const phase of ["history", "current"] as const) {
             if (windowChars(messages[0]!.content, messages[1]!.content) < ledger.compressAt) break;
-            appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-phase", turnId, data: { phase } });
-            await compressContext({ ...deps, ledger, turn, memories, isCancelled: () => wasStopped(deps.dataDir, ledger.conversationId, turn.turnId) }, phase);
+            await compressContext({ ...deps, ledger, turn, memories, isCancelled: () => wasStopped(deps.dataDir, ledger.conversationId, turn.turnId), onStart: () => {
+              if (!compressionStarted) appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-start", turnId, data: { windowChars: initialChars } });
+              compressionStarted = true;
+              appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-phase", turnId, data: { phase } });
+            } }, phase);
             if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
             state = contextState(deps.dataDir, ledger, turn, memories);
             messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries);
           }
-          appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress", turnId, data: { beforeChars: initialChars, afterChars: windowChars(messages[0]!.content, messages[1]!.content) } });
+          if (compressionStarted) appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress", turnId, data: { beforeChars: initialChars, afterChars: windowChars(messages[0]!.content, messages[1]!.content) } });
         } catch (error) {
           if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
           turn.status = "failed";

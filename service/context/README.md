@@ -42,7 +42,7 @@ user 模块在详细描述后增加内容段：
 
 execution 专注任务推进；toolProtocol 负责调用、返回和错误处理协议；boundaries 负责授权、来源与证据边界。具体技能由独立的 [service/skills/](../skills/) 能力目录维护：[index.json](../skills/index.json) 只声明成员和加载顺序，[web-observation/SKILL.md](../skills/web-observation/SKILL.md) 保存网页观察与操作方法。runtime 每轮调用一次 `loadSkills(root)`，按清单顺序读取各 `<name>/SKILL.md` 并拼接，再通过 `userText` 的 `skillText` 参数注入 #skill。context 只负责渲染，不能读取 skills 目录；ContextModules 不保存技能正文。
 
-工具 schema 和说明仍由 [服务工具定义](../tools/definitions/) 提供，System #baseTools 展示常驻能力导航，User #tools 展示本轮已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送。memory.write 提供 conversationMemory 与 projectMemory 两个记忆参数。目标、草稿与事实决定分别由 goal、notes 和 conversationMemory 承担，历史压缩摘要统一使用 conversationHistorySummary 插槽。
+工具 schema 和说明仍由 [服务工具定义](../tools/definitions/) 提供，System #baseTools 展示常驻能力导航，User #tools 展示本会话已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送。memory.write 提供 conversationMemory 与 projectMemory 两个记忆参数。目标、草稿与事实决定分别由 goal、notes 和 conversationMemory 承担，历史压缩摘要统一使用 conversationHistorySummary 插槽。
 
 修改后运行 `bun run scripts/sync-context-examples.ts`，同步阶段示例中的导航、正文与栏目数组。脚本只刷新真正的 schema，保留实际 tool_calls 的参数数据；再次运行结果应相同。按改动范围执行相关检查。
 
@@ -68,7 +68,7 @@ currentPage 展示最新观察，pageObservedHistory 排除同 id 的观察。to
 
 总纲中的 `{{currentDate}}` 由 runtime 在每次模型请求组装前按 `America/Los_Angeles` 计算，格式为 YYYY-MM-DD，自动处理夏令时。示例使用固定日期 2026-09-06，以保持可重复生成。
 
-每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，保留最近 3 个已结束轮次及当前轮次。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 不参与历史压缩，正文或文件引用保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
+每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 不参与历史压缩，正文或文件引用保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
 
 主模型发送前另设 System + User 合计 250000 字符硬内联上限。先执行上述 200000 字符门槛的压缩检查，再检查内联预算；压缩后仍超过 250000 时，优先将 notes 正文完整写入 `TCHROME_DATA/context-files/`，以文件引用替换内联正文，直到满足发送预算。notes 外置后仍超限时，再外置其他大块内容。数组模块也允许将大记录单独替换为文件引用，保留后续较小记录内联，便于模型看到分页读取结果。JSON 数据模块或数组记录的引用为 `{contextFile:{path,chars,format}}`，其中 path 为绝对路径、chars 为原文字符数、format 为 `json` 或 `text`；skill 仍为字符串，以文本说明文件路径。System #baseTools、User #tools 和编号规则保持内联。文件替换仅影响本次请求的展示，不删除历史记录，也不改变记忆和 notes 的存储内容。引用契约见 [data-schema.json](data-schema.json)。模型可通过 `catalog.add` 加载 `local.fs_read`，使用 `offset` / `limit` 按字节分段读取所需原文，后续页使用返回的 `nextOffset`，避免一次回读全文再次撑大上下文。若固定规则与文件引用本身仍无法装入，返回 `context_limit`。
 

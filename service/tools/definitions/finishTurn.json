@@ -13,15 +13,16 @@
           "description": "向用户展示的最终回复正文，说明已确认的结果或具体阻碍。"
         },
         "reason": {
-          "type": "string"
+          "type": "string",
+          "description": "可选的行动说明；最终回复只读取 text。"
         },
         "affectsPage": {
-          "type": "boolean"
+          "type": "boolean",
+          "const": false,
+          "description": "可省略；收口不执行页面操作，传入时只能为 false。"
         }
       },
       "required": [
-        "reason",
-        "affectsPage",
         "text"
       ]
     }

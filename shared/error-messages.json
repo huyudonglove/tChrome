@@ -253,5 +253,10 @@
     "model": "页面过大，请缩小读取或截图范围。",
     "user": "页面内容超出本次处理范围。",
     "recovery": "correct_arguments"
+  },
+  "provider_forbidden": {
+    "model": "模型服务拒绝请求（HTTP 403）。检查错误详情以区分权限与上游账号可用性问题，不直接认定密钥失效。",
+    "user": "模型服务拒绝请求（403），可能涉及权限或上游账号可用性。具体原因已保留在服务日志中。",
+    "recovery": "inspect_state"
   }
 }

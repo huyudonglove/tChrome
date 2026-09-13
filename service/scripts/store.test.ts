@@ -9,17 +9,17 @@ const temp = async (run: (dir:string)=>Promise<void>) => {
  const dir=await mkdtemp(join(tmpdir(),'tchrome-store-test-'));
  try {await run(dir);} finally {await rm(dir,{recursive:true,force:true});}
 };
-test('real git creates, modifies and deletes scripts without executing their content', () => temp(async dir => {
- expect((await patchScript(dir,{filename:'demo.js',patch:add()})).ok).toBe(true);
+test('real git recounts hunks to create, modify and delete scripts without executing content', () => temp(async dir => {
+ expect((await patchScript(dir,{filename:'demo.js',patch:add().replace('@@ -0,0 +1 @@','@@ -0,0 +1,99 @@')})).ok).toBe(true);
  expect((await readScript(dir,'demo.js')).code).toBe('one\n');
- expect((await patchScript(dir,{filename:'demo.js',patch:edit()})).ok).toBe(true);
+ expect((await patchScript(dir,{filename:'demo.js',patch:edit().replace('@@ -1 +1 @@','@@ -1,9 +1,7 @@')})).ok).toBe(true);
  expect((await readScript(dir,'demo.js')).code).toBe('two\n');
- expect(await patchScript(dir,{filename:'demo.js',patch:'--- a/demo.js\n+++ /dev/null\n@@ -1 +0,0 @@\n-two\n'})).toMatchObject({ok:true,operation:'deleted',bytes:0});
+ expect(await patchScript(dir,{filename:'demo.js',patch:'--- a/demo.js\n+++ /dev/null\n@@ -1,9 +0,0 @@\n-two\n'})).toMatchObject({ok:true,operation:'deleted',bytes:0});
  await expect(readScript(dir,'demo.js')).rejects.toThrow();
 }));
 test('invalid and out of scope patches leave original bytes unchanged',()=>temp(async dir=>{
  await patchScript(dir,{filename:'demo.js',patch:add()});
- for(const patch of [edit('missing'),add('other.js'),edit()+add('other.js'),add('../escape.js'),
+ for(const patch of [edit('missing'),edit().trimEnd(),add('other.js'),edit()+add('other.js'),add('../escape.js'),
  'diff --git a/demo.js b/demo.js\nold mode 100644\nnew mode 100755\n',
  'diff --git a/demo.js b/other.js\nsimilarity index 100%\nrename from demo.js\nrename to other.js\n',
  'diff --git a/link.js b/link.js\nnew file mode 120000\n--- /dev/null\n+++ b/link.js\n@@ -0,0 +1 @@\n+/tmp/outside\n']) {

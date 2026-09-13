@@ -22,8 +22,8 @@ test("每个工具有 schema 和 reason，affectsPage 按工具约定校验", ()
     };
     expect(params.properties?.reason, `${name} reason`).toBeTruthy();
     expect(params.properties?.affectsPage, `${name} affectsPage`).toBeTruthy();
-    if (!["click", "page.click"].includes(name)) expect(params.required ?? [], `${name} required`).toContain("reason");
-    if (name === "catalog.add") expect(params.required ?? []).not.toContain("affectsPage");
+    if (!["click", "page.click", "finishTurn"].includes(name)) expect(params.required ?? [], `${name} required`).toContain("reason");
+    if (["catalog.add", "finishTurn"].includes(name)) expect(params.required ?? []).not.toContain("affectsPage");
     else expect(params.required ?? [], `${name} required`).toContain("affectsPage");
     const checkBranches = (schema: any) => {
       if (schema.required) {

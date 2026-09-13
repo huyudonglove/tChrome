@@ -10,7 +10,6 @@ import type { QueryEvidence } from "../context/projections/queries.ts";
 import { assembleTurnHistory, loadSettledTurnHistory, type TurnHistoryRecord } from "./turn-history.ts";
 
 export const HISTORY_MODULE = "conversationHistory" as const;
-const KEEP_TURNS = 3;
 const KEEP_BATCHES = 2;
 const querySourceKey = (queryId: string) => JSON.stringify(["query", queryId]);
 const fullTurnKey = (turnId: string) => JSON.stringify(["turn", turnId]);
@@ -80,10 +79,10 @@ export function contextState(dataDir: string, ledger: Ledger, turn: Turn, memori
   };
 }
 
-type CompressionInput = { dataDir: string; repoRoot: string; provider: Provider; ledger: Ledger; turn: Turn; memories: Memories; isCancelled: () => boolean };
+type CompressionInput = { dataDir: string; repoRoot: string; provider: Provider; ledger: Ledger; turn: Turn; memories: Memories; isCancelled: () => boolean; onStart?: () => void };
 
 /** Called only inside the single 200K send-boundary flow, never at turn completion. */
-export async function compressContext(input: CompressionInput, phase: "history" | "current" | "summaries" = "history") {
+export async function compressContext(input: CompressionInput, phase: "history" | "current" = "history") {
   if (input.isCancelled()) throw new Error("compression_cancelled");
   const { ledger, turn, memories, dataDir } = input;
   const index = loadIndex(dataDir, ledger.conversationId, HISTORY_MODULE);
@@ -113,7 +112,7 @@ export async function compressContext(input: CompressionInput, phase: "history" 
   };
   if (phase === "history") {
     const settled = loadSettledTurnHistory(dataDir, ledger, memories);
-    for (const history of settled.slice(0, -KEEP_TURNS)) {
+    for (const history of settled) {
       addQuerySources(history, history.queryHistory);
       const key = fullTurnKey(history.turnId);
       if (isCovered(key)) continue;
@@ -153,5 +152,7 @@ export async function compressContext(input: CompressionInput, phase: "history" 
       } });
     }
   }
-  await compressRecords({ ...input, conversationId: ledger.conversationId, module: HISTORY_MODULE, records, recompress: phase === "summaries" });
+  if (!records.length) return;
+  input.onStart?.();
+  await compressRecords({ ...input, conversationId: ledger.conversationId, module: HISTORY_MODULE, records });
 }

@@ -23,7 +23,7 @@ export function classifyProviderFailure(error: unknown): { faultCode: string; re
   if (error instanceof OpenAI.APIConnectionError) return { faultCode: "provider_error", retryable: true };
   const status = error && typeof error === "object" && "status" in error ? Number(error.status) : 0;
   return {
-    faultCode: status === 401 || status === 403 ? "provider_key_invalid" : "provider_error",
+    faultCode: status === 401 ? "provider_key_invalid" : status === 403 ? "provider_forbidden" : "provider_error",
     retryable: status === 408 || status === 429 || (status >= 500 && status <= 599),
   };
 }
