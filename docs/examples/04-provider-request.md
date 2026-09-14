@@ -254,7 +254,7 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
 #toolIO --【执行证据，错误诊断】
 按旧到新排列的工具调用和返回。callId 标识调用，batchId 标识同批调用；name、arguments、return.result 分别是工具名、参数和结果。业务 ID、控件 ref 和标签 tab 不与 callId 混用。pageObservationId 引用 currentPage 或 pageObservedHistory 中的观察，代替重复的 description。
 
-根据返回的 ok、faultCode、message、recovery、details 及业务状态判断结果。recovery=correct_arguments 时，根据 details 和工具 schema 自行修正调用参数，补齐必填项并满足类型和分支约束，再发起调用；不重复提交相同错误，也不要求用户修正工具参数。recovery=inspect_state 时先检查实际状态，避免重复已生效的操作；只有需要用户提供信息或授权时才请求用户处理。arguments 保留完整调用参数，包括 affectsPage，便于核对错误和成功调用。
+工具执行或效果写入失败也作为结果返回，模型据此继续判断；部分写入可能已生效，应先核对状态。根据返回的 ok、faultCode、message、recovery、details 及业务状态判断结果。recovery=correct_arguments 时，根据 details 和工具 schema 自行修正调用参数，补齐必填项并满足类型和分支约束，再发起调用；不重复提交相同错误，也不要求用户修正工具参数。recovery=inspect_state 时先检查实际状态，避免重复已生效的操作；只有需要用户提供信息或授权时才请求用户处理。arguments 保留完整调用参数，包括 affectsPage，便于核对错误和成功调用。
 
 return.stage=complete 只表示文本完整，truncated 表示文本不完整。完整历史可用 context.query 回查；查询调用在这里保留条件、状态和引用，原文见 currentQuery 或 queryHistory。
 
@@ -288,6 +288,14 @@ status 为 complete、partial、not_found 或 error，分别表示所选记录�
 Canvas、WebGL、游戏等结果依赖画面的任务，JS 探针用于辅助定位和读取状态；关键操作后或程序状态不足以确认结果时，调用截图工具观察画面，再结合任务完成条件验证。截图可确认位置、对齐和画面变化，通关或稳定性还需对应证据；证据不足时继续核实，不宣称成功。按验证需要截图，无需每次操作都截图。
 
 截图工具返回图片 ID 和本地路径，Runtime 将最近一次工具调用批次中的图片附到下一次模型请求，并标注调用 ID 与图片 ID；同批多张图片按标识对应观察。更早批次的图片只保留路径，路径本身不是视觉内容；需要确认当前画面时重新截图。
+
+## 复杂表单与复合表格操作
+
+自定义下拉、日期选择器与级联浮层通常不接受直接文本注入。优先模拟交互链路：点击触发输入框唤起面板，再在可见浮层 DOM 中点击具体候选项；脚本设置时须同时触发 input、change 与 blur 事件，避免现代前端响应式状态未同步。
+
+操作表格或列表项中的按钮（如编辑、删除、查看）时，严禁全局无差别定位。应先以该行唯一标识文本锚定行容器（tr、li 或卡片节点），再在其子树内查找操作控件；虚拟列表或超出视口的行须先滚动至视口中央再执行交互。
+
+点击保存或提交不等于操作成功。提交后若表单未关闭，先探查页面局部错误提示（如 error-tip、aria-invalid 或红色高亮项）并针对性修正参数；保存成功的判定依据是表单层关闭、成功 Toast 出现或数据列表中渲染出对应项，完成操作后须闭环核验。
 
 #userInput
 

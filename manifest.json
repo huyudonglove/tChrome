@@ -20,19 +20,6 @@
   "host_permissions": [
     "<all_urls>"
   ],
-  "content_scripts": [
-    {
-      "matches": [
-        "http://*/*",
-        "https://*/*"
-      ],
-      "js": [
-        "content-console.js"
-      ],
-      "run_at": "document_start",
-      "world": "MAIN"
-    }
-  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"

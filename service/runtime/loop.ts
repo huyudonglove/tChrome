@@ -197,12 +197,25 @@ const runQueue = async (input: {
       return: { stage: "complete", totalChars: full.length, text: full },
     };
     ledger.toolIO.push(row);
+    let output: TurnOutput | null = null;
+    try {
+      output = applyToolEffects({ dataDir, ledger, turn, call: item, effects: execution.effects });
+    } catch (error) {
+      if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) return { kind: "error", faultCode: "stopped" };
+      // Effects can fail after earlier writes succeeded. Report evidence without replaying them.
+      const text = failedTool(error, "tool_execution_failed", { toolName: item.name,
+        details: { executionState: "部分操作可能已生效，请先检查已保存记录与当前状态，不要直接重放整批操作。" } }).text;
+      row.return = { stage: "complete", totalChars: text.length, text };
+      saveFullReturn(dataDir, ledger.conversationId, item.callId, text);
+      ledger.liveTool = null;
+      saveTurn(dataDir, turn);
+      saveLedger(dataDir, ledger);
+    }
     appendEvent(dataDir, ledger.conversationId, {
       kind: "tool",
       turnId: turn.turnId,
       data: { callId: item.callId, name: item.name, arguments: item.arguments, return: row.return, ...(row.images ? { images: row.images } : {}) },
     });
-    const output = applyToolEffects({ dataDir, ledger, turn, call: item, effects: execution.effects });
     if (output) return output;
   }
   return null;
@@ -570,6 +583,37 @@ export async function handleTurn(
       kind: "turn-output",
       turnId,
       data: { output: turn.output },
+    });
+    return { conversationId: ledger.conversationId, turnId, output: turn.output };
+  } catch (error) {
+    if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
+    const cause = errorInfo(error);
+    const liveTool = ledger.liveTool;
+    turn.status = "failed";
+    turn.completedAt = nowIso();
+    turn.output = { kind: "error", faultCode: "tool_execution_failed", detail: cause.detail,
+      ...(cause.faultCode !== "tool_execution_failed" ? { causeCode: cause.faultCode } : {}),
+      ...(liveTool ? { toolName: liveTool.name } : {}) };
+    ledger.status = "failed";
+    ledger.active = null;
+    ledger.liveTool = null;
+    ledger.toolQueue = [];
+    // Keep effects already applied before the exception; never replay the batch.
+    if (liveTool) {
+      const row = ledger.toolIO.find(item => item.callId === liveTool.callId);
+      if (row) {
+        const text = JSON.stringify(toolFailure({ ...cause, toolName: liveTool.name,
+          details: { ...cause.details, executionState: "部分操作可能已生效，请先检查已保存记录与当前状态，不要直接重放整批操作。" } }));
+        row.return = { stage: "complete", totalChars: text.length, text };
+        saveFullReturn(deps.dataDir, ledger.conversationId, row.callId, text);
+      }
+    }
+    saveTurn(deps.dataDir, turn);
+    saveLedger(deps.dataDir, ledger);
+    appendEvent(deps.dataDir, ledger.conversationId, {
+      kind: "turn-output", turnId,
+      data: { output: turn.output, ...(liveTool ? { callId: liveTool.callId } : {}),
+        error: { ...cause, ...(error instanceof Error ? { stack: error.stack } : {}) } },
     });
     return { conversationId: ledger.conversationId, turnId, output: turn.output };
   } finally { execution.finish(); }

@@ -1,5 +1,5 @@
 import { loadContextRecord } from "./runtime/records.ts";
-import { loadMemories, loadMemory } from "./memory/store.ts";
+import { loadMemories, loadMemory, saveMemory } from "./memory/store.ts";
 import { expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -430,6 +430,35 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
   rmSync(dir, { recursive: true, force: true });
 });
 
+test("记忆效果失败进入 toolIO，同批工具继续，模型收到错误后决定收口", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-memory-effect-failure-"));
+  try {
+    saveMemory(dir, "cv_01", { memoryId: "lm_01", turnId: "tn_old", layer: "project", text: "已有记忆", createdAt: "now", sourceCallId: "call_old" });
+    let requests = 0;
+    const provider: Provider = { complete: async input => {
+      if (++requests === 1) return ok({ finish: "tool_calls", toolCalls: [
+        { id: "memory", name: "memory.write", arguments: { reason: "记录", affectsPage: false, conversationMemory: ["本轮已写入"], projectMemory: ["不能覆盖"] } },
+        { id: "next", name: "notes.write", arguments: { reason: "下一步", affectsPage: false, key: "next", value: "已执行" } },
+      ] });
+      expect(input.messages[1]!.content).toContain('"faultCode": "file_exists"');
+      expect(input.messages[1]!.content).toContain("本轮已写入");
+      expect(input.messages[1]!.content).toContain("已执行");
+      return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "会话记忆已保存，长期记忆写入冲突" } }] });
+    } };
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "记录", submittedAt: "now" });
+    expect(reply.output.kind).toBe("reply");
+    expect(requests).toBe(2);
+    const ledger = loadLedger(dir, "cv_01");
+    expect(ledger).toMatchObject({ status: "idle", active: null, liveTool: null, toolQueue: [], memoryIds: { conversation: ["mm_01"] }, notes: { next: "已执行" } });
+    expect(loadMemory(dir, "cv_01", "mm_01").text).toBe("本轮已写入");
+    expect(loadMemory(dir, "cv_01", "lm_01").text).toBe("已有记忆");
+    expect(JSON.parse(ledger.toolIO[0]!.return.text)).toMatchObject({ ok: false, faultCode: "file_exists", toolName: "memory.write" });
+    const toolEvent = loadEvents(dir, "cv_01").find(event => event.kind === "tool");
+    expect(JSON.parse((toolEvent!.data.return as {text:string}).text).ok).toBe(false);
+    expect(loadTurn(dir, "cv_01", reply.turnId).status).toBe("completed");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("队列和正在跑的工具出现在 /session", () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-live-"));
   const ledger = emptyLedger("cv_01");
@@ -674,7 +703,7 @@ test("notes.write 按 key 写入，notes.delete 删除", async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-test.each(["provider", "browser", "browser-reject"])("停止后启动新轮，旧 %s 返回不会覆盖新轮", async (waitingOn) => {
+test.each(["provider", "provider-reject", "browser", "browser-reject"])("停止后启动新轮，旧 %s 返回不会覆盖新轮", async (waitingOn) => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-stop-restart-"));
   const finish = ok({ finish: "tool_calls", content: "", toolCalls: [
     { id: "finish", name: "finishTurn", arguments: { text: "完成", reason: "完成", affectsPage: false } },
@@ -689,7 +718,7 @@ test.each(["provider", "browser", "browser-reject"])("停止后启动新轮，�
     if (waitingOn.startsWith("browser")) return Promise.resolve(ok({ finish: "tool_calls", toolCalls: [
       { id: "page", name: "page.get_summary", arguments: { reason: "读取", affectsPage: false } },
     ] }));
-    return new Promise((resolve) => { releaseOld = () => resolve(finish); started(); });
+    return new Promise((resolve, reject) => { releaseOld = () => waitingOn === "provider-reject" ? reject(new Error("aborted provider")) : resolve(finish); started(); });
   } };
   const deps = { dataDir: dir, repoRoot, provider, host: { execute: () => new Promise<{ ok: boolean }>((resolve, reject) => {
     releaseOld = () => waitingOn === "browser-reject" ? reject(new Error("aborted host")) : resolve({ ok: true });
