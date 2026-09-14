@@ -3,7 +3,7 @@ import { runCaptchaTool } from './captcha.js';
 import { captureElement } from './element-capture.js';
 import { elementTool } from './element-tools.js';
 import { waitForDownload } from './downloads.js';
-import { withDebugger, monitorDialogs, dialogState, watchDialog, handleDialog } from './dialogs.js';
+import { withDebugger, monitorDialogs, dialogState, watchDialog, handleDialog, detachDebugger } from './dialogs.js';
 export const BROWSER_TOOL_NAMES = [
   'page.get_summary', 'page.list_regions', 'page.list_interactive_elements',
   'page.inspect_region', 'page.inspect_element', 'page.get_dom',
@@ -30,7 +30,7 @@ export const BROWSER_TOOL_NAMES = [
   'emulate_device', 'network_throttle', 'set_cookie', 'delete_cookie', 'clear_cookies',
   'switch_frame', 'context_menu', 'permission_grant', 'permission_deny',
   'set_geolocation', 'page_find', 'long_press',
-  'service_worker_list', 'websocket_monitor',
+  'service_worker_list', 'websocket_monitor', 'detach_debugger',
 ];
 
 // Network is shared with network_throttle; stop removes only this monitor's
@@ -1053,6 +1053,13 @@ const executeBrowserTool = async (name, input = {}) => {
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可处理弹窗的普通网页标签'};
     return handleDialog(tab.id, input);
   }
+  if (name === 'detach_debugger') {
+    const tab = await getTab(tabId);
+    if (!tab?.id) return {ok: false, error: '没有标签'};
+    const result = await detachDebugger(tab.id);
+    socketMonitors.get(tab.id)?.cleanup();
+    return result;
+  }
   if (name === 'see_zoom') {
     const tab = await getTab(tabId);
     return {ok: true, zoom: tab?.id ? await chrome.tabs.getZoom(tab.id) : 1};
@@ -1374,7 +1381,7 @@ const executeBrowserTool = async (name, input = {}) => {
 
 
 // A native dialog releases the caller without replaying the blocked operation.
-const browserOnly = new Set(['open_tab', 'duplicate_tab', 'bind_tab', 'list_browser_tools', 'list_tabs', 'list_windows', 'see_env', 'close_tab', 'close_window', 'switch_tab', 'move_tab', 'update_tab', 'create_window', 'update_window', 'group_tabs', 'ungroup_tabs', 'list_downloads', 'download', 'export_data', 'control_download', 'wait_download', 'wait_new_tab', 'profile_vault']);
+const browserOnly = new Set(['open_tab', 'duplicate_tab', 'bind_tab', 'list_browser_tools', 'list_tabs', 'list_windows', 'see_env', 'close_tab', 'close_window', 'switch_tab', 'move_tab', 'update_tab', 'create_window', 'update_window', 'group_tabs', 'ungroup_tabs', 'list_downloads', 'download', 'export_data', 'control_download', 'wait_download', 'wait_new_tab', 'profile_vault', 'detach_debugger']);
 export const runBrowserTool = async (name, input = {}) => {
   let unwatch;
   let targetTab;

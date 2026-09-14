@@ -45,3 +45,10 @@ test("update_tab requires at least one explicit state and validates both boolean
   }
   expect(check("update_tab", { pinned: true, mute: true }).schemaOk).toBe(false);
 });
+
+test("detach_debugger accepts optional tab and rejects non-numeric or malformed parameters", () => {
+  expect(check("detach_debugger", {}).schemaOk).toBe(true);
+  expect(check("detach_debugger", { tab: 123 }).schemaOk).toBe(true);
+  expect(check("detach_debugger", { tab: "invalid" }).schemaOk).toBe(false);
+  expect(check("detach_debugger", { tab: null }).schemaOk).toBe(false);
+});

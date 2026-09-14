@@ -96,7 +96,8 @@
     "page_find",
     "long_press",
     "service_worker_list",
-    "websocket_monitor"
+    "websocket_monitor",
+    "detach_debugger"
   ],
   "service": [
     "send_http",

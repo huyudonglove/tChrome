@@ -44,6 +44,21 @@ export const withDebugger = async (tabId, run) => {
     throw error;
   }
 };
+export const detachDebugger = async (tabId) => {
+  initDialogEvents();
+  try {
+    await chrome.debugger.detach({tabId});
+  } catch (error) {
+    // Treat benign or already-detached errors as success
+    if (!/not attached|Detached|Debugger is not attached/i.test(String(error))) {
+      throw error;
+    }
+  }
+  attached.delete(tabId);
+  enabled.delete(tabId);
+  states.delete(tabId);
+  return {ok: true, tab: tabId, detached: true};
+};
 export const monitorDialogs = async (tab) => {
   await withDebugger(tab, async () => {
     if (!enabled.has(tab)) {

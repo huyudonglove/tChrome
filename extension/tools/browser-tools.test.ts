@@ -214,6 +214,22 @@ test("native dialog detection releases a blocked page operation and accepts prom
   expect(await runBrowserTool("see_diag", {tab: 901})).toMatchObject({dialog: {status: "unknown"}});
 });
 
+test("detach_debugger detaches debugger target and ignores already detached errors", async () => {
+  let detachedTab: any = null;
+  globals.chrome = {
+    tabs: { get: async () => ({ id: 905, url: "https://example.com" }) },
+    debugger: {
+      detach: async (target: any) => { detachedTab = target.tabId; },
+    },
+  };
+  expect(await runBrowserTool("detach_debugger", { tab: 905 })).toEqual({ ok: true, tab: 905, detached: true });
+  expect(detachedTab).toBe(905);
+
+  // When already detached, it should succeed without throwing
+  globals.chrome.debugger.detach = async () => { throw new Error("Debugger is not attached"); };
+  expect(await runBrowserTool("detach_debugger", { tab: 905 })).toEqual({ ok: true, tab: 905, detached: true });
+});
+
 test("handle_dialog works without an opening event and surfaces missing dialog", async () => {
   let fail = false;
   globals.chrome = {
@@ -287,6 +303,28 @@ test('WebSocket monitor captures both directions, isolates tabs, bounds data and
   await runBrowserTool('websocket_monitor', {tab, action: 'start'});
   expect(await runBrowserTool('websocket_monitor', {tab, action: 'read'})).toMatchObject({monitoring: true, messages: []});
   await runBrowserTool('websocket_monitor', {tab, action: 'stop'});
+});
+
+test('explicit debugger detach preserves failed connections and cleans monitors without an onDetach event', async () => {
+  const tab = 3110;
+  const {onEvent, commands} = mockSocketBrowser(tab);
+  let attaches = 0;
+  globals.chrome.debugger.attach = async () => { attaches++; };
+  await runBrowserTool('websocket_monitor', {tab, action: 'start'});
+  globals.chrome.debugger.detach = async () => { throw new Error('Permission denied'); };
+  await expect(runBrowserTool('detach_debugger', {tab})).rejects.toThrow('Permission denied');
+  expect(await runBrowserTool('websocket_monitor', {tab, action: 'read'})).toMatchObject({monitoring: true});
+  expect(attaches).toBe(1);
+  expect(commands.filter(c => c === 'Page.enable')).toHaveLength(1);
+  // Chrome's explicit detach does not emit onDetach.
+  globals.chrome.debugger.detach = async () => {};
+  expect(await runBrowserTool('detach_debugger', {tab})).toMatchObject({detached: true});
+  expect(onEvent.listeners.size).toBe(1);
+  expect(await runBrowserTool('websocket_monitor', {tab, action: 'read'})).toMatchObject({monitoring: false, messages: []});
+  expect(await runBrowserTool('websocket_monitor', {tab, action: 'start'})).toMatchObject({started: true});
+  expect(attaches).toBe(2);
+  expect(commands.filter(c => c === 'Network.enable')).toHaveLength(2);
+  await runBrowserTool('detach_debugger', {tab});
 });
 
 for (const reason of ['detach', 'close', 'failure']) test(`WebSocket monitor releases listeners after ${reason}`, async () => {
