@@ -4,6 +4,10 @@
 
 **在日常 Chrome 中为你掌舵、观察、操作与沉淀记忆的自主 AI 伙伴。**
 
+https://github.com/user-attachments/assets/a5b5e1a3-2cf6-4b94-9201-a52ef6cb4404
+
+*实录演示：Helm 在日常真实 Chrome 浏览器中自主观察、多步规划并攻克复杂交互挑战（WebGames 农夫过河评测基准）。*
+
 ---
 
 ### 你好，我是驭舟（Helm）
