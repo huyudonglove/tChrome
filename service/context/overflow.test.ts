@@ -34,15 +34,15 @@ test('cumulative small slots respect the budget, retain tools and prefer retaini
   expect(JSON.parse(result['#memory']!).contextFile).toBeDefined();
   expect(measure(result)).toBeLessThanOrEqual(CONTEXT_INLINE_CHARS);
 }));
-test('repeated projections reuse stored content and skill references remain text', () => temporary(dataDir => {
-  const slots = {'#skill': 'instructions '.repeat(25000)};
+test('skill stays verbatim while repeated projections reuse externalized data', () => temporary(dataDir => {
+  const slots = {'#skill': 'instructions '.repeat(15000), '#notes': JSON.stringify({draft: 'n'.repeat(90000)})};
   const first = externalizeContext({dataDir, slots, measure});
+  expect(first['#skill']).toBe(slots['#skill']);
   expect(externalizeContext({dataDir, slots, measure})).toEqual(first);
+  expect(externalizeContext({dataDir, slots: first, measure})).toEqual(first);
   expect(readdirSync(join(dataDir, 'context-files'))).toHaveLength(1);
-  expect(first['#skill']).toContain('Read it before following the skill');
-  const ref = JSON.parse(first['#skill']!.split('\n')[1]!).contextFile;
-  expect(ref.format).toBe('text');
-  expect(readFileSync(ref.path, 'utf8')).toBe(slots['#skill']);
+  const ref = JSON.parse(first['#notes']!).contextFile;
+  expect(readFileSync(ref.path, 'utf8')).toBe(slots['#notes']);
 }));
 test('large array records are externalized while small pagination results remain visible', () => temporary(dataDir => {
   const huge = {result: 'x'.repeat(300000)};
@@ -53,7 +53,8 @@ test('large array records are externalized while small pagination results remain
   expect(JSON.parse(readFileSync(items[0].contextFile.path, 'utf8'))).toEqual(huge);
   expect(externalizeContext({dataDir, slots: result, measure})).toEqual(result);
 }));
-test('unmovable tools or fixed rendering overhead produce an explicit budget error', () => temporary(dataDir => {
+test('unmovable skill, tools or fixed rendering overhead produce an explicit budget error', () => temporary(dataDir => {
+  expect(() => externalizeContext({dataDir, slots: {'#skill': 'x'.repeat(250001)}, measure})).toThrow('Context inline budget exceeded');
   expect(() => externalizeContext({dataDir, slots: {'#tools': 'x'.repeat(250001)}, measure})).toThrow('Context inline budget exceeded');
   expect(() => externalizeContext({dataDir, slots: {'#notes': 'small'}, measure: () => 250001})).toThrow('250000');
 }));

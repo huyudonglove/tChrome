@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "User 模块数据契约",
-  "description": "模型窗口各插槽的逻辑值。文本槽保持字符串，其余槽取 JSON 解析后的值；不含 # 标签。ID 前缀与分配范围由 service/identity/catalog.json 定义。 发送前受 250000 字符内联预算约束，除 tools 外的数据模块可用本地文件引用替代；skill 保持字符串并在文本中给出文件路径。",
+  "description": "模型窗口各插槽的逻辑值。文本槽保持字符串，其余槽取 JSON 解析后的值；不含 # 标签。ID 前缀与分配范围由 service/identity/catalog.json 定义。 发送前受 250000 字符内联预算约束，除 tools 和 skill 外的数据模块可用本地文件引用替代；skill 始终保留完整文本，不参与压缩或裁剪。",
   "type": "object",
   "properties": {
     "skill": {

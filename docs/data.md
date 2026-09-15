@@ -8,7 +8,7 @@
 
 摘要通过专用工具返回并校验，原文和摘要写入本地归档后才更新覆盖索引。窗口使用 `#conversationHistorySummary` 展示摘要，原始记录保留；压缩失败或取消不推进覆盖状态。压缩处理之后，发送前还会执行下面的硬内联预算检查。
 
-主模型 System + User 的硬内联上限为 250000 字符，与 200000 字符的历史压缩触发门槛分开。Runtime 先按既有门槛检查压缩，再检查发送预算；压缩后仍超过 250000 时，优先将 notes 正文写入 `TCHROME_DATA/context-files/`，以 `{contextFile:{path,chars,format}}` 替换相应模块正文，直到满足预算。notes 外置后仍超限时，再外置其他大块内容。数组模块也允许单独外置大记录，保留后续较小记录内联，便于看到分页读取结果。path 为绝对路径，chars 为原文字符数，format 为 `json` 或 `text`；skill 保持文本格式并给出文件路径。System #baseTools、User #tools 和编号规则保持内联。notes、长期记忆等不参与历史压缩的材料同样可以通过文件引用展示，保存内容和历史原文不会被删除或截断。
+主模型 System + User 的硬内联上限为 250000 字符，与 200000 字符的历史压缩触发门槛分开。Runtime 先按既有门槛检查压缩，再检查发送预算；压缩后仍超过 250000 时，优先将 notes 正文写入 `TCHROME_DATA/context-files/`，以 `{contextFile:{path,chars,format}}` 替换相应模块正文，直到满足预算。notes 外置后仍超限时，再外置其他大块内容。数组模块也允许单独外置大记录，保留后续较小记录内联，便于看到分页读取结果。path 为绝对路径，chars 为原文字符数，format 为 `json` 或 `text`。System #baseTools、User #tools、#skill 和编号规则保持内联；#skill 始终保留全文，不参与压缩或裁剪。notes、长期记忆等不参与历史压缩的材料同样可以通过文件引用展示，保存内容和历史原文不会被删除或截断。
 
 模型需要原文时，先通过 `catalog.add` 加载 `local.fs_read`，按 `offset` / `limit` 按字节分段读取，后续页使用返回的 `nextOffset`，不一次回读全文。固定规则和引用本身仍无法装入预算时返回 `context_limit`。
 

@@ -13,3 +13,11 @@ affectsPage 表示是否改变浏览器页面状态：点击、输入、导航�
 新标签在指定窗口后台打开，新窗口默认不获取焦点，截图在指定标签后台完成。duplicate_tab 使用 Chrome 原生复制，会激活复制出的标签。其他需要切到前台的操作，明确调用切换工具。
 
 脚本先用 script_patch 保存，收到保存成功的结果后，再提交执行调用。script_patch 不能与 execute_javascript、local.run 或 local.process_start 放在同一批，否则 Runtime 会拒绝该批调用。
+
+Sample（page.get_summary 的 arguments，仅示例）：
+
+    {
+      "tabId": 101,
+      "reason": "查看目标页的标题和主要区域",
+      "affectsPage": false
+    }

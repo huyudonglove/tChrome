@@ -8,8 +8,6 @@ export class ContextBudgetError extends Error {
   override name = 'ContextBudgetError';
 }
 
-const skillReferencePrefix = 'Full skill content is stored in the local file below. Read it before following the skill.\n';
-
 function exists(path: string) {
   try { return lstatSync(path); }
   catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw error; }
@@ -57,15 +55,10 @@ export function externalizeContext({dataDir, slots, measure}: {
   while (size > CONTEXT_INLINE_CHARS) {
     const candidates: {key: string; content: string; path: string; replacement: string; size: number; whole: boolean}[] = [];
     for (const [key, body] of Object.entries(result)) {
-      if (key === '#tools' || completed.has(key)) continue;
-      if (key === '#skill' && body.startsWith(skillReferencePrefix)) {
-        try { if (isReference(JSON.parse(body.slice(skillReferencePrefix.length)))) continue; } catch { /* Ordinary skill text. */ }
-      }
+      if (key === '#tools' || key === '#skill' || completed.has(key)) continue;
       let parsed: unknown;
       let format: 'json' | 'text' = 'text';
-      if (key !== '#skill') {
-        try { parsed = JSON.parse(body); format = 'json'; } catch { /* Plain slot text stays text. */ }
-      }
+      try { parsed = JSON.parse(body); format = 'json'; } catch { /* Plain slot text stays text. */ }
       if (isReference(parsed)) continue;
       const add = (content: string, replacement: string, path: string, whole: boolean) => {
         const nextSize = measure({...result, [key]: replacement});
@@ -85,9 +78,7 @@ export function externalizeContext({dataDir, slots, measure}: {
       // Keep small, recent array records visible while larger records can still be moved.
       if (candidates.length === before) {
         const reference = referenceFor(body, format);
-        const replacement = key === '#skill'
-          ? `${skillReferencePrefix}${JSON.stringify(reference.value)}`
-          : JSON.stringify(reference.value);
+        const replacement = JSON.stringify(reference.value);
         add(body, replacement, reference.path, true);
       }
     }

@@ -34,7 +34,7 @@ user 模块在详细描述后增加内容段：
 {{data}}
 ```
 
-[user/skill.md](user/skill.md) 只维护用途、边界说明和 `{{data}}` 占位符：说明进入 system，runtime 提供的技能正文随 #skill 进入 user。system 模块文件格式保持不变，渲染时正文与能力合并到同一清单项。
+[user/skill.md](user/skill.md) 只维护用途、边界说明和 `{{data}}` 占位符：该说明进入 System 的 User Modules 导航，runtime 提供的技能正文随 #skill 进入 User。system 模块文件格式保持不变，渲染时正文与能力合并到同一清单项。
 
 目录中的名字是不含 .md 的文件名，不携带能力描述。编号从 1 连续递增，必须与目录文件一一对应。模块 tag、能力和正文只在模块文件维护，避免能力描述重复维护。
 
@@ -73,7 +73,7 @@ openTabs 展示标签快照，pageObservedHistory 展示实际页面观察（包
 
 每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 不参与历史压缩，正文或文件引用保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
 
-主模型发送前另设 System + User 合计 250000 字符硬内联上限。先执行上述 200000 字符门槛的压缩检查，再检查内联预算；压缩后仍超过 250000 时，优先将 notes 正文完整写入 `TCHROME_DATA/context-files/`，以文件引用替换内联正文，直到满足发送预算。notes 外置后仍超限时，再外置其他大块内容。数组模块也允许将大记录单独替换为文件引用，保留后续较小记录内联，便于模型看到分页读取结果。JSON 数据模块或数组记录的引用为 `{contextFile:{path,chars,format}}`，其中 path 为绝对路径、chars 为原文字符数、format 为 `json` 或 `text`；skill 仍为字符串，以文本说明文件路径。System #baseTools、User #tools 和编号规则保持内联。文件替换仅影响本次请求的展示，不删除历史记录，也不改变记忆和 notes 的存储内容。引用契约见 [data-schema.json](data-schema.json)。模型可通过 `catalog.add` 加载 `local.fs_read`，使用 `offset` / `limit` 按字节分段读取所需原文，后续页使用返回的 `nextOffset`，避免一次回读全文再次撑大上下文。若固定规则与文件引用本身仍无法装入，返回 `context_limit`。
+主模型发送前另设 System + User 合计 250000 字符硬内联上限。先执行上述 200000 字符门槛的压缩检查，再检查内联预算；压缩后仍超过 250000 时，优先将 notes 正文完整写入 `TCHROME_DATA/context-files/`，以文件引用替换内联正文，直到满足发送预算。notes 外置后仍超限时，再外置其他大块内容。数组模块也允许将大记录单独替换为文件引用，保留后续较小记录内联，便于模型看到分页读取结果。JSON 数据模块或数组记录的引用为 `{contextFile:{path,chars,format}}`，其中 path 为绝对路径、chars 为原文字符数、format 为 `json` 或 `text`。System #baseTools、User #tools、#skill 和编号规则保持内联；#skill 始终保留全文，不参与压缩或裁剪。文件替换仅影响本次请求的展示，不删除历史记录，也不改变记忆和 notes 的存储内容。引用契约见 [data-schema.json](data-schema.json)。模型可通过 `catalog.add` 加载 `local.fs_read`，使用 `offset` / `limit` 按字节分段读取所需原文，后续页使用返回的 `nextOffset`，避免一次回读全文再次撑大上下文。若固定规则与文件引用本身仍无法装入，返回 `context_limit`。
 
 常驻 `context.query(sumId, module, intent, cursor?)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将对应记录放入 currentQuery；工具返回只含状态和引用。每次 records 的紧凑 JSON 最多 2000 字符；超出返回 partial 与 nextCursor，可带原查询参数和 cursor 继续读取，无需再次调用Query Agent。超大单条保留身份字段及 fragment:{offset,totalChars,text}，text 是原记录 JSON 的连续片段，不是摘要。查询不会刷新页面。
 
