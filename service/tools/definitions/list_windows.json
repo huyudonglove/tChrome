@@ -2,13 +2,10 @@
   "type": "function",
   "function": {
     "name": "list_windows",
-    "description": "列出浏览器窗口。\n返回：ok、windows[{id,focused,type}]。",
+    "description": "列出浏览器窗口。\n返回：ok、windows[{windowId,focused,type}]。focused 表示窗口是否获得输入焦点。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number"
-        },
         "reason": {
           "type": "string"
         },

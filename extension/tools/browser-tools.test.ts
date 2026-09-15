@@ -1,12 +1,14 @@
 import { afterEach, expect, test } from "bun:test";
-import { runBrowserTool } from "./browser-tools.js";
+import { readOpenTabs, runBrowserTool } from "./browser-tools.js";
 
 const globals = globalThis as any;
 const originalChrome = globals.chrome;
 const originalIndexedDB = globals.indexedDB;
+const originalCreateImageBitmap = globals.createImageBitmap;
 afterEach(() => {
   globals.chrome = originalChrome;
   globals.indexedDB = originalIndexedDB;
+  globals.createImageBitmap = originalCreateImageBitmap;
 });
 
 test("export_data downloads Unicode text through a worker-compatible data URL", async () => {
@@ -60,7 +62,7 @@ test("indexeddb delete opens a writable transaction and removes the requested ke
       ? await func(...args)
       : { title: "Example", url: "https://example.com", text: "" } }] },
   };
-  const result = await runBrowserTool("indexeddb", { tab: 1, action: "delete", db: "test", store: "records", key: "key" });
+  const result = await runBrowserTool("indexeddb", { tabId: 1, action: "delete", db: "test", store: "records", key: "key" });
   expect(result.ok).toBe(true);
   expect(records.has("key")).toBe(false);
 });
@@ -72,10 +74,10 @@ test("wait reports failure when the page loads but expected text never appears",
       title: "Example", url: "https://example.com", text: "not ready",
     } }] },
   };
-  const result = await runBrowserTool("wait", { tab: 7, text: "missing", ms: 1 });
+  const result = await runBrowserTool("wait", { tabId: 7, text: "missing", ms: 1 });
   expect(result.ok).toBe(false);
   expect(result.error).toBe("没等到这段文字");
-  expect(result.tab).toBe(7);
+  expect(result.tabId).toBe(7);
   expect(result.text).toBe("not ready");
 });
 
@@ -90,10 +92,10 @@ test("capture_page element crops the element document bounds and rejects ambiguo
       return {data: "cropped-image"};
     }},
   };
-  const result = await runBrowserTool("capture_page", {mode: "element",tab: 904, selector: "#target"});
+  const result = await runBrowserTool("capture_page", {mode: "element",tabId: 904, selector: "#target"});
   expect(result).toMatchObject({ok: true, mime: "image/png", clipped: true, capture_rect: {x: 0, y: 1800, width: 230, height: 120}});
   expect(commands[1]).toEqual(["Page.captureScreenshot", {format: "png", fromSurface: true, captureBeyondViewport: true, clip: {x: 0, y: 1800, width: 230, height: 120, scale: 1}}]);
-  expect((await runBrowserTool("capture_page", {mode: "element",tab: 904, ref: "el-test", selector: "#target"})).ok).toBe(false);
+  expect((await runBrowserTool("capture_page", {mode: "element",tabId: 904, ref: "el-test", selector: "#target"})).ok).toBe(false);
 });
 
 let javascriptTab = 2000;
@@ -114,14 +116,14 @@ test("execute_javascript evaluates in the page through CDP and awaits structured
     return { result: { type: "object", value: { title: "中文", count: 3, items: [true, null] } } };
   }, async (...args) => { attachments.push(args); });
   const code = "Promise.resolve({title: document.title, count: 3, items: [true, null]})";
-  expect(await runBrowserTool("execute_javascript", { tab, code })).toEqual({
-    ok: true, tab, type: "object", value: { title: "中文", count: 3, items: [true, null] },
+  expect(await runBrowserTool("execute_javascript", { tabId: tab, code })).toEqual({
+    ok: true, tabId: tab, type: "object", value: { title: "中文", count: 3, items: [true, null] },
   });
   expect(attachments).toEqual([[{ tabId: tab }, "1.3"]]);
   expect(request).toEqual([{ tabId: tab }, "Runtime.evaluate", {
     expression: code, awaitPromise: true, returnByValue: true, allowUnsafeEvalBlockedByCSP: true,
   }]);
-  await runBrowserTool("execute_javascript", { tab, code });
+  await runBrowserTool("execute_javascript", { tabId: tab, code });
   expect(attachments).toHaveLength(1);
 });
 
@@ -130,8 +132,8 @@ for (const remote of [{ type: "undefined" }, { type: "number", unserializableVal
   { type: "object", subtype: "null", value: null }]) {
   test(`execute_javascript preserves ${remote.unserializableValue || remote.subtype || remote.type}`, async () => {
     const tab = mockJavascript(async () => ({ result: remote }));
-    const result = await runBrowserTool("execute_javascript", { tab, code: "value" });
-    expect(result).toEqual({ ok: true, tab, type: remote.type,
+    const result = await runBrowserTool("execute_javascript", { tabId: tab, code: "value" });
+    expect(result).toEqual({ ok: true, tabId: tab, type: remote.type,
       ...(Object.hasOwn(remote, "value") ? { value: remote.value } : {}),
       ...(remote.unserializableValue ? { unserializableValue: remote.unserializableValue } : {}),
     });
@@ -143,15 +145,15 @@ test("execute_javascript surfaces thrown errors and rejected promises", async ()
     result: { type: "object" },
     exceptionDetails: { text: "Uncaught (in promise)", exception: { description: "Error: rejected\n at page:1" } },
   }));
-  expect(await runBrowserTool("execute_javascript", { tab, code: "Promise.reject(Error('rejected'))" })).toEqual({
-    ok: false, tab, error: "Error: rejected\n at page:1",
+  expect(await runBrowserTool("execute_javascript", { tabId: tab, code: "Promise.reject(Error('rejected'))" })).toEqual({
+    ok: false, tabId: tab, error: "Error: rejected\n at page:1",
   });
 });
 
 test("execute_javascript reports attach failure without evaluating", async () => {
   let calls = 0;
   const tab = mockJavascript(async () => { calls++; }, async () => { throw new Error("Another debugger is already attached"); });
-  expect(await runBrowserTool("execute_javascript", { tab, code: "counter++" })).toEqual({
+  expect(await runBrowserTool("execute_javascript", { tabId: tab, code: "counter++" })).toEqual({
     ok: false, error: "Another debugger is already attached",
   });
   expect(calls).toBe(0);
@@ -161,25 +163,25 @@ test("execute_javascript never replays side effects after debugger disconnect", 
   let attachments = 0;
   let calls = 0;
   const tab = mockJavascript(async () => { calls++; throw new Error("Debugger is not attached"); }, async () => { attachments++; });
-  expect((await runBrowserTool("execute_javascript", { tab, code: "counter++" })).ok).toBe(false);
+  expect((await runBrowserTool("execute_javascript", { tabId: tab, code: "counter++" })).ok).toBe(false);
   expect(calls).toBe(1);
   expect(attachments).toBe(1);
-  await runBrowserTool("execute_javascript", { tab, code: "counter" });
+  await runBrowserTool("execute_javascript", { tabId: tab, code: "counter" });
   expect(attachments).toBe(2);
 });
 
 test("execute_javascript preserves full values and exceptions", async () => {
   const value = { text: "x".repeat(20000) };
   let tab = mockJavascript(async () => ({ result: { type: "object", value } }));
-  expect(await runBrowserTool("execute_javascript", { tab, code: "largeResult" })).toEqual({ok: true, tab, type: "object", value});
+  expect(await runBrowserTool("execute_javascript", { tabId: tab, code: "largeResult" })).toEqual({ok: true, tabId: tab, type: "object", value});
   tab = mockJavascript(async () => ({ exceptionDetails: { text: value.text } }));
-  expect(await runBrowserTool("execute_javascript", { tab, code: "throw Error()" })).toEqual({ok: false, tab, error: value.text});
+  expect(await runBrowserTool("execute_javascript", { tabId: tab, code: "throw Error()" })).toEqual({ok: false, tabId: tab, error: value.text});
 });
 
 test("execute_javascript reports protocol timeouts without retrying", async () => {
   let calls = 0;
   const tab = mockJavascript(async () => { calls++; throw new Error("Execution was terminated"); });
-  expect(await runBrowserTool("execute_javascript", { tab, code: "while (true) {}" })).toEqual({
+  expect(await runBrowserTool("execute_javascript", { tabId: tab, code: "while (true) {}" })).toEqual({
     ok: false, error: "Execution was terminated",
   });
   expect(calls).toBe(1);
@@ -203,15 +205,15 @@ test("native dialog detection releases a blocked page operation and accepts prom
       return new Promise(() => {});
     }},
   };
-  expect(await runBrowserTool("see_diag", {tab: 901})).toMatchObject({ok: true, dialog: {status: "unknown"}});
+  expect(await runBrowserTool("see_diag", {tabId: 901})).toMatchObject({ok: true, dialog: {status: "unknown"}});
   expect(scriptCalls).toBe(0);
-  expect(await runBrowserTool("see_page", {tab: 901})).toMatchObject({ok: false, faultCode: "dialog_open", dialog: {type: "prompt", message: "Name?"}});
-  expect(await runBrowserTool("see_diag", {tab: 901})).toMatchObject({dialog: {status: "open"}});
-  expect(await runBrowserTool("handle_dialog", {tab: 901, action: "accept", promptText: "Ada"})).toMatchObject({ok: true, dialog: {status: "closed"}});
+  expect(await runBrowserTool("see_page", {tabId: 901})).toMatchObject({ok: false, faultCode: "dialog_open", dialog: {type: "prompt", message: "Name?"}});
+  expect(await runBrowserTool("see_diag", {tabId: 901})).toMatchObject({dialog: {status: "open"}});
+  expect(await runBrowserTool("handle_dialog", {tabId: 901, action: "accept", promptText: "Ada"})).toMatchObject({ok: true, dialog: {status: "closed"}});
   expect(commands).toContainEqual(["Page.handleJavaScriptDialog", {accept: true, promptText: "Ada"}]);
   expect(scriptCalls).toBe(1);
   detach({tabId: 901});
-  expect(await runBrowserTool("see_diag", {tab: 901})).toMatchObject({dialog: {status: "unknown"}});
+  expect(await runBrowserTool("see_diag", {tabId: 901})).toMatchObject({dialog: {status: "unknown"}});
 });
 
 test("detach_debugger detaches debugger target and ignores already detached errors", async () => {
@@ -222,12 +224,12 @@ test("detach_debugger detaches debugger target and ignores already detached erro
       detach: async (target: any) => { detachedTab = target.tabId; },
     },
   };
-  expect(await runBrowserTool("detach_debugger", { tab: 905 })).toEqual({ ok: true, tab: 905, detached: true });
+  expect(await runBrowserTool("detach_debugger", { tabId: 905 })).toEqual({ ok: true, tabId: 905, detached: true });
   expect(detachedTab).toBe(905);
 
   // When already detached, it should succeed without throwing
   globals.chrome.debugger.detach = async () => { throw new Error("Debugger is not attached"); };
-  expect(await runBrowserTool("detach_debugger", { tab: 905 })).toEqual({ ok: true, tab: 905, detached: true });
+  expect(await runBrowserTool("detach_debugger", { tabId: 905 })).toEqual({ ok: true, tabId: 905, detached: true });
 });
 
 test("handle_dialog works without an opening event and surfaces missing dialog", async () => {
@@ -240,9 +242,9 @@ test("handle_dialog works without an opening event and surfaces missing dialog",
       if (fail) throw new Error("No dialog is showing");
     }},
   };
-  expect(await runBrowserTool("handle_dialog", {tab: 902, action: "dismiss"})).toMatchObject({ok: true});
+  expect(await runBrowserTool("handle_dialog", {tabId: 902, action: "dismiss"})).toMatchObject({ok: true});
   fail = true;
-  expect(await runBrowserTool("handle_dialog", {tab: 902, action: "dismiss"})).toMatchObject({ok: false, faultCode: "no_dialog"});
+  expect(await runBrowserTool("handle_dialog", {tabId: 902, action: "dismiss"})).toMatchObject({ok: false, faultCode: "no_dialog"});
 });
 
 
@@ -257,7 +259,7 @@ test("capture_page full_page captures CSS content bounds beyond viewport without
       throw new Error(method);
     }},
   };
-  expect(await runBrowserTool("capture_page", {mode: "full_page",tab: 903})).toMatchObject({ok: true, fullPage: true, page_size: [800, 6000]});
+  expect(await runBrowserTool("capture_page", {mode: "full_page",tabId: 903})).toMatchObject({ok: true, fullPage: true, page_size: [800, 6000]});
   expect(commands[1]).toEqual(["Page.captureScreenshot", {format: "jpeg", quality: 70, captureBeyondViewport: true, fromSurface: true, clip: {x: 0, y: 0, width: 800, height: 6000, scale: 1}}]);
 });
 
@@ -282,27 +284,27 @@ const mockSocketBrowser = (tab: number, fail = false) => {
 test('WebSocket monitor captures both directions, isolates tabs, bounds data and cleans up on stop/restart', async () => {
   const tab = 3101;
   const {onEvent, commands} = mockSocketBrowser(tab);
-  expect(await runBrowserTool('websocket_monitor', {tab, action: 'start'})).toMatchObject({ok: true, started: true});
-  expect(await runBrowserTool('websocket_monitor', {tab, action: 'start'})).toMatchObject({already: true});
+  expect(await runBrowserTool('websocket_monitor', {tabId: tab, action: 'start'})).toMatchObject({ok: true, started: true});
+  expect(await runBrowserTool('websocket_monitor', {tabId: tab, action: 'start'})).toMatchObject({already: true});
   expect(commands.filter(c => c === 'Network.enable')).toHaveLength(1);
   const frame = (id: number, dir: string, data: string) => onEvent.emit({tabId: id}, `Network.webSocketFrame${dir}`, {requestId: 'socket', response: {opcode: 1, payloadData: data}});
   frame(tab + 1, 'Received', 'unrelated');
   frame(tab, 'Sent', 'outbound'); frame(tab, 'Received', 'inbound');
-  const read = await runBrowserTool('websocket_monitor', {tab, action: 'read'});
+  const read = await runBrowserTool('websocket_monitor', {tabId: tab, action: 'read'});
   expect(read.messages.map((m: any) => [m.dir, m.data])).toEqual([['out', 'outbound'], ['in', 'inbound']]);
   for (let i = 0; i < 55; i++) frame(tab, 'Received', String(i));
   frame(tab, 'Received', 'x'.repeat(17000));
-  const stopped = await runBrowserTool('websocket_monitor', {tab, action: 'stop'});
+  const stopped = await runBrowserTool('websocket_monitor', {tabId: tab, action: 'stop'});
   expect(stopped.messages).toHaveLength(50);
   expect(stopped.messages.at(-1)).toMatchObject({truncated: true, opcode: 1});
   expect(stopped.messages.at(-1).data).toHaveLength(16000);
   expect(onEvent.listeners.size).toBe(1); // shared dialog listener remains
   frame(tab, 'Received', 'after-stop');
-  expect(await runBrowserTool('websocket_monitor', {tab, action: 'read'})).toMatchObject({monitoring: false, messages: []});
+  expect(await runBrowserTool('websocket_monitor', {tabId: tab, action: 'read'})).toMatchObject({monitoring: false, messages: []});
   expect(commands).not.toContain('Network.disable');
-  await runBrowserTool('websocket_monitor', {tab, action: 'start'});
-  expect(await runBrowserTool('websocket_monitor', {tab, action: 'read'})).toMatchObject({monitoring: true, messages: []});
-  await runBrowserTool('websocket_monitor', {tab, action: 'stop'});
+  await runBrowserTool('websocket_monitor', {tabId: tab, action: 'start'});
+  expect(await runBrowserTool('websocket_monitor', {tabId: tab, action: 'read'})).toMatchObject({monitoring: true, messages: []});
+  await runBrowserTool('websocket_monitor', {tabId: tab, action: 'stop'});
 });
 
 test('explicit debugger detach preserves failed connections and cleans monitors without an onDetach event', async () => {
@@ -310,27 +312,27 @@ test('explicit debugger detach preserves failed connections and cleans monitors 
   const {onEvent, commands} = mockSocketBrowser(tab);
   let attaches = 0;
   globals.chrome.debugger.attach = async () => { attaches++; };
-  await runBrowserTool('websocket_monitor', {tab, action: 'start'});
+  await runBrowserTool('websocket_monitor', {tabId: tab, action: 'start'});
   globals.chrome.debugger.detach = async () => { throw new Error('Permission denied'); };
-  await expect(runBrowserTool('detach_debugger', {tab})).rejects.toThrow('Permission denied');
-  expect(await runBrowserTool('websocket_monitor', {tab, action: 'read'})).toMatchObject({monitoring: true});
+  await expect(runBrowserTool('detach_debugger', {tabId: tab})).rejects.toThrow('Permission denied');
+  expect(await runBrowserTool('websocket_monitor', {tabId: tab, action: 'read'})).toMatchObject({monitoring: true});
   expect(attaches).toBe(1);
   expect(commands.filter(c => c === 'Page.enable')).toHaveLength(1);
   // Chrome's explicit detach does not emit onDetach.
   globals.chrome.debugger.detach = async () => {};
-  expect(await runBrowserTool('detach_debugger', {tab})).toMatchObject({detached: true});
+  expect(await runBrowserTool('detach_debugger', {tabId: tab})).toMatchObject({detached: true});
   expect(onEvent.listeners.size).toBe(1);
-  expect(await runBrowserTool('websocket_monitor', {tab, action: 'read'})).toMatchObject({monitoring: false, messages: []});
-  expect(await runBrowserTool('websocket_monitor', {tab, action: 'start'})).toMatchObject({started: true});
+  expect(await runBrowserTool('websocket_monitor', {tabId: tab, action: 'read'})).toMatchObject({monitoring: false, messages: []});
+  expect(await runBrowserTool('websocket_monitor', {tabId: tab, action: 'start'})).toMatchObject({started: true});
   expect(attaches).toBe(2);
   expect(commands.filter(c => c === 'Network.enable')).toHaveLength(2);
-  await runBrowserTool('detach_debugger', {tab});
+  await runBrowserTool('detach_debugger', {tabId: tab});
 });
 
 for (const reason of ['detach', 'close', 'failure']) test(`WebSocket monitor releases listeners after ${reason}`, async () => {
   const tab = reason === 'detach' ? 3102 : reason === 'close' ? 3103 : 3104;
   const {onEvent, onDetach, onRemoved} = mockSocketBrowser(tab, reason === 'failure');
-  const result = await runBrowserTool('websocket_monitor', {tab, action: 'start'});
+  const result = await runBrowserTool('websocket_monitor', {tabId: tab, action: 'start'});
   if (reason === 'failure') expect(result.ok).toBe(false);
   else {
     expect(result.ok).toBe(true);
@@ -340,7 +342,7 @@ for (const reason of ['detach', 'close', 'failure']) test(`WebSocket monitor rel
   expect(onEvent.listeners.size).toBe(1);
   expect(onDetach.listeners.size).toBe(1);
   expect(onRemoved.listeners.size).toBe(1);
-  expect(await runBrowserTool('websocket_monitor', {tab, action: 'read'})).toMatchObject({monitoring: false, messages: []});
+  expect(await runBrowserTool('websocket_monitor', {tabId: tab, action: 'read'})).toMatchObject({monitoring: false, messages: []});
 });
 
 test('service_worker_list reads registrations from the requested page and reports unsupported origins', async () => {
@@ -356,10 +358,10 @@ test('service_worker_list reads registrations from the requested page and report
         return [{result: args ? await func(...args) : {title: 'Example', url: 'https://example.com', text: ''}}];
       }},
     };
-    expect(await runBrowserTool('service_worker_list', {tab: 3201})).toMatchObject({ok: true, serviceWorkers: [{scope: registration.scope, active: registration.active.scriptURL}]});
+    expect(await runBrowserTool('service_worker_list', {tabId: 3201})).toMatchObject({ok: true, serviceWorkers: [{scope: registration.scope, active: registration.active.scriptURL}]});
     expect(scripts.every(id => id === 3201)).toBe(true);
     Object.defineProperty(globalThis, 'navigator', {configurable: true, value: {}});
-    expect(await runBrowserTool('service_worker_list', {tab: 3201})).toMatchObject({ok: false, error: '该页面不支持 Service Worker API'});
+    expect(await runBrowserTool('service_worker_list', {tabId: 3201})).toMatchObject({ok: false, error: '该页面不支持 Service Worker API'});
   } finally {
     if (originalNavigator) Object.defineProperty(globalThis, 'navigator', originalNavigator);
     else delete globals.navigator;
@@ -401,16 +403,16 @@ test('page element IDs survive reorder and never target replacement nodes', asyn
         return [{result}];
       }},
     };
-    const observed = await runBrowserTool('page.list_interactive_elements', {tab: 1});
+    const observed = await runBrowserTool('page.list_interactive_elements', {tabId: 1});
     expect(observed.elements.map((el: any) => el.id)).toEqual(['e_01', 'e_02']);
     nodes.reverse();
-    expect((await runBrowserTool('page.click', {tab: 1, id: 'e_01'})).ok).toBe(true);
+    expect((await runBrowserTool('page.click', {tabId: 1, id: 'e_01'})).ok).toBe(true);
     expect(first.clicks).toBe(1);
     expect(second.clicks).toBe(0);
     first.isConnected = false;
     nodes = [new Node('replacement'), second];
-    expect((await runBrowserTool('page.click', {tab: 1, id: 'e_01'})).ok).toBe(false);
-    const replacement = await runBrowserTool('page.list_interactive_elements', {tab: 1});
+    expect((await runBrowserTool('page.click', {tabId: 1, id: 'e_01'})).ok).toBe(false);
+    const replacement = await runBrowserTool('page.list_interactive_elements', {tabId: 1});
     expect(replacement.elements.map((el: any) => el.id)).toEqual(['e_03', 'e_02']);
     expect(replacement.elements[0].regionId).toBe('r_01');
   } finally {
@@ -419,4 +421,50 @@ test('page element IDs survive reorder and never target replacement nodes', asyn
       else delete globals[key];
     });
   }
+});
+
+
+test("open tabs snapshot keeps per-window activation and focus without choosing a target", async () => {
+  const windows = [
+    {id: 11, focused: true, tabs: [{id: 101, active: true, url: 'https://one', title: 'One'}]},
+    {id: 22, focused: false, tabs: [{id: 202, active: true, url: 'https://two', title: 'Two'}]},
+  ];
+  globals.chrome = {windows: {getAll: async (options: any) => {
+    expect(options).toEqual({populate: true, windowTypes: ['normal']}); return windows;
+  }}};
+  const expected = {ok: true, windows: windows.map(w => ({windowId: w.id, focused: w.focused,
+    tabs: w.tabs.map(t => ({tabId: t.id, active: t.active, url: t.url, title: t.title}))}))};
+  expect(await readOpenTabs()).toEqual(expected);
+  expect(await runBrowserTool('see_env')).toEqual(expected);
+  expect(await runBrowserTool('list_tabs')).toEqual(expected);
+});
+
+test("tab actions never fall back to the foreground and opening preserves focus", async () => {
+  const created: any[] = [];
+  globals.chrome = {
+    tabs: {get: async () => {throw Error('No tab');},
+      query: async () => {throw Error('must not query foreground');},
+      create: async (options: any) => {created.push(options); return {id: 20, ...options};}},
+    windows: {create: async (options: any) => {created.push(options); return {id: 3};}},
+  };
+  await expect(runBrowserTool('close_tab', {})).rejects.toThrow('tabId');
+  await expect(runBrowserTool('close_tab', {tabId: 404})).rejects.toThrow('404');
+  await expect(runBrowserTool('open_tab', {url: 'https://example.com'})).rejects.toThrow('windowId');
+  expect(await runBrowserTool('open_tab', {windowId: 2, url: 'https://example.com'})).toMatchObject({ok: true, tabId: 20});
+  expect(await runBrowserTool('create_window', {url: 'https://example.com'})).toMatchObject({ok: true, windowId: 3});
+  expect(created).toEqual([{windowId: 2, url: 'https://example.com', active: false}, {url: 'https://example.com', focused: false}]);
+});
+
+test("viewport capture targets the requested tab through CDP without activating it or retrying", async () => {
+  globals.createImageBitmap = async () => ({width: 800, height: 600, close() {}});
+  const commands: any[] = [];
+  globals.chrome = {
+    tabs: {get: async () => ({id: 9012, windowId: 11, url: 'https://example.com'})},
+    scripting: {executeScript: async () => [{result: [800, 600]}]},
+    debugger: {attach: async () => {}, sendCommand: async (...args: any[]) => {commands.push(args); return {data: 'AA=='};}},
+  };
+  expect(await runBrowserTool('capture_page', {tabId: 9012, mode: 'viewport'})).toMatchObject({ok: true, tabId: 9012, image: 'data:image/jpeg;base64,AA==', viewport: [800, 600]});
+  expect(commands).toEqual([[{tabId: 9012}, 'Page.captureScreenshot', {format: 'jpeg', quality: 70, fromSurface: true, captureBeyondViewport: false}]]);
+  globals.chrome.debugger.sendCommand = async () => {throw Error('Capture unavailable');};
+  expect(await runBrowserTool('capture_page', {tabId: 9012, mode: 'viewport'})).toMatchObject({ok: false, error: 'Capture unavailable'});
 });

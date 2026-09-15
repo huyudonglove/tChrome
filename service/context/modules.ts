@@ -73,7 +73,7 @@ export function renderSlots(order: string[], files: Record<string, ContextModule
 
 /** Each module appears once: tag/capability followed directly by its rules or description. */
 export function renderInventory(role: "System" | "User", order: string[], modules: Record<string, ContextModule>, data: Record<string, string> = {}): string {
-  return `# ${role} 栏目清单\n\n${order.map(tag => {
+  return `# ${role} Modules\n\n${order.map(tag => {
     const module = modules[tag];
     if (!module) throw new Error(`missing slot file ${tag}`);
     const text = role === "System" ? interpolate(module.body, { data: data[tag] ?? (tag === "#recordIdentity" ? identityRulesText() : "") }) : module.description!;

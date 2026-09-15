@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "select",
-    "description": "在指定下拉框选择精确 value 对应的选项。ref 必须来自 snapshot_page/find_on_page，不能使用 page.* 的 id。缺少 ref/value 或选项不存在时失败，不猜测目标或按文字匹配。可选 tab。返回 ok、value（当前值）。",
+    "description": "在指定下拉框选择精确 value 对应的选项。ref 必须来自 snapshot_page/find_on_page，不能使用 page.* 的 id。缺少 ref/value 或选项不存在时失败，不猜测目标或按文字匹配。必填 tabId。返回 ok、value（当前值）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,8 +10,9 @@
           "type": "string",
           "description": "选项的精确 value；空字符串仅匹配 value 为空的选项"
         },
-        "tab": {
-          "type": "number"
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         },
         "reason": {
           "type": "string"
@@ -29,7 +30,8 @@
         "reason",
         "ref",
         "value",
-        "affectsPage"
+        "affectsPage",
+        "tabId"
       ]
     }
   }

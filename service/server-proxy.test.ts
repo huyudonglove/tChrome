@@ -23,7 +23,7 @@ for (const variable of ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY"]) {
       Bun.env.TCHROME_PROVIDER = "uuapi";
       Bun.env[variable] = "http://127.0.0.1:19999";
       Bun.env.UUAPI_API_KEY = "local-test-not-a-secret";
-      const server = createServer({ dataDir: dir, repoRoot: join(import.meta.dir, "..") });
+      const server = createServer({ dataDir: dir, repoRoot: join(import.meta.dir, ".."), host: { readOpenTabs: async () => ({ ok: true, windows: [] }), execute: async () => ({ ok: true }) } });
       const request = (path: string, body: unknown) => server.fetch(new Request(`http://127.0.0.1:18788${path}`, {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
       }));

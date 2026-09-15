@@ -5,7 +5,7 @@ import { resolveProxy } from "./provider/uuapi.ts";
 import { configuredProvider, isProviderName, providerOptions } from "./provider/config.ts";
 import { ensureSession, loadSession, defaultDataDir, currentSessionView, listConversations, openConversation, newConversation, deleteConversation, stopTurn } from "./runtime/store.ts";
 import { createToolBridge, type ToolBridge } from "./runtime/bridge.ts";
-import type { BrowserResult } from "./types.ts";
+import type { BrowserResult, BrowserHost, OpenTabs } from "./types.ts";
 import { executorVersion, executorMismatchMessage } from "./executor-version.ts";
 import { abortAllLocalProcesses } from "./tools/local-process.ts";
 import { cancelAllExecutions } from "./runtime/execution.ts";
@@ -59,13 +59,37 @@ export function createServer(options: ServeOptions = {}) {
   let activeProvider = configuredProvider(proxyEnabled ? proxyURL : "", providerName);
   const provider = options.provider ?? { complete: (input: Parameters<typeof activeProvider.complete>[0]) => activeProvider.complete(input) };
   const bridge = options.bridge ?? createToolBridge(dataDir);
-  const host = options.host ?? bridge;
-  const deps: LoopDeps = { dataDir, repoRoot, provider, host };
   const expectedVersion = executorVersion(repoRoot);
   let extension: { status: "unknown" | "ready" | "mismatch"; expectedVersion: string; actualVersion: string | null; lastSeenAt: string | null; error?: string } = {
     status: "unknown", expectedVersion, actualVersion: null, lastSeenAt: null,
   };
-  const extensionView = () => ({ ...extension, status: extension.lastSeenAt && Date.now() - Date.parse(extension.lastSeenAt) > 45_000 ? "disconnected" : extension.status });
+  const extensionStaleMs = 45_000;
+  const extensionView = () => ({ ...extension, status: extension.lastSeenAt && Date.now() - Date.parse(extension.lastSeenAt) >= extensionStaleMs ? "disconnected" : extension.status });
+  const snapshotHost = (scope?: string): BrowserHost => {
+    const scoped = scope === undefined ? bridge : bridge.forScope!(scope);
+    return { ...scoped, forScope: snapshotHost, readOpenTabs: async (): Promise<OpenTabs> => {
+      const unavailable = (): OpenTabs => ({ok: false, error: extensionView().error || "浏览器扩展未连接，无法读取标签列表"});
+      if (extensionView().status !== "ready") return unavailable();
+      let timer: ReturnType<typeof setTimeout>;
+      let disconnected = false;
+      const checkConnection = () => {
+        if (extensionView().status !== "ready") {
+          disconnected = true;
+          scoped.abort?.();
+        } else {
+          timer = setTimeout(checkConnection, Math.max(1, extensionStaleMs - (Date.now() - Date.parse(extension.lastSeenAt!))));
+        }
+      };
+      const pendingSnapshot = scoped.readOpenTabs!();
+      checkConnection();
+      try {
+        const result = await pendingSnapshot;
+        return disconnected ? unavailable() : result;
+      } finally { clearTimeout(timer!); }
+    } };
+  };
+  const host = options.host ?? snapshotHost();
+  const deps: LoopDeps = { dataDir, repoRoot, provider, host };
   const extensionOrigin = options.extensionOrigin ?? Bun.env.TCHROME_EXTENSION_ORIGIN;
   const trustedOrigin = (origin: string, url: URL) =>
     origin === url.origin || (extensionOrigin
@@ -194,14 +218,14 @@ export function createServer(options: ServeOptions = {}) {
         }
       }
       if (request.method === "POST" && url.pathname === "/turn") {
-        const body = (await request.json()) as { conversationId?: string; userInput?: string; submittedAt?: string; currentTab?: { tab?: number; url?: string; title?: string } | null };
+        const body = (await request.json()) as { conversationId?: string; userInput?: string; submittedAt?: string };
         const userInput = String(body.userInput ?? "").trim();
         if (!userInput) return respond({ conversationId: "", turnId: "", output: { kind: "error", faultCode: "empty_input" } }, 400);
         if (body.conversationId && body.conversationId !== ensureSession(dataDir).conversationId) {
           return respond({ output: { kind: "error", faultCode: "conversation_changed" } }, 409);
         }
         const submittedAt = body.submittedAt || new Date().toISOString();
-        const reply = await handleTurn(deps, { userInput, submittedAt, currentTab: body.currentTab ?? null });
+        const reply = await handleTurn(deps, { userInput, submittedAt });
         return respond(reply);
       }
       if (request.method === "POST" && url.pathname === "/stop") {

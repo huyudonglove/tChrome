@@ -27,7 +27,7 @@ function aborted(signal: AbortSignal | undefined): Promise<never> {
 }
 function seed(dataDir: string, large = false) {
   const { conversationId: cv } = ensureSession(dataDir), ledger = loadLedger(dataDir, cv);
-  const turns = Array.from({ length: 5 }, (_, i): Turn => ({ goalChanges: [], conversationId: cv, turnId: `tn_0${i + 1}`, status: "completed", createdAt: "2026-09-12", completedAt: "2026-09-12", input: { id: `input_0${i + 1}`, text: large ? "历史要求".repeat(12000) : `历史要求${i}`, submittedAt: "2026-09-12" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null, pageObservedHistory: [] }, output: { kind: "reply", text: "完成" } }));
+  const turns = Array.from({ length: 5 }, (_, i): Turn => ({ goalChanges: [], conversationId: cv, turnId: `tn_0${i + 1}`, status: "completed", createdAt: "2026-09-12", completedAt: "2026-09-12", input: { id: `input_0${i + 1}`, text: large ? "历史要求".repeat(12000) : `历史要求${i}`, submittedAt: "2026-09-12" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], openTabs: { ok: true, windows: [] }, currentPage: null, pageObservedHistory: [] }, output: { kind: "reply", text: "完成" } }));
   ledger.turnIds = turns.map(turn => turn.turnId); ledger.userInputHistory = turns.slice(0, -1).map(inputRecord);
   turns.forEach(turn => saveTurn(dataDir, turn)); saveLedger(dataDir, ledger);
   return { cv, turns };

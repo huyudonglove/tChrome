@@ -2,16 +2,13 @@
   "type": "function",
   "function": {
     "name": "wait_new_tab",
-    "description": "等待调用后新创建的浏览器标签（任意窗口），不是原生 alert/confirm/prompt，也不会返回调用前已经打开的标签。参数：可选 timeoutMs，默认3000，最大5000。返回：ok、tab{id,url,title}；超时明确失败。",
+    "description": "等待调用后新创建的浏览器标签（任意窗口），不是原生 alert/confirm/prompt，也不会返回调用前已经打开的标签。参数：可选 timeoutMs，默认3000，最大5000。返回：ok、tabId、windowId、url、title；超时明确失败。",
     "parameters": {
       "type": "object",
       "properties": {
         "timeoutMs": {
           "type": "number",
           "description": "等待新标签的超时毫秒数，默认3000，最多5000"
-        },
-        "tab": {
-          "type": "number"
         },
         "reason": {
           "type": "string"

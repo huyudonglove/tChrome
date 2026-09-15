@@ -110,17 +110,85 @@
         }
       ]
     },
-    "currentPage": {
+    "openTabs": {
       "anyOf": [
         {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/page"
+          "type": "object",
+          "properties": {
+            "ok": {
+              "const": true
             },
-            {
-              "type": "null"
+            "windows": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "windowId": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "focused": {
+                    "type": "boolean"
+                  },
+                  "tabs": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "tabId": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "url": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "active": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "tabId",
+                        "url",
+                        "title",
+                        "active"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "windowId",
+                  "focused",
+                  "tabs"
+                ],
+                "additionalProperties": false
+              }
             }
-          ]
+          },
+          "required": [
+            "ok",
+            "windows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ok": {
+              "const": false
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "ok",
+            "error"
+          ],
+          "additionalProperties": false
         },
         {
           "$ref": "#/$defs/contextFileReference"
@@ -268,7 +336,7 @@
     "userInputHistory",
     "goal",
     "goalHistory",
-    "currentPage",
+    "openTabs",
     "pageObservedHistory",
     "projectMemory",
     "conversationMemory",
@@ -403,7 +471,7 @@
         "callId": {
           "$ref": "#/$defs/callId"
         },
-        "tab": {
+        "tabId": {
           "type": "integer"
         },
         "url": {
@@ -423,7 +491,7 @@
         }
       },
       "required": [
-        "tab",
+        "tabId",
         "url",
         "title",
         "description"

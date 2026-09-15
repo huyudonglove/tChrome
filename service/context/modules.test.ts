@@ -22,7 +22,7 @@ const navigationTags = (text: string) => Array.from(text.matchAll(/^(#[A-Za-z][A
 const fixtureTurn = (): Turn => ({ goalChanges: [],
   turnId: "tn_slots", conversationId: "cv_slots", status: "inferring", createdAt: "", completedAt: null,
   input: { id: "input_fixture", text: "用户输入 {{#goal}} {{data}}", submittedAt: "" }, output: null,
-  assembled: { baseToolsIds: [], toolIds: [],  conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null, pageObservedHistory: [] },
+  assembled: { baseToolsIds: [], toolIds: [],  conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], openTabs: { ok: true, windows: [] }, currentPage: null, pageObservedHistory: [] },
 });
 
 test("reordering only inventories changes both navigations and corresponding bodies", () => {
@@ -199,11 +199,11 @@ test("model projection preserves record identities and operational data without 
   const ledger = emptyLedger("cv_slots");
   const turn = fixtureTurn();
   ledger.toolIO = [{ callId: "hidden_call", turnId: "hidden_turn", name: "page.click",
-    arguments: { reason: "确认按钮", affectsPage: true, tab: 42, ref: "el-7" },
+    arguments: { reason: "确认按钮", affectsPage: true, tabId: 42, ref: "el-7" },
     return: { stage: "complete", totalChars: 999, text: JSON.stringify({ ok: false, faultCode: "stale_ref", detail: "重新读取页面", elementId: "e1" }) } },
     { callId: "hidden_call_2", turnId: "hidden_turn", name: "local.run", arguments: { filename: "echo.sh", cwd: "/tmp" },
       return: { stage: "truncated", totalChars: 999, text: "unfinished {text" } }];
-  const page = { id: "hidden_page", turnId: "hidden_turn", observedAt: "hidden_date", callId: "hidden_call", toolName: "see", tab: 42, url: "https://example.com", title: "页面", description: "按钮 ref=el-7" };
+  const page = { id: "hidden_page", turnId: "hidden_turn", observedAt: "hidden_date", callId: "hidden_call", toolName: "see", tabId: 42, url: "https://example.com", title: "页面", description: "按钮 ref=el-7" };
   turn.assembled.currentPage = page;
   turn.assembled.pageObservedHistory = [page];
   const original = JSON.stringify({ ledger, turn });
@@ -211,12 +211,12 @@ test("model projection preserves record identities and operational data without 
   const output = userText({ contextModules: modules, ledger, turn, conversationSummaries, memories: { project: "[]", conversation: "[]" }, skillText: "" });
   const section = (tag: string) => output.split(`#${tag}\n\n`)[1]!.split(/\n#[A-Za-z]/)[0]!.trim();
   expect(JSON.parse(section("toolIO"))).toEqual([
-    { callId: "hidden_call", turnId: "hidden_turn", name: "page.click", arguments: { reason: "确认按钮", affectsPage: true, tab: 42, ref: "el-7" }, return: { stage: "complete", result: { ok: false, faultCode: "stale_ref", detail: "重新读取页面", elementId: "e1" } } },
+    { callId: "hidden_call", turnId: "hidden_turn", name: "page.click", arguments: { reason: "确认按钮", affectsPage: true, tabId: 42, ref: "el-7" }, return: { stage: "complete", result: { ok: false, faultCode: "stale_ref", detail: "重新读取页面", elementId: "e1" } } },
     { callId: "hidden_call_2", turnId: "hidden_turn", name: "local.run", arguments: { filename: "echo.sh", cwd: "/tmp" }, return: { stage: "truncated", result: "unfinished {text" } },
   ]);
   expect(JSON.parse(section("conversationHistorySummary"))).toEqual([{ sumId: "sum_fixture", turnId: "hidden_turn", tag: "确认失败", userRequest: "确认按钮", actions: "点击按钮", result: "按钮引用过期" }]);
-  expect(JSON.parse(section("currentPage"))).toEqual({ id: "hidden_page", turnId: "hidden_turn", callId: "hidden_call", tab: 42, url: "https://example.com", title: "页面", description: "按钮 ref=el-7" });
-  expect(JSON.parse(section("pageObservedHistory"))).toEqual([]);
+  expect(JSON.parse(section("openTabs"))).toEqual({ ok: true, windows: [] });
+  expect(JSON.parse(section("pageObservedHistory"))).toEqual([{ id: "hidden_page", turnId: "hidden_turn", callId: "hidden_call", tabId: 42, url: "https://example.com", title: "页面", description: "按钮 ref=el-7" }]);
   expect(output).not.toContain("hidden_date");
   expect(JSON.parse(section("userInput"))).toEqual({ id: "input_fixture", turnId: turn.turnId, userInput: turn.input.text });
   expect(JSON.stringify({ ledger, turn })).toBe(original);
@@ -227,13 +227,13 @@ test("page descriptions appear once in the model view while original tool result
   const ledger = emptyLedger("cv_slots");
   const turn = fixtureTurn();
   const pages = [1, 2].map(n => ({ id: `page_0${n}`, turnId: turn.turnId, callId: `call_0${n}`,
-    observedAt: "now", toolName: "page.get_summary", tab: 42, url: "https://example.com", title: "页面",
+    observedAt: "now", toolName: "page.get_summary", tabId: 42, url: "https://example.com", title: "页面",
     description: `UNIQUE_PAGE_BODY_${n}` }));
   turn.assembled.currentPage = pages[1]!;
   turn.assembled.pageObservedHistory = pages;
   ledger.toolIO = pages.map(page => ({ callId: page.callId, turnId: page.turnId, name: page.toolName,
     arguments: { reason: "核对页面", affectsPage: false }, return: { stage: "complete", totalChars: 999,
-      text: JSON.stringify({ ok: true, tab: page.tab, url: page.url, title: page.title,
+      text: JSON.stringify({ ok: true, tabId: page.tabId, url: page.url, title: page.title,
         description: page.description, extraEvidence: "keep this" }) } }));
   const original = JSON.stringify({ ledger, turn });
   const render = () => userText({ contextModules: modules, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: "" });
@@ -242,10 +242,10 @@ test("page descriptions appear once in the model view while original tool result
   const tools = JSON.parse(output.split("#toolIO\n\n")[1]!.split(/\n#[A-Za-z]/)[0]!);
   expect(tools.map((row: any) => row.arguments)).toEqual(pages.map(() => ({ reason: "核对页面", affectsPage: false })));
   expect(tools.map((row: any) => row.return.result)).toEqual(pages.map(page => ({ ok: true,
-    tab: page.tab, url: page.url, title: page.title, extraEvidence: "keep this", pageObservationId: page.id })));
+    tabId: page.tabId, url: page.url, title: page.title, extraEvidence: "keep this", pageObservationId: page.id })));
   expect(JSON.stringify({ ledger, turn })).toBe(original);
   // Once a historical observation is absent, its tool body must remain available.
-  turn.assembled.pageObservedHistory = [];
+  turn.assembled.pageObservedHistory = [pages[1]!];
   const withoutHistory = render();
   expect(withoutHistory).toContain(pages[0]!.description);
   expect(withoutHistory).not.toContain('"pageObservationId": "page_01"');

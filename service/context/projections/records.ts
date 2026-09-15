@@ -9,7 +9,7 @@ export const goalView = (records: GoalRecord[], currentGoalId: string | null) =>
   return { currentGoalId, goals: records.filter(row => ids.has(row.id)).map(goalRecordView) };
 };
 export const goalHistoryView = (records: GoalRecord[]) => records.filter(row => row.status !== "active").map(goalRecordView);
-export const pageView = (page: CurrentPage & Partial<PageObservation>) => ({ id: page.id, turnId: page.turnId, callId: page.callId, tab: page.tab, url: page.url, title: page.title, description: page.description });
+export const pageView = (page: CurrentPage & Partial<PageObservation>) => ({ id: page.id, turnId: page.turnId, callId: page.callId, tabId: page.tabId, url: page.url, title: page.title, description: page.description });
 
 
 export type TurnSummary = { id: string; turnId: string; tag: string; userRequest: string; actions: string; result: string };

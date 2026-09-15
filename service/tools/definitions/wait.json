@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "wait",
-    "description": "等到出现某段文字或过一段时间。\n参数：可选 text（文本）、ms（等待毫秒数）、tab（目标标签编号）。\n返回：ok、title（页面标题）、url（页面地址）、text（返回文本）。",
+    "description": "等到出现某段文字或过一段时间。\n参数：可选 text（文本）、ms（等待毫秒数）；必填 tabId（目标标签编号）。\n返回：ok、title（页面标题）、url（页面地址）、text（返回文本）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -17,11 +17,16 @@
         },
         "affectsPage": {
           "type": "boolean"
+        },
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         }
       },
       "required": [
         "reason",
-        "affectsPage"
+        "affectsPage",
+        "tabId"
       ]
     }
   }

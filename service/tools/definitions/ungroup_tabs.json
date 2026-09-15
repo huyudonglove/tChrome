@@ -2,23 +2,29 @@
   "type": "function",
   "function": {
     "name": "ungroup_tabs",
-    "description": "取消标签分组。\n参数：可选 tabs（标签编号列表）。\n返回：ok。",
+    "description": "将指定标签移出分组。\n参数：必填 tabIds（标签编号列表）。\n返回：ok。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number"
-        },
         "reason": {
           "type": "string"
         },
         "affectsPage": {
           "type": "boolean"
+        },
+        "tabIds": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 1,
+          "description": "要操作的标签编号列表。"
         }
       },
       "required": [
         "reason",
-        "affectsPage"
+        "affectsPage",
+        "tabIds"
       ],
       "additionalProperties": true
     }

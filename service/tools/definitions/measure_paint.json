@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "measure_paint",
-    "description": "测当前页绘制时间。\n参数：可选 tab（目标标签编号）。\n返回：ok、firstPaintMs（首次绘制毫秒数）、firstContentfulPaintMs（首次内容绘制毫秒数）、largestContentfulPaintMs（最大内容绘制毫秒数）。",
+    "description": "测指定页绘制时间。\n参数：必填 tabId（目标标签编号）。\n返回：ok、firstPaintMs（首次绘制毫秒数）、firstContentfulPaintMs（首次内容绘制毫秒数）、largestContentfulPaintMs（最大内容绘制毫秒数）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number"
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         },
         "reason": {
           "type": "string"
@@ -18,7 +19,8 @@
       },
       "required": [
         "reason",
-        "affectsPage"
+        "affectsPage",
+        "tabId"
       ],
       "additionalProperties": true
     }

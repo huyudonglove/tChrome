@@ -6,8 +6,9 @@
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number"
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         },
         "reason": {
           "type": "string"
@@ -27,7 +28,8 @@
       "required": [
         "reason",
         "affectsPage",
-        "action"
+        "action",
+        "tabId"
       ],
       "additionalProperties": true
     }

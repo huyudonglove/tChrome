@@ -33,7 +33,7 @@ test("script file names are single supported files, not paths", () => {
 
 test("page execution accepts JavaScript filenames and rejects legacy inline code", () => {
   for (const filename of ["task.js", "task.mjs", "task.cjs"]) {
-    expect(check("execute_javascript", { filename, tab: 12 }).schemaOk).toBe(true);
+    expect(check("execute_javascript", { filename, tabId: 12 }).schemaOk).toBe(true);
   }
   for (const args of [{ code: "1 + 1" }, { filename: "task.js", code: "1 + 1" }, { filename: "task.py" }, { filename: "../task.js" }]) {
     expect(check("execute_javascript", args).schemaOk).toBe(false);

@@ -10,10 +10,10 @@ test("public boundary preserves missing-file diagnostics", async () => {
   expect(execution.effects).toEqual([]);
 });
 
-test("browser timeout preserves tab and advises inspection without replay", async () => {
+test("browser timeout preserves tabId and advises inspection without replay", async () => {
   let calls = 0;
-  const execution = await executeTool({ ...input, name: "page.click", arguments: {}, browserNames: ["page.click"], host: { execute: async () => { calls++; return { ok: false, faultCode: "tool_timeout", tab: 7, error: "diagnostic" }; } } });
-  expect(JSON.parse(execution.text)).toMatchObject({ ok: false, faultCode: "tool_timeout", recovery: "inspect_state", tab: 7, details: { reason: "diagnostic" } });
+  const execution = await executeTool({ ...input, name: "page.click", arguments: {}, browserNames: ["page.click"], host: { execute: async () => { calls++; return { ok: false, faultCode: "tool_timeout", tabId: 7, error: "diagnostic" }; } } });
+  expect(JSON.parse(execution.text)).toMatchObject({ ok: false, faultCode: "tool_timeout", recovery: "inspect_state", tabId: 7, details: { reason: "diagnostic" } });
   expect(calls).toBe(1);
   expect(execution.effects).toEqual([]);
 });

@@ -19,8 +19,8 @@ test("script patch returns status to the model before filename execution reaches
       host: { execute: async (name, input) => {
         executions++;
         expect(name).toBe("execute_javascript");
-        expect(input).toEqual({ tab: 12, code: "(() => 42)()\n" });
-        return { ok: true, type: "number", value: 42, tab: 12 };
+        expect(input).toEqual({ tabId: 12, code: "(() => 42)()\n" });
+        return { ok: true, type: "number", value: 42, tabId: 12 };
       } }, provider: { complete: async ({ messages }) => {
         step++;
         if (step === 1) return response([call("catalog.add", { names: ["script_patch", "execute_javascript"] })]);
@@ -28,7 +28,7 @@ test("script patch returns status to the model before filename execution reaches
         if (step === 3) {
           expect(executions).toBe(0);
           expect(messages[1]!.content).toContain('"operation": "created"');
-          return response([call("execute_javascript", { filename: "demo.js", tab: 12 })]);
+          return response([call("execute_javascript", { filename: "demo.js", tabId: 12 })]);
         }
         return response([call("finishTurn", { text: "完成" })]);
       } } }, { userInput: "执行脚本", submittedAt: "now" });
@@ -47,7 +47,7 @@ test.each(["execute_javascript", "local.run", "local.process_start"])("patch and
     const reply = await handleTurn({ dataDir, repoRoot: join(import.meta.dir, "../.."), host: { execute: async () => { executions++; return { ok: true }; } },
       provider: { complete: async () => ++step === 1
         ? response([call("catalog.add", { names: ["script_patch", name] })])
-        : response([call("script_patch", { filename: "demo.js", patch }), call(name, { filename: "demo.js", ...(name === "execute_javascript" ? { tab: 12 } : { cwd: dataDir }) })]) },
+        : response([call("script_patch", { filename: "demo.js", patch }), call(name, { filename: "demo.js", ...(name === "execute_javascript" ? { tabId: 12 } : { cwd: dataDir }) })]) },
     }, { userInput: "执行脚本", submittedAt: "now" });
     expect(reply.output.kind).toBe("error");
     expect(executions).toBe(0);

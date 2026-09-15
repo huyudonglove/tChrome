@@ -39,7 +39,7 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 | 方法 | 路径 | 体 | 回 |
 |---|---|---|---|
 | GET | `/health` | 无 | `{ok:true}` |
-| POST | `/turn` | `{userInput, submittedAt, currentTab?}` | `{conversationId, turnId, output}`。`currentTab` 是 `{tab, url, title}`，开 Turn 写入 `#currentPage`。没有就槽空着 |
+| POST | `/turn` | `{userInput, submittedAt}` | `{conversationId, turnId, output}`。Runtime 每次请求主模型前读取所有普通窗口及标签，刷新 `#openTabs` |
 | POST | `/stop` | 无 | 停当前 Turn。账本 `paused`，投影回 `{conversationId, status, pendingAsk, liveTool, messages}`。下一句可再开 Turn |
 | GET | `/session` | 无 | 当前 `session.json` 指向的会话投影：`{conversationId, status, pendingAsk, liveTool, messages}`。`messages` 按流水展示用户输入、工具 arguments.reason、最终 output，以及正在执行（`live:true`）和排队工具的状态；原始 content 和工具 return 不作为助手回复 |
 | GET | `/conversations` | 无 | `{items:[{conversationId, updatedAt, status, preview}]}`。当前 `session.json` 指向的排第一，其余按 `updatedAt` 新到旧。空会话 preview 是「新会话」 |
@@ -162,7 +162,7 @@ Runtime 独占维护。当前会话指针。
 | `input.text` | string | 本轮用户原话。用户下一条输入才开新 Turn |
 | `input.submittedAt` | string | 面板提交时间，ISO-8601 |
 | `goalChanges` | object[] | 本轮每次 submitGoal 更新后的目标快照，按调用顺序保留；同一目标可多次出现，sourceCallId 区分变更，供归档和历史查询使用 |
-| `assembled` | object | 这一轮点名的 catalog IDs + 当前页，见「assembled」 |
+| `assembled` | object | 这一轮点名的 catalog IDs + 标签快照与页面观察，见「assembled」 |
 | `output` | object | 见「output」 |
 | `usage` | object，可选 | 新 Turn 分别记录 `modelRequests` 与 `toolCalls`。工具批次逐个计数，包含常驻与收口工具；未通过校验而未执行的调用不计入。旧 Turn 可缺省。统计不作为累计 20 次的停止条件。 |
 
@@ -175,16 +175,16 @@ Runtime 独占维护。当前会话指针。
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
 | `mcpIds` | string[] | 本轮 MCP；没有就 `[]` |
-| `currentTab` | object \| null | 本轮输入来源的内部标签快照，仅用于初始化 currentPage，不单独注入模型 |
-| `currentPage` | object \| null | 初始取发话标签，标注尚未读取页面内容；随后由有效页面工具返回替换，使用对应观察 id；初始标签快照没有观察 ID。注入 `#currentPage` |
-| `pageObservedHistory` | object[] | 内部工具页面观察，初始 `[]`，按旧到新追加，包含最新一次观察。每条带稳定 id、turnId、页面字段及 observedAt、callId、toolName。注入 `#pageObservedHistory` 时排除与 currentPage 同 id 的观察 |
+| `openTabs` | object | 每次请求主模型前刷新；成功为 `{ok:true, windows:[{windowId, focused, tabs:[{tabId, url, title, active}]}]}`，失败为 `{ok:false, error}`；注入 `#openTabs` |
+| `currentPage` | object \| null | 内部保存最近实际页面观察，初始 null，由有效页面工具返回更新；不再单独注入插槽 |
+| `pageObservedHistory` | object[] | 内部工具页面观察，初始 `[]`，按旧到新追加，包含最新一次观察。每条带稳定 id、turnId、页面字段及 observedAt、callId、toolName。注入 `#pageObservedHistory` 时保留最新观察 |
 
 `currentPage`：
 
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
 | `description` | string | 这块环境是什么 |
-| `tab` | number | Chrome tabId，≥ 1 |
+| `tabId` | number | Chrome tabId，≥ 1 |
 | `url` | string | 当前页 URL |
 | `title` | string | 当前页标题 |
 
@@ -218,7 +218,7 @@ Memory 投影保持全部可见原文。会话记忆根据来源 turnId 随轮�
 
 - 用户输入：`{id: "input_01", turnId, userInput, submittedAt}`，当前 `#userInput` 和对应历史项共用 ID。
 - 目标：`{id, parentId, status, turnId, goal, sourceCallId, createdAt, updatedAt}`，按稳定 ID 查询取得最新状态；历史变更快照保存在 Turn.goalChanges，按归档 goalChanges 回查。
-- 页面观察：`{id, turnId, tab, url, title, description, observedAt, callId, toolName}`，当前页和对应历史项共用观察 ID。
+- 页面观察：`{id, turnId, tabId, url, title, description, observedAt, callId, toolName}`，当前页和对应历史项共用观察 ID。
 - 记忆继续使用 memory 文件及 memoryId，注入模型时仅显示原文。
 
 conversationHistorySummary 显示当前有效摘要的 {sumId, turnId, tag, userRequest, actions, result}；sumId 用于查询入口，来源关系保存在本地归档。
@@ -279,7 +279,7 @@ System #baseTools 展示常驻能力导航，User #tools 展示本会话已加�
 
 常驻 `context.query(sumId, module, intent, cursor?)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，查询 Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将对应记录放入 currentQuery；工具返回只含状态和引用。每次 records 的紧凑 JSON 最多 2000 字符；超出返回 partial 与 nextCursor，可带原查询参数和 cursor 继续读取，无需再次调用查询 Agent。超大单条保留身份字段及 fragment:{offset,totalChars,text}，text 是原记录 JSON 的连续片段，不是摘要。查询不会刷新页面。
 
-工具窗口投影使用 {callId, turnId, batchId?, name, arguments, return: {stage, result}}，arguments 隐藏 affectsPage，保留 reason 与操作参数。result 对合法 JSON 解析一次，普通文本和截断文本保持原样。callId 标识调用，turnId 标识所属轮次，batchId 标识工具批次；totalChars 不注入主模型，操作用 tab、控件引用及错误详情仍保留。与 currentPage 或 pageObservedHistory 中已展示观察完全相同的 description 用 pageObservationId 引用替代，其他结果字段不变；本地原始返回保持完整。
+工具窗口投影使用 {callId, turnId, batchId?, name, arguments, return: {stage, result}}，arguments 隐藏 affectsPage，保留 reason 与操作参数。result 对合法 JSON 解析一次，普通文本和截断文本保持原样。callId 标识调用，turnId 标识所属轮次，batchId 标识工具批次；totalChars 不注入主模型，操作用 tabId、控件引用及错误详情仍保留。与 pageObservedHistory 中已展示观察完全相同的 description 用 pageObservationId 引用替代，其他结果字段不变；本地原始返回保持完整。
 
 ## 阶段快照
 
@@ -288,7 +288,7 @@ System #baseTools 展示常驻能力导航，User #tools 展示本会话已加�
 | `stage` | 文件 | 本环节追加 / 改写 |
 |---|---|---|
 | `normalize` | 01 | `conversationId` `turnId` `userInput` `userInputHistory` `submittedAt` |
-| `context-engineering-input` | 02 | assembled 那组 ID + `currentPage` |
+| `context-engineering-input` | 02 | assembled 那组 ID + `openTabs` 与实际页面观察 |
 | `context-engineering-decode` | 03 | `systemSlots` `userSlots` |
 | `provider-request` | 04 | `provider` `model` `stream` `maxAttempts` |
 | `provider-response` | 05 | `finish` `content` `toolCalls` `attempts` `parseOk` `schemaOk` `faultCode` `missing` |

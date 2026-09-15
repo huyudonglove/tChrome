@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "see_console",
-    "description": "按需开启并读取当前页控制台日志。首次调用向目标页面注入监听，此后读取该页面已采集的日志；开启前的日志无法补取，刷新或导航后需重新调用开启。监听会包装页面 console 方法并读取输出对象，仅在需要排查控制台时使用。\n参数：可选 level=error|warn|log|all、tab（目标标签编号）。\n返回：ok、count、items[{level,text}]。",
+    "description": "按需开启并读取指定页控制台日志。首次调用向目标页面注入监听，此后读取该页面已采集的日志；开启前的日志无法补取，刷新或导航后需重新调用开启。监听会包装页面 console 方法并读取输出对象，仅在需要排查控制台时使用。\n参数：可选 level=error|warn|log|all；必填 tabId（目标标签编号）。\n返回：ok、count、items[{level,text}]。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number"
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         },
         "reason": {
           "type": "string"
@@ -18,7 +19,8 @@
       },
       "required": [
         "reason",
-        "affectsPage"
+        "affectsPage",
+        "tabId"
       ],
       "additionalProperties": true
     }

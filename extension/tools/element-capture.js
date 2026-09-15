@@ -25,7 +25,7 @@ export async function captureElement(tabId, input) {
   const hasSelector = typeof input.selector === 'string' && input.selector.trim().length > 0;
   if (hasRef === hasSelector || (input.ref !== undefined && !hasRef) || (input.selector !== undefined && !hasSelector)) return {ok: false, error: '必须且只能提供 ref 或 selector'};
   const [{result}] = await chrome.scripting.executeScript({target: {tabId}, func: elementBounds, args: [input]});
-  if (!result?.ok) return {tab: tabId, ...result, ok: false};
+  if (!result?.ok) return {tabId: tabId, ...result, ok: false};
   return withDebugger(tabId, async () => {
     const metrics = await chrome.debugger.sendCommand({tabId}, 'Page.getLayoutMetrics');
     const size = metrics.cssContentSize;
@@ -42,7 +42,7 @@ export async function captureElement(tabId, input) {
       format: 'png', fromSurface: true, captureBeyondViewport: true, clip: {x,y,width,height,scale:1},
     });
     if (!shot?.data) return {ok: false, error: '浏览器未返回截图'};
-    return {ok: true, tab: tabId, image: `data:image/png;base64,${shot.data}`, mime: 'image/png',
+    return {ok: true, tabId: tabId, image: `data:image/png;base64,${shot.data}`, mime: 'image/png',
       element_rect: r, capture_rect: {x,y,width,height}, clipped: x !== r.x || y !== r.y || width !== r.width || height !== r.height};
   }, {retryDetached: false});
 }

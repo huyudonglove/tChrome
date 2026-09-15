@@ -71,17 +71,29 @@
   "projectMemoryIds": [],
   "mcpIds": [],
   "currentPage": {
-    "tab": 12,
+    "tabId": 12,
     "url": "https://item.jd.com/100012345678.html",
     "title": "罗技 MX Master 3S 无线鼠标",
     "description": "用户发话时的标签信息，尚未读取页面内容"
   },
-  "currentTab": {
-    "tab": 12,
-    "url": "https://item.jd.com/100012345678.html",
-    "title": "罗技 MX Master 3S 无线鼠标"
-  },
-  "pageObservedHistory": []
+  "pageObservedHistory": [],
+  "openTabs": {
+    "ok": true,
+    "windows": [
+      {
+        "windowId": 1,
+        "focused": true,
+        "tabs": [
+          {
+            "tabId": 12,
+            "url": "https://item.jd.com/100012345678.html",
+            "title": "罗技 MX Master 3S 无线鼠标",
+            "active": true
+          }
+        ]
+      }
+    ]
+  }
 }
 ```
 

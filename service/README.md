@@ -13,13 +13,13 @@
 | `runtime/` | 账本、循环、工具证据归档、`session.json`、浏览器桥 |
 | `context/` | modules.ts 加载上下文模块；window.ts 纯投影当轮数据、记忆和已提供的工具说明 |
 | `tools/` | registry.ts 读取本模块 definitions/ 内工具定义、分组和分类；参数检查、工具执行及结构化效果 |
-| `agents/compression/` | 压缩 Agent 的提示词、输入输出协议、校验与逐轮压缩流程 |
-| `agents/query/` | 查询 Agent 的提示词、输入输出协议、校验与语义检索流程 |
+| `agents/compression/` | Compression Agent 的提示词、输入输出协议、校验与逐轮压缩流程 |
+| `agents/query/` | Query Agent 的提示词、输入输出协议、校验与语义检索流程 |
 | `context-archive/` | 会话历史归档存储、覆盖索引与来源展开 |
 | `provider/` | 模型通信、传输重试与响应解析 |
 | `presentation/` | 纯函数生成会话消息、错误文案、待执行工具和列表预览 |
 
-主 Agent 的 Prompt 正文与加载器都在 `service/context/`。system-slots.md / user-slots.md 只保存编号文件名；每个模块独立声明 tag、能力和详细描述。system 先输出 `service/context/overview.md` 总纲，串联规则、材料、判断与行动，再输出 System 栏目清单，八个模块逐项以 tag --能力接详细正文；再输出 User 栏目清单，逐项以 tag --能力接详细描述。user 只渲染十五个 tag 的内容段，不重复能力或详细描述。Skill 正文位于独立的 service/skills/<name>/SKILL.md，由 runtime 加载后注入 #skill；context/user/skill.md 只提供模块说明和数据占位。
+主 Agent 的 Prompt 正文与加载器都在 `service/context/`。system-slots.md / user-slots.md 只保存编号文件名；每个模块独立声明 tag、能力和详细描述。system 先输出 `service/context/overview.md` 总纲，串联规则、材料、判断与行动，再输出 System Modules，八个模块逐项以 tag --能力接详细正文；再输出 User Modules，逐项以 tag --能力接详细描述。user 只渲染十五个 tag 的内容段，不重复能力或详细描述。Skill 正文位于独立的 service/skills/<name>/SKILL.md，由 runtime 加载后注入 #skill；context/user/skill.md 只提供模块说明和数据占位。
 
 工具 API 定义位于 `service/tools/definitions/`，分组在 groups.json。说明唯一来自 function.description，index 只分类；System #baseTools 展示常驻能力导航，User #tools 展示本会话已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送。过程展示仅使用工具 arguments.reason；最终回复、提问分别使用 finishTurn.arguments.text 和 askUser.arguments.question，不回退到模型 content。运行提示位于 shared/error-messages.json。上下文 README 是维护入口，不进入模型窗口。
 
@@ -33,7 +33,7 @@ HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`�
 
 每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
 
-主 Agent、压缩 Agent 和查询 Agent 复用现有无状态 `provider.complete` 请求能力，包括模型配置、协议适配、重试和响应解析，不另建 LLM 请求层。两个工具类 Agent 各自通过 `protocol.ts` 组装提示词并校验专用返回工具调用，通过 `index.ts` 执行业务流程，提示词保存在各自的 `prompts/`。主 Agent 的工具提交由 `runtime/loop.ts` 的 `validateCompletion` 调用 `tools/schema.ts` 校验；provider 不承担业务输出校验、工具加载策略或批次执行决策。
+主 Agent、Compression Agent 和Query Agent 复用现有无状态 `provider.complete` 请求能力，包括模型配置、协议适配、重试和响应解析，不另建 LLM 请求层。两个工具类 Agent 各自通过 `protocol.ts` 组装提示词并校验专用返回工具调用，通过 `index.ts` 执行业务流程，提示词保存在各自的 `prompts/`。主 Agent 的工具提交由 `runtime/loop.ts` 的 `validateCompletion` 调用 `tools/schema.ts` 校验；provider 不承担业务输出校验、工具加载策略或批次执行决策。
 
 运行中的请求由 `runtime/execution.ts` 按数据目录、会话和回合统一管理，状态只允许 `active → cancelled` 或 `active → finished`，终态不能再次发出请求。Runtime 在回合入口给 Provider 绑定同一个 AbortSignal，主模型、压缩和查询自动共享；停止、删除会话或服务退出触发取消，Chat/Responses 网络请求及重试等待同时中止。新回合使用独立状态，切换或新建会话不取消其他会话。持久化 ledger 继续管理会话业务状态并检查迟到写入；执行状态机负责内存中的请求生命周期，回合退出统一释放。
 
@@ -49,10 +49,10 @@ Responses 适配器负责文本、图片 input_image、扁平 function schema �
 
 Chat 与 Responses 的失败分类和重试决策统一由 `provider/failures.ts` 管理。输出超限、内容拒绝、未完整结束及响应格式无效分别返回 `provider_output_limit`、`provider_refused`、`provider_incomplete`、`provider_invalid_response`，直接终止，不自动重试，也不执行部分工具调用。只对连接错误、超时、HTTP 408/429/5xx，以及 Responses 明确的 server_error/rate_limit_exceeded 重试，最多 3 次；401 返回密钥错误，403 返回请求被拒绝并保留上游原因，不直接认定密钥失效，其他 HTTP 错误和本地异常不重试。取消始终优先，返回 stopped。
 
-conversationHistorySummary 展示历史轮次或执行片段的 {tag, userRequest, actions, result}，与近期原文配合阅读。描述进入 System，摘要数据放在当前输入之后。常驻 `context.query(sumId, module, intent, cursor?)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，查询 Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将对应记录放入 currentQuery；工具返回只含状态和引用。每次 records 的紧凑 JSON 最多 2000 字符；超出返回 partial 与 nextCursor，可带原查询参数和 cursor 继续读取，无需再次调用查询 Agent。超大单条保留身份字段及 fragment:{offset,totalChars,text}，text 是原记录 JSON 的连续片段，不是摘要。查询不会刷新页面。
+conversationHistorySummary 展示历史轮次或执行片段的 {tag, userRequest, actions, result}，与近期原文配合阅读。描述进入 System，摘要数据放在当前输入之后。常驻 `context.query(sumId, module, intent, cursor?)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将对应记录放入 currentQuery；工具返回只含状态和引用。每次 records 的紧凑 JSON 最多 2000 字符；超出返回 partial 与 nextCursor，可带原查询参数和 cursor 继续读取，无需再次调用Query Agent。超大单条保留身份字段及 fragment:{offset,totalChars,text}，text 是原记录 JSON 的连续片段，不是摘要。查询不会刷新页面。
 
-输入和页面观察以稳定 ID 写入 context-records；目标最新状态按原 ID 更新至 Ledger.goals，历史变更快照保存在 Turn.goalChanges；记忆保留本地 memoryId。模型投影保留记录 ID、轮次与来源关联以及内容和操作字段，不修改本地记录。记忆投影保留完整文本；归档覆盖由 runtime 管理。currentPage 展示最新观察，pageObservedHistory 排除同 id 观察；toolIO 中与已展示观察完全相同的 description 替换为 pageObservationId 引用，其余返回字段保留。
+输入和页面观察以稳定 ID 写入 context-records；目标最新状态按原 ID 更新至 Ledger.goals，历史变更快照保存在 Turn.goalChanges；记忆保留本地 memoryId。模型投影保留记录 ID、轮次与来源关联以及内容和操作字段，不修改本地记录。记忆投影保留完整文本；归档覆盖由 runtime 管理。openTabs 在每次请求主模型前刷新全部普通窗口及其标签、激活和焦点状态，读取失败显式报告；pageObservedHistory 包含最新实际观察；toolIO 中与已展示观察完全相同的 description 替换为 pageObservationId 引用，其余返回字段保留。
 
-压缩 Agent 的每次模型请求独立写入 `conversations/<cvId>/agent-logs/compression/<时间戳>-<唯一标识>.jsonl`。请求发送前记录完整 messages 与 tools；收到后记录 Provider 返回的完整 CompletionResult（正文、工具调用、解析错误等），并记录成功摘要或异常。schema 校验失败包含字段路径、规则和预期类型，轮次覆盖错误包含预期与实际 turnId；会话的 compress-error 附日志路径。日志不包含模型密钥或请求认证头，也不进入主模型上下文。
+Compression Agent 的每次模型请求独立写入 `conversations/<cvId>/agent-logs/compression/<时间戳>-<唯一标识>.jsonl`。请求发送前记录完整 messages 与 tools；收到后记录 Provider 返回的完整 CompletionResult（正文、工具调用、解析错误等），并记录成功摘要或异常。schema 校验失败包含字段路径、规则和预期类型，轮次覆盖错误包含预期与实际 turnId；会话的 compress-error 附日志路径。日志不包含模型密钥或请求认证头，也不进入主模型上下文。
 
 网络配置统一在 `service/config/runtime.json`，修改后重启服务生效。`network.idleTimeoutMs=90000` 表示等待响应头或响应体连续 90 秒没有数据才超时，非请求总耗时；收到非空数据块重置计时。`network.maxAttempts=3` 包含首次请求，`retryDelayMs=1000` 为尝试间隔。通用 HTTP 工具和主/辅助模型请求共用该策略，用户停止立即取消传输及等待；模型继续采用统一失败分类决定哪些错误可重试，HTTP 工具对空闲超时和连接中断重试，收到 HTTP 错误状态则直接返回。持续响应会继续消费，普通 HTTP 工具完整保留正文与响应头，搜索完整保留返回内容，再由发送前上下文门禁处理；probe_http 保持只检查响应头。Tavily SDK 的 `sdk.tavilyTimeoutSeconds` 和 TLS 握手的 `tls.timeoutMs` 属于专用超时，独立配置在同一文件，不冒充流式空闲计时。

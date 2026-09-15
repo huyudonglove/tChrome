@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.inspect_region",
-    "description": "看一个区域的正文和内部元素。\n参数：id（页面工具返回的 r_01 格式区域标识），可选 tab（目标标签编号）。\n返回：ok、region、elements、text（返回文本）。",
+    "description": "看一个区域的正文和内部元素。\n参数：id（页面工具返回的 r_01 格式区域标识），必填 tabId（目标标签编号）。\n返回：ok、region、elements、text（返回文本）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -12,8 +12,9 @@
         "affectsPage": {
           "type": "boolean"
         },
-        "tab": {
-          "type": "number"
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         },
         "id": {
           "type": "string"
@@ -22,7 +23,8 @@
       "required": [
         "reason",
         "affectsPage",
-        "id"
+        "id",
+        "tabId"
       ]
     }
   }

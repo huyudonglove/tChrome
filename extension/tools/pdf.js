@@ -43,14 +43,14 @@ export const savePagePdf = async (tabId, input = {}) => {
       url: `data:application/pdf;base64,${data}`, filename, saveAs: false, conflictAction: 'uniquify',
     }), 3000, 'pdf_download_start_timeout');
     const result = await waitForDownload({downloadId, timeoutMs});
-    return {...result, tab: tabId, downloadId,
+    return {...result, tabId: tabId, downloadId,
       ...(result.ok ? {path: result.download.filename} : {}),
       ...(result.code === 'download_timeout' ? {status: 'pending'} : {})};
   } catch (error) {
     // Do not expose API error text: a download error can include its data URL.
     const code = error?.code || 'pdf_save_failed';
     const unsupported = /not implemented|not supported|wasn.t found|method not found/i.test(String(error));
-    return {ok: false, tab: tabId, code: unsupported ? 'pdf_not_supported' : code,
+    return {ok: false, tabId: tabId, code: unsupported ? 'pdf_not_supported' : code,
       ...(downloadId !== undefined ? {downloadId} : {}),
       error: unsupported ? '当前浏览器不支持 Page.printToPDF，未保存 PDF'
         : code === 'pdf_download_start_timeout' ? '启动下载超时，下载可能已开始；请先检查 list_downloads，避免重复保存'

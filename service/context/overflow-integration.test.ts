@@ -176,7 +176,7 @@ test("history above 250K is compressed before any content is externalized", () =
     goalChanges: [], conversationId, turnId: `tn_${String(i + 1).padStart(2, "0")}`, status: "completed",
     createdAt: "2026-09-11", completedAt: "2026-09-11",
     input: {id: `input_${String(i + 1).padStart(2, "0")}`, text: "H".repeat(35000), submittedAt: "2026-09-11"},
-    assembled: {baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null, pageObservedHistory: []},
+    assembled: {baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], openTabs: { ok: true, windows: [] }, currentPage: null, pageObservedHistory: []},
     output: {kind: "reply", text: "已完成"},
   }));
   ledger.turnIds = turns.map(turn => turn.turnId);

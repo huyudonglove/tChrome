@@ -47,7 +47,7 @@ async function run(results: CompletionResult[], verify: (context: {
 
 test("more than 20 successful tool rounds can finish normally", async () => {
   const steps = Array.from({ length: 25 }, (_, index) => result({
-    toolCalls: [call(`page_${index}`, "page.get_summary")],
+    toolCalls: [call(`page_${index}`, "page.get_summary", { tabId: 1 })],
   }));
   await run([...steps, finish()], ({ reply, turn, ledger, modelRequests, browserCalls }) => {
     expect(reply.output).toEqual({ kind: "reply", text: "任务完成" });
@@ -60,7 +60,7 @@ test("more than 20 successful tool rounds can finish normally", async () => {
 
 test("one model response counts every executed browser, resident and closing tool", async () => {
   await run([result({ toolCalls: [
-    call("page", "page.get_summary"),
+    call("page", "page.get_summary", { tabId: 1 }),
     call("note", "notes.write", { key: "finding", value: "已核实" }),
     call("finish", "finishTurn", { text: "任务完成" }),
   ] })], ({ reply, turn, ledger, modelRequests, browserCalls }) => {
@@ -73,7 +73,7 @@ test("one model response counts every executed browser, resident and closing too
 });
 
 test("a valid tool round resets consecutive invalid submission count", async () => {
-  await run([invalid(), emptyReply(), result({ toolCalls: [call("valid", "page.get_summary")] }),
+  await run([invalid(), emptyReply(), result({ toolCalls: [call("valid", "page.get_summary", { tabId: 1 })] }),
     invalid(), emptyReply(), finish()], ({ reply, turn, modelRequests, browserCalls }) => {
     expect(reply.output).toEqual({ kind: "reply", text: "任务完成" });
     expect(modelRequests).toBe(6);
@@ -126,8 +126,8 @@ test("same-name invalid calls retain independent diagnostics and schema before s
   const bad = (id: string, args: Record<string, unknown>) => ({ id, name: "page.type", arguments: args });
   await run([result({ toolCalls: [
     bad("missing", { id: "e1", text: "x" }),
-    bad("type", { id: "e2", text: false, reason: "输入", affectsPage: true }),
-  ] }), result({ toolCalls: [call("fixed", "page.type", { id: "e2", text: "x", affectsPage: true })] }), finish()], ({ reply, ledger, browserCalls }) => {
+    bad("type", { tabId: 1, id: "e2", text: false, reason: "输入", affectsPage: true }),
+  ] }), result({ toolCalls: [call("fixed", "page.type", { tabId: 1, id: "e2", text: "x", affectsPage: true })] }), finish()], ({ reply, ledger, browserCalls }) => {
     expect(reply.output).toEqual({ kind: "reply", text: "任务完成" });
     const rows = ledger.toolIO.filter(row => row.name === "page.type");
     expect(rows).toHaveLength(3);

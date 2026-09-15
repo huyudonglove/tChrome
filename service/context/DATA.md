@@ -12,8 +12,8 @@
 | `userInputHistory` | 用户输入记录数组 | `id` |
 | `goal` | `{currentGoalId, goals}`；goals 为全部 active 目标及其父级记录 | `currentGoalId`、记录 `id` / `parentId` |
 | `goalHistory` | completed / cancelled 的目标记录数组 | `id` / `parentId` |
-| `currentPage` | `{id?, turnId?, callId?, tab, url, title, description}` 或 `null` | 有观察来源时带 `id` |
-| `pageObservedHistory` | 页面观察数组，排除 currentPage 的同 id 观察；`id / turnId / callId` 必填 | `id` |
+| `openTabs` | `{ok:true, windows:[{windowId, focused, tabs:[{tabId, url, title, active}]}]}` 或 `{ok:false, error}` | 浏览器原始 windowId / tabId |
+| `pageObservedHistory` | 页面观察数组，包含最新观察；`id / turnId / callId` 必填 | `id` |
 | `projectMemory` | `[{memoryId, turnId, sourceCallId?, sourceConversationId?, text}]` | `memoryId`（`lm_`） |
 | `conversationMemory` | 同上 | `memoryId`（`mm_`） |
 | `notes` | 字符串键值对象，空值为 `{}` | 键名 |

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "open_tab",
-    "description": "新开一个标签。\n参数：可选 url（要打开的完整浏览器链接地址），省略时打开 about:blank。\n返回：ok、tabId（新标签编号）、url（页面地址）、title（页面标题）。",
+    "description": "在指定 windowId 窗口后台新开标签，不激活新页。\n参数：必填 windowId；可选 url（完整链接），省略时打开 about:blank。\n返回：ok、tabId（新标签编号）、windowId、url、title。继续操作新页时显式传入该 tabId。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -16,11 +16,16 @@
           "type": "string",
           "minLength": 1,
           "description": "要打开的完整浏览器链接地址，例如 https://example.com 或 about:blank。省略时打开 about:blank。"
+        },
+        "windowId": {
+          "type": "integer",
+          "description": "目标窗口编号，从 #openTabs 或 list_windows 返回取得。"
         }
       },
       "required": [
         "reason",
-        "affectsPage"
+        "affectsPage",
+        "windowId"
       ],
       "additionalProperties": false
     }

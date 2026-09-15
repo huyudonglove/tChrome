@@ -27,10 +27,8 @@ export function userText(input: {
   inlineBudget?: { dataDir: string; system: string };
 }): string {
   const { contextModules, ledger, turn, memories } = input;
-  const currentPage = turn.assembled.currentPage;
-  const pageHistory = (turn.assembled.pageObservedHistory ?? []).filter(page =>
-    !currentPage?.id || page.id !== currentPage.id || page.turnId !== currentPage.turnId);
-  const pages = [...pageHistory, ...(currentPage ? [currentPage] : [])];
+  const pageHistory = turn.assembled.pageObservedHistory;
+  const pages = pageHistory;
   const slots = {
     "#skill": input.skillText,
     "#projectMemory": memories.project,
@@ -41,7 +39,7 @@ export function userText(input: {
     "#conversationHistorySummary": jsonBody(turnSummaryView(input.conversationSummaries)),
     "#goal": jsonBody(goalView(ledger.goals, ledger.currentGoalId)),
     "#goalHistory": jsonBody(goalHistoryView(ledger.goals)),
-    "#currentPage": jsonBody(currentPage ? pageView(currentPage) : null),
+    "#openTabs": jsonBody(turn.assembled.openTabs),
     "#pageObservedHistory": jsonBody(pageHistory.map(pageView)),
     "#toolIO": jsonBody(toolHistoryView(ledger.toolIO, pages)),
     "#queryHistory": jsonBody((input.queryHistory ?? []).map(queryView)),

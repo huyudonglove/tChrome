@@ -1,4 +1,4 @@
-# User 模块顺序
+# User Module Order
 
 1. skill
 2. userInput
@@ -6,7 +6,7 @@
 4. userInputHistory
 5. goal
 6. goalHistory
-7. currentPage
+7. openTabs
 8. pageObservedHistory
 9. projectMemory
 10. conversationMemory

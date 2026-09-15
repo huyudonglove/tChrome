@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "press",
-    "description": "对当前焦点元素按下一个键盘键。\n参数：key（键名），可选 tab（目标标签编号）。\n返回：ok；没有焦点失败。",
+    "description": "对当前焦点元素按下一个键盘键。\n参数：key（键名），必填 tabId（目标标签编号）。\n返回：ok；没有焦点失败。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -14,12 +14,17 @@
         },
         "affectsPage": {
           "type": "boolean"
+        },
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         }
       },
       "required": [
         "reason",
         "affectsPage",
-        "key"
+        "key",
+        "tabId"
       ]
     }
   }

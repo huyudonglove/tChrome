@@ -78,7 +78,7 @@ const assemble = (toolRegistry: ToolRegistry, loadedToolIds: string[]): Assemble
   mcpIds: [],
   currentPage: null,
   pageObservedHistory: [],
-  currentTab: null,
+  openTabs: { ok: false, error: "尚未读取标签列表" },
 });
 
 const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, images: ChatMessage["images"], summaries: Parameters<typeof userText>[0]["conversationSummaries"] = [], dataDir?: string): ChatMessage[] => {
@@ -223,7 +223,7 @@ const runQueue = async (input: {
 
 export async function handleTurn(
   deps: LoopDeps,
-  body: { userInput: string; submittedAt: string; currentTab?: { tab?: number; url?: string; title?: string } | null },
+  body: { userInput: string; submittedAt: string },
 ): Promise<TurnReply> {
   const session = ensureSession(deps.dataDir);
   const host = deps.host?.forScope?.(session.conversationId) ?? deps.host;
@@ -261,16 +261,6 @@ export async function handleTurn(
     usage: { modelRequests: 0, toolCalls: 0 },
   };
   saveContextRecord(deps.dataDir, ledger.conversationId, "userInput", inputRecord(turn));
-  const tab = body.currentTab;
-  const tabId = Number(tab?.tab);
-  if (tab && Number.isFinite(tabId) && tabId >= 1) {
-    turn.assembled.currentTab = {
-      tab: tabId,
-      url: String(tab.url ?? ""),
-      title: String(tab.title ?? ""),
-    };
-    turn.assembled.currentPage = { ...turn.assembled.currentTab, description: "用户发话时的标签信息，尚未读取页面内容" };
-  }
   turn.assembled.conversationMemoryIds = [...ledger.memoryIds.conversation];
   turn.assembled.projectMemoryIds = loadMemories(deps.dataDir, ledger.conversationId, ledger.memoryIds).project.map(item => item.memoryId);
   ledger.turnIds.push(turnId);
@@ -298,6 +288,14 @@ export async function handleTurn(
     let imageBatchId: string | undefined;
     while (true) {
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
+      try {
+        const tabs = host?.readOpenTabs ? await host.readOpenTabs() : { ok: false as const, error: "浏览器宿主不可用，无法读取标签列表" };
+        turn.assembled.openTabs = tabs.ok ? tabs : { ok: false, error: tabs.error || "标签列表读取失败" };
+      } catch (error) {
+        turn.assembled.openTabs = { ok: false, error: error instanceof Error ? error.message : String(error) };
+      }
+      if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
+      saveTurn(deps.dataDir, turn);
       const memories = loadMemories(deps.dataDir, ledger.conversationId, ledger.memoryIds);
       turn.assembled.projectMemoryIds = memories.project.map(item => item.memoryId);
       // Tool results already contain persisted image paths. Select attachments before

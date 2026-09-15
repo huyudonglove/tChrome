@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "solve_captcha",
-    "description": "尝试点击可访问验证码勾选框并等待可观察的验证通过状态，最多 12 秒。仅观察到唯一验证码的非空响应字段（勾选状态不等于验证通过）才返回 ok=true、status=solved；不解答图像/拼图挑战，不绕过验证码。未完成或不可访问时 ok=false、requiresUser=true，请用户处理。不会返回令牌。 可选 tab（标签编号）、timeoutMs（总超时毫秒，1～12000）。 多个验证码或响应字段返回 ambiguous=true，不宣称全部通过。",
+    "description": "尝试点击可访问验证码勾选框并等待可观察的验证通过状态，最多 12 秒。仅观察到唯一验证码的非空响应字段（勾选状态不等于验证通过）才返回 ok=true、status=solved；不解答图像/拼图挑战，不绕过验证码。未完成或不可访问时 ok=false、requiresUser=true，请用户处理。不会返回令牌。 必填 tabId（标签编号）、timeoutMs（总超时毫秒，1～12000）。 多个验证码或响应字段返回 ambiguous=true，不宣称全部通过。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number"
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         },
         "reason": {
           "type": "string"
@@ -23,7 +24,8 @@
       },
       "required": [
         "reason",
-        "affectsPage"
+        "affectsPage",
+        "tabId"
       ],
       "additionalProperties": true
     }

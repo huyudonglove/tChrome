@@ -23,7 +23,7 @@ function setup() {
     createdAt: new Date().toISOString(), completedAt: null, input: { id: "input_fixture", text: "检查", submittedAt: "now" },
     output: null, goalChanges: [], assembled: {
       baseToolsIds: ["finishTurn"], toolIds: ["page.click"],
-      conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, currentTab: null,
+      conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, openTabs: { ok: true, windows: [] },
       pageObservedHistory: [],
     },
   };
@@ -136,16 +136,16 @@ test("closing effects persist lifecycle changes; empty replies request another i
 
 test("browser page metadata becomes a typed effect; failed results cannot replace the current page", async () => {
   const fixture = setup();
-  const execution = await fixture.execute("page.click", { reason: "查看详情", affectsPage: true, tab: 7 }, {
+  const execution = await fixture.execute("page.click", { reason: "查看详情", affectsPage: true, tabId: 7 }, {
     browserNames: ["page.click"], host: { execute: async (_name, args) => {
-      expect(args).toEqual({ tab: 7 });
-      return { ok: true, tab: 7, url: "https://example.test", title: "详情" };
+      expect(args).toEqual({ tabId: 7 });
+      return { ok: true, tabId: 7, url: "https://example.test", title: "详情" };
     } },
   });
   fixture.apply(execution);
   expect(loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId).assembled.currentPage?.title).toBe("详情");
   const failed = await fixture.execute("page.click", {}, {
-    browserNames: ["page.click"], host: { execute: async () => ({ ok: false, tab: 8, error: "closed" }) },
+    browserNames: ["page.click"], host: { execute: async () => ({ ok: false, tabId: 8, error: "closed" }) },
   });
   expect(failed.effects).toEqual([]);
 });
@@ -153,13 +153,13 @@ test("browser page metadata becomes a typed effect; failed results cannot replac
 test("page effects update the current page and persist observations in chronological order", () => {
   const fixture = setup();
   fixture.turn.assembled.currentPage = {
-    tab: 1, url: "https://example.test/input", title: "发话页面", description: "发送消息时的标签快照",
+    tabId: 1, url: "https://example.test/input", title: "发话页面", description: "发送消息时的标签快照",
   };
   expect(fixture.turn.assembled.pageObservedHistory).toEqual([]);
 
   const pages = [
-    { tab: 2, url: "https://example.test/results", title: "搜索结果", description: "找到两个结果" },
-    { tab: 3, url: "https://example.test/detail", title: "详情", description: "已打开结果详情" },
+    { tabId: 2, url: "https://example.test/results", title: "搜索结果", description: "找到两个结果" },
+    { tabId: 3, url: "https://example.test/detail", title: "详情", description: "已打开结果详情" },
   ];
   const calls = [
     { callId: "call_results", name: "page.get_summary", arguments: {} },

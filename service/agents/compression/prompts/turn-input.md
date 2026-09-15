@@ -15,7 +15,7 @@ segment.batchIds 标识本段工具批次；complete=false 为增量，complete=
 - userInput：id 标识消息，userInput 是原话，submittedAt 是提交时间。补入查询的片段可省略此模块，不表示用户没有输入。
 - goalChanges：目标更新时的快照；id 固定，parentId 关联总目标，status 表示当时状态，goal 是正文，sourceCallId 关联本次变更。同一目标可多次出现；空数组不表示没有持续目标。
 - toolIO：callId 标识调用，batchId 关联批次，name/arguments 是工具与实参；reason 是理由，affectsPage 声明页面影响，定位参数只适用于当时页面。return.stage=complete 仅表示文本完整，truncated 表示部分返回；totalChars 是原长度，text 是正文（可能为 JSON）。按正文判断业务结果，images 引用不等于看过图片。
-- pageObservations：id 标识快照，callId/toolName 关联来源，observedAt 是时间，tab/url/title/description 描述当时页面。与同来源工具结果去重，不推断当前状态。
+- pageObservations：id 标识快照，callId/toolName 关联来源，observedAt 是时间，tabId/url/title/description 描述当时页面。与同来源工具结果去重，不推断当前状态。
 - memoryWrites：本轮会话记忆写入，memoryId 标识条目，sourceCallId/sourceConversationId 关联来源，text 是正文，createdAt 是时间。记忆不能覆盖用户原话或执行证据。
 - output：reply.text 是最终回复，ask.question 是待回答问题，error.faultCode 是失败或停止原因，tool.name/callId 标识工具输出；null 表示暂无收尾结果。保留回复与执行证据的差异。
 

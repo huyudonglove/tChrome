@@ -58,15 +58,15 @@ test.each([{ name: "finishTurn", field: "text" }, { name: "askUser", field: "que
   },
 );
 
-test("JavaScript values with only a target tab do not overwrite the current page", async () => {
+test("JavaScript values with only a target tabId do not overwrite the current page", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "script-execute-"));
   try {
     expect((await patchScript(dataDir, { filename: "value.js", patch: "--- /dev/null\n+++ b/value.js\n@@ -0,0 +1 @@\n+1 + 1\n" })).ok).toBe(true);
     const execution = await executeTool({
-      name: "execute_javascript", arguments: { filename: "value.js", tab: 7 }, dataDir,
+      name: "execute_javascript", arguments: { filename: "value.js", tabId: 7 }, dataDir,
       browserNames: ["execute_javascript"], host: { execute: async (_name, args) => {
-        expect(args).toEqual({ code: "1 + 1\n", tab: 7 });
-        return { ok: true, tab: 7, type: "number", value: 2 };
+        expect(args).toEqual({ code: "1 + 1\n", tabId: 7 });
+        return { ok: true, tabId: 7, type: "number", value: 2 };
       } },
       lookup: { unusedTools: [], knownTools: [], enabledTools: [] },
     });

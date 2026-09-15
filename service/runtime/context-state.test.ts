@@ -10,7 +10,7 @@ import type { Ledger, Turn, Provider, CompletionResult } from "../types.ts";
 import type { Memories } from "../memory/types.ts";
 import { handleTurn } from "./loop.ts";
 const repoRoot = join(import.meta.dir, "../..");
-const makeTurn = (cv: string, id: string, text = id): Turn => ({ goalChanges: [], conversationId: cv, turnId: id, status: "completed", createdAt: "2026-09-11", completedAt: "2026-09-11", input: { id: `input_${id}`, text, submittedAt: "2026-09-11" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTab: null, currentPage: null, pageObservedHistory: [] }, output: { kind: "reply", text: `完成${id}` } });
+const makeTurn = (cv: string, id: string, text = id): Turn => ({ goalChanges: [], conversationId: cv, turnId: id, status: "completed", createdAt: "2026-09-11", completedAt: "2026-09-11", input: { id: `input_${id}`, text, submittedAt: "2026-09-11" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], openTabs: { ok: true, windows: [] }, currentPage: null, pageObservedHistory: [] }, output: { kind: "reply", text: `完成${id}` } });
 const result = (partial: Partial<CompletionResult>): CompletionResult => ({ finish: "tool_calls", content: "", toolCalls: [], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [], ...partial });
 const summaryResponse = (messages: Parameters<Provider["complete"]>[0]["messages"]) => result({ toolCalls: [{ id: "submit", name: "submitTurnSummaries", arguments: { summaries: JSON.parse(messages[1]!.content).turns.map((turn: { turnId: string }) => ({ turnId: turn.turnId, tag: "历史事项", userRequest: "此前要求", actions: "已检查", result: "该轮已完成" })) } }] });
 function seed(dataDir: string, ledger: Ledger, count = 5, big = false) {
@@ -109,7 +109,7 @@ test("long current turn archives older complete batches and keeps input, current
     const ledger = emptyLedger("cv_test"), current = makeTurn(ledger.conversationId, "tn_01");
     current.status = "inferring"; current.output = null; current.completedAt = null; ledger.turnIds = [current.turnId]; ledger.active = { turnId: current.turnId };
     ledger.toolIO = Array.from({ length: 6 }, (_, i) => ({ callId: `call_${i}`, turnId: current.turnId, batchId: `b_${Math.floor(i / 2)}`, name: "page.get_summary", arguments: {}, return: { stage: "complete" as const, text: "结果", totalChars: 2 } }));
-    current.assembled.pageObservedHistory = ledger.toolIO.map((row, i) => ({ id: `p_${i}`, turnId: current.turnId, callId: row.callId, toolName: row.name, tab: 1, url: "https://example.com", title: "页面", description: `状态${i}`, observedAt: "2026-09-11" }));
+    current.assembled.pageObservedHistory = ledger.toolIO.map((row, i) => ({ id: `p_${i}`, turnId: current.turnId, callId: row.callId, toolName: row.name, tabId: 1, url: "https://example.com", title: "页面", description: `状态${i}`, observedAt: "2026-09-11" }));
     current.assembled.currentPage = current.assembled.pageObservedHistory[5]!;
     ledger.goals = [{ parentId: null, status: "active", updatedAt: "2026-09-11", ...{ id: "goal_1", turnId: current.turnId, sourceCallId: "call_0", goal: "当前目标", createdAt: "2026-09-11" } }]; ledger.currentGoalId = ledger.goals[0]!.id;
     current.goalChanges = structuredClone(ledger.goals);
@@ -159,7 +159,7 @@ test("200K during a live tool loop compresses older batches before the next main
       main++;
       if (main === 4) { expect(aux).toBeGreaterThan(0); expect(input.messages[1]!.content).toContain("#conversationHistorySummary"); }
       return result({ toolCalls: main <= 3
-        ? [{ id: `page_${main}`, name: "page.get_summary", arguments: { reason: "读取", affectsPage: false } }]
+        ? [{ id: `page_${main}`, name: "page.get_summary", arguments: { reason: "读取", affectsPage: false, tabId: 1 } }]
         : [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", affectsPage: false, text: "完成" } }] });
     } };
     const reply = await handleTurn({ dataDir, repoRoot, provider, host: { execute: async () => ({ ok: true, text: "证据".repeat(40000) }) } }, { userInput: "核对结果", submittedAt: "2026-09-11" });

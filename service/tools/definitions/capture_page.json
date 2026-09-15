@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "capture_page",
-    "description": "捕获页面图片。必填 mode：viewport 截当前可视区；full_page 截已渲染整页；element 裁剪单个元素，必须且只能提供 ref（snapshot_page/find_on_page 返回的 el_01）或 selector（唯一 CSS 选择器）。可选 tab。ref/selector 不用于其他模式，不可混用 page.* 的 id。\n整页及元素模式不滚动触发懒加载、不展开独立滚动容器，超出图像尺寸上限时明确失败。viewport 会激活目标标签以正确截图。\n返回：ok、mode、image（本地图片引用）、mime；viewport 带 image_size/viewport；full_page 带 fullPage/page_size；element 带 element_rect/capture_rect（文档 CSS 坐标）及 clipped。PDF 使用 save_pdf。",
+    "description": "捕获页面图片。必填 mode：viewport 截当前可视区；full_page 截已渲染整页；element 裁剪单个元素，必须且只能提供 ref（snapshot_page/find_on_page 返回的 el_01）或 selector（唯一 CSS 选择器）。必填 tabId。ref/selector 不用于其他模式，不可混用 page.* 的 id。\n整页及元素模式不滚动触发懒加载、不展开独立滚动容器，超出图像尺寸上限时明确失败。所有模式均通过目标标签的 CDP 截图，不切换窗口或标签；失败直接返回错误。\n返回：ok、mode、image（本地图片引用）、mime；viewport 带 image_size/viewport；full_page 带 fullPage/page_size；element 带 element_rect/capture_rect（文档 CSS 坐标）及 clipped。PDF 使用 save_pdf。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -13,8 +13,9 @@
           "type": "boolean",
           "const": false
         },
-        "tab": {
-          "type": "number"
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         },
         "mode": {
           "type": "string",
@@ -37,7 +38,8 @@
       "required": [
         "reason",
         "affectsPage",
-        "mode"
+        "mode",
+        "tabId"
       ],
       "additionalProperties": false,
       "allOf": [

@@ -2,23 +2,35 @@
   "type": "function",
   "function": {
     "name": "update_window",
-    "description": "改变窗口状态。\n参数：可选 state（窗口状态）。\n返回：ok。",
+    "description": "改变指定窗口状态。\n参数：必填 windowId；可选 state（窗口状态，省略时 normal）。\n返回：ok。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number"
-        },
         "reason": {
           "type": "string"
         },
         "affectsPage": {
           "type": "boolean"
+        },
+        "windowId": {
+          "type": "integer",
+          "description": "目标窗口编号，从 #openTabs 或 list_windows 返回取得。"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "minimized",
+            "maximized",
+            "fullscreen"
+          ],
+          "description": "窗口状态。"
         }
       },
       "required": [
         "reason",
-        "affectsPage"
+        "affectsPage",
+        "windowId"
       ],
       "additionalProperties": true
     }

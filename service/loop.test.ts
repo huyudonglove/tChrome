@@ -39,29 +39,45 @@ const mock = (results: CompletionResult[]): Provider => {
   };
 };
 
-test("开 Turn 写入 currentTab，不调 page 工具", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "tchrome-tab-"));
-  const provider = mock([
-    ok({
-      finish: "tool_calls",
-      content: "",
-      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { text: "当前是京东", reason: "答完", affectsPage: false } }],
-    }),
-  ]);
-  const reply = await handleTurn(
-    { dataDir: dir, repoRoot, provider },
-    {
-      userInput: "这是什么页",
-      submittedAt: "2026-09-06T00:00:00.000Z",
-      currentTab: { tab: 12, url: "https://item.jd.com/x", title: "罗技" },
-    },
-  );
-  expect(reply.output).toEqual({ kind: "reply", text: "当前是京东" });
-  const turn = loadTurn(dir, "cv_01", reply.turnId);
-  expect(turn.assembled.currentTab).toEqual({ tab: 12, url: "https://item.jd.com/x", title: "罗技" });
-  expect(turn.assembled.currentPage).toMatchObject({ tab: 12, url: "https://item.jd.com/x", title: "罗技" });
-  expect(turn.assembled.pageObservedHistory).toEqual([]);
-  rmSync(dir, { recursive: true, force: true });
+test("每次主模型请求刷新 openTabs，焦点变化不覆盖页面观察，读取失败不冒充空列表", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-tabs-"));
+  try {
+    let snapshots = 0, requests = 0;
+    const host = {
+      readOpenTabs: async () => {
+        snapshots++;
+        if (snapshots === 3) throw new Error("读取窗口失败");
+        return { ok: true as const, windows: [{windowId: 1, focused: true, tabs: [
+          {tabId: 12, url: "https://example.com/work", title: "工作页面", active: snapshots === 1},
+          {tabId: 13, url: "https://example.com/other", title: "其他页面", active: snapshots !== 1},
+        ]}] };
+      },
+      execute: async (_name: string, args: Record<string, unknown>) => {
+        expect(args.tabId).toBe(12);
+        return {ok: true, tabId: 12, url: "https://example.com/work", title: "工作页面", description: "已观察原页面"};
+      },
+    };
+    const provider: Provider = {complete: async input => {
+      requests++;
+      const body = input.messages[1]!.content;
+      const snapshot = JSON.parse(body.split("#openTabs\n")[1]!.split("\n#pageObservedHistory")[0]!.trim());
+      expect(snapshots).toBe(requests);
+      if (requests === 1) expect(snapshot.windows[0].tabs[0].active).toBe(true);
+      if (requests === 2) {
+        expect(snapshot.windows[0].tabs[1].active).toBe(true);
+        expect(body).toContain("已观察原页面");
+      }
+      if (requests === 3) expect(snapshot).toEqual({ok: false, error: "读取窗口失败"});
+      return ok({finish: "tool_calls", toolCalls: [requests < 3
+        ? {id: `read_${requests}`, name: "page.get_summary", arguments: {tabId: 12, reason: "查看原页面", affectsPage: false}}
+        : {id: "finish", name: "finishTurn", arguments: {text: "完成"}}]});
+    }};
+    const reply = await handleTurn({dataDir: dir, repoRoot, provider, host}, {userInput: "继续原页面", submittedAt: "now"});
+    expect(reply.output).toEqual({kind: "reply", text: "完成"});
+    const turn = loadTurn(dir, "cv_01", reply.turnId);
+    expect(turn.assembled.currentPage?.tabId).toBe(12);
+    expect(turn.assembled.pageObservedHistory).toHaveLength(2);
+  } finally {rmSync(dir, {recursive: true, force: true});}
 });
 
 test("缺钥分得出网失败", async () => {
@@ -91,7 +107,7 @@ test("finishTurn 收口回复", async () => {
   expect(ledger.userInputHistory).toEqual([]);
   const turn = loadTurn(dir, "cv_01", reply.turnId);
   expect(turn.assembled.currentPage).toBeNull();
-  expect(turn.assembled.currentTab).toBeNull();
+  expect(turn.assembled.openTabs.ok).toBe(false);
   const events = loadEvents(dir, "cv_01");
   expect(events.map((row) => row.kind)).toEqual([
     "session",
@@ -238,7 +254,7 @@ test("开 Turn 不读页，模型 page.get_summary 后才填 currentPage", async
     ok({
       finish: "tool_calls",
       content: "",
-      toolCalls: [{ id: "call_01", name: "page.get_summary", arguments: { reason: "看当前页", affectsPage: false } }],
+      toolCalls: [{ id: "call_01", name: "page.get_summary", arguments: { tabId: 12, reason: "看当前页", affectsPage: false } }],
     }),
     ok({
       finish: "tool_calls",
@@ -251,7 +267,7 @@ test("开 Turn 不读页，模型 page.get_summary 后才填 currentPage", async
       if (name !== "page.get_summary") return { ok: false, error: name };
       return {
         ok: true,
-        tab: 12,
+        tabId: 12,
         url: "https://item.jd.com/100012345678.html",
         title: "罗技 MX Master 3S 无线鼠标",
         description: "当前页面信息",
@@ -263,7 +279,7 @@ test("开 Turn 不读页，模型 page.get_summary 后才填 currentPage", async
   const turn = loadTurn(dir, "cv_01", reply.turnId);
   expect(turn.assembled.currentPage).toMatchObject({
     description: "当前页面信息",
-    tab: 12,
+    tabId: 12,
     url: "https://item.jd.com/100012345678.html",
     title: "罗技 MX Master 3S 无线鼠标",
   });
@@ -329,10 +345,10 @@ test("GET /tool-request 和 POST /tool-result 对上", async () => {
   const posted = await server.fetch(new Request(`http://127.0.0.1:18788/tool-result?executorVersion=${executorVersion(repoRoot)}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ id: body.request.id, result: { ok: true, tab: 3, url: "https://example.com", title: "ex" } }),
+    body: JSON.stringify({ id: body.request.id, result: { ok: true, tabId: 3, url: "https://example.com", title: "ex" } }),
   }));
   expect(await posted.json()).toEqual({ ok: true });
-  expect(await pending).toEqual({ ok: true, tab: 3, url: "https://example.com", title: "ex" });
+  expect(await pending).toEqual({ ok: true, tabId: 3, url: "https://example.com", title: "ex" });
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -467,8 +483,8 @@ test("队列和正在跑的工具出现在 /session", () => {
   ledger.turnIds = ["tn_01"];
   ledger.liveTool = { name: "see_page", callId: "call_01" };
   ledger.toolQueue = [
-    { callId: "call_01", name: "page.get_summary", arguments: { reason: "看当前页", affectsPage: false } },
-    { callId: "call_02", name: "click", arguments: { reason: "点分类", affectsPage: true } },
+    { callId: "call_01", name: "page.get_summary", arguments: { tabId: 12, reason: "看当前页", affectsPage: false } },
+    { callId: "call_02", name: "click", arguments: { tabId: 12, reason: "点分类", affectsPage: true } },
   ];
   ledger.toolIO = [
     { callId: "call_00", name: "open_url", turnId: "tn_01", arguments: { reason: "打开站点", affectsPage: true }, return: { stage: "complete", totalChars: 2, text: "ok" } },
@@ -491,7 +507,7 @@ test("队列和正在跑的工具出现在 /session", () => {
       projectMemoryIds: [],
       mcpIds: [],
       currentPage: null, pageObservedHistory: [],
-      currentTab: null,
+      openTabs: { ok: true, windows: [] },
     },
     output: null,
   });
@@ -518,7 +534,7 @@ test("POST /stop 把 running 标成 paused", async () => {
     ok({
       finish: "tool_calls",
       content: "",
-      toolCalls: [{ id: "call_01", name: "page.get_summary", arguments: { reason: "看当前页", affectsPage: false } }],
+      toolCalls: [{ id: "call_01", name: "page.get_summary", arguments: { tabId: 12, reason: "看当前页", affectsPage: false } }],
     }),
   ]);
   const server = createServer({ dataDir: dir, repoRoot, provider, host });
@@ -550,7 +566,7 @@ test("arguments 不是 JSON 时好的工具照跑，坏的退回再出网", asyn
       detail: "page.type: Unexpected token",
       badName: "page.type",
       content: "",
-      toolCalls: [{ id: "call_01", name: "page.get_summary", arguments: { reason: "看页", affectsPage: false } }],
+      toolCalls: [{ id: "call_01", name: "page.get_summary", arguments: { tabId: 12, reason: "看页", affectsPage: false } }],
     }),
     ok({
       finish: "tool_calls",
@@ -561,7 +577,7 @@ test("arguments 不是 JSON 时好的工具照跑，坏的退回再出网", asyn
   const host = {
     execute: async (name: string) => {
       if (name !== "page.get_summary") return { ok: false, error: name };
-      return { ok: true, tab: 1, url: "https://example.com", title: "注册", description: "注册页" };
+      return { ok: true, tabId: 1, url: "https://example.com", title: "注册", description: "注册页" };
     },
   };
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider, host }, { userInput: "测注册", submittedAt: "2026-09-06T00:00:00.000Z" });
@@ -585,7 +601,7 @@ test("缺字段写进 toolIO 再出网，不补齐", async () => {
       badName: "page.type",
       detail: "page.type missing required: reason, affectsPage",
       content: "",
-      toolCalls: [{ id: "call_01", name: "page.type", arguments: { id: "e1", text: "a@b.com" } }],
+      toolCalls: [{ id: "call_01", name: "page.type", arguments: { tabId: 12, id: "e1", text: "a@b.com" } }],
     }),
     ok({
       finish: "tool_calls",
@@ -604,7 +620,7 @@ test("缺字段写进 toolIO 再出网，不补齐", async () => {
     missing: ["reason", "affectsPage"],
     toolName: "page.type",
   });
-  expect(ledger.toolIO[0]!.arguments).toEqual({ id: "e1", text: "a@b.com" });
+  expect(ledger.toolIO[0]!.arguments).toEqual({ tabId: 12, id: "e1", text: "a@b.com" });
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -716,7 +732,7 @@ test.each(["provider", "provider-reject", "browser", "browser-reject"])("停止�
   const provider: Provider = { complete: () => {
     if (calls++ > 0) return new Promise((resolve) => { releaseNew = resolve; });
     if (waitingOn.startsWith("browser")) return Promise.resolve(ok({ finish: "tool_calls", toolCalls: [
-      { id: "page", name: "page.get_summary", arguments: { reason: "读取", affectsPage: false } },
+      { id: "page", name: "page.get_summary", arguments: { tabId: 12, reason: "读取", affectsPage: false } },
     ] }));
     return new Promise((resolve, reject) => { releaseOld = () => waitingOn === "provider-reject" ? reject(new Error("aborted provider")) : resolve(finish); started(); });
   } };
@@ -746,7 +762,7 @@ test.each(["provider", "provider-reject", "browser", "browser-reject"])("停止�
 
 test.each([
   { name: "page.get_dom", arguments: {}, faultCode: "unknown_tool" },
-  { name: "page.get_summary", arguments: {}, faultCode: "missing_required" },
+  { name: "page.get_summary", arguments: { tabId: 12,}, faultCode: "missing_required" },
 ])("坏 JSON 前缀也校验 $faultCode", async (invalid) => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-prefix-schema-"));
   const executed: string[] = [];

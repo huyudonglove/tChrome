@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "save_pdf",
-    "description": "将当前页按打印样式保存为 PDF（含背景，优先采用页面 CSS 纸张尺寸），通过 Chrome 下载到本机。需要浏览器支持 Page.printToPDF；不支持时明确失败。可选 tab、filename（下载目录内相对 .pdf 文件名，默认自动命名，重名自动改名）、timeoutMs（等待下载完成 1～5000ms，默认 5000）。成功返回 downloadId、path（本机最终绝对路径）及下载状态，不返回 PDF/base64；超时返回 ok=false、status=pending 和 downloadId，可调用 wait_download 继续等待，不要重复保存。",
+    "description": "将指定页按打印样式保存为 PDF（含背景，优先采用页面 CSS 纸张尺寸），通过 Chrome 下载到本机。需要浏览器支持 Page.printToPDF；不支持时明确失败。必填 tabId、filename（下载目录内相对 .pdf 文件名，默认自动命名，重名自动改名）、timeoutMs（等待下载完成 1～5000ms，默认 5000）。成功返回 downloadId、path（本机最终绝对路径）及下载状态，不返回 PDF/base64；超时返回 ok=false、status=pending 和 downloadId，可调用 wait_download 继续等待，不要重复保存。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number"
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         },
         "reason": {
           "type": "string"
@@ -28,7 +29,8 @@
       },
       "required": [
         "reason",
-        "affectsPage"
+        "affectsPage",
+        "tabId"
       ],
       "additionalProperties": true
     }

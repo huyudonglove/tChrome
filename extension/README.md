@@ -10,7 +10,7 @@ GUI。Side Panel + background。样式对标 telance，组件放 `ui/`。浏览�
 
 `extension/tools/` 是 Chrome 宿主执行层，调用 tabs、scripting、debugger 等 API。统一工具注册、参数定义与校验位于 `service/tools/`，扩展从浏览器桥接收已调度请求。
 
-原生对话框通过 Chrome Debugger 的 Page 事件记录，通过 `Page.handleJavaScriptDialog` 处理。`handle_dialog` 接受 `action: "accept" | "dismiss"`、可选 `promptText` 和 `tab`，直接处理已经弹出的 alert、confirm、prompt 或 beforeunload，无需提前调用本工具。确认可能触发提交或离开页面，`affectsPage` 必须为 `true`。执行时无弹窗返回 `no_dialog`，其他处理失败返回 `dialog_handle_failed`。
+原生对话框通过 Chrome Debugger 的 Page 事件记录，通过 `Page.handleJavaScriptDialog` 处理。`handle_dialog` 接受 `action: "accept" | "dismiss"`、必填 `tabId` 和可选 `promptText`，直接处理已经弹出的 alert、confirm、prompt 或 beforeunload，无需提前调用本工具。确认可能触发提交或离开页面，`affectsPage` 必须为 `true`。执行时无弹窗返回 `no_dialog`，其他处理失败返回 `dialog_handle_failed`。
 
 `see_diag` 在浏览器层读取标签和弹窗状态，不执行页面脚本。`dialog.status` 为 `open`、`closed` 或 `unknown`：分别表示捕获到未关闭弹窗、已确认关闭、当前状态无法确认。连接调试器前已出现的弹窗不一定补发开启事件，因此 `unknown` 不能解释为无弹窗；仍可使用 `handle_dialog` 处理。`wait_new_tab` 只等调用后的新标签创建，不等待原生对话框。
 
@@ -28,6 +28,6 @@ GUI。Side Panel + background。样式对标 telance，组件放 `ui/`。浏览�
 
 验证码工具检查受支持组件及其 frame，点击实际可访问的勾选控件，不能用点击 iframe 代替。`see_captcha` / `wait_captcha` 的检测成功不等于验证成功；`solve_captcha` 仅在唯一组件出现非空响应字段且状态可确认时成功。仅勾选、多组件、无法访问的 frame 或图像拼图挑战不会假报通过，返回 requiresUser 交给用户处理；工具不返回响应令牌。
 
-`execute_javascript` 的模型参数为 filename 和可选 tab。服务从数据目录 scripts 读取已保存的 .js/.mjs/.cjs 文件，再将脚本交给扩展执行；扩展负责在目标页面主环境求值。模型先用 script_patch 保存并确认成功，下一次模型调用才能执行，同批补丁与执行由 Runtime 拒绝。
+`execute_javascript` 的模型参数为 filename 和必填 tabId。服务从数据目录 scripts 读取已保存的 .js/.mjs/.cjs 文件，再将脚本交给扩展执行；扩展负责在目标页面主环境求值。模型先用 script_patch 保存并确认成功，下一次模型调用才能执行，同批补丁与执行由 Runtime 拒绝。
 
 控制台日志仅在调用 `see_console` 时向目标页面注入监听；扩展启用和普通页面打开不自动注入。日志从开启时开始采集，刷新或导航后需重新开启；无法读取开启前的日志。

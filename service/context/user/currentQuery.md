@@ -1,5 +1,5 @@
 #currentQuery
-能力：【当前查询，历史原文】
+能力：【Current Query, Original Records】
 
 详细描述：
 最近一次查询结果，null 表示暂无查询。queryId 标识查询，sumId 指向来源摘要，module 和 intent 是查询条件；records 保留原模块记录及其 ID。

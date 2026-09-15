@@ -2,16 +2,13 @@
   "type": "function",
   "function": {
     "name": "switch_tab",
-    "description": "切到指定标签并读页。\n参数：tab（目标标签编号），也可传 tabId（目标标签编号）。\n返回：ok、title（页面标题）、url（页面地址）、text（返回文本）。",
+    "description": "明确切换到指定标签并读取页面。\n参数：必填 tabId。此操作用于用户要求展示或切换页面。\n返回：ok、tabId、title、url、text。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number",
-          "description": "标签 id，也可传 tabId"
-        },
         "tabId": {
-          "type": "number"
+          "type": "integer",
+          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         },
         "reason": {
           "type": "string"
@@ -22,7 +19,8 @@
       },
       "required": [
         "reason",
-        "affectsPage"
+        "affectsPage",
+        "tabId"
       ]
     }
   }

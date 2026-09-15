@@ -20,19 +20,19 @@ export function asStringArray(value: unknown): string[] {
 
 export const pageFromBrowser = (result: {
   ok?: boolean;
-  tab?: number | null;
+  tabId?: number | null;
   url?: string;
   title?: string;
   description?: string;
 }): CurrentPage | null => {
   if (!result.ok) return null;
-  const tab = Number(result.tab);
-  if (!Number.isFinite(tab) || tab < 1) return null;
-  // A target tab alone (for example a JavaScript value) is not a page observation.
+  const tabId = Number(result.tabId);
+  if (!Number.isFinite(tabId) || tabId < 1) return null;
+  // A target tabId alone (for example a JavaScript value) is not a page observation.
   if (typeof result.url !== "string" || !result.url || typeof result.title !== "string") return null;
   return {
     description: result.description || "当前页面信息",
-    tab,
+    tabId,
     url: String(result.url ?? ""),
     title: String(result.title ?? ""),
   };
@@ -83,7 +83,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       }
       if (!host) return failedTool("浏览器未连接", "browser_unavailable");
       const script = await readScript(dataDir, args.filename);
-      return externalResult(await host.execute(name, { code: script.code, ...(args.tab !== undefined ? { tab: args.tab } : {}) }));
+      return externalResult(await host.execute(name, { code: script.code, ...(args.tabId !== undefined ? { tabId: args.tabId } : {}) }));
     } catch (error) {
       return failedTool(error);
     }

@@ -39,13 +39,13 @@ const socketMonitors = new Map();
 const monitorWebSockets = async (tab, action) => {
   if (!['start', 'stop', 'read'].includes(action)) return {ok: false, error: '需要 action=start|stop|read'};
   const existing = socketMonitors.get(tab);
-  if (action === 'read') return {ok: true, tab, monitoring: !!existing, messages: existing?.messages.slice() ?? []};
+  if (action === 'read') return {ok: true, tabId: tab, monitoring: !!existing, messages: existing?.messages.slice() ?? []};
   if (action === 'stop') {
     const messages = existing?.messages.slice() ?? [];
     existing?.cleanup();
-    return {ok: true, tab, stopped: true, messages};
+    return {ok: true, tabId: tab, stopped: true, messages};
   }
-  if (existing) return {ok: true, tab, already: true};
+  if (existing) return {ok: true, tabId: tab, already: true};
   const events = chrome.debugger.onEvent;
   const detached = chrome.debugger.onDetach;
   const removed = chrome.tabs.onRemoved;
@@ -73,8 +73,8 @@ const monitorWebSockets = async (tab, action) => {
   try {
     await withDebugger(tab, () => chrome.debugger.sendCommand({tabId: tab}, 'Network.enable', {}));
     if (!socketMonitors.has(tab)) throw new Error('WebSocket 监控启动时调试器已断开');
-    return {ok: true, tab, started: true};
-  } catch (error) { cleanup(); return {ok: false, tab, error: String(error)}; }
+    return {ok: true, tabId: tab, started: true};
+  } catch (error) { cleanup(); return {ok: false, tabId: tab, error: String(error)}; }
 };
 
 export const mapImagePointToViewport = (point, imageSize, viewport) => {
@@ -99,29 +99,19 @@ export const asPoint = (input, a = 'point', xKey = 'x', yKey = 'y') => {
 
 const isBlocked = (url = '') => url.startsWith('chrome://') || url.startsWith('chrome-extension://');
 
-const currentPageTab = async (preferredTabId) => {
-  if (preferredTabId) {
-    const tab = await chrome.tabs.get(preferredTabId).catch(() => null);
-    if (tab?.id && !isBlocked(tab.url)) return tab;
-  }
-  const win = await chrome.windows.getCurrent({windowTypes: ['normal']}).catch(() => null)
-    || await chrome.windows.getLastFocused({windowTypes: ['normal']}).catch(() => null);
-  if (win?.id) {
-    const [tab] = await chrome.tabs.query({active: true, windowId: win.id});
-    if (tab?.id) return tab;
-  }
-  return (await chrome.tabs.query({active: true, lastFocusedWindow: true}))[0]
-    || (await chrome.tabs.query({active: true, currentWindow: true}))[0]
-    || null;
+export const readOpenTabs = async () => {
+  const windows = await chrome.windows.getAll({populate: true, windowTypes: ['normal']});
+  return {ok: true, windows: windows.map((window) => ({
+    windowId: window.id, focused: window.focused,
+    tabs: (window.tabs || []).map((tab) => ({tabId: tab.id, url: tab.url || '', title: tab.title || '', active: tab.active})),
+  }))};
 };
 
 const getTab = async (tabId) => {
-  if (tabId) {
-    const tab = await chrome.tabs.get(tabId).catch(() => null);
-    // 绑定的标签被关掉时给可行动的错误，可再调 bind_tab。
-    return tab || {id: null, gone: true};
-  }
-  return await currentPageTab();
+  if (!Number.isInteger(tabId) || tabId < 0) throw new Error('必须明确指定 tabId');
+  const tab = await chrome.tabs.get(tabId).catch(() => null);
+  if (!tab?.id) throw new Error(`标签 ${tabId} 不存在或已关闭，请重新读取标签列表`);
+  return tab;
 };
 
 const waitTabComplete = (tabId) => new Promise((resolve) => {
@@ -215,7 +205,7 @@ const waitNetworkIdle = async (tabId, quietMs = 500, maxMs = 8000) => {
 };
 
 const afterPageAction = async (tabId) => {
-  const tab = await getTab(tabId);
+  const tab = await chrome.tabs.get(tabId).catch(() => null);
   if (!tab?.id) return;
   await waitTabComplete(tab.id);
   await waitNetworkIdle(tab.id);
@@ -258,19 +248,19 @@ const inspectTab = async (tabId) => {
         text: document.body?.innerText?.slice(0, 4000) || '',
       }),
     });
-    return {ok: true, tab: tab.id, ...result};
+    return {ok: true, tabId: tab.id, ...result};
   } catch (error) {
-    return {ok: false, tab: tab.id, url: tab.url, title: tab.title, error: error instanceof Error ? error.message : String(error)};
+    return {ok: false, tabId: tab.id, url: tab.url, title: tab.title, error: error instanceof Error ? error.message : String(error)};
   }
 };
 
 const runPageTool = async (name, input = {}) => {
-  const tabId = input.tab ?? input.tabId;
+  const tabId = input.tabId;
   const tab = await inspectTab(tabId);
   if (!tab.ok) return tab;
   try {
     const [{result}] = await chrome.scripting.executeScript({
-      target: {tabId: tab.tab},
+      target: {tabId: tab.tabId},
       args: [name, {
         id: String(input.id || ''),
         regionId: String(input.regionId || ''),
@@ -469,11 +459,11 @@ const runPageTool = async (name, input = {}) => {
         return {ok: false, error: `${toolName} 未接`};
       },
     });
-    const out = {tab: tab.tab, title: tab.title, url: tab.url, ...result};
+    const out = {tabId: tab.tabId, title: tab.title, url: tab.url, ...result};
     if (out.ok && (name === 'page.click' || name === 'page.type')) await afterPageAction(tabId);
     return out;
   } catch (error) {
-    return {ok: false, tab: tab.tab, error: error instanceof Error ? error.message : String(error)};
+    return {ok: false, tabId: tab.tabId, error: error instanceof Error ? error.message : String(error)};
   }
 };
 
@@ -482,18 +472,18 @@ const runOnTab = async (tabId, args, func) => {
   if (!tab.ok) return tab;
   try {
     const [{result}] = await chrome.scripting.executeScript({
-      target: {tabId: tab.tab},
+      target: {tabId: tab.tabId},
       args,
       func,
     });
-    return {tab: tab.tab, title: tab.title, url: tab.url, ...result};
+    return {tabId: tab.tabId, title: tab.title, url: tab.url, ...result};
   } catch (error) {
-    return {ok: false, tab: tab.tab, error: error instanceof Error ? error.message : String(error)};
+    return {ok: false, tabId: tab.tabId, error: error instanceof Error ? error.message : String(error)};
   }
 };
 
 const capturePage = async (input) => {
-  const tabId = input.tab ?? input.tabId;
+  const tabId = input.tabId;
   if (!['viewport', 'full_page', 'element'].includes(input.mode)) return {ok: false, error: 'capture_page 需要 mode=viewport|full_page|element'};
   if (input.mode !== 'element' && (input.ref !== undefined || input.selector !== undefined)) return {ok: false, error: 'ref/selector 仅用于 element 模式'};
   if (input.mode === 'full_page') {
@@ -510,7 +500,7 @@ const capturePage = async (input) => {
           clip: {x: size.x ?? 0, y: size.y ?? 0, width: size.width, height: size.height, scale: 1},
         });
         if (!shot?.data) return {ok: false, error: '浏览器未返回截图'};
-        return {ok: true, tab: tab.id, image: `data:image/jpeg;base64,${shot.data}`, mime: 'image/jpeg', fullPage: true, page_size: [size.width, size.height]};
+        return {ok: true, tabId: tab.id, image: `data:image/jpeg;base64,${shot.data}`, mime: 'image/jpeg', fullPage: true, page_size: [size.width, size.height]};
       });
     } catch (error) { return {ok: false, error: String(error)}; }
   }
@@ -522,36 +512,24 @@ const capturePage = async (input) => {
   if (input.mode === 'viewport') {
     const tab = await getTab(tabId);
     if (!tab?.id || !tab.url || isBlocked(tab.url)) return {ok: false, error: '没有可截图的普通网页标签'};
-    // 最小化的窗口 Chrome 会挂起渲染器，captureVisibleTab 必报
-    // "image readback failed"。先恢复窗口再激活标签。
-    if (tab.windowId) {
-      await chrome.windows.update(tab.windowId, {state: 'normal', focused: true}).catch(() => {});
-    }
-    await chrome.tabs.update(tab.id, {active: true});
-    await waitNetworkIdle(tab.id);
-    const shotMeta = async (image) => ({
-      ok: true,
-      tab: tab.id,
-      image,
-      mime: 'image/jpeg',
-      image_size: await imageSizeOf(image),
-      viewport: await viewportOf(tab.id),
-    });
     try {
-      return await shotMeta(await chrome.tabs.captureVisibleTab(tab.windowId, {format: 'jpeg', quality: 70}));
+      return await withDebugger(tab.id, async () => {
+        const shot = await chrome.debugger.sendCommand({tabId: tab.id}, 'Page.captureScreenshot', {
+          format: 'jpeg', quality: 70, fromSurface: true, captureBeyondViewport: false,
+        });
+        if (!shot?.data) return {ok: false, error: '浏览器未返回截图'};
+        const image = `data:image/jpeg;base64,${shot.data}`;
+        return {ok: true, tabId: tab.id, image, mime: 'image/jpeg',
+          image_size: await imageSizeOf(image), viewport: await viewportOf(tab.id)};
+      });
     } catch (error) {
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      try {
-        return await shotMeta(await chrome.tabs.captureVisibleTab(tab.windowId, {format: 'jpeg', quality: 70}));
-      } catch (retryError) {
-        return {ok: false, error: retryError instanceof Error ? retryError.message : String(retryError)};
-      }
+      return {ok: false, error: error instanceof Error ? error.message : String(error)};
     }
   }
 };
 
 const executeBrowserTool = async (name, input = {}) => {
-  const tabId = input.tab ?? input.tabId;
+  const tabId = input.tabId;
   if (name.startsWith('page.')) return runPageTool(name, input);
   if (name === 'see_page' || name === 'watch_page') return inspectTab(tabId);
   if (['snapshot_page', 'find_on_page', 'click', 'double_click', 'focus', 'hover', 'type', 'select'].includes(name)) {
@@ -559,7 +537,7 @@ const executeBrowserTool = async (name, input = {}) => {
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可操作的普通网页标签'};
     const [{result}] = await chrome.scripting.executeScript({target: {tabId: tab.id}, func: elementTool, args: [name, input]});
     if (result?.ok && ['click', 'double_click', 'type', 'select'].includes(name)) await afterPageAction(tab.id);
-    return {tab: tab.id, ...result};
+    return {tabId: tab.id, ...result};
   }
   if (name === 'see_page_info') {
     return runOnTab(tabId, [], () => ({
@@ -583,7 +561,7 @@ const executeBrowserTool = async (name, input = {}) => {
     if (!page.ok) return page;
     const needle = input.text || input.url || input.title || '';
     const hit = [page.title, page.url, page.text].join('\n');
-    return {ok: !needle || hit.includes(needle), tabId: page.tab, title: page.title, url: page.url, matched: needle};
+    return {ok: !needle || hit.includes(needle), tabId: page.tabId, title: page.title, url: page.url, matched: needle};
   }
   if (name === 'tick') {
     const result = await runOnTab(tabId, [input.text || '', input.checked !== false], (q, checked) => {
@@ -701,7 +679,7 @@ const executeBrowserTool = async (name, input = {}) => {
     const from = mapImagePointToViewport(point1, imageSize, viewport);
     const to = mapImagePointToViewport(point2, imageSize, viewport);
     if (!from || !to) return {ok: false, error: '截图坐标无法映射到视口'};
-    const dragged = await runBrowserTool('drag', {point1: from, point2: to, ...(tabId ? {tab: tabId} : {})});
+    const dragged = await runBrowserTool('drag', {point1: from, point2: to, tabId});
     return {
       ...dragged,
       image_point1: input.point1,
@@ -759,52 +737,25 @@ const executeBrowserTool = async (name, input = {}) => {
     return result;
   }
   if (name === 'bind_tab') {
-    const tab = await currentPageTab(input.tab);
+    const tab = await getTab(input.tabId);
     if (!tab?.id || !tab.url || isBlocked(tab.url)) return {ok: false, error: '没有可绑定的普通网页标签'};
-    return {ok: true, tab: tab.id, tabId: tab.id, url: tab.url, title: tab.title};
+    return {ok: true, tabId: tab.id, windowId: tab.windowId, url: tab.url, title: tab.title};
   }
-  if (name === 'see_env') {
-    const [tabs, windows, current] = await Promise.all([
-      chrome.tabs.query({}),
-      chrome.windows.getAll(),
-      currentPageTab(input.tab),
-    ]);
-    const normal = tabs.filter((item) => !isBlocked(item.url));
-    const ranked = current?.windowId
-      ? [...normal.filter((item) => item.windowId === current.windowId), ...normal.filter((item) => item.windowId !== current.windowId)]
-      : normal;
-    const brief = (item) => ({
-      id: item.id,
-      title: String(item.title || '').slice(0, 80),
-      url: String(item.url || '').slice(0, 160),
-      active: item.id === current?.id,
-    });
-    return {
-      ok: true,
-      activeTab: current ? {id: current.id, url: current.url, title: current.title, blocked: isBlocked(current.url)} : null,
-      windowCount: windows.length,
-      tabCount: tabs.length,
-      tabs: ranked.slice(0, 10).map(brief),
-      truncated: Math.max(ranked.length - 10, 0),
-    };
-  }
-  if (name === 'list_tabs') {
-    const tabs = await chrome.tabs.query({currentWindow: true});
-    return {ok: true, tabs: tabs.map((tab) => ({id: tab.id, title: tab.title, url: tab.url}))};
-  }
+  if (name === 'see_env' || name === 'list_tabs') return readOpenTabs();
   if (name === 'list_windows') {
     const windows = await chrome.windows.getAll();
-    return {ok: true, windows: windows.map((item) => ({id: item.id, focused: item.focused, type: item.type}))};
+    return {ok: true, windows: windows.map((item) => ({windowId: item.id, focused: item.focused, type: item.type}))};
   }
   if (name === 'switch_tab') {
-    const tab = input.tab ?? input.tabId;
-    if (!tab) return {ok: false, error: '缺 tab'};
-    await chrome.tabs.update(tab, {active: true});
-    return inspectTab(tab);
+    const tab = await getTab(input.tabId);
+    await chrome.tabs.update(tab.id, {active: true});
+    await chrome.windows.update(tab.windowId, {focused: true});
+    return inspectTab(tab.id);
   }
   if (name === 'open_tab') {
-    const tab = await chrome.tabs.create({url: input.url || 'about:blank'});
-    return {ok: true, tabId: tab.id, url: tab.url, title: tab.title};
+    if (!Number.isInteger(input.windowId) || input.windowId < 0) throw new Error('必须明确指定 windowId');
+    const tab = await chrome.tabs.create({windowId: input.windowId, url: input.url || 'about:blank', active: false});
+    return {ok: true, tabId: tab.id, windowId: tab.windowId, url: tab.url, title: tab.title};
   }
   if (name === 'close_tab') {
     const tab = await getTab(tabId);
@@ -821,7 +772,7 @@ const executeBrowserTool = async (name, input = {}) => {
   if (name === 'move_tab') {
     const tab = await getTab(tabId);
     if (!tab?.id) return {ok: false, error: '没有标签'};
-    await chrome.tabs.move(tab.id, {index: input.index ?? -1});
+    await chrome.tabs.move(tab.id, {index: input.index ?? -1, ...(input.windowId !== undefined ? {windowId: input.windowId} : {})});
     return {ok: true};
   }
   if (name === 'update_tab') {
@@ -831,25 +782,31 @@ const executeBrowserTool = async (name, input = {}) => {
     return {ok: true};
   }
   if (name === 'create_window') {
-    const win = await chrome.windows.create({url: input.url});
+    const win = await chrome.windows.create({url: input.url, focused: false});
     return {ok: true, windowId: win.id};
   }
   if (name === 'update_window') {
-    const win = await chrome.windows.getCurrent();
+    if (!Number.isInteger(input.windowId) || input.windowId < 0) throw new Error('必须明确指定 windowId');
+    const win = await chrome.windows.get(input.windowId);
     await chrome.windows.update(win.id, {state: input.state || 'normal'});
     return {ok: true};
   }
   if (name === 'close_window') {
-    const win = await chrome.windows.getCurrent();
+    if (!Number.isInteger(input.windowId) || input.windowId < 0) throw new Error('必须明确指定 windowId');
+    const win = await chrome.windows.get(input.windowId);
     await chrome.windows.remove(win.id);
     return {ok: true};
   }
   if (name === 'group_tabs') {
-    const id = await chrome.tabs.group({tabIds: input.tabIds || [tabId].filter(Boolean)});
+    if (!Array.isArray(input.tabIds) || !input.tabIds.length) throw new Error('必须明确指定 tabIds');
+    await Promise.all(input.tabIds.map(getTab));
+    const id = await chrome.tabs.group({tabIds: input.tabIds});
     return {ok: true, groupId: id};
   }
   if (name === 'ungroup_tabs') {
-    await chrome.tabs.ungroup(input.tabIds || [tabId].filter(Boolean));
+    if (!Array.isArray(input.tabIds) || !input.tabIds.length) throw new Error('必须明确指定 tabIds');
+    await Promise.all(input.tabIds.map(getTab));
+    await chrome.tabs.ungroup(input.tabIds);
     return {ok: true};
   }
   if (name === 'capture_page') return {...await capturePage(input), mode: input.mode};
@@ -1033,11 +990,11 @@ const executeBrowserTool = async (name, input = {}) => {
       if (response?.exceptionDetails) {
         const details = response.exceptionDetails;
         const error = String(details.exception?.description || details.text || 'JavaScript 执行失败');
-        return {ok: false, tab: tab.id, error};
+        return {ok: false, tabId: tab.id, error};
       }
       const remote = response?.result;
-      if (!remote?.type) return {ok: false, tab: tab.id, error: '执行器未返回 JavaScript 结果'};
-      const result = {ok: true, tab: tab.id, type: remote.type};
+      if (!remote?.type) return {ok: false, tabId: tab.id, error: '执行器未返回 JavaScript 结果'};
+      const result = {ok: true, tabId: tab.id, type: remote.type};
       if (Object.hasOwn(remote, 'value')) return {...result, value: remote.value};
       if (remote.unserializableValue != null) return {...result, unserializableValue: String(remote.unserializableValue)};
       if (remote.type === 'undefined') return result;
@@ -1075,9 +1032,9 @@ const executeBrowserTool = async (name, input = {}) => {
     if (!tab?.id) return {ok: false, error: '没有标签'};
     try {
       const dialog = await monitorDialogs(tab.id);
-      return {ok: true, tab: tab.id, title: tab.title, url: tab.url, dialog,
+      return {ok: true, tabId: tab.id, title: tab.title, url: tab.url, dialog,
         ...(dialog.status === 'unknown' ? {detail: '未捕获弹窗事件，不能据此断定没有弹窗；若已知有弹窗，可直接调用 handle_dialog。'} : {})};
-    } catch (error) { return {ok: false, tab: tab.id, dialog: dialogState(tab.id), error: String(error)}; }
+    } catch (error) { return {ok: false, tabId: tab.id, dialog: dialogState(tab.id), error: String(error)}; }
   }
   if (name === 'see_console') {
     const tab = await getTab(tabId);
@@ -1098,9 +1055,9 @@ const executeBrowserTool = async (name, input = {}) => {
         },
         args: [input.level || 'error'],
       });
-      return {ok: true, tab: tab.id, ...(result || {count: 0, items: []})};
+      return {ok: true, tabId: tab.id, ...(result || {count: 0, items: []})};
     } catch (error) {
-      return {ok: false, tab: tab.id, error: error instanceof Error ? error.message : String(error)};
+      return {ok: false, tabId: tab.id, error: error instanceof Error ? error.message : String(error)};
     }
   }
   if (name === 'wait_new_tab') {
@@ -1110,7 +1067,7 @@ const executeBrowserTool = async (name, input = {}) => {
       const onCreated = (tab) => {
         chrome.tabs.onCreated.removeListener(onCreated);
         clearTimeout(timer);
-        resolve({ok: true, tab: {id: tab.id, url: tab.url, title: tab.title}});
+        resolve({ok: true, tabId: tab.id, windowId: tab.windowId, url: tab.url, title: tab.title});
       };
       const timer = setTimeout(() => {
         chrome.tabs.onCreated.removeListener(onCreated);
@@ -1381,17 +1338,17 @@ const executeBrowserTool = async (name, input = {}) => {
 
 
 // A native dialog releases the caller without replaying the blocked operation.
-const browserOnly = new Set(['open_tab', 'duplicate_tab', 'bind_tab', 'list_browser_tools', 'list_tabs', 'list_windows', 'see_env', 'close_tab', 'close_window', 'switch_tab', 'move_tab', 'update_tab', 'create_window', 'update_window', 'group_tabs', 'ungroup_tabs', 'list_downloads', 'download', 'export_data', 'control_download', 'wait_download', 'wait_new_tab', 'profile_vault', 'detach_debugger']);
+const browserOnly = new Set(['open_tab', 'duplicate_tab', 'bind_tab', 'list_browser_tools', 'list_tabs', 'list_windows', 'see_env', 'close_tab', 'close_window', 'switch_tab', 'move_tab', 'update_tab', 'create_window', 'update_window', 'group_tabs', 'ungroup_tabs', 'list_downloads', 'download', 'export_data', 'control_download', 'wait_download', 'wait_new_tab', 'profile_vault', 'detach_debugger', 'set_cookie', 'delete_cookie', 'clear_cookies', 'permission_grant', 'permission_deny', 'switch_frame']);
 export const runBrowserTool = async (name, input = {}) => {
   let unwatch;
   let targetTab;
-  const blocked = (dialog) => ({ok: false, tab: targetTab, faultCode: 'dialog_open', dialog,
+  const blocked = (dialog) => ({ok: false, tabId: targetTab, faultCode: 'dialog_open', dialog,
     error: '原生对话框阻塞页面，请用 handle_dialog 确认或取消。原操作可能在关闭后继续，请先检查结果，勿重复执行。'});
   try {
     const operation = async () => {
       let dialogOpened;
       if (!browserOnly.has(name) && name !== 'handle_dialog' && name !== 'see_diag' && globalThis.chrome?.debugger?.onEvent) {
-        const tab = await getTab(input.tab ?? input.tabId);
+        const tab = await getTab(input.tabId);
         targetTab = tab?.id;
         if (targetTab && !isBlocked(tab.url)) {
           dialogOpened = new Promise((resolve) => { unwatch = watchDialog(targetTab, (dialog) => resolve(blocked(dialog))); });

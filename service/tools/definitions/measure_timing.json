@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "measure_timing",
-    "description": "测当前页首字节、文档就绪和页面加载时间。\n参数：可选 tab（目标标签编号）。\n返回：ok、ttfbMs（首字节耗时毫秒数）、domContentLoadedMs（文档就绪毫秒数）、loadMs（加载完成毫秒数）、url（页面地址）。",
+    "description": "测指定页首字节、文档就绪和页面加载时间。\n参数：必填 tabId（目标标签编号）。\n返回：ok、ttfbMs（首字节耗时毫秒数）、domContentLoadedMs（文档就绪毫秒数）、loadMs（加载完成毫秒数）、url（页面地址）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number"
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         },
         "reason": {
           "type": "string"
@@ -18,7 +19,8 @@
       },
       "required": [
         "reason",
-        "affectsPage"
+        "affectsPage",
+        "tabId"
       ],
       "additionalProperties": true
     }

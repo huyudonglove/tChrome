@@ -17,7 +17,7 @@ test("background dispatch continues without panel messages and resumes on alarms
   const storage: Record<string, any> = {};
   Object.defineProperty(globalThis, "chrome", { configurable: true, value: {
     storage: {session: {get: async () => storage, set: async (values: any) => { Object.assign(storage, values); }}},
-    tabs: { query: async () => { executions++; return []; } },
+    windows: { getAll: async () => { executions++; return []; } },
     sidePanel: { setPanelBehavior: () => {} },
     runtime: {
       getPlatformInfo: (callback: () => void) => { keepAliveCalls++; callback(); },

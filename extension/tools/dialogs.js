@@ -57,7 +57,7 @@ export const detachDebugger = async (tabId) => {
   attached.delete(tabId);
   enabled.delete(tabId);
   states.delete(tabId);
-  return {ok: true, tab: tabId, detached: true};
+  return {ok: true, tabId: tabId, detached: true};
 };
 export const monitorDialogs = async (tab) => {
   await withDebugger(tab, async () => {

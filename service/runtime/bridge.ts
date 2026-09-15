@@ -1,5 +1,5 @@
 import { allocateRecordId } from "./ids.ts";
-import type { BrowserHost, BrowserResult } from "../types.ts";
+import type { BrowserHost, BrowserResult, OpenTabs } from "../types.ts";
 
 export type ToolRequest = {
   id: string;
@@ -40,9 +40,12 @@ export function createToolBridge(dataDir: string): ToolBridge {
     }
     for (const item of removed) item.done({ ok: false, faultCode: "stopped", error: "已停止" });
   };
+  const readOpenTabs = async (scope?: string): Promise<OpenTabs> =>
+    await execute(scope, "__openTabs", {}) as unknown as OpenTabs;
   return {
+    readOpenTabs: () => readOpenTabs(),
     execute: (name, input) => execute(undefined, name, input),
-    forScope: (scope) => ({ execute: (name, input) => execute(scope, name, input), abort: () => abort(scope) }),
+    forScope: (scope) => ({ readOpenTabs: () => readOpenTabs(scope), execute: (name, input) => execute(scope, name, input), abort: () => abort(scope) }),
     current: () => queue[0]?.request ?? null,
     resolve: finish,
     abort,

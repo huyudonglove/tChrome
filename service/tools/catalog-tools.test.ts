@@ -61,10 +61,10 @@ test("缺字段和类型错走 Ajv，不补齐", () => {
     faultCode: "missing_required",
     missing: expect.arrayContaining(["reason", "affectsPage"]),
     badName: "page.type",
-    detail: "page.type missing required: reason, affectsPage",
+    detail: "page.type missing required: reason, affectsPage, tabId",
   });
   const wrong = checkToolCalls(
-    [{ id: "call_02", name: "page.type", arguments: { reason: "填", affectsPage: true, id: "e1", text: 12 as unknown as string } }],
+    [{ id: "call_02", name: "page.type", arguments: { tabId: 1, reason: "填", affectsPage: true, id: "e1", text: 12 as unknown as string } }],
     tools,
     registry.toolGroups.baseToolsIds,
     ids,
@@ -91,11 +91,11 @@ test("tool calls normalize explicit boolean and numeric strings before execution
   const ids = ["catalog.add", "page.type"];
   const calls: ToolCall[] = JSON.parse(JSON.stringify([
     { id: "call_01", name: "catalog.add", arguments: { reason: "加载", names: ["execute_javascript"], affectsPage: "false" } },
-    { id: "call_02", name: "page.type", arguments: { reason: "填写", affectsPage: "true", tab: "1502828910", id: "e1", text: "false" } },
+    { id: "call_02", name: "page.type", arguments: { reason: "填写", affectsPage: "true", tabId: "1502828910", id: "e1", text: "false" } },
   ]));
   expect(checkToolCalls(calls, toolSchemas(registry, ids), [], ids).schemaOk).toBe(true);
   expect(calls[0]!.arguments.affectsPage).toBe(false);
-  expect(calls[1]!.arguments).toEqual({ reason: "填写", affectsPage: true, tab: 1502828910, id: "e1", text: "false" });
+  expect(calls[1]!.arguments).toEqual({ reason: "填写", affectsPage: true, tabId: 1502828910, id: "e1", text: "false" });
 });
 
 test("normalization preserves schema constraints and rejects ambiguous values", () => {
@@ -107,8 +107,8 @@ test("normalization preserves schema constraints and rejects ambiguous values", 
     expect(check("catalog.add", { reason: "加载", names: ["execute_javascript"], affectsPage })).toBe(false);
   }
   expect(check("catalog.add", { reason: "加载", names: "execute_javascript", affectsPage: "false" })).toBe(false);
-  for (const tab of ["", " ", "0x10", "12px", "Infinity", "1e999", "9007199254740993"]) {
-    expect(check("page.type", { reason: "填写", affectsPage: "true", tab, id: "e1", text: "12" })).toBe(false);
+  for (const tabId of ["", " ", "0x10", "12px", "Infinity", "1e999", "9007199254740993"]) {
+    expect(check("page.type", { reason: "填写", affectsPage: "true", tabId, id: "e1", text: "12" })).toBe(false);
   }
 });
 
@@ -117,7 +117,7 @@ test("capture_page validates mode-specific target parameters", () => {
   const registry = loadToolRegistry(repoRoot);
   const tools = toolSchemas(registry, ["capture_page"]);
   const valid = (arguments_: Record<string, unknown>) => checkToolCalls(
-    [{id: "capture", name: "capture_page", arguments: {reason: "观察", affectsPage: false, ...arguments_}}], tools, [], ["capture_page"],
+    [{id: "capture", name: "capture_page", arguments: {tabId: 1, reason: "观察", affectsPage: false, ...arguments_}}], tools, [], ["capture_page"],
   ).schemaOk;
   for (const args of [{mode: "viewport"}, {mode: "full_page"}, {mode: "element", ref: "el_01"}, {mode: "element", selector: "#target"}]) expect(valid(args)).toBe(true);
   for (const args of [{}, {mode: "pdf"}, {mode: "element"}, {mode: "element", ref: "e1"}, {mode: "element", ref: "el_01", selector: "#target"}, {mode: "viewport", selector: "#target"}]) expect(valid(args)).toBe(false);

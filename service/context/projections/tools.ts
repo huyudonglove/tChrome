@@ -10,7 +10,7 @@ export function toolHistoryView(records: ToolIOItem[], pages: (CurrentPage & Par
     if (record.return.stage === "complete" && result && typeof result === "object" && !Array.isArray(result)) {
       const fields = result as Record<string, unknown>;
       const page = pages.find(page => page.id && page.turnId === record.turnId && page.callId === record.callId
-        && fields.description === page.description && fields.tab === page.tab
+        && fields.description === page.description && fields.tabId === page.tabId
         && fields.url === page.url && fields.title === page.title);
       if (page && !("pageObservationId" in fields)) {
         const { description: _description, ...rest } = fields;

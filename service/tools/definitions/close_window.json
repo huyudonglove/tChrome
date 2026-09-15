@@ -2,23 +2,25 @@
   "type": "function",
   "function": {
     "name": "close_window",
-    "description": "关闭当前窗口。\n返回：ok。",
+    "description": "关闭指定窗口。\n参数：必填 windowId。\n返回：ok。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number"
-        },
         "reason": {
           "type": "string"
         },
         "affectsPage": {
           "type": "boolean"
+        },
+        "windowId": {
+          "type": "integer",
+          "description": "目标窗口编号，从 #openTabs 或 list_windows 返回取得。"
         }
       },
       "required": [
         "reason",
-        "affectsPage"
+        "affectsPage",
+        "windowId"
       ],
       "additionalProperties": true
     }

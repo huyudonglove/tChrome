@@ -120,3 +120,36 @@ test("扩展构建握手阻止旧工具执行并报告重载指引", async () =>
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+
+test("标签快照走扩展桥；未连接时文字请求可继续，停止释放快照等待", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-open-tabs-bridge-"));
+  const repoRoot = join(import.meta.dir, "..");
+  let snapshots: any[] = [];
+  const server = createServer({dataDir: dir, repoRoot, provider: {complete: async input => {
+    snapshots.push(JSON.parse(input.messages[1]!.content.split("#openTabs\n")[1]!.split("\n#pageObservedHistory")[0]!.trim()));
+    return {finish: "tool_calls", content: "", toolCalls: [{id: "reply", name: "finishTurn", arguments: {text: "完成"}}], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: []};
+  }}});
+  const post = () => server.fetch(new Request(`${base}/turn`, {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({userInput: "你好", submittedAt: "now"})}));
+  try {
+    expect((await (await post()).json()).output.kind).toBe("reply");
+    expect(snapshots[0]).toMatchObject({ok: false});
+    const version = executorVersion(repoRoot);
+    await server.fetch(new Request(`${base}/tool-request?executorVersion=${version}`));
+    const pending = post();
+    await Bun.sleep(0);
+    const request = server.bridge.current()!;
+    expect(request.name).toBe("__openTabs");
+    const snapshot = {ok: true, windows: [{windowId: 1, focused: true, tabs: [{tabId: 12, active: true, url: "https://example.com", title: "测试"}]}]};
+    server.bridge.resolve(request.id, snapshot);
+    expect((await (await pending).json()).output.kind).toBe("reply");
+    expect(snapshots[1]).toEqual(snapshot);
+    const stopped = post();
+    await Bun.sleep(0);
+    expect(server.bridge.current()?.name).toBe("__openTabs");
+    await server.fetch(new Request(`${base}/stop`, {method: "POST"}));
+    expect((await (await stopped).json()).output.faultCode).toBe("stopped");
+    expect(snapshots).toHaveLength(2);
+    expect(server.bridge.current()).toBeNull();
+  } finally {server.bridge.abort(); rmSync(dir,{recursive: true,force:true});}
+});

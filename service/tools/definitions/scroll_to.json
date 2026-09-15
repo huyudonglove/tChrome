@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "scroll_to",
-    "description": "把匹配 text 的元素滚进可视区。\n参数：可选 text（文本）、tab（目标标签编号）。\n返回：ok。",
+    "description": "把匹配 text 的元素滚进可视区。\n参数：可选 text（文本）；必填 tabId（目标标签编号）。\n返回：ok。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number"
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         },
         "reason": {
           "type": "string"
@@ -18,7 +19,8 @@
       },
       "required": [
         "reason",
-        "affectsPage"
+        "affectsPage",
+        "tabId"
       ],
       "additionalProperties": true
     }

@@ -1,6 +1,6 @@
 import { createBrowserIdAllocator } from "./tools/element-ids.js";
 import { initDialogEvents } from "./tools/dialogs.js";
-import { runBrowserTool } from "./tools/browser-tools.js";
+import { runBrowserTool, readOpenTabs } from "./tools/browser-tools.js";
 
 initDialogEvents();
 const allocateBrowserId = createBrowserIdAllocator(chrome.storage.local);
@@ -46,7 +46,7 @@ const pumpTools = async () => {
           await chrome.storage.session.set({ [EXECUTION_RECORD]: { id: body.request.id } });
           let result: Record<string, unknown>;
           try {
-            result = await runBrowserTool(body.request.name, body.request.input ?? {});
+            result = body.request.name === "__openTabs" ? await readOpenTabs() : await runBrowserTool(body.request.name, body.request.input ?? {});
           } catch (error) {
             result = { ok: false, error: error instanceof Error ? error.message : String(error) };
           }

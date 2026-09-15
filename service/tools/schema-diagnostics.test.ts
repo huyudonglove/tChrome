@@ -5,7 +5,7 @@ import { checkToolCalls } from "./schema.ts";
 
 const registry = loadToolRegistry(join(import.meta.dir, "../.."));
 const check = (name: string, args: Record<string, unknown>) => checkToolCalls(
-  [{ id: "test", name, arguments: args }], toolSchemas(registry, [name]), [], [name],
+  [{ id: "test", name, arguments: { ...(name !== "library" ? {tabId: 1} : {}), ...args } }], toolSchemas(registry, [name]), [], [name],
 );
 
 test("target alternatives stay separate from mandatory arguments", () => {

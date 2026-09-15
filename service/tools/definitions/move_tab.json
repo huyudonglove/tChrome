@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "move_tab",
-    "description": "移动标签在当前窗口中的位置。\n参数：可选 tab（目标标签编号）、index（从 0 开始的目标位置；省略或 -1 表示末尾）。\n返回：ok。",
+    "description": "移动指定标签的位置。\n参数：必填 tabId；可选 windowId 指定目标窗口，省略时留在原窗口；可选 index（从 0 开始的位置，省略或 -1 表示末尾）。\n返回：ok。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number"
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         },
         "reason": {
           "type": "string"
@@ -20,11 +21,16 @@
           "minimum": -1,
           "default": -1,
           "description": "标签在当前窗口中的目标位置，从 0 开始；-1 表示移到末尾，省略时也是末尾。"
+        },
+        "windowId": {
+          "type": "integer",
+          "description": "可选目标窗口编号；省略时在标签所属窗口移动。"
         }
       },
       "required": [
         "reason",
-        "affectsPage"
+        "affectsPage",
+        "tabId"
       ],
       "additionalProperties": false
     }

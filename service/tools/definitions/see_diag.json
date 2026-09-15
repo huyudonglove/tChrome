@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "see_diag",
-    "description": "从浏览器层采集目标标签诊断信息，不执行页面脚本，可用于排查原生弹窗阻塞页面的情况。\n参数：可选 tab（目标标签编号）。\n返回：ok、标签信息和 dialog。dialog.status=open 表示捕获到尚未关闭的原生对话框，并提供已知的 type、message 等信息；closed 表示已确认关闭；unknown 表示没有可确认的当前弹窗状态，不能据此判断没有弹窗。原生弹窗可用 handle_dialog 确认或取消。",
+    "description": "从浏览器层采集目标标签诊断信息，不执行页面脚本，可用于排查原生弹窗阻塞页面的情况。\n参数：必填 tabId（目标标签编号）。\n返回：ok、标签信息和 dialog。dialog.status=open 表示捕获到尚未关闭的原生对话框，并提供已知的 type、message 等信息；closed 表示已确认关闭；unknown 表示没有可确认的当前弹窗状态，不能据此判断没有弹窗。原生弹窗可用 handle_dialog 确认或取消。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number"
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         },
         "reason": {
           "type": "string"
@@ -18,7 +19,8 @@
       },
       "required": [
         "reason",
-        "affectsPage"
+        "affectsPage",
+        "tabId"
       ],
       "additionalProperties": true
     }

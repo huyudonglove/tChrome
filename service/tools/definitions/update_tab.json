@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "update_tab",
-    "description": "固定或静音标签。\n参数：可选 tab（目标标签编号）；pinned（是否固定）和 muted（是否静音）至少提供一个，未提供的状态保持原状。\n返回：ok。",
+    "description": "固定或静音标签。\n参数：必填 tabId（目标标签编号）；pinned（是否固定）和 muted（是否静音）至少提供一个，未提供的状态保持原状。\n返回：ok。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number"
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         },
         "reason": {
           "type": "string"
@@ -26,7 +27,8 @@
       },
       "required": [
         "reason",
-        "affectsPage"
+        "affectsPage",
+        "tabId"
       ],
       "additionalProperties": false,
       "anyOf": [

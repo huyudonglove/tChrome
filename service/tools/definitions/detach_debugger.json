@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "detach_debugger",
-    "description": "主动断开目标标签的 Chrome Debugger (CDP) 调试连接，关闭浏览器顶部“正在调试此浏览器”的黄色/白色提示横幅。\n参数：可选 tab（目标标签编号，缺省为当前活动标签）。\n返回：ok、tab、detached。若后续操作需要调试能力，扩展会自动按需重新连接。",
+    "description": "主动断开目标标签的 Chrome Debugger (CDP) 调试连接，关闭浏览器顶部“正在调试此浏览器”的黄色/白色提示横幅。\n参数：必填 tabId（目标标签编号）。\n返回：ok、tabId、detached。若后续操作需要调试能力，扩展会自动按需重新连接。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number"
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         },
         "reason": {
           "type": "string"
@@ -18,7 +19,8 @@
       },
       "required": [
         "reason",
-        "affectsPage"
+        "affectsPage",
+        "tabId"
       ],
       "additionalProperties": true
     }

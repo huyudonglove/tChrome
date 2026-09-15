@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "watch_page",
-    "description": "再读一次当前页，看相对上次有没有变化。\n参数：可选 tab（目标标签编号）。\n返回：ok、title（页面标题）、url（页面地址）、text（返回文本）。",
+    "description": "再读一次指定页，看相对上次有没有变化。\n参数：必填 tabId（目标标签编号）。\n返回：ok、title（页面标题）、url（页面地址）、text（返回文本）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tab": {
-          "type": "number"
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         },
         "reason": {
           "type": "string"
@@ -18,7 +19,8 @@
       },
       "required": [
         "reason",
-        "affectsPage"
+        "affectsPage",
+        "tabId"
       ],
       "additionalProperties": true
     }

@@ -21,7 +21,7 @@ function filesIn(directory: string): string[] {
 test("截图按调用批次发送，历史仅保留路径，删除会话清理图片", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-images-integration-"));
   const requests: any[] = [];
-  const screenshotCall = { name: "capture_page", arguments: { mode: "viewport", reason: "观察页面", affectsPage: false } };
+  const screenshotCall = { name: "capture_page", arguments: { tabId: 1, mode: "viewport", reason: "观察页面", affectsPage: false } };
   const calls = [
     [{ name: "catalog.add", arguments: { names: ["capture_page"], reason: "加载截图" } }],
     [screenshotCall, screenshotCall],

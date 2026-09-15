@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "drag",
-    "description": "按视口坐标拖动。\n参数：point1=[起点x,y]、point2=[终点x,y]，可选 tab（目标标签编号）。\n返回：ok、from、to。坐标来自截图时先 capture_page(mode=viewport) 再 calibrate_drag。",
+    "description": "按视口坐标拖动。\n参数：point1=[起点x,y]、point2=[终点x,y]，必填 tabId（目标标签编号）。\n返回：ok、from、to。坐标来自截图时先 capture_page(mode=viewport) 再 calibrate_drag。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -34,11 +34,9 @@
         "y2": {
           "type": "number"
         },
-        "tab": {
-          "type": "number"
-        },
         "tabId": {
-          "type": "number"
+          "type": "integer",
+          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         },
         "reason": {
           "type": "string"
@@ -49,7 +47,8 @@
       },
       "required": [
         "reason",
-        "affectsPage"
+        "affectsPage",
+        "tabId"
       ]
     }
   }

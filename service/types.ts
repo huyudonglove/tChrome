@@ -8,13 +8,10 @@ export type Session = {
   conversationId: string;
 };
 
-export type CurrentTab = {
-  tab: number;
+export type CurrentPage = {
+  tabId: number;
   url: string;
   title: string;
-};
-
-export type CurrentPage = CurrentTab & {
   description: string;
 };
 
@@ -38,6 +35,10 @@ export type PageObservation = CurrentPage & {
   toolName: string;
 };
 
+export type TabItem = { tabId: number; url: string; title: string; active: boolean };
+export type OpenWindow = { windowId: number; focused: boolean; tabs: TabItem[] };
+export type OpenTabs = { ok: true; windows: OpenWindow[] } | { ok: false; error: string };
+
 export type Assembled = {
   baseToolsIds: string[];
   toolIds: string[];
@@ -46,7 +47,7 @@ export type Assembled = {
   mcpIds: string[];
   currentPage: (CurrentPage & Partial<PageObservation>) | null;
   pageObservedHistory: PageObservation[];
-  currentTab: CurrentTab | null;
+  openTabs: OpenTabs;
 };
 
 export type TurnOutput =
@@ -194,7 +195,7 @@ export type BrowserResult = {
   ok: boolean;
   faultCode?: string;
   error?: string;
-  tab?: number | null;
+  tabId?: number | null;
   url?: string;
   title?: string;
   description?: string;
@@ -202,6 +203,7 @@ export type BrowserResult = {
 };
 
 export type BrowserHost = {
+  readOpenTabs?(): Promise<OpenTabs>;
   execute(name: string, input: Record<string, unknown>): Promise<BrowserResult>;
   abort?(scope?: string): void;
   forScope?(scope: string): BrowserHost;

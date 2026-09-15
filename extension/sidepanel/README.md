@@ -4,7 +4,7 @@
 
 面板入口。视觉和交互对标 telance：顶栏、欢迎快捷、消息行、回底、追问卡片、会话搜索/删除确认、圆发送。发送中按钮换成停止。过程岗和账号库不搬。
 
-打开时 `GET /session` 还原当前会话消息。`POST /turn` 体是 `{userInput, submittedAt, currentTab}`。`currentTab` 是当前标签的 `{tab, url, title}`。停止 `POST /stop`。切会话 `POST /conversations/open`，新建 `POST /conversations/new`，删除 `POST /conversations/delete`。
+打开时 `GET /session` 还原当前会话消息。`POST /turn` 体是 `{userInput, submittedAt}`。Runtime 每次请求主模型前从扩展读取所有普通窗口及标签，注入 `#openTabs`；发话时不覆盖工作页面。停止 `POST /stop`。切会话 `POST /conversations/open`，新建 `POST /conversations/new`，删除 `POST /conversations/delete`。
 
 运行时通过会话轮询读取 `activity`。压缩期间在输入框正上方固定显示醒目状态条，区分历史记录与当前轮记录，并说明完成后自动继续；状态条位于消息滚动区之外；停止按钮仍可使用。状态由当前活动轮的压缩事件投影，完成、失败或停止后清除，不进入聊天正文或模型上下文。Runtime 在发送主模型请求前等待压缩完成。
 

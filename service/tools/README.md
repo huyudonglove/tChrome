@@ -34,7 +34,7 @@
 
 脚本保存在服务数据目录 `data/scripts`：`script_patch(filename, patch)` 仅应用单文件 git unified diff，支持新增、修改和删除；`script_read(filename)` 返回代码，`script_list()` 返回文件名，三者的 affectsPage 固定为 false。文件名为单层 .sh/.py/.js/.mjs/.cjs。
 
-`execute_javascript` 使用 filename（仅 .js/.mjs/.cjs）和可选 tab，不接受内联 code；内容为页面表达式，多语句或异步逻辑使用 IIFE。`local.run` / `local.process_start` 使用 filename 和绝对路径 cwd，可选 args 字符串数组及 timeoutMs；.sh 由 zsh、.py 由 python3、.js/.mjs/.cjs 由 bun 执行，不接受内联 command。补丁只返回状态，必须在确认成功后的下一次模型调用执行；Runtime 拒绝同批 script_patch 与脚本执行。
+`execute_javascript` 使用 filename（仅 .js/.mjs/.cjs）和必填 tabId，不接受内联 code；内容为页面表达式，多语句或异步逻辑使用 IIFE。`local.run` / `local.process_start` 使用 filename 和绝对路径 cwd，可选 args 字符串数组及 timeoutMs；.sh 由 zsh、.py 由 python3、.js/.mjs/.cjs 由 bun 执行，不接受内联 command。补丁只返回状态，必须在确认成功后的下一次模型调用执行；Runtime 拒绝同批 script_patch 与脚本执行。
 
 本机每次执行读取已保存文件并创建私有快照，后续补丁不会改变正在运行的脚本。普通相对文件路径按 cwd 解析；脚本自身路径和相对 import 按快照位置解析，不支持依赖托管目录中相邻脚本的相对导入。服务运行环境需安装 Git，补丁解析、检查与应用统一使用 `git apply --recount`，由 Git 按正文计算 hunk 行数。补丁仍需合法 unified diff 结构、匹配原文上下文及末尾换行；不猜测修复正文。
 
@@ -42,7 +42,7 @@ HTTP 传输由 `service/network/idle-fetch.ts` 统一检查响应活动，`http-
 
 ## 统一错误返回
 
-模型可见的工具失败由 `result.ts` 统一输出 `{ok:false, faultCode, message, recovery, details}`，并保留 tab、HTTP 状态、批量结果等业务字段。`shared/error-messages.json` 是模型提示、用户提示和恢复建议的唯一文案来源；原始原因放在 details，未知错误保留错误码并使用通用提示。recovery 是下一步建议，不控制网络自动重试；超时后先检查操作是否生效，避免重复副作用。批量 HTTP 的失败子项使用同一格式，成功数据与 effects 保留。
+模型可见的工具失败由 `result.ts` 统一输出 `{ok:false, faultCode, message, recovery, details}`，并保留 tabId、HTTP 状态、批量结果等业务字段。`shared/error-messages.json` 是模型提示、用户提示和恢复建议的唯一文案来源；原始原因放在 details，未知错误保留错误码并使用通用提示。recovery 是下一步建议，不控制网络自动重试；超时后先检查操作是否生效，避免重复副作用。批量 HTTP 的失败子项使用同一格式，成功数据与 effects 保留。
 
 查询保留底层错误码；压缩失败在回合输出中使用 compression_failed，并通过可选 causeCode 保留底层原因。侧栏分别显示请求超时、主动取消、连接失败、HTTP 错误和响应格式错误。
 
@@ -53,3 +53,5 @@ HTTP 传输由 `service/network/idle-fetch.ts` 统一检查响应活动，`http-
 工具参数对象原样接收，字符串仅执行一次标准 JSON.parse，不修复围栏、尾逗号或单引号。HTTP 正文、响应头、搜索正文和脚本输出不再隐式截断；发送主模型前由统一上下文门禁处理文本。浏览器桥不设独立总执行时限；已执行请求只重发结果，扩展 worker 恢复时结果未知则返回错误而不重做动作。
 
 动态加载成功后将工具名持久写入会话 ledger.loadedToolIds，新 turn 合并默认工具与会话清单生成 tools[]；重新打开会话和服务重启不清空，新会话独立。finishTurn 仅 text 必填，reason 和 affectsPage 可省略；正文仍必须非空，不从 content 补齐。
+
+浏览器目标字段统一为 `tabId` 和 `windowId`。页面操作必须明确指定 `tabId`，窗口操作和新建标签必须指定 `windowId`；目标失效返回错误，不回退到前台。`bind_tab` 仅验证指定标签，不建立隐式绑定。新标签后台打开，新窗口默认不获取焦点，视口截图使用 CDP 在指定标签截图；`duplicate_tab` 保留 Chrome 原生复制并激活新标签的行为。
