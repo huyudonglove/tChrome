@@ -58,6 +58,7 @@ export type ExecuteInput = {
     knownTools: string[];
     enabledTools: string[];
   };
+  pageObservationIds?: string[];
 };
 
 const result = (text: string, effects: ToolEffect[] = []): ToolExecution => ({ text, effects });
@@ -137,6 +138,15 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   if (name === "notes.delete") {
     const key = String(args.key ?? "").trim();
     return key ? result(`deleted notes[${key}]`, [{ type: "note.delete", key }]) : failedTool("key 空着", "invalid_arguments");
+  }
+  if (name === "page.clear_result") {
+    const pageId = String(args.pageId ?? "").trim();
+    if (!pageId) return failedTool("pageId 空着", "invalid_arguments");
+    if (input.pageObservationIds && !input.pageObservationIds.includes(pageId)) {
+      return failedTool(`没有观察 ${pageId}`, "invalid_arguments");
+    }
+    return result(JSON.stringify({ ok: true, pageId, cleared: true }),
+      [{ type: "page.clear_result", pageId }]);
   }
   if (name === "catalog.add") {
     const names = [...new Set(asStringArray(args.names))];

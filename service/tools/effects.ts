@@ -10,6 +10,7 @@ export type ToolEffect =
   | { type: "memory.append"; entries: { layer: MemoryLayer; text: string }[] }
   | { type: "tools.enable"; names: string[] }
   | { type: "page.set"; page: CurrentPage; result: Record<string, unknown> }
+  | { type: "page.clear_result"; pageId: string }
   | { type: "turn.ask"; question: string }
   | { type: "turn.reply"; text: string }
   | { type: "queue.clear" };

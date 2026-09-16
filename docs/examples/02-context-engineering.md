@@ -60,7 +60,8 @@
     "context.query",
     "memory.write",
     "notes.write",
-    "notes.delete"
+    "notes.delete",
+    "page.clear_result"
   ],
   "toolIds": [
     "page.get_summary",

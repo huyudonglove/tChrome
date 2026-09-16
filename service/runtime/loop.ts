@@ -172,6 +172,7 @@ const runQueue = async (input: {
         goalContext: { goals: ledger.goals, currentGoalId: ledger.currentGoalId, turnId: turn.turnId, sourceCallId: item.callId },
         host,
         signal: input.signal,
+        pageObservationIds: turn.assembled.pageObservedHistory.map((row) => row.id),
         queryContext: args => queryContext({ dataDir, conversationId: ledger.conversationId, repoRoot: input.repoRoot, provider: input.provider, ...args, isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId) }),
         lookup: {
           knownTools: Object.keys(toolRegistry.tools),

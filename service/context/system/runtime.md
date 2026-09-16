@@ -7,3 +7,5 @@ Runtime 在每次请求主模型前装配上下文，并管理发送预算。Sys
 被外置的模块或单条记录变成 contextFile，其中 path 是绝对路径，chars 是原文字符数，format 是 json 或 text。文件里保留完整正文。需要查看时，先用 catalog.add 加载 local.fs_read，再用 offset 和 limit 按字节读取所需部分，根据返回的 nextOffset 继续读取，避免一次读回全文。
 
 截图工具返回图片 ID 和本地路径。Runtime 将最近一次工具调用批次中的图片附到下一次模型请求，并标注调用 ID 与图片 ID；同批多张图片按标识对应观察。更早批次的图片只保留路径，路径本身不是视觉内容。本次没有产生图片时不附带历史图片。只有附带的图片可供观察，不能仅凭路径判断内容；需要确认当前画面时重新截图。
+
+一次模型返回的多个 tool_calls 共用一个 batchId。凡带 tabId 的调用，无论成功或失败，完整返回都追加到 #pageObservedHistory（含 batchId、type 与 result）；#toolIO 对同一 callId 只保留 pageObservationId，不重复整段返回。#lastAction 在每批工具处理完后替换为上一批的 callId/name 摘要，供下一次请求快速对照，不累积历史。需要减负时用常驻 page.clear_result 按 pageId 清空某项 result，清空后 result 为 {ok:true,cleared:true}，身份字段保留，本地归档不删。

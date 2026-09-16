@@ -1,0 +1,28 @@
+{
+  "type": "function",
+  "function": {
+    "name": "page.clear_result",
+    "description": "清空 #pageObservedHistory 中指定观察的 result 正文，保留 id、callId、batchId、tabId、type 身份字段，减轻上下文占用。\n参数：必填 pageId（page_01 格式观察编号）。\n返回：ok、pageId、cleared。清空后该项 result 变为 {\"ok\":true,\"cleared\":true}，便于识别已删除；不删除本地归档，也不修改 #toolIO 指针。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean"
+        },
+        "pageId": {
+          "type": "string",
+          "description": "要清空 result 的观察编号，从 #pageObservedHistory 取得。"
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage",
+        "pageId"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

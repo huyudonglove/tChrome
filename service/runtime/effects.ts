@@ -77,6 +77,16 @@ export function applyToolEffects(input: {
         turn.assembled.pageObservedHistory.push(record);
         break;
       }
+      case "page.clear_result": {
+        const index = turn.assembled.pageObservedHistory.findIndex((item) => item.id === effect.pageId);
+        if (index === -1) throw new Error(`没有观察 ${effect.pageId}`);
+        // Window-only: keep identity fields, mark cleared; local context-records stay intact.
+        turn.assembled.pageObservedHistory[index] = {
+          ...turn.assembled.pageObservedHistory[index]!,
+          result: { ok: true, cleared: true },
+        };
+        break;
+      }
       case "turn.ask":
         turn.status = "waiting_human";
         turn.completedAt = nowIso();
