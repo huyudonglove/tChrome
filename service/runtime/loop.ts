@@ -490,6 +490,22 @@ export async function handleTurn(
             host,
           });
           if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId, ledger.status)) return stoppedReply(ledger, turn);
+          if (batchId) {
+            const observationByCall = new Map(
+              turn.assembled.pageObservedHistory
+                .filter((item) => item.turnId === turn.turnId)
+                .map((item) => [item.callId, item.id] as const),
+            );
+            ledger.lastAction = {
+              batchId,
+              turnId,
+              calls: result.toolCalls.map((call) => ({
+                callId: call.id,
+                name: call.name,
+                ...(observationByCall.has(call.id) ? { pageObservationId: observationByCall.get(call.id)! } : {}),
+              })),
+            };
+          }
           saveTurn(deps.dataDir, turn);
           saveLedger(deps.dataDir, ledger);
           if (closed) {
@@ -568,6 +584,22 @@ export async function handleTurn(
         host,
       });
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId, ledger.status)) return stoppedReply(ledger, turn);
+      if (batchId) {
+        const observationByCall = new Map(
+          turn.assembled.pageObservedHistory
+            .filter((item) => item.turnId === turn.turnId)
+            .map((item) => [item.callId, item.id] as const),
+        );
+        ledger.lastAction = {
+          batchId,
+          turnId,
+          calls: result.toolCalls.map((call) => ({
+            callId: call.id,
+            name: call.name,
+            ...(observationByCall.has(call.id) ? { pageObservationId: observationByCall.get(call.id)! } : {}),
+          })),
+        };
+      }
       saveTurn(deps.dataDir, turn);
       saveLedger(deps.dataDir, ledger);
       if (closed) {

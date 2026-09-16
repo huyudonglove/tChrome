@@ -32,11 +32,19 @@ export type PageObservation = {
   turnId: string;
   observedAt: string;
   callId: string;
+  batchId?: string;
   tabId: number;
   /** Tool name that produced this observation, e.g. page.get_summary. */
   type: string;
   /** Full tool return for this observation call. */
   result: unknown;
+};
+
+/** Most recent model-returned tool batch; replaced before the next model request. */
+export type LastAction = {
+  batchId: string;
+  turnId: string;
+  calls: { callId: string; name: string; pageObservationId?: string }[];
 };
 
 export type TabItem = { tabId: number; url: string; title: string; active: boolean };
@@ -115,6 +123,7 @@ export type Ledger = {
   toolQueue: ToolQueueItem[];
   liveTool: { name: string; callId: string } | null;
   toolIO: ToolIOItem[];
+  lastAction: LastAction | null;
   notes: Record<string, string>;
   currentQuery: QueryEvidence | null;
   queryHistory: QueryEvidence[];

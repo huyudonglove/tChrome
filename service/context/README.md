@@ -59,7 +59,8 @@ Ledger.goals 保存目标的最新状态，currentGoalId 指向当前选择；#g
 | userInput / userInputHistory | id、turnId、userInput |
 | goal / goalHistory | goal 为 currentGoalId 与 goals；目标记录含 id、parentId、status、turnId、sourceCallId、goal；goalHistory 为已结束目标记录数组 |
 | openTabs | 每次主模型请求前刷新所有普通窗口，按 windowId / focused 分组展示 tabId、url、title、active；失败显式返回 error |
-| pageObservedHistory | 页面观察统一数组（旧→新）：id、turnId、callId、tabId、type（工具名）、result（完整返回） |
+| pageObservedHistory | 页面观察统一数组（旧→新）：id、turnId、callId、batchId、tabId、type（工具名）、result（完整返回） |
+| lastAction | 上一次模型返回工具批次的替换摘要：batchId、turnId、calls[{callId,name,pageObservationId?}] |
 | conversationMemory / projectMemory | memoryId、turnId、sourceCallId、text；长期记忆有来源会话时保留 sourceConversationId |
 | toolIO | callId、turnId、可选 batchId、name、arguments 和解析后的 return |
 | conversationHistorySummary | sumId、turnId、tag、userRequest、actions、result |

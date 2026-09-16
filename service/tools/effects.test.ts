@@ -134,7 +134,7 @@ test("closing effects persist lifecycle changes; empty replies request another i
   expect(empty.text).toContain("finishTurn 的回复为空");
 });
 
-test("browser page metadata becomes a typed effect; failed results cannot replace the current page", async () => {
+test("browser page metadata becomes a typed effect; failed tab calls log observations without replacing the current page", async () => {
   const fixture = setup();
   const execution = await fixture.execute("page.click", { reason: "查看详情", affectsPage: true, tabId: 7 }, {
     browserNames: ["page.click"], host: { execute: async (_name, args) => {
@@ -144,10 +144,48 @@ test("browser page metadata becomes a typed effect; failed results cannot replac
   });
   fixture.apply(execution);
   expect(loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId).assembled.currentPage?.title).toBe("详情");
-  const failed = await fixture.execute("page.click", {}, {
-    browserNames: ["page.click"], host: { execute: async () => ({ ok: false, tabId: 8, error: "closed" }) },
+  const failed = await fixture.execute("page.click", { reason: "再点", affectsPage: true, tabId: 7 }, {
+    browserNames: ["page.click"], host: { execute: async () => ({ ok: false, tabId: 7, error: "closed" }) },
   });
-  expect(failed.effects).toEqual([]);
+  applyToolEffects({
+    dataDir: fixture.dataDir, ledger: fixture.ledger, turn: fixture.turn,
+    call: { callId: "call_fail", name: "page.click", arguments: {} },
+    effects: failed.effects,
+  });
+  const after = loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId);
+  expect(after.assembled.pageObservedHistory).toHaveLength(2);
+  expect(after.assembled.pageObservedHistory[1]).toMatchObject({
+    callId: "call_fail", type: "page.click",
+    result: { ok: false, tabId: 7, error: "closed" },
+  });
+  expect(after.assembled.currentPage?.title).toBe("详情");
+});
+
+test("successful tab-targeted calls without url still enter page observations", async () => {
+  const fixture = setup();
+  fixture.turn.assembled.currentPage = {
+    tabId: 1, url: "https://example.test/input", title: "发话页面", description: "发送消息时的标签快照",
+  };
+  const execution = await fixture.execute("capture_page", { reason: "截图", affectsPage: false, mode: "viewport", tabId: 1 }, {
+    browserNames: ["capture_page"], host: { execute: async () => ({
+      ok: true, tabId: 1, image: "data:image/jpeg;base64,xx", mime: "image/jpeg", image_size: [10, 10],
+    }) },
+  });
+  applyToolEffects({
+    dataDir: fixture.dataDir, ledger: fixture.ledger, turn: fixture.turn,
+    call: { callId: "call_shot", name: "capture_page", arguments: {} },
+    effects: execution.effects,
+  });
+  const turn = loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId);
+  expect(turn.assembled.pageObservedHistory).toHaveLength(1);
+  expect(turn.assembled.pageObservedHistory[0]).toMatchObject({
+    tabId: 1, type: "capture_page", callId: "call_shot",
+    result: { ok: true, tabId: 1, image: "data:image/jpeg;base64,xx" },
+  });
+  // Previous page identity is kept when the call did not return url/title.
+  expect(turn.assembled.currentPage).toMatchObject({
+    tabId: 1, url: "https://example.test/input", title: "发话页面",
+  });
 });
 
 test("page effects update the current page and persist observations in chronological order", () => {

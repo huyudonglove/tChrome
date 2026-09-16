@@ -11,7 +11,10 @@ export function toolHistoryView(records: ToolIOItem[], observations: PageObserva
     let result = resultView(record.return.text);
     const observation = byCall.get(`${record.turnId}:${record.callId}`);
     if (observation && record.return.stage === "complete") {
-      result = { ok: true, pageObservationId: observation.id };
+      const observedOk = observation.result && typeof observation.result === "object" && "ok" in observation.result
+        ? Boolean((observation.result as { ok?: unknown }).ok)
+        : true;
+      result = { ok: observedOk, pageObservationId: observation.id };
     }
     return {
       callId: record.callId,

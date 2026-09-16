@@ -69,6 +69,7 @@
     "#conversationMemory",
     "#notes",
     "#toolIO",
+    "#lastAction",
     "#queryHistory",
     "#currentQuery",
     "#tools"
@@ -294,6 +295,7 @@
     "#conversationMemory",
     "#notes",
     "#toolIO",
+    "#lastAction",
     "#queryHistory",
     "#currentQuery",
     "#tools"

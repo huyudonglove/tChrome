@@ -288,6 +288,19 @@
         }
       ]
     },
+    "lastAction": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/lastAction"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/contextFileReference"
+        }
+      ]
+    },
     "queryHistory": {
       "anyOf": [
         {
@@ -342,6 +355,7 @@
     "conversationMemory",
     "notes",
     "toolIO",
+    "lastAction",
     "queryHistory",
     "currentQuery",
     "tools"
@@ -471,6 +485,9 @@
         "callId": {
           "$ref": "#/$defs/callId"
         },
+        "batchId": {
+          "$ref": "#/$defs/batchId"
+        },
         "tabId": {
           "type": "integer"
         },
@@ -486,6 +503,45 @@
         "tabId",
         "type",
         "result"
+      ],
+      "additionalProperties": false
+    },
+    "lastAction": {
+      "type": "object",
+      "properties": {
+        "batchId": {
+          "$ref": "#/$defs/batchId"
+        },
+        "turnId": {
+          "$ref": "#/$defs/turnId"
+        },
+        "calls": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "callId": {
+                "$ref": "#/$defs/callId"
+              },
+              "name": {
+                "type": "string"
+              },
+              "pageObservationId": {
+                "$ref": "#/$defs/pageId"
+              }
+            },
+            "required": [
+              "callId",
+              "name"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "batchId",
+        "turnId",
+        "calls"
       ],
       "additionalProperties": false
     },

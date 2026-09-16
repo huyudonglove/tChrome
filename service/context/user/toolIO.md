@@ -25,16 +25,7 @@ Sample（仅示例，不是当前记录）：
           "stage": "complete",
           "result": {
             "ok": true,
-            "title": "记录列表",
-            "url": "https://example.com/list",
-            "regionCount": 1,
-            "interactiveCount": 2,
-            "headings": [
-              "记录列表"
-            ],
-            "landmarkNames": [
-              "main"
-            ]
+            "pageObservationId": "page_01"
           }
         }
       }

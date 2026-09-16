@@ -69,6 +69,7 @@
     "#conversationMemory",
     "#notes",
     "#toolIO",
+    "#lastAction",
     "#queryHistory",
     "#currentQuery",
     "#tools"
@@ -222,7 +223,7 @@ turnId 用来关联一轮用户请求、工具操作和结果。查询结果最�
 
 affectsPage 表示是否改变浏览器页面状态：点击、输入、导航等填 true；读取、查询、本地保存等填 false。字段是否必填、是否只能取某个值，以工具 schema 为准。false 不代表没有实际影响，例如本地保存和网络写入仍需符合用户授权。
 
-从 #openTabs 或工具结果中取得 tabId、windowId，从 #pageObservedHistory 或 #toolIO 的观察结果中取得 ref、id、regionId。使用目标工具要求的编号，不编造。操作页面时明确传 tabId，操作窗口时明确传 windowId。目标失效就处理错误，不能换成用户前台页面继续操作。bind_tab 只检查标签是否可用，不会记住目标供后续调用省略 tabId。
+从 #openTabs 或工具结果中取得 tabId、windowId。元素 id、regionId 从 #pageObservedHistory 中对应观察的 result 里取得；#toolIO 里产生观察的调用只有 pageObservationId，细节看观察数组。使用目标工具要求的编号，不编造。操作页面时明确传 tabId，操作窗口时明确传 windowId。目标失效就处理错误，不能换成用户前台页面继续操作。bind_tab 只检查标签是否可用，不会记住目标供后续调用省略 tabId。
 
 新标签在指定窗口后台打开，新窗口默认不获取焦点，截图在指定标签后台完成。duplicate_tab 使用 Chrome 原生复制，会激活复制出的标签。其他需要切到前台的操作，明确调用切换工具。
 
@@ -336,7 +337,7 @@ Sample（仅示例，不是当前记录）：
     ]
 
 #openTabs --【Open Tabs】
-每次请求主模型前获取的所有普通浏览器窗口及标签快照。ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察见 #pageObservedHistory 和 #toolIO。
+每次请求主模型前获取的所有普通浏览器窗口及标签快照。ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 #pageObservedHistory。
 
 Sample（仅示例，不是当前记录）：
 
@@ -372,12 +373,25 @@ Failure Sample（仅示例）：
     }
 
 #pageObservedHistory --【Page Observation History】
-实际页面观察，包含最新一次观察，按旧到新排列。id 标识快照，callId 关联来源调用；tabId、url、title、description 描述当时页面。这里只记录观察轨迹，不是完整导航历史，也不代表当前状态。更早观察可通过 context.query 回查。
+页面观察操作的统一数组，按旧到新排列，最新在末尾。凡带 tabId 的操作（含 page.*、导航、截图、在标签内执行的脚本等），无论成功或失败，都会追加一项：id 标识观察，callId 关联来源调用，tabId 是目标标签，type 是产生观察的工具名，result 是该次工具完整返回（含 ok/false 与错误信息）。这里集中保存观察结果；#toolIO 中对同一 callId 只保留 pageObservationId 引用，不重复整段返回。更早观察可通过 context.query 回查。不自动代表页面当前状态。
 
 Sample（仅示例，不是当前记录）：
 
     [
-      {"id":"page_01","turnId":"tn_01","callId":"call_02","tabId":102,"url":"https://example.com/help","title":"导出帮助","description":"页面说明支持导出 CSV"}
+      {
+        "id": "page_01",
+        "turnId": "tn_01",
+        "callId": "call_02",
+        "tabId": 102,
+        "type": "page.get_summary",
+        "result": {
+          "ok": true,
+          "tabId": 102,
+          "title": "导出帮助",
+          "url": "https://example.com/help",
+          "description": "页面说明支持导出 CSV"
+        }
+      }
     ]
 
 #projectMemory --【Long-Term Memory, Cross-Conversation Context】
@@ -408,7 +422,7 @@ Sample（仅示例，不是当前记录）：
     }
 
 #toolIO --【Execution Evidence, Error Details】
-按旧到新排列的工具调用和返回。callId 标识调用，batchId 标识同批调用；模型看到的投影字段中，name、arguments、return.result 分别是工具名、参数和结果（底层归档的原始返回正文使用 return.text）。业务 ID、控件 ref 和标签 tabId 不与 callId 混用。pageObservationId 引用 #pageObservedHistory 中的观察，代替重复的 description。
+按旧到新排列的工具调用和返回。callId 标识调用，batchId 标识同批调用；模型看到的投影字段中，name、arguments、return.result 分别是工具名、参数和结果（底层归档的原始返回正文使用 return.text）。业务 ID、控件 ref 和标签 tabId 不与 callId 混用。产生页面观察的调用，return.result 只含 ok 与 pageObservationId；完整观察结果见 #pageObservedHistory 对应项。
 
 工具执行或效果写入失败也作为结果返回，模型据此继续判断；部分写入可能已生效，应先核对状态。根据返回的 ok、faultCode、message、recovery、details 及业务状态判断结果。recovery=correct_arguments 时，根据 details 和工具 schema 自行修正调用参数，补齐必填项并满足类型和分支约束，再发起调用；不重复提交相同错误，也不要求用户修正工具参数。recovery=inspect_state 时先检查实际状态，避免重复已生效的操作；只有需要用户提供信息或授权时才请求用户处理。arguments 保留完整调用参数，包括 affectsPage，便于核对错误和成功调用。
 
@@ -431,20 +445,25 @@ Sample（仅示例，不是当前记录）：
           "stage": "complete",
           "result": {
             "ok": true,
-            "title": "记录列表",
-            "url": "https://example.com/list",
-            "regionCount": 1,
-            "interactiveCount": 2,
-            "headings": [
-              "记录列表"
-            ],
-            "landmarkNames": [
-              "main"
-            ]
+            "pageObservationId": "page_01"
           }
         }
       }
     ]
+
+#lastAction --【Last Tool Batch】
+上一次模型返回并已处理的工具批次摘要，每次请求前替换，不累积。batchId 标识该批，turnId 标识所属轮次，calls 按执行顺序列出 callId 与工具名；若该调用产生了页面观察，则附 pageObservationId。用于快速回忆「上一步做了哪些调用」，细节仍看 #toolIO 与 #pageObservedHistory。尚无工具批次时为 null。
+
+Sample（仅示例，不是当前记录）：
+
+    {
+      "batchId": "batch_02",
+      "turnId": "tn_02",
+      "calls": [
+        { "callId": "call_03", "name": "page.get_summary", "pageObservationId": "page_01" },
+        { "callId": "call_04", "name": "page.click" }
+      ]
+    }
 
 #queryHistory --【Query History, Retrieved Evidence】
 按旧到新排列的历史查询，字段和分页语义同 #currentQuery。用于了解当时查了什么、返回了哪些原文；回查不等于重新执行或验证历史操作。
@@ -493,7 +512,7 @@ Sample（文本格式，仅示例）：
 
 ## 网页观察与操作
 
-按下一步需要，从页面概况缩小到相关区域或控件；目标明确、证据足够时直接操作。
+按下一步需要，从页面概况缩小到相关区域或控件；目标明确、证据足够时直接操作。凡是带 tabId 的操作（page.*、open_url、截图、标签内脚本等），成功或失败都会追加到 #pageObservedHistory，type 为工具名、result 为完整返回；#toolIO 里同一次调用只有 pageObservationId。取元素 id、regionId 时看观察数组中对应项的 result。
 
 元素和区域 id 是按可见节点顺序生成的临时编号。导航、节点增删或顺序变化后重新获取；确认变化不影响编号时可复用，单纯切回标签无需重新观察。
 
@@ -573,6 +592,10 @@ Canvas、WebGL、游戏等结果依赖画面的任务，JS 探针用于辅助定
 #toolIO
 
 []
+
+#lastAction
+
+null
 
 #queryHistory
 
@@ -1002,6 +1025,7 @@ null
     "#conversationMemory",
     "#notes",
     "#toolIO",
+    "#lastAction",
     "#queryHistory",
     "#currentQuery",
     "#tools"

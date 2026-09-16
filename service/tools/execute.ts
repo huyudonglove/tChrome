@@ -18,6 +18,7 @@ export function asStringArray(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
 }
 
+/** Any call that targets a tab is a page observation, including failures; url/title are optional. */
 export const pageFromBrowser = (result: {
   ok?: boolean;
   tabId?: number | null;
@@ -25,16 +26,13 @@ export const pageFromBrowser = (result: {
   title?: string;
   description?: string;
 }): CurrentPage | null => {
-  if (!result.ok) return null;
   const tabId = Number(result.tabId);
   if (!Number.isFinite(tabId) || tabId < 1) return null;
-  // A target tabId alone (for example a JavaScript value) is not a page observation.
-  if (typeof result.url !== "string" || !result.url || typeof result.title !== "string") return null;
   return {
     description: result.description || "当前页面信息",
     tabId,
-    url: String(result.url ?? ""),
-    title: String(result.title ?? ""),
+    url: typeof result.url === "string" ? result.url : "",
+    title: typeof result.title === "string" ? result.title : "",
   };
 };
 

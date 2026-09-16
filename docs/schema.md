@@ -177,7 +177,7 @@ Runtime 独占维护。当前会话指针。
 | `mcpIds` | string[] | 本轮 MCP；没有就 `[]` |
 | `openTabs` | object | 每次请求主模型前刷新；成功为 `{ok:true, windows:[{windowId, focused, tabs:[{tabId, url, title, active}]}]}`，失败为 `{ok:false, error}`；注入 `#openTabs` |
 | `currentPage` | object \| null | 内部保存最近实际页面观察，初始 null，由有效页面工具返回更新；不再单独注入插槽 |
-| `pageObservedHistory` | object[] | 内部工具页面观察，初始 `[]`，按旧到新追加，包含最新一次观察。每条带稳定 id、turnId、页面字段及 observedAt、callId、toolName。注入 `#pageObservedHistory` 时保留最新观察 |
+| `pageObservedHistory` | object[] | 页面观察统一数组，初始 `[]`，按旧到新追加。每条：id、turnId、callId、batchId?、tabId、type（工具名）、result（完整返回）；存储另含 observedAt。注入 `#pageObservedHistory` 时保留完整 result |
 
 `currentPage`：
 
@@ -279,7 +279,7 @@ System #baseTools 展示常驻能力导航，User #tools 展示本会话已加�
 
 常驻 `context.query(sumId, module, intent, cursor?)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，查询 Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将对应记录放入 currentQuery；工具返回只含状态和引用。每次 records 的紧凑 JSON 最多 2000 字符；超出返回 partial 与 nextCursor，可带原查询参数和 cursor 继续读取，无需再次调用查询 Agent。超大单条保留身份字段及 fragment:{offset,totalChars,text}，text 是原记录 JSON 的连续片段，不是摘要。查询不会刷新页面。
 
-工具窗口投影使用 {callId, turnId, batchId?, name, arguments, return: {stage, result}}，arguments 隐藏 affectsPage，保留 reason 与操作参数。result 对合法 JSON 解析一次，普通文本和截断文本保持原样。callId 标识调用，turnId 标识所属轮次，batchId 标识工具批次；totalChars 不注入主模型，操作用 tabId、控件引用及错误详情仍保留。与 pageObservedHistory 中已展示观察完全相同的 description 用 pageObservationId 引用替代，其他结果字段不变；本地原始返回保持完整。
+工具窗口投影使用 {callId, turnId, batchId?, name, arguments, return: {stage, result}}，arguments 隐藏 affectsPage，保留 reason 与操作参数。result 对合法 JSON 解析一次，普通文本和截断文本保持原样。callId 标识调用，turnId 标识所属轮次，batchId 标识工具批次；totalChars 不注入主模型，操作用 tabId、控件引用及错误详情仍保留。与 pageObservedHistory 中同一 turnId+callId 的观察对应时，return.result 只保留 {ok, pageObservationId}，完整观察结果只出现在 #pageObservedHistory；本地原始返回保持完整。
 
 ## 阶段快照
 

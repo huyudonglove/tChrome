@@ -58,7 +58,7 @@ test.each([{ name: "finishTurn", field: "text" }, { name: "askUser", field: "que
   },
 );
 
-test("JavaScript values with only a target tabId do not overwrite the current page", async () => {
+test("JavaScript values with a target tabId are recorded as page observations", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "script-execute-"));
   try {
     expect((await patchScript(dataDir, { filename: "value.js", patch: "--- /dev/null\n+++ b/value.js\n@@ -0,0 +1 @@\n+1 + 1\n" })).ok).toBe(true);
@@ -71,6 +71,10 @@ test("JavaScript values with only a target tabId do not overwrite the current pa
       lookup: { unusedTools: [], knownTools: [], enabledTools: [] },
     });
     expect(JSON.parse(execution.text)).toMatchObject({ ok: true, value: 2 });
-    expect(execution.effects).toEqual([]);
+    expect(execution.effects).toEqual([{
+      type: "page.set",
+      page: { tabId: 7, url: "", title: "", description: "当前页面信息" },
+      result: { ok: true, tabId: 7, type: "number", value: 2 },
+    }]);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });

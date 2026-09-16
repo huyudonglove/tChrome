@@ -363,6 +363,13 @@ test("Gemini grounding 写入 toolIO 但不进入执行队列或 usage.toolCalls
       sources: [{ title: "Logitech", uri: "https://www.logitech.com/mx-master-3s" }],
     });
     expect(ledger.toolQueue).toEqual([]);
+    expect(ledger.lastAction).toEqual({
+      batchId: "batch_01",
+      turnId: reply.turnId,
+      calls: [
+        { callId: "call_03", name: "finishTurn" },
+      ],
+    });
     const turn = loadTurn(dir, "cv_01", reply.turnId);
     // Only the Runtime-executed finishTurn counts; provider-side search does not.
     expect(turn.usage?.toolCalls).toBe(1);

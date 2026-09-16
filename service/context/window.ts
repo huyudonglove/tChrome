@@ -1,7 +1,7 @@
 import type { Ledger, Turn } from "../types.ts";
 import { interpolate, renderInventory, renderSlots, type ContextModules } from "./modules.ts";
 
-import { goalHistoryView, goalView, inputHistoryView, pageView, turnSummaryView, type TurnSummary } from "./projections/records.ts";
+import { goalHistoryView, goalView, inputHistoryView, lastActionView, pageView, turnSummaryView, type TurnSummary } from "./projections/records.ts";
 import { toolHistoryView } from "./projections/tools.ts";
 import { queryView, type QueryEvidence } from "./projections/queries.ts";
 import { externalizeContext } from "./overflow.ts";
@@ -42,6 +42,7 @@ export function userText(input: {
     "#openTabs": jsonBody(turn.assembled.openTabs),
     "#pageObservedHistory": jsonBody(pageHistory.map(pageView)),
     "#toolIO": jsonBody(toolHistoryView(ledger.toolIO, pages)),
+    "#lastAction": jsonBody(lastActionView(ledger.lastAction ?? null)),
     "#queryHistory": jsonBody((input.queryHistory ?? []).map(queryView)),
     "#currentQuery": jsonBody(input.currentQuery ? queryView(input.currentQuery) : null),
     "#tools": input.toolGuide ?? "",

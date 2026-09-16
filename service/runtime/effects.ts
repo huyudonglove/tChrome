@@ -58,12 +58,22 @@ export function applyToolEffects(input: {
           turnId: turn.turnId,
           observedAt: nowIso(),
           callId: call.callId,
+          ...(call.batchId ? { batchId: call.batchId } : {}),
           tabId: effect.page.tabId,
           type: call.name,
           result: effect.result,
         };
         saveContextRecord(dataDir, ledger.conversationId, "pageObservation", record);
-        turn.assembled.currentPage = effect.page;
+        // Failures stay in the observation log but do not replace the current page identity.
+        if (effect.result.ok) {
+          const previous = turn.assembled.currentPage;
+          turn.assembled.currentPage = {
+            tabId: effect.page.tabId,
+            url: effect.page.url || previous?.url || "",
+            title: effect.page.title || previous?.title || "",
+            description: effect.page.description || previous?.description || "当前页面信息",
+          };
+        }
         turn.assembled.pageObservedHistory.push(record);
         break;
       }

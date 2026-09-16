@@ -15,7 +15,12 @@ test("browser timeout preserves tabId and advises inspection without replay", as
   const execution = await executeTool({ ...input, name: "page.click", arguments: {}, browserNames: ["page.click"], host: { execute: async () => { calls++; return { ok: false, faultCode: "tool_timeout", tabId: 7, error: "diagnostic" }; } } });
   expect(JSON.parse(execution.text)).toMatchObject({ ok: false, faultCode: "tool_timeout", recovery: "inspect_state", tabId: 7, details: { reason: "diagnostic" } });
   expect(calls).toBe(1);
-  expect(execution.effects).toEqual([]);
+  // Failed tab-targeted calls still log a page observation.
+  expect(execution.effects).toEqual([{
+    type: "page.set",
+    page: { tabId: 7, url: "", title: "", description: "当前页面信息" },
+    result: { ok: false, faultCode: "tool_timeout", tabId: 7, error: "diagnostic" },
+  }]);
 });
 
 test("HTTP batch normalizes failures and retains successful rows and effects", () => {

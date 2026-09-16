@@ -12,6 +12,7 @@
 10. conversationMemory
 11. notes
 12. toolIO
-13. queryHistory
-14. currentQuery
-15. tools
+13. lastAction
+14. queryHistory
+15. currentQuery
+16. tools
