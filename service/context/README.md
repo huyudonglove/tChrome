@@ -59,13 +59,13 @@ Ledger.goals 保存目标的最新状态，currentGoalId 指向当前选择；#g
 | userInput / userInputHistory | id、turnId、userInput |
 | goal / goalHistory | goal 为 currentGoalId 与 goals；目标记录含 id、parentId、status、turnId、sourceCallId、goal；goalHistory 为已结束目标记录数组 |
 | openTabs | 每次主模型请求前刷新所有普通窗口，按 windowId / focused 分组展示 tabId、url、title、active；失败显式返回 error |
-| pageObservedHistory | 包含最新观察的 id、turnId、callId，以及 tabId、url、title、description |
+| pageObservedHistory | 页面观察统一数组（旧→新）：id、turnId、callId、tabId、type（工具名）、result（完整返回） |
 | conversationMemory / projectMemory | memoryId、turnId、sourceCallId、text；长期记忆有来源会话时保留 sourceConversationId |
 | toolIO | callId、turnId、可选 batchId、name、arguments 和解析后的 return |
 | conversationHistorySummary | sumId、turnId、tag、userRequest、actions、result |
 | currentQuery / queryHistory | queryId、发起查询的 turnId、sumId、module、intent、status、records；records 直接保留原模块记录和身份字段，不包装 id/content |
 
-openTabs 展示标签快照，pageObservedHistory 展示实际页面观察（包含最新一次）。toolIO 中与已展示观察完全相同的 description 替换为 pageObservationId 引用，保留其他返回字段；本地原文保持完整。过程展示仅取 arguments.reason，最终 text/question 来自相应收口工具参数，不使用 content 回退。
+openTabs 展示标签快照，pageObservedHistory 集中展示页面观察结果（含最新一次）。toolIO 中产生观察的调用只保留 pageObservationId 引用，完整 result 放在 #pageObservedHistory；本地 toolIO 原文仍完整保留。过程展示仅取 arguments.reason，最终 text/question 来自相应收口工具参数，不使用 content 回退。
 
 页面控件引用及工具参数中的业务 ID 继续保留；它们与观察 ID、调用 ID 各自承担不同的定位职责。notes 使用 key 标识条目，工具定义使用工具名，无需新增通用记录 ID。
 

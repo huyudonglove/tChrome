@@ -9,7 +9,7 @@ export type ToolEffect =
   | { type: "note.delete"; key: string }
   | { type: "memory.append"; entries: { layer: MemoryLayer; text: string }[] }
   | { type: "tools.enable"; names: string[] }
-  | { type: "page.set"; page: CurrentPage }
+  | { type: "page.set"; page: CurrentPage; result: Record<string, unknown> }
   | { type: "turn.ask"; question: string }
   | { type: "turn.reply"; text: string }
   | { type: "queue.clear" };

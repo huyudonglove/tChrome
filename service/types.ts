@@ -27,12 +27,16 @@ export type GoalRecord = {
   updatedAt: string;
 };
 
-export type PageObservation = CurrentPage & {
+export type PageObservation = {
   id: string;
   turnId: string;
   observedAt: string;
   callId: string;
-  toolName: string;
+  tabId: number;
+  /** Tool name that produced this observation, e.g. page.get_summary. */
+  type: string;
+  /** Full tool return for this observation call. */
+  result: unknown;
 };
 
 export type TabItem = { tabId: number; url: string; title: string; active: boolean };
@@ -132,11 +136,19 @@ export type ToolCallFault = {
   detail: string;
 };
 
+/** Provider-side search evidence (e.g. Gemini google_search). Never executed by Runtime. */
+export type ProviderGrounding = {
+  name: string;
+  queries: string[];
+  sources: { title: string; uri: string }[];
+};
+
 export type CompletionResult = {
   finish: "tool_calls" | "stop" | "error";
   content: string;
   toolCalls: ToolCall[];
   toolCallFaults?: ToolCallFault[];
+  grounding?: ProviderGrounding;
   attempts: number;
   parseOk: boolean;
   schemaOk: boolean;

@@ -1,4 +1,4 @@
-import type { CurrentPage, GoalRecord, PageObservation, UserInputRecord } from "../../types.ts";
+import type { GoalRecord, PageObservation, UserInputRecord } from "../../types.ts";
 
 // Select model-facing fields without changing archival records.
 export const inputHistoryView = (records: UserInputRecord[]) => records.map(({ id, turnId, userInput }) => ({ id, turnId, userInput }));
@@ -9,7 +9,14 @@ export const goalView = (records: GoalRecord[], currentGoalId: string | null) =>
   return { currentGoalId, goals: records.filter(row => ids.has(row.id)).map(goalRecordView) };
 };
 export const goalHistoryView = (records: GoalRecord[]) => records.filter(row => row.status !== "active").map(goalRecordView);
-export const pageView = (page: CurrentPage & Partial<PageObservation>) => ({ id: page.id, turnId: page.turnId, callId: page.callId, tabId: page.tabId, url: page.url, title: page.title, description: page.description });
+export const pageView = (page: PageObservation) => ({
+  id: page.id,
+  turnId: page.turnId,
+  callId: page.callId,
+  tabId: page.tabId,
+  type: page.type,
+  result: page.result,
+});
 
 
 export type TurnSummary = { id: string; turnId: string; tag: string; userRequest: string; actions: string; result: string };

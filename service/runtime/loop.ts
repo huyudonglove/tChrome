@@ -413,6 +413,7 @@ export async function handleTurn(
           finish: result.finish,
           content: result.content,
           toolCalls: result.toolCalls,
+          ...(result.grounding ? { grounding: result.grounding } : {}),
           attempts: result.attempts,
           parseOk: result.parseOk,
           schemaOk: result.schemaOk,
@@ -436,6 +437,24 @@ export async function handleTurn(
           data: { output: turn.output },
         });
         return { conversationId: ledger.conversationId, turnId, output: turn.output };
+      }
+      // Gemini google_search (and similar) already ran on the provider side. Record
+      // evidence in toolIO without queueing it for Runtime execution or usage counts.
+      if (result.grounding) {
+        const groundingText = JSON.stringify({
+          ok: true,
+          provider: "gemini",
+          queries: result.grounding.queries,
+          sources: result.grounding.sources,
+        });
+        ledger.toolIO.push({
+          callId: allocateRecordId(deps.dataDir, ledger.conversationId, "call"),
+          turnId,
+          ...(batchId ? { batchId } : {}),
+          name: result.grounding.name,
+          arguments: { reason: "模型侧内置搜索已完成", queries: result.grounding.queries },
+          return: { stage: "complete", totalChars: groundingText.length, text: groundingText },
+        });
       }
       if (!result.parseOk || !result.schemaOk) {
         submitFails += 1;

@@ -43,7 +43,7 @@ HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`�
 
 ## 模型 Provider
 
-`TCHROME_PROVIDER=uuapi`（默认）使用 UUAPI Chat Completions；`TCHROME_PROVIDER=shiningspace` 使用 `https://ai.shiningspace.com:8090/v1/responses` 和 `grok-4.6`。后者密钥配置为 `SHININGSPACE_API_KEY`，推理强度配置为 `SHININGSPACE_REASONING_EFFORT=medium`（默认，支持 low/medium/high）。密钥和推理强度写入被忽略的 `service/.env`，修改后重启服务。会话列表右下角的设置中切换 provider，无需重启，从下一次模型请求起生效，正在发送的请求继续使用原 provider。选择与代理开关一起保存到 `connection.json`，优先于环境变量；`TCHROME_PROVIDER` 仅作为未保存选择时的默认值。两者共用侧栏代理开关。
+`TCHROME_PROVIDER=uuapi`（默认）使用 UUAPI Chat Completions；`TCHROME_PROVIDER=shiningspace` 使用 `https://ai.shiningspace.com:8090/v1/responses` 和 `grok-4.6`；`TCHROME_PROVIDER=gemini` 使用 Google Gemini 原生 `generateContent`（`GEMINI_API_KEY`、默认模型 `gemini-3.8-flash`，可用 `GEMINI_MODEL` 覆盖）。Gemini 适配器把 system 写入 `systemInstruction`，user 写入 `contents`，在 `tools` 中附带内置 `google_search`（`GEMINI_GOOGLE_SEARCH=0` 可关闭）以及与 Chat 相同的 `functionDeclarations`；模型返回的 `functionCall` 分配 `gem_call_` 本地 ID 后进入既有 Runtime 校验。`groundingMetadata` 不并入正文，也不伪装成 tool_calls：Provider 以独立 `grounding` 字段返回，Runtime 分配 `call_` 写入 `toolIO`（name=`google_search`，return 含 queries/sources），不进入执行队列、不计入 `usage.toolCalls`。ShiningSpace 密钥配置为 `SHININGSPACE_API_KEY`，推理强度配置为 `SHININGSPACE_REASONING_EFFORT=medium`（默认，支持 low/medium/high）。密钥和推理强度写入被忽略的 `service/.env`，修改后重启服务。会话列表右下角的设置中切换 provider，无需重启，从下一次模型请求起生效，正在发送的请求继续使用原 provider。选择与代理开关一起保存到 `connection.json`，优先于环境变量；`TCHROME_PROVIDER` 仅作为未保存选择时的默认值。三者共用侧栏代理开关。
 
 Responses 适配器负责文本、图片 input_image、扁平 function schema 和 function_call 返回转换。Runtime 继续统一管理上下文与工具校验；请求使用 store=false，不使用 previous_response_id 串接会话。未完成响应不会执行其中的部分工具调用。
 
@@ -51,7 +51,7 @@ Chat 与 Responses 的失败分类和重试决策统一由 `provider/failures.ts
 
 conversationHistorySummary 展示历史轮次或执行片段的 {tag, userRequest, actions, result}，与近期原文配合阅读。描述进入 System，摘要数据放在当前输入之后。常驻 `context.query(sumId, module, intent, cursor?)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将对应记录放入 currentQuery；工具返回只含状态和引用。每次 records 的紧凑 JSON 最多 2000 字符；超出返回 partial 与 nextCursor，可带原查询参数和 cursor 继续读取，无需再次调用Query Agent。超大单条保留身份字段及 fragment:{offset,totalChars,text}，text 是原记录 JSON 的连续片段，不是摘要。查询不会刷新页面。
 
-输入和页面观察以稳定 ID 写入 context-records；目标最新状态按原 ID 更新至 Ledger.goals，历史变更快照保存在 Turn.goalChanges；记忆保留本地 memoryId。模型投影保留记录 ID、轮次与来源关联以及内容和操作字段，不修改本地记录。记忆投影保留完整文本；归档覆盖由 runtime 管理。openTabs 在每次请求主模型前刷新全部普通窗口及其标签、激活和焦点状态，读取失败显式报告；pageObservedHistory 包含最新实际观察；toolIO 中与已展示观察完全相同的 description 替换为 pageObservationId 引用，其余返回字段保留。
+输入和页面观察以稳定 ID 写入 context-records；目标最新状态按原 ID 更新至 Ledger.goals，历史变更快照保存在 Turn.goalChanges；记忆保留本地 memoryId。模型投影保留记录 ID、轮次与来源关联以及内容和操作字段，不修改本地记录。记忆投影保留完整文本；归档覆盖由 runtime 管理。openTabs 在每次请求主模型前刷新全部普通窗口及其标签、激活和焦点状态，读取失败显式报告；pageObservedHistory 是页面观察统一数组（id、tabId、type、result，旧→新）；toolIO 中产生观察的调用只投影 pageObservationId 引用，完整观察结果只出现在 #pageObservedHistory。
 
 Compression Agent 的每次模型请求独立写入 `conversations/<cvId>/agent-logs/compression/<时间戳>-<唯一标识>.jsonl`。请求发送前记录完整 messages 与 tools；收到后记录 Provider 返回的完整 CompletionResult（正文、工具调用、解析错误等），并记录成功摘要或异常。schema 校验失败包含字段路径、规则和预期类型，轮次覆盖错误包含预期与实际 turnId；会话的 compress-error 附日志路径。日志不包含模型密钥或请求认证头，也不进入主模型上下文。
 

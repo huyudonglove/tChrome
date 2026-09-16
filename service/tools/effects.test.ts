@@ -161,6 +161,10 @@ test("page effects update the current page and persist observations in chronolog
     { tabId: 2, url: "https://example.test/results", title: "搜索结果", description: "找到两个结果" },
     { tabId: 3, url: "https://example.test/detail", title: "详情", description: "已打开结果详情" },
   ];
+  const results = [
+    { ok: true, tabId: 2, url: "https://example.test/results", title: "搜索结果", description: "找到两个结果", headings: ["结果"] },
+    { ok: true, tabId: 3, url: "https://example.test/detail", title: "详情", description: "已打开结果详情", clicked: "打开" },
+  ];
   const calls = [
     { callId: "call_results", name: "page.get_summary", arguments: {} },
     { callId: "call_detail", name: "page.click", arguments: {} },
@@ -169,20 +173,25 @@ test("page effects update the current page and persist observations in chronolog
   for (let index = 0; index < pages.length; index++) {
     applyToolEffects({
       dataDir: fixture.dataDir, ledger: fixture.ledger, turn: fixture.turn,
-      call: calls[index]!, effects: [{ type: "page.set", page: pages[index]! }],
+      call: calls[index]!, effects: [{ type: "page.set", page: pages[index]!, result: results[index]! }],
     });
   }
 
   expect(fixture.turn.assembled.currentPage).toMatchObject(pages[1]!);
   const history = fixture.turn.assembled.pageObservedHistory;
   expect(history).toHaveLength(2);
-  expect(fixture.turn.assembled.currentPage).toEqual(history[1]!);
   expect(history[0]!.id).not.toBe(history[1]!.id);
   for (const record of history) {
     expect(JSON.parse(loadContextRecord(fixture.dataDir, fixture.ledger.conversationId, "pageObservation", record.id)!)).toEqual(record);
   }
-  expect(history).toEqual(pages.map((page, index) => ({
-    ...page, id: expect.any(String), turnId: fixture.turn.turnId, observedAt: expect.any(String), callId: calls[index]!.callId, toolName: calls[index]!.name,
+  expect(history).toEqual(results.map((result, index) => ({
+    id: expect.any(String),
+    turnId: fixture.turn.turnId,
+    observedAt: expect.any(String),
+    callId: calls[index]!.callId,
+    tabId: pages[index]!.tabId,
+    type: calls[index]!.name,
+    result,
   })));
   const observedTimes = history.map((page) => Date.parse(page.observedAt));
   expect(observedTimes[0]!).toBeGreaterThanOrEqual(startedAt);

@@ -474,27 +474,18 @@
         "tabId": {
           "type": "integer"
         },
-        "url": {
+        "type": {
           "type": "string"
         },
-        "title": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
+        "result": {},
         "observedAt": {
-          "type": "string"
-        },
-        "toolName": {
           "type": "string"
         }
       },
       "required": [
         "tabId",
-        "url",
-        "title",
-        "description"
+        "type",
+        "result"
       ],
       "additionalProperties": false
     },

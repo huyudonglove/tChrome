@@ -53,9 +53,17 @@ export function applyToolEffects(input: {
         turn.assembled.toolIds = [...new Set([...turn.assembled.toolIds, ...effect.names])];
         break;
       case "page.set": {
-        const record = { ...effect.page, id: allocateRecordId(dataDir, ledger.conversationId, "page"), turnId: turn.turnId, observedAt: nowIso(), callId: call.callId, toolName: call.name };
+        const record = {
+          id: allocateRecordId(dataDir, ledger.conversationId, "page"),
+          turnId: turn.turnId,
+          observedAt: nowIso(),
+          callId: call.callId,
+          tabId: effect.page.tabId,
+          type: call.name,
+          result: effect.result,
+        };
         saveContextRecord(dataDir, ledger.conversationId, "pageObservation", record);
-        turn.assembled.currentPage = record;
+        turn.assembled.currentPage = effect.page;
         turn.assembled.pageObservedHistory.push(record);
         break;
       }

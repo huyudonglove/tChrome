@@ -203,53 +203,54 @@ test("model projection preserves record identities and operational data without 
     return: { stage: "complete", totalChars: 999, text: JSON.stringify({ ok: false, faultCode: "stale_ref", detail: "重新读取页面", elementId: "e1" }) } },
     { callId: "hidden_call_2", turnId: "hidden_turn", name: "local.run", arguments: { filename: "echo.sh", cwd: "/tmp" },
       return: { stage: "truncated", totalChars: 999, text: "unfinished {text" } }];
-  const page = { id: "hidden_page", turnId: "hidden_turn", observedAt: "hidden_date", callId: "hidden_call", toolName: "see", tabId: 42, url: "https://example.com", title: "页面", description: "按钮 ref=el-7" };
-  turn.assembled.currentPage = page;
+  const page = { id: "hidden_page", turnId: "hidden_turn", observedAt: "hidden_date", callId: "hidden_call_page", type: "page.get_summary", tabId: 42, result: { ok: true, tabId: 42, title: "页面", url: "https://example.com", description: "按钮 ref=el-7" } };
+  turn.assembled.currentPage = { tabId: 42, url: "https://example.com", title: "页面", description: "按钮 ref=el-7" };
   turn.assembled.pageObservedHistory = [page];
   const original = JSON.stringify({ ledger, turn });
   const conversationSummaries = [{ id: "sum_fixture", turnId: "hidden_turn", tag: "确认失败", userRequest: "确认按钮", actions: "点击按钮", result: "按钮引用过期" }];
   const output = userText({ contextModules: modules, ledger, turn, conversationSummaries, memories: { project: "[]", conversation: "[]" }, skillText: "" });
   const section = (tag: string) => output.split(`#${tag}\n\n`)[1]!.split(/\n#[A-Za-z]/)[0]!.trim();
+  // Failed page.click has no matching observation, so its full return stays in toolIO.
   expect(JSON.parse(section("toolIO"))).toEqual([
     { callId: "hidden_call", turnId: "hidden_turn", name: "page.click", arguments: { reason: "确认按钮", affectsPage: true, tabId: 42, ref: "el-7" }, return: { stage: "complete", result: { ok: false, faultCode: "stale_ref", detail: "重新读取页面", elementId: "e1" } } },
     { callId: "hidden_call_2", turnId: "hidden_turn", name: "local.run", arguments: { filename: "echo.sh", cwd: "/tmp" }, return: { stage: "truncated", result: "unfinished {text" } },
   ]);
   expect(JSON.parse(section("conversationHistorySummary"))).toEqual([{ sumId: "sum_fixture", turnId: "hidden_turn", tag: "确认失败", userRequest: "确认按钮", actions: "点击按钮", result: "按钮引用过期" }]);
   expect(JSON.parse(section("openTabs"))).toEqual({ ok: true, windows: [] });
-  expect(JSON.parse(section("pageObservedHistory"))).toEqual([{ id: "hidden_page", turnId: "hidden_turn", callId: "hidden_call", tabId: 42, url: "https://example.com", title: "页面", description: "按钮 ref=el-7" }]);
+  expect(JSON.parse(section("pageObservedHistory"))).toEqual([{ id: "hidden_page", turnId: "hidden_turn", callId: "hidden_call_page", tabId: 42, type: "page.get_summary", result: page.result }]);
   expect(output).not.toContain("hidden_date");
   expect(JSON.parse(section("userInput"))).toEqual({ id: "input_fixture", turnId: turn.turnId, userInput: turn.input.text });
   expect(JSON.stringify({ ledger, turn })).toBe(original);
 });
 
-test("page descriptions appear once in the model view while original tool results remain intact", () => {
+test("page observation payloads live in history while toolIO keeps only pointers", () => {
   const modules = loadContextModules(root);
   const ledger = emptyLedger("cv_slots");
   const turn = fixtureTurn();
-  const pages = [1, 2].map(n => ({ id: `page_0${n}`, turnId: turn.turnId, callId: `call_0${n}`,
-    observedAt: "now", toolName: "page.get_summary", tabId: 42, url: "https://example.com", title: "页面",
-    description: `UNIQUE_PAGE_BODY_${n}` }));
-  turn.assembled.currentPage = pages[1]!;
-  turn.assembled.pageObservedHistory = pages;
-  ledger.toolIO = pages.map(page => ({ callId: page.callId, turnId: page.turnId, name: page.toolName,
+  const observations = [1, 2].map(n => ({
+    id: `page_0${n}`, turnId: turn.turnId, callId: `call_0${n}`, observedAt: "now",
+    tabId: 42, type: "page.get_summary",
+    result: { ok: true, tabId: 42, url: "https://example.com", title: "页面", description: `UNIQUE_PAGE_BODY_${n}`, headings: [`H${n}`] },
+  }));
+  turn.assembled.currentPage = { tabId: 42, url: "https://example.com", title: "页面", description: "页面" };
+  turn.assembled.pageObservedHistory = observations;
+  ledger.toolIO = observations.map(item => ({ callId: item.callId, turnId: item.turnId, name: item.type,
     arguments: { reason: "核对页面", affectsPage: false }, return: { stage: "complete", totalChars: 999,
-      text: JSON.stringify({ ok: true, tabId: page.tabId, url: page.url, title: page.title,
-        description: page.description, extraEvidence: "keep this" }) } }));
+      text: JSON.stringify(item.result) } }));
   const original = JSON.stringify({ ledger, turn });
   const render = () => userText({ contextModules: modules, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: "" });
   const output = render();
-  for (const page of pages) expect(output.split(page.description)).toHaveLength(2);
+  for (const item of observations) expect(output.split(String((item.result as any).description))).toHaveLength(2);
   const tools = JSON.parse(output.split("#toolIO\n\n")[1]!.split(/\n#[A-Za-z]/)[0]!);
-  expect(tools.map((row: any) => row.arguments)).toEqual(pages.map(() => ({ reason: "核对页面", affectsPage: false })));
-  expect(tools.map((row: any) => row.return.result)).toEqual(pages.map(page => ({ ok: true,
-    tabId: page.tabId, url: page.url, title: page.title, extraEvidence: "keep this", pageObservationId: page.id })));
+  expect(tools.map((row: any) => row.return.result)).toEqual(observations.map(item => ({ ok: true, pageObservationId: item.id })));
+  const history = JSON.parse(output.split("#pageObservedHistory\n\n")[1]!.split(/\n#[A-Za-z]/)[0]!);
+  expect(history).toEqual(observations.map(({ observedAt: _observedAt, ...view }) => view));
   expect(JSON.stringify({ ledger, turn })).toBe(original);
-  // Once a historical observation is absent, its tool body must remain available.
-  turn.assembled.pageObservedHistory = [pages[1]!];
+  // Missing observation keeps the original tool body available.
+  turn.assembled.pageObservedHistory = [observations[1]!];
   const withoutHistory = render();
-  expect(withoutHistory).toContain(pages[0]!.description);
+  expect(withoutHistory).toContain("UNIQUE_PAGE_BODY_1");
   expect(withoutHistory).not.toContain('"pageObservationId": "page_01"');
-  // A similar response from a different turn must never reference this turn's page.
   ledger.toolIO[1]!.turnId = "tn_other";
-  expect(render().split(pages[1]!.description)).toHaveLength(3);
+  expect(render().split("UNIQUE_PAGE_BODY_2")).toHaveLength(3);
 });

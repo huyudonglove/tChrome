@@ -66,7 +66,7 @@ const result = (text: string, effects: ToolEffect[] = []): ToolExecution => ({ t
 
 const externalResult = (value: Record<string, unknown>): ToolExecution => {
   const page = pageFromBrowser(value);
-  return result(JSON.stringify(value), page ? [{ type: "page.set", page }] : []);
+  return result(JSON.stringify(value), page ? [{ type: "page.set", page, result: value }] : []);
 };
 
 export async function executeTool(input: ExecuteInput): Promise<ToolExecution> {

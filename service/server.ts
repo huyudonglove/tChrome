@@ -2,7 +2,7 @@ import { existsSync, readFileSync, mkdirSync, writeFileSync, renameSync } from "
 import { join } from "node:path";
 import { handleTurn, type LoopDeps } from "./runtime/loop.ts";
 import { resolveProxy } from "./provider/uuapi.ts";
-import { configuredProvider, isProviderName, providerOptions } from "./provider/config.ts";
+import { configuredProvider, isProviderName, providerApiKeyEnv, providerOptions } from "./provider/config.ts";
 import { ensureSession, loadSession, defaultDataDir, currentSessionView, listConversations, openConversation, newConversation, deleteConversation, stopTurn } from "./runtime/store.ts";
 import { createToolBridge, type ToolBridge } from "./runtime/bridge.ts";
 import type { BrowserResult, BrowserHost, OpenTabs } from "./types.ts";
@@ -201,7 +201,7 @@ export function createServer(options: ServeOptions = {}) {
         if ("provider" in body && !isProviderName(body.provider)) return respond({ error: "invalid_provider" }, 400);
         const nextEnabled = body.enabled ?? proxyEnabled;
         const nextName = body.provider ?? providerName;
-        if (nextName !== providerName && !Bun.env[nextName === "uuapi" ? "UUAPI_API_KEY" : "SHININGSPACE_API_KEY"]?.trim()) {
+        if (nextName !== providerName && !Bun.env[providerApiKeyEnv[nextName]]?.trim()) {
           return respond({ error: "所选 provider 尚未配置 API Key" }, 400);
         }
         try {

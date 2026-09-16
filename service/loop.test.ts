@@ -332,6 +332,45 @@ test("web_search 走服务端执行", async () => {
   }
 });
 
+test("Gemini grounding 写入 toolIO 但不进入执行队列或 usage.toolCalls", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-grounding-"));
+  const provider = mock([
+    ok({
+      finish: "stop",
+      content: "根据搜索到的资料，官价约 699。",
+      grounding: {
+        name: "google_search",
+        queries: ["罗技 MX Master 3S 官价"],
+        sources: [{ title: "Logitech", uri: "https://www.logitech.com/mx-master-3s" }],
+      },
+    }),
+    ok({
+      finish: "tool_calls",
+      toolCalls: [{ id: "call_finish", name: "finishTurn", arguments: { text: "官价 699" } }],
+    }),
+  ]);
+  try {
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "这鼠标官网多少钱", submittedAt: "now" });
+    expect(reply.output).toEqual({ kind: "reply", text: "官价 699" });
+    const ledger = loadLedger(dir, "cv_01");
+    const search = ledger.toolIO.find((row) => row.name === "google_search");
+    expect(search?.callId).toMatch(/^call_\d{2,}$/);
+    expect(search?.arguments).toEqual({ reason: "模型侧内置搜索已完成", queries: ["罗技 MX Master 3S 官价"] });
+    expect(JSON.parse(search!.return.text)).toEqual({
+      ok: true,
+      provider: "gemini",
+      queries: ["罗技 MX Master 3S 官价"],
+      sources: [{ title: "Logitech", uri: "https://www.logitech.com/mx-master-3s" }],
+    });
+    expect(ledger.toolQueue).toEqual([]);
+    const turn = loadTurn(dir, "cv_01", reply.turnId);
+    // Only the Runtime-executed finishTurn counts; provider-side search does not.
+    expect(turn.usage?.toolCalls).toBe(1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("GET /tool-request 和 POST /tool-result 对上", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-bridge-"));
   const bridge = createToolBridge(dir);

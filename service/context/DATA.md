@@ -13,7 +13,7 @@
 | `goal` | `{currentGoalId, goals}`；goals 为全部 active 目标及其父级记录 | `currentGoalId`、记录 `id` / `parentId` |
 | `goalHistory` | completed / cancelled 的目标记录数组 | `id` / `parentId` |
 | `openTabs` | `{ok:true, windows:[{windowId, focused, tabs:[{tabId, url, title, active}]}]}` 或 `{ok:false, error}` | 浏览器原始 windowId / tabId |
-| `pageObservedHistory` | 页面观察数组，包含最新观察；`id / turnId / callId` 必填 | `id` |
+| `pageObservedHistory` | 页面观察数组（旧→新）：`id / turnId / callId / tabId / type / result` | `id` |
 | `projectMemory` | `[{memoryId, turnId, sourceCallId?, sourceConversationId?, text}]` | `memoryId`（`lm_`） |
 | `conversationMemory` | 同上 | `memoryId`（`mm_`） |
 | `notes` | 字符串键值对象，空值为 `{}` | 键名 |
@@ -26,6 +26,6 @@
 
 查询记录统一为 `{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, nextCursor?, detail?}`。`records` 直接保存原模块记录，不新增通用 `id`，不加 `content` 包装；身份字段沿用原记录。查询自身的 `turnId` 与结果记录的 `turnId` 分别表示发起轮次和来源轮次。`status` 为 `complete / partial / not_found / error`。
 
-工具投影的 `return` 为 `{stage, result}`；result 中与已展示页面观察完全相同的 description 用 pageObservationId 引用替代，其他字段保留。查询原始工具记录时也允许 `{stage, totalChars, text}`。工具参数、解析后的结果和图片对象属于工具协议，不限制其内部业务 ID。查询原记录允许已有时间和来源字段；查询记录可包含历史查询记录、带 turnId 的最终输出，以及指定摘要的各层来源摘要。超长原记录以身份字段和 fragment:{offset,totalChars,text} 返回；text 是原记录 JSON 的连续字符片段，通过 nextCursor 续页，按 offset 拼接可恢复原文。单次 records 的紧凑 JSON 最多 2000 字符。
+工具投影的 `return` 为 `{stage, result}`；result 与 pageObservedHistory 中同一 callId 的观察对应时，只保留 `{ok, pageObservationId}`，完整观察结果在 `#pageObservedHistory`。其他字段保留。查询原始工具记录时也允许 `{stage, totalChars, text}`。工具参数、解析后的结果和图片对象属于工具协议，不限制其内部业务 ID。查询原记录允许已有时间和来源字段；查询记录可包含历史查询记录、带 turnId 的最终输出，以及指定摘要的各层来源摘要。超长原记录以身份字段和 fragment:{offset,totalChars,text} 返回；text 是原记录 JSON 的连续字符片段，通过 nextCursor 续页，按 offset 拼接可恢复原文。单次 records 的紧凑 JSON 最多 2000 字符。
 
 Schema 检查字段类型、必填项、ID 格式及已知记录结构，拒绝未声明的顶层模块和记录字段。编号至少两位，前缀来自 ID 清单。Schema 不检查编号唯一性、自增状态、引用是否存在或查询是否命中，也不实现查询链路及 2000 字符门禁；这些由 Runtime 验证。
