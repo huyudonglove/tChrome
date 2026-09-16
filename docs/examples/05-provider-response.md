@@ -48,6 +48,7 @@
   "systemSlots": [
     "#identity",
     "#environment",
+    "#runtime",
     "#recordIdentity",
     "#execution",
     "#toolProtocol",
@@ -272,6 +273,7 @@
   "systemSlots": [
     "#identity",
     "#environment",
+    "#runtime",
     "#recordIdentity",
     "#execution",
     "#toolProtocol",

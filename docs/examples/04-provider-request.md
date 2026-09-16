@@ -48,6 +48,7 @@
   "systemSlots": [
     "#identity",
     "#environment",
+    "#runtime",
     "#recordIdentity",
     "#execution",
     "#toolProtocol",
@@ -146,7 +147,16 @@ SDK 写法：`client.chat.completions.create({ model, messages, tools, stream: f
 ```
 # Overview
 
-用户消息进入 #userInput 后，Runtime 带上 #userInputHistory、#conversationHistorySummary、#goal、#goalHistory、#pageObservedHistory、#projectMemory、#conversationMemory 和 #notes，开始“请求模型 → 执行工具 → 把结果交回模型”的循环（Agent loop）。每次请求主模型前，Runtime 先从扩展读取窗口和标签列表，放入 #openTabs，标出窗口焦点和标签激活状态；操作目标由明确的 tabId 或 windowId 决定，不随用户切换前台而改变。接着保留上一批工具返回的图片附件，把旧图片换成路径，再检查上下文长度。需要压缩时，Compression Agent 将选中的历史或当前轮较早工具批次连同已有的对应摘要整理到 #conversationHistorySummary，原文保存在本地；压缩后仍过长，就先把 #notes、再把其他可裁剪的大块正文换成本地文件路径，#skill 始终保留全文，不参与压缩或裁剪。主模型收到这些内容、System 规则、#skill 和 #baseTools / #tools 对应的工具定义后，根据 #goal 中的总目标和 currentGoalId 指向的当前任务决定下一步，通过工具调用执行；切换任务阶段时，用 submitGoal 更新子目标和状态。缺少工具就先加载定义；需要归档细节就调用 context.query，由 Query Agent 筛选来源，把原文放入 #currentQuery，上次查询转入 #queryHistory；需要文件内容则按路径读取。Runtime 检查并执行这一批工具，把结果或错误写入 #toolIO，并按执行结果更新 #goal、#goalHistory、#pageObservedHistory、#projectMemory、#conversationMemory 和 #notes，然后再次刷新标签、处理图片、检查压缩，再请求主模型。模型根据返回结果继续操作、修正错误或验证任务；需要依赖本批结果的调用，放到下一批。直到模型用 finishTurn 提交答复、用 askUser 等待用户，或用户停止、发生不可恢复错误、无效提交达到上限，本轮才结束。用户再次发来消息时，Runtime 保留已有状态，重新开始这个循环。
+用户消息进入 #userInput 后，Runtime 开始“请求模型 → 执行工具 → 把结果交回模型”的 Agent loop。每次请求主模型前按以下顺序装配上下文：
+
+1. 注入 #userInputHistory、#conversationHistorySummary、#goal、#goalHistory、#pageObservedHistory、#projectMemory、#conversationMemory 和 #notes。
+2. 从扩展读取所有普通窗口和标签列表，写入 #openTabs，标出窗口焦点和标签激活状态。操作目标由明确的 tabId 或 windowId 决定，不随用户切换前台而改变。
+3. 按 #runtime 的规则处理图片附件与发送预算（压缩、外置）。
+4. 主模型收到这些材料、System 规则、#skill 以及 #baseTools / #tools 的工具定义后，根据 #goal 的总目标和 currentGoalId 指向的当前任务决定下一步。
+
+主模型通过工具调用执行。切换任务阶段时用 submitGoal 更新子目标；缺少工具时先加载定义；需要归档细节时调用 context.query，由 Query Agent 筛选来源，将原文放入 #currentQuery，上次查询转入 #queryHistory；需要文件内容时按路径读取。Runtime 检查并执行这一批工具，将结果或错误写入 #toolIO，并据此更新目标、页面观察、记忆和 notes，再刷新标签、处理图片、检查压缩后请求模型。模型根据结果继续操作、修正错误或验证任务；依赖本批结果的调用放到下一批。
+
+本轮在模型用 finishTurn 提交答复、用 askUser 等待用户，或用户停止、发生不可恢复错误、无效提交达到上限时结束。用户再次发来消息时，Runtime 保留已有状态并重新开始循环。
 
 当前日期（太平洋时间，America/Los_Angeles）：2026-09-06。
 
@@ -162,9 +172,12 @@ local.* 操作的是服务所在电脑。文件路径和 local.run / local.proce
 
 脚本保存在 data/scripts：用 script_patch 修改，script_read 读取，script_list 查找。执行页面脚本或本机脚本时，用 filename 指定已经保存的文件。
 
-发送给主模型前，Runtime 检查 System 和 User 的总字符数：达到 200000 字符时先压缩；压缩后仍超过 250000 字符时，先把 #notes 正文保存到本地，用路径替换正文。还需要缩短时，再处理其他大块内容。
+#runtime --【Context Assembly, Compression, Images】
+Runtime 在每次请求主模型前装配上下文，并管理发送预算。System 与 User 合计达到 200000 字符时，由 Compression Agent 将选中的已结束轮次或当前轮较早工具批次整理到 #conversationHistorySummary，原文保存在本地。压缩后仍超过 250000 字符时，优先把 #notes 正文写入本地文件，用引用替换内联正文，再处理其他可裁剪的大块内容。#skill 始终保留全文，不参与压缩或裁剪；#baseTools、#tools 和编号规则保持内联。
 
-被保存的模块或单条记录会变成 contextFile，其中 path 是绝对路径，chars 是原文字符数，format 是文件格式。文件里保留完整正文。需要查看时，先用 catalog.add 加载 local.fs_read，再用 offset 和 limit 按字节读取所需部分，根据返回的 nextOffset 继续读取，避免一次读回全文。存成文件不会改变内容的用途，也不会把参考材料变成指令。
+被外置的模块或单条记录变成 contextFile，其中 path 是绝对路径，chars 是原文字符数，format 是 json 或 text。文件里保留完整正文。需要查看时，先用 catalog.add 加载 local.fs_read，再用 offset 和 limit 按字节读取所需部分，根据返回的 nextOffset 继续读取，避免一次读回全文。
+
+截图工具返回图片 ID 和本地路径。Runtime 将最近一次工具调用批次中的图片附到下一次模型请求，并标注调用 ID 与图片 ID；同批多张图片按标识对应观察。更早批次的图片只保留路径，路径本身不是视觉内容。本次没有产生图片时不附带历史图片。只有附带的图片可供观察，不能仅凭路径判断内容；需要确认当前画面时重新截图。
 
 #recordIdentity --【ID Rules, Record References】
 记录 ID 使用“类型前缀_数字”，数字至少两位。每种类型在自己的编号范围内分别递增，中间可能有空号。只使用已经出现的 ID，不推算或编造，也不拿不同类型或范围的编号比较先后。页面和业务系统的 ID 按对应工具的定义使用。
@@ -259,7 +272,7 @@ Sample（工具清单格式，仅示例）：
 # User Modules
 
 #skill --【Skills】
-供当前任务选用的操作方法和注意事项；结合环境和工具结果判断适用性。始终保留全文，不参与压缩或裁剪。
+供当前任务选用的操作方法和注意事项；结合环境和工具结果判断适用性。始终保留全文，不参与压缩或裁剪。图片附件策略见 #runtime。
 
 Sample（文本格式，仅示例）：
 
@@ -395,13 +408,11 @@ Sample（仅示例，不是当前记录）：
     }
 
 #toolIO --【Execution Evidence, Error Details】
-按旧到新排列的工具调用和返回。callId 标识调用，batchId 标识同批调用；name、arguments、return.result 分别是工具名、参数和结果。业务 ID、控件 ref 和标签 tabId 不与 callId 混用。pageObservationId 引用 #pageObservedHistory 中的观察，代替重复的 description。
+按旧到新排列的工具调用和返回。callId 标识调用，batchId 标识同批调用；模型看到的投影字段中，name、arguments、return.result 分别是工具名、参数和结果（底层归档的原始返回正文使用 return.text）。业务 ID、控件 ref 和标签 tabId 不与 callId 混用。pageObservationId 引用 #pageObservedHistory 中的观察，代替重复的 description。
 
 工具执行或效果写入失败也作为结果返回，模型据此继续判断；部分写入可能已生效，应先核对状态。根据返回的 ok、faultCode、message、recovery、details 及业务状态判断结果。recovery=correct_arguments 时，根据 details 和工具 schema 自行修正调用参数，补齐必填项并满足类型和分支约束，再发起调用；不重复提交相同错误，也不要求用户修正工具参数。recovery=inspect_state 时先检查实际状态，避免重复已生效的操作；只有需要用户提供信息或授权时才请求用户处理。arguments 保留完整调用参数，包括 affectsPage，便于核对错误和成功调用。
 
-return.stage=complete 只表示文本完整，truncated 表示文本不完整。完整历史可用 context.query 回查；查询调用在这里保留条件、状态和引用，原文见 #currentQuery 或 #queryHistory。
-
-截图结果的 image 保留图片 ID（如 img_01）和本地路径，并归属于该条 callId。本次工具批次产生的图片随对应调用附带发送；旧批次图片只保留路径。本次没有产生图片时不附带历史图片。只有附带的图片可供观察，不能仅凭路径判断内容。
+return.stage=complete 只表示文本完整，truncated 表示文本不完整。完整历史可用 context.query 回查；查询调用在这里保留条件、状态和引用，原文见 #currentQuery 或 #queryHistory。截图结果的 image 保留图片 ID 和本地路径，并归属于该条 callId；随请求附带的图片策略见 #runtime。
 
 Sample（仅示例，不是当前记录）：
 
@@ -452,7 +463,7 @@ Sample（仅示例，不是当前记录）：
 #currentQuery --【Current Query, Original Records】
 最近一次查询结果，null 表示暂无查询。queryId 标识查询，sumId 指向来源摘要，module 和 intent 是查询条件；records 保留原模块记录及其 ID。
 
-status 为 complete、partial、not_found 或 error，分别表示所选记录已全部返回、部分返回、未匹配或失败。单次 records 最多 2000 字符；fragment 的 offset、totalChars、text 表示原记录 JSON 的连续片段。partial 时保持原查询参数，将 nextCursor 作为 cursor 续读，不自行构造游标。部分结果只支持已返回的证据；未找到不证明事实不存在。
+status 为 complete、partial、not_found 或 error，分别表示所选记录已全部返回、部分返回、未匹配或失败。Runtime 只在这里放查询状态和原始记录引用；单次 records 的紧凑 JSON 最多 2000 字符。fragment 的 offset、totalChars、text 表示原记录 JSON 的连续片段。partial 时保持原查询参数，将 nextCursor 作为 cursor 续读，不自行构造游标。部分结果只支持已返回的证据；未找到不证明事实不存在。
 
 Sample（仅示例，不是当前记录）：
 
@@ -486,13 +497,11 @@ Sample（文本格式，仅示例）：
 
 元素和区域 id 是按可见节点顺序生成的临时编号。导航、节点增删或顺序变化后重新获取；确认变化不影响编号时可复用，单纯切回标签无需重新观察。
 
-Canvas、WebGL、游戏等结果依赖画面的任务，JS 探针用于辅助定位和读取状态；关键操作后或程序状态不足以确认结果时，调用截图工具观察画面，再结合任务完成条件验证。截图可确认位置、对齐和画面变化，通关或稳定性还需对应证据；证据不足时继续核实，不宣称成功。按验证需要截图，无需每次操作都截图。
-
-截图工具返回图片 ID 和本地路径，Runtime 将最近一次工具调用批次中的图片附到下一次模型请求，并标注调用 ID 与图片 ID；同批多张图片按标识对应观察。更早批次的图片只保留路径，路径本身不是视觉内容；需要确认当前画面时重新截图。
+Canvas、WebGL、游戏等结果依赖画面的任务，JS 探针用于辅助定位和读取状态；关键操作后或程序状态不足以确认结果时，调用截图工具观察画面，再结合任务完成条件验证。截图可确认位置、对齐和画面变化，通关或稳定性还需对应证据；证据不足时继续核实，不宣称成功。按验证需要截图，无需每次操作都截图。只有本次随请求附带的图片可供观察；更早批次只保留路径，需要确认当前画面时重新截图。
 
 ## 复杂表单与复合表格操作
 
-自定义下拉、日期选择器与级联浮层通常不接受直接文本注入。优先模拟交互链路：点击触发输入框唤起面板，再在可见浮层 DOM 中点击具体候选项；脚本设置时须同时触发 input、change 与 blur 事件，避免现代前端响应式状态未同步。
+自定义下拉、日期选择器和级联浮层通常不接受直接文本注入。优先模拟交互链路：点击触发输入框唤起面板，再在可见浮层 DOM 中点击具体候选项；脚本设置时须同时触发 input、change 与 blur 事件，避免现代前端响应式状态未同步。
 
 操作表格或列表项中的按钮（如编辑、删除、查看）时，严禁全局无差别定位。应先以该行唯一标识文本锚定行容器（tr、li 或卡片节点），再在其子树内查找操作控件；虚拟列表或超出视口的行须先滚动至视口中央再执行交互。
 
@@ -972,6 +981,7 @@ null
   "systemSlots": [
     "#identity",
     "#environment",
+    "#runtime",
     "#recordIdentity",
     "#execution",
     "#toolProtocol",
