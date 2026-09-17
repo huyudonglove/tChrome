@@ -327,7 +327,9 @@ export async function handleTurn(
           turn.status = "failed";
           turn.completedAt = nowIso();
           const cause = errorInfo(error, "compression_failed");
-          turn.output = { kind: "error", faultCode: "compression_failed", ...(cause.faultCode !== "compression_failed" ? { causeCode: cause.faultCode } : {}) };
+          turn.output = { kind: "error", faultCode: "compression_failed",
+            ...(cause.faultCode !== "compression_failed" ? { causeCode: cause.faultCode } : {}),
+            ...(cause.detail ? { detail: cause.detail } : {}) };
           ledger.status = "failed";
           ledger.active = null;
           saveTurn(deps.dataDir, turn);
@@ -343,7 +345,8 @@ export async function handleTurn(
       } catch (error) {
         turn.status = "failed";
         turn.completedAt = nowIso();
-        turn.output = { kind: "error", faultCode: error instanceof ContextBudgetError ? "context_limit" : "context_storage_failed" };
+        turn.output = { kind: "error", faultCode: error instanceof ContextBudgetError ? "context_limit" : "context_storage_failed",
+          detail: error instanceof Error ? error.message : String(error) };
         ledger.status = "failed";
         ledger.active = null;
         saveTurn(deps.dataDir, turn);
@@ -426,7 +429,8 @@ export async function handleTurn(
       if (result.finish === "error") {
         turn.status = "failed";
         turn.completedAt = nowIso();
-        turn.output = { kind: "error", faultCode: result.faultCode ?? "provider_error" };
+        turn.output = { kind: "error", faultCode: result.faultCode ?? "provider_error",
+          ...(result.detail ? { detail: result.detail } : {}) };
         ledger.status = "failed";
         ledger.active = null;
         ledger.liveTool = null;

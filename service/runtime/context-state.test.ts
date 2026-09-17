@@ -71,7 +71,12 @@ for (const fail of [false, true]) test(`single 200K send gate batches old turns;
       return result({ toolCalls: [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", affectsPage: false, text: "完成" } }] });
     } };
     const reply = await handleTurn({ dataDir, repoRoot, provider }, { userInput: "继续", submittedAt: "2026-09-11" });
-    expect(reply.output).toEqual(fail ? { kind: "error", faultCode: "compression_failed", causeCode: "test_error" } : { kind: "reply", text: "完成" });
+    if (fail) {
+      expect(reply.output).toMatchObject({ kind: "error", faultCode: "compression_failed", causeCode: "test_error" });
+      expect((reply.output as { detail?: string }).detail).toBeTruthy();
+    } else {
+      expect(reply.output).toEqual({ kind: "reply", text: "完成" });
+    }
     expect(main).toBe(fail ? 0 : 1);
     expect(loadLedger(dataDir, session.conversationId).userInputHistory).toHaveLength(5);
     expect(loadIndex(dataDir, session.conversationId, "conversationHistory").coveredSourceIds.length).toBe(fail ? 0 : 5);

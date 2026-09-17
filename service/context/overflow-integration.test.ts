@@ -141,7 +141,8 @@ test("context storage failure stops before sending a broken reference to the mod
   writeFileSync(join(dataDir, "context-files"), "blocked directory");
   let calls = 0;
   const reply = await handleTurn({ dataDir, repoRoot, host, provider: provider(() => { calls++; return finish(); }) }, { userInput: "继续", submittedAt: "now" });
-  expect(reply.output).toEqual({ kind: "error", faultCode: "context_storage_failed" });
+  expect(reply.output).toMatchObject({ kind: "error", faultCode: "context_storage_failed" });
+  expect((reply.output as { detail?: string }).detail).toBeTruthy();
   expect(calls).toBe(0);
   expect(loadLedger(dataDir, conversationId).notes.large).toBe(ledger.notes.large);
 }));

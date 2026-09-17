@@ -117,7 +117,8 @@ test("Chat/Responses Runtime never executes tools from output-limited responses"
     try {
       const provider = createProvider({ api, apiKey: "local-test", proxy: "", baseURL: `http://127.0.0.1:${server.port}/v1` });
       const result = await handleTurn({ dataDir: dir, repoRoot: resolve(import.meta.dir, "../.."), provider }, { userInput: "写入笔记", submittedAt: "now" });
-      expect(result.output).toEqual({ kind: "error", faultCode: "provider_output_limit" });
+      expect(result.output).toMatchObject({ kind: "error", faultCode: "provider_output_limit" });
+      expect((result.output as { detail?: string }).detail).toBeTruthy();
       const ledger = loadLedger(dir, result.conversationId);
       expect(ledger.notes.kept).toBeUndefined();
       expect(ledger.toolIO).toEqual([]);

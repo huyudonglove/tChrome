@@ -22,6 +22,8 @@ const outputs: { output: TurnOutput; expected: string }[] = [
   { output: { kind: "ask", question: "选择哪个商品？" }, expected: "选择哪个商品？" },
   { output: { kind: "error", faultCode: "stopped" }, expected: "已停止" },
   { output: { kind: "error", faultCode: "provider_error" }, expected: errorMessage("provider_error", "user") },
+  { output: { kind: "error", faultCode: "provider_error", detail: "status=400; 400 Your request was rejected by the upstream safety system (promptFeedback.blockReason=OTHER)" },
+    expected: `${errorMessage("provider_error", "user")}\nstatus=400; 400 Your request was rejected by the upstream safety system (promptFeedback.blockReason=OTHER)` },
   { output: { kind: "error", faultCode: "max_outbounds" }, expected: "本轮已达到执行次数上限，任务还没有完成。" },
 ];
 

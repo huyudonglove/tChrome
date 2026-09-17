@@ -36,7 +36,11 @@ for (const finish of ["length", "content_filter", "stop", "unknown"]) {
       expect(response.attempts).toBe(1);
       const result = await handleTurn({ dataDir: dir, repoRoot: resolve(import.meta.dir, "../.."), provider },
         { userInput: "测试", submittedAt: "now" });
-      expect(result.output).toEqual({ kind: "error", faultCode });
+      const detailSuffix = finish === "length" ? "chat_output_limit"
+        : finish === "content_filter" ? "chat_content_refused"
+        : finish === "stop" ? "chat_stop_with_tool_calls"
+        : `chat_unexpected_finish: ${finish}`;
+      expect(result.output).toEqual({ kind: "error", faultCode, detail: `status=0; ${detailSuffix}` });
       const ledger = loadLedger(dir, result.conversationId);
       expect(ledger.notes.kept).toBeUndefined();
       expect(ledger.toolIO).toEqual([]);
