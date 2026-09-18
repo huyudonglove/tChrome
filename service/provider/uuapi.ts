@@ -18,6 +18,8 @@ export type ProviderConfig = {
   reasoningEffort?: "low" | "medium" | "high";
   proxy?: string;
   api?: "chat" | "responses";
+  /** Gateways that reject dots in function names (e.g. New API). Runtime names stay unchanged. */
+  sanitizeToolNames?: boolean;
 };
 
 export function resolveProxy(env: Record<string, string | undefined>) {
@@ -61,6 +63,20 @@ const keyMissing = () => {
 
 type AccCall = { id: string; name: string; arguments: string };
 
+/** OpenAI-compatible names allow only [A-Za-z0-9_-]; map dots for strict gateways and restore on return. */
+const wireName = (name: string) => name.replaceAll(".", "_");
+
+function mapToolsForWire(tools: ChatTool[], sanitize: boolean) {
+  if (!sanitize) return { tools, byWire: new Map<string, string>() };
+  const byWire = new Map<string, string>();
+  const mapped = tools.map((tool) => {
+    const name = wireName(tool.function.name);
+    byWire.set(name, tool.function.name);
+    return { ...tool, function: { ...tool.function, name } };
+  });
+  return { tools: mapped, byWire };
+}
+
 const parseCalls = (calls: AccCall[]) => {
   const toolCalls: ToolCall[] = [];
   const faults: ToolCallFault[] = [];
@@ -102,6 +118,8 @@ export function createProvider(config: ProviderConfig = {}) {
 
   const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: { dataDir: string; conversationId: string }, signal?: AbortSignal) => {
     if (config.api === "responses") return completeResponses(client, { model, reasoningEffort, messages, tools, imageContext, signal });
+    const sanitize = config.sanitizeToolNames === true;
+    const { tools: wireTools, byWire } = mapToolsForWire(tools, sanitize);
     const outgoing: ChatCompletionMessageParam[] = messages.map(message => {
       if (!message.images?.length) return { role: message.role, content: message.content };
       if (message.role !== "user" || !imageContext) throw new Error("图片请求缺少有效会话上下文");
@@ -118,7 +136,7 @@ export function createProvider(config: ProviderConfig = {}) {
       reasoning_effort: reasoningEffort,
       stream: false,
       messages: outgoing,
-      tools,
+      tools: wireTools,
     }, { signal }).asResponse();
     // Avoid the SDK's total body-duration timeout: received chunks reset our idle timer.
     const response = await rawResponse.json() as ChatCompletion;
@@ -133,7 +151,7 @@ export function createProvider(config: ProviderConfig = {}) {
         || typeof call.function?.name !== "string" || !call.function.name.trim() || typeof call.function.arguments !== "string") {
         throw new ProviderFailure("invalid_response", "chat_invalid_function_call");
       }
-      return { id: call.id, name: call.function.name, arguments: call.function.arguments };
+      return { id: call.id, name: byWire.get(call.function.name) ?? call.function.name, arguments: call.function.arguments };
     });
     if (choice.message.content != null && typeof choice.message.content !== "string") throw new ProviderFailure("invalid_response", "chat_invalid_content");
     if (choice.finish_reason === "stop" && calls.length) throw new ProviderFailure("invalid_response", "chat_stop_with_tool_calls");
