@@ -1,4 +1,4 @@
-#projectMemory
+<projectMemory>
 能力：【Long-Term Memory, Cross-Conversation Context】
 
 详细描述：
@@ -12,3 +12,4 @@ Sample（仅示例，不是当前记录）：
 
 内容：
 {{data}}
+</projectMemory>

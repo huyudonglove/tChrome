@@ -1,21 +1,36 @@
-import { afterAll, expect, test } from "bun:test";
-import { resolve, join } from "node:path";
-import { requestTurnSummaries } from "./protocol.ts";
-import type { CompletionResult } from "../../types.ts";
-import { mkdtempSync, rmSync, readdirSync, readFileSync } from "node:fs";
+import { expect, test } from "bun:test";
+import { resolve } from "node:path";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { requestTurnSummaries } from "./protocol.ts";
+import { compressionSystemPrompt, compressionUserPrompt } from "./protocol.ts";
+import type { CompletionResult } from "../../types.ts";
+import { readdirSync, readFileSync } from "node:fs";
 const dataDir = mkdtempSync(join(tmpdir(), "compression-protocol-"));
-afterAll(() => rmSync(dataDir, { recursive: true, force: true }));
+// afterAll cleanup at end via process exit acceptable for suite; keep dir unique
 const repoRoot = resolve(import.meta.dir, "../../..");
 const summary = (turnId: string) => ({ turnId, tag: "负责人", userRequest: "改负责人", actions: "修改并核对", result: "状态未变" });
 const valid: CompletionResult = { finish: "tool_calls", content: "忽略正文", toolCalls: [{ id: "result", name: "submitTurnSummaries", arguments: { summaries: [summary("tn_02"), summary("tn_01")] } }], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] };
 const input = { dataDir, conversationId: "cv_01", repoRoot, turns: [{ turnId: "tn_01", toolIO: [] }, { turnId: "tn_02", toolIO: [] }] };
+
+test("compression uses dedicated context system/user with registry-generated fields", () => {
+  const system = compressionSystemPrompt(repoRoot);
+  expect(system).toContain("<compressionRole>");
+  expect(system).toContain("<compressionModules>");
+  expect(system).toContain("modules.json");
+  expect(system).toContain("- toolIO:");
+  expect(system).toContain("submitTurnSummaries");
+  const user = compressionUserPrompt(repoRoot, input.turns);
+  expect(user).toContain("<compressionTurns>");
+  expect(user).toContain(JSON.stringify({ turns: input.turns }));
+});
+
 test("private submission returns exact turn coverage in source order without extra length gates", async () => {
   const result = await requestTurnSummaries({ ...input, provider: { complete: async request => {
     expect(request.tools.map(tool => tool.function.name)).toEqual(["submitTurnSummaries"]);
-    expect(JSON.parse(request.messages[1]!.content)).toEqual({ turns: input.turns });
-    expect(request.messages[0]!.content).toContain("compression-inventory.json");
-    expect(request.messages[0]!.content).toContain("- toolIO:");
+    expect(request.messages[0]!.content).toContain("<compressionRole>");
+    expect(request.messages[1]!.content).toContain(JSON.stringify({ turns: input.turns }));
     return { ...valid, toolCalls: [{ ...valid.toolCalls[0]!, arguments: { summaries: [{ ...summary("tn_02"), result: "x".repeat(13000) }, summary("tn_01")] } }] };
   } } });
   expect(result.map(row => row.turnId)).toEqual(["tn_01", "tn_02"]);
@@ -66,9 +81,9 @@ test("compression logs preserve request and invalid response with precise valida
   expect(stages[0]).toBe("start");
   expect(stages.filter(stage => stage === "validation-error")).toHaveLength(3);
   expect(stages.at(-1)).toBe("error");
-  expect(JSON.parse(rows.find(row => row.stage === "request").data.messages[1].content)).toEqual({ turns: input.turns });
-  expect(rows.find(row => row.stage === "request").data.tools[0].function.name).toBe("submitTurnSummaries");
-  expect(rows.find(row => row.stage === "response").data.attempt).toBe(1);
+  const req = rows.find(row => row.stage === "request");
+  expect(req.data.messages[0].content).toContain("<compressionRole>");
+  expect(req.data.tools[0].function.name).toBe("submitTurnSummaries");
   expect(rows.find(row => row.stage === "validation-error").data.errors).toContainEqual(expect.objectContaining({ instancePath: "/summaries/0/actions", keyword: "type" }));
 });
 

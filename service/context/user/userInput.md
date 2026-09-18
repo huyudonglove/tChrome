@@ -1,4 +1,4 @@
-#userInput
+<userInput>
 能力：【Current Request】
 
 详细描述：
@@ -14,3 +14,4 @@ Sample（仅示例，不是当前记录）：
 
 内容：
 {{data}}
+</userInput>

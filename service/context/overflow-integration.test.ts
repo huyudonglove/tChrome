@@ -9,12 +9,23 @@ import type { CompletionResult, Provider, ToolCall, Turn } from "../types.ts";
 import { inputRecord } from "../runtime/ids.ts";
 import { loadIndex } from "../context-archive/store.ts";
 import { validateUserData } from "./data-schema.ts";
+import { compressionTurnsFromUserMessage } from "../agents/compression/protocol.ts";
 
 const repoRoot = join(import.meta.dir, "../..");
 const call = (name: string, args: Record<string, unknown> = {}): ToolCall => ({ id: name, name, arguments: { reason: "容量回归测试", affectsPage: false, ...args } });
 const response = (...toolCalls: ToolCall[]): CompletionResult => ({ finish: "tool_calls", content: "", attempts: 1, parseOk: true, schemaOk: true, missing: [], faultCode: null, toolCalls });
 const finish = () => response(call("finishTurn", { text: "完成" }));
-const slot = (user: string, name: string): any => JSON.parse(user.split(`${name}\n\n`)[1]!.split(/\n\n#[A-Za-z]/)[0]!);
+const xmlSlots = (user: string): Record<string, unknown> => {
+  const values: Record<string, unknown> = {};
+  const re = /<([A-Za-z][A-Za-z0-9]*)>\n[\s\S]*?\n\n内容：\n([\s\S]*?)\n<\/\1>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(user))) {
+    const name = m[1]!, body = m[2]!;
+    values[name] = name === "skill" || name === "tools" ? body : JSON.parse(body);
+  }
+  return values;
+};
+const slot = (user: string, name: string): any => xmlSlots(user)[name.replace(/^#/, "")];
 const references = (value: unknown): { path: string; chars: number; format: string }[] => {
   if (!value || typeof value !== "object") return [];
   const object = value as Record<string, any>;
@@ -23,16 +34,11 @@ const references = (value: unknown): { path: string; chars: number; format: stri
 };
 const provider = (run: (user: string) => CompletionResult): Provider => ({ complete: async ({ messages, tools }) => {
   if (tools.some(tool => tool.function.name === "submitTurnSummaries")) {
-    const { turns } = JSON.parse(messages[1]!.content);
-    return response({ id: "summary", name: "submitTurnSummaries", arguments: { summaries: turns.map(({ turnId }: { turnId: string }) => ({ turnId, tag: "容量测试", userRequest: "处理大文本", actions: "保存和读取文件", result: "成功" })) } });
+    const turns = compressionTurnsFromUserMessage(messages[1]!.content);
+    return response({ id: "summary", name: "submitTurnSummaries", arguments: { summaries: turns.map(({ turnId }) => ({ turnId, tag: "容量测试", userRequest: "处理大文本", actions: "保存和读取文件", result: "成功" })) } });
   }
   expect(messages.reduce((size, message) => size + message.content.length, 0)).toBeLessThanOrEqual(250_000);
-  const chunks = messages[1]!.content.split(/^#([A-Za-z][A-Za-z0-9]*)(?:\n|$)/gm);
-  const values: Record<string, unknown> = {};
-  for (let i = 1; i < chunks.length; i += 2) {
-    const name = chunks[i]!, body = chunks[i + 1]!.trim();
-    values[name] = name === "skill" || name === "tools" ? body : JSON.parse(body);
-  }
+  const values = xmlSlots(messages[1]!.content);
   expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
   return run(messages[1]!.content);
 } });

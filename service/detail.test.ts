@@ -12,11 +12,15 @@ import { systemText, userText } from "./context/window.ts";
 import { loadToolRegistry, coreToolIds, toolGuideFor } from "./tools/registry.ts";
 import { loadSkills } from "./skills/loader.ts";
 import { contextState } from "./runtime/context-state.ts";
+import { compressionTurnsFromUserMessage } from "./agents/compression/protocol.ts";
 import type { CompletionResult, Provider, Turn } from "./types.ts";
 const repoRoot = join(import.meta.dir, "..");
 const reply = (toolCalls: CompletionResult["toolCalls"]): CompletionResult => ({ content: "", finish: "tool_calls", toolCalls, attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] });
 const finish = () => reply([{ id: "finish", name: "finishTurn", arguments: { reason: "已核对", affectsPage: false, text: "完成" } }]);
-const section = (user: string, tag: string) => JSON.parse(user.split(`#${tag}\n\n`)[1]!.split(/\n#[A-Za-z]/)[0]!.trim());
+const section = (user: string, tag: string) => {
+  const m = user.match(new RegExp(`<${tag}>\\n[\\s\\S]*?\\n\\n内容：\\n([\\s\\S]*?)\\n</${tag}>`));
+  return JSON.parse(m![1]!);
+};
 function fixture(dataDir: string, text = "精确证据".repeat(250)) {
   const { conversationId: cv } = ensureSession(dataDir), ledger = loadLedger(dataDir, cv);
   const turns = Array.from({ length: 6 }, (_, i): Turn => ({ goalChanges: [], conversationId: cv, turnId: allocateRecordId(dataDir, cv, "turn"), status: "completed", createdAt: "2026-09-12", completedAt: "2026-09-12", input: { id: allocateRecordId(dataDir, cv, "input"), text: `要求${i}`, submittedAt: "2026-09-12" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], openTabs: { ok: true, windows: [] }, currentPage: null, pageObservedHistory: [] }, output: { kind: "reply", text: "完成" } }));
@@ -50,7 +54,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
         compressed++; expect(input.messages[1]!.content).not.toContain(f.tool.return.text);
         expect(main).toBe(1);
         expect(sessionView(dataDir, f.cv).activity).toEqual({ kind: "compressing", phase: "history" });
-        return reply([{ id: "summaries", name: "submitTurnSummaries", arguments: { summaries: JSON.parse(input.messages[1]!.content).turns.map((turn: {turnId: string}) => ({ turnId: turn.turnId, tag: "早期要求", userRequest: "早期要求", actions: "已处理", result: "已完成" })) } }]);
+        return reply([{ id: "summaries", name: "submitTurnSummaries", arguments: { summaries: compressionTurnsFromUserMessage(input.messages[1]!.content).map(turn => ({ turnId: turn.turnId, tag: "早期要求", userRequest: "早期要求", actions: "已处理", result: "已完成" })) } }]);
       }
       main++;
       if (main === 1) { expect(compressed).toBe(0); return queryCall(f.sumId); }
@@ -58,8 +62,10 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
         expect(compressed).toBeGreaterThan(0);
         expect(sessionView(dataDir, f.cv).activity).toBeNull();
         const values = Object.fromEntries(modules.userOrder.map(tag => {
-          const body = input.messages[1]!.content.split(`${tag}\n\n`)[1]!.split(/\n#[A-Za-z]/)[0]!.trim();
-          return [tag.slice(1), tag === "#skill" || tag === "#tools" ? body : JSON.parse(body)];
+          const id = tag.slice(1);
+          const m = input.messages[1]!.content.match(new RegExp(`<${id}>\\n[\\s\\S]*?\\n\\n内容：\\n([\\s\\S]*?)\\n</${id}>`));
+          const body = m![1]!;
+          return [id, id === "skill" || id === "tools" ? body : JSON.parse(body)];
         }));
         expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
         const current = section(input.messages[1]!.content, "currentQuery");

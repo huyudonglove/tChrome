@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import Ajv from "ajv";
 import { compressionLog } from "./log.ts";
-import { compressionModulesMarkdown, loadCompressionInventory } from "../../context/compression-inventory.ts";
+import { compressionArchiveFieldsMarkdown, interpolate } from "../../context/modules.ts";
 import type { ChatMessage, ChatTool, CompletionResult, Provider } from "../../types.ts";
 export type TurnSummary = { turnId: string; tag: string; userRequest: string; actions: string; result: string };
 export type CompressionTurn = { turnId: string; [field: string]: unknown };
@@ -24,15 +24,27 @@ function formatFault(response: CompletionResult, toolName: string): string | nul
   return null;
 }
 
-/** System = role + input shell + inventory-generated module list + output contract. */
+/** Compression owns its system/user under agents/compression/context; not the main Agent module set. */
 export function compressionSystemPrompt(repoRoot: string): string {
-  const inventory = loadCompressionInventory(repoRoot);
-  const parts = ["turn-role.md", "turn-input.md", "turn-output.md"].map(name =>
-    readFileSync(join(repoRoot, "service/agents/compression/prompts", name), "utf8").trim());
-  const modules = compressionModulesMarkdown(inventory);
-  // Replace the hand-maintained modules section with the inventory-generated one.
-  const inputShell = parts[1]!.replace(/## 模块清单[\s\S]*$/, "").trimEnd();
-  return [parts[0]!, `${inputShell}\n\n${modules}`, parts[2]!].join("\n\n");
+  return interpolate(
+    readFileSync(join(repoRoot, "service/agents/compression/context/system.md"), "utf8").trim(),
+    { archiveFields: compressionArchiveFieldsMarkdown(repoRoot) },
+  );
+}
+
+export function compressionUserPrompt(repoRoot: string, turns: unknown): string {
+  return interpolate(
+    readFileSync(join(repoRoot, "service/agents/compression/context/user.md"), "utf8").trim(),
+    { turns: JSON.stringify({ turns }) },
+  );
+}
+
+/** Test/runtime helper: extract {turns} JSON from the compression User XML shell. */
+export function compressionTurnsFromUserMessage(content: string): CompressionTurn[] {
+  const normalized = content.replaceAll("\r\n", "\n");
+  const match = normalized.match(/内容：\n([\s\S]*?)\n<\/compressionTurns>/) || normalized.match(/内容：\n([\s\S]+)$/);
+  const raw = match?.[1]?.trim() ?? normalized;
+  return (JSON.parse(raw) as { turns: CompressionTurn[] }).turns;
 }
 
 export async function requestTurnSummaries(input: { provider: Provider; repoRoot: string; turns: CompressionTurn[]; dataDir: string; conversationId: string; module?: string }): Promise<TurnSummary[]> {
@@ -50,7 +62,7 @@ export async function requestTurnSummaries(input: { provider: Provider; repoRoot
     const validate = new Ajv({ allErrors: true }).compile(tool.function.parameters);
     const baseMessages: ChatMessage[] = [
       { role: "system", content: system },
-      { role: "user", content: JSON.stringify({ turns: input.turns }) },
+      { role: "user", content: compressionUserPrompt(input.repoRoot, input.turns) },
     ];
     let lastError = "";
     for (let attempt = 1; attempt <= COMPRESSION_FORMAT_ATTEMPTS; attempt++) {

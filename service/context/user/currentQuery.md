@@ -1,4 +1,4 @@
-#currentQuery
+<currentQuery>
 能力：【Current Query, Original Records】
 
 详细描述：
@@ -19,3 +19,4 @@ Sample（仅示例，不是当前记录）：
 
 内容：
 {{data}}
+</currentQuery>

@@ -8,7 +8,7 @@ import { archiveDir, loadIndex } from "../context-archive/store.ts";
 import { compressRecords } from "../agents/compression/index.ts";
 import type { SourceRecord } from "../context-archive/types.ts";
 import type { QueryEvidence } from "../context/projections/queries.ts";
-import { compressedSources, loadCompressionInventory } from "../context/compression-inventory.ts";
+import { compressedArchiveFields, loadModuleRegistry } from "../context/modules.ts";
 import { assembleTurnHistory, loadSettledTurnHistory, type TurnHistoryRecord } from "./turn-history.ts";
 
 export const HISTORY_MODULE = "conversationHistory" as const;
@@ -97,7 +97,7 @@ function archiveContentFromInventory(
     coverage?: Coverage;
   },
 ): Record<string, unknown> {
-  const inventory = loadCompressionInventory(repoRoot);
+  const inventory = loadModuleRegistry(repoRoot);
   const content: Record<string, unknown> = {
     conversationId: history.conversationId,
     turnId: history.turnId,
@@ -105,8 +105,7 @@ function archiveContentFromInventory(
     createdAt: history.createdAt,
     completedAt: options.complete ? history.completedAt : null,
   };
-  for (const source of compressedSources(inventory)) {
-    const field = source.archiveField!;
+  for (const field of compressedArchiveFields(inventory)) {
     const raw = (history as unknown as Record<string, unknown>)[field];
     if (field === "queryHistory") {
       content[field] = [];

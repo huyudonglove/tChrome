@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "description": "Context module registry: one place for order, XML files, agent consumers, and compression archive fields.",
+  "modules": [
+    { "id": "identity", "role": "system", "order": 1, "file": "system/identity.md", "consumers": ["main"], "description": "Identity, Collaboration, Language" },
+    { "id": "environment", "role": "system", "order": 2, "file": "system/environment.md", "consumers": ["main"], "description": "Environment, Tool Discovery" },
+    { "id": "runtime", "role": "system", "order": 3, "file": "system/runtime.md", "consumers": ["main"], "description": "Context Assembly, Compression, Images" },
+    { "id": "recordIdentity", "role": "system", "order": 4, "file": "system/recordIdentity.md", "consumers": ["main"], "description": "ID Rules, Record References" },
+    { "id": "execution", "role": "system", "order": 5, "file": "system/execution.md", "consumers": ["main"], "description": "Task Execution, Verification, Recovery" },
+    { "id": "toolProtocol", "role": "system", "order": 6, "file": "system/toolProtocol.md", "consumers": ["main"], "description": "Tool Calls, Parameters, Execution Order" },
+    { "id": "boundaries", "role": "system", "order": 7, "file": "system/boundaries.md", "consumers": ["main"], "description": "Authorization, Reference Material" },
+    { "id": "output", "role": "system", "order": 8, "file": "system/output.md", "consumers": ["main"], "description": "Responses, Action Reasons, Final Answer" },
+    { "id": "baseTools", "role": "system", "order": 9, "file": "system/baseTools.md", "consumers": ["main"], "description": "Resident Tools, Task Management" },
+
+    { "id": "skill", "role": "user", "order": 1, "file": "user/skill.md", "consumers": ["main"], "compress": false, "description": "Skills" },
+    { "id": "userInput", "role": "user", "order": 2, "file": "user/userInput.md", "consumers": ["main"], "compress": false, "description": "Current Request" },
+    { "id": "conversationHistorySummary", "role": "user", "order": 3, "file": "user/conversationHistorySummary.md", "consumers": ["main"], "compress": false, "description": "Conversation Summary" },
+    { "id": "userInputHistory", "role": "user", "order": 4, "file": "user/userInputHistory.md", "consumers": ["main", "compression"], "compress": true, "archiveField": "userInput", "coverage": "turn", "description": "Input History" },
+    { "id": "goal", "role": "user", "order": 5, "file": "user/goal.md", "consumers": ["main"], "compress": false, "description": "Main Goal, Current Subgoal" },
+    { "id": "goalHistory", "role": "user", "order": 6, "file": "user/goalHistory.md", "consumers": ["main", "compression"], "compress": true, "archiveField": "goalChanges", "coverage": "sourceCallId", "description": "Closed Goals" },
+    { "id": "openTabs", "role": "user", "order": 7, "file": "user/openTabs.md", "consumers": ["main"], "compress": false, "description": "Open Tabs" },
+    { "id": "pageObservedHistory", "role": "user", "order": 8, "file": "user/pageObservedHistory.md", "consumers": ["main", "compression"], "compress": true, "archiveField": "pageObservations", "coverage": "callId", "description": "Page Observations" },
+    { "id": "projectMemory", "role": "user", "order": 9, "file": "user/projectMemory.md", "consumers": ["main"], "compress": false, "description": "Long-Term Memory" },
+    { "id": "conversationMemory", "role": "user", "order": 10, "file": "user/conversationMemory.md", "consumers": ["main", "compression"], "compress": true, "archiveField": "memoryWrites", "coverage": "sourceCallId", "description": "Conversation Memory" },
+    { "id": "notes", "role": "user", "order": 11, "file": "user/notes.md", "consumers": ["main"], "compress": false, "description": "Drafts, Candidates" },
+    { "id": "toolIO", "role": "user", "order": 12, "file": "user/toolIO.md", "consumers": ["main", "compression"], "compress": true, "archiveField": "toolIO", "coverage": "batch", "description": "Tool IO" },
+    { "id": "lastAction", "role": "user", "order": 13, "file": "user/lastAction.md", "consumers": ["main"], "compress": false, "description": "Last Tool Batch" },
+    { "id": "checklist", "role": "user", "order": 14, "file": "user/checklist.md", "consumers": ["main"], "compress": false, "description": "Execution Checklist" },
+    { "id": "queryHistory", "role": "user", "order": 15, "file": "user/queryHistory.md", "consumers": ["main", "compression"], "compress": true, "archiveField": "queryHistory", "coverage": "queryId", "description": "Query History" },
+    { "id": "currentQuery", "role": "user", "order": 16, "file": "user/currentQuery.md", "consumers": ["main"], "compress": false, "description": "Current Query" },
+    { "id": "tools", "role": "user", "order": 17, "file": "user/tools.md", "consumers": ["main"], "compress": false, "description": "Loaded Tools" },
+
+    { "id": "turnOutput", "role": "archive", "order": 1, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "output", "coverage": "settledTurnOnly", "description": "Turn closing output", "inputSemantics": "kind 区分收尾形态：reply.text / ask.question / error.faultCode / tool.name+callId；null 表示暂无收尾。" }
+  ]
+}

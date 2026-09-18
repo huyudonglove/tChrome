@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { emptyLedger, saveTurn, ensureSession, saveLedger, loadLedger, stopTurn } from "./store.ts";
 import { allocateRecordId, inputRecord } from "./ids.ts";
 import { contextState, compressContext } from "./context-state.ts";
+import { compressionTurnsFromUserMessage } from "../agents/compression/protocol.ts";
 import { loadIndex, resolveSources } from "../context-archive/store.ts";
 import type { Ledger, Turn, Provider, CompletionResult } from "../types.ts";
 import type { Memories } from "../memory/types.ts";
@@ -12,7 +13,7 @@ import { handleTurn } from "./loop.ts";
 const repoRoot = join(import.meta.dir, "../..");
 const makeTurn = (cv: string, id: string, text = id): Turn => ({ goalChanges: [], conversationId: cv, turnId: id, status: "completed", createdAt: "2026-09-11", completedAt: "2026-09-11", input: { id: `input_${id}`, text, submittedAt: "2026-09-11" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], openTabs: { ok: true, windows: [] }, currentPage: null, pageObservedHistory: [] }, output: { kind: "reply", text: `完成${id}` } });
 const result = (partial: Partial<CompletionResult>): CompletionResult => ({ finish: "tool_calls", content: "", toolCalls: [], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [], ...partial });
-const summaryResponse = (messages: Parameters<Provider["complete"]>[0]["messages"]) => result({ toolCalls: [{ id: "submit", name: "submitTurnSummaries", arguments: { summaries: JSON.parse(messages[1]!.content).turns.map((turn: { turnId: string }) => ({ turnId: turn.turnId, tag: "历史事项", userRequest: "此前要求", actions: "已检查", result: "该轮已完成" })) } }] });
+const summaryResponse = (messages: Parameters<Provider["complete"]>[0]["messages"]) => result({ toolCalls: [{ id: "submit", name: "submitTurnSummaries", arguments: { summaries: compressionTurnsFromUserMessage(messages[1]!.content).map(turn => ({ turnId: turn.turnId, tag: "历史事项", userRequest: "此前要求", actions: "已检查", result: "该轮已完成" })) } }] });
 function seed(dataDir: string, ledger: Ledger, count = 5, big = false) {
   const turns = Array.from({ length: count }, (_, i) => makeTurn(ledger.conversationId, allocateRecordId(dataDir, ledger.conversationId, "turn"), big ? "原始要求".repeat(12000) : `要求${i}`));
   ledger.turnIds = turns.map(turn => turn.turnId);
@@ -38,7 +39,7 @@ test("whole-turn grouping removes covered module increments, retaining current s
     let calls = 0;
     const provider: Provider = { complete: async input => {
       calls++; expect(input.tools.map(tool => tool.function.name)).toEqual(["submitTurnSummaries"]);
-      const sources = JSON.parse(input.messages[1]!.content).turns;
+      const sources = compressionTurnsFromUserMessage(input.messages[1]!.content);
       expect(sources.map((row: Turn) => row.turnId)).toEqual(["tn_01", "tn_02", "tn_03", "tn_04", "tn_05"]);
       expect(sources[0].memoryWrites[0].turnId).toBe("tn_01");
       expect(sources[0].output.text).toBe("完成tn_01");
@@ -163,7 +164,7 @@ test("200K during a live tool loop compresses older batches before the next main
     const provider: Provider = { complete: async input => {
       if (input.tools[0]?.function.name === "submitTurnSummaries") { aux++; return summaryResponse(input.messages); }
       main++;
-      if (main === 4) { expect(aux).toBeGreaterThan(0); expect(input.messages[1]!.content).toContain("#conversationHistorySummary"); }
+      if (main === 4) { expect(aux).toBeGreaterThan(0); expect(input.messages[1]!.content).toContain("<conversationHistorySummary>"); }
       return result({ toolCalls: main <= 3
         ? Array.from({ length: 20 }, (_, i) => ({ id: `p${main}_${i}`, name: "page.get_summary", arguments: { reason: "读取", affectsPage: false, tabId: 1 } }))
         : [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", affectsPage: false, text: "完成" } }] });

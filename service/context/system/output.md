@@ -1,4 +1,4 @@
-#output
+<output>
 能力：【Responses, Action Reasons, Final Answer】
 
 详细描述：
@@ -13,3 +13,4 @@ Sample（验证成功后调用 finishTurn 的 arguments，仅示例）：
     {
       "text": "已确认列表中出现新记录，提交成功。"
     }
+</output>

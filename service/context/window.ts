@@ -1,6 +1,6 @@
 import type { Ledger, Turn } from "../types.ts";
 import { join } from "node:path";
-import { interpolate, renderInventory, renderSlots, type ContextModules } from "./modules.ts";
+import { interpolate, renderSlots, systemTextFromModules, type ContextModules } from "./modules.ts";
 
 import { goalHistoryView, goalView, inputHistoryView, lastActionView, pageView, turnSummaryView, type TurnSummary } from "./projections/records.ts";
 import { toolHistoryView } from "./projections/tools.ts";
@@ -12,9 +12,7 @@ import { paths } from "../runtime/store.ts";
 const jsonBody = (value: unknown) => JSON.stringify(value, null, 2);
 
 export function systemText(contextModules: ContextModules, currentDate: string, baseToolGuide = ""): string {
-  return [interpolate(contextModules.overview, { currentDate }), renderInventory("System", contextModules.systemOrder, contextModules.systemSlots, {
-    "#baseTools": baseToolGuide,
-  }), contextModules.userInventory].join("\n\n");
+  return systemTextFromModules(contextModules, currentDate, baseToolGuide);
 }
 
 export function userText(input: {

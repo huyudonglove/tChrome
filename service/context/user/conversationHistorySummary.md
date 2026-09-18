@@ -1,4 +1,4 @@
-#conversationHistorySummary
+<conversationHistorySummary>
 能力：【Conversation Summary, Actions, Results】
 
 详细描述：
@@ -12,3 +12,4 @@ Sample（仅示例，不是当前记录）：
 
 内容：
 {{data}}
+</conversationHistorySummary>

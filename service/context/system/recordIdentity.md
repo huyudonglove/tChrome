@@ -1,4 +1,4 @@
-#recordIdentity
+<recordIdentity>
 能力：【ID Rules, Record References】
 
 详细描述：
@@ -7,3 +7,4 @@
 {{data}}
 
 turnId 用来关联一轮用户请求、工具操作和结果。查询结果最外层的 turnId 表示哪一轮发起了查询；records 中的 turnId 表示查到的记录来自哪一轮。
+</recordIdentity>

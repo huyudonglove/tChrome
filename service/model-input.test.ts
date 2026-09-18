@@ -16,12 +16,13 @@ test("resident and dynamic guides remain separate, persist loaded schemas across
     requests++;
     const system = messages[0]!.content;
     const user = messages[1]!.content;
-    const baseGuide = system.split("#baseTools --")[1]!.split("# User 栏目清单")[0]!;
-    const dynamicGuide = user.split("#tools\n\n")[1]!;
+    const baseBlock = system.match(/<baseTools>\n([\s\S]*?)\n<\/baseTools>/)![1]!;
+    const baseGuide = baseBlock.split("\n\n").at(-1)!;
+    const dynamicGuide = user.match(/<tools>\n[\s\S]*?\n\n内容：\n([\s\S]*?)\n<\/tools>/)![1]!;
     const names = (guide: string) => [...guide.matchAll(/^- ([^：]+)：/gm)].map(match => match[1]);
     expect(names(baseGuide)).toEqual(registry.toolGroups.baseToolsIds);
     expect(names(dynamicGuide)).toEqual([...coreToolIds(registry), ...([2, 3, 5].includes(requests) ? ["send_http"] : [])]);
-    expect(user).not.toContain("#baseTools");
+    expect(user).not.toContain("<baseTools>");
     if (requests === 1) initialSystem = system;
     else expect(system).toBe(initialSystem);
     for (const tool of tools) {

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import type { Provider } from "../../types.ts";
 import { compressRecords } from "./index.ts";
+import { compressionTurnsFromUserMessage } from "./protocol.ts";
 import { archiveDir, loadIndex, readSource, resolveSources } from "../../context-archive/store.ts";
 import type { CompressionTurn } from "./protocol.ts";
 const dirs: string[] = [];
@@ -15,7 +16,7 @@ function setup(provider: Provider) {
 const source = (turnId: string, id = turnId, text = "保持状态，只改负责人") => ({ id, content: { turnId, userInput: { userInput: text }, goalChanges: [], toolIO: [], pageObservations: [], memoryWrites: [], output: null } });
 function model(observe?: (turns: CompressionTurn[]) => void, body = "核对成功"): Provider {
   return { async complete(input) {
-    const { turns } = JSON.parse(input.messages[1]!.content) as { turns: CompressionTurn[] };
+    const turns = compressionTurnsFromUserMessage(input.messages[1]!.content);
     observe?.(turns);
     return { finish: "tool_calls", content: "", toolCalls: [{ id: "summary", name: "submitTurnSummaries", arguments: { summaries: turns.map(({ turnId }) => ({ turnId, tag: "负责人／状态", userRequest: "保持状态", actions: "修改负责人", result: body })) } }], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] };
   } };

@@ -60,7 +60,8 @@ test("每次主模型请求刷新 openTabs，焦点变化不覆盖页面观察�
     const provider: Provider = {complete: async input => {
       requests++;
       const body = input.messages[1]!.content;
-      const snapshot = JSON.parse(body.split("#openTabs\n")[1]!.split("\n#pageObservedHistory")[0]!.trim());
+      const tabs = body.match(/<openTabs>\n[\s\S]*?\n\n内容：\n([\s\S]*?)\n<\/openTabs>/);
+      const snapshot = JSON.parse(tabs![1]!);
       expect(snapshots).toBe(requests);
       if (requests === 1) expect(snapshot.windows[0].tabs[0].active).toBe(true);
       if (requests === 2) {

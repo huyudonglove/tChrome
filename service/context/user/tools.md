@@ -1,4 +1,4 @@
-#tools
+<tools>
 能力：【Loaded Tools】
 
 详细描述：
@@ -10,3 +10,4 @@ Sample（文本格式，仅示例）：
 
 内容：
 {{data}}
+</tools>

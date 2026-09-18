@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { CompletionResult, Provider, Turn } from "../types.ts";
 import { commitArchive, loadIndex } from "../context-archive/store.ts";
+import { compressionTurnsFromUserMessage } from "../agents/compression/protocol.ts";
 import { handleTurn } from "./loop.ts";
 import { inputRecord } from "./ids.ts";
 import { deleteConversation, ensureSession, listConversationIds, loadLedger, loadTurn, newConversation, openConversation, saveLedger, saveTurn, stopTurn } from "./store.ts";
@@ -129,7 +130,7 @@ test("immediately restarting during cancelled compression allows the new turn to
       expect(input.signal).not.toBe(signalA); expect(input.signal?.aborted).toBe(false);
       if (input.tools[0]?.function.name !== "submitTurnSummaries") return finish("重启后完成");
       compressed++;
-      return completion([{ id: "summaries", name: "submitTurnSummaries", arguments: { summaries: JSON.parse(input.messages[1]!.content).turns.map((turn: { turnId: string }) => ({ turnId: turn.turnId, tag: "历史", userRequest: "历史要求", actions: "已处理", result: "已完成" })) } }]);
+      return completion([{ id: "summaries", name: "submitTurnSummaries", arguments: { summaries: compressionTurnsFromUserMessage(input.messages[1]!.content).map(turn => ({ turnId: turn.turnId, tag: "历史", userRequest: "历史要求", actions: "已处理", result: "已完成" })) } }]);
     } } }, body);
     expect((await within(a)).output).toEqual({ kind: "error", faultCode: "stopped" });
     const reply = await within(b);

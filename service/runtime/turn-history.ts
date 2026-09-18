@@ -2,7 +2,7 @@ import { join } from "node:path";
 import type { QueryEvidence } from "../context/projections/queries.ts";
 import type { Memories, MemoryRecord } from "../memory/types.ts";
 import type { GoalRecord, Ledger, PageObservation, ToolIOItem, Turn, TurnOutput, UserInputRecord } from "../types.ts";
-import { compressionArchiveFields, loadCompressionInventory } from "../context/compression-inventory.ts";
+import { compressedArchiveFields, loadModuleRegistry } from "../context/modules.ts";
 import { inputRecord } from "./ids.ts";
 import { loadTurn } from "./store.ts";
 
@@ -42,7 +42,7 @@ export function turnHistoryFromInventory(repoRoot: string, ctx: ProjectContext):
   if (ledger.conversationId !== turn.conversationId || !ledger.turnIds.includes(turn.turnId)) {
     throw new Error("Turn does not belong to the conversation history");
   }
-  const inventory = loadCompressionInventory(repoRoot);
+  const inventory = loadModuleRegistry(repoRoot);
   const base = {
     conversationId: turn.conversationId,
     turnId: turn.turnId,
@@ -50,7 +50,7 @@ export function turnHistoryFromInventory(repoRoot: string, ctx: ProjectContext):
     createdAt: turn.createdAt,
     completedAt: turn.completedAt,
   } as Record<string, unknown>;
-  for (const field of compressionArchiveFields(inventory)) {
+  for (const field of compressedArchiveFields(inventory)) {
     const project = projectors[field];
     if (!project) throw new Error(`missing compression projector: ${field}`);
     base[field] = project(ctx);

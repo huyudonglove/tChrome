@@ -1,4 +1,4 @@
-#baseTools
+<baseTools>
 能力：【Resident Tools, Task Management】
 
 详细描述：
@@ -9,3 +9,4 @@
 Sample（工具清单格式，仅示例）：
 
     - finishTurn：结束本轮对话。
+</baseTools>

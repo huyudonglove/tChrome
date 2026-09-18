@@ -1,8 +1,8 @@
-#openTabs
+<openTabs>
 能力：【Open Tabs】
 
 详细描述：
-每次请求我之前获取的所有普通浏览器窗口及标签快照。ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 #pageObservedHistory。
+每次请求我之前获取的所有普通浏览器窗口及标签快照。ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <pageObservedHistory>。
 
 Sample（仅示例，不是当前记录）：
 
@@ -39,3 +39,4 @@ Failure Sample（仅示例）：
 
 内容：
 {{data}}
+</openTabs>
