@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import catalog from "./error-messages.json";
-import { AppError, errorInfo, errorMessage, errorRecovery } from "./errors.ts";
+import { AppError, errorInfo, errorMessage, errorRecovery, modelSpeech } from "./errors.ts";
 
 describe("shared errors", () => {
   test("preserves structured errors and their diagnostic details", () => {
@@ -39,9 +39,10 @@ describe("shared errors", () => {
       expect(errorMessage(code, "model").startsWith("runtime: "), code).toBe(true);
       expect(errorMessage(code, "user").startsWith("runtime: "), code).toBe(false);
     }
-    // Unknown codes fall back to tool_execution_failed and still use the same prefix path.
     expect(errorMessage("unknown_future_code", "model").startsWith("runtime: ")).toBe(true);
     expect(errorMessage("unknown_future_code", "user").startsWith("runtime: ")).toBe(false);
+    expect(modelSpeech("disk full")).toBe("runtime: disk full");
+    expect(modelSpeech("runtime: already")).toBe("runtime: already");
   });
 
   test("every catalog entry has both audiences and a valid recovery", () => {

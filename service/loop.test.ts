@@ -356,7 +356,7 @@ test("Gemini grounding 写入 toolIO 但不进入执行队列或 usage.toolCalls
     const ledger = loadLedger(dir, "cv_01");
     const search = ledger.toolIO.find((row) => row.name === "google_search");
     expect(search?.callId).toMatch(/^call_\d{2,}$/);
-    expect(search?.arguments).toEqual({ reason: "模型侧内置搜索已完成", queries: ["罗技 MX Master 3S 官价"] });
+    expect(search?.arguments).toEqual({ reason: "runtime: 模型侧内置搜索已完成", queries: ["罗技 MX Master 3S 官价"] });
     expect(JSON.parse(search!.return.text)).toEqual({
       ok: true,
       provider: "gemini",

@@ -1,4 +1,4 @@
-import { AppError, errorInfo } from "../../../shared/errors.ts";
+import { AppError, errorInfo, modelSpeech } from "../../../shared/errors.ts";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import Ajv from "ajv";
@@ -69,7 +69,7 @@ export async function requestTurnSummaries(input: { provider: Provider; repoRoot
             attempt,
             maxAttempts: COMPRESSION_FORMAT_ATTEMPTS,
             fault: lastError,
-            instruction: `上一次 submitTurnSummaries 格式无效。summaries 必须是对象数组（不是字符串），本批每个 turnId 一条、不多不少，五个字段均为非空字符串。请修正后，在这一次回包里只调一次 ${tool.function.name}，把本批摘要全部放进 summaries。`,
+            instruction: modelSpeech(`上一次 submitTurnSummaries 格式无效。summaries 必须是对象数组（不是字符串），本批每个 turnId 一条、不多不少，五个字段均为非空字符串。请修正后，在这一次回包里只调一次 ${tool.function.name}，把本批摘要全部放进 summaries。`),
           }),
         },
       ];

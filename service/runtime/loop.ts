@@ -499,7 +499,7 @@ export async function handleTurn(
           turnId,
           ...(batchId ? { batchId } : {}),
           name: result.grounding.name,
-          arguments: { reason: "模型侧内置搜索已完成", queries: result.grounding.queries },
+          arguments: { reason: "runtime: 模型侧内置搜索已完成", queries: result.grounding.queries },
           return: { stage: "complete", totalChars: groundingText.length, text: groundingText },
         });
       }
