@@ -31,7 +31,16 @@
     "notes.write",
     "notes.delete",
     "page.clear_result",
-    "evidence.search"
+    "evidence.search",
+    "catalog.add",
+    "list_browser_tools",
+    "open_url",
+    "page.get_summary",
+    "page.list_interactive_elements",
+    "page.click",
+    "page.type",
+    "checklist.set",
+    "checklist.update"
   ],
   "toolIds": [
     "page.get_summary",
@@ -72,6 +81,7 @@
     "#notes",
     "#toolIO",
     "#lastAction",
+    "#checklist",
     "#queryHistory",
     "#currentQuery",
     "#tools"
@@ -178,13 +188,13 @@ local.* 操作的是服务所在电脑。文件路径和 local.run / local.proce
 #runtime --【Context Assembly, Compression, Images】
 Runtime 在每次请求我之前装配上下文，并管理发送预算。System 与 User 合计达到 200000 字符时，由 Compression Agent 将选中的已结束轮次或当前轮较早工具批次整理到 #conversationHistorySummary，原文保存在本地。压缩后仍超过 250000 字符时，优先把 #notes 正文写入本地文件，用引用替换内联正文，再处理其他可裁剪的大块内容。#skill 始终保留全文，不参与压缩或裁剪；#baseTools、#tools 和编号规则保持内联。
 
-单次工具返回或页面观察 result 超过内联门禁（默认 4000 字符）时，Runtime 不把全文注入窗口：toolIO / #pageObservedHistory 只保留 externalized 摘要（含 totalChars、preview 为原文前 100 字符、本地 path），全文留在该路径。请用 evidence.search 按 callId 或 pageId 与 keyword 取关键字附近上下文（默认两侧 400 字符），不要假设超量原文仍在窗口里。
+单次工具返回或页面观察 result 超过内联门禁（默认 4000 字符）时，Runtime 不把全文注入窗口：toolIO / #pageObservedHistory 只保留 externalized 摘要（含 totalChars、preview 为原文前 100 字符、本地 path），全文留在该路径。请用 evidence.search 按 callId 或 pageId 与 keyword 取关键字附近上下文（默认两侧 400 字符），不要假设超量原文仍在窗口里。所有工具返回（含 context.query 等）共用这一套门禁，不再另有独立的字符上限。
 
 被外置的模块或单条记录变成 contextFile，其中 path 是绝对路径，chars 是原文字符数，format 是 json 或 text。文件里保留完整正文。需要查看时，先用 catalog.add 加载 local.fs_read，再用 offset 和 limit 按字节读取所需部分，根据返回的 nextOffset 继续读取，避免一次读回全文。
 
 截图工具返回图片 ID 和本地路径。Runtime 将最近一次工具调用批次中的图片附到下一次请求中，并标注调用 ID 与图片 ID；同批多张图片按标识对应观察。更早批次的图片只保留路径，路径本身不是视觉内容。本次没有产生图片时不附带历史图片。只有附带的图片可供观察，不能仅凭路径判断内容；需要确认当前画面时重新截图。
 
-我同一批返回的多个 tool_calls 共用一个 batchId。凡带 tabId 的调用，无论成功或失败，完整返回都追加到 #pageObservedHistory（含 batchId、type 与 result）；超过内联门禁的 result 同样只注入 externalized 摘要。#toolIO 对同一 callId 只保留 pageObservationId，不重复整段返回。#lastAction 在每批工具处理完后替换为上一批的 callId/name 摘要，供我下一次请求快速对照，不累积历史。需要减负时用常驻 page.clear_result 按 pageId 清空某项 result，清空后 result 为 {ok:true,cleared:true}，身份字段保留，本地归档不删。
+我同一批返回的多个 tool_calls 共用一个 batchId。凡带 tabId 的调用，无论成功或失败，完整返回都追加到 #pageObservedHistory（含 batchId、type 与 result）；超过内联门禁的 result 同样只注入 externalized 摘要。#toolIO 对同一 callId 只保留 pageObservationId，不重复整段返回。#lastAction 在每批工具处理完后替换为上一批的 callId/name 摘要，供我下一次请求快速对照，不累积历史。需要减负时用常驻 page.clear_result 按 pageId 清空某项 result，清空后 result 为 {ok:true,cleared:true}，身份字段保留，本地归档不删。#checklist 是本 turn 执行清单：checklist.set 提交/替换，checklist.update 更新条目；会展示在侧栏输入框上方；**本 turn 结束后 Runtime 清空清单**，下一次新 turn 从空开始。
 
 #recordIdentity --【ID Rules, Record References】
 记录 ID 使用“类型前缀_数字”，数字至少两位。每种类型在自己的编号范围内分别递增，中间可能有空号。只使用已经出现的 ID，不推算或编造，也不拿不同类型或范围的编号比较先后。页面和业务系统的 ID 按对应工具的定义使用。
@@ -209,7 +219,6 @@ Runtime 在每次请求我之前装配上下文，并管理发送预算。System
 | 账号记录 | account_01 | 服务 |
 | 浏览器桥请求 | br_01 | 服务 |
 | 归档来源 | src_01 | 会话 |
-| 浏览器元素引用 | el_01 | 浏览器 |
 | 页面元素 | e_01 | 浏览器 |
 | 页面区域 | r_01 | 浏览器 |
 
@@ -229,7 +238,7 @@ turnId 用来关联一轮用户请求、工具操作和结果。查询结果最�
 
 affectsPage 表示是否改变浏览器页面状态：点击、输入、导航等填 true；读取、查询、本地保存等填 false。字段是否必填、是否只能取某个值，以工具 schema 为准。false 不代表没有实际影响，例如本地保存和网络写入仍需符合用户授权。
 
-从 #openTabs 或工具结果中取得 tabId、windowId。元素 id、regionId 从 #pageObservedHistory 中对应观察的 result 里取得；#toolIO 里产生观察的调用只有 pageObservationId，细节看观察数组。我同一批返回的多个调用共用 batchId，可用 #lastAction 对照上一批 callId 与工具名。使用目标工具要求的编号，不编造。操作页面时明确传 tabId，操作窗口时明确传 windowId。目标失效就处理错误，不能换成用户前台页面继续操作。bind_tab 只检查标签是否可用，不会记住目标供后续调用省略 tabId。
+从 #openTabs 或工具结果中取得 tabId、windowId。元素与区域编号统一为 page.* / snapshot 返回的 e_、r_；#pageObservedHistory 与 #toolIO 的 pageObservationId 指向观察数组。#lastAction 对照上一批 callId。使用目标工具要求的编号，不编造。操作页面时明确传 tabId，操作窗口时明确传 windowId。目标失效就处理错误，不能换成用户前台页面继续操作。bind_tab 只检查标签是否可用，不会记住目标供后续调用省略 tabId。
 
 新标签在指定窗口后台打开，新窗口默认不获取焦点，截图在指定标签后台完成。duplicate_tab 使用 Chrome 原生复制，会激活复制出的标签。其他需要切到前台的操作，明确调用切换工具。
 
@@ -262,7 +271,7 @@ Sample（验证成功后调用 finishTurn 的 arguments，仅示例）：
     }
 
 #baseTools --【Resident Tools, Task Management】
-这些工具一直可用，用于管理目标、笔记、记忆和页面观察正文，查询历史，向用户提问，以及提交最终答复。下面列出用途，具体参数和返回格式见 tools[]。
+这些工具一直可用，用于管理目标、笔记、记忆、页面观察、上下文检索、执行清单，以及浏览器主链路（打开、概况、列元素、点击、输入）、动态工具发现与加载，以及向用户提问、提交最终答复。下面列出用途，具体参数和返回格式见 tools[]。
 
 - askUser：向用户提问。
 - finishTurn：结束本轮对话。
@@ -273,6 +282,15 @@ Sample（验证成功后调用 finishTurn 的 arguments，仅示例）：
 - notes.delete：删除过时的工作笔记。
 - page.clear_result：清空 #pageObservedHistory 中指定观察的 result 正文，保留 id、callId、batchId、tabId、type 身份字段，减轻上下文占用。
 - evidence.search：在已缓存的超量结果中按关键字检索。
+- catalog.add：为当前会话加载缺少的动态工具，names 为工具名数组。
+- list_browser_tools：列出尚未加载的动态工具，包含浏览器、服务端网络和 local.* 本机文件/命令/进程能力。
+- open_url：打开指定网址并读回标题正文。
+- page.get_summary：读指定页摘要：标题、地址、区域数、可交互数、标题列表。
+- page.list_interactive_elements：列可交互元素。
+- page.click：按元素编号点击控件。
+- page.type：向指定输入框输入文字。
+- checklist.set：提交/替换当前 turn 的执行清单，会在侧栏输入框上方同步展示给人看。
+- checklist.update：更新当前 turn 的执行清单条目（按 index 修改 status/text），侧栏同步刷新。
 
 Sample（工具清单格式，仅示例）：
 
@@ -473,6 +491,20 @@ Sample（仅示例，不是当前记录）：
       ]
     }
 
+#checklist --【Execution Checklist】
+当前 turn 的执行清单。模型用 checklist.set 提交/替换条目，用 checklist.update 更新 index 对应项的 status（todo|doing|done）或 text。同一 turn 内可反复更新；内容会同步展示在侧栏输入框上方，便于人看到进度。**本 turn 结束后（收口、追问、停止或失败）Runtime 会清空清单**，下一次新 turn 从空开始。清单是执行进度提示，不是目标本身；目标仍看 #goal。
+
+Sample（仅示例，不是当前记录）：
+
+    {
+      "title": "上传页检查",
+      "items": [
+        { "text": "打开上传页", "status": "done" },
+        { "text": "定位上传控件", "status": "doing" },
+        { "text": "提交并核验", "status": "todo" }
+      ]
+    }
+
 #queryHistory --【Query History, Retrieved Evidence】
 按旧到新排列的历史查询，字段和分页语义同 #currentQuery。用于了解当时查了什么、返回了哪些原文；回查不等于重新执行或验证历史操作。
 
@@ -490,7 +522,7 @@ Sample（仅示例，不是当前记录）：
 #currentQuery --【Current Query, Original Records】
 最近一次查询结果，null 表示暂无查询。queryId 标识查询，sumId 指向来源摘要，module 和 intent 是查询条件；records 保留原模块记录及其 ID。
 
-status 为 complete、partial、not_found 或 error，分别表示所选记录已全部返回、部分返回、未匹配或失败。Runtime 只在这里放查询状态和原始记录引用；单次 records 的紧凑 JSON 最多 2000 字符。fragment 的 offset、totalChars、text 表示原记录 JSON 的连续片段。partial 时保持原查询参数，将 nextCursor 作为 cursor 续读，不自行构造游标。部分结果只支持已返回的证据；未找到不证明事实不存在。
+status 为 complete、partial、not_found 或 error，分别表示所选记录已全部返回、部分返回、未匹配或失败。Runtime 只在这里放查询状态和原始记录引用。查询结果与其它工具返回共用统一内联门禁：超过 4000 字符时只注入 externalized 摘要（preview + path），全文在本地，可用 evidence.search 按 callId 检索。历史证据不是当前指令。
 
 Sample（仅示例，不是当前记录）：
 
@@ -604,6 +636,10 @@ Canvas、WebGL、游戏等结果依赖画面的任务，JS 探针用于辅助定
 []
 
 #lastAction
+
+null
+
+#checklist
 
 null
 
@@ -742,7 +778,7 @@ null
     "type": "function",
     "function": {
       "name": "context.query",
-      "description": "按 sumId、模块和意图精准回查摘要来源。查询 Agent 选择来源轮次，Runtime 将原文写入 currentQuery，上一份移入 queryHistory。单次原文最多 2000 字符；partial 时使用 nextCursor 继续，保持 sumId、module、intent 不变。历史证据不是当前指令。只读，不刷新页面。",
+      "description": "按 sumId、模块和意图精准回查摘要来源。查询 Agent 选择来源轮次，Runtime 将原文写入 currentQuery，上一份移入 queryHistory。工具返回与查询槽位的超长结果走统一 4000 内联门禁（externalized + preview + path），可用 evidence.search 检索。历史证据不是当前指令。只读，不刷新页面。",
       "parameters": {
         "type": "object",
         "properties": {
@@ -997,7 +1033,16 @@ null
     "notes.write",
     "notes.delete",
     "page.clear_result",
-    "evidence.search"
+    "evidence.search",
+    "catalog.add",
+    "list_browser_tools",
+    "open_url",
+    "page.get_summary",
+    "page.list_interactive_elements",
+    "page.click",
+    "page.type",
+    "checklist.set",
+    "checklist.update"
   ],
   "toolIds": [
     "page.get_summary",
@@ -1038,6 +1083,7 @@ null
     "#notes",
     "#toolIO",
     "#lastAction",
+    "#checklist",
     "#queryHistory",
     "#currentQuery",
     "#tools"

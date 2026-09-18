@@ -138,7 +138,7 @@ Runtime 独占维护。当前会话指针。
 | `toolQueue` | object[] | 本 Turn 待执行的工具。模型一次出网交的 `toolCalls` 按数组顺序入队。任务队列按这个顺序跑。跑完一条弹出，写入 `toolIO`。新会话 / 新出网前空。每项 `{callId, name, arguments}` |
 | `liveTool` | object \| null | 正在跑的那条 `{name, callId}`。空闲 / 追问 / 失败为 `null` |
 | `toolIO` | object[] | 本会话完整工具记录，按执行顺序追加。本地始终保留；模型窗口按压缩目录 coveredSourceIds 过滤已覆盖记录 |
-| `currentQuery` | object \| null | 最近一次查询，含 queryId、发起 turnId、sumId、module、intent、status、records，可含 nextCursor 和错误详情；计入窗口但不压缩 |
+| `currentQuery` | object \| null | 最近一次查询，含 queryId、发起 turnId、sumId、module、intent、status、records，可含错误详情；计入窗口但不压缩 |
 | `queryHistory` | object[] | 被后续查询或新 Turn 替换的查询，保留发起 turnId；按独立查询来源归档，结论合入轮次 result |
 | `notes` | object | 模型自管的 key/value。新会话 `{}`。`notes.write` 写入或覆盖 `notes[key]`。`notes.delete` 删除 `notes[key]`。进 user `#notes` |
 | `windowChars` | number | 本轮出网窗口已用字符数。开 Turn 装配后、以及本 Turn 每次出网前，Runtime 写入 |
@@ -277,7 +277,7 @@ System #baseTools 展示常驻能力导航，User #tools 展示本会话已加�
 
 `askUser` 的 `text` 是根据 arguments.question 和选项生成的工具返回文本。`finishTurn` 的 `text` 是回复用户的正文（仅取 finishTurn.arguments.text，不使用 content 回退）。动态工具的 `text` 是工具正文；`context.query` 的 `text` 仅含状态和引用。`memory.write` 的 `text` 是落下的层和条数。
 
-常驻 `context.query(sumId, module, intent, cursor?)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，查询 Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将对应记录放入 currentQuery；工具返回只含状态和引用。每次 records 的紧凑 JSON 最多 2000 字符；超出返回 partial 与 nextCursor，可带原查询参数和 cursor 继续读取，无需再次调用查询 Agent。超大单条保留身份字段及 fragment:{offset,totalChars,text}，text 是原记录 JSON 的连续片段，不是摘要。查询不会刷新页面。
+常驻 `context.query(sumId, module, intent)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将完整 records 放入 currentQuery；#toolIO 只投影 currentQuery 指针。查询结果与其它工具返回共用统一内联门禁（默认 4000 字符），超出时注入 externalized 摘要（preview+path），可用 evidence.search 检索。查询不会刷新页面。
 
 工具窗口投影使用 {callId, turnId, batchId?, name, arguments, return: {stage, result}}，arguments 隐藏 affectsPage，保留 reason 与操作参数。result 对合法 JSON 解析一次，普通文本和截断文本保持原样。callId 标识调用，turnId 标识所属轮次，batchId 标识工具批次；totalChars 不注入主模型，操作用 tabId、控件引用及错误详情仍保留。与 pageObservedHistory 中同一 turnId+callId 的观察对应时，return.result 只保留 {ok, pageObservationId}，完整观察结果只出现在 #pageObservedHistory；本地原始返回保持完整。
 
@@ -324,7 +324,7 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | `askUser` | `question`、`choice` | 非空问题正文与选项 |
 | `submitGoal` | 创建时 `goal`；更新时 `id` | 创建子目标时传 parentId；创建默认 active。按 id 更新正文、状态或选中 active 目标，parentId 创建后不变。关闭当前目标时转回 active 父目标，否则清空当前选择；不自动关闭其他目标，也不级联修改子目标 |
 | `finishTurn` | `text` | 非空回复正文，不依赖 content |
-| `context.query` | `sumId` `module` `intent`，可选 `cursor` | 查询 Agent 选择来源轮次，Runtime 将最多 2000 字符的原文记录或片段写入 currentQuery；partial 可续读 |
+| `context.query` | `sumId` `module` `intent` | 查询 Agent 选择来源轮次，Runtime 将完整 records 写入 currentQuery；超长走统一 4000 门禁 |
 | `capture_page` | `mode`；element 另需 ref/selector 二选一 | `viewport` / `full_page` / `element`；元素定位不混用 page.* 的 id，PDF 使用 `save_pdf` |
 | `probe_http` | `url` | HTTP(S) 网址，可选 `method=GET/HEAD`；返回状态、耗时、最终网址和响应头，`reachable=true` 表示收到 HTTP 响应（包括 4xx/5xx），`ok=true` 表示 2xx |
 | `notes.write` | `key` `value` | 写入或覆盖 `ledger.notes[key]`。模型自定 key |
@@ -350,6 +350,6 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 
 工具 schema、分类和分组由 `service/tools/registry.ts` 读取同模块的 `service/tools/definitions/`。Provider 负责模型通信、传输重试及响应/参数解析；主 Agent 的 provider 返回由 `service/runtime/loop.ts` 的 `validateCompletion` 调用 `service/tools/schema.ts` 统一检查 schema、工具名和收口顺序，Runtime 根据结果推进状态。Context 接收数据与能力导航，生成窗口投影；完整工具说明通过 tools[] 发送。`service/presentation/session-view.ts` 以纯函数生成 UI 消息和会话列表；store 负责读取记录、持久化和会话命令。
 
-查询状态保存 currentQuery 与 queryHistory。下一次查询结果或新 Turn 将当前查询迁入历史，保留原发起 turnId；取消不替换。查询历史作为独立来源补入对应轮次，避免原调用批次已归档后漏收。超大记录的 fragment 是原记录 JSON 连续片段；nextCursor 是 Runtime 提供的续读位置，调用方不得自行构造。
+查询状态保存 currentQuery 与 queryHistory。下一次查询结果或新 Turn 将当前查询迁入历史，保留原发起 turnId；取消不替换。查询历史作为独立来源补入对应轮次，避免原调用批次已归档后漏收。查询结果走统一 4000 内联门禁；超出时注入 externalized 摘要。
 
 ledger.loadedToolIds 保存本会话通过 catalog.add 成功加载的工具名。Turn 的 assembled.toolIds 是本轮执行快照，初始来自默认工具与会话清单，加载成功时两者同时更新。

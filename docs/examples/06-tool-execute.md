@@ -178,7 +178,16 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "notes.write",
     "notes.delete",
     "page.clear_result",
-    "evidence.search"
+    "evidence.search",
+    "catalog.add",
+    "list_browser_tools",
+    "open_url",
+    "page.get_summary",
+    "page.list_interactive_elements",
+    "page.click",
+    "page.type",
+    "checklist.set",
+    "checklist.update"
   ],
   "toolIds": [
     "page.get_summary",
@@ -219,6 +228,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "#notes",
     "#toolIO",
     "#lastAction",
+    "#checklist",
     "#queryHistory",
     "#currentQuery",
     "#tools"

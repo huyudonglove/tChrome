@@ -8,6 +8,6 @@
 
 归档位于 `conversations/<conversationId>/compression/conversationHistory/`：`sources/` 保存完整来源，`records/` 保存不可变摘要，`index.json` 管理目录及覆盖关系。摘要由 runtime 关联真实 turnId；各轮请求、行动与结果分别保存。当前轮次执行片段只描述归档时的事实，不声称该轮已经结束。历史结果不自动成为当前待办。
 
-常驻 `context.query(sumId, module, intent, cursor?)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，查询 Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将对应记录放入 currentQuery；工具返回只含状态和引用。每次 records 的紧凑 JSON 最多 2000 字符；超出返回 partial 与 nextCursor，可带原查询参数和 cursor 继续读取，无需再次调用查询 Agent。超大单条保留身份字段及 fragment:{offset,totalChars,text}，text 是原记录 JSON 的连续片段，不是摘要。查询不会刷新页面。
+常驻 `context.query(sumId, module, intent)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将完整 records 放入 currentQuery；#toolIO 只投影 currentQuery 指针。查询结果与其它工具返回共用统一内联门禁（默认 4000 字符），超出时注入 externalized 摘要（preview+path），可用 evidence.search 检索。查询不会刷新页面。
 
 发送前达到 200000 字符触发压缩，达到 250000 字符时将 notes 正文保存到本地并替换为文件路径；处理后仍达到硬门槛才返回 context_limit。压缩外层保留 history/current 阶段，各阶段选中的材料完整请求一次，不在 Agent 内分批或递归压缩。查询候选同样完整请求一次，返回分页不拆分模型请求。验证覆盖运行时发送前触发、近期记录保留、批量逐轮结果、取消和归档回查；模拟模型测试不能证明真实模型的摘要与匹配质量。
