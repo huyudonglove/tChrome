@@ -1,7 +1,7 @@
 import { prepareGoalUpdate, type GoalContext } from "../runtime/goals.ts";
 import { errorMessage } from "../../shared/errors.ts";
 import type { QueryModule, QueryResult } from "../agents/query/types.ts";
-import type { QueryRecord } from "../context/projections/queries.ts";
+import type { QueryRecord, QueryEvidence } from "../context/projections/queries.ts";
 import type { ToolEffect, ToolExecution } from "./effects.ts";
 import type { BrowserHost, CurrentPage, ToolArguments } from "../types.ts";
 import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
@@ -58,7 +58,7 @@ export type ExecuteInput = {
   browserNames: string[];
   host?: BrowserHost;
   signal?: AbortSignal;
-  queryContext?: (args: {sumId: string; module: QueryModule; intent: string; cursor?: string}) => Promise<QueryResult>;
+  queryContext?: (args: {sumId: string; module: QueryModule; intent: string}) => Promise<QueryResult>;
   lookup: {
     unusedTools: string[];
     knownTools: string[];
@@ -353,8 +353,9 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     const queried = await input.queryContext({ sumId: String(args.sumId), module: args.module as QueryModule,
       intent: String(args.intent) });
     if (queried.status === "cancelled") return result(JSON.stringify({ ok: false, status: "cancelled" }));
+    const status: QueryEvidence["status"] = queried.status === "not_found" || queried.status === "error" ? queried.status : "complete";
     const query = { sumId: queried.sumId, module: queried.module, intent: queried.intent,
-      status: queried.status,
+      status,
       records: queried.records as QueryRecord[],
       detail: queried.detail };
     // Full records go to the archive + <currentQuery>; toolIO projection keeps a pointer only.

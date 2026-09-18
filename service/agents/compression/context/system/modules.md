@@ -6,7 +6,7 @@
 
 {{archiveFields}}
 
-不参与压缩、也不会出现在 turns 材料里的主 Agent 窗口模块：skill、当前 userInput 槽、conversationHistorySummary、goal（active 视图）、openTabs、projectMemory、notes、lastAction、checklist、currentQuery、tools。
+不参与压缩、也不会出现在 turns 材料里的主 Agent 窗口模块：skill、当前这一轮的 <userInput>、conversationHistorySummary、goal（active 视图）、openTabs、projectMemory、notes、lastAction、checklist、currentQuery、tools。
 
 Sample（一批材料含两个完整轮次的骨架，仅示例；真实批次可能更多轮，也可能是 segments/summaries）：
 

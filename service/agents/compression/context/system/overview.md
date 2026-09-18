@@ -2,7 +2,7 @@
 能力：【Agent Operating Overview】
 
 详细描述：
-主模型窗口达到压缩门槛时，Runtime 把选中的历史轮次交给我。我只把这批 turns 做成逐轮摘要；主模型继续页面、工具与用户答复，回查原文走 context.query。
+主模型窗口达到压缩门槛时，Runtime 把选中的历史轮次交给我。我只把这批 turns 做成逐轮摘要。
 
 单次压缩请求：
 

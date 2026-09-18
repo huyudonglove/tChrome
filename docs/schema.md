@@ -273,7 +273,7 @@ System `<baseTools>` 展示常驻能力导航，User `<tools>` 展示本会话�
 |---|---|---|
 | `stage` | string | 当前运行记录使用 complete 并保留完整返回；字段表示文本完整度，不证明操作成功。context.query 仅返回查询状态和来源引用，证据放入 currentQuery |
 | `totalChars` | number | 全文长度（JavaScript string.length，UTF-16 代码单元） |
-| `text` | string | 完整工具返回正文；context.query 不在此重复原文，partial 表示可继续读取 |
+| `text` | string | 完整工具返回正文；context.query 不在此重复原文 |
 
 `askUser` 的 `text` 是根据 arguments.question 和选项生成的工具返回文本。`finishTurn` 的 `text` 是回复用户的正文（仅取 finishTurn.arguments.text，不使用 content 回退）。动态工具的 `text` 是工具正文；`context.query` 的 `text` 仅含状态和引用。`memory.write` 的 `text` 是落下的层和条数。
 

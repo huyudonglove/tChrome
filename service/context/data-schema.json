@@ -870,7 +870,6 @@
         "status": {
           "enum": [
             "complete",
-            "partial",
             "not_found",
             "error"
           ]

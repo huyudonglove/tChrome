@@ -35,11 +35,6 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 4000
-        },
-        "cursor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 100000
         }
       },
       "required": [

@@ -13,7 +13,7 @@
 
 每个 Agent 的 `tools/` 是本 Agent 专用工具 schema 的唯一来源：压缩通过 `submitTurnSummaries` 提交逐轮结构化摘要；查询通过 `submitMatches` 提交 turnIds（未找到时为空数组）。这些工具仅装配到对应 Agent 请求，不进入主 Agent 工具目录。这一次回包只调本 Agent 的返回工具一次，结果放进该工具参数，正文不作为业务结果；协议层读取工具文件并按同一 schema 校验参数，目录 ID 范围等语义约束另行校验。
 
-主 Agent 提交 sumId、module、intent。Runtime 沿摘要来源关系展开指定模块，给查询 Agent 提供带 turnId 的候选原文；Agent 通过 submitMatches 选择轮次。Runtime 校验返回值属于候选集合，再读取原模块记录并保留身份字段。cursor 续读使用已选中的记录，不再次请求模型。
+主 Agent 提交 sumId、module、intent。Runtime 沿摘要来源关系展开指定模块，给查询 Agent 提供带 turnId 的候选原文；Agent 通过 submitMatches 选择轮次。Runtime 校验返回值属于候选集合，再读取原模块记录并保留身份字段。
 
 ## 按轮次压缩
 
@@ -61,4 +61,4 @@ service/agents/query/context/
 
 User 仅为 `<queryTurns>\n{"request":{...},"turns":[...]}\n</queryTurns>`（标签内无说明）。字段语义在 System `<queryModules>`。
 
-主 Agent 提交 sumId、module、intent。Runtime 沿摘要来源关系展开指定模块，一次把候选交给查询 Agent。查询用一次 submitMatches 返回 turnIds；无匹配时为空数组。Runtime 校验返回值属于候选集合，再把命中轮次的完整 records 放入 `<currentQuery>`。cursor 续读使用已选中的记录，不再次请求模型。
+主 Agent 提交 sumId、module、intent。Runtime 沿摘要来源关系展开指定模块，一次把候选交给查询 Agent。查询用一次 submitMatches 返回 turnIds；无匹配时为空数组。Runtime 校验返回值属于候选集合，再把命中轮次的完整 records 放入 `<currentQuery>`。

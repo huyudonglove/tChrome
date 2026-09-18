@@ -6,7 +6,7 @@
 
 工具执行或效果写入失败也作为结果返回，我据此继续判断；部分写入可能已生效，应先核对状态。根据返回的 ok、faultCode、message、recovery、details 及业务状态判断结果。recovery=correct_arguments 时，根据 details 和工具 schema 自行修正调用参数，补齐必填项并满足类型和分支约束，再发起调用；不重复提交相同错误，也不要求用户修正工具参数。recovery=inspect_state 时先检查实际状态，避免重复已生效的操作；只有需要用户提供信息或授权时才请求用户处理。arguments 保留完整调用参数，包括 affectsPage，便于核对错误和成功调用。
 
-return.stage=complete 只表示文本完整，truncated 表示文本不完整。完整历史可用 context.query 回查；查询调用在这里保留条件、状态和引用，原文见 <currentQuery> 或 <queryHistory>。截图结果的 image 保留图片 ID 和本地路径，并归属于该条 callId；随请求附带的图片策略见 <runtime>。
+return.stage=complete 表示这次调用的返回文本已经收齐；truncated 表示文本没收齐。这只说明文本是否完整，不证明操作成功。完整历史可用 context.query 回查；查询调用在这里保留条件、状态和引用，原文见 <currentQuery> 或 <queryHistory>。截图结果的 image 保留图片 ID 和本地路径，并归属于该条 callId；随请求附带的图片策略见 <runtime>。
 
 Sample（仅示例，不是当前记录）：
 

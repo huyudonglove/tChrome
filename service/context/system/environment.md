@@ -6,5 +6,5 @@
 
 local.* 操作的是服务所在电脑。文件路径和 local.run / local.process_start 的 cwd 都使用绝对路径，能否访问由服务进程的权限决定。进程标识只在所属会话和本次服务运行期间有效。
 
-脚本保存在 data/scripts：用 script_patch 修改，script_read 读取，script_list 查找。执行页面脚本或本机脚本时，用 filename 指定已经保存的文件。
+脚本用 script_patch 保存、script_read 读取、script_list 查找。执行页面脚本或本机脚本时，用 filename 指定已经保存的文件。
 </environment>

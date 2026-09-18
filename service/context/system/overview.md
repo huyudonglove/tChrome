@@ -22,6 +22,23 @@
 - <boundaries>：授权边界与参考材料。
 - <output>：reason 与最终答复。
 - <baseTools>：常驻工具导航。
+- <skill>：当前任务可用的操作方法。
+- <userInput>：当前用户原话。
+- <userInputHistory>：更早的用户原话。
+- <conversationHistorySummary>：已归档轮次摘要。
+- <goal>：当前目标。
+- <goalHistory>：已结束目标。
+- <openTabs>：窗口和标签快照。
+- <pageObservedHistory>：页面观察结果。
+- <projectMemory>：跨会话记忆。
+- <conversationMemory>：本会话已确认事实。
+- <notes>：草稿与中间材料。
+- <toolIO>：工具调用骨架与返回。
+- <lastAction>：上一批工具摘要。
+- <checklist>：本轮执行清单。
+- <queryHistory>：历史查询。
+- <currentQuery>：最近一次查询原文。
+- <tools>：本会话已加载的动态工具。
 
 当前日期：{{currentDate}}。
 </overview>

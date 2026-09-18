@@ -20,7 +20,7 @@ agents/compression/context/
 能力：【Agent Operating Overview】
 
 详细描述：
-主模型窗口达到压缩门槛时，Runtime 把选中的历史轮次交给我。我只把这批 turns 做成逐轮摘要；主模型继续页面、工具与用户答复，回查原文走 context.query。
+主模型窗口达到压缩门槛时，Runtime 把选中的历史轮次交给我。我只把这批 turns 做成逐轮摘要。
 
 单次压缩请求：
 
@@ -106,7 +106,7 @@ Sample（一批两个 turn 时，我应提交的 tool_calls 参数形态，仅�
 - queryHistory: 数组 `[{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}]`。status 为 complete / not_found / error；records 保留原模块记录。结论写入 result。
 - output: 对象或 null。`{kind:"reply", text}` / `{kind:"ask", question}` / `{kind:"error", faultCode, causeCode?, toolName?, detail?}` / `{kind:"tool", name, callId}`。null 表示暂无收尾。
 
-不参与压缩、也不会出现在 turns 材料里的主 Agent 窗口模块：skill、当前 userInput 槽、conversationHistorySummary、goal（active 视图）、openTabs、projectMemory、notes、lastAction、checklist、currentQuery、tools。
+不参与压缩、也不会出现在 turns 材料里的主 Agent 窗口模块：skill、当前这一轮的 <userInput>、conversationHistorySummary、goal（active 视图）、openTabs、projectMemory、notes、lastAction、checklist、currentQuery、tools。
 
 Sample（一批材料含两个完整轮次的骨架，仅示例；真实批次可能更多轮，也可能是 segments/summaries）：
 
