@@ -87,6 +87,9 @@ test("oversized page.set result is externalized with path but full archive remai
     expect(windowRow.result).toMatchObject({ ok: true, externalized: true, type: "page.list_interactive_elements" });
     expect(String((windowRow.result as any).message)).toContain("evidence.search");
     expect(String((windowRow.result as any).path)).toContain("pageObservation");
+    const stub = windowRow.result as any;
+    expect(stub.preview.length).toBe(runtimeConfig.results.previewChars);
+    expect(stub.preview.startsWith('{"ok":true')).toBe(true);
     const archived = JSON.parse(loadContextRecord(dataDir, "cv_ext", "pageObservation", windowRow.id)!);
     expect(archived.result.blob.length).toBe(runtimeConfig.results.inlineChars + 50);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }

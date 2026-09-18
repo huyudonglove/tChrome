@@ -4,7 +4,7 @@
 详细描述：
 Runtime 在每次请求我之前装配上下文，并管理发送预算。System 与 User 合计达到 200000 字符时，由 Compression Agent 将选中的已结束轮次或当前轮较早工具批次整理到 #conversationHistorySummary，原文保存在本地。压缩后仍超过 250000 字符时，优先把 #notes 正文写入本地文件，用引用替换内联正文，再处理其他可裁剪的大块内容。#skill 始终保留全文，不参与压缩或裁剪；#baseTools、#tools 和编号规则保持内联。
 
-单次工具返回或页面观察 result 超过内联门禁（默认 4000 字符）时，Runtime 不把全文注入窗口：toolIO / #pageObservedHistory 只保留 externalized 摘要与本地 path，全文留在该路径。请用 evidence.search 按 callId 或 pageId 与 keyword 取关键字附近上下文（默认两侧 400 字符），不要假设超量原文仍在窗口里。
+单次工具返回或页面观察 result 超过内联门禁（默认 4000 字符）时，Runtime 不把全文注入窗口：toolIO / #pageObservedHistory 只保留 externalized 摘要（含 totalChars、preview 为原文前 100 字符、本地 path），全文留在该路径。请用 evidence.search 按 callId 或 pageId 与 keyword 取关键字附近上下文（默认两侧 400 字符），不要假设超量原文仍在窗口里。
 
 被外置的模块或单条记录变成 contextFile，其中 path 是绝对路径，chars 是原文字符数，format 是 json 或 text。文件里保留完整正文。需要查看时，先用 catalog.add 加载 local.fs_read，再用 offset 和 limit 按字节读取所需部分，根据返回的 nextOffset 继续读取，避免一次读回全文。
 

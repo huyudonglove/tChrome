@@ -101,7 +101,10 @@ test("large script results use evidence.search while small follow-up pages stay 
       const toolIO = slot(user, "#toolIO");
       const row = toolIO.find((item: any) => item.name === "script_read");
       expect(row).toBeDefined();
-      expect(JSON.parse(JSON.stringify(row.return.result)).externalized).toBe(true);
+      const stub = JSON.parse(JSON.stringify(row.return.result));
+      expect(stub.externalized).toBe(true);
+      expect(String(stub.preview).length).toBeGreaterThan(0);
+      expect(String(stub.path)).toContain("returns");
       return response(call("evidence.search", { callId: row.callId, keyword: "PAGE_SENTINEL", contextChars: 20 }));
     }
     const toolIO = slot(user, "#toolIO");

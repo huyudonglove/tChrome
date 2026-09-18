@@ -59,16 +59,22 @@ export function applyToolEffects(input: {
         const resultChars = JSON.stringify(effect.result).length;
         const inlineLimit = runtimeConfig.results.inlineChars;
         const windowResult = resultChars > inlineLimit
-          ? {
-            ok: true,
-            externalized: true,
-            callId: call.callId,
-            type: call.name,
-            totalChars: resultChars,
-            path: join(paths(dataDir, ledger.conversationId).conv, "context-records", "pageObservation", `${id}.json`),
-            message: `runtime: 观察结果超过 ${inlineLimit} 字符，全文已缓存本地。请用 evidence.search(pageId=${id}, keyword) 检索；本地 path 见本字段。`,
-            search: "evidence.search",
-          }
+          ? (() => {
+            const previewSource = typeof effect.result === "string"
+              ? effect.result
+              : JSON.stringify(effect.result);
+            return {
+              ok: true,
+              externalized: true,
+              callId: call.callId,
+              type: call.name,
+              totalChars: resultChars,
+              preview: previewSource.slice(0, runtimeConfig.results.previewChars),
+              path: join(paths(dataDir, ledger.conversationId).conv, "context-records", "pageObservation", `${id}.json`),
+              message: `runtime: 观察结果超过 ${inlineLimit} 字符，全文已缓存本地；preview 为原文前 ${runtimeConfig.results.previewChars} 字符。请用 evidence.search(pageId=${id}, keyword) 检索；本地 path 见本字段。`,
+              search: "evidence.search",
+            };
+          })()
           : effect.result;
         const record = {
           id,

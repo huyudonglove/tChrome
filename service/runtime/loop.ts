@@ -203,8 +203,9 @@ const runQueue = async (input: {
         callId: item.callId,
         name: item.name,
         totalChars: full.length,
+        preview: full.slice(0, runtimeConfig.results.previewChars),
         path: join(paths(dataDir, ledger.conversationId).returns, `${item.callId}.txt`),
-        message: `runtime: 单次结果超过 ${inlineLimit} 字符，全文已缓存本地。请用 evidence.search 按 callId 与 keyword 取关键字附近上下文（默认 ±${runtimeConfig.results.searchContextChars} 字符）；本地 path 见本字段。`,
+        message: `runtime: 单次结果超过 ${inlineLimit} 字符，全文已缓存本地；preview 为原文前 ${runtimeConfig.results.previewChars} 字符。请用 evidence.search 按 callId 与 keyword 取关键字附近上下文（默认 ±${runtimeConfig.results.searchContextChars} 字符）；本地 path 见本字段。`,
         search: "evidence.search",
       })
       : full;
