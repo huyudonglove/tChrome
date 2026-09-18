@@ -27,6 +27,8 @@ test("query uses dedicated system and raw {request,turns} user XML", () => {
   expect(system).toContain("submitMatches");
   expect(system).toContain("不是字符串");
   expect(system).toContain("Turn 外壳");
+  expect(system).toContain("Runtime 校验不通过");
+  expect(system).toContain("runtime:");
   expect(system).toContain("Sample");
   expect(system).not.toContain("身份只在该模块声明");
   expect(system).not.toContain("<agentPosition>");
@@ -91,6 +93,8 @@ test("query format errors return to the model for self-repair up to three attemp
     if (calls > 1) {
       const repair = JSON.parse(input.messages.at(-1)!.content);
       expect(repair).toMatchObject({ selfRepair: true });
+      expect(repair.fault.startsWith("runtime: ")).toBe(true);
+      expect(repair.instruction.startsWith("runtime: ")).toBe(true);
       expect(repair.instruction).toContain("超出候选");
       expect(repair.instruction).toContain("tn_1");
     }

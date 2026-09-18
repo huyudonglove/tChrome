@@ -28,6 +28,8 @@ test("compression uses dedicated system and raw {turns} user JSON", () => {
   expect(system).toContain("不是字符串");
   expect(system).toContain("Turn 外壳");
   expect(system).toContain("不是提交参数");
+  expect(system).toContain("Runtime 校验不通过");
+  expect(system).toContain("runtime:");
   expect(system).toContain("- toolIO:");
   expect(system).toContain("return:{stage,totalChars,text}");
   expect(system).toContain("segments");
@@ -74,6 +76,8 @@ test("format errors return to the model for self-repair up to three attempts", a
     if (calls < 3) return missing;
     const repair = JSON.parse(request.messages.at(-1)!.content);
     expect(repair).toMatchObject({ selfRepair: true, attempt: 3 });
+    expect(repair.fault.startsWith("runtime: ")).toBe(true);
+    expect(repair.instruction.startsWith("runtime: ")).toBe(true);
     expect(repair.instruction).toContain("turnId 对不上");
     expect(repair.instruction).toContain("tn_01");
     expect(repair.instruction).toContain("tn_02");
@@ -90,7 +94,9 @@ test("coverage mismatch repair names the expected turnIds", async () => {
     calls++;
     if (calls === 1) return placeholder;
     const repair = JSON.parse(request.messages.at(-1)!.content);
+    expect(repair.fault.startsWith("runtime: ")).toBe(true);
     expect(repair.fault).toContain("tn_01");
+    expect(repair.instruction.startsWith("runtime: ")).toBe(true);
     expect(repair.instruction).toContain("turnId 对不上");
     expect(repair.instruction).toContain("[\"tn_01\",\"tn_02\"]");
     return valid;

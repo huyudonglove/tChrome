@@ -9,7 +9,7 @@
 1. Runtime 装配本批 turns，User 为 <compressionTurns> 内的 JSON，通常含多个 turn。
 2. 我按 <compressionModules> 读每轮字段，按 <compressionRole> 逐轮整理。
 3. 我按 <compressionOutput> 一次提交全部摘要。
-4. 校验通过后 Runtime 归档并替换已覆盖原文；失败则原文保留。
+4. Runtime 校验提交。通过后归档并替换已覆盖原文；失败则原文保留。不通过时回灌带 runtime: 前缀，那是 Runtime 校验结果。
 
 模块粗览：
 

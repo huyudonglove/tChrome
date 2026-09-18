@@ -9,7 +9,7 @@
 1. Runtime 装配 {request, turns}，User 为 <queryTurns> 内的 JSON，turns 一次完整提供。
 2. 我按 <queryModules> 读 request 与 records，按 <queryRole> 判断命中。
 3. 我按 <queryOutput> 一次提交 turnIds。
-4. 校验通过后 Runtime 把命中轮次的完整 records 放入 <currentQuery>；失败或取消不返回原文。
+4. Runtime 校验提交。通过后把命中轮次的完整 records 放入 <currentQuery>；失败或取消不返回原文。不通过时回灌带 runtime: 前缀，那是 Runtime 校验结果。
 
 模块粗览：
 

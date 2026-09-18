@@ -81,7 +81,7 @@ export async function requestTurnSummaries(input: { provider: Provider; repoRoot
             selfRepair: true,
             attempt,
             maxAttempts: COMPRESSION_FORMAT_ATTEMPTS,
-            fault: lastError,
+            fault: modelSpeech(lastError),
             instruction: modelSpeech(compressionRepairInstruction(tool.function.name, expectedIds, lastError)),
           }),
         },

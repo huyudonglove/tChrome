@@ -76,7 +76,7 @@ export async function requestMatches(input: {
           selfRepair: true,
           attempt,
           maxAttempts: QUERY_FORMAT_ATTEMPTS,
-          fault: lastError,
+          fault: modelSpeech(lastError),
           instruction: modelSpeech(queryRepairInstruction(allowedIds, lastError)),
         }),
       },
