@@ -84,11 +84,7 @@ export function compressionArchiveFieldsMarkdown(root: string): string {
   const lines = registry.modules
     .filter(row => row.compress && row.archiveField)
     .map(row => `- ${row.archiveField}: ${archiveFieldSemantics(row)}`);
-  return [
-    "### 注册表字段对照（modules.json compress=true）",
-    "",
-    ...lines,
-  ].join("\n");
+  return lines.join("\n");
 }
 
 /** Parse B-style XML module: <id>能力/详细描述[/内容]</id> */

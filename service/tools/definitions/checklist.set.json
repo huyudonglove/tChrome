@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "checklist.set",
-    "description": "提交/替换当前 turn 的执行清单，会在侧栏输入框上方同步展示给人看。\n参数：必填 items（非空数组）；可选 title。每项 text 必填，status 可选 todo|doing|done（默认 todo）。\n本 turn 结束后 Runtime 会清空清单。返回：ok、count。",
+    "description": "提交或替换当前 turn 的执行清单。\n参数：必填 items（非空数组）；可选 title。每项 text 必填，status 可选 todo|doing|done（默认 todo）。\n本 turn 结束后 Runtime 清空清单。返回：ok、count。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -17,10 +17,9 @@ test("compression uses dedicated system and raw {turns} user JSON", () => {
   const system = compressionSystemPrompt(repoRoot);
   expect(system.startsWith("<overview>")).toBe(true);
   expect(system).toContain("</overview>");
-  expect(system).toContain("compressAt");
   expect(system).toContain("模块粗览");
   expect(system).toContain("<identity>");
-  expect(system).toContain("身份只在该模块声明");
+  expect(system).toContain("我是 Compression Agent");
   expect(system).toContain("<compressionRole>");
   expect(system).toContain("<compressionModules>");
   expect(system).toContain("<compressionTurns>");
@@ -30,6 +29,8 @@ test("compression uses dedicated system and raw {turns} user JSON", () => {
   expect(system).toContain("Sample");
   expect(system).toContain("tn_02");
   expect(system).not.toContain("{{archiveFields}}");
+  expect(system).not.toContain("compressAt");
+  expect(system).not.toContain("身份只在该模块声明");
   expect(system).not.toContain("<agentPosition>");
   const user = compressionUserPrompt(repoRoot, input.turns);
   expect(user).toBe(`<compressionTurns>\n${JSON.stringify({ turns: input.turns })}\n</compressionTurns>`);

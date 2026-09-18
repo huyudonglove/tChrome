@@ -19,13 +19,14 @@ test("query uses dedicated system and raw {request,turns} user XML", () => {
   expect(system).toContain("</overview>");
   expect(system).toContain("模块粗览");
   expect(system).toContain("<identity>");
-  expect(system).toContain("身份只在该模块声明");
+  expect(system).toContain("我是 Query Agent");
   expect(system).toContain("<queryRole>");
   expect(system).toContain("<queryModules>");
   expect(system).toContain("<queryTurns>");
   expect(system).toContain("标签内只有数据");
   expect(system).toContain("submitMatches");
   expect(system).toContain("Sample");
+  expect(system).not.toContain("身份只在该模块声明");
   expect(system).not.toContain("<agentPosition>");
   const request = { sumId: "sum_01", module: "toolIO", intent: "是否可以修改状态" };
   const turns = ["tn_1", "tn_2"].map(id => ({ turnId: id, records: [{ callId: "call_01", text: "状态" }] }));
