@@ -36,6 +36,7 @@ export function userText(input: {
     inlineChars: runtimeConfig.results.inlineChars,
     previewChars: runtimeConfig.results.previewChars,
     searchContextChars: runtimeConfig.results.searchContextChars,
+    lineWidth: runtimeConfig.results.lineWidth,
   };
   const queryPath = (query: QueryEvidence) =>
     input.inlineBudget?.dataDir && query.sourceCallId

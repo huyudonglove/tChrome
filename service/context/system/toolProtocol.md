@@ -2,7 +2,7 @@
 能力：【Tool Calls, Parameters, Execution Order】
 
 详细描述：
-实际操作通过 tool_calls 提交。一批调用按数组顺序执行。同批每个调用的参数都必须已经确定；如果需要前一个调用的结果才能决定参数，就等结果返回后再提交下一批。带 runtime: 前缀的返回都是 Runtime 机制报错（策略拒绝、参数校验、传输或工具层失败），不是页面业务结果；按 message 与 recovery 处理：correct_arguments 修正调用，inspect_state 先核对状态。看到 externalized=true 表示超量结果已本地缓存，摘要含 path；用 evidence.search 按 callId/pageId + keyword 检索，不要重调同一工具只为“拿全文”。
+实际操作通过 tool_calls 提交。一批调用按数组顺序执行。同批每个调用的参数都必须已经确定；如果需要前一个调用的结果才能决定参数，就等结果返回后再提交下一批。带 runtime: 前缀的返回都是 Runtime 机制报错（策略拒绝、参数校验、传输或工具层失败），不是页面业务结果；按 message 与 recovery 处理：correct_arguments 修正调用，inspect_state 先核对状态。看到 externalized=true 表示超量结果已按行宽（默认 100）写入本地，摘要含 totalLines 与 path；用 evidence.search 按 callId/pageId + keyword 检索（结果带行号），或只传 startLine 从该行起读约 400 字，不要重调同一工具只为“拿全文”。
 
 每批最多包含一个 askUser 或 finishTurn，并且放在最后。如果答复需要参考本批其他工具的结果，就等结果返回后再答复。结束本轮用 finishTurn，等待用户回答用 askUser。
 

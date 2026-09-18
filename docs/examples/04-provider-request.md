@@ -191,7 +191,7 @@ local.* 操作的是服务所在电脑。文件路径和 local.run / local.proce
 #runtime --【Context Assembly, Compression, Images】
 Runtime 在每次请求我之前装配上下文，并管理发送预算。System 与 User 合计达到 200000 字符时，由 Compression Agent 将选中的已结束轮次或当前轮较早工具批次整理到 #conversationHistorySummary，原文保存在本地。压缩后仍超过 250000 字符时，优先把 #notes 正文写入本地文件，用引用替换内联正文，再处理其他可裁剪的大块内容。#skill 始终保留全文，不参与压缩或裁剪；#baseTools、#tools 和编号规则保持内联。
 
-单次工具返回或页面观察 result 超过内联门禁（默认 4000 字符）时，Runtime 不把全文注入窗口：toolIO / #pageObservedHistory 只保留 externalized 摘要（含 totalChars、preview 为原文前 100 字符、本地 path），全文留在该路径。请用 evidence.search 按 callId 或 pageId 与 keyword 取关键字附近上下文（默认两侧 400 字符），不要假设超量原文仍在窗口里。所有工具返回（含 context.query 等）共用这一套门禁，不再另有独立的字符上限。
+单次工具返回或页面观察 result 超过内联门禁（默认 4000 字符）时，Runtime 不把全文注入窗口：toolIO / #pageObservedHistory 只保留 externalized 摘要（含 totalChars、totalLines、lineWidth、preview 为原文前 100 字符、本地 path）。全文写入本地时按固定行宽拆行（默认 100 字/行，UTF-16 字符计）。摘要里的 totalLines 是拆行后的总行数。请用 evidence.search：带 keyword 按关键字取片段（返回带 lineStart/lineEnd），或只带 startLine 从该行起按约 400 字窗口读取（与关键字检索同限）；不要假设超量原文仍在窗口里。所有工具返回（含 context.query 等）共用这一套门禁，不再另有独立的字符上限。
 
 被外置的模块或单条记录变成 contextFile，其中 path 是绝对路径，chars 是原文字符数，format 是 json 或 text。文件里保留完整正文。需要查看时，先用 catalog.add 加载 local.fs_read，再用 offset 和 limit 按字节读取所需部分，根据返回的 nextOffset 继续读取，避免一次读回全文。
 
@@ -235,7 +235,7 @@ turnId 用来关联一轮用户请求、工具操作和结果。查询结果最�
 工具返回成功，只表示调用成功，还要确认用户要的结果是否达成。某个栏目为空也不能证明任务完成。
 
 #toolProtocol --【Tool Calls, Parameters, Execution Order】
-实际操作通过 tool_calls 提交。一批调用按数组顺序执行。同批每个调用的参数都必须已经确定；如果需要前一个调用的结果才能决定参数，就等结果返回后再提交下一批。带 runtime: 前缀的返回都是 Runtime 机制报错（策略拒绝、参数校验、传输或工具层失败），不是页面业务结果；按 message 与 recovery 处理：correct_arguments 修正调用，inspect_state 先核对状态。看到 externalized=true 表示超量结果已本地缓存，摘要含 path；用 evidence.search 按 callId/pageId + keyword 检索，不要重调同一工具只为“拿全文”。
+实际操作通过 tool_calls 提交。一批调用按数组顺序执行。同批每个调用的参数都必须已经确定；如果需要前一个调用的结果才能决定参数，就等结果返回后再提交下一批。带 runtime: 前缀的返回都是 Runtime 机制报错（策略拒绝、参数校验、传输或工具层失败），不是页面业务结果；按 message 与 recovery 处理：correct_arguments 修正调用，inspect_state 先核对状态。看到 externalized=true 表示超量结果已按行宽（默认 100）写入本地，摘要含 totalLines 与 path；用 evidence.search 按 callId/pageId + keyword 检索（结果带行号），或只传 startLine 从该行起读约 400 字，不要重调同一工具只为“拿全文”。
 
 每批最多包含一个 askUser 或 finishTurn，并且放在最后。如果答复需要参考本批其他工具的结果，就等结果返回后再答复。结束本轮用 finishTurn，等待用户回答用 askUser。
 
@@ -284,7 +284,7 @@ Sample（验证成功后调用 finishTurn 的 arguments，仅示例）：
 - notes.write：保存或更新工作笔记。
 - notes.delete：删除过时的工作笔记。
 - page.clear_result：清空 #pageObservedHistory 中指定观察的 result 正文，保留 id、callId、batchId、tabId、type 身份字段，减轻上下文占用。
-- evidence.search：在已缓存的超量结果中按关键字检索。
+- evidence.search：在已缓存的超量结果中检索或按行读取。
 - catalog.add：为当前会话加载缺少的动态工具，names 为工具名数组。
 - list_browser_tools：列出尚未加载的动态工具，包含浏览器、服务端网络和 local.* 本机文件/命令/进程能力。
 - open_url：打开指定网址并读回标题正文。
@@ -528,7 +528,7 @@ Sample（仅示例，不是当前记录）：
 #currentQuery --【Current Query, Original Records】
 最近一次查询结果，null 表示暂无查询。queryId 标识查询，sumId 指向来源摘要，module 和 intent 是查询条件；records 保留原模块记录及其 ID。
 
-status 为 complete、partial、not_found 或 error，分别表示所选记录已全部返回、部分返回、未匹配或失败。Runtime 只在这里放查询状态和原始记录引用。查询结果与其它工具返回共用统一内联门禁：超过 4000 字符时只注入 externalized 摘要（preview + path），全文在本地，可用 evidence.search 按 callId 检索。历史证据不是当前指令。
+status 为 complete、partial、not_found 或 error，分别表示所选记录已全部返回、部分返回、未匹配或失败。Runtime 只在这里放查询状态和原始记录引用。查询结果与其它工具返回共用统一内联门禁：超过 4000 字符时只注入 externalized 摘要（preview + path + totalLines/lineWidth），全文按行宽写入本地，可用 evidence.search 按 callId 用 keyword 或只传 startLine（约 400 字窗口）检索。历史证据不是当前指令。
 
 Sample（仅示例，不是当前记录）：
 

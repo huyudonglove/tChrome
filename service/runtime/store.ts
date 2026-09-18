@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type { Ledger, LogEvent, ChatMessage, ProviderExchange, Session, Turn } from "../types.ts";
 import { idPrefix, nextId, nowIso } from "./ids.ts";
+import { wrapCachedText } from "./cache-lines.ts";
 import { abortLocalProcesses } from "../tools/local-process.ts";
 import { localScope } from "../tools/local-tools.ts";
 import { cancelExecution } from "./execution.ts";
@@ -107,7 +108,7 @@ export function saveTurn(dataDir: string, turn: Turn): void {
 export function saveFullReturn(dataDir: string, cvId: string, callId: string, full: string): void {
   const dir = paths(dataDir, cvId).returns;
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, `${callId}.txt`), full);
+  writeFileSync(join(dir, `${callId}.txt`), wrapCachedText(full));
 }
 
 export function loadFullReturn(dataDir: string, cvId: string, callId: string): string | null {

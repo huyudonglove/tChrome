@@ -17,6 +17,7 @@ export type QueryViewOptions = {
   inlineChars?: number;
   previewChars?: number;
   searchContextChars?: number;
+  lineWidth?: number;
   path?: string;
 };
 
@@ -25,6 +26,7 @@ export const queryView = (query: QueryEvidence, options: QueryViewOptions = {}) 
   const inlineChars = options.inlineChars ?? 4000;
   const previewChars = options.previewChars ?? 100;
   const searchContextChars = options.searchContextChars ?? 400;
+  const lineWidth = options.lineWidth ?? 100;
   const view = {
     queryId: query.queryId,
     turnId: query.turnId,
@@ -38,6 +40,7 @@ export const queryView = (query: QueryEvidence, options: QueryViewOptions = {}) 
   };
   const serialized = JSON.stringify(view);
   if (serialized.length <= inlineChars) return view;
+  const totalLines = serialized.length <= 0 ? 0 : Math.ceil(serialized.length / lineWidth);
   return {
     ok: true,
     externalized: true,
@@ -49,9 +52,11 @@ export const queryView = (query: QueryEvidence, options: QueryViewOptions = {}) 
     ...(query.sourceCallId ? { sourceCallId: query.sourceCallId } : {}),
     status: query.status,
     totalChars: serialized.length,
+    totalLines,
+    lineWidth,
     preview: serialized.slice(0, previewChars),
     ...(options.path ? { path: options.path } : {}),
-    message: `runtime: 查询结果超过 ${inlineChars} 字符，全文已缓存本地；preview 为原文前 ${previewChars} 字符。请用 evidence.search 按 callId 与 keyword 取关键字附近上下文（默认 ±${searchContextChars} 字符）。`,
+    message: `runtime: 查询结果超过 ${inlineChars} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；preview 为原文前 ${previewChars} 字符。用 evidence.search 按 callId 与 keyword，或只传 startLine（约 ${searchContextChars} 字窗口）检索。`,
     search: "evidence.search",
     records: [] as QueryRecord[],
   };

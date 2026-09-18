@@ -76,7 +76,7 @@ openTabs 展示标签快照，pageObservedHistory 集中展示页面观察结果
 
 主模型发送前另设 System + User 合计 250000 字符硬内联上限。先执行上述 200000 字符门槛的压缩检查，再检查内联预算；压缩后仍超过 250000 时，优先将 notes 正文完整写入 `TCHROME_DATA/context-files/`，以文件引用替换内联正文，直到满足发送预算。notes 外置后仍超限时，再外置其他大块内容。数组模块也允许将大记录单独替换为文件引用，保留后续较小记录内联，便于模型看到分页读取结果。JSON 数据模块或数组记录的引用为 `{contextFile:{path,chars,format}}`，其中 path 为绝对路径、chars 为原文字符数、format 为 `json` 或 `text`。System #baseTools、User #tools、#skill 和编号规则保持内联；#skill 始终保留全文，不参与压缩或裁剪。文件替换仅影响本次请求的展示，不删除历史记录，也不改变记忆和 notes 的存储内容。引用契约见 [data-schema.json](data-schema.json)。模型可通过 `catalog.add` 加载 `local.fs_read`，使用 `offset` / `limit` 按字节分段读取所需原文，后续页使用返回的 `nextOffset`，避免一次回读全文再次撑大上下文。若固定规则与文件引用本身仍无法装入，返回 `context_limit`。
 
-常驻 `context.query(sumId, module, intent)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将完整 records 放入 currentQuery；#toolIO 只投影 currentQuery 指针。查询结果与其它工具返回共用统一内联门禁（默认 4000 字符），超出时注入 externalized 摘要（preview+path），可用 evidence.search 检索。查询不会刷新页面。
+常驻 `context.query(sumId, module, intent)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将完整 records 放入 currentQuery；#toolIO 只投影 currentQuery 指针。查询结果与其它工具返回共用统一内联门禁（默认 4000 字符），超出时注入 externalized 摘要（preview+path+totalLines/lineWidth）；本地全文按默认 100 字/行拆行，可用 evidence.search 按 keyword 或只传 startLine（约 400 字窗口）检索。查询不会刷新页面。
 
 模型输出校验成功、完整来源与摘要落盘后，才原子更新目录索引和覆盖关系。失败或取消不提交该批次覆盖，原文继续可用；此前成功提交的归档保留。索引是提交点，中断可能留下未被索引引用的文件。窗口按来源覆盖过滤历史输入、已结束目标、页面观察、会话记忆写入和工具记录，本地原文不删除。
 

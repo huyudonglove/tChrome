@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { executeTool } from "./execute.ts";
@@ -25,11 +25,77 @@ test("evidence.search returns default ±400 context around keyword from cached c
     });
     const parsed = JSON.parse(execution.text);
     expect(parsed.ok).toBe(true);
+    expect(parsed.mode).toBe("search");
     expect(parsed.matchCount).toBe(1);
     expect(parsed.path).toBe(join(dataDir, "conversations", "cv_01", "returns", "call_09.txt"));
+    expect(parsed.lineWidth).toBe(runtimeConfig.results.lineWidth);
+    expect(parsed.totalLines).toBe(Math.ceil(body.length / runtimeConfig.results.lineWidth));
     expect(parsed.matches[0].hit).toBe("NEEDLE_IN_HAYSTACK");
+    expect(parsed.matches[0].lineStart).toBeGreaterThan(0);
+    expect(parsed.matches[0].lineEnd).toBeGreaterThanOrEqual(parsed.matches[0].lineStart);
     expect(parsed.matches[0].before.length).toBe(runtimeConfig.results.searchContextChars);
     expect(parsed.matches[0].after.length).toBe(runtimeConfig.results.searchContextChars);
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+});
+
+test("cached returns are line-wrapped on disk at lineWidth", () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-wrap-"));
+  try {
+    const width = runtimeConfig.results.lineWidth;
+    const body = "a".repeat(width * 2 + 10);
+    saveFullReturn(dataDir, "cv_01", "call_wrap", body);
+    const file = readFileSync(join(dataDir, "conversations", "cv_01", "returns", "call_wrap.txt"), "utf8");
+    const lines = file.split("\n");
+    expect(lines).toHaveLength(3);
+    expect(lines[0]).toHaveLength(width);
+    expect(lines[1]).toHaveLength(width);
+    expect(lines[2]).toHaveLength(10);
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+});
+
+test("evidence.search lines mode reads from startLine within the 400-char window", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-lines-"));
+  try {
+    const width = runtimeConfig.results.lineWidth;
+    const body = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(width, `${(i + 1) % 10}`)).join("");
+    saveFullReturn(dataDir, "cv_01", "call_lines", body);
+    const execution = await executeTool({
+      name: "evidence.search",
+      arguments: { reason: "按行读", affectsPage: false, callId: "call_lines", startLine: 3 },
+      dataDir,
+      conversationId: "cv_01",
+      lookup,
+    });
+    const parsed = JSON.parse(execution.text);
+    expect(parsed.ok).toBe(true);
+    expect(parsed.mode).toBe("lines");
+    expect(parsed.totalLines).toBe(12);
+    expect(parsed.startLine).toBe(3);
+    // Same default window as keyword search: 400 chars → 4 full lines at width 100.
+    expect(parsed.endLine).toBe(6);
+    expect(parsed.lines.map((row: { line: number }) => row.line)).toEqual([3, 4, 5, 6]);
+    expect(parsed.lines[0].text).toHaveLength(width);
+    const textLen = parsed.lines.reduce((sum: number, row: { text: string }) => sum + row.text.length, 0);
+    expect(textLen).toBeLessThanOrEqual(runtimeConfig.results.searchContextChars);
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+});
+
+test("evidence.search rejects keyword with startLine and blank modes", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-mode-"));
+  try {
+    saveFullReturn(dataDir, "cv_01", "call_01", "hello world");
+    const both = await executeTool({
+      name: "evidence.search",
+      arguments: { reason: "x", affectsPage: false, callId: "call_01", keyword: "hello", startLine: 1 },
+      dataDir, conversationId: "cv_01", lookup,
+    });
+    expect(JSON.parse(both.text)).toMatchObject({ ok: false, faultCode: "invalid_arguments" });
+    const blank = await executeTool({
+      name: "evidence.search",
+      arguments: { reason: "x", affectsPage: false, callId: "call_01" },
+      dataDir, conversationId: "cv_01", lookup,
+    });
+    expect(JSON.parse(blank.text)).toMatchObject({ ok: false, faultCode: "invalid_arguments" });
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
@@ -56,7 +122,7 @@ test("evidence.search reads page observation archive and returns file path", asy
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
-test("oversized page.set result is externalized with path but full archive remains", async () => {
+test("oversized page.set result is externalized with path and totalLines; full archive remains", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-ext-page-"));
   try {
     const ledger = emptyLedger("cv_ext");
@@ -85,13 +151,18 @@ test("oversized page.set result is externalized with path but full archive remai
     });
     const windowRow = turn.assembled.pageObservedHistory[0]!;
     expect(windowRow.result).toMatchObject({ ok: true, externalized: true, type: "page.list_interactive_elements" });
-    expect(String((windowRow.result as any).message)).toContain("evidence.search");
-    expect(String((windowRow.result as any).path)).toContain("pageObservation");
     const stub = windowRow.result as any;
+    expect(stub.message).toContain("evidence.search");
+    expect(stub.path).toContain("pageObservation");
+    expect(stub.lineWidth).toBe(runtimeConfig.results.lineWidth);
+    expect(stub.totalLines).toBe(Math.ceil(stub.totalChars / runtimeConfig.results.lineWidth));
     expect(stub.preview.length).toBe(runtimeConfig.results.previewChars);
     expect(stub.preview.startsWith('{"ok":true')).toBe(true);
     const archived = JSON.parse(loadContextRecord(dataDir, "cv_ext", "pageObservation", windowRow.id)!);
     expect(archived.result.blob.length).toBe(runtimeConfig.results.inlineChars + 50);
+    const textPath = join(dataDir, "conversations", "cv_ext", "context-records", "pageObservation", `${windowRow.id}.txt`);
+    const wrapped = readFileSync(textPath, "utf8");
+    expect(wrapped.split("\n").length).toBe(stub.totalLines);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 

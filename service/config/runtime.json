@@ -13,6 +13,7 @@
   "results": {
     "inlineChars": 4000,
     "previewChars": 100,
+    "lineWidth": 100,
     "searchContextChars": 400,
     "searchMaxContextChars": 400,
     "searchMaxMatches": 8

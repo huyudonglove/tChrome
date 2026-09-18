@@ -1,11 +1,16 @@
 import { saveContextRecord } from "./records.ts";
+import { wrapCachedText } from "./cache-lines.ts";
 import { saveMemory } from "../memory/store.ts";
 import type { Ledger, MemoryRecord, ToolQueueItem, Turn, TurnOutput } from "../types.ts";
 import type { ToolEffect } from "../tools/effects.ts";
 import { allocateRecordId, nowIso } from "./ids.ts";
 import { join } from "node:path";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { appendEvent, paths, saveLedger, saveTurn } from "./store.ts";
 import { runtimeConfig } from "../config/runtime.ts";
+
+const recordDirectory = (dataDir: string, conversationId: string, kind: string) =>
+  join(dataDir, "conversations", conversationId, "context-records", kind);
 
 export function applyToolEffects(input: {
   dataDir: string;
@@ -58,6 +63,8 @@ export function applyToolEffects(input: {
         const id = allocateRecordId(dataDir, ledger.conversationId, "page");
         const resultChars = JSON.stringify(effect.result).length;
         const inlineLimit = runtimeConfig.results.inlineChars;
+        const lineWidth = runtimeConfig.results.lineWidth;
+        const totalLines = resultChars <= 0 ? 0 : Math.ceil(resultChars / lineWidth);
         const windowResult = resultChars > inlineLimit
           ? (() => {
             const previewSource = typeof effect.result === "string"
@@ -69,9 +76,11 @@ export function applyToolEffects(input: {
               callId: call.callId,
               type: call.name,
               totalChars: resultChars,
+              totalLines,
+              lineWidth,
               preview: previewSource.slice(0, runtimeConfig.results.previewChars),
               path: join(paths(dataDir, ledger.conversationId).conv, "context-records", "pageObservation", `${id}.json`),
-              message: `runtime: 观察结果超过 ${inlineLimit} 字符，全文已缓存本地；preview 为原文前 ${runtimeConfig.results.previewChars} 字符。请用 evidence.search(pageId=${id}, keyword) 检索；本地 path 见本字段。`,
+              message: `runtime: 观察结果超过 ${inlineLimit} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；preview 为原文前 ${runtimeConfig.results.previewChars} 字符。用 evidence.search(pageId=${id}, keyword) 按关键字取片段，或只传 startLine 从该行起读约 ${runtimeConfig.results.searchContextChars} 字。`,
               search: "evidence.search",
             };
           })()
@@ -88,6 +97,13 @@ export function applyToolEffects(input: {
           result: effect.result,
         };
         saveContextRecord(dataDir, ledger.conversationId, "pageObservation", record);
+        // A1: retrieval copy is line-wrapped on disk; structured JSON archive stays intact.
+        const searchable = typeof effect.result === "string"
+          ? effect.result
+          : JSON.stringify(effect.result ?? null);
+        const pageDir = recordDirectory(dataDir, ledger.conversationId, "pageObservation");
+        mkdirSync(pageDir, { recursive: true });
+        writeFileSync(join(pageDir, `${id}.txt`), wrapCachedText(searchable));
         // Failures stay in the observation log but do not replace the current page identity.
         if (effect.result.ok) {
           const previous = turn.assembled.currentPage;

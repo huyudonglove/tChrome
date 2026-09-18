@@ -63,13 +63,14 @@ conversations/<cvId>/provider.md
 conversations/<cvId>/turns/<turnId>.json
 conversations/<cvId>/memory/<memoryId>.json
 conversations/<cvId>/context-records/<kind>/<id>.json
+conversations/<cvId>/context-records/pageObservation/<id>.txt
 conversations/<cvId>/compression/<module>/index.json
 conversations/<cvId>/compression/<module>/records/<id>.json
 conversations/<cvId>/compression/<module>/sources/<id>.json
 conversations/<cvId>/returns/<callId>.txt
 ```
 
-JSON 快照覆盖写。流水只追加，不改已经写下的行。
+JSON 快照覆盖写。流水只追加，不改已经写下的行。`returns/<callId>.txt` 与 `context-records/pageObservation/<id>.txt` 为超量结果的检索正文，按默认 100 字/行拆行；对应 externalized 摘要返回 totalLines/lineWidth，evidence.search 支持 keyword 或只传 startLine（约 400 字窗口）。
 
 记录 ID 规则统一见 `service/identity/catalog.json`；System #recordIdentity 的编号规则表和 User 数据校验从同一清单生成。表格展示类型、示例和范围，配套规则要求原样引用已有 ID，各类型在所属范围独立递增、允许空号，不跨类型或范围比较编号。模块 JSON 契约见 `service/context/data-schema.json`，字段速查见 `service/context/DATA.md`。
 
@@ -277,7 +278,7 @@ System #baseTools 展示常驻能力导航，User #tools 展示本会话已加�
 
 `askUser` 的 `text` 是根据 arguments.question 和选项生成的工具返回文本。`finishTurn` 的 `text` 是回复用户的正文（仅取 finishTurn.arguments.text，不使用 content 回退）。动态工具的 `text` 是工具正文；`context.query` 的 `text` 仅含状态和引用。`memory.write` 的 `text` 是落下的层和条数。
 
-常驻 `context.query(sumId, module, intent)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将完整 records 放入 currentQuery；#toolIO 只投影 currentQuery 指针。查询结果与其它工具返回共用统一内联门禁（默认 4000 字符），超出时注入 externalized 摘要（preview+path），可用 evidence.search 检索。查询不会刷新页面。
+常驻 `context.query(sumId, module, intent)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将完整 records 放入 currentQuery；#toolIO 只投影 currentQuery 指针。查询结果与其它工具返回共用统一内联门禁（默认 4000 字符），超出时注入 externalized 摘要（preview+path+totalLines/lineWidth）；本地全文按默认 100 字/行拆行，可用 evidence.search 按 keyword 或只传 startLine（约 400 字窗口）检索。查询不会刷新页面。
 
 工具窗口投影使用 {callId, turnId, batchId?, name, arguments, return: {stage, result}}，arguments 隐藏 affectsPage，保留 reason 与操作参数。result 对合法 JSON 解析一次，普通文本和截断文本保持原样。callId 标识调用，turnId 标识所属轮次，batchId 标识工具批次；totalChars 不注入主模型，操作用 tabId、控件引用及错误详情仍保留。与 pageObservedHistory 中同一 turnId+callId 的观察对应时，return.result 只保留 {ok, pageObservationId}，完整观察结果只出现在 #pageObservedHistory；本地原始返回保持完整。
 
