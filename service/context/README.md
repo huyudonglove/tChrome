@@ -5,7 +5,7 @@
 | 入口 | 职责 |
 |---|---|
 | [modules.json](modules.json) | 注册表：id、role、order、file、consumers、compress、archiveField |
-| [overview.md](overview.md) | 主 Agent 提示词总纲 |
+| [system/overview.md](system/overview.md) | `<overview>`：Agent loop、装配顺序、模块粗览与日期 |
 | [system/](system/) | 主 Agent System 模块 XML 正文 |
 | [user/](user/) | 主 Agent User 模块 XML 正文 + `{{data}}` |
 | [modules.ts](modules.ts) | 按注册表加载/渲染 XML；生成压缩字段说明 |

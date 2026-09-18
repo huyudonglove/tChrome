@@ -10,9 +10,13 @@ const xmlTags = (text: string) => Array.from(text.matchAll(/^<([A-Za-z][A-Za-z0-
 
 test("registry loads XML modules and system text uses angle-bracket tags", () => {
   const modules = loadContextModules(root);
-  expect(modules.systemOrder[0]).toBe("#identity");
+  expect(modules.systemOrder[0]).toBe("#overview");
+  expect(modules.systemOrder).toContain("#identity");
   expect(modules.userOrder).toContain("#toolIO");
   const system = systemTextFromModules(modules, "2026-09-06", "GUIDE");
+  expect(system.startsWith("<overview>")).toBe(true);
+  expect(system).toContain("</overview>");
+  expect(system).toContain("2026-09-06");
   expect(system).toContain("<identity>");
   expect(system).toContain("</identity>");
   expect(system).toContain("<runtime>");

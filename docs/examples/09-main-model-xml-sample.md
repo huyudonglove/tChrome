@@ -1,16 +1,14 @@
-# 09 主模型输入样例（XML Context）
+# 09 主模型输入样例（XML Context，含 overview）
 
-当前实现以 `service/context/modules.json` + XML 模块为准。本文由 Runtime 装配路径生成的**示意样例**（mock 数据，非真实会话）：用户要求「帮我看下导出页」，上一批已执行 `page.get_summary`。
+System 与 User 均为 XML B 模块；`<overview>` 为 System 首块，来自 `context/system/overview.md` + `modules.json`。
 
-- System：Overview + `consumers∋main` 的 system 模块
-- User：按注册表 order 的 user 模块，每块为「能力 + 详细描述 + 内容」
-- 压缩 Agent 不使用本文，见 `service/agents/compression/context/`
-
-## System（messages[0].content）
+## System（7995 字符）
 
 ```text
-# Overview
+<overview>
+能力：【Agent Loop, Context Assembly】
 
+详细描述：
 用户消息进入 <userInput> 后，我与 Runtime 构成“请求 → 执行工具 → 结果交回”的 Agent loop。每次请求我之前，Runtime 按以下顺序装配上下文：
 
 1. 注入 <userInputHistory>、<conversationHistorySummary>、<goal>、<goalHistory>、<pageObservedHistory>、<projectMemory>、<conversationMemory> 和 <notes>。
@@ -22,7 +20,20 @@
 
 本轮在我用 finishTurn 提交答复、用 askUser 等待用户，或用户停止、发生不可恢复错误、无效提交达到上限时结束。用户再次发来消息时，Runtime 保留已有状态并重新开始循环。
 
+模块粗览（细节在各 System/User 模块）：
+
+- <identity>：身份与沟通。
+- <environment>：环境、本机与工具发现。
+- <runtime>：装配、压缩、外置与图片。
+- <recordIdentity>：记录 ID 规则。
+- <execution>：执行、验证与恢复。
+- <toolProtocol>：tool_calls 协议与批次顺序。
+- <boundaries>：授权边界与参考材料。
+- <output>：reason 与最终答复。
+- <baseTools>：常驻工具导航。
+
 当前日期（太平洋时间，America/Los_Angeles）：2026-09-18。
+</overview>
 
 <identity>
 能力：【Identity, Collaboration, Language】
@@ -185,7 +196,7 @@ Sample（工具清单格式，仅示例）：
 </baseTools>
 ```
 
-## User（messages[1].content）
+## User（12426 字符）
 
 ```text
 <skill>
@@ -255,16 +266,7 @@ Sample（仅示例，不是当前记录）：
     ]
 
 内容：
-[
-  {
-    "sumId": "sum_01",
-    "turnId": "tn_01",
-    "tag": "导出",
-    "userRequest": "打开导出页并确认格式",
-    "actions": "已打开导出页",
-    "result": "页面支持 CSV 与 Excel"
-  }
-]
+[]
 </conversationHistorySummary>
 
 <userInputHistory>
@@ -435,9 +437,6 @@ Sample（仅示例，不是当前记录）：
     "type": "page.get_summary",
     "result": {
       "ok": true,
-      "tabId": 101,
-      "title": "导出",
-      "url": "https://example.com/export",
       "description": "支持 CSV 与 Excel"
     }
   }
@@ -473,16 +472,7 @@ Sample（仅示例，不是当前记录）：
     ]
 
 内容：
-[
-  {
-    "memoryId": "mm_01",
-    "turnId": "tn_02",
-    "sourceCallId": "call_01",
-    "layer": "conversation",
-    "text": "用户偏好 CSV",
-    "createdAt": "2026-09-18"
-  }
-]
+[]
 </conversationMemory>
 
 <notes>
@@ -614,10 +604,6 @@ Sample（仅示例，不是当前记录）：
     {
       "text": "打开导出页",
       "status": "done"
-    },
-    {
-      "text": "确认格式",
-      "status": "doing"
     }
   ],
   "updatedAt": "2026-09-18"

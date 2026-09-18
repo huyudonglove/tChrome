@@ -207,6 +207,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "description": "用户发话时的标签信息，尚未读取页面内容"
   },
   "systemSlots": [
+    "#overview",
     "#identity",
     "#environment",
     "#runtime",

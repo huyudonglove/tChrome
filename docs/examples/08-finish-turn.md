@@ -135,6 +135,7 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "description": "用户发话时的标签信息，尚未读取页面内容"
   },
   "systemSlots": [
+    "#overview",
     "#identity",
     "#environment",
     "#runtime",

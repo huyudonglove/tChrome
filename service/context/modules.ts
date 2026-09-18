@@ -155,8 +155,6 @@ export function renderInventory(role: "System" | "User", order: string[], module
 
 export function loadContextModules(root: string): ContextModules {
   const dir = join(root, "service", "context");
-  const overview = readFileSync(join(dir, "overview.md"), "utf8").trim();
-  if (!overview) throw new Error("empty context overview");
   const registry = loadModuleRegistry(root);
   const systemEntries = registryModules(registry, { role: "system", consumer: "main" });
   const userEntries = registryModules(registry, { role: "user", consumer: "main" });
@@ -165,20 +163,23 @@ export function loadContextModules(root: string): ContextModules {
   if (systemOrder.some(tag => userOrder.includes(tag))) throw new Error("duplicate tag across system and user");
   const systemSlots = Object.fromEntries(systemEntries.map(entry => [`#${entry.id}`, loadXmlModule(dir, entry)]));
   const userSlots = Object.fromEntries(userEntries.map(entry => [`#${entry.id}`, loadXmlModule(dir, entry)]));
+  const overview = systemSlots["#overview"]?.body ?? "";
+  if (!overview) throw new Error("missing system overview module");
   return { overview, systemOrder, userOrder, systemSlots, userSlots };
 }
 
 export function systemTextFromModules(modules: ContextModules, currentDate: string, baseToolGuide = ""): string {
-  const parts = [interpolate(modules.overview, { currentDate })];
+  const parts: string[] = [];
   for (const tag of modules.systemOrder) {
     const module = modules.systemSlots[tag]!;
     const id = tag.slice(1);
     const payload = tag === "#baseTools" ? baseToolGuide : tag === "#recordIdentity" ? identityRulesText() : "";
-    const body = payload
+    let body = payload
       ? (module.body.includes("{{data}}")
         ? module.body.replaceAll("{{data}}", payload)
         : `${module.body}\n\n${payload}`)
       : module.body.replaceAll("{{data}}", "");
+    if (tag === "#overview") body = body.replaceAll("{{currentDate}}", currentDate);
     parts.push(`<${id}>\n能力：${module.capability}\n\n详细描述：\n${body}\n</${id}>`);
   }
   return parts.join("\n\n");

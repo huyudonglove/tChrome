@@ -60,6 +60,7 @@
     "description": "用户发话时的标签信息，尚未读取页面内容"
   },
   "systemSlots": [
+    "#overview",
     "#identity",
     "#environment",
     "#runtime",
@@ -301,6 +302,7 @@
     "description": "用户发话时的标签信息，尚未读取页面内容"
   },
   "systemSlots": [
+    "#overview",
     "#identity",
     "#environment",
     "#runtime",

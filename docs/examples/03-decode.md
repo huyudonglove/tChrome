@@ -89,8 +89,10 @@
 ## system 栏目
 
 ```
-# Overview
+<overview>
+能力：【Agent Loop, Context Assembly】
 
+详细描述：
 用户消息进入 <userInput> 后，我与 Runtime 构成“请求 → 执行工具 → 结果交回”的 Agent loop。每次请求我之前，Runtime 按以下顺序装配上下文：
 
 1. 注入 <userInputHistory>、<conversationHistorySummary>、<goal>、<goalHistory>、<pageObservedHistory>、<projectMemory>、<conversationMemory> 和 <notes>。
@@ -102,7 +104,20 @@
 
 本轮在我用 finishTurn 提交答复、用 askUser 等待用户，或用户停止、发生不可恢复错误、无效提交达到上限时结束。用户再次发来消息时，Runtime 保留已有状态并重新开始循环。
 
+模块粗览（细节在各 System/User 模块）：
+
+- <identity>：身份与沟通。
+- <environment>：环境、本机与工具发现。
+- <runtime>：装配、压缩、外置与图片。
+- <recordIdentity>：记录 ID 规则。
+- <execution>：执行、验证与恢复。
+- <toolProtocol>：tool_calls 协议与批次顺序。
+- <boundaries>：授权边界与参考材料。
+- <output>：reason 与最终答复。
+- <baseTools>：常驻工具导航。
+
 当前日期（太平洋时间，America/Los_Angeles）：2026-09-06。
+</overview>
 
 <identity>
 能力：【Identity, Collaboration, Language】
@@ -725,6 +740,7 @@ Sample（文本格式，仅示例）：
     "description": "用户发话时的标签信息，尚未读取页面内容"
   },
   "systemSlots": [
+    "#overview",
     "#identity",
     "#environment",
     "#runtime",
