@@ -34,6 +34,16 @@ describe("shared errors", () => {
     expect(errorInfo({ code: "toString" }).faultCode).toBe("tool_execution_failed");
   });
 
+  test("all model catalog messages share the runtime: prefix; user copy does not", () => {
+    for (const code of Object.keys(catalog)) {
+      expect(errorMessage(code, "model").startsWith("runtime: "), code).toBe(true);
+      expect(errorMessage(code, "user").startsWith("runtime: "), code).toBe(false);
+    }
+    // Unknown codes fall back to tool_execution_failed and still use the same prefix path.
+    expect(errorMessage("unknown_future_code", "model").startsWith("runtime: ")).toBe(true);
+    expect(errorMessage("unknown_future_code", "user").startsWith("runtime: ")).toBe(false);
+  });
+
   test("every catalog entry has both audiences and a valid recovery", () => {
     for (const [code, entry] of Object.entries(catalog)) {
       expect(entry.model.trim().length, code).toBeGreaterThan(0);

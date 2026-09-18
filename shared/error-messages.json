@@ -209,6 +209,11 @@
     "user": "模型没有生成有效的最终回复，本轮未完成。",
     "recovery": "correct_arguments"
   },
+  "result_externalized": {
+    "model": "单次结果超过内联门禁，全文已缓存本地。用 result.search 按 callId 或 pageId 与 keyword 取关键字附近上下文，不要假设全文仍在窗口内。",
+    "user": "工具结果过大，已保存在本地，模型将改为检索关键片段。",
+    "recovery": "correct_arguments"
+  },
   "tavily_key_missing": {
     "model": "Tavily 密钥未配置，请用户在服务端配置后再搜索。",
     "user": "尚未配置 Tavily 搜索密钥。",

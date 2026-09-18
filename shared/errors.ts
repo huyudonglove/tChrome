@@ -37,10 +37,18 @@ export function errorInfo(error: unknown, fallback = "tool_execution_failed"): E
 const messageFor = (code: string): ErrorMessage =>
   Object.hasOwn(catalog, code) ? catalog[code]! : catalog.tool_execution_failed!;
 
+/** Prefix for model-facing harness text. All catalog model messages are Runtime-originated. */
+export const RUNTIME_MODEL_PREFIX = "runtime: ";
+
+/**
+ * Model-facing catalog copy is always Runtime harness speech (policy, transport, tools, provider).
+ * Prefix in one place so call sites never special-case. User-facing copy stays unprefixed.
+ */
 export function errorMessage(code: string, audience: "model" | "user"): string {
   const entry = messageFor(code);
-  return entry[audience] + (audience === "model" && entry.recovery === "correct_arguments"
+  const body = entry[audience] + (audience === "model" && entry.recovery === "correct_arguments"
     ? "由你核对工具定义并修正调用，不要让用户补填工具参数。" : "");
+  return audience === "model" ? `${RUNTIME_MODEL_PREFIX}${body}` : body;
 }
 
 /** Recovery advice for the model, distinct from transport retry policy. */

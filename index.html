@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>页面分析工具对比 · tChrome vs 主流</title>
+  <style>
+    :root {
+      --bg: #f6f4f0;
+      --panel: #ffffff;
+      --ink: #1c1b19;
+      --muted: #6b6560;
+      --line: #ddd6cc;
+      --accent: #0f5c4c;
+      --warn: #9a3412;
+      --ok: #166534;
+      --chip: #ebe6de;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 16px/1.55 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    header {
+      padding: 28px 24px 12px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 26px;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+    }
+    header p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 46em;
+    }
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 8px 24px 64px;
+      display: grid;
+      gap: 20px;
+    }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px 22px;
+    }
+    h2 {
+      margin: 0 0 12px;
+      font-size: 17px;
+      font-weight: 650;
+    }
+    h3 {
+      margin: 18px 0 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: none;
+    }
+    tr:last-child td { border-bottom: 0; }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--chip);
+      font-size: 12px;
+      color: var(--ink);
+    }
+    .tag.ok { background: #dcfce7; color: var(--ok); }
+    .tag.warn { background: #ffedd5; color: var(--warn); }
+    .tag.acc { background: #d1fae5; color: var(--accent); }
+    code, .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12.5px;
+    }
+    pre {
+      margin: 8px 0 0;
+      padding: 12px 14px;
+      background: #f0ebe3;
+      border-radius: 8px;
+      overflow: auto;
+      font-size: 12.5px;
+      line-height: 1.45;
+    }
+    .flow {
+      display: grid;
+      gap: 8px;
+    }
+    .flow-row {
+      display: grid;
+      grid-template-columns: 160px 1fr 120px;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #faf9f7;
+    }
+    .flow-row strong { font-size: 13px; }
+    .flow-row span { color: var(--muted); font-size: 13px; }
+    .note {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-left: 3px solid var(--accent);
+      background: #f0f7f4;
+      font-size: 13.5px;
+      border-radius: 0 8px 8px 0;
+    }
+    .gap {
+      margin-top: 8px;
+      padding: 10px 12px;
+      border-left: 3px solid var(--warn);
+      background: #fff7ed;
+      font-size: 13.5px;
+      border-radius: 0 8px 8px 0;
+    }
+    ul { margin: 6px 0 0; padding-left: 1.2em; }
+    li { margin: 4px 0; }
+    footer {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 24px 40px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>页面分析工具对比</h1>
+    <p>tChrome 当前 <code>page.*</code> 体系 vs 主流浏览器 Agent 做法。重点看：分层是否清晰、单次返回是否有界、引用是否可操作。</p>
+  </header>
+
+  <main>
+    <section>
+      <h2>1. 四类主流路径</h2>
+      <table>
+        <thead>
+          <tr><th>路径</th><th>代表</th><th>核心做法</th><th>体积控制</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="tag acc">可达性树</span></td>
+            <td>Playwright aria / browser-use</td>
+            <td>role+name 稀疏树，只留可交互/语义节点；用 ref 或 role/name 操作</td>
+            <td>剪枝 + 选择器，不发全 DOM</td>
+          </tr>
+          <tr>
+            <td><span class="tag">SoM / 快照</span></td>
+            <td>WebVoyager、GUI Agent</td>
+            <td>截图或可见控件列表 + 编号；按编号点选</td>
+            <td>limit + truncated（常见 40/100）</td>
+          </tr>
+          <tr>
+            <td><span class="tag">区域阅读</span></td>
+            <td>多款浏览 Agent</td>
+            <td>区域目录 → 单区域正文 → 单元素详情</td>
+            <td>按需下钻，正文限长</td>
+          </tr>
+          <tr>
+            <td><span class="tag">多模态</span></td>
+            <td>computer-use</td>
+            <td>viewport 截图 + 坐标；文字工具作补充</td>
+            <td>一屏一张图</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>2. 推荐分析链路（有界）</h2>
+      <div class="flow">
+        <div class="flow-row">
+          <strong>get_summary</strong>
+          <span>标题 / url / regionCount / interactiveCount / headings</span>
+          <span class="tag ok">小</span>
+        </div>
+        <div class="flow-row">
+          <strong>list_regions</strong>
+          <span>区域 id、role、name、interactiveCount</span>
+          <span class="tag ok">小</span>
+        </div>
+        <div class="flow-row">
+          <strong>list_interactive</strong>
+          <span>可选 regionId + <code>limit</code> + <code>total/truncated</code>（可选 text 过滤）</span>
+          <span class="tag warn">应有界</span>
+        </div>
+        <div class="flow-row">
+          <strong>inspect_region</strong>
+          <span>mode=text|elements|both + 长度上限</span>
+          <span class="tag warn">应有界</span>
+        </div>
+        <div class="flow-row">
+          <strong>inspect_element</strong>
+          <span>单节点：tag / name / rect / 状态</span>
+          <span class="tag ok">小</span>
+        </div>
+        <div class="flow-row">
+          <strong>click / type</strong>
+          <span>只用 list/inspect 返回的 id，不回读全页</span>
+          <span class="tag ok">小</span>
+        </div>
+      </div>
+      <div class="note">主流共识：默认短返回；模型要「还有多少」时看 <code>total/truncated</code>，再决定是否继续 list 或 inspect 单点。</div>
+    </section>
+
+    <section>
+      <h2>3. tChrome 现状对照</h2>
+      <table>
+        <thead>
+          <tr><th>能力</th><th>你已有</th><th>主流习惯</th><th>差距</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>页面概况</td>
+            <td><code>page.get_summary</code></td>
+            <td>摘要层</td>
+            <td><span class="tag ok">对齐</span></td>
+          </tr>
+          <tr>
+            <td>区域目录</td>
+            <td><code>page.list_regions</code></td>
+            <td>结构层</td>
+            <td><span class="tag ok">对齐</span></td>
+          </tr>
+          <tr>
+            <td>可交互枚举</td>
+            <td><code>page.list_interactive_elements</code>（可 regionId）</td>
+            <td>list + limit + truncated</td>
+            <td><span class="tag warn">无 limit / truncated / text</span></td>
+          </tr>
+          <tr>
+            <td>区域详情</td>
+            <td><code>page.inspect_region</code></td>
+            <td>限长 / mode</td>
+            <td><span class="tag warn">region+elements+text 整包</span></td>
+          </tr>
+          <tr>
+            <td>单元素</td>
+            <td><code>page.inspect_element</code></td>
+            <td>单点字段</td>
+            <td><span class="tag ok">对齐</span></td>
+          </tr>
+          <tr>
+            <td>文本找控件</td>
+            <td><code>snapshot_page</code> / <code>find_on_page</code>（limit 40–100）</td>
+            <td>SoM / find + truncated</td>
+            <td><span class="tag ok">已分页</span> 与 page.* 双体系</td>
+          </tr>
+          <tr>
+            <td>截图</td>
+            <td><code>capture_page</code> viewport/full/element</td>
+            <td>多模态</td>
+            <td><span class="tag ok">对齐</span></td>
+          </tr>
+          <tr>
+            <td>操作目标</td>
+            <td><code>page.click</code>(<code>e_</code>) vs <code>click</code>(<code>el_</code>)</td>
+            <td>单一 ref 体系更常见</td>
+            <td><span class="tag warn">双 ID，成本高</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="gap">
+        <strong>关键缺口：</strong>职责拆分已经够细，缺的是 <em>单次返回有界</em>。大 list / 大 region 直接进 <code>#pageObservedHistory.result</code>，再被「最近 2 批压缩保护」冻在窗口里 → 200K 被反复顶穿。
+      </div>
+    </section>
+
+    <section>
+      <h2>4. 建议的 list / inspect 形态</h2>
+      <pre>page.list_interactive_elements(tabId, regionId?, limit=40, text?)
+→ { ok, elements: [...], total, truncated }
+
+page.inspect_region(tabId, id, mode=text|elements|both, limit?)
+→ { ok, region, text?, elements?, total, truncated }
+
+// 保持不变
+page.get_summary(tabId)
+page.inspect_element(tabId, id)
+page.click(tabId, id)</pre>
+      <h3>和上下文策略的关系</h3>
+      <ul>
+        <li><strong>上游限流</strong>（工具默认短返回）— 每一刀都生效，优先做。</li>
+        <li><strong>观察滑动留存</strong>（最近 1 批全文，更早 cleared）— 兜底，防 JS/截图等其它大块。</li>
+        <li><strong>Subagent</strong> — 适合整站长流程隔离，不是日常 list 问题的第一刀。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>5. 实施优先级</h2>
+      <table>
+        <thead>
+          <tr><th>优先级</th><th>动作</th><th>预期</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>P0</td>
+            <td><code>list_interactive_elements</code> 增加 limit / total / truncated（可选 text）</td>
+            <td>直接砍掉最常见的大 result</td>
+          </tr>
+          <tr>
+            <td>P0</td>
+            <td>观察投影：最近 1 批全文，更早自动 <code>{ok,cleared:true}</code></td>
+            <td>降低 200K 反复触发</td>
+          </tr>
+          <tr>
+            <td>P1</td>
+            <td><code>inspect_region</code> mode + 限长</td>
+            <td>防止区域整包</td>
+          </tr>
+          <tr>
+            <td>P2</td>
+            <td>skill/提示词写死「summary → list(有界) → inspect 单点」</td>
+            <td>降低模型乱全页扫描</td>
+          </tr>
+          <tr>
+            <td>P2</td>
+            <td>评估 <code>e_</code>/<code>el_</code> 是否收敛</td>
+            <td>减模型认知负担（改动大，可后置）</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer>
+    tChrome 设计对照 · 基于当前仓库 page.* / snapshot_page 工具定义与压缩策略整理 · 本页仅对比说明，不改运行时
+  </footer>
+</body>
+</html>
