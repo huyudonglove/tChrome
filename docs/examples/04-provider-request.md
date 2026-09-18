@@ -332,7 +332,7 @@ Sample（验证成功后调用 finishTurn 的 arguments，仅示例）：
 - memory.write：保存后续需要的事实、偏好或进展。
 - notes.write：保存或更新工作笔记。
 - notes.delete：删除过时的工作笔记。
-- page.clear_result：清空 #pageObservedHistory 中指定观察的 result 正文，保留 id、callId、batchId、tabId、type 身份字段，减轻上下文占用。
+- page.clear_result：清空 <pageObservedHistory> 中指定观察的 result 正文，保留 id、callId、batchId、tabId、type 身份字段，减轻上下文占用。
 - evidence.search：在已缓存的超量结果中检索或按行读取。
 - catalog.add：为当前会话加载缺少的动态工具，names 为工具名数组。
 - list_browser_tools：列出尚未加载的动态工具，包含浏览器、服务端网络和 local.* 本机文件/命令/进程能力。
@@ -839,7 +839,7 @@ Sample（文本格式，仅示例）：
     "type": "function",
     "function": {
       "name": "submitGoal",
-      "description": "创建、更新或切换会话目标。创建总目标传 goal，创建子目标同时传 parentId（已有总目标 ID）；系统分别分配 goal_01 / subgoal_01，自增且不复用。更新传 id，仅修改明确提供的 goal、status，保留 ID 与父级关系。status 为 active、completed 或 cancelled；创建默认 active。活跃目标的创建或更新会将其选为当前目标；当前子目标结束后回到仍活跃的父目标，否则清空当前选择。切换不自动结束其他目标，结束总目标不连带结束子目标。进入新阶段时维护子目标，完成或取消须明确提交；具体尝试写 notes。返回 {ok, record, currentGoalId}，record 为完整目标记录；#goal 展示活跃目标及父级，#goalHistory 展示已结束目标。记录目标不会执行目标或结束本轮。",
+      "description": "创建、更新或切换会话目标。创建总目标传 goal，创建子目标同时传 parentId（已有总目标 ID）；系统分别分配 goal_01 / subgoal_01，自增且不复用。更新传 id，仅修改明确提供的 goal、status，保留 ID 与父级关系。status 为 active、completed 或 cancelled；创建默认 active。活跃目标的创建或更新会将其选为当前目标；当前子目标结束后回到仍活跃的父目标，否则清空当前选择。切换不自动结束其他目标，结束总目标不连带结束子目标。进入新阶段时维护子目标，完成或取消须明确提交；具体尝试写 notes。返回 {ok, record, currentGoalId}，record 为完整目标记录；<goal> 展示活跃目标及父级，<goalHistory> 展示已结束目标。记录目标不会执行目标或结束本轮。",
       "parameters": {
         "type": "object",
         "properties": {
@@ -973,7 +973,7 @@ Sample（文本格式，仅示例）：
     "type": "function",
     "function": {
       "name": "notes.write",
-      "description": "保存或更新工作笔记。\n参数：必填 key、value，均为字符串。创建或覆盖 #notes 中指定 key 的值，同一个 key 不会追加多份。\n返回：当前该项。",
+      "description": "保存或更新工作笔记。\n参数：必填 key、value，均为字符串。创建或覆盖 <notes> 中指定 key 的值，同一个 key 不会追加多份。\n返回：当前该项。",
       "parameters": {
         "type": "object",
         "properties": {
@@ -1003,7 +1003,7 @@ Sample（文本格式，仅示例）：
     "type": "function",
     "function": {
       "name": "notes.delete",
-      "description": "删除过时的工作笔记。\n参数：必填 key：#notes 中要删除的项。\n返回：已删除的 key，不删除其他笔记或记忆。",
+      "description": "删除过时的工作笔记。\n参数：必填 key：<notes> 中要删除的项。\n返回：已删除的 key，不删除其他笔记或记忆。",
       "parameters": {
         "type": "object",
         "properties": {
@@ -1041,7 +1041,7 @@ Sample（文本格式，仅示例）：
           },
           "tabId": {
             "type": "integer",
-            "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
+            "description": "目标标签编号；从 <openTabs> 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
           }
         },
         "required": [
@@ -1071,7 +1071,7 @@ Sample（文本格式，仅示例）：
           },
           "tabId": {
             "type": "integer",
-            "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
+            "description": "目标标签编号；从 <openTabs> 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
           }
         },
         "required": [

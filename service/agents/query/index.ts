@@ -63,7 +63,7 @@ export async function queryContext(input: QueryInput): Promise<QueryResult> {
     if (input.isCancelled?.()) return cancelled();
     if (!selected.length) return { ...base, ok: true, status: "not_found", detail: "指定摘要来源中没有匹配的模块记录。" };
     const matches = records.filter(record => selected.includes(record.turnId as string));
-    // Full records return here; Runtime applies the unified 4000 inline gate on toolIO / #currentQuery.
+    // Full records return here; Runtime applies the unified 4000 inline gate on toolIO / currentQuery.
     return { ...base, ok: true, status: "complete", records: matches };
   } catch(error) {
     if (input.isCancelled?.()) return cancelled();

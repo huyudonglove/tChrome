@@ -3,26 +3,43 @@ import Ajv from "ajv";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ChatMessage, ChatTool, CompletionResult, Provider } from "../../types.ts";
+import { querySystemFromModules } from "./context/loader.ts";
 
 export type QueryCandidate = { turnId: string; records: Record<string, unknown>[] };
+export type QueryRequestPayload = { sumId: string; module: string; intent: string };
 
 export const QUERY_FORMAT_ATTEMPTS = 3;
+
+/** Layered query System: context/modules.json + overview.md + system/*.md */
+export function querySystemPrompt(repoRoot: string): string {
+  return querySystemFromModules(repoRoot);
+}
+
+/** User: XML tag only; field semantics live in System <queryModules>. */
+export function queryUserPrompt(request: QueryRequestPayload, turns: QueryCandidate[]): string {
+  return `<queryTurns>\n${JSON.stringify({ request, turns })}\n</queryTurns>`;
+}
+
+/** Extract {request, turns} from <queryTurns> payload (raw JSON inside the tag). */
+export function queryTurnsFromUserMessage(content: string): { request: QueryRequestPayload; turns: QueryCandidate[] } {
+  const normalized = content.replaceAll("\r\n", "\n").trim();
+  const match = normalized.match(/^<queryTurns>\n([\s\S]*?)\n<\/queryTurns>$/);
+  return JSON.parse((match?.[1] ?? normalized).trim()) as { request: QueryRequestPayload; turns: QueryCandidate[] };
+}
 
 // The request is semantic. Candidate identities come exclusively from the runtime archive.
 export async function requestMatches(input: {
   provider: Provider; repoRoot: string;
-  request: { sumId: string; module: string; intent: string };
+  request: QueryRequestPayload;
   candidates: QueryCandidate[];
 }): Promise<string[]> {
-  const system = ["query-role.md", "query-match.md"].map(name => {
-    return readFileSync(join(input.repoRoot, "service/agents/query/prompts", name), "utf8").trim();
-  }).join("\n\n");
+  const system = querySystemPrompt(input.repoRoot);
   const tool: ChatTool = JSON.parse(readFileSync(join(input.repoRoot, "service/agents/query/tools/submit-matches.json"), "utf8"));
   const validate = new Ajv({ allErrors: true, strict: false }).compile(tool.function.parameters);
   const allowed = new Set(input.candidates.map(entry => entry.turnId));
   const baseMessages: ChatMessage[] = [
     { role: "system", content: system },
-    { role: "user", content: JSON.stringify({ request: input.request, turns: input.candidates }) },
+    { role: "user", content: queryUserPrompt(input.request, input.candidates) },
   ];
   let lastError = "";
   const protocolFault = (response: CompletionResult): string | null => {

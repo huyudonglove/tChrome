@@ -8,7 +8,7 @@
       "properties": {
         "reason": { "type": "string" },
         "affectsPage": { "type": "boolean", "const": false },
-        "tabId": { "type": "integer", "description": "目标标签编号；从 #openTabs 或工具返回取得。" },
+        "tabId": { "type": "integer", "description": "目标标签编号；从 <openTabs> 或工具返回取得。" },
         "id": { "type": "string", "description": "page.* 返回的 e_01/r_01" }
       },
       "required": ["reason", "affectsPage", "id", "tabId"],

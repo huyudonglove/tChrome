@@ -8,7 +8,7 @@
       "properties": {
         "reason": { "type": "string" },
         "affectsPage": { "type": "boolean", "const": true },
-        "tabId": { "type": "integer", "description": "目标标签编号；从 #openTabs 或工具返回取得。" },
+        "tabId": { "type": "integer", "description": "目标标签编号；从 <openTabs> 或工具返回取得。" },
         "device": { "type": "string", "description": "设备预设名，未知名称时回退桌面配置" },
         "width": { "type": "integer" },
         "height": { "type": "integer" },

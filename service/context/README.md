@@ -1,6 +1,6 @@
 # 上下文模块
 
-模块的**唯一注册表**是 [modules.json](modules.json)：顺序、XML 文件路径、给谁用（`consumers`）、是否进压缩（`compress` / `archiveField`）。主 Agent 与压缩 Agent 都从这张表取字段，不再维护 `system-slots.md` / `user-slots.md` / 旁路压缩清单。
+模块的**唯一注册表**是 [modules.json](modules.json)：顺序、XML 文件路径、给谁用（`consumers`）、是否进压缩（`compress` / `archiveField`）。主 Agent 的归档字段与压缩岗共用这张表；查询岗另有 `service/agents/query/context/modules.json`。
 
 | 入口 | 职责 |
 |---|---|
@@ -12,6 +12,7 @@
 | [window.ts](window.ts) | 拼装主 Agent System/User（仅 `consumers∋main`） |
 | [projections/](projections/) | 模块字段投影 |
 | [../agents/compression/context/](../agents/compression/context/) | **压缩 Agent 独立分层**：`modules.json` + `system/*.md`；User 为 `<compressionTurns>` 内 JSON 数据 |
+| [../agents/query/context/](../agents/query/context/) | **查询 Agent 独立分层**：`modules.json` + `system/*.md`；User 为 `<queryTurns>` 内 JSON 数据 |
 
 ## 模块总表（与 modules.json 对应）
 

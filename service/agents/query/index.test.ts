@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
 import { commitArchive } from "../../context-archive/store.ts";
 import { queryContext } from "./index.ts";
+import { queryTurnsFromUserMessage } from "./protocol.ts";
 import type { CompressionRecord } from "../../context-archive/types.ts";
 import type { Provider } from "../../types.ts";
 const dirs: string[] = [];
@@ -22,8 +23,8 @@ function provider(turnIds = ["tn_01"], observe?: (input:Parameters<Provider["com
 test("query limits candidates to requested summary and module, retains native identities",async()=>{
   const input=fixture();
   const result=await queryContext({...input,provider:provider(["tn_01"],request=>{
-    const data=JSON.parse(request.messages[1]!.content);
-    expect(data.turns.map((v:any)=>v.turnId)).toEqual(["tn_01"]);
+    const data=queryTurnsFromUserMessage(request.messages[1]!.content);
+    expect(data.turns.map(v=>v.turnId)).toEqual(["tn_01"]);
     expect(JSON.stringify(data.turns)).not.toContain("input_01");
   })});
   expect(result.status).toBe("complete");expect(result.records[0]).toMatchObject({callId:"call_01",turnId:"tn_01",return:{text:"负责人李明，状态待处理"}});
@@ -42,7 +43,7 @@ test("oversized records return in one shot for the unified inline gate",async()=
 test("complete candidates use one request; failure, cancellation and unmatched result do not return evidence",async()=>{
   const input=fixture("x".repeat(50000));let calls=0;
   const p=provider(["tn_01"],request=>{
-    const turns=JSON.parse(request.messages[1]!.content).turns;
+    const turns=queryTurnsFromUserMessage(request.messages[1]!.content).turns;
     expect(turns).toHaveLength(1);
     expect(turns[0].records).toHaveLength(1);
     expect(turns[0].records[0].return.text).toBe("x".repeat(50000));

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "notes.write",
-    "description": "保存或更新工作笔记。\n参数：必填 key、value，均为字符串。创建或覆盖 #notes 中指定 key 的值，同一个 key 不会追加多份。\n返回：当前该项。",
+    "description": "保存或更新工作笔记。\n参数：必填 key、value，均为字符串。创建或覆盖 <notes> 中指定 key 的值，同一个 key 不会追加多份。\n返回：当前该项。",
     "parameters": {
       "type": "object",
       "properties": {

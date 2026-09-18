@@ -4,7 +4,7 @@ function resultView(text: string): unknown {
   try { return JSON.parse(text); } catch { return text; }
 }
 
-/** Page observation payloads live in #pageObservedHistory; toolIO keeps a pointer only. */
+/** Page observation payloads live in <pageObservedHistory>; toolIO keeps a pointer only. */
 export function toolHistoryView(records: ToolIOItem[], observations: PageObservation[] = []) {
   const byCall = new Map(observations.map((item) => [`${item.turnId}:${item.callId}`, item]));
   return records.map(record => {
@@ -17,7 +17,7 @@ export function toolHistoryView(records: ToolIOItem[], observations: PageObserva
       result = { ok: observedOk, pageObservationId: observation.id };
     } else if (record.name === "context.query" && record.return.stage === "complete"
       && result && typeof result === "object" && !Array.isArray(result)) {
-      // Query originals live in #currentQuery; keep toolIO as a pointer like page observations.
+      // Query originals live in <currentQuery>; keep toolIO as a pointer like page observations.
       const query = result as Record<string, unknown>;
       const records = Array.isArray(query.records) ? query.records : [];
       result = {

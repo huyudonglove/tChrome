@@ -8,7 +8,7 @@
       "properties": {
         "reason": { "type": "string" },
         "affectsPage": { "type": "boolean", "const": true },
-        "tabId": { "type": "integer", "description": "目标标签编号；从 #openTabs 或工具返回取得。" },
+        "tabId": { "type": "integer", "description": "目标标签编号；从 <openTabs> 或工具返回取得。" },
         "zoom": { "type": "number", "description": "缩放倍数，例如 1 或 1.25" }
       },
       "required": ["reason", "affectsPage", "tabId"],

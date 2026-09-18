@@ -4,7 +4,7 @@
 
 - `index.ts`：业务入口与流程；压缩分别生成各轮或执行片段摘要，查询按意图选择候选轮次，由 Runtime 返回原文。
 - `protocol.ts`：提示词加载与输入组装、专用返回工具装配、参数校验与业务校验。
-- `prompts/`：本 Agent 的 System、User 提示词。
+- `context/`：本 Agent 的 System XML 模块；User 为一层标签内的 JSON。
 - `index.test.ts`：业务及协议行为验证。
 
 两个 Agent 直接复用现有无状态 `provider.complete`，使用同一套模型配置、协议适配、传输重试和响应解析。Provider 不处理摘要结构、查询候选或其他 Agent 业务规则；这里不另建公共 LLM 请求封装。 Runtime 传入绑定当前回合执行状态的 Provider，两个 Agent 自动复用主模型的取消信号；停止会同时中止网络请求和重试等待。索引提交前仍检查回合有效性，已取消压缩的锁可由新回合接管，旧任务退出不能清除新任务的锁。
@@ -30,7 +30,7 @@ service/agents/compression/context/
   system/output.md
 ```
 
-User 仅为 `<compressionTurns>\n{"turns":[...]}\n</compressionTurns>`（标签内无说明）。归档字段由主注册表 `service/context/modules.json`（compress=true）注入 System。可读对照表见 [context/README.md](../context/README.md)。新增模块：改注册表 + projector，再视需要更新压缩 `context/system.md` 措辞。
+User 仅为 `<compressionTurns>\n{"turns":[...]}\n</compressionTurns>`（标签内无说明）。归档字段由主注册表 `service/context/modules.json`（compress=true）注入 System。可读对照表见 [context/README.md](../context/README.md)。新增模块：改注册表 + projector，再视需要更新压缩 `context/system/` 措辞。
 
 `service/runtime/turn-history.ts` 提供 `assembleTurnHistory` 和 `loadSettledTurnHistory`，使用既有 turnId 汇集输入、目标变化、工具结果、页面观察及最终输出。记录包含 conversationId，轮次编号只在所属会话内解释；已结束历史按账本顺序读取，排除当前活动轮次和未结束记录。会话记忆写入按来源 turnId 关联到当轮，notes 保持当前状态，不增加轮次或版本历史。
 
@@ -43,3 +43,22 @@ User 仅为 `<compressionTurns>\n{"turns":[...]}\n</compressionTurns>`（标签�
 压缩入口将本次选中的原文与需要合并的既有摘要按 turnId 组织，一次调用 provider.complete，统一校验返回后提交归档。不设置内部 60K 请求门槛，不进行字段分片、串行分批或递归摘要合并。Runtime 仍按 history/current 阶段按需选择材料，各阶段各一次；传输层重试属于同一次逻辑请求。
 
 没有未覆盖的新来源时直接跳过，不调用压缩模型。新来源只与同一 turn 的既有摘要合并，其他 turn 的摘要保持不变。
+
+## 按意图查询
+
+查询 Agent 同样不复用主 Agent 的 context 模块集，按同一套分层：
+
+```text
+service/agents/query/context/
+  modules.json          # System 模块清单（全 XML）
+  system/overview.md    # <overview> 运行机制 + 模块粗览
+  system/identity.md    # <identity> 身份只在此模块
+  system/role.md
+  system/modules.md
+  system/turns.md
+  system/output.md
+```
+
+User 仅为 `<queryTurns>\n{"request":{...},"turns":[...]}\n</queryTurns>`（标签内无说明）。字段语义在 System `<queryModules>`。
+
+主 Agent 提交 sumId、module、intent。Runtime 沿摘要来源关系展开指定模块，一次把候选交给查询 Agent。查询通过恰好一次 submitMatches 返回 turnIds；无匹配时为空数组。Runtime 校验返回值属于候选集合，再把命中轮次的完整 records 放入 `<currentQuery>`。cursor 续读使用已选中的记录，不再次请求模型。

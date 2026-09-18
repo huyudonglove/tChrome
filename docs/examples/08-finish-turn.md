@@ -1,19 +1,19 @@
 # 08 收口
 
-读 06 的写出。还在 `tn_01`。不再走 CE。Runtime 用这次装配的栏目再出网，`#toolIO` 带上 `call_01`。模型交 `finishTurn`，回合结束。
+读 06 的写出。还在 `tn_01`。不再走 CE。Runtime 用这次装配的栏目再出网，`<toolIO>` 带上 `call_01`。模型交 `finishTurn`，回合结束。
 
 怎么看：
 
 - 「读到的」是 06 写出的原样
-- 「再出网」是同一套 `systemSlots` / `userSlots`，只更新 `#toolIO`
+- 「再出网」是同一套 `systemSlots` / `userSlots`，只更新 `<toolIO>`
 - 「交口」是模型交 `finishTurn`
-- 「执行」是 Runtime 跑队列，把 `finishTurn` 追加进 `#toolIO`，Turn `completed`
+- 「执行」是 Runtime 跑队列，把 `finishTurn` 追加进 `<toolIO>`，Turn `completed`
 
 作者是 Runtime。07 是压缩能力样例，本轮窗口没到 200K，不走 07。
 
 ## 读到的（06 写出的）
 
-见上一份「写出的」。本轮窗口 `#toolIO`：
+见上一份「写出的」。本轮窗口 `<toolIO>`：
 
 ```json
 [
@@ -34,11 +34,11 @@
 ]
 ```
 
-栏目沿用 03 的 `systemSlots` / `userSlots`。`#userInput` 仍是「帮我查这款鼠标官网价」。`userInputHistory` 仍是 `[]`。
+栏目沿用 03 的 `systemSlots` / `userSlots`。`<userInput>` 仍是「帮我查这款鼠标官网价」。`userInputHistory` 仍是 `[]`。
 
 ## 再出网
 
-Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交：
+Provider 用同一套 messages，user `<toolIO>` 写成上面数组。模型交：
 
 ```json
 {

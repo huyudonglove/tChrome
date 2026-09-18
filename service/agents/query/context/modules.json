@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "description": "Query Agent system modules (all XML B blocks). Identity only in identity.md.",
+  "modules": [
+    { "id": "overview", "order": 1, "file": "system/overview.md", "consumers": ["query"], "description": "Operating mechanism + module skim" },
+    { "id": "identity", "order": 2, "file": "system/identity.md", "consumers": ["query"], "description": "Identity only; do not repeat elsewhere" },
+    { "id": "queryRole", "order": 3, "file": "system/role.md", "consumers": ["query"], "description": "Role, evidence rules, sample submit" },
+    { "id": "queryModules", "order": 4, "file": "system/modules.md", "consumers": ["query"], "description": "Request and candidate field semantics" },
+    { "id": "queryTurns", "order": 5, "file": "system/turns.md", "consumers": ["query"], "description": "User payload semantics" },
+    { "id": "queryOutput", "order": 6, "file": "system/output.md", "consumers": ["query"], "description": "submitMatches contract" }
+  ]
+}

@@ -5,10 +5,10 @@
 怎么看：
 
 - 「读到的」是 02 写出的原样
-- 「system 栏目」每个 `#标题` 单独一段，正文来自 catalog
-- 「user 栏目」每个 `#块` 单独一段，正文在这一页
-- 「写出的」JSON：`systemSlots` / `userSlots` 都是名数组
-- 出网时 Runtime 读取 `service/context/system-slots.md` / `service/context/user-slots.md` 的栏目顺序，加载对应模块并插值拼 `system` / `user`；按 `baseToolsIds` + `toolIds` 取 `service/tools/definitions/<id>.json` 填请求的 `tools[]`
+- 「system 栏目」每个 `<id>` 单独一段，正文来自 `service/context/system/`
+- 「user 栏目」每个 `<id>` 单独一段，正文在这一页
+- 「写出的」JSON：`systemSlots` / `userSlots` 都是内部 `#id` 名数组
+- 出网时 Runtime 读取 `service/context/modules.json` 的栏目顺序，加载对应 XML 模块并插值拼 `system` / `user`；按 `baseToolsIds` + `toolIds` 取 `service/tools/definitions/<id>.json` 填请求的 `tools[]`
 
 ## 读到的（02 写出的）
 
@@ -259,7 +259,7 @@ Sample（验证成功后调用 finishTurn 的 arguments，仅示例）：
 - memory.write：保存后续需要的事实、偏好或进展。
 - notes.write：保存或更新工作笔记。
 - notes.delete：删除过时的工作笔记。
-- page.clear_result：清空 #pageObservedHistory 中指定观察的 result 正文，保留 id、callId、batchId、tabId、type 身份字段，减轻上下文占用。
+- page.clear_result：清空 <pageObservedHistory> 中指定观察的 result 正文，保留 id、callId、batchId、tabId、type 身份字段，减轻上下文占用。
 - evidence.search：在已缓存的超量结果中检索或按行读取。
 - catalog.add：为当前会话加载缺少的动态工具，names 为工具名数组。
 - list_browser_tools：列出尚未加载的动态工具，包含浏览器、服务端网络和 local.* 本机文件/命令/进程能力。

@@ -1,13 +1,13 @@
 # 06 工具执行
 
-读 05 的写出。Runtime 把 `toolCalls` 按数组顺序写入 `toolQueue`，任务队列按这个顺序跑。跑完追加进 `#toolIO`。
+读 05 的写出。Runtime 把 `toolCalls` 按数组顺序写入 `toolQueue`，任务队列按这个顺序跑。跑完追加进 `<toolIO>`。
 
 怎么看：
 
 - 「读到的」是 05 写出的原样
 - 「队列」是本次出网入队的工具，顺序 = `toolCalls` 数组
 - 「执行」是 Runtime 按队列跑 `web_search`
-- 「`#toolIO`」是本 Turn 下一轮出网时 user 槽里给模型看的数组，最新在最下面
+- 「`<toolIO>`」是本 Turn 下一轮出网时 user 模块里给模型看的数组，最新在最下面
 - 「写出的」累积快照追加 `toolQueue` `toolIO`
 
 作者是 Runtime。本轮返回 26 字，`stage=complete`，完整写入执行记录。

@@ -18,7 +18,7 @@ export function prepareGoalUpdate(dataDir: string, conversationId: string, conte
   if (args.status !== undefined && !["active", "completed", "cancelled"].includes(args.status as string)) throw new Error("status 只能是 active、completed 或 cancelled。");
   if (args.parentId !== undefined && (typeof args.parentId !== "string" || !args.parentId.trim())) throw new Error("parentId 必须是总目标 ID；创建总目标时省略 parentId。");
   const existing = args.id === undefined ? undefined : context.goals.find(record => record.id === args.id);
-  if (args.id !== undefined && !existing) throw new Error(`目标 ${args.id} 不存在；请使用 #goal 或 #goalHistory 中的 ID。`);
+  if (args.id !== undefined && !existing) throw new Error(`目标 ${args.id} 不存在；请使用 <goal> 或 <goalHistory> 中的 ID。`);
   if (existing && args.parentId !== undefined && args.parentId !== existing.parentId) throw new Error("已有目标的父级关系不可修改；请保留 parentId 或省略该参数。");
   const parentId = existing ? existing.parentId : args.parentId as string | undefined;
   const parent = parentId ? context.goals.find(record => record.id === parentId) : undefined;

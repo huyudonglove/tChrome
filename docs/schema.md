@@ -1,6 +1,6 @@
 # schema
 
-数据声明只写这里。`docs/data.md` 是账本形状和循环。`docs/examples/` 是阶段样例，字段怎么填看本文件。工具参数形状看 `service/tools/definitions/<id>.json`。插槽用途、来源与边界见 `service/context/system-slots.md`、`service/context/user-slots.md` 和各独立槽文件。
+数据声明只写这里。`docs/data.md` 是账本形状和循环。`docs/examples/` 是阶段样例，字段怎么填看本文件。工具参数形状看 `service/tools/definitions/<id>.json`。模块用途、来源与边界见 `service/context/modules.json`、`service/context/README.md` 和各 XML 模块文件。
 
 ## 仓目录
 
@@ -8,16 +8,15 @@
 service/                  本机服务，按职责组织
   runtime/                循环、账本、持久化、证据归档与浏览器桥
   context/                上下文正文、模块加载与纯窗口投影
-    system/               固定规则与常驻工具插槽
-    user/                 请求、状态、记忆与动态工具插槽
-    system-slots.md       system 编号文件名加载顺序
-    user-slots.md         user 编号文件名加载顺序
+    system/               固定规则与常驻工具模块
+    user/                 请求、状态、记忆与动态工具模块
+    modules.json          模块注册表：顺序、文件、consumers、compress
     README.md             维护入口，不进入模型窗口
   tools/                  工具注册、校验与服务端执行
     definitions/          schema、groups.json 分组与 index.json 分类
   agents/                 工具类 Agent，复用 provider.complete
-    compression/          提示词、输入输出校验与逐轮压缩流程
-    query/                提示词、输入输出校验与目录语义匹配
+    compression/          context 模块、输入输出校验与逐轮压缩流程
+    query/                context 模块、输入输出校验与目录语义匹配
   context-archive/        归档存储、覆盖索引与来源展开
   provider/               模型通信、重试与响应解析
   presentation/           会话消息与列表的纯展示投影
@@ -39,7 +38,7 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 | 方法 | 路径 | 体 | 回 |
 |---|---|---|---|
 | GET | `/health` | 无 | `{ok:true}` |
-| POST | `/turn` | `{userInput, submittedAt}` | `{conversationId, turnId, output}`。Runtime 每次请求主模型前读取所有普通窗口及标签，刷新 `#openTabs` |
+| POST | `/turn` | `{userInput, submittedAt}` | `{conversationId, turnId, output}`。Runtime 每次请求主模型前读取所有普通窗口及标签，刷新 `<openTabs>` |
 | POST | `/stop` | 无 | 停当前 Turn。账本 `paused`，投影回 `{conversationId, status, pendingAsk, liveTool, messages}`。下一句可再开 Turn |
 | GET | `/session` | 无 | 当前 `session.json` 指向的会话投影：`{conversationId, status, pendingAsk, liveTool, messages}`。`messages` 按流水展示用户输入、工具 arguments.reason、最终 output，以及正在执行（`live:true`）和排队工具的状态；原始 content 和工具 return 不作为助手回复 |
 | GET | `/conversations` | 无 | `{items:[{conversationId, updatedAt, status, preview}]}`。当前 `session.json` 指向的排第一，其余按 `updatedAt` 新到旧。空会话 preview 是「新会话」 |
@@ -72,7 +71,7 @@ conversations/<cvId>/returns/<callId>.txt
 
 JSON 快照覆盖写。流水只追加，不改已经写下的行。`returns/<callId>.txt` 与 `context-records/pageObservation/<id>.txt` 为超量结果的检索正文，按默认 100 字/行拆行；对应 externalized 摘要返回 totalLines/lineWidth，evidence.search 支持 keyword 或只传 startLine（约 400 字窗口）。
 
-记录 ID 规则统一见 `service/identity/catalog.json`；System #recordIdentity 的编号规则表和 User 数据校验从同一清单生成。表格展示类型、示例和范围，配套规则要求原样引用已有 ID，各类型在所属范围独立递增、允许空号，不跨类型或范围比较编号。模块 JSON 契约见 `service/context/data-schema.json`，字段速查见 `service/context/DATA.md`。
+记录 ID 规则统一见 `service/identity/catalog.json`；System `<recordIdentity>` 的编号规则表和 User 数据校验从同一清单生成。表格展示类型、示例和范围，配套规则要求原样引用已有 ID，各类型在所属范围独立递增、允许空号，不跨类型或范围比较编号。模块 JSON 契约见 `service/context/data-schema.json`，字段速查见 `service/context/DATA.md`。
 
 ## events.jsonl
 
@@ -135,13 +134,13 @@ Runtime 独占维护。当前会话指针。
 | `turnIds` | string[] | 已建的回合，按时间 |
 | `userInputHistory` | object[] | 上一轮及更早的输入，按旧到新排列。每项 `{id, turnId, userInput, submittedAt}`；新会话 `[]`。当前输入进入历史时保留原 ID |
 | `goals` | object[] | 全部目标的最新记录 `{id, parentId, status, turnId, goal, sourceCallId, createdAt, updatedAt}`；总目标 `goal_01`、子目标 `subgoal_01` 分别持久自增。parentId 为 null 或所属总目标 ID，status 为 active/completed/cancelled；更新保留 ID。新会话 `[]` |
-| `currentGoalId` | string \| null | 当前选择的 active 目标。#goal 展示此指针、全部 active 目标及所需父级；#goalHistory 展示已结束目标。新会话 null |
+| `currentGoalId` | string \| null | 当前选择的 active 目标。`<goal>` 展示此指针、全部 active 目标及所需父级；`<goalHistory>` 展示已结束目标。新会话 null |
 | `toolQueue` | object[] | 本 Turn 待执行的工具。模型一次出网交的 `toolCalls` 按数组顺序入队。任务队列按这个顺序跑。跑完一条弹出，写入 `toolIO`。新会话 / 新出网前空。每项 `{callId, name, arguments}` |
 | `liveTool` | object \| null | 正在跑的那条 `{name, callId}`。空闲 / 追问 / 失败为 `null` |
 | `toolIO` | object[] | 本会话完整工具记录，按执行顺序追加。本地始终保留；模型窗口按压缩目录 coveredSourceIds 过滤已覆盖记录 |
 | `currentQuery` | object \| null | 最近一次查询，含 queryId、发起 turnId、sumId、module、intent、status、records，可含错误详情；计入窗口但不压缩 |
 | `queryHistory` | object[] | 被后续查询或新 Turn 替换的查询，保留发起 turnId；按独立查询来源归档，结论合入轮次 result |
-| `notes` | object | 模型自管的 key/value。新会话 `{}`。`notes.write` 写入或覆盖 `notes[key]`。`notes.delete` 删除 `notes[key]`。进 user `#notes` |
+| `notes` | object | 模型自管的 key/value。新会话 `{}`。`notes.write` 写入或覆盖 `notes[key]`。`notes.delete` 删除 `notes[key]`。进 user `<notes>` |
 | `windowChars` | number | 本轮出网窗口已用字符数。开 Turn 装配后、以及本 Turn 每次出网前，Runtime 写入 |
 | `compressAt` | number | 压缩门槛，固定 `200000` |
 
@@ -171,14 +170,14 @@ Runtime 独占维护。当前会话指针。
 
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
-| `baseToolsIds` | string[] | 常驻工具，对应 `service/tools/definitions/<id>.json`；完整名单以 `service/tools/definitions/groups.json` 为准，能力导航进入 System #baseTools，完整 schema 和说明进入出网 tools[] |
-| `toolIds` | string[] | 动态工具，对应 `service/tools/definitions/<id>.json`。开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.list_interactive_elements` `page.click` `page.type` `open_url` `web_search` `list_browser_tools` `catalog.add`）。缺了 `catalog.add` 再补。能力导航进入 User #tools，窗口压缩保持已加载工具不变 |
+| `baseToolsIds` | string[] | 常驻工具，对应 `service/tools/definitions/<id>.json`；完整名单以 `service/tools/definitions/groups.json` 为准，能力导航进入 System `<baseTools>`，完整 schema 和说明进入出网 tools[] |
+| `toolIds` | string[] | 动态工具，对应 `service/tools/definitions/<id>.json`。开 Turn 先挂 core（`page.get_summary` `page.list_regions` `page.list_interactive_elements` `page.click` `page.type` `open_url` `web_search` `list_browser_tools` `catalog.add`）。缺了 `catalog.add` 再补。能力导航进入 User `<tools>`，窗口压缩保持已加载工具不变 |
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
 | `mcpIds` | string[] | 本轮 MCP；没有就 `[]` |
-| `openTabs` | object | 每次请求主模型前刷新；成功为 `{ok:true, windows:[{windowId, focused, tabs:[{tabId, url, title, active}]}]}`，失败为 `{ok:false, error}`；注入 `#openTabs` |
+| `openTabs` | object | 每次请求主模型前刷新；成功为 `{ok:true, windows:[{windowId, focused, tabs:[{tabId, url, title, active}]}]}`，失败为 `{ok:false, error}`；注入 `<openTabs>` |
 | `currentPage` | object \| null | 内部保存最近实际页面观察，初始 null，由有效页面工具返回更新；不再单独注入插槽 |
-| `pageObservedHistory` | object[] | 页面观察统一数组，初始 `[]`，按旧到新追加。每条：id、turnId、callId、batchId?、tabId、type（工具名）、result（完整返回）；存储另含 observedAt。注入 `#pageObservedHistory` 时保留完整 result |
+| `pageObservedHistory` | object[] | 页面观察统一数组，初始 `[]`，按旧到新追加。每条：id、turnId、callId、batchId?、tabId、type（工具名）、result（完整返回）；存储另含 observedAt。注入 `<pageObservedHistory>` 时保留完整 result |
 
 `currentPage`：
 
@@ -243,17 +242,17 @@ conversationHistorySummary 显示当前有效摘要的 {sumId, turnId, tag, user
 
 模型输出校验成功、完整来源与摘要落盘后，才原子更新目录索引和覆盖关系。失败或取消不提交该批次覆盖，原文继续可用；此前成功提交的归档保留。索引是提交点，中断可能留下未被索引引用的文件。窗口按来源覆盖过滤历史输入、已结束目标、页面观察、会话记忆写入和工具记录，本地原文不删除。
 
-## 窗口插槽
+## 窗口模块
 
 用户一条输入开一个 Turn，CE 装配一次。本 Turn 内工具循环不再走 CE。
 
-加载顺序由 `service/context/system-slots.md` 和 `user-slots.md` 的编号文件名决定，例如 `1. identity`，不在目录重复描述能力。system 模块以 `#tag`、`能力：【…】`、`详细描述：` 和正文组成；user 模块还包含独立的 `内容：` 段。user 的详细描述进入 system 内 User 清单，内容段通过 `{{data}}` 注入运行数据。
+加载顺序由 `service/context/modules.json` 决定。每个模块是一份 XML 文件，含 `<id>`、能力、详细描述；User 模块另含独立的 `内容：` 段，通过 `{{data}}` 注入运行数据。System 与 User 窗口都渲染完整 XML 模块。
 
-加载器返回 systemOrder / userOrder，systemSlots / userSlots 保存模块元数据与对应正文。system 先输出 `# System 栏目清单`，九个模块每项 tag --能力之后直接跟详细正文；再输出 `# User 栏目清单`，每项 tag --能力之后直接跟详细描述。system 详细正文与清单项合并，只出现一次；user 渲染十五个 tag 的内容段和数据，不重复能力标签或详细描述。
+加载器返回 systemOrder / userOrder，systemSlots / userSlots 保存模块元数据与对应正文。阶段 JSON 中 systemSlots / userSlots 是对应的 10 / 16 个内部 `#id` 名数组，并非模块对象。
 
-system 的 runtime 管装配预算、压缩外置与图片附件，execution 聚焦推进流程，toolProtocol 管调用/返回协议，boundaries 管授权和证据来源。网页方法维护于 `service/skills/web-observation/SKILL.md`，runtime 按 `service/skills/index.json` 加载后作为数据注入 context，模块描述仍由 `service/context/user/skill.md` 提供。User 模块投影保留记录 ID、轮次与来源关联和完整内容；工具 schema 以 definitions 为准。
+system 的 runtime 管装配预算、压缩外置与图片附件，execution 聚焦推进流程，toolProtocol 管调用/返回协议，boundaries 管授权和证据来源。网页方法维护于 `service/skills/web-observation/SKILL.md`，runtime 按 `service/skills/index.json` 加载后作为数据注入 `<skill>`，模块描述仍由 `service/context/user/skill.md` 提供。User 模块投影保留记录 ID、轮次与来源关联和完整内容；工具 schema 以 definitions 为准。
 
-System #baseTools 展示常驻能力导航，User #tools 展示本会话已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送，唯一来源仍是 `service/tools/definitions/<id>.json` 的 function.description。调整模块后同步生成导航、装配测试与阶段示例；阶段 JSON 中 systemSlots / userSlots 是对应的 9 / 15 个 tag 名数组，并非模块对象。
+System `<baseTools>` 展示常驻能力导航，User `<tools>` 展示本会话已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送，唯一来源仍是 `service/tools/definitions/<id>.json` 的 function.description。调整模块后同步生成导航、装配测试与阶段示例。
 
 出网 `tools[]` = `baseToolsIds` + `toolIds` 的 catalog schema。
 
@@ -278,9 +277,9 @@ System #baseTools 展示常驻能力导航，User #tools 展示本会话已加�
 
 `askUser` 的 `text` 是根据 arguments.question 和选项生成的工具返回文本。`finishTurn` 的 `text` 是回复用户的正文（仅取 finishTurn.arguments.text，不使用 content 回退）。动态工具的 `text` 是工具正文；`context.query` 的 `text` 仅含状态和引用。`memory.write` 的 `text` 是落下的层和条数。
 
-常驻 `context.query(sumId, module, intent)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将完整 records 放入 currentQuery；#toolIO 只投影 currentQuery 指针。查询结果与其它工具返回共用统一内联门禁（默认 4000 字符），超出时注入 externalized 摘要（preview+path+totalLines/lineWidth）；本地全文按默认 100 字/行拆行，可用 evidence.search 按 keyword 或只传 startLine（约 400 字窗口）检索。查询不会刷新页面。
+常驻 `context.query(sumId, module, intent)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将完整 records 放入 currentQuery；`<toolIO>` 只投影 currentQuery 指针。查询结果与其它工具返回共用统一内联门禁（默认 4000 字符），超出时注入 externalized 摘要（preview+path+totalLines/lineWidth）；本地全文按默认 100 字/行拆行，可用 evidence.search 按 keyword 或只传 startLine（约 400 字窗口）检索。查询不会刷新页面。
 
-工具窗口投影使用 {callId, turnId, batchId?, name, arguments, return: {stage, result}}，arguments 隐藏 affectsPage，保留 reason 与操作参数。result 对合法 JSON 解析一次，普通文本和截断文本保持原样。callId 标识调用，turnId 标识所属轮次，batchId 标识工具批次；totalChars 不注入主模型，操作用 tabId、控件引用及错误详情仍保留。与 pageObservedHistory 中同一 turnId+callId 的观察对应时，return.result 只保留 {ok, pageObservationId}，完整观察结果只出现在 #pageObservedHistory；本地原始返回保持完整。
+工具窗口投影使用 {callId, turnId, batchId?, name, arguments, return: {stage, result}}，arguments 隐藏 affectsPage，保留 reason 与操作参数。result 对合法 JSON 解析一次，普通文本和截断文本保持原样。callId 标识调用，turnId 标识所属轮次，batchId 标识工具批次；totalChars 不注入主模型，操作用 tabId、控件引用及错误详情仍保留。与 pageObservedHistory 中同一 turnId+callId 的观察对应时，return.result 只保留 {ok, pageObservationId}，完整观察结果只出现在 `<pageObservedHistory>`；本地原始返回保持完整。
 
 ## 阶段快照
 
@@ -307,12 +306,12 @@ System #baseTools 展示常驻能力导航，User #tools 展示本会话已加�
 
 | 值 | 何时 |
 |---|---|
-| `arguments_not_json` | `function.arguments` 解析失败。对象原样用；字符串经**全 Provider 共用**外壳拯救后再 `JSON.parse`（围栏、尾逗号、结构单引号只修外壳）。不补字段。格式/schema 错误回灌给模型自救，最多 3 次；好的 `toolCalls` 照跑，坏的写进 `#toolIO`。压缩/查询 Agent 同样最多 3 次格式自救；传输层故障不循环 |
+| `arguments_not_json` | `function.arguments` 解析失败。对象原样用；字符串经**全 Provider 共用**外壳拯救后再 `JSON.parse`（围栏、尾逗号、结构单引号只修外壳）。不补字段。格式/schema 错误回灌给模型自救，最多 3 次；好的 `toolCalls` 照跑，坏的写进 `<toolIO>`。压缩/查询 Agent 同样最多 3 次格式自救；传输层故障不循环 |
 | `unknown_tool` | `name` 不在 `baseToolsIds` + `toolIds` |
-| `missing_required` | catalog `required` 缺或空。`missing` 列出字段名，写进 `#toolIO` 再出网。不补字段。同一 Turn 最多 3 次 |
-| `wrong_type` | Ajv：类型对不上 schema。写进 `#toolIO` 再出网。同一 Turn 最多 3 次 |
-| `exclusive_resident` | 同一次出网里 `finishTurn` / `askUser` 不在最后一条。写进 `#toolIO` 再出网 |
-| `need_finish_turn` | `finish=stop` 且 `tool_calls` 为空，连续 3 次。每次先写 `shared/error-messages.json` 的 `need_finish_turn` 进 `#toolIO` 再出网 |
+| `missing_required` | catalog `required` 缺或空。`missing` 列出字段名，写进 `<toolIO>` 再出网。不补字段。同一 Turn 最多 3 次 |
+| `wrong_type` | Ajv：类型对不上 schema。写进 `<toolIO>` 再出网。同一 Turn 最多 3 次 |
+| `exclusive_resident` | 同一次出网里 `finishTurn` / `askUser` 不在最后一条。写进 `<toolIO>` 再出网 |
+| `need_finish_turn` | `finish=stop` 且 `tool_calls` 为空，连续 3 次。每次先写 `shared/error-messages.json` 的 `need_finish_turn` 进 `<toolIO>` 再出网 |
 
 Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 

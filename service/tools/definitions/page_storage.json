@@ -8,7 +8,7 @@
       "properties": {
         "reason": { "type": "string" },
         "affectsPage": { "type": "boolean" },
-        "tabId": { "type": "integer", "description": "目标标签编号；从 #openTabs 或工具返回取得。" },
+        "tabId": { "type": "integer", "description": "目标标签编号；从 <openTabs> 或工具返回取得。" },
         "action": { "type": "string", "enum": ["read", "write", "delete", "list"] },
         "key": { "type": "string" },
         "value": { "type": "string" }

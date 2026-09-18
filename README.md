@@ -71,9 +71,9 @@ Raw logs, tool arguments, and outputs remain intact on disk. When detailed verif
 ### 5. Tiered Memory & Structured Library
 | Tier | Purpose | Scope |
 | --- | --- | --- |
-| **Work Notes (`#notes`)** | Ephemeral drafts, candidates, and intermediate work | Current session |
-| **Conversation Memory (`#conversationMemory`)** | Confirmed facts, user preferences, and key decisions | Preserved across turns in session |
-| **Long-Term Memory (`#projectMemory`)** | Shared conventions, background knowledge, and preferences | Globally shared across sessions |
+| **Work Notes (`<notes>`)** | Ephemeral drafts, candidates, and intermediate work | Current session |
+| **Conversation Memory (`<conversationMemory>`)** | Confirmed facts, user preferences, and key decisions | Preserved across turns in session |
+| **Long-Term Memory (`<projectMemory>`)** | Shared conventions, background knowledge, and preferences | Globally shared across sessions |
 | **Local Library** | Curated bookmarks, account credentials, and general references | Persistent local storage, side panel UI |
 
 ### 6. Local-First, Transparent & Controllable

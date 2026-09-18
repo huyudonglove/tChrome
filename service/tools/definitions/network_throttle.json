@@ -8,7 +8,7 @@
       "properties": {
         "reason": { "type": "string" },
         "affectsPage": { "type": "boolean", "const": true },
-        "tabId": { "type": "integer", "description": "目标标签编号；从 #openTabs 或工具返回取得。" },
+        "tabId": { "type": "integer", "description": "目标标签编号；从 <openTabs> 或工具返回取得。" },
         "profile": { "type": "string", "enum": ["offline", "slow-3g", "fast-3g", "4g", "online"] }
       },
       "required": ["reason", "affectsPage", "tabId"],

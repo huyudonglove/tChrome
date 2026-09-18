@@ -285,7 +285,7 @@
         </tbody>
       </table>
       <div class="gap">
-        <strong>关键缺口：</strong>职责拆分已经够细，缺的是 <em>单次返回有界</em>。大 list / 大 region 直接进 <code>#pageObservedHistory.result</code>，再被「最近 2 批压缩保护」冻在窗口里 → 200K 被反复顶穿。
+        <strong>关键缺口：</strong>职责拆分已经够细，缺的是 <em>单次返回有界</em>。大 list / 大 region 直接进 <code>&lt;pageObservedHistory&gt;.result</code>，再被「最近 2 批压缩保护」冻在窗口里 → 200K 被反复顶穿。
       </div>
     </section>
 

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { resolve } from "node:path";
 import type { CompletionResult, Provider } from "../../types.ts";
-import { requestMatches } from "./protocol.ts";
+import { requestMatches, querySystemPrompt, queryUserPrompt, queryTurnsFromUserMessage } from "./protocol.ts";
 
 const repoRoot = resolve(import.meta.dir, "../../..");
 function response(overrides: Partial<CompletionResult> = {}): CompletionResult {
@@ -13,15 +13,38 @@ function run(result: CompletionResult, observe?: (input: Parameters<Provider["co
     provider: { async complete(input) { observe?.(input); return result; } } });
 }
 
+test("query uses dedicated system and raw {request,turns} user XML", () => {
+  const system = querySystemPrompt(repoRoot);
+  expect(system.startsWith("<overview>")).toBe(true);
+  expect(system).toContain("</overview>");
+  expect(system).toContain("模块粗览");
+  expect(system).toContain("<identity>");
+  expect(system).toContain("身份只在该模块声明");
+  expect(system).toContain("<queryRole>");
+  expect(system).toContain("<queryModules>");
+  expect(system).toContain("<queryTurns>");
+  expect(system).toContain("标签内只有数据");
+  expect(system).toContain("submitMatches");
+  expect(system).toContain("Sample");
+  expect(system).not.toContain("<agentPosition>");
+  const request = { sumId: "sum_01", module: "toolIO", intent: "是否可以修改状态" };
+  const turns = ["tn_1", "tn_2"].map(id => ({ turnId: id, records: [{ callId: "call_01", text: "状态" }] }));
+  const user = queryUserPrompt(request, turns);
+  expect(user).toBe(`<queryTurns>\n${JSON.stringify({ request, turns })}\n</queryTurns>`);
+  expect(user).not.toContain("能力：");
+  expect(queryTurnsFromUserMessage(user).turns.map(row => row.turnId)).toEqual(["tn_1", "tn_2"]);
+});
+
 test("query assembles only its return tool and ignores conflicting content", async () => {
   const value = await run(response({ content: '{"turnIds":["outside"]}' }), input => {
     expect(input.tools.map(tool => tool.function.name)).toEqual(["submitMatches"]);
     expect(input.tools[0]!.function.parameters).toMatchObject({ required: ["turnIds"], additionalProperties: false });
+    expect(input.messages[0]!.content).toContain("<queryRole>");
     expect(input.messages[0]!.content).toContain("submitMatches");
-    const data = JSON.parse(input.messages[1]!.content);
+    const data = queryTurnsFromUserMessage(input.messages[1]!.content);
     expect(data.request).toEqual({sumId:"sum_01",module:"toolIO",intent:"是否可以修改状态"});
     expect(data.request).not.toHaveProperty("turnIds");
-    expect(data.turns.map((row: {turnId:string}) => row.turnId)).toEqual(["tn_1","tn_2"]);
+    expect(data.turns.map(row => row.turnId)).toEqual(["tn_1","tn_2"]);
   });
   expect(value).toEqual(["tn_1"]);
 });

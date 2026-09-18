@@ -8,7 +8,7 @@
       "properties": {
         "reason": { "type": "string" },
         "affectsPage": { "type": "boolean", "const": false },
-        "tabId": { "type": "integer", "description": "目标标签编号；从 #openTabs 或工具返回取得。" },
+        "tabId": { "type": "integer", "description": "目标标签编号；从 <openTabs> 或工具返回取得。" },
         "id": { "type": "string", "description": "page.* 编号 e_/r_" },
         "selector": { "type": "string", "description": "CSS 选择器，可替代 id" },
         "text": { "type": "string" },
