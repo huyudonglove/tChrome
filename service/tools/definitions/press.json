@@ -2,12 +2,17 @@
   "type": "function",
   "function": {
     "name": "press",
-    "description": "对当前焦点元素按下一个键盘键。\n参数：key（键名），必填 tabId（目标标签编号）。\n返回：ok；没有焦点失败。",
+    "description": "按下键盘键。\n参数：key（键名，如 Enter/Escape/Tab），必填 tabId；可选 id（page.* 的 e_01）：先 focus 该元素再按键；无 id 时作用于当前焦点。\n返回：ok、key。",
     "parameters": {
       "type": "object",
       "properties": {
         "key": {
-          "type": "string"
+          "type": "string",
+          "description": "键名，例如 Enter、Escape、Tab、ArrowDown"
+        },
+        "id": {
+          "type": "string",
+          "description": "可选；page.* 元素编号，对准该元素发送按键"
         },
         "reason": {
           "type": "string"
@@ -25,7 +30,8 @@
         "affectsPage",
         "key",
         "tabId"
-      ]
+      ],
+      "additionalProperties": false
     }
   }
 }

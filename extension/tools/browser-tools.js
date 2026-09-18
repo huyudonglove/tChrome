@@ -265,6 +265,9 @@ const runPageTool = async (name, input = {}) => {
         id: String(input.id || ''),
         regionId: String(input.regionId || ''),
         text: String(input.text ?? ''),
+        key: String(input.key || 'Enter'),
+        clearBeforeType: input.clearBeforeType === true,
+        pressEnter: input.pressEnter === true,
       }],
       func: async (toolName, payload) => {
         const state = globalThis.__tChromePageIds ??= {pageElement: new WeakMap(), pageRegion: new WeakMap()};
@@ -444,23 +447,58 @@ const runPageTool = async (name, input = {}) => {
           if (!node.matches('input,textarea,[contenteditable="true"]') || node.readOnly || el.disabled
             || (node.tagName === 'INPUT' && !['text','search','tel','url','email','password','number','date','datetime-local','month','week','time'].includes(node.type))) return {ok: false, error: '目标不是可编辑输入框'};
           node.focus();
-          if ('value' in node) {
+          const setValue = (next) => {
+            if (!('value' in node)) { node.textContent = next; return; }
             const proto = node instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
             const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-            if (setter) setter.call(node, value);
-            else node.value = value;
-          } else node.textContent = value;
+            if (setter) setter.call(node, next);
+            else node.value = next;
+          };
+          if (payload.clearBeforeType) {
+            setValue('');
+            node.dispatchEvent(new Event('input', {bubbles: true}));
+            node.dispatchEvent(new Event('change', {bubbles: true}));
+          }
+          setValue(value);
           const actual = 'value' in node ? node.value : node.textContent;
           if (actual !== value) return {ok: false, value: actual, error: '控件未接受完整输入，请检查控件格式要求'};
           node.dispatchEvent(new Event('input', {bubbles: true}));
           node.dispatchEvent(new Event('change', {bubbles: true}));
-          return {ok: true, id, value: 'value' in node ? node.value : node.textContent};
+          if (payload.pressEnter) {
+            const key = 'Enter';
+            node.dispatchEvent(new KeyboardEvent('keydown', {key, keyCode: 13, bubbles: true}));
+            node.dispatchEvent(new KeyboardEvent('keypress', {key, keyCode: 13, bubbles: true}));
+            node.dispatchEvent(new KeyboardEvent('keyup', {key, keyCode: 13, bubbles: true}));
+          }
+          return {ok: true, id, value: 'value' in node ? node.value : node.textContent,
+            clearBeforeType: payload.clearBeforeType, pressEnter: payload.pressEnter};
+        }
+        if (toolName === 'page.scroll_to') {
+          const el = findElement(id) || findRegion(id);
+          if (!el) return {ok: false, error: `没有元素 ${id}`};
+          el.node.scrollIntoView({block: 'center', inline: 'nearest'});
+          return {ok: true, id};
+        }
+        if (toolName === 'page.press') {
+          const el = findElement(id) || findRegion(id);
+          if (!el) return {ok: false, error: `没有元素 ${id}`};
+          const node = el.node;
+          if (node.focus) node.focus();
+          const key = payload.key || 'Enter';
+          node.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true}));
+          node.dispatchEvent(new KeyboardEvent('keypress', {key, bubbles: true}));
+          node.dispatchEvent(new KeyboardEvent('keyup', {key, bubbles: true}));
+          return {ok: true, id, key};
+        }
+        if (toolName === 'page.wait_for') {
+          const el = findElement(id) || findRegion(id);
+          return el ? {ok: true, id, found: true} : {ok: false, id, found: false, error: `没有元素 ${id}`};
         }
         return {ok: false, error: `${toolName} 未接`};
       },
     });
     const out = {tabId: tab.tabId, title: tab.title, url: tab.url, ...result};
-    if (out.ok && (name === 'page.click' || name === 'page.type')) await afterPageAction(tabId);
+    if (out.ok && (name === 'page.click' || name === 'page.type' || name === 'page.press' || name === 'page.scroll_to')) await afterPageAction(tabId);
     return out;
   } catch (error) {
     return {ok: false, tabId: tab.tabId, error: error instanceof Error ? error.message : String(error)};
@@ -589,6 +627,7 @@ const executeBrowserTool = async (name, input = {}) => {
     return result;
   }
   if (name === 'press') {
+    if (input.id) return runPageTool('page.press', input);
     const result = await runOnTab(tabId, [input.key || 'Enter'], (key) => {
       const el = document.activeElement;
       if (!el || el === document.body) return {ok: false, error: '没有焦点元素'};
@@ -605,6 +644,7 @@ const executeBrowserTool = async (name, input = {}) => {
     });
   }
   if (name === 'scroll_to') {
+    if (input.id) return runPageTool('page.scroll_to', input);
     return runOnTab(tabId, [input.text || ''], (q) => {
       const nodes = [...document.querySelectorAll('a,button,input,h1,h2,p')];
       const el = nodes.find((node) => (node.innerText || '').includes(q));
@@ -614,9 +654,18 @@ const executeBrowserTool = async (name, input = {}) => {
     });
   }
   if (name === 'wait') {
+    const deadline = Date.now() + Math.min(Number(input.ms) || 8000, 12000);
+    if (input.id) {
+      let last;
+      do {
+        last = await runPageTool('page.wait_for', input);
+        if (last.ok) return last;
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      } while (Date.now() < deadline);
+      return last;
+    }
     if (input.text) {
       // 服务端 30s 就判工具超时：等待窗口压到 12s，给 inspect 留余量。
-      const deadline = Date.now() + Math.min(Number(input.ms) || 8000, 12000);
       let page = await inspectTab(tabId);
       while (Date.now() < deadline && !(page.text || '').includes(input.text)) {
         await new Promise((resolve) => setTimeout(resolve, 300));
@@ -695,7 +744,105 @@ const executeBrowserTool = async (name, input = {}) => {
     // 直接如实报错，让 Task 换路（如页内 execute_javascript 写剪贴板）。
     return {ok: false, error: '后台环境不能读写系统剪贴板；可在页面里用 execute_javascript 调 navigator.clipboard'};
   }
-  if (name === 'attach_file') return {ok: false, error: '没有已附加文件'};
+  if (name === 'attach_file') {
+    const tab = await getTab(tabId);
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, tabId, error: '没有可附加文件的普通网页标签'};
+    const rawPaths = [];
+    if (typeof input.path === 'string' && input.path.trim()) rawPaths.push(input.path.trim());
+    if (Array.isArray(input.paths)) {
+      for (const p of input.paths) if (typeof p === 'string' && p.trim()) rawPaths.push(p.trim());
+    }
+    const paths = [...new Set(rawPaths)];
+    if (!paths.length) return {ok: false, tabId, error: 'attach_file 需要 path 或 paths'};
+    if (paths.some((p) => !p.startsWith('/'))) return {ok: false, tabId, error: 'path 必须是本机绝对路径'};
+    try {
+      return await withDebugger(tab.id, async () => {
+        const doc = await chrome.debugger.sendCommand({tabId: tab.id}, 'DOM.getDocument', {depth: 0});
+        let selector = typeof input.selector === 'string' && input.selector.trim()
+          ? input.selector.trim()
+          : 'input[type="file"]';
+        let index = 0;
+        if (input.id) {
+          const probe = await chrome.scripting.executeScript({
+            target: {tabId: tab.id},
+            args: [String(input.id)],
+            func: async (wanted) => {
+              const state = globalThis.__tChromePageIds ??= {pageElement: new WeakMap(), pageRegion: new WeakMap()};
+              const nodes = [...document.querySelectorAll('input[type="file"]')];
+              for (let i = 0; i < nodes.length; i++) {
+                let id = state.pageElement.get(nodes[i]);
+                if (id && typeof id.then === 'function') id = await id.catch(() => null);
+                if (id === wanted) return {index: i, count: nodes.length};
+              }
+              return {index: -1, count: nodes.length};
+            },
+          });
+          const val = probe?.[0]?.result;
+          if (!val || val.index < 0) {
+            return {ok: false, tabId: tab.id, id: input.id, files: paths,
+              error: val?.count ? `id ${input.id} 不是页面上的 file 输入框` : '页面上没有 input[type=file] 上传控件'};
+          }
+          index = val.index;
+          selector = `input[type="file"]`;
+        }
+        let nodeId = 0;
+        if (index === 0 && !input.id && selector === 'input[type="file"]') {
+          const hit = await chrome.debugger.sendCommand({tabId: tab.id}, 'DOM.querySelector', {
+            nodeId: doc.root.nodeId,
+            selector,
+          });
+          nodeId = hit?.nodeId || 0;
+        } else {
+          const all = await chrome.debugger.sendCommand({tabId: tab.id}, 'DOM.querySelectorAll', {
+            nodeId: doc.root.nodeId,
+            selector: selector.includes('[type=') || selector.includes('[type="')
+              ? selector
+              : 'input[type="file"]',
+          });
+          const list = all?.nodeIds || [];
+          if (index === 0 && input.selector) {
+            const one = await chrome.debugger.sendCommand({tabId: tab.id}, 'DOM.querySelector', {
+              nodeId: doc.root.nodeId,
+              selector,
+            });
+            nodeId = one?.nodeId || 0;
+          } else {
+            nodeId = list[index] || list[0] || 0;
+          }
+        }
+        if (!nodeId) return {ok: false, tabId: tab.id, files: paths, error: `页面上没有匹配的上传控件（${selector}）`};
+        await chrome.debugger.sendCommand({tabId: tab.id}, 'DOM.setFileInputFiles', {
+          files: paths,
+          nodeId,
+        });
+        const check = await chrome.debugger.sendCommand({tabId: tab.id}, 'Runtime.evaluate', {
+          expression: `(() => {
+            const inputs = [...document.querySelectorAll('input[type="file"]')];
+            const idx = ${index};
+            const el = inputs[idx] || inputs[0] || null;
+            return {
+              files: el ? el.files.length : 0,
+              names: el ? Array.from(el.files).map((f) => f.name) : [],
+            };
+          })()`,
+          returnByValue: true,
+        });
+        const state = check?.result?.value || {};
+        return {
+          ok: true,
+          tabId: tab.id,
+          files: paths,
+          selector,
+          ...(input.id ? { id: input.id } : {}),
+          ...(input.selector ? { selector: input.selector } : {}),
+          attached: state.files ?? paths.length,
+          fileNames: state.names && state.names.length ? state.names : paths.map((p) => p.split('/').pop()),
+        };
+      });
+    } catch (error) {
+      return {ok: false, tabId: tab.id, files: paths, error: error instanceof Error ? error.message : String(error)};
+    }
+  }
   if (name === 'clear_file') {
     const tab = await getTab(tabId);
     if (!tab?.id) return {ok: false, error: '没有标签'};

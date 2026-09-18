@@ -2,13 +2,21 @@
   "type": "function",
   "function": {
     "name": "scroll_to",
-    "description": "把匹配 text 的元素滚进可视区。\n参数：可选 text（文本）；必填 tabId（目标标签编号）。\n返回：ok。",
+    "description": "把元素滚进可视区。\n参数：text（按文本匹配）或 id（page.* 的 e_01/r_01，优先）；必填 tabId（目标标签编号）。\n返回：ok。",
     "parameters": {
       "type": "object",
       "properties": {
         "tabId": {
           "type": "integer",
           "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
+        },
+        "id": {
+          "type": "string",
+          "description": "page.* 返回的 e_01/r_01 格式编号；与 text 二选一，有 id 时优先"
+        },
+        "text": {
+          "type": "string",
+          "description": "按页面文本匹配元素；未提供 id 时使用"
         },
         "reason": {
           "type": "string"
@@ -22,7 +30,7 @@
         "affectsPage",
         "tabId"
       ],
-      "additionalProperties": true
+      "additionalProperties": false
     }
   }
 }

@@ -2,13 +2,32 @@
   "type": "function",
   "function": {
     "name": "attach_file",
-    "description": "当前不支持附加文件。\n返回：ok=false、error（没有已附加文件）。",
+    "description": "把本机文件注入页面的文件上传控件（input[type=file]），用于图片、模型、附件等上传。\n参数：path 或 paths 二选一（本机绝对路径，可多个）；必填 tabId；可选 selector（CSS，默认第一个 input[type=file]）、id（page.* 的 e_01，优先于 selector）。\n返回：ok、files、selector/id、attached。文件不存在或注入失败时 ok=false 并说明原因。注入后仍需业务点击提交，并用 wait/截图核验。",
     "parameters": {
       "type": "object",
       "properties": {
         "tabId": {
           "type": "integer",
           "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
+        },
+        "path": {
+          "type": "string",
+          "description": "单个本机绝对文件路径"
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "多个本机绝对文件路径；与 path 二选一"
+        },
+        "selector": {
+          "type": "string",
+          "description": "定位 file 输入框的 CSS 选择器；默认 input[type=file]"
+        },
+        "id": {
+          "type": "string",
+          "description": "可选；page.* 元素编号（e_01），用于定位 file 输入框"
         },
         "reason": {
           "type": "string"
@@ -22,7 +41,7 @@
         "affectsPage",
         "tabId"
       ],
-      "additionalProperties": true
+      "additionalProperties": false
     }
   }
 }

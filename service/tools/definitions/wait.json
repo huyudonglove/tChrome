@@ -2,10 +2,14 @@
   "type": "function",
   "function": {
     "name": "wait",
-    "description": "等到出现某段文字或过一段时间。\n参数：可选 text（文本）、ms（等待毫秒数）；必填 tabId（目标标签编号）。\n返回：ok、title（页面标题）、url（页面地址）、text（返回文本）。",
+    "description": "等待条件满足。\n参数：可选 id（page.* 的 e_01/r_01，等到该元素出现）、text（等到出现某段文字）、ms（超时毫秒，默认约 8 秒，上限 12 秒）；必填 tabId。\n返回：ok、title、url、text；按 id 等待时另有 found。",
     "parameters": {
       "type": "object",
       "properties": {
+        "id": {
+          "type": "string",
+          "description": "page.* 编号；等待该元素出现在页面中"
+        },
         "text": {
           "type": "string"
         },
@@ -27,7 +31,8 @@
         "reason",
         "affectsPage",
         "tabId"
-      ]
+      ],
+      "additionalProperties": false
     }
   }
 }
