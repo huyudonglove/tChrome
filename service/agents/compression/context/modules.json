@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "description": "Compression Agent system modules (all XML B blocks). Identity only in identity.md.",
+  "modules": [
+    { "id": "overview", "order": 1, "file": "system/overview.md", "consumers": ["compression"], "description": "Operating mechanism + module skim" },
+    { "id": "identity", "order": 2, "file": "system/identity.md", "consumers": ["compression"], "description": "Identity only; do not repeat elsewhere" },
+    { "id": "compressionRole", "order": 3, "file": "system/role.md", "consumers": ["compression"], "description": "Role, evidence rules, sample submit" },
+    { "id": "compressionModules", "order": 4, "file": "system/modules.md", "consumers": ["compression"], "description": "Archive fields in turns", "inject": ["archiveFields"] },
+    { "id": "compressionTurns", "order": 5, "file": "system/turns.md", "consumers": ["compression"], "description": "User turns payload semantics" },
+    { "id": "compressionOutput", "order": 6, "file": "system/output.md", "consumers": ["compression"], "description": "submitTurnSummaries contract" }
+  ]
+}

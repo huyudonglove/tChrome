@@ -38,13 +38,13 @@ export type ModuleRegistry = {
 };
 
 const DEFAULT_SEMANTICS: Record<string, string> = {
-  userInput: "id 标识消息，userInput 是原话，submittedAt 是提交时间。补入查询的片段可省略，不表示用户没有输入。",
-  goalChanges: "目标更新快照；id 固定，parentId 关联总目标，status 表示当时状态，goal 是正文，sourceCallId 关联变更。",
-  toolIO: "callId/batchId/turnId/name/arguments；return.{stage,totalChars,text}；超量时 text 可能是 externalized 摘要（preview/path/totalLines/lineWidth）。images 引用不等于看过图片。",
-  pageObservations: "id/turnId/callId/batchId/observedAt/tabId/type/result。超量时 result 可能是 externalized 摘要；清空后为 {ok:true,cleared:true}。与同 callId 的 toolIO 两份都读。",
-  memoryWrites: "memoryId、sourceCallId/sourceConversationId、text、createdAt。记忆不能覆盖用户原话或执行证据。",
-  queryHistory: "queryId、sumId、module/intent、status、records。只把影响本轮结果的查询结论合入 result。",
-  output: "kind 区分 reply/ask/error/tool；null 表示暂无收尾结果。",
+  userInput: "用户原话 {id, turnId, userInput, submittedAt}。片段可缺省，不表示用户没输入。",
+  goalChanges: "目标快照数组：id、parentId、status、goal、sourceCallId、时间。",
+  pageObservations: "观察数组：id/turnId/callId/batchId/tabId/type/result。type 为工具名；与 toolIO 同 callId 时两份都读。",
+  memoryWrites: "会话记忆写入：memoryId、text、sourceCallId、createdAt。",
+  toolIO: "工具数组：callId/batchId/name/arguments + return.{stage,totalChars,text}；超量 text 可能是 externalized 摘要。",
+  queryHistory: "历史查询：queryId、sumId、module/intent、status、records；结论写入 result。",
+  output: "收尾对象：kind=reply|ask|error|tool 或 null。",
 };
 
 export function loadModuleRegistry(root: string): ModuleRegistry {
@@ -84,15 +84,10 @@ export function compressionArchiveFieldsMarkdown(root: string): string {
   const lines = registry.modules
     .filter(row => row.compress && row.archiveField)
     .map(row => `- ${row.archiveField}: ${archiveFieldSemantics(row)}`);
-  const idle = registry.modules
-    .filter(row => row.role === "user" && !row.compress)
-    .map(row => `<${row.id}>`);
   return [
-    "下列字段由 Runtime 按 service/context/modules.json（compress=true）组装，不是主 Agent 当前窗口投影。压缩使用独立 System/User，不复用主 Agent 全套模块。",
+    "### 注册表字段对照（modules.json compress=true）",
     "",
     ...lines,
-    "",
-    `不参与压缩的主 Agent 窗口模块：${idle.join("、")}。`,
   ].join("\n");
 }
 
@@ -178,9 +173,13 @@ export function systemTextFromModules(modules: ContextModules, currentDate: stri
   for (const tag of modules.systemOrder) {
     const module = modules.systemSlots[tag]!;
     const id = tag.slice(1);
-    const extra = tag === "#baseTools" ? baseToolGuide : tag === "#recordIdentity" ? identityRulesText() : "";
-    const head = `<${id}>\n能力：${module.capability}\n\n详细描述：\n${module.body}`;
-    parts.push(extra ? `${head}\n\n${extra}\n</${id}>` : `${head}\n</${id}>`);
+    const payload = tag === "#baseTools" ? baseToolGuide : tag === "#recordIdentity" ? identityRulesText() : "";
+    const body = payload
+      ? (module.body.includes("{{data}}")
+        ? module.body.replaceAll("{{data}}", payload)
+        : `${module.body}\n\n${payload}`)
+      : module.body.replaceAll("{{data}}", "");
+    parts.push(`<${id}>\n能力：${module.capability}\n\n详细描述：\n${body}\n</${id}>`);
   }
   return parts.join("\n\n");
 }

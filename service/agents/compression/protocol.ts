@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import Ajv from "ajv";
 import { compressionLog } from "./log.ts";
-import { compressionArchiveFieldsMarkdown, interpolate } from "../../context/modules.ts";
+import { compressionSystemFromModules } from "./context/loader.ts";
 import type { ChatMessage, ChatTool, CompletionResult, Provider } from "../../types.ts";
 export type TurnSummary = { turnId: string; tag: string; userRequest: string; actions: string; result: string };
 export type CompressionTurn = { turnId: string; [field: string]: unknown };
@@ -24,27 +24,21 @@ function formatFault(response: CompletionResult, toolName: string): string | nul
   return null;
 }
 
-/** Compression owns its system/user under agents/compression/context; not the main Agent module set. */
+/** Layered compression System: context/modules.json + overview.md + system/*.md */
 export function compressionSystemPrompt(repoRoot: string): string {
-  return interpolate(
-    readFileSync(join(repoRoot, "service/agents/compression/context/system.md"), "utf8").trim(),
-    { archiveFields: compressionArchiveFieldsMarkdown(repoRoot) },
-  );
+  return compressionSystemFromModules(repoRoot);
 }
 
-export function compressionUserPrompt(repoRoot: string, turns: unknown): string {
-  return interpolate(
-    readFileSync(join(repoRoot, "service/agents/compression/context/user.md"), "utf8").trim(),
-    { turns: JSON.stringify({ turns }) },
-  );
+/** User: XML tag only; field semantics live in System <compressionTurns>. */
+export function compressionUserPrompt(_repoRoot: string, turns: unknown): string {
+  return `<compressionTurns>\n${JSON.stringify({ turns })}\n</compressionTurns>`;
 }
 
-/** Test/runtime helper: extract {turns} JSON from the compression User XML shell. */
+/** Extract {turns} from <compressionTurns> payload (raw JSON inside the tag). */
 export function compressionTurnsFromUserMessage(content: string): CompressionTurn[] {
-  const normalized = content.replaceAll("\r\n", "\n");
-  const match = normalized.match(/内容：\n([\s\S]*?)\n<\/compressionTurns>/) || normalized.match(/内容：\n([\s\S]+)$/);
-  const raw = match?.[1]?.trim() ?? normalized;
-  return (JSON.parse(raw) as { turns: CompressionTurn[] }).turns;
+  const normalized = content.replaceAll("\r\n", "\n").trim();
+  const match = normalized.match(/^<compressionTurns>\n([\s\S]*?)\n<\/compressionTurns>$/);
+  return (JSON.parse((match?.[1] ?? normalized).trim()) as { turns: CompressionTurn[] }).turns;
 }
 
 export async function requestTurnSummaries(input: { provider: Provider; repoRoot: string; turns: CompressionTurn[]; dataDir: string; conversationId: string; module?: string }): Promise<TurnSummary[]> {

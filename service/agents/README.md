@@ -17,7 +17,20 @@
 
 ## 按轮次压缩
 
-压缩 Agent **不复用**主 Agent 的 context 模块集，拥有独立 System/User：`service/agents/compression/context/`。哪些归档字段参与压缩由 `service/context/modules.json`（`compress=true` + `archiveField`）声明；Runtime 组装 `turns`，协议层把字段说明注入压缩 System。新增模块：改注册表 + projector，再视需要更新压缩 `context/system.md` 措辞。
+压缩 Agent **不复用**主 Agent 的 context 模块集，按同样方式**分层**：
+
+```text
+service/agents/compression/context/
+  modules.json          # System 模块清单（全 XML）
+  system/overview.md    # <overview> 运行机制 + 模块粗览
+  system/identity.md    # <identity> 身份只在此模块
+  system/role.md
+  system/modules.md
+  system/turns.md
+  system/output.md
+```
+
+User 仅为 `<compressionTurns>\n{"turns":[...]}\n</compressionTurns>`（标签内无说明）。归档字段由主注册表 `service/context/modules.json`（compress=true）注入 System。可读对照表见 [context/README.md](../context/README.md)。新增模块：改注册表 + projector，再视需要更新压缩 `context/system.md` 措辞。
 
 `service/runtime/turn-history.ts` 提供 `assembleTurnHistory` 和 `loadSettledTurnHistory`，使用既有 turnId 汇集输入、目标变化、工具结果、页面观察及最终输出。记录包含 conversationId，轮次编号只在所属会话内解释；已结束历史按账本顺序读取，排除当前活动轮次和未结束记录。会话记忆写入按来源 turnId 关联到当轮，notes 保持当前状态，不增加轮次或版本历史。
 

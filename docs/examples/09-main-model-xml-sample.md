@@ -1,166 +1,14 @@
-# 04 Provider 入参
+# 09 主模型输入样例（XML Context）
 
-读 03 的写出。Provider 把栏目拼成 **Chat Completions POST body**，转发 UUAPI。传出另见 `05-provider-response.md`。
+当前实现以 `service/context/modules.json` + XML 模块为准。本文由 Runtime 装配路径生成的**示意样例**（mock 数据，非真实会话）：用户要求「帮我看下导出页」，上一批已执行 `page.get_summary`。
 
-怎么看：
+- System：Overview + `consumers∋main` 的 system 模块
+- User：按注册表 order 的 user 模块，每块为「能力 + 详细描述 + 内容」
+- 压缩 Agent 不使用本文，见 `service/agents/compression/context/`
 
-- 「读到的」是 03 写出的原样
-- 「怎么拼」是这一次真正发出去的参数：`model` + `messages` + `tools` + `stream`
-- 「写出的」累积快照追加 `provider` `model` `stream` `maxAttempts`。交口在下一份
+## System（messages[0].content）
 
-作者是 Provider。不装配、不跑工具、不落盘。key 在请求头，不进 body。
-
-本轮材料够，预期模型交 `web_search`。传出字段在 05。
-
-## 读到的（03 写出的）
-
-```json
-{
-  "stage": "context-engineering-decode",
-  "conversationId": "cv_01",
-  "turnId": "tn_01",
-  "userInput": "帮我查这款鼠标官网价",
-  "userInputHistory": [],
-  "submittedAt": "2026-09-05T08:00:01.000Z",
-  "baseToolsIds": [
-    "askUser",
-    "finishTurn",
-    "submitGoal",
-    "context.query",
-    "memory.write",
-    "notes.write",
-    "notes.delete",
-    "page.clear_result",
-    "evidence.search",
-    "catalog.add",
-    "list_browser_tools",
-    "open_url",
-    "page.get_summary",
-    "page.list_interactive_elements",
-    "page.click",
-    "page.type",
-    "checklist.set",
-    "checklist.update",
-    "page.recheck",
-    "page.assert",
-    "tab.context"
-  ],
-  "toolIds": [
-    "page.get_summary",
-    "open_url",
-    "web_search"
-  ],
-  "conversationMemoryIds": [],
-  "projectMemoryIds": [],
-  "mcpIds": [],
-  "currentPage": {
-    "tabId": 12,
-    "url": "https://item.jd.com/100012345678.html",
-    "title": "罗技 MX Master 3S 无线鼠标",
-    "description": "用户发话时的标签信息，尚未读取页面内容"
-  },
-  "systemSlots": [
-    "#identity",
-    "#environment",
-    "#runtime",
-    "#recordIdentity",
-    "#execution",
-    "#toolProtocol",
-    "#boundaries",
-    "#output",
-    "#baseTools"
-  ],
-  "userSlots": [
-    "#skill",
-    "#userInput",
-    "#conversationHistorySummary",
-    "#userInputHistory",
-    "#goal",
-    "#goalHistory",
-    "#openTabs",
-    "#pageObservedHistory",
-    "#projectMemory",
-    "#conversationMemory",
-    "#notes",
-    "#toolIO",
-    "#lastAction",
-    "#checklist",
-    "#queryHistory",
-    "#currentQuery",
-    "#tools"
-  ],
-  "pageObservedHistory": [],
-  "openTabs": {
-    "ok": true,
-    "windows": [
-      {
-        "windowId": 1,
-        "focused": true,
-        "tabs": [
-          {
-            "tabId": 12,
-            "url": "https://item.jd.com/100012345678.html",
-            "title": "罗技 MX Master 3S 无线鼠标",
-            "active": true
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-## 怎么拼这一次请求
-
-```
-POST https://uuapi.net/v1/chat/completions
-Authorization: Bearer ***
-Content-Type: application/json
-```
-
-body 四个键：`model`、`messages`、`tools`、`stream`。
-
-```json
-{
-  "model": "gemini-3.7-flash",
-  "stream": false,
-  "messages": [
-    {
-      "role": "system",
-      "content": "<下面 system 正文>"
-    },
-    {
-      "role": "user",
-      "content": "<下面 user 正文>"
-    }
-  ],
-  "tools": "<下面 tools 数组>"
-}
-```
-
-SDK 写法：`client.chat.completions.create({ model, messages, tools, stream: false })`。不是 Responses，不是扩展直连 UUAPI。
-
-## JSON 响应
-
-`stream: false`。响应是一份完整的 Chat Completions JSON；Provider 读取 `choices[0].message` 和 `finish_reason`，解析工具参数后交给 Runtime，字段见 05。网络中断按传输失败规则重试；无 choices 或响应 JSON 无法解析属于响应协议错误，不自动重试。
-
-## 兜底重试
-
-同一份 body 最多打 **3 次**（含第一次）。
-
-|        |                                                               |
-| ------ | ------------------------------------------------------------- |
-| 重试   | 网络断开、超时、5xx、429                                      |
-| 不重试 | 4xx（除 429）、key 无效、请求体不合法                         |
-| 间隔   | 失败后等 1s 再打；第 3 次仍失败 → `finish=error` 交给 Runtime |
-
-完整响应成功解析后交给 Runtime；工具参数或 schema 校验失败由工具反馈流程处理，不作为传输重试。
-
-### `messages[0]` system
-
-由独立槽文件与本样例数据完整装配；顺序只读取两份栏目清单。
-
-```
+```text
 # Overview
 
 用户消息进入 <userInput> 后，我与 Runtime 构成“请求 → 执行工具 → 结果交回”的 Agent loop。每次请求我之前，Runtime 按以下顺序装配上下文：
@@ -174,7 +22,7 @@ SDK 写法：`client.chat.completions.create({ model, messages, tools, stream: f
 
 本轮在我用 finishTurn 提交答复、用 askUser 等待用户，或用户停止、发生不可恢复错误、无效提交达到上限时结束。用户再次发来消息时，Runtime 保留已有状态并重新开始循环。
 
-当前日期（太平洋时间，America/Los_Angeles）：2026-09-06。
+当前日期（太平洋时间，America/Los_Angeles）：2026-09-18。
 
 <identity>
 能力：【Identity, Collaboration, Language】
@@ -337,11 +185,9 @@ Sample（工具清单格式，仅示例）：
 </baseTools>
 ```
 
-### `messages[1]` user
+## User（messages[1].content）
 
-由独立槽文件与本样例数据完整装配；顺序只读取两份栏目清单。
-
-```
+```text
 <skill>
 能力：【Skills】
 
@@ -390,9 +236,9 @@ Sample（仅示例，不是当前记录）：
 
 内容：
 {
-  "id": "input_01",
-  "turnId": "tn_01",
-  "userInput": "帮我查这款鼠标官网价"
+  "id": "input_02",
+  "turnId": "tn_02",
+  "userInput": "帮我看下导出页"
 }
 </userInput>
 
@@ -409,7 +255,16 @@ Sample（仅示例，不是当前记录）：
     ]
 
 内容：
-[]
+[
+  {
+    "sumId": "sum_01",
+    "turnId": "tn_01",
+    "tag": "导出",
+    "userRequest": "打开导出页并确认格式",
+    "actions": "已打开导出页",
+    "result": "页面支持 CSV 与 Excel"
+  }
+]
 </conversationHistorySummary>
 
 <userInputHistory>
@@ -429,7 +284,13 @@ Sample（仅示例，不是当前记录）：
     ]
 
 内容：
-[]
+[
+  {
+    "id": "input_01",
+    "turnId": "tn_01",
+    "userInput": "打开导出页并确认格式"
+  }
+]
 </userInputHistory>
 
 <goal>
@@ -450,8 +311,17 @@ Sample（仅示例，不是当前记录）：
 
 内容：
 {
-  "currentGoalId": null,
-  "goals": []
+  "currentGoalId": "goal_01",
+  "goals": [
+    {
+      "id": "goal_01",
+      "parentId": null,
+      "status": "active",
+      "turnId": "tn_02",
+      "sourceCallId": "call_01",
+      "goal": "核对导出流程"
+    }
+  ]
 }
 </goal>
 
@@ -519,9 +389,9 @@ Failure Sample（仅示例）：
       "focused": true,
       "tabs": [
         {
-          "tabId": 12,
-          "url": "https://item.jd.com/100012345678.html",
-          "title": "罗技 MX Master 3S 无线鼠标",
+          "tabId": 101,
+          "url": "https://example.com/export",
+          "title": "导出",
           "active": true
         }
       ]
@@ -556,7 +426,22 @@ Sample（仅示例，不是当前记录）：
     ]
 
 内容：
-[]
+[
+  {
+    "id": "page_03",
+    "turnId": "tn_02",
+    "callId": "call_12",
+    "tabId": 101,
+    "type": "page.get_summary",
+    "result": {
+      "ok": true,
+      "tabId": 101,
+      "title": "导出",
+      "url": "https://example.com/export",
+      "description": "支持 CSV 与 Excel"
+    }
+  }
+]
 </pageObservedHistory>
 
 <projectMemory>
@@ -588,7 +473,16 @@ Sample（仅示例，不是当前记录）：
     ]
 
 内容：
-[]
+[
+  {
+    "memoryId": "mm_01",
+    "turnId": "tn_02",
+    "sourceCallId": "call_01",
+    "layer": "conversation",
+    "text": "用户偏好 CSV",
+    "createdAt": "2026-09-18"
+  }
+]
 </conversationMemory>
 
 <notes>
@@ -604,7 +498,9 @@ Sample（仅示例，不是当前记录）：
     }
 
 内容：
-{}
+{
+  "draft": "候选：CSV/Excel"
+}
 </notes>
 
 <toolIO>
@@ -641,7 +537,26 @@ Sample（仅示例，不是当前记录）：
     ]
 
 内容：
-[]
+[
+  {
+    "callId": "call_12",
+    "turnId": "tn_02",
+    "batchId": "batch_01",
+    "name": "page.get_summary",
+    "arguments": {
+      "tabId": 101,
+      "reason": "看导出页概况",
+      "affectsPage": false
+    },
+    "return": {
+      "stage": "complete",
+      "result": {
+        "ok": true,
+        "pageObservationId": "page_03"
+      }
+    }
+  }
+]
 </toolIO>
 
 <lastAction>
@@ -662,7 +577,17 @@ Sample（仅示例，不是当前记录）：
     }
 
 内容：
-null
+{
+  "batchId": "batch_01",
+  "turnId": "tn_02",
+  "calls": [
+    {
+      "callId": "call_12",
+      "name": "page.get_summary",
+      "pageObservationId": "page_03"
+    }
+  ]
+}
 </lastAction>
 
 <checklist>
@@ -683,7 +608,20 @@ Sample（仅示例，不是当前记录）：
     }
 
 内容：
-null
+{
+  "title": "导出核对",
+  "items": [
+    {
+      "text": "打开导出页",
+      "status": "done"
+    },
+    {
+      "text": "确认格式",
+      "status": "doing"
+    }
+  ],
+  "updatedAt": "2026-09-18"
+}
 </checklist>
 
 <queryHistory>
@@ -741,468 +679,24 @@ Sample（文本格式，仅示例）：
     - page.get_summary：读指定页摘要：标题、地址、区域数、可交互数、标题列表。
 
 内容：
-- page.get_summary：读指定页摘要：标题、地址、区域数、可交互数、标题列表。
-- open_url：打开指定网址并读回标题正文。
+- page.list_regions：列指定页区域，每项带 id。
+- page.inspect_region：看一个区域的正文和内部元素。
+- page.inspect_element：看一个可交互元素的标签、名字、位置。
+- page.get_by_role：按可访问性角色+名称查找控件/区域（A11y 定位）。
+- page.drag_to_id：把源元素拖到目标元素（按 e_/r_ 中心点坐标执行拖拽）。
+- frame.list：列出页面 frame 树（含 iframe）。
+- wait：等待条件满足。
+- wait_response：等待匹配的网络响应（CDP Network.responseReceived）。
+- wait_network：等到页面接口和资源安静后再读页。
+- network.grep：等待匹配网络响应，并在响应体中检索关键字（返回关键字附近上下文）。
+- dialog.wait：等待原生 JavaScript 弹窗（alert/confirm/prompt）出现。
+- combo.select：对 SELECT 下拉框按 value 或选项文字选择。
+- date.select：向日期/时间输入框写入标准格式值。
+- har：录制页面网络请求并导出 HAR（HTTP Archive）结构。
+- video.capture_sequence：按时间间隔连续截取视口帧（轻量录屏序列）。
+- video.record：持续按帧录制视口（start/stop/status）。
+- fingerprint.read：读取当前页面可见的浏览器指纹/环境信息：UA、语言、时区、屏幕、viewport、hardwareConcurrency 等。
+- fingerprint.apply：用 CDP 覆盖当前标签的指纹相关环境（模拟，不影响真实磁盘配置）。
 - web_search：搜索公开网页。
 </tools>
 ```
-
-### `tools`
-
-完整常驻工具 + 本例动态工具 schema。说明唯一来自各工具 function.description，reason 的通用展示约束由 System 提示词说明。
-
-```json
-[
-  {
-    "type": "function",
-    "function": {
-      "name": "askUser",
-      "description": "向用户提问。缺少必须由用户提供的信息或授权时调用。\n参数：必填 question：非空问题正文；choice：选项数组，无选项传 []。\n返回：问题正文与选项，暂停并等待用户下一条消息；下一条消息开启新一轮对话，不会在本次调用中返回用户答案。",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "question": {
-            "type": "string",
-            "minLength": 1,
-            "pattern": "\\S",
-            "description": "需要用户回答的具体问题正文。"
-          },
-          "reason": {
-            "type": "string"
-          },
-          "affectsPage": {
-            "type": "boolean"
-          },
-          "choice": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "required": [
-          "reason",
-          "affectsPage",
-          "choice",
-          "question"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "finishTurn",
-      "description": "结束本轮对话。已能回答用户或需要说明无法继续时，先根据已返回的结果确认完成情况再调用。\n参数：必填 text：非空最终回复正文。\n返回：该正文并结束本轮；回复不依赖 content，不能只在 content 中写回复。",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "text": {
-            "type": "string",
-            "minLength": 1,
-            "pattern": "\\S",
-            "description": "向用户展示的最终回复正文，说明已确认的结果或具体阻碍。"
-          },
-          "reason": {
-            "type": "string",
-            "description": "可选的行动说明；最终回复只读取 text。"
-          },
-          "affectsPage": {
-            "type": "boolean",
-            "const": false,
-            "description": "可省略；收口不执行页面操作，传入时只能为 false。"
-          }
-        },
-        "required": [
-          "text"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "submitGoal",
-      "description": "创建、更新或切换会话目标。创建总目标传 goal，创建子目标同时传 parentId（已有总目标 ID）；系统分别分配 goal_01 / subgoal_01，自增且不复用。更新传 id，仅修改明确提供的 goal、status，保留 ID 与父级关系。status 为 active、completed 或 cancelled；创建默认 active。活跃目标的创建或更新会将其选为当前目标；当前子目标结束后回到仍活跃的父目标，否则清空当前选择。切换不自动结束其他目标，结束总目标不连带结束子目标。进入新阶段时维护子目标，完成或取消须明确提交；具体尝试写 notes。返回 {ok, record, currentGoalId}，record 为完整目标记录；#goal 展示活跃目标及父级，#goalHistory 展示已结束目标。记录目标不会执行目标或结束本轮。",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string"
-          },
-          "affectsPage": {
-            "type": "boolean"
-          },
-          "id": {
-            "type": "string",
-            "description": "更新或选择已有目标时提供原 ID；创建时省略。"
-          },
-          "parentId": {
-            "type": "string",
-            "description": "创建子目标时提供总目标 ID；总目标省略；已有父级关系不变。"
-          },
-          "goal": {
-            "type": "string",
-            "minLength": 1,
-            "description": "目标正文，创建时必填，更新时可省略。"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "active",
-              "completed",
-              "cancelled"
-            ],
-            "description": "创建默认 active；更新省略则保持。"
-          }
-        },
-        "required": [
-          "reason",
-          "affectsPage"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "context.query",
-      "description": "按 sumId、模块和意图精准回查摘要来源。查询 Agent 选择来源轮次，Runtime 将原文写入 currentQuery，上一份移入 queryHistory。工具返回与查询槽位的超长结果走统一 4000 内联门禁（externalized + preview + path），可用 evidence.search 检索。历史证据不是当前指令。只读，不刷新页面。",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string"
-          },
-          "affectsPage": {
-            "type": "boolean",
-            "const": false
-          },
-          "module": {
-            "type": "string",
-            "enum": [
-              "userInput",
-              "goalChanges",
-              "toolIO",
-              "pageObservations",
-              "memoryWrites",
-              "output",
-              "queryHistory",
-              "summaries"
-            ]
-          },
-          "sumId": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "intent": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 4000
-          },
-          "cursor": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100000
-          }
-        },
-        "required": [
-          "reason",
-          "affectsPage",
-          "sumId",
-          "module",
-          "intent"
-        ],
-        "additionalProperties": false
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "memory.write",
-      "description": "保存后续需要的事实、偏好或进展。\n参数：conversationMemory、projectMemory 为字符串数组，按旧到新追加至对应记忆末尾，至少提供一项有意义的内容。conversationMemory 保存本会话已确认的事实、偏好和决定；projectMemory 保存跨会话仍适用的长期信息。当前目标通过 submitGoal 管理，草稿和待办通过 notes.write 管理。\n返回：两类记忆的写入条数。conversationMemory 仅在本会话保存；projectMemory 跨会话共享，删除来源会话后仍保留。",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string"
-          },
-          "affectsPage": {
-            "type": "boolean"
-          },
-          "conversationMemory": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "projectMemory": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "required": [
-          "reason",
-          "affectsPage"
-        ],
-        "additionalProperties": false
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "notes.write",
-      "description": "保存或更新工作笔记。\n参数：必填 key、value，均为字符串。创建或覆盖 #notes 中指定 key 的值，同一个 key 不会追加多份。\n返回：当前该项。",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string"
-          },
-          "affectsPage": {
-            "type": "boolean"
-          },
-          "key": {
-            "type": "string"
-          },
-          "value": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "reason",
-          "affectsPage",
-          "key",
-          "value"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "notes.delete",
-      "description": "删除过时的工作笔记。\n参数：必填 key：#notes 中要删除的项。\n返回：已删除的 key，不删除其他笔记或记忆。",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string"
-          },
-          "affectsPage": {
-            "type": "boolean"
-          },
-          "key": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "reason",
-          "affectsPage",
-          "key"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "page.get_summary",
-      "description": "读指定页摘要：标题、地址、区域数、可交互数、标题列表。\n参数：必填 tabId（目标标签编号）。\n返回：ok、title（页面标题）、url（页面地址）、regionCount、interactiveCount、headings、landmarkNames。",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string"
-          },
-          "affectsPage": {
-            "type": "boolean"
-          },
-          "tabId": {
-            "type": "integer",
-            "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
-          }
-        },
-        "required": [
-          "reason",
-          "affectsPage",
-          "tabId"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "open_url",
-      "description": "打开指定网址并读回标题正文。\n参数：url（网址），必填 tabId（目标标签编号）。\n返回：ok、title（页面标题）、url（页面地址）、text（返回文本）、tabId。",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "url": {
-            "type": "string"
-          },
-          "reason": {
-            "type": "string"
-          },
-          "affectsPage": {
-            "type": "boolean"
-          },
-          "tabId": {
-            "type": "integer",
-            "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
-          }
-        },
-        "required": [
-          "reason",
-          "affectsPage",
-          "url",
-          "tabId"
-        ]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "web_search",
-      "description": "搜索公开网页。\n参数：query（搜索词）。\n返回：ok、urls（结果网址列表）。",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string"
-          },
-          "affectsPage": {
-            "type": "boolean"
-          },
-          "query": {
-            "type": "string"
-          },
-          "text": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "reason",
-          "affectsPage",
-          "query"
-        ]
-      }
-    }
-  }
-]
-```
-
-## 字段
-
-见 `docs/schema.md`「阶段快照」`provider-request`。
-
-## 写出的（累积快照）
-
-```json
-{
-  "stage": "provider-request",
-  "conversationId": "cv_01",
-  "turnId": "tn_01",
-  "userInput": "帮我查这款鼠标官网价",
-  "userInputHistory": [],
-  "submittedAt": "2026-09-05T08:00:01.000Z",
-  "baseToolsIds": [
-    "askUser",
-    "finishTurn",
-    "submitGoal",
-    "context.query",
-    "memory.write",
-    "notes.write",
-    "notes.delete",
-    "page.clear_result",
-    "evidence.search",
-    "catalog.add",
-    "list_browser_tools",
-    "open_url",
-    "page.get_summary",
-    "page.list_interactive_elements",
-    "page.click",
-    "page.type",
-    "checklist.set",
-    "checklist.update",
-    "page.recheck",
-    "page.assert",
-    "tab.context"
-  ],
-  "toolIds": [
-    "page.get_summary",
-    "open_url",
-    "web_search"
-  ],
-  "conversationMemoryIds": [],
-  "projectMemoryIds": [],
-  "mcpIds": [],
-  "currentPage": {
-    "tabId": 12,
-    "url": "https://item.jd.com/100012345678.html",
-    "title": "罗技 MX Master 3S 无线鼠标",
-    "description": "用户发话时的标签信息，尚未读取页面内容"
-  },
-  "systemSlots": [
-    "#identity",
-    "#environment",
-    "#runtime",
-    "#recordIdentity",
-    "#execution",
-    "#toolProtocol",
-    "#boundaries",
-    "#output",
-    "#baseTools"
-  ],
-  "userSlots": [
-    "#skill",
-    "#userInput",
-    "#conversationHistorySummary",
-    "#userInputHistory",
-    "#goal",
-    "#goalHistory",
-    "#openTabs",
-    "#pageObservedHistory",
-    "#projectMemory",
-    "#conversationMemory",
-    "#notes",
-    "#toolIO",
-    "#lastAction",
-    "#checklist",
-    "#queryHistory",
-    "#currentQuery",
-    "#tools"
-  ],
-  "provider": "uuapi",
-  "model": "gemini-3.7-flash",
-  "stream": false,
-  "maxAttempts": 3,
-  "pageObservedHistory": [],
-  "openTabs": {
-    "ok": true,
-    "windows": [
-      {
-        "windowId": 1,
-        "focused": true,
-        "tabs": [
-          {
-            "tabId": 12,
-            "url": "https://item.jd.com/100012345678.html",
-            "title": "罗技 MX Master 3S 无线鼠标",
-            "active": true
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-下一份 `05-provider-response.md`：UUAPI 原文 + 解析后的交口。

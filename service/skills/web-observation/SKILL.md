@@ -1,6 +1,6 @@
 ## 网页观察与操作
 
-按下一步需要，从页面概况缩小到相关区域或控件；目标明确、证据足够时直接操作。凡是带 tabId 的操作（page.*、open_url、截图、标签内脚本等），成功或失败都会追加到 #pageObservedHistory，type 为工具名、result 为完整返回；#toolIO 里同一次调用只有 pageObservationId。取元素 id、regionId 时看观察数组中对应项的 result。复杂交互：可用 page.get_by_role(role+name) 取 e_；提交后用 wait_response(urlContains) 等接口；用 wait(id/selector, visible/enabled) 确认可操作再点。
+按下一步需要，从页面概况缩小到相关区域或控件；目标明确、证据足够时直接操作。凡是带 tabId 的操作（page.*、open_url、截图、标签内脚本等），成功或失败都会追加到 <pageObservedHistory>，type 为工具名、result 为完整返回；<toolIO> 里同一次调用只有 pageObservationId。取元素 id、regionId 时看观察数组中对应项的 result。复杂交互：可用 page.get_by_role(role+name) 取 e_；提交后用 wait_response(urlContains) 等接口；用 wait(id/selector, visible/enabled) 确认可操作再点。
 
 元素和区域 id 是按可见节点顺序生成的临时编号。导航、节点增删或顺序变化后重新获取；确认变化不影响编号时可复用，单纯切回标签无需重新观察。跨标签操作时须显式传入目标 tabId，各标签节点编号独立，切勿跨标签混用编号。
 

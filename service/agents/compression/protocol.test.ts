@@ -3,8 +3,7 @@ import { resolve } from "node:path";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { requestTurnSummaries } from "./protocol.ts";
-import { compressionSystemPrompt, compressionUserPrompt } from "./protocol.ts";
+import { requestTurnSummaries, compressionSystemPrompt, compressionUserPrompt, compressionTurnsFromUserMessage } from "./protocol.ts";
 import type { CompletionResult } from "../../types.ts";
 import { readdirSync, readFileSync } from "node:fs";
 const dataDir = mkdtempSync(join(tmpdir(), "compression-protocol-"));
@@ -14,23 +13,35 @@ const summary = (turnId: string) => ({ turnId, tag: "负责人", userRequest: "�
 const valid: CompletionResult = { finish: "tool_calls", content: "忽略正文", toolCalls: [{ id: "result", name: "submitTurnSummaries", arguments: { summaries: [summary("tn_02"), summary("tn_01")] } }], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] };
 const input = { dataDir, conversationId: "cv_01", repoRoot, turns: [{ turnId: "tn_01", toolIO: [] }, { turnId: "tn_02", toolIO: [] }] };
 
-test("compression uses dedicated context system/user with registry-generated fields", () => {
+test("compression uses dedicated system and raw {turns} user JSON", () => {
   const system = compressionSystemPrompt(repoRoot);
+  expect(system.startsWith("<overview>")).toBe(true);
+  expect(system).toContain("</overview>");
+  expect(system).toContain("compressAt");
+  expect(system).toContain("模块粗览");
+  expect(system).toContain("<identity>");
+  expect(system).toContain("身份只在该模块声明");
   expect(system).toContain("<compressionRole>");
   expect(system).toContain("<compressionModules>");
-  expect(system).toContain("modules.json");
-  expect(system).toContain("- toolIO:");
+  expect(system).toContain("<compressionTurns>");
+  expect(system).toContain("标签内只有数据");
   expect(system).toContain("submitTurnSummaries");
+  expect(system).toContain("- toolIO:");
+  expect(system).toContain("Sample");
+  expect(system).toContain("tn_02");
+  expect(system).not.toContain("{{archiveFields}}");
+  expect(system).not.toContain("<agentPosition>");
   const user = compressionUserPrompt(repoRoot, input.turns);
-  expect(user).toContain("<compressionTurns>");
-  expect(user).toContain(JSON.stringify({ turns: input.turns }));
+  expect(user).toBe(`<compressionTurns>\n${JSON.stringify({ turns: input.turns })}\n</compressionTurns>`);
+  expect(user).not.toContain("能力：");
+  expect(compressionTurnsFromUserMessage(user).map(row => row.turnId)).toEqual(["tn_01", "tn_02"]);
 });
 
 test("private submission returns exact turn coverage in source order without extra length gates", async () => {
   const result = await requestTurnSummaries({ ...input, provider: { complete: async request => {
     expect(request.tools.map(tool => tool.function.name)).toEqual(["submitTurnSummaries"]);
     expect(request.messages[0]!.content).toContain("<compressionRole>");
-    expect(request.messages[1]!.content).toContain(JSON.stringify({ turns: input.turns }));
+    expect(request.messages[1]!.content).toBe(`<compressionTurns>\n${JSON.stringify({ turns: input.turns })}\n</compressionTurns>`);
     return { ...valid, toolCalls: [{ ...valid.toolCalls[0]!, arguments: { summaries: [{ ...summary("tn_02"), result: "x".repeat(13000) }, summary("tn_01")] } }] };
   } } });
   expect(result.map(row => row.turnId)).toEqual(["tn_01", "tn_02"]);
