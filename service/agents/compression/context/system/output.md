@@ -2,9 +2,9 @@
 能力：【Submit Summaries】
 
 详细描述：
-我通过恰好一次 submitTurnSummaries 提交本批全部摘要；正文不是业务结果。
+我用 submitTurnSummaries 交本批摘要。这一次回包只调这一个工具，本批每轮一条都放进 summaries；不要拆成多次调用，也不要用正文当结果。
 
-参数 summaries 必须是对象数组。每个输入 turnId 恰好对应一个对象。五个字段均为非空字符串：
+参数 summaries 必须是对象数组。本批每个 turnId 一条，不多不少。五个字段均为非空字符串：
 
 | 字段 | 我填写什么 |
 | --- | --- |

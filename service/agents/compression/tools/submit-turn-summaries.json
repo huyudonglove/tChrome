@@ -52,7 +52,7 @@
             ],
             "additionalProperties": false
           },
-          "description": "本批次逐轮摘要数组，每个输入 turnId 恰好对应一个对象。"
+          "description": "本批次逐轮摘要数组。本批每个 turnId 一条，不多不少。"
         }
       },
       "required": [

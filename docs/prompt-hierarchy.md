@@ -490,9 +490,9 @@ status：completed / waiting_human / failed 表示已结束；assembling / infer
 能力：【Submit Summaries】
 
 详细描述：
-我通过恰好一次 submitTurnSummaries 提交本批全部摘要；正文不是业务结果。
+我用 submitTurnSummaries 交本批摘要。这一次回包只调这一个工具，本批每轮一条都放进 summaries；不要拆成多次调用，也不要用正文当结果。
 
-参数 summaries 必须是对象数组。每个输入 turnId 恰好对应一个对象。五个字段均为非空字符串：
+参数 summaries 必须是对象数组。本批每个 turnId 一条，不多不少。五个字段均为非空字符串：
 
 | 字段 | 我填写什么 |
 | --- | --- |
@@ -595,7 +595,7 @@ User 消息只有一层标签，标签内只有数据。结构：
 能力：【Submit Matches】
 
 详细描述：
-我通过恰好一次 submitMatches 提交命中的 turnId；正文不是业务结果。
+我用 submitMatches 交命中的 turnId。这一次回包只调这一个工具，命中的 turnId 都放进 turnIds（无匹配时为空数组）；不要拆成多次调用，也不要用正文当结果。
 
 参数 turnIds 必须是字符串数组。只含本次候选中已有的 turnId；无匹配时为空数组。若上一次格式无效，我根据 Runtime 反馈修正后再次调用 submitMatches，不用正文代替工具。格式或 schema 错误最多自救 3 次。
 </queryOutput>

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "submitMatches",
-    "description": "提交与查询意图匹配的候选 turnId；无匹配时返回空数组。只能调用一次，不返回原文。",
+    "description": "提交与查询意图匹配的候选 turnId；无匹配时返回空数组。这一次回包只调这一个工具，不返回原文。",
     "parameters": {
       "type": "object",
       "properties": {

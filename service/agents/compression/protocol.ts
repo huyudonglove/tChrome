@@ -14,7 +14,7 @@ export const COMPRESSION_FORMAT_ATTEMPTS = 3;
 function formatFault(response: CompletionResult, toolName: string): string | null {
   if (response.finish === "error" && response.faultCode) return null;
   if (response.finish !== "tool_calls") return `finish=${response.finish}; 必须通过一次 ${toolName} 工具调用提交摘要`;
-  if (response.toolCalls.length !== 1) return `toolCalls.length=${response.toolCalls.length}; 必须恰好一次 ${toolName}`;
+  if (response.toolCalls.length !== 1) return `toolCalls.length=${response.toolCalls.length}; 这一次回包只能有一个 ${toolName}`;
   if (response.faultCode || !response.parseOk || !response.schemaOk || response.toolCallFaults?.length || response.missing.length) {
     return response.detail || response.faultCode || (!response.parseOk ? "parse_failed" : "schema_failed");
   }
@@ -69,7 +69,7 @@ export async function requestTurnSummaries(input: { provider: Provider; repoRoot
             attempt,
             maxAttempts: COMPRESSION_FORMAT_ATTEMPTS,
             fault: lastError,
-            instruction: `上一次 submitTurnSummaries 格式无效。summaries 必须是对象数组（不是字符串），每个输入 turnId 恰好一项，五个字段均为非空字符串。请修正后再次通过一次 ${tool.function.name} 提交。`,
+            instruction: `上一次 submitTurnSummaries 格式无效。summaries 必须是对象数组（不是字符串），本批每个 turnId 一条、不多不少，五个字段均为非空字符串。请修正后，在这一次回包里只调一次 ${tool.function.name}，把本批摘要全部放进 summaries。`,
           }),
         },
       ];

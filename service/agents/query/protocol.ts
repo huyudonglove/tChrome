@@ -64,7 +64,7 @@ export async function requestMatches(input: {
           attempt,
           maxAttempts: QUERY_FORMAT_ATTEMPTS,
           fault: lastError,
-          instruction: "上一次 submitMatches 格式无效。请通过恰好一次 submitMatches 提交 {turnIds: string[]}；只含本次候选 turnId，无匹配时为空数组。",
+          instruction: "上一次 submitMatches 格式无效。请在这一次回包里只调一次 submitMatches，把 {turnIds: string[]} 一次交齐；只含本次候选 turnId，无匹配时为空数组。",
         }),
       },
     ];
