@@ -30,10 +30,13 @@ import { checkToolCalls } from "../tools/schema.ts";
 import { contextState, compressContext } from "./context-state.ts";
 import { queryContext } from "../agents/query/index.ts";
 import { nowIso, pacificDate } from "./ids.ts";
+import { join } from "node:path";
+import { runtimeConfig } from "../config/runtime.ts";
 import {
   ensureSession,
   loadLedger,
   loadTurn,
+  paths,
   saveFullReturn,
   saveLedger,
   saveTurn,
@@ -191,11 +194,25 @@ const runQueue = async (input: {
     const stored = storeToolImages(dataDir, ledger.conversationId, execution.text);
     const full = stored.text;
     saveFullReturn(dataDir, ledger.conversationId, item.callId, full);
+    // Oversized returns stay on disk; the window only gets a searchable pointer.
+    const inlineLimit = runtimeConfig.results.inlineChars;
+    const viewText = full.length > inlineLimit
+      ? JSON.stringify({
+        ok: true,
+        externalized: true,
+        callId: item.callId,
+        name: item.name,
+        totalChars: full.length,
+        path: join(paths(dataDir, ledger.conversationId).returns, `${item.callId}.txt`),
+        message: `runtime: 单次结果超过 ${inlineLimit} 字符，全文已缓存本地。请用 evidence.search 按 callId 与 keyword 取关键字附近上下文（默认 ±${runtimeConfig.results.searchContextChars} 字符）；本地 path 见本字段。`,
+        search: "evidence.search",
+      })
+      : full;
     const row: ToolIOItem = {
       ...item,
       turnId: turn.turnId,
       ...(stored.images.length ? { images: stored.images } : {}),
-      return: { stage: "complete", totalChars: full.length, text: full },
+      return: { stage: "complete", totalChars: full.length, text: viewText },
     };
     ledger.toolIO.push(row);
     let output: TurnOutput | null = null;

@@ -159,19 +159,22 @@ test("200K during a live tool loop compresses older batches before the next main
   const dataDir = mkdtempSync(join(tmpdir(), "context-live-boundary-"));
   try {
     let main = 0, aux = 0;
+    // Stay under the 4000 inline gate so accumulation, not a single huge return, fills the window.
     const provider: Provider = { complete: async input => {
       if (input.tools[0]?.function.name === "submitTurnSummaries") { aux++; return summaryResponse(input.messages); }
       main++;
       if (main === 4) { expect(aux).toBeGreaterThan(0); expect(input.messages[1]!.content).toContain("#conversationHistorySummary"); }
       return result({ toolCalls: main <= 3
-        ? [{ id: `page_${main}`, name: "page.get_summary", arguments: { reason: "读取", affectsPage: false, tabId: 1 } }]
+        ? Array.from({ length: 20 }, (_, i) => ({ id: `p${main}_${i}`, name: "page.get_summary", arguments: { reason: "读取", affectsPage: false, tabId: 1 } }))
         : [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", affectsPage: false, text: "完成" } }] });
     } };
-    const reply = await handleTurn({ dataDir, repoRoot, provider, host: { execute: async () => ({ ok: true, text: "证据".repeat(40000) }) } }, { userInput: "核对结果", submittedAt: "2026-09-11" });
+    const reply = await handleTurn({ dataDir, repoRoot, provider, host: { execute: async () => ({
+      ok: true, tabId: 1, url: "https://example.com/p", title: "页", description: "证".repeat(3500),
+    }) } }, { userInput: "核对结果", submittedAt: "2026-09-11" });
     expect(reply.output).toEqual({ kind: "reply", text: "完成" }); expect(main).toBe(4);
     const ledger = loadLedger(dataDir, reply.conversationId);
-    expect(ledger.toolIO).toHaveLength(4);
-    expect(loadIndex(dataDir, reply.conversationId, "conversationHistory").coveredSourceIds).toHaveLength(1);
+    expect(ledger.toolIO).toHaveLength(61);
+    expect(loadIndex(dataDir, reply.conversationId, "conversationHistory").coveredSourceIds.length).toBeGreaterThan(0);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 

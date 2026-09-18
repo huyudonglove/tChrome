@@ -177,7 +177,8 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "memory.write",
     "notes.write",
     "notes.delete",
-    "page.clear_result"
+    "page.clear_result",
+    "evidence.search"
   ],
   "toolIds": [
     "page.get_summary",

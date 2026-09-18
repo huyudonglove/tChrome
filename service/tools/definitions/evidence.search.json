@@ -1,0 +1,41 @@
+{
+  "type": "function",
+  "function": {
+    "name": "evidence.search",
+    "description": "在已缓存的超量结果中按关键字检索。单次工具返回或页面观察 result 超过内联门禁时，Runtime 只注入摘要与本地 path，全文留在本地；用本工具取关键字附近的上下文。\n参数：必填 keyword；callId 或 pageId 二选一；可选 contextChars（默认 400，范围 20–400）。\n返回：ok、source、path、keyword、matchCount、matches[{offset, before, hit, after}]。只返回片段，不回灌全文。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean",
+          "const": false
+        },
+        "keyword": {
+          "type": "string",
+          "description": "要检索的非空关键字"
+        },
+        "callId": {
+          "type": "string",
+          "description": "工具调用 ID（call_xx）；与 pageId 二选一"
+        },
+        "pageId": {
+          "type": "string",
+          "description": "页面观察 ID（page_xx）；与 callId 二选一"
+        },
+        "contextChars": {
+          "type": "integer",
+          "description": "关键字两侧保留的字符数，默认 400"
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage",
+        "keyword"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

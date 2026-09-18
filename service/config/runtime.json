@@ -12,5 +12,11 @@
   },
   "query": {
     "returnChars": 2000
+  },
+  "results": {
+    "inlineChars": 4000,
+    "searchContextChars": 400,
+    "searchMaxContextChars": 400,
+    "searchMaxMatches": 8
   }
 }

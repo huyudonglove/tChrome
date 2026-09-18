@@ -3,7 +3,9 @@ import { saveMemory } from "../memory/store.ts";
 import type { Ledger, MemoryRecord, ToolQueueItem, Turn, TurnOutput } from "../types.ts";
 import type { ToolEffect } from "../tools/effects.ts";
 import { allocateRecordId, nowIso } from "./ids.ts";
-import { appendEvent, saveLedger, saveTurn } from "./store.ts";
+import { join } from "node:path";
+import { appendEvent, paths, saveLedger, saveTurn } from "./store.ts";
+import { runtimeConfig } from "../config/runtime.ts";
 
 export function applyToolEffects(input: {
   dataDir: string;
@@ -53,14 +55,30 @@ export function applyToolEffects(input: {
         turn.assembled.toolIds = [...new Set([...turn.assembled.toolIds, ...effect.names])];
         break;
       case "page.set": {
+        const id = allocateRecordId(dataDir, ledger.conversationId, "page");
+        const resultChars = JSON.stringify(effect.result).length;
+        const inlineLimit = runtimeConfig.results.inlineChars;
+        const windowResult = resultChars > inlineLimit
+          ? {
+            ok: true,
+            externalized: true,
+            callId: call.callId,
+            type: call.name,
+            totalChars: resultChars,
+            path: join(paths(dataDir, ledger.conversationId).conv, "context-records", "pageObservation", `${id}.json`),
+            message: `runtime: 观察结果超过 ${inlineLimit} 字符，全文已缓存本地。请用 evidence.search(pageId=${id}, keyword) 检索；本地 path 见本字段。`,
+            search: "evidence.search",
+          }
+          : effect.result;
         const record = {
-          id: allocateRecordId(dataDir, ledger.conversationId, "page"),
+          id,
           turnId: turn.turnId,
           observedAt: nowIso(),
           callId: call.callId,
           ...(call.batchId ? { batchId: call.batchId } : {}),
           tabId: effect.page.tabId,
           type: call.name,
+          // Local archive keeps the full payload; the window may see a pointer only.
           result: effect.result,
         };
         saveContextRecord(dataDir, ledger.conversationId, "pageObservation", record);
@@ -74,7 +92,10 @@ export function applyToolEffects(input: {
             description: effect.page.description || previous?.description || "当前页面信息",
           };
         }
-        turn.assembled.pageObservedHistory.push(record);
+        turn.assembled.pageObservedHistory.push({
+          ...record,
+          result: windowResult,
+        });
         break;
       }
       case "page.clear_result": {

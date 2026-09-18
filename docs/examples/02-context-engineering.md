@@ -61,7 +61,8 @@
     "memory.write",
     "notes.write",
     "notes.delete",
-    "page.clear_result"
+    "page.clear_result",
+    "evidence.search"
   ],
   "toolIds": [
     "page.get_summary",

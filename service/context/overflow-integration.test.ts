@@ -89,28 +89,30 @@ test("oversized project memory is referenced in a new conversation without losin
   expect(loadMemories(dataDir, fresh, { conversation: [], project: [] }).project[0]!.text).toBe(text);
 }));
 
-test("large script results use references while subsequent local file pages remain inline", () => withDir(async dataDir => {
+test("large script results use evidence.search while small follow-up pages stay inline", () => withDir(async dataDir => {
   const code = "//PAGE_SENTINEL\n" + "x".repeat(305_000);
   mkdirSync(join(dataDir, "scripts"));
   writeFileSync(join(dataDir, "scripts", "large.js"), code);
-  let step = 0, path = "";
+  let step = 0;
   const reply = await handleTurn({ dataDir, repoRoot, host, provider: provider(user => {
-    if (++step === 1) return response(call("catalog.add", { names: ["script_read", "local.fs_read"] }));
+    if (++step === 1) return response(call("catalog.add", { names: ["script_read", "evidence.search"] }));
     if (step === 2) return response(call("script_read", { filename: "large.js" }));
     if (step === 3) {
-      const refs = references(slot(user, "#toolIO"));
-      expect(refs.length).toBeGreaterThan(0);
-      path = refs.find(ref => readFileSync(ref.path, "utf8").includes("PAGE_SENTINEL"))!.path;
-      return response(call("local.fs_read", { path, offset: 0, limit: 1024 }));
+      const toolIO = slot(user, "#toolIO");
+      const row = toolIO.find((item: any) => item.name === "script_read");
+      expect(row).toBeDefined();
+      expect(JSON.parse(JSON.stringify(row.return.result)).externalized).toBe(true);
+      return response(call("evidence.search", { callId: row.callId, keyword: "PAGE_SENTINEL", contextChars: 20 }));
     }
     const toolIO = slot(user, "#toolIO");
-    expect(Array.isArray(toolIO)).toBe(true);
-    const page = toolIO.find((row: any) => row.name === "local.fs_read");
-    expect(page).toBeDefined();
-    expect(references(page)).toEqual([]);
-    expect(JSON.stringify(page)).toContain("PAGE_SENTINEL");
+    const search = toolIO.find((row: any) => row.name === "evidence.search");
+    expect(search).toBeDefined();
+    const parsed = typeof search.return.result === "string" ? JSON.parse(search.return.result) : search.return.result;
+    expect(parsed.ok).toBe(true);
+    expect(parsed.matches[0].hit).toBe("PAGE_SENTINEL");
+    expect(String(parsed.path)).toContain("returns");
     return finish();
-  }) }, { userInput: "读取大脚本并分页查看原文", submittedAt: "now" });
+  }) }, { userInput: "读取大脚本并检索关键标记", submittedAt: "now" });
   expect(reply.output.kind).toBe("reply");
   expect(step).toBe(4);
   expect(readFileSync(join(dataDir, "scripts", "large.js"), "utf8")).toBe(code);

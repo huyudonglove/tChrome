@@ -105,7 +105,8 @@ Provider 用同一套 messages，user `#toolIO` 写成上面数组。模型交�
     "memory.write",
     "notes.write",
     "notes.delete",
-    "page.clear_result"
+    "page.clear_result",
+    "evidence.search"
   ],
   "toolIds": [
     "page.get_summary",

@@ -9,6 +9,10 @@ import { LOCAL_TOOL_NAMES, runLocalTool } from "./local-tools.ts";
 import { listItems, saveItem, deleteItem } from "../library/store.ts";
 import { readScript } from "../scripts/store.ts";
 import { failedTool, normalizeToolExecution } from "./result.ts";
+import { join } from "node:path";
+import { loadFullReturn, paths } from "../runtime/store.ts";
+import { loadContextRecord } from "../runtime/records.ts";
+import { runtimeConfig } from "../config/runtime.ts";
 
 const questionWithChoices = (question: string, choice: string[]): string =>
   choice.length === 0 ? question : `${question}\n选项：${choice.join(" / ")}`;
@@ -147,6 +151,76 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     }
     return result(JSON.stringify({ ok: true, pageId, cleared: true }),
       [{ type: "page.clear_result", pageId }]);
+  }
+  if (name === "evidence.search") {
+    if (!input.conversationId) return failedTool("evidence.search 缺少会话标识", "invalid_arguments");
+    const keyword = String(args.keyword ?? "");
+    if (!keyword.trim()) return failedTool("keyword 空着", "invalid_arguments");
+    const callId = typeof args.callId === "string" ? args.callId.trim() : "";
+    const pageId = typeof args.pageId === "string" ? args.pageId.trim() : "";
+    if (!callId && !pageId) return failedTool("callId 或 pageId 必须提供一个", "invalid_arguments");
+    if (callId && pageId) return failedTool("callId 与 pageId 只能提供一个", "invalid_arguments");
+    const limits = runtimeConfig.results;
+    const rawWindow = Number(args.contextChars ?? limits.searchContextChars);
+    const contextChars = Number.isFinite(rawWindow)
+      ? Math.min(limits.searchMaxContextChars, Math.max(20, Math.floor(rawWindow)))
+      : limits.searchContextChars;
+    let haystack = "";
+    let source = "";
+    let path = "";
+    if (callId) {
+      path = join(paths(dataDir, input.conversationId).returns, `${callId}.txt`);
+      haystack = loadFullReturn(dataDir, input.conversationId, callId) ?? "";
+      source = `call:${callId}`;
+    } else {
+      path = join(dataDir, "conversations", input.conversationId, "context-records", "pageObservation", `${pageId}.json`);
+      const raw = loadContextRecord(dataDir, input.conversationId, "pageObservation", pageId);
+      if (raw) {
+        try {
+          const record = JSON.parse(raw) as { result?: unknown };
+          haystack = typeof record.result === "string" ? record.result : JSON.stringify(record.result ?? null);
+        } catch {
+          haystack = raw;
+        }
+      }
+      source = `page:${pageId}`;
+    }
+    if (!haystack) {
+      return result(JSON.stringify({
+        ok: false,
+        faultCode: "file_not_found",
+        source,
+        path,
+        keyword,
+        detail: "未找到已缓存的原文，确认 callId/pageId 是否来自本会话超量结果",
+      }));
+    }
+    const matches: { offset: number; before: string; hit: string; after: string }[] = [];
+    const lowerHay = haystack.toLowerCase();
+    const needle = keyword.toLowerCase();
+    let from = 0;
+    while (matches.length < limits.searchMaxMatches) {
+      const at = lowerHay.indexOf(needle, from);
+      if (at === -1) break;
+      matches.push({
+        offset: at,
+        before: haystack.slice(Math.max(0, at - contextChars), at),
+        hit: haystack.slice(at, at + keyword.length),
+        after: haystack.slice(at + keyword.length, at + keyword.length + contextChars),
+      });
+      from = at + Math.max(1, keyword.length);
+    }
+    return result(JSON.stringify({
+      ok: matches.length > 0,
+      source,
+      path,
+      keyword,
+      contextChars,
+      totalChars: haystack.length,
+      matchCount: matches.length,
+      matches,
+      ...(matches.length ? {} : { faultCode: "not_found", detail: "关键字未命中缓存原文" }),
+    }));
   }
   if (name === "catalog.add") {
     const names = [...new Set(asStringArray(args.names))];
