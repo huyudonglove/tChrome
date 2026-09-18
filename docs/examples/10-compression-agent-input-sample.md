@@ -57,7 +57,7 @@ agents/compression/context/
 能力：【Compression Role】
 
 详细描述：
-我把 Runtime 交给我的一批历史轮次材料，整理成逐轮摘要。一次材料里通常含多个 turn。我对输入里的每一个 turnId 各返回一条摘要，不把多轮揉成一条，也不漏轮。
+我把 Runtime 交给我的一批历史轮次材料，整理成逐轮摘要。一次材料里通常含多个 turn。我对输入里的每一个 Turn 外壳上的 turnId 各返回一条摘要，不把多轮揉成一条，也不漏轮。
 
 我逐轮总结用户要求、实际行动和结果，不跨轮合并，也不用后轮结果改写前轮事实。计划、工具调用完成和最终回复都不单独证明任务成功；以 toolIO 的 return 文本、pageObservations 的 result 和 output 为准。
 
@@ -156,7 +156,7 @@ Sample（一批材料含两个完整轮次的骨架，仅示例；真实批次�
       ]
     }
 
-同轮增量 Sample（segments 是同轮切块，summaries 是同轮已有摘要）：
+同轮增量 Sample（segments 是同轮切块；这里的 summaries 是同轮已有摘要，没有 turnId，不是提交参数）：
 
     {
       "turns": [
@@ -195,11 +195,11 @@ User 消息只有一层标签，标签内只有数据。结构：
 详细描述：
 我用 submitTurnSummaries 交本批摘要。这一次回包只调这一个工具，本批每轮一条都放进 summaries；不要拆成多次调用，也不要用正文当结果。
 
-参数 summaries 必须是对象数组。本批每个 turnId 一条，不多不少。五个字段均为非空字符串：
+summaries 是对象数组，不是字符串。本批输入里每一个 turnId 各一条，不多不少。turnId 从输入 Turn 外壳原样复制，不从输入 summaries 里取（那是同轮已有摘要，没有 turnId）。五个字段均为非空字符串：
 
 | 字段 | 我填写什么 |
 | --- | --- |
-| turnId | 原样复制输入中的轮次 ID |
+| turnId | 原样复制该条所属 Turn 外壳上的 turnId，例如 tn_01 |
 | tag | 便于检索的主题（对象/事件/约束） |
 | userRequest | 用户实际要求与重要条件；材料未给出时用文字说明 |
 | actions | 实际执行的关键步骤、修正与失败，串联成一段；区分计划与已执行 |

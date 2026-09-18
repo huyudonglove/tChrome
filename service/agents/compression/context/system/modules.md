@@ -56,7 +56,7 @@ Sample（一批材料含两个完整轮次的骨架，仅示例；真实批次�
       ]
     }
 
-同轮增量 Sample（segments 是同轮切块，summaries 是同轮已有摘要）：
+同轮增量 Sample（segments 是同轮切块；这里的 summaries 是同轮已有摘要，没有 turnId，不是提交参数）：
 
     {
       "turns": [

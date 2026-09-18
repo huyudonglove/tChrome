@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { parseToolArguments } from "./arguments.ts";
+import { parseToolArguments, unwrapStringArrayField } from "./arguments.ts";
 
 test("arguments 是对象就直接用，不补字段", () => {
   const parsed = parseToolArguments({
@@ -50,4 +50,18 @@ test("空字符串当空对象，不填 reason / affectsPage", () => {
 test("真坏掉的字符串仍失败", () => {
   const parsed = parseToolArguments("[object Object]");
   expect(parsed.ok).toBe(false);
+});
+
+test("数组字段被再编码成字符串时拆一层", () => {
+  const args = { summaries: JSON.stringify([{ turnId: "tn_01" }]) };
+  unwrapStringArrayField(args, "summaries");
+  expect(args.summaries).toEqual([{ turnId: "tn_01" }]);
+  unwrapStringArrayField(args, "summaries");
+  expect(args.summaries).toEqual([{ turnId: "tn_01" }]);
+  const stillString = { summaries: "not-json" };
+  unwrapStringArrayField(stillString, "summaries");
+  expect(stillString.summaries).toBe("not-json");
+  const objectString = { summaries: JSON.stringify({ turnId: "tn_01" }) };
+  unwrapStringArrayField(objectString, "summaries");
+  expect(objectString.summaries).toBe(JSON.stringify({ turnId: "tn_01" }));
 });

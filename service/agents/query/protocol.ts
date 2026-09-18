@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ChatMessage, ChatTool, CompletionResult, Provider } from "../../types.ts";
 import { querySystemFromModules } from "./context/loader.ts";
+import { unwrapStringArrayField } from "../../tools/arguments.ts";
 
 export type QueryCandidate = { turnId: string; records: Record<string, unknown>[] };
 export type QueryRequestPayload = { sumId: string; module: string; intent: string };
@@ -79,6 +80,7 @@ export async function requestMatches(input: {
       continue;
     }
     const call = response.toolCalls[0]!;
+    unwrapStringArrayField(call.arguments, "turnIds");
     const value = call.arguments;
     if (!validate(value)) {
       lastError = "查询 Agent 返回的工具参数不符合 schema。";

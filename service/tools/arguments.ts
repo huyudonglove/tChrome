@@ -46,3 +46,13 @@ export const parseToolArguments = (raw: unknown): { ok: true; value: ToolArgumen
   }
   return { ok: false, detail: "Unable to parse JSON string" };
 };
+
+/** Providers sometimes JSON-encode an array field as a string. Unwrap one layer when it parses to an array. */
+export function unwrapStringArrayField(args: Record<string, unknown>, field: string): void {
+  const value = args[field];
+  if (typeof value !== "string") return;
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) args[field] = parsed;
+  } catch {}
+}

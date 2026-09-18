@@ -19,7 +19,9 @@ User 消息只有一层标签，标签内只有数据。结构：
       ...归档字段
     }
 
-或同轮增量：segments 是同轮切块，summaries 是同轮已有摘要。
+提交时，这条摘要的 turnId 复制这里的 tn_01。
+
+或同轮增量：segments 是同轮切块；summaries 是同轮已有摘要，没有 turnId，不是我要提交的数组。
 
     {
       "turnId": "tn_01",

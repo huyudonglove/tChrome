@@ -25,6 +25,9 @@ test("compression uses dedicated system and raw {turns} user JSON", () => {
   expect(system).toContain("<compressionTurns>");
   expect(system).toContain("标签内只有数据");
   expect(system).toContain("submitTurnSummaries");
+  expect(system).toContain("不是字符串");
+  expect(system).toContain("Turn 外壳");
+  expect(system).toContain("不是提交参数");
   expect(system).toContain("- toolIO:");
   expect(system).toContain("return:{stage,totalChars,text}");
   expect(system).toContain("segments");
@@ -50,13 +53,25 @@ test("private submission returns exact turn coverage in source order without ext
   expect(result.map(row => row.turnId)).toEqual(["tn_01", "tn_02"]);
   expect(result[1]!.result).toBe("x".repeat(13000));
 });
+test("stringified summaries array is unwrapped once and accepted", async () => {
+  const result = await requestTurnSummaries({
+    ...input,
+    provider: {
+      complete: async () => ({
+        ...valid,
+        toolCalls: [{ ...valid.toolCalls[0]!, arguments: { summaries: JSON.stringify([summary("tn_02"), summary("tn_01")]) } }],
+      }),
+    },
+  });
+  expect(result.map(row => row.turnId)).toEqual(["tn_01", "tn_02"]);
+});
 test("format errors return to the model for self-repair up to three attempts", async () => {
   let calls = 0;
-  const stringified = { ...valid, toolCalls: [{ ...valid.toolCalls[0]!, arguments: { summaries: JSON.stringify([summary("tn_02"), summary("tn_01")]) } }] };
+  const missing = { ...valid, toolCalls: [{ ...valid.toolCalls[0]!, arguments: { summaries: [summary("tn_01")] } }] };
   const result = await requestTurnSummaries({ ...input, provider: { complete: async request => {
     calls++;
     expect(request.messages.at(-1)!.role).toBe("user");
-    if (calls < 3) return stringified;
+    if (calls < 3) return missing;
     expect(JSON.parse(request.messages.at(-1)!.content)).toMatchObject({ selfRepair: true, attempt: 3 });
     return valid;
   } } });

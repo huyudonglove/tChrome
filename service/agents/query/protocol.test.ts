@@ -25,6 +25,8 @@ test("query uses dedicated system and raw {request,turns} user XML", () => {
   expect(system).toContain("<queryTurns>");
   expect(system).toContain("标签内只有数据");
   expect(system).toContain("submitMatches");
+  expect(system).toContain("不是字符串");
+  expect(system).toContain("Turn 外壳");
   expect(system).toContain("Sample");
   expect(system).not.toContain("身份只在该模块声明");
   expect(system).not.toContain("<agentPosition>");
@@ -77,6 +79,10 @@ test("query enforces return schema and module membership even if provider report
   }
 });
 
+test("stringified turnIds array is unwrapped once and accepted", async () => {
+  expect(await run(response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: { turnIds: JSON.stringify(["tn_1"]) } }] }))).toEqual(["tn_1"]);
+});
+
 test("query format errors return to the model for self-repair up to three attempts", async () => {
   let calls = 0;
   const broken = response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: { turnIds: ["outside"] } }] });
@@ -90,7 +96,6 @@ test("query format errors return to the model for self-repair up to three attemp
     fixed++;
     return undefined;
   }).catch(() => null);
-  // First two calls invalid type; third attempt uses a patched provider below.
   expect(value).toBeNull();
   expect(fixed).toBe(3);
 });

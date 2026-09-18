@@ -4,6 +4,7 @@ import { join } from "node:path";
 import Ajv from "ajv";
 import { compressionLog } from "./log.ts";
 import { compressionSystemFromModules } from "./context/loader.ts";
+import { unwrapStringArrayField } from "../../tools/arguments.ts";
 import type { ChatMessage, ChatTool, CompletionResult, Provider } from "../../types.ts";
 export type TurnSummary = { turnId: string; tag: string; userRequest: string; actions: string; result: string };
 export type CompressionTurn = { turnId: string; [field: string]: unknown };
@@ -88,6 +89,7 @@ export async function requestTurnSummaries(input: { provider: Provider; repoRoot
         continue;
       }
       const call = response.toolCalls[0]!;
+      unwrapStringArrayField(call.arguments, "summaries");
       if (!validate(call.arguments)) {
         lastError = `Compression submission schema failed: ${JSON.stringify(validate.errors)}`;
         append("validation-error", { attempt, errors: validate.errors });
