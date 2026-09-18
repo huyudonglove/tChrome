@@ -73,6 +73,7 @@ export function emptyLedger(conversationId: string): Ledger {
     toolIO: [],
     lastAction: null,
     checklist: null,
+    contextTab: null,
     notes: {},
     currentQuery: null,
     queryHistory: [],

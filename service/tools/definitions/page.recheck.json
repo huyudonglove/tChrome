@@ -1,0 +1,25 @@
+{
+  "type": "function",
+  "function": {
+    "name": "page.recheck",
+    "description": "轻量只读复验：观察页面条件是否满足，不作为断言。\n参数：至少一项检查条件（text / urlContains / titleContains / id / selector / role+name）；可选 tabId、frameId。\n返回：ok、checks[{name,ok,detail}]、url、title。ok=false 只表示「不满足」，不作为操作失败。\n成功验收请用 page.assert。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
+        "tabId": { "type": "integer" },
+        "frameId": { "type": "integer", "description": "可选；frame.list 返回的 frameId" },
+        "id": { "type": "string", "description": "e_/r_ 编号存在性检查" },
+        "selector": { "type": "string" },
+        "text": { "type": "string", "description": "页面正文包含该文本" },
+        "urlContains": { "type": "string" },
+        "titleContains": { "type": "string" },
+        "role": { "type": "string" },
+        "name": { "type": "string", "description": "与 role 搭配的可访问名子串" }
+      },
+      "required": ["reason", "affectsPage"],
+      "additionalProperties": false
+    }
+  }
+}

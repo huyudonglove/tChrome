@@ -55,6 +55,8 @@ export type Checklist = {
   updatedAt: string;
 } | null;
 
+export type TabContext = { tabId: number; setAt: string } | null;
+
 export type TabItem = { tabId: number; url: string; title: string; active: boolean };
 export type OpenWindow = { windowId: number; focused: boolean; tabs: TabItem[] };
 export type OpenTabs = { ok: true; windows: OpenWindow[] } | { ok: false; error: string };
@@ -133,6 +135,7 @@ export type Ledger = {
   toolIO: ToolIOItem[];
   lastAction: LastAction | null;
   checklist: Checklist;
+  contextTab: TabContext;
   notes: Record<string, string>;
   currentQuery: QueryEvidence | null;
   queryHistory: QueryEvidence[];

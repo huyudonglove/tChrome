@@ -63,6 +63,7 @@ export type ExecuteInput = {
     enabledTools: string[];
   };
   pageObservationIds?: string[];
+  defaultTabId?: number | null;
 };
 
 const result = (text: string, effects: ToolEffect[] = []): ToolExecution => ({ text, effects });
@@ -177,6 +178,22 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     if (!updates.length) return failedTool("checklist.update 需要 index 以及 status 或 text", "invalid_arguments");
     return result(JSON.stringify({ ok: true, updated: updates.length }),
       [{ type: "checklist.update", items: updates }]);
+  }
+  if (name === "tab.context") {
+    const action = String(args.action ?? "get");
+    if (action === "set") {
+      const tabId = Number(args.tabId);
+      if (!Number.isInteger(tabId) || tabId < 0) return failedTool("tab.context set 需要 tabId", "invalid_arguments");
+      return result(JSON.stringify({ ok: true, action, tabId }), [{ type: "tab.context.set", tabId }]);
+    }
+    if (action === "clear") {
+      return result(JSON.stringify({ ok: true, action }), [{ type: "tab.context.clear" }]);
+    }
+    return result(JSON.stringify({
+      ok: true,
+      action: "get",
+      tabId: input.defaultTabId ?? null,
+    }));
   }
   if (name === "evidence.search") {
     if (!input.conversationId) return failedTool("evidence.search 缺少会话标识", "invalid_arguments");
@@ -296,7 +313,11 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   }
   if (browserNames.includes(name)) {
     if (!host) return failedTool(`${name} 没有浏览器桥`, "browser_unavailable");
-    return externalResult(await host.execute(name, hostArgs(args)));
+    const args = hostArgs(input.arguments);
+    if ((args.tabId === undefined || args.tabId === null) && Number.isInteger(input.defaultTabId) && input.defaultTabId! >= 0) {
+      args.tabId = input.defaultTabId;
+    }
+    return externalResult(await host.execute(name, args));
   }
   return failedTool(`${name} 未接`, "unknown_tool");
 }

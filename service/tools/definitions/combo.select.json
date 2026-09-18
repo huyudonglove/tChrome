@@ -1,0 +1,19 @@
+{
+  "type": "function",
+  "function": {
+    "name": "combo.select",
+    "description": "对 SELECT 下拉框按 value 或选项文字选择。\n参数：必填 id（e_）、value、tabId。\n返回：ok、value、text。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": true },
+        "tabId": { "type": "integer" },
+        "id": { "type": "string" },
+        "value": { "type": "string", "description": "选项 value 或 option 文字（子串）" }
+      },
+      "required": ["reason", "affectsPage", "tabId", "id", "value"],
+      "additionalProperties": false
+    }
+  }
+}

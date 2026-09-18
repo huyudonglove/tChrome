@@ -176,6 +176,7 @@ const runQueue = async (input: {
         host,
         signal: input.signal,
         pageObservationIds: turn.assembled.pageObservedHistory.map((row) => row.id),
+        defaultTabId: ledger.contextTab?.tabId ?? null,
         queryContext: args => queryContext({ dataDir, conversationId: ledger.conversationId, repoRoot: input.repoRoot, provider: input.provider, ...args, isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId) }),
         lookup: {
           knownTools: Object.keys(toolRegistry.tools),

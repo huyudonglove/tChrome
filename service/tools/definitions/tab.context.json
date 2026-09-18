@@ -1,0 +1,18 @@
+{
+  "type": "function",
+  "function": {
+    "name": "tab.context",
+    "description": "设置/读取/清除默认 tabId（唯一「记住标签」的工具）。set 后，后续未显式传 tabId 的浏览器工具自动使用该标签；clear 或新的 set 覆盖。\nbind_tab 只校验标签，不绑定。\n参数：action=set|get|clear；set 时必填 tabId。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
+        "action": { "type": "string", "enum": ["set", "get", "clear"] },
+        "tabId": { "type": "integer" }
+      },
+      "required": ["reason", "affectsPage", "action"],
+      "additionalProperties": false
+    }
+  }
+}

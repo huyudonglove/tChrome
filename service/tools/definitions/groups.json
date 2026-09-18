@@ -17,12 +17,30 @@
     "page.click",
     "page.type",
     "checklist.set",
-    "checklist.update"
+    "checklist.update",
+    "page.recheck",
+    "page.assert",
+    "tab.context"
   ],
   "coreToolIds": [
     "page.list_regions",
     "page.inspect_region",
     "page.inspect_element",
+    "page.get_by_role",
+    "page.drag_to_id",
+    "frame.list",
+    "wait",
+    "wait_response",
+    "wait_network",
+    "network.grep",
+    "dialog.wait",
+    "combo.select",
+    "date.select",
+    "har",
+    "video.capture_sequence",
+    "video.record",
+    "fingerprint.read",
+    "fingerprint.apply",
     "web_search"
   ]
 }

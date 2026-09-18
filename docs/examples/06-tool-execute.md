@@ -187,7 +187,10 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "page.click",
     "page.type",
     "checklist.set",
-    "checklist.update"
+    "checklist.update",
+    "page.recheck",
+    "page.assert",
+    "tab.context"
   ],
   "toolIds": [
     "page.get_summary",

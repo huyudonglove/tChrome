@@ -38,7 +38,10 @@
     "page.click",
     "page.type",
     "checklist.set",
-    "checklist.update"
+    "checklist.update",
+    "page.recheck",
+    "page.assert",
+    "tab.context"
   ],
   "toolIds": [
     "page.get_summary",
@@ -166,7 +169,7 @@ turnId 用来关联一轮用户请求、工具操作和结果。查询结果最�
 
 affectsPage 表示是否改变浏览器页面状态：点击、输入、导航等填 true；读取、查询、本地保存等填 false。字段是否必填、是否只能取某个值，以工具 schema 为准。false 不代表没有实际影响，例如本地保存和网络写入仍需符合用户授权。
 
-从 #openTabs 或工具结果中取得 tabId、windowId。元素与区域编号统一为 page.* / snapshot 返回的 e_、r_；#pageObservedHistory 与 #toolIO 的 pageObservationId 指向观察数组。#lastAction 对照上一批 callId。使用目标工具要求的编号，不编造。操作页面时明确传 tabId，操作窗口时明确传 windowId。目标失效就处理错误，不能换成用户前台页面继续操作。bind_tab 只检查标签是否可用，不会记住目标供后续调用省略 tabId。
+从 #openTabs 或工具结果中取得 tabId、windowId。元素与区域编号统一为 page.* / snapshot 返回的 e_、r_；#pageObservedHistory 与 #toolIO 的 pageObservationId 指向观察数组。#lastAction 对照上一批 callId。使用目标工具要求的编号，不编造。操作页面时明确传 tabId（或先用 tab.context.set 设默认标签；bind_tab 只校验不绑定），操作窗口时明确传 windowId。iframe 用 frame.list 取 frameId 后传给 page.*。复验用 page.recheck（观察）/ page.assert（断言）；提交类操作可用 wait_response / network.grep。下拉优先 combo.select。页面剪贴板用 clipboard.page_write / clipboard.page_read。目标失效就处理错误，不能换成用户前台页面继续操作。
 
 新标签在指定窗口后台打开，新窗口默认不获取焦点，截图在指定标签后台完成。duplicate_tab 使用 Chrome 原生复制，会激活复制出的标签。其他需要切到前台的操作，明确调用切换工具。
 
@@ -219,6 +222,9 @@ Sample（验证成功后调用 finishTurn 的 arguments，仅示例）：
 - page.type：向指定输入框输入文字。
 - checklist.set：提交/替换当前 turn 的执行清单，会在侧栏输入框上方同步展示给人看。
 - checklist.update：更新当前 turn 的执行清单条目（按 index 修改 status/text），侧栏同步刷新。
+- page.recheck：轻量只读复验：观察页面条件是否满足，不作为断言。
+- page.assert：断言页面条件（只读）。
+- tab.context：设置/读取/清除默认 tabId（唯一「记住标签」的工具）。
 
 Sample（工具清单格式，仅示例）：
 
@@ -478,7 +484,7 @@ Sample（文本格式，仅示例）：
 
 ## 网页观察与操作
 
-按下一步需要，从页面概况缩小到相关区域或控件；目标明确、证据足够时直接操作。凡是带 tabId 的操作（page.*、open_url、截图、标签内脚本等），成功或失败都会追加到 #pageObservedHistory，type 为工具名、result 为完整返回；#toolIO 里同一次调用只有 pageObservationId。取元素 id、regionId 时看观察数组中对应项的 result。
+按下一步需要，从页面概况缩小到相关区域或控件；目标明确、证据足够时直接操作。凡是带 tabId 的操作（page.*、open_url、截图、标签内脚本等），成功或失败都会追加到 #pageObservedHistory，type 为工具名、result 为完整返回；#toolIO 里同一次调用只有 pageObservationId。取元素 id、regionId 时看观察数组中对应项的 result。复杂交互：可用 page.get_by_role(role+name) 取 e_；提交后用 wait_response(urlContains) 等接口；用 wait(id/selector, visible/enabled) 确认可操作再点。
 
 元素和区域 id 是按可见节点顺序生成的临时编号。导航、节点增删或顺序变化后重新获取；确认变化不影响编号时可复用，单纯切回标签无需重新观察。跨标签操作时须显式传入目标 tabId，各标签节点编号独立，切勿跨标签混用编号。
 
@@ -616,7 +622,10 @@ null
     "page.click",
     "page.type",
     "checklist.set",
-    "checklist.update"
+    "checklist.update",
+    "page.recheck",
+    "page.assert",
+    "tab.context"
   ],
   "toolIds": [
     "page.get_summary",

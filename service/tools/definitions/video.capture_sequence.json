@@ -1,0 +1,19 @@
+{
+  "type": "function",
+  "function": {
+    "name": "video.capture_sequence",
+    "description": "按时间间隔连续截取视口帧（轻量录屏序列）。\n参数：必填 tabId；可选 count（1-20，默认5）、intervalMs（200-5000，默认500）。\n返回：ok、count、frames[{index,time,image,mime}]。大结果走统一 4000 门禁。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
+        "tabId": { "type": "integer" },
+        "count": { "type": "integer", "minimum": 1, "maximum": 20 },
+        "intervalMs": { "type": "integer", "minimum": 200, "maximum": 5000 }
+      },
+      "required": ["reason", "affectsPage", "tabId"],
+      "additionalProperties": false
+    }
+  }
+}

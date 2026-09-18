@@ -1,0 +1,25 @@
+{
+  "type": "function",
+  "function": {
+    "name": "page.assert",
+    "description": "断言页面条件（只读）。参数同 page.recheck。\n任一条件不满足则 ok=false、faultCode=assertion_failed，并列出失败项。\n用于「操作是否成功」的明确验收；观察性检查用 page.recheck。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
+        "tabId": { "type": "integer" },
+        "frameId": { "type": "integer" },
+        "id": { "type": "string" },
+        "selector": { "type": "string" },
+        "text": { "type": "string" },
+        "urlContains": { "type": "string" },
+        "titleContains": { "type": "string" },
+        "role": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "required": ["reason", "affectsPage"],
+      "additionalProperties": false
+    }
+  }
+}

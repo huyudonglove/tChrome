@@ -1,0 +1,17 @@
+{
+  "type": "function",
+  "function": {
+    "name": "frame.list",
+    "description": "列出页面 frame 树（含 iframe）。用于取得 frameId，供 page.* / wait 等工具传 frameId 定位到内嵌文档。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
+        "tabId": { "type": "integer" }
+      },
+      "required": ["reason", "affectsPage", "tabId"],
+      "additionalProperties": false
+    }
+  }
+}

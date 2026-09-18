@@ -1,0 +1,19 @@
+{
+  "type": "function",
+  "function": {
+    "name": "date.select",
+    "description": "向日期/时间输入框写入标准格式值。\n参数：必填 id（e_）、value、tabId；value 格式 YYYY-MM-DD / YYYY-MM / HH:mm。\n返回：ok、value、type。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": true },
+        "tabId": { "type": "integer" },
+        "id": { "type": "string" },
+        "value": { "type": "string" }
+      },
+      "required": ["reason", "affectsPage", "tabId", "id", "value"],
+      "additionalProperties": false
+    }
+  }
+}

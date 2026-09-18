@@ -40,7 +40,10 @@
     "page.click",
     "page.type",
     "checklist.set",
-    "checklist.update"
+    "checklist.update",
+    "page.recheck",
+    "page.assert",
+    "tab.context"
   ],
   "toolIds": [
     "page.get_summary",
@@ -278,7 +281,10 @@
     "page.click",
     "page.type",
     "checklist.set",
-    "checklist.update"
+    "checklist.update",
+    "page.recheck",
+    "page.assert",
+    "tab.context"
   ],
   "toolIds": [
     "page.get_summary",

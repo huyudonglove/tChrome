@@ -138,6 +138,14 @@ export function applyToolEffects(input: {
         };
         break;
       }
+      case "tab.context.set": {
+        ledger.contextTab = { tabId: effect.tabId, setAt: nowIso() };
+        break;
+      }
+      case "tab.context.clear": {
+        ledger.contextTab = null;
+        break;
+      }
       case "turn.ask":
         turn.status = "waiting_human";
         turn.completedAt = nowIso();

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "select",
-    "description": "在指定下拉框选择精确 value 对应的选项。ref 必须来自 snapshot_page/find_on_page，不能使用 page.* 的 id。缺少 ref/value 或选项不存在时失败，不猜测目标或按文字匹配。必填 tabId。返回 ok、value（当前值）。",
+    "description": "（兼容入口，优先用 combo.select）在下拉框选择精确 value。\ncombo.select 支持 value 或选项文字，并接受 e_ 编号。\n本工具要求精确 value；缺少 ref/value 或选项不存在时失败。返回 ok、value。",
     "parameters": {
       "type": "object",
       "properties": {

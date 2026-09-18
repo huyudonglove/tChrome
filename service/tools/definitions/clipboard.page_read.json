@@ -1,0 +1,17 @@
+{
+  "type": "function",
+  "function": {
+    "name": "clipboard.page_read",
+    "description": "读取页面剪贴板文本（navigator.clipboard.readText）。常需页面权限/用户手势，失败时返回原因。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
+        "tabId": { "type": "integer" }
+      },
+      "required": ["reason", "affectsPage", "tabId"],
+      "additionalProperties": false
+    }
+  }
+}

@@ -14,7 +14,8 @@ export const BROWSER_TOOL_NAMES = [
   'click', 'double_click', 'focus', 'hover',
   'tick', 'select', 'drag', 'calibrate_drag', 'click_xy',
   'type', 'submit', 'press', 'scroll', 'scroll_to',
-  'wait', 'wait_network', 'attach_file', 'clear_file', 'clipboard',
+  'wait', 'wait_network', 'wait_response', 'attach_file', 'clear_file',
+  'page.get_by_role',
   'open_url', 'reload', 'go_history',
   'list_tabs', 'list_windows', 'switch_tab', 'open_tab', 'close_tab',
   'duplicate_tab', 'move_tab', 'update_tab', 'create_window', 'update_window',
@@ -28,14 +29,21 @@ export const BROWSER_TOOL_NAMES = [
   'list_browser_tools', 'measure_timing', 'measure_paint', 'measure_files',
   'see_captcha', 'wait_captcha', 'click_captcha', 'solve_captcha',
   'emulate_device', 'network_throttle', 'set_cookie', 'delete_cookie', 'clear_cookies',
-  'switch_frame', 'context_menu', 'permission_grant', 'permission_deny',
   'set_geolocation', 'page_find', 'long_press',
   'service_worker_list', 'websocket_monitor', 'detach_debugger',
+  'page.recheck', 'page.assert', 'page.drag_to_id',
+  'frame.list', 'network.grep', 'dialog.wait',
+  'clipboard.page_write', 'clipboard.page_read',
+  'combo.select', 'date.select', 'tab.context',
+  'har', 'video.capture_sequence', 'video.record',
+  'fingerprint.read', 'fingerprint.apply',
 ];
 
 // Network is shared with network_throttle; stop removes only this monitor's
 // listeners and buffers, leaving the debugger and its other domains intact.
 const socketMonitors = new Map();
+const harBuffers = new Map();
+const videoRecorders = new Map();
 const monitorWebSockets = async (tab, action) => {
   if (!['start', 'stop', 'read'].includes(action)) return {ok: false, error: '需要 action=start|stop|read'};
   const existing = socketMonitors.get(tab);
@@ -268,7 +276,20 @@ const runPageTool = async (name, input = {}) => {
         key: String(input.key || 'Enter'),
         clearBeforeType: input.clearBeforeType === true,
         pressEnter: input.pressEnter === true,
+        role: String(input.role || ''),
+        name: String(input.name ?? ''),
+        selector: String(input.selector || ''),
+        visible: input.visible === true,
+        enabled: input.enabled === true,
+        stable: input.stable === true,
+        urlContains: String(input.urlContains ?? ''),
+        titleContains: String(input.titleContains ?? ''),
+        value: String(input.value ?? ''),
+        sourceId: String(input.sourceId || input.source || ''),
+        targetId: String(input.targetId || input.target || ''),
+        frameId: input.frameId === undefined || input.frameId === null ? null : Number(input.frameId),
       }],
+      ...(input.frameId === undefined || input.frameId === null ? {} : { frameIds: [Number(input.frameId)] }),
       func: async (toolName, payload) => {
         const state = globalThis.__tChromePageIds ??= {pageElement: new WeakMap(), pageRegion: new WeakMap()};
         const idOf = async (node, kind) => {
@@ -492,8 +513,125 @@ const runPageTool = async (name, input = {}) => {
           return {ok: true, id, key};
         }
         if (toolName === 'page.wait_for') {
-          const el = findElement(id) || findRegion(id);
-          return el ? {ok: true, id, found: true} : {ok: false, id, found: false, error: `没有元素 ${id}`};
+          let el = id ? (findElement(id) || findRegion(id)) : null;
+          if (!el && payload.selector) {
+            const node = document.querySelector(payload.selector);
+            if (node) {
+              el = elements.find((item) => item.node === node)
+                || regions.find((item) => item.node === node)
+                || { id: payload.id || '', node, name: clip(node.innerText, 80), disabled: Boolean(node.disabled) };
+            }
+          }
+          if (!el) {
+            return {ok: false, id, found: false, error: !id && !payload.selector ? 'wait_for 需要 id 或 selector' : `没有元素 ${id || payload.selector}`};
+          }
+          const node = el.node;
+          const isVisible = visible(node);
+          const isEnabled = !(node.disabled || node.getAttribute?.('aria-disabled') === 'true');
+          const textOk = !payload.text || String(node.innerText || node.value || '').includes(payload.text);
+          const visibleOk = !payload.visible || isVisible;
+          const enabledOk = !payload.enabled || isEnabled;
+          const runningAnims = typeof document.getAnimations === 'function'
+            ? document.getAnimations().filter((a) => a.playState === 'running').length
+            : 0;
+          const stableOk = !payload.stable || runningAnims === 0;
+          const ok = visibleOk && enabledOk && textOk && stableOk;
+          return {ok, id: el.id || id, found: true, visible: isVisible, enabled: isEnabled, textOk,
+            stable: runningAnims === 0, runningAnimations: runningAnims,
+            ...(ok ? {} : {faultCode: 'wait_condition_pending', error: '元素存在但不满足 visible/enabled/text/stable 条件'})};
+        }
+        if (toolName === 'page.get_by_role') {
+          const wantRole = (payload.role || '').trim().toLowerCase();
+          const wantName = (payload.name || '').trim();
+          if (!wantRole) return {ok: false, error: 'page.get_by_role 需要 role'};
+          const regionHits = regions.filter((item) => item.role === wantRole
+            && (!wantName || (item.name || '').includes(wantName) || (item.heading || '').includes(wantName)));
+          const hits = elements.filter((item) => item.role === wantRole
+            && (!wantName || (item.name || '').includes(wantName)));
+          const limit = 20;
+          return {
+            ok: regionHits.length + hits.length > 0,
+            role: wantRole,
+            name: wantName || null,
+            total: regionHits.length + hits.length,
+            truncated: regionHits.length + hits.length > limit,
+            elements: hits.slice(0, limit).map(strip),
+            regions: regionHits.slice(0, limit).map(strip),
+          };
+        }
+        if (toolName === 'page.recheck' || toolName === 'page.assert') {
+          const checks = [];
+          const add = (name, ok, detail) => checks.push({ name, ok: Boolean(ok), detail });
+          if (payload.urlContains) add('urlContains', location.href.includes(payload.urlContains), location.href);
+          if (payload.titleContains) add('titleContains', document.title.includes(payload.titleContains), document.title);
+          if (payload.text) add('text', (document.body?.innerText || '').includes(payload.text), clip(document.body?.innerText, 80));
+          if (id) {
+            const el = findElement(id) || findRegion(id);
+            add(`id:${id}`, Boolean(el), el ? el.name || id : 'not found');
+          }
+          if (payload.selector) {
+            const nodes = document.querySelectorAll(payload.selector);
+            add(`selector:${payload.selector}`, nodes.length > 0, `count=${nodes.length}`);
+          }
+          if (payload.role) {
+            const wantName = payload.name || '';
+            const hits = elements.filter((item) => item.role === payload.role
+              && (!wantName || (item.name || '').includes(wantName)));
+            add(`role:${payload.role}${wantName ? ':' + wantName : ''}`, hits.length > 0, `count=${hits.length}`);
+          }
+          const ok = checks.length > 0 && checks.every((row) => row.ok);
+          return { ok, tool: toolName, url: location.href, title: document.title, checks,
+            ...(ok ? {} : { faultCode: toolName === 'page.assert' ? 'assertion_failed' : 'recheck_failed',
+              error: '未满足：' + checks.filter((row) => !row.ok).map((row) => row.name).join(', ') }) };
+        }
+        if (toolName === 'page.drag_to_id') {
+          const src = findElement(payload.sourceId) || findRegion(payload.sourceId);
+          const dst = findElement(payload.targetId) || findRegion(payload.targetId);
+          if (!src) return {ok: false, error: `没有源元素 ${payload.sourceId}`};
+          if (!dst) return {ok: false, error: `没有目标元素 ${payload.targetId}`};
+          const a = src.node.getBoundingClientRect();
+          const b = dst.node.getBoundingClientRect();
+          return {
+            ok: true,
+            sourceId: payload.sourceId,
+            targetId: payload.targetId,
+            from: { x: Math.round(a.left + a.width / 2), y: Math.round(a.top + a.height / 2) },
+            to: { x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2) },
+          };
+        }
+        if (toolName === 'combo.select') {
+          const el = findElement(id);
+          if (!el) return {ok: false, error: `没有元素 ${id}`};
+          const node = el.node;
+          if (node.tagName !== 'SELECT') return {ok: false, error: '目标不是下拉框'};
+          const raw = payload.value;
+          const options = [...node.options];
+          const hit = options.find((opt) => opt.value === raw)
+            || options.find((opt) => (opt.text || '').trim() === raw)
+            || options.find((opt) => (opt.text || '').includes(raw));
+          if (!hit) return {ok: false, error: '没有匹配选项'};
+          if (hit.disabled) return {ok: false, error: '选项不可用'};
+          node.value = hit.value;
+          node.dispatchEvent(new Event('input', {bubbles: true}));
+          node.dispatchEvent(new Event('change', {bubbles: true}));
+          return {ok: true, id, value: node.value, text: hit.text};
+        }
+        if (toolName === 'date.select') {
+          const el = findElement(id);
+          if (!el) return {ok: false, error: `没有元素 ${id}`};
+          const node = el.node;
+          if (!(node.tagName === 'INPUT')) return {ok: false, error: '目标不是输入框'};
+          const raw = payload.value;
+          if (!/^\d{4}-\d{2}-\d{2}/.test(raw) && !/^\d{4}-\d{2}$/.test(raw) && !/^\d{2}:\d{2}/.test(raw)) {
+            return {ok: false, error: 'value 格式无效，请用 YYYY-MM-DD / YYYY-MM / HH:mm'};
+          }
+          node.focus();
+          const proto = HTMLInputElement.prototype;
+          const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+          if (setter) setter.call(node, raw); else node.value = raw;
+          node.dispatchEvent(new Event('input', {bubbles: true}));
+          node.dispatchEvent(new Event('change', {bubbles: true}));
+          return {ok: true, id, value: node.value, type: node.type};
         }
         return {ok: false, error: `${toolName} 未接`};
       },
@@ -654,9 +792,342 @@ const executeBrowserTool = async (name, input = {}) => {
       return {ok: true};
     });
   }
+  if (name === 'page.get_by_role' || name === 'page.recheck' || name === 'page.assert'
+    || name === 'combo.select' || name === 'date.select') return runPageTool(name, input);
+  if (name === 'page.drag_to_id') {
+    const points = await runPageTool('page.drag_to_id', input);
+    if (!points.ok) return points;
+    return executeBrowserTool('drag', {
+      ...input,
+      point1: [points.from.x, points.from.y],
+      point2: [points.to.x, points.to.y],
+    });
+  }
+  if (name === 'frame.list') {
+    const tab = await getTab(tabId);
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, tabId, error: '没有可读取的普通网页标签'};
+    try {
+      return await withDebugger(tab.id, async () => {
+        const tree = await chrome.debugger.sendCommand({tabId: tab.id}, 'Page.getFrameTree');
+        const frames = [];
+        const walk = (node, depth) => {
+          const f = node.frame || {};
+          frames.push({ frameId: f.id, parentId: f.parentId || null, depth, name: f.name || '', url: f.url || '' });
+          for (const child of node.childFrames || []) walk(child, depth + 1);
+        };
+        if (tree?.frameTree) walk(tree.frameTree, 0);
+        return {ok: true, tabId: tab.id, count: frames.length, frames};
+      });
+    } catch (error) {
+      return {ok: false, tabId: tab.id, error: error instanceof Error ? error.message : String(error)};
+    }
+  }
+  if (name === 'network.grep') {
+    const waited = await executeBrowserTool('wait_response', input);
+    if (!waited.ok) return waited;
+    const requestId = waited.requestId;
+    const tab = await getTab(tabId);
+    if (!tab?.id || !requestId) return {ok: false, tabId, error: '未取得 requestId'};
+    const keyword = String(input.keyword || '').trim();
+    if (!keyword) return {ok: false, tabId, error: 'network.grep 需要 keyword'};
+    const contextChars = Math.min(400, Math.max(20, Number(input.contextChars) || 400));
+    try {
+      return await withDebugger(tab.id, async () => {
+        const body = await chrome.debugger.sendCommand({tabId: tab.id}, 'Network.getResponseBody', { requestId });
+        const text = String(body?.body || '');
+        const hay = text.toLowerCase();
+        const needle = keyword.toLowerCase();
+        const matches = [];
+        let from = 0;
+        while (matches.length < 8) {
+          const at = hay.indexOf(needle, from);
+          if (at === -1) break;
+          matches.push({
+            offset: at,
+            before: text.slice(Math.max(0, at - contextChars), at),
+            hit: text.slice(at, at + keyword.length),
+            after: text.slice(at + keyword.length, at + keyword.length + contextChars),
+          });
+          from = at + Math.max(1, keyword.length);
+        }
+        return {
+          ok: matches.length > 0,
+          tabId: tab.id,
+          requestId,
+          url: waited.url,
+          status: waited.status,
+          keyword,
+          contextChars,
+          totalChars: text.length,
+          matchCount: matches.length,
+          matches,
+          ...(matches.length ? {} : { faultCode: 'not_found', error: '响应体中未命中关键字' }),
+        };
+      });
+    } catch (error) {
+      return {ok: false, tabId: tab.id, requestId, error: error instanceof Error ? error.message : String(error)};
+    }
+  }
+  if (name === 'dialog.wait') {
+    const tab = await getTab(tabId);
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, tabId, error: '没有可等待弹窗的普通网页标签'};
+    const timeoutMs = Math.min(Math.max(Number(input.timeoutMs ?? input.ms) || 5000, 300), 12000);
+    try {
+      await monitorDialogs(tab.id);
+      let last = dialogState(tab.id);
+      if (last?.status === 'open') return {ok: true, tabId: tab.id, dialog: last};
+      const opened = await new Promise((resolve) => {
+        const unwatch = watchDialog(tab.id, (dialog) => { unwatch(); resolve(dialog); });
+        setTimeout(() => { unwatch(); resolve(null); }, timeoutMs);
+      });
+      last = opened || dialogState(tab.id);
+      return last?.status === 'open'
+        ? {ok: true, tabId: tab.id, dialog: last}
+        : {ok: false, tabId: tab.id, dialog: last, error: '未等到原生弹窗'};
+    } catch (error) {
+      return {ok: false, tabId: tab.id, error: error instanceof Error ? error.message : String(error)};
+    }
+  }
+  if (name === 'clipboard.page_write') {
+    return runOnTab(tabId, [String(input.text ?? '')], async (text) => {
+      try {
+        if (!navigator.clipboard?.writeText) return {ok: false, error: '页面环境不支持 clipboard.writeText'};
+        await navigator.clipboard.writeText(text);
+        return {ok: true, bytes: text.length};
+      } catch (error) {
+        return {ok: false, error: error instanceof Error ? error.message : String(error)};
+      }
+    });
+  }
+  if (name === 'clipboard.page_read') {
+    return runOnTab(tabId, [], async () => {
+      try {
+        if (!navigator.clipboard?.readText) return {ok: false, error: '页面环境不支持 clipboard.readText'};
+        const text = await navigator.clipboard.readText();
+        return {ok: true, text, bytes: String(text).length};
+      } catch (error) {
+        return {ok: false, error: error instanceof Error ? error.message : String(error)};
+      }
+    });
+  }
+  if (name === 'tab.context') {
+    return {ok: false, tabId, error: 'tab.context 由 Runtime 处理，不应进入扩展'};
+  }
+  if (name === 'har') {
+    const action = input.action || 'read';
+    const tab = await getTab(tabId);
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, tabId, error: '没有可用 HAR 的普通网页标签'};
+    if (action === 'read') {
+      const buf = harBuffers.get(tab.id);
+      return {ok: true, tabId: tab.id, recording: !!buf, entryCount: buf?.requests?.size ?? 0};
+    }
+    if (action === 'start') {
+      if (harBuffers.has(tab.id)) return {ok: true, tabId: tab.id, already: true, entryCount: harBuffers.get(tab.id).requests.size};
+      const requests = new Map();
+      const events = chrome.debugger.onEvent;
+      const detached = chrome.debugger.onDetach;
+      const removed = chrome.tabs.onRemoved;
+      const onEvent = (source, method, params) => {
+        if (source.tabId !== tab.id) return;
+        if (method === 'Network.requestWillBeSent') {
+          const r = params.request || {};
+          requests.set(params.requestId, {
+            id: params.requestId,
+            startedDateTime: new Date(params.timestamp ? params.timestamp * 1000 : Date.now()).toISOString(),
+            request: {
+              method: r.method || 'GET',
+              url: r.url || '',
+              httpVersion: r.httpVersion || 'HTTP/1.1',
+              headers: Object.entries(r.headers || {}).map(([name, value]) => ({ name, value: String(value) })),
+              bodySize: r.postData ? String(r.postData).length : 0,
+              ...(r.postData ? { postData: { mimeType: r.headers?.['Content-Type'] || r.headers?.['content-type'] || 'application/json', text: String(r.postData).slice(0, 32000) } } : {}),
+            },
+          });
+        } else if (method === 'Network.responseReceived') {
+          const row = requests.get(params.requestId);
+          if (!row) return;
+          const res = params.response || {};
+          row.response = {
+            status: Number(res.status || 0),
+            statusText: res.statusText || '',
+            httpVersion: res.protocol || res.httpVersion || 'HTTP/1.1',
+            headers: Object.entries(res.headers || {}).map(([name, value]) => ({ name, value: String(value) })),
+            mimeType: res.mimeType || '',
+            content: { size: Number(res.encodedDataLength || 0), mimeType: res.mimeType || '' },
+          };
+        } else if (method === 'Network.loadingFinished') {
+          const row = requests.get(params.requestId);
+          if (row) row.bytes = Number(params.encodedDataLength || 0);
+        }
+      };
+      const cleanup = () => {
+        events.removeListener(onEvent);
+        detached.removeListener(onDetach);
+        removed.removeListener(onRemoved);
+        harBuffers.delete(tab.id);
+      };
+      const onDetach = (source) => { if (source.tabId === tab.id) cleanup(); };
+      const onRemoved = (id) => { if (id === tab.id) cleanup(); };
+      events.addListener(onEvent);
+      detached.addListener(onDetach);
+      removed.addListener(onRemoved);
+      harBuffers.set(tab.id, { requests, cleanup });
+      try {
+        await withDebugger(tab.id, () => chrome.debugger.sendCommand({tabId: tab.id}, 'Network.enable', {}));
+      } catch (error) { cleanup(); return {ok: false, tabId: tab.id, error: String(error)}; }
+      return {ok: true, tabId: tab.id, started: true};
+    }
+    if (action === 'stop') {
+      const buf = harBuffers.get(tab.id);
+      if (!buf) return {ok: false, tabId: tab.id, error: '尚未 start HAR'};
+      const entries = [...buf.requests.values()].map((row) => ({
+        startedDateTime: row.startedDateTime,
+        time: row.time || 0,
+        request: row.request,
+        response: row.response || { status: 0, statusText: '', httpVersion: 'HTTP/1.1', headers: [], mimeType: '', content: { size: 0, mimeType: '' } },
+        ...(row.bytes !== undefined ? { _transferSize: row.bytes } : {}),
+      }));
+      const har = {
+        log: {
+          version: '1.2',
+          creator: { name: 'tChrome', version: '0.1' },
+          pages: [{ startedDateTime: entries[0]?.startedDateTime || new Date().toISOString(), id: `page_${tab.id}`, title: tab.title || '', pageTimings: { onContentLoad: -1, onLoad: -1 } }],
+          entries,
+        },
+      };
+      buf.cleanup();
+      return {ok: true, tabId: tab.id, stopped: true, entryCount: entries.length, totalChars: JSON.stringify(har).length, har};
+    }
+    return {ok: false, tabId: tab.id, error: 'har 需要 action=start|stop|read'};
+  }
+  if (name === 'video.capture_sequence') {
+    const tab = await getTab(tabId);
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, tabId, error: '没有可录屏的普通网页标签'};
+    const count = Math.min(Math.max(Number(input.count) || 5, 1), 20);
+    const intervalMs = Math.min(Math.max(Number(input.intervalMs) || 500, 200), 5000);
+    const frames = [];
+    try {
+      for (let i = 0; i < count; i++) {
+        const shot = await withDebugger(tab.id, () => chrome.debugger.sendCommand({tabId: tab.id}, 'Page.captureScreenshot', {
+          format: 'jpeg', quality: 60, fromSurface: true, captureBeyondViewport: false,
+        }));
+        if (!shot?.data) return {ok: false, tabId: tab.id, error: '截图失败'};
+        frames.push({ index: i, time: new Date().toISOString(), image: `data:image/jpeg;base64,${shot.data}`, mime: 'image/jpeg' });
+        if (i < count - 1) await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      }
+      return {ok: true, tabId: tab.id, count: frames.length, intervalMs, frames};
+    } catch (error) {
+      return {ok: false, tabId: tab.id, frames, error: error instanceof Error ? error.message : String(error)};
+    }
+  }
+  if (name === 'video.record') {
+    const action = input.action || 'status';
+    const tab = await getTab(tabId);
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, tabId, error: '没有可录屏的普通网页标签'};
+    if (action === 'status') {
+      const rec = videoRecorders.get(tab.id);
+      return {ok: true, tabId: tab.id, recording: !!rec, frameCount: rec?.frames.length ?? 0};
+    }
+    if (action === 'start') {
+      if (videoRecorders.has(tab.id)) return {ok: true, tabId: tab.id, already: true, frameCount: videoRecorders.get(tab.id).frames.length};
+      const fps = Math.min(Math.max(Number(input.fps) || 2, 1), 5);
+      const maxFrames = Math.min(Math.max(Number(input.maxFrames) || 30, 1), 60);
+      const frames = [];
+      const timer = setInterval(async () => {
+        const rec = videoRecorders.get(tab.id);
+        if (!rec) return;
+        if (rec.frames.length >= rec.maxFrames) return;
+        try {
+          const shot = await chrome.debugger.sendCommand({tabId: tab.id}, 'Page.captureScreenshot', {
+            format: 'jpeg', quality: 55, fromSurface: true, captureBeyondViewport: false,
+          });
+          if (shot?.data) rec.frames.push({ index: rec.frames.length, time: new Date().toISOString(), image: `data:image/jpeg;base64,${shot.data}`, mime: 'image/jpeg' });
+        } catch { /* keep recorder */ }
+      }, Math.round(1000 / fps));
+      videoRecorders.set(tab.id, { frames, timer, fps, maxFrames });
+      try {
+        await withDebugger(tab.id, () => chrome.debugger.sendCommand({tabId: tab.id}, 'Page.enable', {}));
+      } catch (error) {
+        clearInterval(timer);
+        videoRecorders.delete(tab.id);
+        return {ok: false, tabId: tab.id, error: String(error)};
+      }
+      return {ok: true, tabId: tab.id, started: true, fps, maxFrames};
+    }
+    if (action === 'stop') {
+      const rec = videoRecorders.get(tab.id);
+      if (!rec) return {ok: false, tabId: tab.id, error: '尚未 start 录屏'};
+      clearInterval(rec.timer);
+      videoRecorders.delete(tab.id);
+      return {ok: true, tabId: tab.id, stopped: true, fps: rec.fps, count: rec.frames.length, frames: rec.frames};
+    }
+    return {ok: false, tabId: tab.id, error: 'video.record 需要 action=start|stop|status'};
+  }
+  if (name === 'fingerprint.read') {
+    return runOnTab(tabId, [], () => ({
+      ok: true,
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      language: navigator.language,
+      languages: [...(navigator.languages || [])],
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezoneOffset: new Date().getTimezoneOffset(),
+      hardwareConcurrency: navigator.hardwareConcurrency,
+      deviceMemory: navigator.deviceMemory ?? null,
+      maxTouchPoints: navigator.maxTouchPoints ?? 0,
+      screen: { width: screen.width, height: screen.height, colorDepth: screen.colorDepth, pixelRatio: devicePixelRatio },
+      viewport: { width: innerWidth, height: innerHeight },
+      cookiesEnabled: navigator.cookieEnabled,
+      webdriver: navigator.webdriver === true,
+    }));
+  }
+  if (name === 'fingerprint.apply') {
+    const tab = await getTab(tabId);
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, tabId, error: '没有可应用指纹的普通网页标签'};
+    const ua = typeof input.userAgent === 'string' && input.userAgent.trim() ? input.userAgent.trim() : '';
+    const platform = typeof input.platform === 'string' && input.platform.trim() ? input.platform.trim() : '';
+    const acceptLanguage = typeof input.acceptLanguage === 'string' && input.acceptLanguage.trim() ? input.acceptLanguage.trim() : '';
+    const timezone = typeof input.timezone === 'string' && input.timezone.trim() ? input.timezone.trim() : '';
+    const locale = typeof input.locale === 'string' && input.locale.trim() ? input.locale.trim() : '';
+    const width = Number(input.width) || 0;
+    const height = Number(input.height) || 0;
+    const mobile = input.mobile === true;
+    try {
+      return await withDebugger(tab.id, async () => {
+        if (ua || platform || acceptLanguage) {
+          await chrome.debugger.sendCommand({tabId: tab.id}, 'Emulation.setUserAgentOverride', {
+            ...(ua ? { userAgent: ua } : {}),
+            ...(platform ? { platform } : {}),
+            ...(acceptLanguage ? { acceptLanguage } : {}),
+          });
+        }
+        if (width > 0 && height > 0) {
+          await chrome.debugger.sendCommand({tabId: tab.id}, 'Emulation.setDeviceMetricsOverride', {
+            width, height, deviceScaleFactor: Number(input.deviceScaleFactor) || 1, mobile,
+          });
+        }
+        if (timezone) {
+          await chrome.debugger.sendCommand({tabId: tab.id}, 'Emulation.setTimezoneOverride', { timezoneId: timezone });
+        }
+        if (locale) {
+          await chrome.debugger.sendCommand({tabId: tab.id}, 'Emulation.setLocaleOverride', { locale });
+        }
+        return {ok: true, tabId: tab.id, applied: {
+          ...(ua ? { userAgent: ua } : {}),
+          ...(platform ? { platform } : {}),
+          ...(acceptLanguage ? { acceptLanguage } : {}),
+          ...(timezone ? { timezone } : {}),
+          ...(locale ? { locale } : {}),
+          ...(width && height ? { width, height, mobile } : {}),
+        }};
+      });
+    } catch (error) {
+      return {ok: false, tabId: tab.id, error: error instanceof Error ? error.message : String(error)};
+    }
+  }
   if (name === 'wait') {
     const deadline = Date.now() + Math.min(Number(input.ms) || 8000, 12000);
-    if (input.id) {
+    if (input.id || input.selector || input.visible || input.enabled || input.stable) {
       let last;
       do {
         last = await runPageTool('page.wait_for', input);
@@ -666,9 +1137,9 @@ const executeBrowserTool = async (name, input = {}) => {
       return last;
     }
     if (input.text) {
-      // 服务端 30s 就判工具超时：等待窗口压到 12s，给 inspect 留余量。
+      const deadlineText = deadline;
       let page = await inspectTab(tabId);
-      while (Date.now() < deadline && !(page.text || '').includes(input.text)) {
+      while (Date.now() < deadlineText && !(page.text || '').includes(input.text)) {
         await new Promise((resolve) => setTimeout(resolve, 300));
         page = await inspectTab(tabId);
       }
@@ -681,6 +1152,45 @@ const executeBrowserTool = async (name, input = {}) => {
     const idle = await waitNetworkIdle(tabId, Number(input.ms) || 500);
     const page = await inspectTab(tabId);
     return {...page, ...idle, ok: page.ok !== false && idle.ok !== false};
+  }
+  if (name === 'wait_response') {
+    const tab = await getTab(tabId);
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, tabId, error: '没有可监听的普通网页标签'};
+    const urlPart = String(input.urlContains || input.url || '').trim();
+    if (!urlPart) return {ok: false, tabId, error: 'wait_response 需要 urlContains'};
+    const wantStatus = input.status === undefined || input.status === null || input.status === '' ? null : Number(input.status);
+    const timeoutMs = Math.min(Math.max(Number(input.ms) || 8000, 500), 12000);
+    const events = chrome.debugger.onEvent;
+    const detached = chrome.debugger.onDetach;
+    let matched = null;
+    let cleanup = () => {};
+    const found = await new Promise((resolve) => {
+      const onEvent = (source, method, params) => {
+        if (source.tabId !== tab.id || method !== 'Network.responseReceived') return;
+        const url = String(params.response?.url || '');
+        const status = Number(params.response?.status || 0);
+        if (!url.includes(urlPart)) return;
+        if (wantStatus !== null && status !== wantStatus) return;
+        matched = { requestId: params.requestId, url, status, mimeType: params.response?.mimeType, time: Date.now() };
+        cleanup();
+        resolve(true);
+      };
+      const onDetach = (source) => { if (source.tabId === tab.id) { cleanup(); resolve(false); } };
+      cleanup = () => {
+        events.removeListener(onEvent);
+        detached.removeListener(onDetach);
+      };
+      events.addListener(onEvent);
+      detached.addListener(onDetach);
+      withDebugger(tab.id, () => chrome.debugger.sendCommand({tabId: tab.id}, 'Network.enable', {}))
+        .catch(() => { cleanup(); resolve(false); });
+      setTimeout(() => { cleanup(); resolve(Boolean(matched)); }, timeoutMs);
+    });
+    if (!found || !matched) {
+      return {ok: false, tabId: tab.id, urlContains: urlPart, status: wantStatus, timeoutMs,
+        error: '未等到匹配的网络响应'};
+    }
+    return {ok: true, tabId: tab.id, urlContains: urlPart, ...matched};
   }
   if (name === 'click_xy') {
     const point = asPoint(input);
@@ -739,11 +1249,6 @@ const executeBrowserTool = async (name, input = {}) => {
       mapped_from: from,
       mapped_to: to,
     };
-  }
-  if (name === 'clipboard') {
-    // service worker 里没有 navigator.clipboard，走 offscreen 不值得；
-    // 直接如实报错，让 Task 换路（如页内 execute_javascript 写剪贴板）。
-    return {ok: false, error: '后台环境不能读写系统剪贴板；可在页面里用 execute_javascript 调 navigator.clipboard'};
   }
   if (name === 'attach_file') {
     const tab = await getTab(tabId);
@@ -1094,14 +1599,18 @@ const executeBrowserTool = async (name, input = {}) => {
     });
   }
   if (name === 'capture_network_traffic') {
-    return runOnTab(tabId, [], () => {
-      const items = performance.getEntriesByType('resource').slice(-30).map((item) => ({
+    return runOnTab(tabId, [String(input.urlContains || '')], (urlPart) => {
+      let items = performance.getEntriesByType('resource');
+      if (urlPart) items = items.filter((item) => String(item.name || '').includes(urlPart));
+      const limit = 30;
+      const rows = items.slice(-limit).map((item) => ({
         url: String(item.name || '').slice(0, 200),
         type: item.initiatorType,
         ms: Math.round(item.duration),
         bytes: Math.round(item.transferSize || 0),
       }));
-      return {ok: true, count: items.length, items};
+      return {ok: true, count: rows.length, total: items.length, truncated: items.length > limit,
+        ...(urlPart ? {urlContains: urlPart} : {}), items: rows};
     });
   }
   if (name === 'profile_vault') {
@@ -1355,10 +1864,6 @@ const executeBrowserTool = async (name, input = {}) => {
     }
     return {ok: true, cleared: cookies.length};
   }
-  // iframe 切换：Chrome 扩展限制，无法真正切换 frame 上下文
-  if (name === 'switch_frame') {
-    return {ok: false, error: 'switch_frame 受 Chrome 安全限制，无法切换 frame；请使用 execute_javascript 操作 iframe 内部'};
-  }
   // 右键菜单
   if (name === 'context_menu') {
     const {text} = input;
@@ -1394,10 +1899,6 @@ const executeBrowserTool = async (name, input = {}) => {
       const message = e instanceof Error ? e.message : String(e);
       return {ok: false, error: `CDP context_menu 失败：${message}`};
     }
-  }
-  // 权限管理：Chrome 安全限制，无法自动处理权限弹窗
-  if (name === 'permission_grant' || name === 'permission_deny') {
-    return {ok: false, error: `${name} 受 Chrome 安全限制，权限弹窗需要用户在页面上手动点击`};
   }
   // 地理位置
   if (name === 'set_geolocation') {
@@ -1486,7 +1987,7 @@ const executeBrowserTool = async (name, input = {}) => {
 
 
 // A native dialog releases the caller without replaying the blocked operation.
-const browserOnly = new Set(['open_tab', 'duplicate_tab', 'bind_tab', 'list_browser_tools', 'list_tabs', 'list_windows', 'see_env', 'close_tab', 'close_window', 'switch_tab', 'move_tab', 'update_tab', 'create_window', 'update_window', 'group_tabs', 'ungroup_tabs', 'list_downloads', 'download', 'export_data', 'control_download', 'wait_download', 'wait_new_tab', 'profile_vault', 'detach_debugger', 'set_cookie', 'delete_cookie', 'clear_cookies', 'permission_grant', 'permission_deny', 'switch_frame']);
+const browserOnly = new Set(['open_tab', 'duplicate_tab', 'bind_tab', 'list_browser_tools', 'list_tabs', 'list_windows', 'see_env', 'close_tab', 'close_window', 'switch_tab', 'move_tab', 'update_tab', 'create_window', 'update_window', 'group_tabs', 'ungroup_tabs', 'list_downloads', 'download', 'export_data', 'control_download', 'wait_download', 'wait_new_tab', 'profile_vault', 'detach_debugger', 'set_cookie', 'delete_cookie', 'clear_cookies']);
 export const runBrowserTool = async (name, input = {}) => {
   let unwatch;
   let targetTab;

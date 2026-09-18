@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "bind_tab",
-    "description": "确认指定标签存在且为可操作的普通网页；不设置隐式绑定，后续工具仍须显式传 tabId。\n参数：必填 tabId。\n返回：ok、tabId、windowId、url、title；目标无效时返回 error。",
+    "description": "仅校验指定标签存在且为可操作的普通网页，返回该标签的 url/title。\n不设置任何隐式绑定。若要让后续工具自动带上默认 tabId，请用 tab.context(action=set)。\n参数：必填 tabId。\n返回：ok、tabId、windowId、url、title。",
     "parameters": {
       "type": "object",
       "properties": {

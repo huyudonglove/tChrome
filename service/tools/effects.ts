@@ -13,6 +13,8 @@ export type ToolEffect =
   | { type: "page.clear_result"; pageId: string }
   | { type: "checklist.set"; title?: string; items: { text: string; status: "todo" | "doing" | "done" }[] }
   | { type: "checklist.update"; items: { index: number; status?: "todo" | "doing" | "done"; text?: string }[] }
+  | { type: "tab.context.set"; tabId: number }
+  | { type: "tab.context.clear" }
   | { type: "turn.ask"; question: string }
   | { type: "turn.reply"; text: string }
   | { type: "queue.clear" };

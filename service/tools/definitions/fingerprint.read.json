@@ -1,0 +1,17 @@
+{
+  "type": "function",
+  "function": {
+    "name": "fingerprint.read",
+    "description": "读取当前页面可见的浏览器指纹/环境信息：UA、语言、时区、屏幕、viewport、hardwareConcurrency 等。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
+        "tabId": { "type": "integer" }
+      },
+      "required": ["reason", "affectsPage", "tabId"],
+      "additionalProperties": false
+    }
+  }
+}

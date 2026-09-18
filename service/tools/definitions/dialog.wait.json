@@ -1,0 +1,18 @@
+{
+  "type": "function",
+  "function": {
+    "name": "dialog.wait",
+    "description": "等待原生 JavaScript 弹窗（alert/confirm/prompt）出现。出现后用 handle_dialog 处理。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
+        "tabId": { "type": "integer" },
+        "timeoutMs": { "type": "integer", "description": "超时毫秒，默认 5000，上限 12000" }
+      },
+      "required": ["reason", "affectsPage", "tabId"],
+      "additionalProperties": false
+    }
+  }
+}

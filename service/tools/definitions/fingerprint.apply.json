@@ -1,0 +1,26 @@
+{
+  "type": "function",
+  "function": {
+    "name": "fingerprint.apply",
+    "description": "用 CDP 覆盖当前标签的指纹相关环境（模拟，不影响真实磁盘配置）。\n可选：userAgent、platform、acceptLanguage、timezone、locale、width/height/deviceScaleFactor/mobile。\n返回：ok、applied。仅影响该调试会话。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": true },
+        "tabId": { "type": "integer" },
+        "userAgent": { "type": "string" },
+        "platform": { "type": "string" },
+        "acceptLanguage": { "type": "string" },
+        "timezone": { "type": "string" },
+        "locale": { "type": "string" },
+        "width": { "type": "integer" },
+        "height": { "type": "integer" },
+        "deviceScaleFactor": { "type": "number" },
+        "mobile": { "type": "boolean" }
+      },
+      "required": ["reason", "affectsPage", "tabId"],
+      "additionalProperties": false
+    }
+  }
+}

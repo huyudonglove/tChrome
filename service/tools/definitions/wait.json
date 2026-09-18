@@ -2,36 +2,21 @@
   "type": "function",
   "function": {
     "name": "wait",
-    "description": "等待条件满足。\n参数：可选 id（page.* 的 e_01/r_01，等到该元素出现）、text（等到出现某段文字）、ms（超时毫秒，默认约 8 秒，上限 12 秒）；必填 tabId。\n返回：ok、title、url、text；按 id 等待时另有 found。",
+    "description": "等待条件满足。\n参数：可选 id（page.* e_/r_，等到该元素）、selector（CSS）、text（页面出现某段字）、visible/enabled（对 id/selector 要求可见/可点）、ms（超时，默认约 8 秒，上限 12 秒）；必填 tabId。\n返回：ok、found/visible/enabled 或 title/url/text。元素已存在但不满足 visible/enabled 时 ok=false。",
     "parameters": {
       "type": "object",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "page.* 编号；等待该元素出现在页面中"
-        },
-        "text": {
-          "type": "string"
-        },
-        "ms": {
-          "type": "number"
-        },
-        "reason": {
-          "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
-        },
-        "tabId": {
-          "type": "integer",
-          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
-        }
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
+        "tabId": { "type": "integer", "description": "目标标签编号；从 #openTabs 或工具返回取得。" },
+        "id": { "type": "string", "description": "page.* 编号 e_/r_" },
+        "selector": { "type": "string", "description": "CSS 选择器，可替代 id" },
+        "text": { "type": "string" },
+        "visible": { "type": "boolean", "description": "true 时要求元素可见" },
+        "enabled": { "type": "boolean", "description": "true 时要求元素可用（非 disabled）" },
+        "ms": { "type": "integer" }
       },
-      "required": [
-        "reason",
-        "affectsPage",
-        "tabId"
-      ],
+      "required": ["reason", "affectsPage", "tabId"],
       "additionalProperties": false
     }
   }

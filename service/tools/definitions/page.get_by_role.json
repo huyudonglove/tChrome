@@ -1,0 +1,19 @@
+{
+  "type": "function",
+  "function": {
+    "name": "page.get_by_role",
+    "description": "按可访问性角色+名称查找控件/区域（A11y 定位）。\n参数：必填 role（如 button、link、textbox、navigation、main）；可选 name（可访问名子串）、tabId。\n返回：ok、total、truncated、elements[{id,role,name,...}]、regions[{id,role,...}]。id 为 e_/r_，可直接用于 click/type/wait。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
+        "tabId": { "type": "integer", "description": "目标标签编号" },
+        "role": { "type": "string", "description": "可访问角色，例如 button / link / textbox / navigation" },
+        "name": { "type": "string", "description": "可访问名（子串匹配），可省略" }
+      },
+      "required": ["reason", "affectsPage", "tabId", "role"],
+      "additionalProperties": false
+    }
+  }
+}

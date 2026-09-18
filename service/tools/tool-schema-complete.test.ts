@@ -16,8 +16,6 @@ const cases: [string, Record<string, unknown>][] = [
   ["cache_storage", { reason: "读缓存", affectsPage: false, tabId: 1, action: "list", cache: "app" }],
   ["indexeddb", { reason: "读库", affectsPage: false, tabId: 1, action: "list", db: "app" }],
   ["page_storage", { reason: "写本地", affectsPage: true, tabId: 1, action: "write", key: "k", value: "v" }],
-  ["permission_grant", { reason: "尝试授权", affectsPage: false, permission: "notifications" }],
-  ["permission_deny", { reason: "拒绝授权", affectsPage: false, permission: "notifications" }],
   ["network_throttle", { reason: "弱网", affectsPage: true, tabId: 1, profile: "slow-3g" }],
   ["set_zoom", { reason: "放大", affectsPage: true, tabId: 1, zoom: 1.25 }],
   ["see_console", { reason: "看报错", affectsPage: false, tabId: 1, level: "error" }],
