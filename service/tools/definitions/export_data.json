@@ -2,22 +2,24 @@
   "type": "function",
   "function": {
     "name": "export_data",
-    "description": "导出数据到文件。\n参数：data（数据）、可选 filename（文件名）。\n返回：ok、downloadId（下载编号）。",
+    "description": "导出数据到本机下载目录。\n参数：必填 data（字符串或对象）；可选 filename（文件名，默认 export.txt）。\n返回：ok、downloadId。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": {
-          "type": "string"
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
+        "data": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "object" },
+            { "type": "array" }
+          ],
+          "description": "要导出的内容；对象会序列化为 JSON"
         },
-        "affectsPage": {
-          "type": "boolean"
-        }
+        "filename": { "type": "string", "description": "下载文件名，默认 export.txt" }
       },
-      "required": [
-        "reason",
-        "affectsPage"
-      ],
-      "additionalProperties": true
+      "required": ["reason", "affectsPage", "data"],
+      "additionalProperties": false
     }
   }
 }

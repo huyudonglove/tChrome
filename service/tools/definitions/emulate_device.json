@@ -2,27 +2,22 @@
   "type": "function",
   "function": {
     "name": "emulate_device",
-    "description": "模拟设备的显示区域和浏览器身份。\n参数：device（iPhone 14/Pixel 7/iPad/desktop），可选 width（宽度）/height（高度）/deviceScaleFactor（像素比例）/mobile（是否模拟移动设备）/userAgent（浏览器身份字符串）。\n返回：ok、device、width、height。",
+    "description": "模拟设备视口与 UA。\n参数：可选 device 预设名，或 width/height/deviceScaleFactor/mobile/userAgent；必填 tabId。\n返回：ok、device、width、height。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tabId": {
-          "type": "integer",
-          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
-        },
-        "reason": {
-          "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
-        }
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": true },
+        "tabId": { "type": "integer", "description": "目标标签编号；从 #openTabs 或工具返回取得。" },
+        "device": { "type": "string", "description": "设备预设名，未知名称时回退桌面配置" },
+        "width": { "type": "integer" },
+        "height": { "type": "integer" },
+        "deviceScaleFactor": { "type": "number" },
+        "mobile": { "type": "boolean" },
+        "userAgent": { "type": "string" }
       },
-      "required": [
-        "reason",
-        "affectsPage",
-        "tabId"
-      ],
-      "additionalProperties": true
+      "required": ["reason", "affectsPage", "tabId"],
+      "additionalProperties": false
     }
   }
 }

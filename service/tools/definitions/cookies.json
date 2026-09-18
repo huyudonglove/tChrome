@@ -2,27 +2,17 @@
   "type": "function",
   "function": {
     "name": "cookies",
-    "description": "读当前站 Cookie。\n参数：可选 url（网址）；必填 tabId（目标标签编号）。\n返回：ok、cookies。",
+    "description": "读取 Cookie。\n参数：可选 url（默认当前标签页地址）；必填 tabId。\n返回：ok、cookies[{name,value,domain}]。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tabId": {
-          "type": "integer",
-          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
-        },
-        "reason": {
-          "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
-        }
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
+        "tabId": { "type": "integer", "description": "目标标签编号；从 #openTabs 或工具返回取得。" },
+        "url": { "type": "string" }
       },
-      "required": [
-        "reason",
-        "affectsPage",
-        "tabId"
-      ],
-      "additionalProperties": true
+      "required": ["reason", "affectsPage", "tabId"],
+      "additionalProperties": false
     }
   }
 }

@@ -2,22 +2,16 @@
   "type": "function",
   "function": {
     "name": "download",
-    "description": "按网址下载文件。\n参数：url（网址）。\n返回：ok、downloadId（下载编号）。",
+    "description": "按网址下载文件。\n参数：必填 url（绝对网址）。\n返回：ok、downloadId（下载编号）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": {
-          "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
-        }
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean" },
+        "url": { "type": "string", "description": "要下载的绝对网址" }
       },
-      "required": [
-        "reason",
-        "affectsPage"
-      ],
-      "additionalProperties": true
+      "required": ["reason", "affectsPage", "url"],
+      "additionalProperties": false
     }
   }
 }

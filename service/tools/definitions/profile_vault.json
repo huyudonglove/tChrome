@@ -2,22 +2,18 @@
   "type": "function",
   "function": {
     "name": "profile_vault",
-    "description": "浏览器配置库。\n参数：action（save/get/list）、可选 profileId（配置编号）、data（数据）。\n返回：ok、profile/items（结果列表）。",
+    "description": "浏览器配置库（chrome.storage）。\n参数：action=list|get|save；get/save 需 profileId；save 需 data 对象。\n返回：ok、items 或 profile。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": {
-          "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
-        }
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
+        "action": { "type": "string", "enum": ["list", "get", "save"] },
+        "profileId": { "type": "string" },
+        "data": { "type": "object", "description": "save 时写入的配置对象" }
       },
-      "required": [
-        "reason",
-        "affectsPage"
-      ],
-      "additionalProperties": true
+      "required": ["reason", "affectsPage"],
+      "additionalProperties": false
     }
   }
 }

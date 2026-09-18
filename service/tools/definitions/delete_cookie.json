@@ -2,22 +2,19 @@
   "type": "function",
   "function": {
     "name": "delete_cookie",
-    "description": "删除指定 Cookie。\n参数：name（名称），可选 url（网址）/domain（域名）/path（路径）。\n返回：ok、deleted。",
+    "description": "删除指定 Cookie。\n参数：必填 name；可选 url、domain、path。\n返回：ok、deleted。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": {
-          "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
-        }
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": true },
+        "name": { "type": "string" },
+        "url": { "type": "string" },
+        "domain": { "type": "string" },
+        "path": { "type": "string" }
       },
-      "required": [
-        "reason",
-        "affectsPage"
-      ],
-      "additionalProperties": true
+      "required": ["reason", "affectsPage", "name"],
+      "additionalProperties": false
     }
   }
 }

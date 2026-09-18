@@ -2,22 +2,17 @@
   "type": "function",
   "function": {
     "name": "control_download",
-    "description": "暂停、继续或取消下载。\n参数：downloadId（下载编号），可选 action。\n返回：ok。",
+    "description": "暂停、继续或取消下载。\n参数：必填 downloadId；action=pause|resume|cancel（默认 resume）。\n返回：ok。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": {
-          "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
-        }
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean" },
+        "downloadId": { "type": "integer", "description": "download 或 wait_download 返回的下载编号" },
+        "action": { "type": "string", "enum": ["pause", "resume", "cancel"], "description": "默认 resume" }
       },
-      "required": [
-        "reason",
-        "affectsPage"
-      ],
-      "additionalProperties": true
+      "required": ["reason", "affectsPage", "downloadId"],
+      "additionalProperties": false
     }
   }
 }

@@ -2,27 +2,20 @@
   "type": "function",
   "function": {
     "name": "cache_storage",
-    "description": "读写浏览器缓存。\n参数：action（read/write/delete/list）、cache（缓存名）、可选 key（键名）、value（值）。\n返回：ok、value（当前值）/keys/caches。",
+    "description": "读写页内 Cache Storage。\n参数：action=read|write|delete|list；list 可省略 cache；其余操作建议提供 cache；读写删除需 key；write 需 value。必填 tabId。\n返回：ok、value/keys/caches。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tabId": {
-          "type": "integer",
-          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
-        },
-        "reason": {
-          "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
-        }
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean" },
+        "tabId": { "type": "integer", "description": "目标标签编号；从 #openTabs 或工具返回取得。" },
+        "action": { "type": "string", "enum": ["read", "write", "delete", "list"] },
+        "cache": { "type": "string", "description": "缓存名" },
+        "key": { "type": "string" },
+        "value": { "type": "string" }
       },
-      "required": [
-        "reason",
-        "affectsPage",
-        "tabId"
-      ],
-      "additionalProperties": true
+      "required": ["reason", "affectsPage", "tabId"],
+      "additionalProperties": false
     }
   }
 }

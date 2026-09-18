@@ -2,27 +2,21 @@
   "type": "function",
   "function": {
     "name": "indexeddb",
-    "description": "读写页内数据库。\n参数：action（read/write/delete/list）、db（数据库名）、可选 store（数据表名）、key（键名）、value（值）。\n返回：ok、value（当前值）/keys/stores。",
+    "description": "读写页内 IndexedDB。\n参数：action=read|write|delete|list；db 必填（list stores 可只给 db）；read/write/delete 建议 store+key；write 可带 value。必填 tabId。\n返回：ok、value/keys/stores。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tabId": {
-          "type": "integer",
-          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
-        },
-        "reason": {
-          "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
-        }
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean" },
+        "tabId": { "type": "integer", "description": "目标标签编号；从 #openTabs 或工具返回取得。" },
+        "action": { "type": "string", "enum": ["read", "write", "delete", "list"] },
+        "db": { "type": "string", "description": "数据库名" },
+        "store": { "type": "string", "description": "object store 名" },
+        "key": { "type": "string" },
+        "value": { "type": "string", "description": "write 时写入的 JSON 字符串" }
       },
-      "required": [
-        "reason",
-        "affectsPage",
-        "tabId"
-      ],
-      "additionalProperties": true
+      "required": ["reason", "affectsPage", "tabId"],
+      "additionalProperties": false
     }
   }
 }

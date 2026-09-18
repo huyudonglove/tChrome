@@ -2,27 +2,17 @@
   "type": "function",
   "function": {
     "name": "network_throttle",
-    "description": "模拟网络条件。\n参数：profile（offline/slow-3g/fast-3g/4g/online）。\n返回：ok、profile。",
+    "description": "模拟网络条件。\n参数：profile=offline|slow-3g|fast-3g|4g|online（默认 online）；必填 tabId。\n返回：ok、profile 与生效配置。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tabId": {
-          "type": "integer",
-          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
-        },
-        "reason": {
-          "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
-        }
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": true },
+        "tabId": { "type": "integer", "description": "目标标签编号；从 #openTabs 或工具返回取得。" },
+        "profile": { "type": "string", "enum": ["offline", "slow-3g", "fast-3g", "4g", "online"] }
       },
-      "required": [
-        "reason",
-        "affectsPage",
-        "tabId"
-      ],
-      "additionalProperties": true
+      "required": ["reason", "affectsPage", "tabId"],
+      "additionalProperties": false
     }
   }
 }

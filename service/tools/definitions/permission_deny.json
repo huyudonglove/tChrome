@@ -2,22 +2,16 @@
   "type": "function",
   "function": {
     "name": "permission_deny",
-    "description": "权限弹窗（受 Chrome 安全限制，需用户手动点）。\n参数：可选 permission（权限名称）。\n返回：ok=false、error（失败原因）。",
+    "description": "权限弹窗无法由扩展自动点击，通常需用户手动操作。\n参数：可选 permission（权限名称，仅作记录/提示）。\n返回：一般为 ok=false 与说明。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": {
-          "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
-        }
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean" },
+        "permission": { "type": "string", "description": "例如 clipboard-read、notifications" }
       },
-      "required": [
-        "reason",
-        "affectsPage"
-      ],
-      "additionalProperties": true
+      "required": ["reason", "affectsPage"],
+      "additionalProperties": false
     }
   }
 }
