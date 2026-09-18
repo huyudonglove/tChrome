@@ -88,7 +88,12 @@ test("query format errors return to the model for self-repair up to three attemp
   const broken = response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: { turnIds: ["outside"] } }] });
   await expect(run(broken, input => {
     calls++;
-    if (calls > 1) expect(JSON.parse(input.messages.at(-1)!.content)).toMatchObject({ selfRepair: true });
+    if (calls > 1) {
+      const repair = JSON.parse(input.messages.at(-1)!.content);
+      expect(repair).toMatchObject({ selfRepair: true });
+      expect(repair.instruction).toContain("超出候选");
+      expect(repair.instruction).toContain("tn_1");
+    }
   })).rejects.toMatchObject({ faultCode: "query_failed" });
   expect(calls).toBe(3);
   let fixed = 0;

@@ -72,12 +72,33 @@ test("format errors return to the model for self-repair up to three attempts", a
     calls++;
     expect(request.messages.at(-1)!.role).toBe("user");
     if (calls < 3) return missing;
-    expect(JSON.parse(request.messages.at(-1)!.content)).toMatchObject({ selfRepair: true, attempt: 3 });
+    const repair = JSON.parse(request.messages.at(-1)!.content);
+    expect(repair).toMatchObject({ selfRepair: true, attempt: 3 });
+    expect(repair.instruction).toContain("turnId 对不上");
+    expect(repair.instruction).toContain("tn_01");
+    expect(repair.instruction).toContain("tn_02");
+    expect(repair.instruction).not.toContain("必须是对象数组（不是字符串）");
     return valid;
   } } });
   expect(calls).toBe(3);
   expect(result.map(row => row.turnId)).toEqual(["tn_01", "tn_02"]);
 });
+test("coverage mismatch repair names the expected turnIds", async () => {
+  let calls = 0;
+  const placeholder = { ...valid, toolCalls: [{ ...valid.toolCalls[0]!, arguments: { summaries: [summary("t")] } }] };
+  const result = await requestTurnSummaries({ ...input, provider: { complete: async request => {
+    calls++;
+    if (calls === 1) return placeholder;
+    const repair = JSON.parse(request.messages.at(-1)!.content);
+    expect(repair.fault).toContain("tn_01");
+    expect(repair.instruction).toContain("turnId 对不上");
+    expect(repair.instruction).toContain("[\"tn_01\",\"tn_02\"]");
+    return valid;
+  } } });
+  expect(calls).toBe(2);
+  expect(result.map(row => row.turnId)).toEqual(["tn_01", "tn_02"]);
+});
+
 test("rejects omitted duplicate unknown turns, pending and text-only output after three attempts", async () => {
   for (const summaries of [[summary("tn_01")], [summary("tn_01"), summary("tn_01")], [summary("tn_01"), summary("tn_03")], [summary("tn_01"), { ...summary("tn_02"), pending: [] }]]) {
     let calls = 0;

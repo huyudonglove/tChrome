@@ -42,6 +42,17 @@ export function compressionTurnsFromUserMessage(content: string): CompressionTur
   return (JSON.parse((match?.[1] ?? normalized).trim()) as { turns: CompressionTurn[] }).turns;
 }
 
+export function compressionRepairInstruction(toolName: string, expectedIds: string[], fault: string): string {
+  const ids = JSON.stringify(expectedIds);
+  if (fault.startsWith("Compression turn coverage mismatch")) {
+    return `上一次 turnId 对不上。本批必须原样复制这些 turnId，一条不少也不多：${ids}。不要改写或缩短 ID。请修正后，在这一次回包里只调一次 ${toolName}，五个字段均为非空字符串。`;
+  }
+  if (fault.includes("must be array")) {
+    return `上一次 summaries 不是数组。summaries 必须是对象数组，不是字符串。本批 turnId 必须是 ${ids}，一条不少也不多。请修正后，在这一次回包里只调一次 ${toolName}。`;
+  }
+  return `上一次 submitTurnSummaries 无效。请看 fault。summaries 是对象数组，turnId 必须是 ${ids}，五个字段均为非空字符串。请修正后，在这一次回包里只调一次 ${toolName}。`;
+}
+
 export async function requestTurnSummaries(input: { provider: Provider; repoRoot: string; turns: CompressionTurn[]; dataDir: string; conversationId: string; module?: string }): Promise<TurnSummary[]> {
   const log = compressionLog(input.dataDir, input.conversationId);
   const append = (stage: string, data: unknown) => {
@@ -50,7 +61,8 @@ export async function requestTurnSummaries(input: { provider: Provider; repoRoot
   };
   append("start", { conversationId: input.conversationId, module: input.module, turnIds: input.turns.map(turn => turn.turnId) });
   try {
-    const expected = new Set(input.turns.map(turn => turn.turnId));
+    const expectedIds = input.turns.map(turn => turn.turnId);
+    const expected = new Set(expectedIds);
     if (!expected.size || expected.size !== input.turns.length) throw new Error("Invalid compression input turns");
     const system = compressionSystemPrompt(input.repoRoot);
     const tool = JSON.parse(readFileSync(join(input.repoRoot, "service/agents/compression/tools/submit-turn-summaries.json"), "utf8")) as ChatTool;
@@ -70,7 +82,7 @@ export async function requestTurnSummaries(input: { provider: Provider; repoRoot
             attempt,
             maxAttempts: COMPRESSION_FORMAT_ATTEMPTS,
             fault: lastError,
-            instruction: modelSpeech(`上一次 submitTurnSummaries 格式无效。summaries 必须是对象数组（不是字符串），本批每个 turnId 一条、不多不少，五个字段均为非空字符串。请修正后，在这一次回包里只调一次 ${tool.function.name}，把本批摘要全部放进 summaries。`),
+            instruction: modelSpeech(compressionRepairInstruction(tool.function.name, expectedIds, lastError)),
           }),
         },
       ];

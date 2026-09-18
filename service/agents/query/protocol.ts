@@ -28,6 +28,17 @@ export function queryTurnsFromUserMessage(content: string): { request: QueryRequ
   return JSON.parse((match?.[1] ?? normalized).trim()) as { request: QueryRequestPayload; turns: QueryCandidate[] };
 }
 
+export function queryRepairInstruction(allowedIds: string[], fault: string): string {
+  const ids = JSON.stringify(allowedIds);
+  if (fault.includes("候选范围外") || fault.includes("无效或候选")) {
+    return `上一次 turnIds 超出候选。只能从这些 turnId 里选：${ids}。无匹配时交空数组。请修正后，在这一次回包里只调一次 submitMatches。`;
+  }
+  if (fault.includes("不符合 schema")) {
+    return `上一次 turnIds 格式无效。turnIds 必须是字符串数组，不是字符串。只能含候选 ${ids}，无匹配时为空数组。请修正后，在这一次回包里只调一次 submitMatches。`;
+  }
+  return `上一次 submitMatches 无效。请看 fault。请在这一次回包里只调一次 submitMatches，把 {turnIds: string[]} 一次交齐；只含候选 ${ids}，无匹配时为空数组。`;
+}
+
 // The request is semantic. Candidate identities come exclusively from the runtime archive.
 export async function requestMatches(input: {
   provider: Provider; repoRoot: string;
@@ -37,7 +48,8 @@ export async function requestMatches(input: {
   const system = querySystemPrompt(input.repoRoot);
   const tool: ChatTool = JSON.parse(readFileSync(join(input.repoRoot, "service/agents/query/tools/submit-matches.json"), "utf8"));
   const validate = new Ajv({ allErrors: true, strict: false }).compile(tool.function.parameters);
-  const allowed = new Set(input.candidates.map(entry => entry.turnId));
+  const allowedIds = input.candidates.map(entry => entry.turnId);
+  const allowed = new Set(allowedIds);
   const baseMessages: ChatMessage[] = [
     { role: "system", content: system },
     { role: "user", content: queryUserPrompt(input.request, input.candidates) },
@@ -65,7 +77,7 @@ export async function requestMatches(input: {
           attempt,
           maxAttempts: QUERY_FORMAT_ATTEMPTS,
           fault: lastError,
-          instruction: modelSpeech("上一次 submitMatches 格式无效。请在这一次回包里只调一次 submitMatches，把 {turnIds: string[]} 一次交齐；只含本次候选 turnId，无匹配时为空数组。"),
+          instruction: modelSpeech(queryRepairInstruction(allowedIds, lastError)),
         }),
       },
     ];
