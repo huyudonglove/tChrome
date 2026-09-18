@@ -18,6 +18,7 @@ type SessionView = {
   activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null } | null;
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
   liveTool: { name: string; callId: string } | null;
+  checklist: { title?: string; items: { text: string; status: string }[] } | null;
   messages: Message[];
 };
 
@@ -34,7 +35,7 @@ type ConversationItem = {
   preview: string;
 };
 
-const emptySession = (): SessionView => ({ conversationId: null, status: "idle", activity: null, pendingAsk: null, liveTool: null, messages: [] });
+const emptySession = (): SessionView => ({ conversationId: null, status: "idle", activity: null, pendingAsk: null, liveTool: null, checklist: null, messages: [] });
 
 const SUGGESTIONS = [
   { label: "看当前页", text: "当前页标题是什么" },
@@ -495,6 +496,28 @@ export function App() {
           <span>完成后自动继续，可随时停止。</span>
         </div>
       ) : null}
+      {session.checklist && session.checklist.items.length ? (
+        <section className="checklist-panel" aria-label="执行清单">
+          <div className="checklist-header">
+            <strong>{session.checklist.title || "执行清单"}</strong>
+            <span className="checklist-meta">
+              {session.checklist.items.filter((item) => item.status === "done").length}/{session.checklist.items.length}
+            </span>
+          </div>
+          <ul className="checklist-items">
+            {session.checklist.items.map((item, index) => (
+              <li key={`${item.text}-${index}`} className={`checklist-item status-${item.status}`}>
+                <span className="checklist-mark" aria-hidden="true">
+                  {item.status === "done" ? "✓" : item.status === "doing" ? "…" : "·"}
+                </span>
+                <span className="checklist-text">{item.text}</span>
+                <span className="checklist-status">{item.status}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <form
           className="composer"
           onSubmit={(event) => {

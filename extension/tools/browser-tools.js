@@ -405,7 +405,8 @@ const runPageTool = async (name, input = {}) => {
           const hit = findElement(id) || findRegion(id);
           if (!hit) return {ok: false, error: `没有 ${id}`};
           const html = hit.node.outerHTML || '';
-          return {ok: true, id, tag: hit.tag, html: html.slice(0, 4000), truncated: html.length > 4000};
+          // Return full HTML; Runtime inline gate (4000) externalizes oversized results.
+          return {ok: true, id, tag: hit.tag, totalChars: html.length, html};
         }
         if (toolName === 'page.get_accessibility_tree') {
           if (!id) return {ok: false, error: 'page.get_accessibility_tree 需要 id'};

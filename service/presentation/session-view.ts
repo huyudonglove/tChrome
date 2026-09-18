@@ -27,6 +27,7 @@ export type SessionView = {
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
   liveTool: { name: string; callId: string } | null;
   activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null } | null;
+  checklist: Ledger["checklist"];
   messages: SessionMessage[];
 };
 
@@ -121,11 +122,11 @@ export function projectSessionView({ ledger, events, turns }: {
     pendingAsk = { turnId: ledger.pendingAsk.turnId, question: ledger.pendingAsk.question, choice };
   }
   return { conversationId: ledger.conversationId, status: ledger.status, pendingAsk, liveTool: ledger.liveTool,
-    activity: compressionActivity(ledger, events), messages };
+    activity: compressionActivity(ledger, events), checklist: ledger.checklist ?? null, messages };
 }
 
 export const emptySessionView = (): SessionView => ({
-  conversationId: null, status: "idle", pendingAsk: null, liveTool: null, activity: null, messages: [],
+  conversationId: null, status: "idle", pendingAsk: null, liveTool: null, activity: null, checklist: null, messages: [],
 });
 
 export function projectConversationList(rows: { ledger: Ledger; lastTurn: Turn | null }[]): ConversationItem[] {

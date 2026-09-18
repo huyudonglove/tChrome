@@ -11,6 +11,8 @@ export type ToolEffect =
   | { type: "tools.enable"; names: string[] }
   | { type: "page.set"; page: CurrentPage; result: Record<string, unknown> }
   | { type: "page.clear_result"; pageId: string }
+  | { type: "checklist.set"; title?: string; items: { text: string; status: "todo" | "doing" | "done" }[] }
+  | { type: "checklist.update"; items: { index: number; status?: "todo" | "doing" | "done"; text?: string }[] }
   | { type: "turn.ask"; question: string }
   | { type: "turn.reply"; text: string }
   | { type: "queue.clear" };

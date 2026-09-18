@@ -114,6 +114,30 @@ export function applyToolEffects(input: {
         };
         break;
       }
+      case "checklist.set": {
+        ledger.checklist = {
+          ...(effect.title ? { title: effect.title } : {}),
+          items: effect.items.map((item) => ({ text: item.text, status: item.status })),
+          updatedAt: nowIso(),
+        };
+        break;
+      }
+      case "checklist.update": {
+        const current = ledger.checklist ?? { items: [], updatedAt: nowIso() };
+        const items = current.items.map((item) => ({ ...item }));
+        for (const patch of effect.items) {
+          const item = items[patch.index];
+          if (!item) continue;
+          if (patch.text !== undefined) item.text = patch.text;
+          if (patch.status !== undefined) item.status = patch.status;
+        }
+        ledger.checklist = {
+          ...(current.title !== undefined ? { title: current.title } : {}),
+          items,
+          updatedAt: nowIso(),
+        };
+        break;
+      }
       case "turn.ask":
         turn.status = "waiting_human";
         turn.completedAt = nowIso();
@@ -121,6 +145,7 @@ export function applyToolEffects(input: {
         ledger.status = "waiting_human";
         ledger.pendingAsk = { turnId: turn.turnId, question: effect.question };
         ledger.active = { turnId: turn.turnId };
+        ledger.checklist = null;
         break;
       case "turn.reply":
         turn.status = "completed";
@@ -130,6 +155,7 @@ export function applyToolEffects(input: {
         ledger.active = null;
         ledger.pendingAsk = null;
         ledger.toolQueue = [];
+        ledger.checklist = null;
         break;
       case "queue.clear": ledger.toolQueue = []; break;
     }

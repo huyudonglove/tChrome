@@ -320,7 +320,7 @@ test("web_search 走服务端执行", async () => {
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "这鼠标官网多少钱", submittedAt: "2026-09-06T00:00:00.000Z" });
     expect(reply.output).toEqual({ kind: "reply", text: "官价 699" });
     const turn = loadTurn(dir, "cv_01", reply.turnId);
-    expect(turn.assembled.toolIds).toContain("page.get_summary");
+    expect(turn.assembled.baseToolsIds).toContain("page.get_summary");
     expect(turn.assembled.toolIds).toContain("web_search");
     expect(turn.assembled.currentPage).toBeNull();
     const ledger = loadLedger(dir, "cv_01");

@@ -1,0 +1,30 @@
+{
+  "type": "function",
+  "function": {
+    "name": "checklist.update",
+    "description": "更新当前 turn 的执行清单条目（按 index 修改 status/text），侧栏同步刷新。\n参数：必填 items（每项 index 必填，status/text 至少一项）。status：todo|doing|done。\n本 turn 结束后清单会被清空。返回：ok、updated。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "index": { "type": "integer", "minimum": 0, "description": "清单中从 0 开始的条目序号" },
+              "status": { "type": "string", "enum": ["todo", "doing", "done"] },
+              "text": { "type": "string" }
+            },
+            "required": ["index"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["reason", "affectsPage", "items"],
+      "additionalProperties": false
+    }
+  }
+}

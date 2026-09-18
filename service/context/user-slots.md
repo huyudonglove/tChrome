@@ -13,6 +13,7 @@
 11. notes
 12. toolIO
 13. lastAction
-14. queryHistory
-15. currentQuery
-16. tools
+14. checklist
+15. queryHistory
+16. currentQuery
+17. tools

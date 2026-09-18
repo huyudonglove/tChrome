@@ -47,6 +47,14 @@ export type LastAction = {
   calls: { callId: string; name: string; pageObservationId?: string }[];
 };
 
+export type ChecklistStatus = "todo" | "doing" | "done";
+export type ChecklistItem = { text: string; status: ChecklistStatus };
+export type Checklist = {
+  title?: string;
+  items: ChecklistItem[];
+  updatedAt: string;
+} | null;
+
 export type TabItem = { tabId: number; url: string; title: string; active: boolean };
 export type OpenWindow = { windowId: number; focused: boolean; tabs: TabItem[] };
 export type OpenTabs = { ok: true; windows: OpenWindow[] } | { ok: false; error: string };
@@ -124,6 +132,7 @@ export type Ledger = {
   liveTool: { name: string; callId: string } | null;
   toolIO: ToolIOItem[];
   lastAction: LastAction | null;
+  checklist: Checklist;
   notes: Record<string, string>;
   currentQuery: QueryEvidence | null;
   queryHistory: QueryEvidence[];

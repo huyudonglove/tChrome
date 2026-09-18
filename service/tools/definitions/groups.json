@@ -8,19 +8,21 @@
     "notes.write",
     "notes.delete",
     "page.clear_result",
-    "evidence.search"
-  ],
-  "coreToolIds": [
+    "evidence.search",
+    "catalog.add",
+    "list_browser_tools",
+    "open_url",
     "page.get_summary",
-    "page.list_regions",
     "page.list_interactive_elements",
-    "page.inspect_region",
-    "page.inspect_element",
     "page.click",
     "page.type",
-    "open_url",
-    "web_search",
-    "list_browser_tools",
-    "catalog.add"
+    "checklist.set",
+    "checklist.update"
+  ],
+  "coreToolIds": [
+    "page.list_regions",
+    "page.inspect_region",
+    "page.inspect_element",
+    "web_search"
   ]
 }

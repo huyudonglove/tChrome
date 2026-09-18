@@ -287,6 +287,7 @@ export async function handleTurn(
   ledger.active = { turnId };
   ledger.pendingAsk = null;
   ledger.toolQueue = [];
+  ledger.checklist = null;
   turn.status = "inferring";
   saveTurn(deps.dataDir, turn);
   saveLedger(deps.dataDir, ledger);
@@ -306,14 +307,20 @@ export async function handleTurn(
     let submitFails = 0;
     let imageBatchId: string | undefined;
     while (true) {
-      if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
+      if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
+          ledger.checklist = null;
+          return stoppedReply(ledger, turn);
+        }
       try {
         const tabs = host?.readOpenTabs ? await host.readOpenTabs() : { ok: false as const, error: "浏览器宿主不可用，无法读取标签列表" };
         turn.assembled.openTabs = tabs.ok ? tabs : { ok: false, error: tabs.error || "标签列表读取失败" };
       } catch (error) {
         turn.assembled.openTabs = { ok: false, error: error instanceof Error ? error.message : String(error) };
       }
-      if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
+      if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
+          ledger.checklist = null;
+          return stoppedReply(ledger, turn);
+        }
       saveTurn(deps.dataDir, turn);
       const memories = loadMemories(deps.dataDir, ledger.conversationId, ledger.memoryIds);
       turn.assembled.projectMemoryIds = memories.project.map(item => item.memoryId);
@@ -335,13 +342,19 @@ export async function handleTurn(
               compressionStarted = true;
               appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-phase", turnId, data: { phase } });
             } }, phase);
-            if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
+            if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
+          ledger.checklist = null;
+          return stoppedReply(ledger, turn);
+        }
             state = contextState(deps.dataDir, ledger, turn, memories);
             messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries);
           }
           if (compressionStarted) appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress", turnId, data: { beforeChars: initialChars, afterChars: windowChars(messages[0]!.content, messages[1]!.content) } });
         } catch (error) {
-          if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
+          if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
+          ledger.checklist = null;
+          return stoppedReply(ledger, turn);
+        }
           turn.status = "failed";
           turn.completedAt = nowIso();
           const cause = errorInfo(error, "compression_failed");
@@ -349,6 +362,7 @@ export async function handleTurn(
             ...(cause.faultCode !== "compression_failed" ? { causeCode: cause.faultCode } : {}),
             ...(cause.detail ? { detail: cause.detail } : {}) };
           ledger.status = "failed";
+        ledger.checklist = null;
           ledger.active = null;
           saveTurn(deps.dataDir, turn);
           saveLedger(deps.dataDir, ledger);
@@ -365,7 +379,9 @@ export async function handleTurn(
         turn.completedAt = nowIso();
         turn.output = { kind: "error", faultCode: error instanceof ContextBudgetError ? "context_limit" : "context_storage_failed",
           detail: error instanceof Error ? error.message : String(error) };
+        ledger.checklist = null;
         ledger.status = "failed";
+        ledger.checklist = null;
         ledger.active = null;
         saveTurn(deps.dataDir, turn);
         saveLedger(deps.dataDir, ledger);
@@ -387,7 +403,10 @@ export async function handleTurn(
         tools,
         imageContext: { dataDir: deps.dataDir, conversationId: ledger.conversationId },
       });
-      if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
+      if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
+          ledger.checklist = null;
+          return stoppedReply(ledger, turn);
+        }
       const providerCallIds: Record<string, string> = {};
       const byProviderId = new Map<string, string>();
       const localCallId = (providerId: string) => {
@@ -449,7 +468,9 @@ export async function handleTurn(
         turn.completedAt = nowIso();
         turn.output = { kind: "error", faultCode: result.faultCode ?? "provider_error",
           ...(result.detail ? { detail: result.detail } : {}) };
+        ledger.checklist = null;
         ledger.status = "failed";
+        ledger.checklist = null;
         ledger.active = null;
         ledger.liveTool = null;
         saveTurn(deps.dataDir, turn);
@@ -512,7 +533,10 @@ export async function handleTurn(
             browserNames: toolRegistry.index.browser,
             host,
           });
-          if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId, ledger.status)) return stoppedReply(ledger, turn);
+          if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId, ledger.status)) {
+          ledger.checklist = null;
+          return stoppedReply(ledger, turn);
+        }
           if (batchId) {
             const observationByCall = new Map(
               turn.assembled.pageObservedHistory
@@ -546,6 +570,7 @@ export async function handleTurn(
           turn.output = { kind: "error", faultCode: result.faultCode ?? "missing_required",
             toolName: result.badName, detail: result.detail };
           ledger.status = "failed";
+        ledger.checklist = null;
           ledger.active = null;
           ledger.liveTool = null;
           saveTurn(deps.dataDir, turn);
@@ -576,6 +601,7 @@ export async function handleTurn(
           turn.completedAt = nowIso();
           turn.output = { kind: "error", faultCode: "need_finish_turn" };
           ledger.status = "failed";
+        ledger.checklist = null;
           ledger.active = null;
           ledger.liveTool = null;
           saveTurn(deps.dataDir, turn);
@@ -606,7 +632,10 @@ export async function handleTurn(
         browserNames: toolRegistry.index.browser,
         host,
       });
-      if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId, ledger.status)) return stoppedReply(ledger, turn);
+      if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId, ledger.status)) {
+          ledger.checklist = null;
+          return stoppedReply(ledger, turn);
+        }
       if (batchId) {
         const observationByCall = new Map(
           turn.assembled.pageObservedHistory
@@ -646,6 +675,7 @@ export async function handleTurn(
     turn.completedAt = nowIso();
     turn.output = { kind: "error", faultCode: "empty_finish_turn" };
     ledger.status = "failed";
+        ledger.checklist = null;
     ledger.active = null;
     ledger.liveTool = null;
     ledger.toolQueue = [];
@@ -658,7 +688,10 @@ export async function handleTurn(
     });
     return { conversationId: ledger.conversationId, turnId, output: turn.output };
   } catch (error) {
-    if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) return stoppedReply(ledger, turn);
+    if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
+          ledger.checklist = null;
+          return stoppedReply(ledger, turn);
+        }
     const cause = errorInfo(error);
     const liveTool = ledger.liveTool;
     turn.status = "failed";
@@ -667,6 +700,7 @@ export async function handleTurn(
       ...(cause.faultCode !== "tool_execution_failed" ? { causeCode: cause.faultCode } : {}),
       ...(liveTool ? { toolName: liveTool.name } : {}) };
     ledger.status = "failed";
+        ledger.checklist = null;
     ledger.active = null;
     ledger.liveTool = null;
     ledger.toolQueue = [];

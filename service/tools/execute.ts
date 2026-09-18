@@ -152,6 +152,32 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     return result(JSON.stringify({ ok: true, pageId, cleared: true }),
       [{ type: "page.clear_result", pageId }]);
   }
+  if (name === "checklist.set") {
+    const rawItems = Array.isArray(args.items) ? args.items : [];
+    const items = rawItems.map((item: unknown) => {
+      const row = (item ?? {}) as Record<string, unknown>;
+      const status = row.status === "doing" || row.status === "done" || row.status === "todo" ? row.status : "todo";
+      return { text: String(row.text ?? ""), status: status as "todo" | "doing" | "done" };
+    }).filter((row) => row.text.trim());
+    if (!items.length) return failedTool("checklist.set 需要非空 items", "invalid_arguments");
+    const title = typeof args.title === "string" && args.title.trim() ? args.title.trim() : undefined;
+    return result(JSON.stringify({ ok: true, count: items.length, ...(title ? { title } : {}) }),
+      [{ type: "checklist.set", ...(title ? { title } : {}), items }]);
+  }
+  if (name === "checklist.update") {
+    const rawItems = Array.isArray(args.items) ? args.items : [];
+    const updates = rawItems.map((item: unknown) => {
+      const row = (item ?? {}) as Record<string, unknown>;
+      const index = Number(row.index);
+      const patch: { index: number; status?: "todo" | "doing" | "done"; text?: string } = { index };
+      if (row.status === "todo" || row.status === "doing" || row.status === "done") patch.status = row.status;
+      if (typeof row.text === "string" && row.text.trim()) patch.text = row.text.trim();
+      return patch;
+    }).filter((row) => Number.isInteger(row.index) && row.index >= 0 && (row.status !== undefined || row.text !== undefined));
+    if (!updates.length) return failedTool("checklist.update 需要 index 以及 status 或 text", "invalid_arguments");
+    return result(JSON.stringify({ ok: true, updated: updates.length }),
+      [{ type: "checklist.update", items: updates }]);
+  }
   if (name === "evidence.search") {
     if (!input.conversationId) return failedTool("evidence.search 缺少会话标识", "invalid_arguments");
     const keyword = String(args.keyword ?? "");
@@ -243,21 +269,23 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   if (name === "context.query") {
     if (!input.queryContext) return failedTool("query_agent_unavailable", "query_failed");
     const queried = await input.queryContext({ sumId: String(args.sumId), module: args.module as QueryModule,
-      intent: String(args.intent), ...(typeof args.cursor === "string" ? { cursor: args.cursor } : {}) });
+      intent: String(args.intent) });
     if (queried.status === "cancelled") return result(JSON.stringify({ ok: false, status: "cancelled" }));
-    const bounded = JSON.stringify(queried.records).length <= 2000;
     const query = { sumId: queried.sumId, module: queried.module, intent: queried.intent,
-      status: bounded ? queried.status : "error" as const,
-      records: (bounded ? queried.records : []) as QueryRecord[],
-      ...(bounded && queried.nextCursor ? { nextCursor: queried.nextCursor } : {}),
-      detail: bounded ? queried.detail : "查询结果超过 2000 字符门禁，未注入原文。" };
-    const references = query.records.map(record => Object.fromEntries(Object.entries(record)
-      .filter(([key]) => ["id", "turnId", "callId", "memoryId", "sumId", "queryId"].includes(key))));
-    return result(JSON.stringify({ ok: bounded && queried.ok, status: query.status,
-      ...(!queried.ok || !bounded ? { faultCode: queried.faultCode ?? "query_failed" } : {}),
-      sumId: query.sumId, module: query.module, records: references,
-      ...(query.nextCursor ? { nextCursor: query.nextCursor } : {}), detail: query.detail }),
-      [{ type: "query.set", query }]);
+      status: queried.status,
+      records: queried.records as QueryRecord[],
+      detail: queried.detail };
+    // Full records go to the archive + #currentQuery; toolIO projection keeps a pointer only.
+    return result(JSON.stringify({
+      ok: queried.ok,
+      status: query.status,
+      ...(queried.ok ? {} : { faultCode: queried.faultCode ?? "query_failed" }),
+      sumId: query.sumId,
+      module: query.module,
+      intent: query.intent,
+      records: query.records,
+      detail: query.detail,
+    }), [{ type: "query.set", query }]);
   }
   if ((LOCAL_TOOL_NAMES as readonly string[]).includes(name)) {
     if (!input.conversationId) return failedTool("本地工具缺少会话标识", "invalid_arguments");
