@@ -13,12 +13,14 @@
 | `goal` | `{currentGoalId, goals}`；goals 为全部 active 目标及其父级记录 | `currentGoalId`、记录 `id` / `parentId` |
 | `goalHistory` | completed / cancelled 的目标记录数组 | `id` / `parentId` |
 | `openTabs` | `{ok:true, windows:[{windowId, focused, tabs:[{tabId, url, title, active}]}]}` 或 `{ok:false, error}` | 浏览器原始 windowId / tabId |
-| `pageObservedHistory` | 页面观察数组（旧→新）：`id / turnId / callId / tabId / type / result` | `id` |
+| `pageObservedHistory` | 页面观察数组（旧→新）：`id / turnId / callId / batchId? / tabId / type / result` | `id` |
 | `projectMemory` | `[{memoryId, turnId, sourceCallId?, sourceConversationId?, text}]` | `memoryId`（`lm_`） |
 | `conversationMemory` | 同上 | `memoryId`（`mm_`） |
 | `notes` | 字符串键值对象，空值为 `{}` | 键名 |
-| `toolIO` | `[{callId, turnId, batchId?, name, arguments, return}]` | `callId` |
-| `queryHistory` | 查询记录数组 | `queryId` |
+| `toolIO` | 窗口投影 `[{callId, turnId, batchId?, name, arguments, return:{stage, result}}]`；查询指针含 `currentQuery` / `recordCount` | `callId` |
+| `lastAction` | `{batchId, turnId, calls}` 或 `null` | `batchId` |
+| `checklist` | `{title?, items}` 或 `null` | 无 |
+| `queryHistory` | 查询记录数组（可含 externalized 形状） | `queryId` |
 | `currentQuery` | 查询记录或 `null` | `queryId` |
 | `tools` | 本轮已加载动态工具的能力导航文本，每项为工具名和说明首句 | 工具名 |
 
@@ -26,6 +28,6 @@
 
 查询记录统一为 `{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}`。`records` 直接保存原模块记录，不新增通用 `id`，不加 `content` 包装；身份字段沿用原记录。查询自身的 `turnId` 与结果记录的 `turnId` 分别表示发起轮次和来源轮次。`status` 为 `complete / not_found / error`。
 
-工具投影的 `return` 为 `{stage, result}`；result 与 pageObservedHistory 中同一 callId 的观察对应时，只保留 `{ok, pageObservationId}`，完整观察结果在 `<pageObservedHistory>`。其他字段保留。查询原始工具记录时也允许 `{stage, totalChars, text}`。工具参数、解析后的结果和图片对象属于工具协议，不限制其内部业务 ID。查询原记录允许已有时间和来源字段；查询记录可包含历史查询记录、带 turnId 的最终输出，以及指定摘要的各层来源摘要。查询结果走统一 4000 内联门禁。
+工具投影的 `return` 为 `{stage, result}`；result 与 pageObservedHistory 中同一 callId 的观察对应时，只保留 `{ok, pageObservationId}`，完整观察结果在 `<pageObservedHistory>`。context.query 的 result 为 `{ok, status, sumId, module, intent, currentQuery:true, recordCount}`。归档原文使用 `{stage, totalChars, text}`，只出现在压缩/查询候选里，不进主模型窗口。
 
 Schema 检查字段类型、必填项、ID 格式及已知记录结构，拒绝未声明的顶层模块和记录字段。编号至少两位，前缀来自 ID 清单。Schema 不检查编号唯一性、自增状态、引用是否存在或查询是否命中，也不实现查询链路；统一内联门禁由 Runtime 验证。

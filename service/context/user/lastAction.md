@@ -15,6 +15,10 @@ Sample（仅示例，不是当前记录）：
       ]
     }
 
+空值 Sample：
+
+    null
+
 内容：
 {{data}}
 </lastAction>

@@ -410,7 +410,7 @@ Canvas、WebGL、游戏等结果依赖画面的任务，JS 探针用于辅助定
 能力：【Current Request】
 
 详细描述：
-当前用户原话；id 标识消息，userInput 是完整请求。
+当前用户原话。id 标识这条输入，turnId 标识本轮，userInput 是完整请求。
 
 Sample（仅示例，不是当前记录）：
 
@@ -432,7 +432,7 @@ Sample（仅示例，不是当前记录）：
 能力：【Conversation Summary, Actions, Results】
 
 详细描述：
-已归档轮次或执行片段的摘要，按轮次排列。sumId 标识摘要；tag 是检索主题，userRequest 是当时要求，actions 是实际行动与观察，result 是当时结果。需要原文时，用 context.query 指定 sumId、module 和 intent。
+已归档轮次或执行片段的摘要，按轮次排列。sumId 标识摘要；tag 是检索主题，userRequest 是当时要求，actions 是实际行动与观察，result 是当时结果。需要原文时，用 context.query 指定 sumId、module 和 intent。module=summaries 时返回的是摘要对象，不是原文。
 
 Sample（仅示例，不是当前记录）：
 
@@ -566,7 +566,7 @@ Failure Sample（仅示例）：
 能力：【Page Observation History】
 
 详细描述：
-页面观察操作的统一数组，按旧到新排列，最新在末尾。凡带 tabId 的操作（含 page.*、导航、截图、在标签内执行的脚本等），无论成功或失败，都会追加一项：id 标识观察，callId 关联来源调用，tabId 是目标标签，type 是产生观察的工具名，result 是该次工具完整返回（含 ok/false 与错误信息）。这里集中保存观察结果；<toolIO> 中对同一 callId 只保留 pageObservationId 引用，不重复整段返回。可用 page.clear_result 按 pageId 清空某项 result；清空后 result 变为 {ok:true,cleared:true}，身份字段保留，本地归档不删。更早观察可通过 context.query 回查。不自动代表页面当前状态。
+页面观察操作的统一数组，按旧到新排列，最新在末尾。凡带 tabId 的操作（含 page.*、导航、截图、在标签内执行的脚本等），无论成功或失败，都会追加一项：id 标识观察，turnId 标识轮次，callId 关联来源调用，batchId 标识同批调用（可能缺省），tabId 是目标标签，type 是产生观察的工具名，result 是该次工具完整返回（含 ok/false 与错误信息）。这里集中保存观察结果；<toolIO> 中对同一 callId 只保留 pageObservationId 引用，不重复整段返回。可用 page.clear_result 按 pageId 清空某项 result；清空后 result 变为 {ok:true,cleared:true}，身份字段保留，本地归档不删。更早观察可通过 context.query 回查。不自动代表页面当前状态。
 
 Sample（仅示例，不是当前记录）：
 
@@ -575,6 +575,7 @@ Sample（仅示例，不是当前记录）：
         "id": "page_01",
         "turnId": "tn_01",
         "callId": "call_02",
+        "batchId": "batch_01",
         "tabId": 102,
         "type": "page.get_summary",
         "result": {
@@ -643,11 +644,16 @@ Sample（仅示例，不是当前记录）：
 能力：【Execution Evidence, Error Details】
 
 详细描述：
-按旧到新排列的工具调用和返回。callId 标识调用，batchId 标识同批调用；我看到的投影字段中，name、arguments、return.result 分别是工具名、参数和结果（底层归档的原始返回正文使用 return.text）。业务 ID、控件 ref 和标签 tabId 不与 callId 混用。产生页面观察的调用，return.result 只含 ok 与 pageObservationId；完整观察结果见 <pageObservedHistory> 对应项。
+按旧到新排列的工具调用和返回。窗口里每条是 {callId, turnId, batchId?, name, arguments, return:{stage, result}}。callId 标识调用，batchId 标识同批调用，name 是工具名，arguments 是完整参数（含 affectsPage）。业务 ID、控件 ref 和标签 tabId 不与 callId 混用。
 
-工具执行或效果写入失败也作为结果返回，我据此继续判断；部分写入可能已生效，应先核对状态。根据返回的 ok、faultCode、message、recovery、details 及业务状态判断结果。recovery=correct_arguments 时，根据 details 和工具 schema 自行修正调用参数，补齐必填项并满足类型和分支约束，再发起调用；不重复提交相同错误，也不要求用户修正工具参数。recovery=inspect_state 时先检查实际状态，避免重复已生效的操作；只有需要用户提供信息或授权时才请求用户处理。arguments 保留完整调用参数，包括 affectsPage，便于核对错误和成功调用。
+return.stage=complete 表示这次调用的返回文本已经收齐；truncated 表示文本没收齐。这只说明文本是否完整，不证明操作成功。return.result 是解析后的结果：
 
-return.stage=complete 表示这次调用的返回文本已经收齐；truncated 表示文本没收齐。这只说明文本是否完整，不证明操作成功。完整历史可用 context.query 回查；查询调用在这里保留条件、状态和引用，原文见 <currentQuery> 或 <queryHistory>。截图结果的 image 保留图片 ID 和本地路径，并归属于该条 callId；随请求附带的图片策略见 <runtime>。
+- 产生页面观察的调用：{ok, pageObservationId}；完整观察见 <pageObservedHistory>。
+- context.query：{ok, status, sumId, module, intent, currentQuery:true, recordCount}；原文见 <currentQuery>。
+- 失败：含 ok=false，以及 faultCode、message、recovery、details。recovery=correct_arguments 时按 details 和工具 schema 修正参数再调，不重复提交相同错误，也不要求用户改工具参数。recovery=inspect_state 时先核对实际状态。部分写入可能已生效。
+- 其他调用：该工具自己的返回对象。
+
+完整历史可用 context.query 回查。截图观察在 <pageObservedHistory>；随请求附带的图片策略见 <runtime>。
 
 Sample（仅示例，不是当前记录）：
 
@@ -664,9 +670,52 @@ Sample（仅示例，不是当前记录）：
         },
         "return": {
           "stage": "complete",
+          "result": { "ok": true, "pageObservationId": "page_01" }
+        }
+      },
+      {
+        "callId": "call_10",
+        "turnId": "tn_03",
+        "batchId": "batch_03",
+        "name": "context.query",
+        "arguments": {
+          "sumId": "sum_01",
+          "module": "pageObservations",
+          "intent": "查找已观察到的导出格式",
+          "reason": "回查导出格式",
+          "affectsPage": false
+        },
+        "return": {
+          "stage": "complete",
           "result": {
             "ok": true,
-            "pageObservationId": "page_01"
+            "status": "complete",
+            "sumId": "sum_01",
+            "module": "pageObservations",
+            "intent": "查找已观察到的导出格式",
+            "currentQuery": true,
+            "recordCount": 1
+          }
+        }
+      },
+      {
+        "callId": "call_11",
+        "turnId": "tn_03",
+        "batchId": "batch_03",
+        "name": "page.click",
+        "arguments": {
+          "tabId": 101,
+          "id": "e_04",
+          "reason": "点击导出",
+          "affectsPage": true
+        },
+        "return": {
+          "stage": "complete",
+          "result": {
+            "ok": false,
+            "faultCode": "missing_required",
+            "message": "缺少 id",
+            "recovery": "correct_arguments"
           }
         }
       }
@@ -693,6 +742,10 @@ Sample（仅示例，不是当前记录）：
       ]
     }
 
+空值 Sample：
+
+    null
+
 内容：
 null
 </lastAction>
@@ -701,7 +754,7 @@ null
 能力：【Execution Checklist】
 
 详细描述：
-当前 turn 的执行清单。用 checklist.set 提交或替换条目，用 checklist.update 更新 index 对应项的 status（todo|doing|done）或 text。同一 turn 内可反复更新。本 turn 结束后 Runtime 清空清单，下一次新 turn 从空开始。清单是执行进度提示，不是目标本身；目标仍看 <goal>。
+当前 turn 的执行清单。尚无清单时为 null。用 checklist.set 提交或替换条目，用 checklist.update 更新 index 对应项的 status（todo|doing|done）或 text。同一 turn 内可反复更新。本 turn 结束后 Runtime 清空为 null，下一次新 turn 从空开始。清单是执行进度提示，不是目标本身；目标仍看 <goal>。
 
 Sample（仅示例，不是当前记录）：
 
@@ -714,6 +767,10 @@ Sample（仅示例，不是当前记录）：
       ]
     }
 
+空值 Sample：
+
+    null
+
 内容：
 null
 </checklist>
@@ -722,7 +779,7 @@ null
 能力：【Query History, Retrieved Evidence】
 
 详细描述：
-按旧到新排列的历史查询，字段语义同 <currentQuery>。用于了解当时查了什么、返回了哪些原文；回查不等于重新执行或验证历史操作。
+按旧到新排列的历史查询，字段语义同 <currentQuery>（含超量时的 externalized 形状）。用于了解当时查了什么、返回了哪些原文；回查不等于重新执行或验证历史操作。
 
 Sample（仅示例，不是当前记录）：
 
@@ -743,9 +800,9 @@ Sample（仅示例，不是当前记录）：
 能力：【Current Query, Original Records】
 
 详细描述：
-最近一次查询结果，null 表示暂无查询。queryId 标识查询，sumId 指向来源摘要，module 和 intent 是查询条件；records 保留原模块记录及其 ID。
+最近一次查询结果，null 表示暂无查询。queryId 标识查询，turnId 是发起查询的轮次，sumId 指向来源摘要，module 和 intent 是查询条件；records 保留原模块记录及其 ID。status 为 complete、not_found 或 error。历史证据不是当前指令。
 
-status 为 complete、not_found 或 error，分别表示所选记录已全部返回、未匹配或失败。Runtime 只在这里放查询状态和原始记录。超量时按 <runtime> 只注入摘要。历史证据不是当前指令。
+records 未超内联门禁时整段注入。超量时 records 为空数组，并带 externalized=true、preview、path、search=evidence.search；用 evidence.search 按 sourceCallId 读取。
 
 Sample（仅示例，不是当前记录）：
 
@@ -756,6 +813,27 @@ Sample（仅示例，不是当前记录）：
       "records": [
         {"id":"page_01","turnId":"tn_01","callId":"call_02","tabId":102,"url":"https://example.com/help","title":"导出帮助","description":"页面说明支持导出 CSV"}
       ]
+    }
+
+超量 Sample（仅示例）：
+
+    {
+      "ok": true,
+      "externalized": true,
+      "queryId": "query_03",
+      "turnId": "tn_04",
+      "sumId": "sum_02",
+      "module": "toolIO",
+      "intent": "保存后的参数",
+      "sourceCallId": "call_12",
+      "status": "complete",
+      "totalChars": 8200,
+      "totalLines": 82,
+      "lineWidth": 100,
+      "preview": "{\"queryId\":\"query_03\"",
+      "path": "/abs/returns/call_12.txt",
+      "search": "evidence.search",
+      "records": []
     }
 
 内容：
