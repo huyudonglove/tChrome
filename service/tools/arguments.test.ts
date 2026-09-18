@@ -32,11 +32,13 @@ test("流式把对象拼成字符串后还能 parse", () => {
   if (parsed.ok) expect(parsed.value.id).toBe("e1");
 });
 
-test("只解析标准JSON，不猜测或修改目标文字", () => {
-  for (const raw of ['{"targetText":"a,}",}', "```json\n{}\n```", "{'id':'e1'}", '"{}"']) {
-    expect(parseToolArguments(raw).ok).toBe(false);
-  }
-  expect(parseToolArguments('{"targetText":"a,}"}')).toEqual({ok:true,value:{targetText:"a,}"}});
+test("共用拯救格式：围栏、尾逗号、结构单引号只修外壳", () => {
+  expect(parseToolArguments('```json\n{"id":"e1"}\n```')).toEqual({ ok: true, value: { id: "e1" } });
+  expect(parseToolArguments('{"id":"e1",}')).toEqual({ ok: true, value: { id: "e1" } });
+  expect(parseToolArguments("{'id':'e1'}")).toEqual({ ok: true, value: { id: "e1" } });
+  // Content strings are not rewritten; invalid JSON still fails.
+  expect(parseToolArguments("[object Object]").ok).toBe(false);
+  expect(parseToolArguments('"{}"').ok).toBe(false);
 });
 
 test("空字符串当空对象，不填 reason / affectsPage", () => {

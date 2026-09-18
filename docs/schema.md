@@ -307,7 +307,7 @@ System #baseTools 展示常驻能力导航，User #tools 展示本会话已加�
 
 | 值 | 何时 |
 |---|---|
-| `arguments_not_json` | `function.arguments` 解析失败。对象原样用；字符串 `JSON.parse`；围栏、尾逗号、单引号只修外壳。不补字段。好的 `toolCalls` 照跑，坏的那条写进 `#toolIO` 再出网。同一 Turn 最多 3 次 |
+| `arguments_not_json` | `function.arguments` 解析失败。对象原样用；字符串经**全 Provider 共用**外壳拯救后再 `JSON.parse`（围栏、尾逗号、结构单引号只修外壳）。不补字段。格式/schema 错误回灌给模型自救，最多 3 次；好的 `toolCalls` 照跑，坏的写进 `#toolIO`。压缩/查询 Agent 同样最多 3 次格式自救；传输层故障不循环 |
 | `unknown_tool` | `name` 不在 `baseToolsIds` + `toolIds` |
 | `missing_required` | catalog `required` 缺或空。`missing` 列出字段名，写进 `#toolIO` 再出网。不补字段。同一 Turn 最多 3 次 |
 | `wrong_type` | Ajv：类型对不上 schema。写进 `#toolIO` 再出网。同一 Turn 最多 3 次 |

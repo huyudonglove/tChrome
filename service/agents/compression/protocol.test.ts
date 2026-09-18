@@ -14,15 +14,31 @@ test("private submission returns exact turn coverage in source order without ext
   const result = await requestTurnSummaries({ ...input, provider: { complete: async request => {
     expect(request.tools.map(tool => tool.function.name)).toEqual(["submitTurnSummaries"]);
     expect(JSON.parse(request.messages[1]!.content)).toEqual({ turns: input.turns });
-    expect(request.messages[0]!.content).toContain("return.stage=complete");
+    expect(request.messages[0]!.content).toContain("compression-inventory.json");
+    expect(request.messages[0]!.content).toContain("- toolIO:");
     return { ...valid, toolCalls: [{ ...valid.toolCalls[0]!, arguments: { summaries: [{ ...summary("tn_02"), result: "x".repeat(13000) }, summary("tn_01")] } }] };
   } } });
   expect(result.map(row => row.turnId)).toEqual(["tn_01", "tn_02"]);
   expect(result[1]!.result).toBe("x".repeat(13000));
 });
-test("rejects omitted duplicate unknown turns, pending and text-only output", async () => {
+test("format errors return to the model for self-repair up to three attempts", async () => {
+  let calls = 0;
+  const stringified = { ...valid, toolCalls: [{ ...valid.toolCalls[0]!, arguments: { summaries: JSON.stringify([summary("tn_02"), summary("tn_01")]) } }] };
+  const result = await requestTurnSummaries({ ...input, provider: { complete: async request => {
+    calls++;
+    expect(request.messages.at(-1)!.role).toBe("user");
+    if (calls < 3) return stringified;
+    expect(JSON.parse(request.messages.at(-1)!.content)).toMatchObject({ selfRepair: true, attempt: 3 });
+    return valid;
+  } } });
+  expect(calls).toBe(3);
+  expect(result.map(row => row.turnId)).toEqual(["tn_01", "tn_02"]);
+});
+test("rejects omitted duplicate unknown turns, pending and text-only output after three attempts", async () => {
   for (const summaries of [[summary("tn_01")], [summary("tn_01"), summary("tn_01")], [summary("tn_01"), summary("tn_03")], [summary("tn_01"), { ...summary("tn_02"), pending: [] }]]) {
-    await expect(requestTurnSummaries({ ...input, provider: { complete: async () => ({ ...valid, toolCalls: [{ ...valid.toolCalls[0]!, arguments: { summaries } }] }) } })).rejects.toThrow();
+    let calls = 0;
+    await expect(requestTurnSummaries({ ...input, provider: { complete: async () => { calls++; return { ...valid, toolCalls: [{ ...valid.toolCalls[0]!, arguments: { summaries } }] }; } } })).rejects.toThrow();
+    expect(calls).toBe(3);
   }
   await expect(requestTurnSummaries({ ...input, provider: { complete: async () => ({ ...valid, finish: "stop", toolCalls: [], content: JSON.stringify(valid.toolCalls[0]!.arguments) }) } })).rejects.toThrow();
 });
@@ -33,7 +49,11 @@ test("provider faults and empty output cannot bypass private validation", async 
     { ...valid, toolCalls: [{ ...valid.toolCalls[0]!, id: " " }] },
     { ...valid, toolCalls: [{ ...valid.toolCalls[0]!, arguments: { summaries: [{ ...summary("tn_01"), userRequest: " ", actions: "" }, summary("tn_02")] } }] },
   ];
-  for (const response of invalid) await expect(requestTurnSummaries({ ...input, provider: { complete: async () => response } })).rejects.toThrow();
+  for (const response of invalid) {
+    let calls = 0;
+    await expect(requestTurnSummaries({ ...input, provider: { complete: async () => { calls++; return response; } } })).rejects.toThrow();
+    expect(calls).toBe(3);
+  }
 });
 
 test("compression logs preserve request and invalid response with precise validation errors", async () => {
@@ -42,11 +62,14 @@ test("compression logs preserve request and invalid response with precise valida
   await expect(requestTurnSummaries({ ...input, conversationId, provider: { complete: async () => bad } })).rejects.toThrow("compression log:");
   const dir = join(dataDir, "conversations", conversationId, "agent-logs", "compression");
   const rows = readFileSync(join(dir, readdirSync(dir)[0]!), "utf8").trim().split("\n").map(line => JSON.parse(line));
-  expect(rows.map(row => row.stage)).toEqual(["start", "request", "response", "validation-error", "error"]);
-  expect(JSON.parse(rows[1].data.messages[1].content)).toEqual({ turns: input.turns });
-  expect(rows[1].data.tools[0].function.name).toBe("submitTurnSummaries");
-  expect(rows[2].data).toEqual(bad);
-  expect(rows[3].data.errors).toContainEqual(expect.objectContaining({ instancePath: "/summaries/0/actions", keyword: "type" }));
+  const stages = rows.map(row => row.stage);
+  expect(stages[0]).toBe("start");
+  expect(stages.filter(stage => stage === "validation-error")).toHaveLength(3);
+  expect(stages.at(-1)).toBe("error");
+  expect(JSON.parse(rows.find(row => row.stage === "request").data.messages[1].content)).toEqual({ turns: input.turns });
+  expect(rows.find(row => row.stage === "request").data.tools[0].function.name).toBe("submitTurnSummaries");
+  expect(rows.find(row => row.stage === "response").data.attempt).toBe(1);
+  expect(rows.find(row => row.stage === "validation-error").data.errors).toContainEqual(expect.objectContaining({ instancePath: "/summaries/0/actions", keyword: "type" }));
 });
 
 test("compression request is persisted before provider failure and success is logged separately", async () => {
@@ -62,13 +85,19 @@ test("compression request is persisted before provider failure and success is lo
 
 test("compression preserves provider fault codes through log wrapping", async () => {
   for (const faultCode of ["provider_key_invalid", "provider_output_limit", "stopped"]) {
-    await expect(requestTurnSummaries({ ...input, provider: { complete: async () => ({ ...valid, finish: "error", faultCode }) } }))
+    let calls = 0;
+    await expect(requestTurnSummaries({ ...input, provider: { complete: async () => { calls++; return { ...valid, finish: "error", faultCode }; } } }))
       .rejects.toMatchObject({ faultCode, message: expect.stringContaining("compression log:"), cause: expect.objectContaining({ faultCode }) });
+    expect(calls).toBe(1);
   }
-  await expect(requestTurnSummaries({ ...input, provider: { complete: async () => ({ ...valid, toolCalls: [] }) } }))
+  let emptyCalls = 0;
+  await expect(requestTurnSummaries({ ...input, provider: { complete: async () => { emptyCalls++; return { ...valid, toolCalls: [] }; } } }))
     .rejects.toMatchObject({ faultCode: "compression_failed" });
-  await expect(requestTurnSummaries({ ...input, provider: { complete: async () => ({ ...valid, toolCalls: [{ ...valid.toolCalls[0]!, arguments: { summaries: [] } }] }) } }))
+  expect(emptyCalls).toBe(3);
+  let coverageCalls = 0;
+  await expect(requestTurnSummaries({ ...input, provider: { complete: async () => { coverageCalls++; return { ...valid, toolCalls: [{ ...valid.toolCalls[0]!, arguments: { summaries: [] } }] }; } } }))
     .rejects.toMatchObject({ faultCode: "compression_failed" });
+  expect(coverageCalls).toBe(3);
 });
 
 test("unavailable compression logs cannot replace a provider failure", async () => {

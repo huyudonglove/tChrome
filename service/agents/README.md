@@ -17,6 +17,8 @@
 
 ## 按轮次压缩
 
+`service/context/compression-inventory.json` 是压缩材料的**唯一真源**：每项声明 `archiveField`、侧栏 `windowSlot`、`compress`、coverage 与输入语义。`assembleTurnHistory` / `compressContext` 只组装 `compress=true` 的源；压缩 System 的模块段由清单生成，不在 Agent 散文里手写。新增模块时改清单并补 `turn-history.ts` 的 projector，子代理以后也复用同一清单。
+
 `service/runtime/turn-history.ts` 提供 `assembleTurnHistory` 和 `loadSettledTurnHistory`，使用既有 turnId 汇集输入、目标变化、工具结果、页面观察及最终输出。记录包含 conversationId，轮次编号只在所属会话内解释；已结束历史按账本顺序读取，排除当前活动轮次和未结束记录。会话记忆写入按来源 turnId 关联到当轮，notes 保持当前状态，不增加轮次或版本历史。
 
 每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。

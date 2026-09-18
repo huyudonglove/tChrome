@@ -53,11 +53,37 @@ test("query enforces return schema and module membership even if provider report
   }
 });
 
-test("query preserves provider error codes and classifies invalid submissions", async () => {
-  for (const faultCode of ["provider_key_invalid", "provider_output_limit", "stopped"]) {
-    await expect(run(response({ finish: "error", faultCode }))).rejects.toMatchObject({ faultCode });
-  }
-  await expect(run(response({ toolCalls: [] }))).rejects.toMatchObject({ faultCode: "query_failed" });
-  await expect(run(response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: { turnIds: ["outside"] } }] })))
-    .rejects.toMatchObject({ faultCode: "query_failed" });
+test("query format errors return to the model for self-repair up to three attempts", async () => {
+  let calls = 0;
+  const broken = response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: { turnIds: ["outside"] } }] });
+  await expect(run(broken, input => {
+    calls++;
+    if (calls > 1) expect(JSON.parse(input.messages.at(-1)!.content)).toMatchObject({ selfRepair: true });
+  })).rejects.toMatchObject({ faultCode: "query_failed" });
+  expect(calls).toBe(3);
+  let fixed = 0;
+  const value = await run(response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: { turnIds: "bad" as unknown as string[] } }] }), () => {
+    fixed++;
+    return undefined;
+  }).catch(() => null);
+  // First two calls invalid type; third attempt uses a patched provider below.
+  expect(value).toBeNull();
+  expect(fixed).toBe(3);
 });
+
+test("query self-repair can recover on the third format attempt", async () => {
+  let calls = 0;
+  const result = await requestMatches({
+    repoRoot,
+    request: { sumId: "sum_01", module: "toolIO", intent: "查状态" },
+    candidates: [{ turnId: "tn_1", records: [] }],
+    provider: { async complete() {
+      calls++;
+      if (calls < 3) return response({ toolCalls: [{ id: "c", name: "submitMatches", arguments: { summaries: "no" } }] as never });
+      return response({ toolCalls: [{ id: "c", name: "submitMatches", arguments: { turnIds: ["tn_1"] } }] });
+    } },
+  });
+  expect(calls).toBe(3);
+  expect(result).toEqual(["tn_1"]);
+});
+

@@ -58,7 +58,7 @@ test("invalid turn coverage or cancellation never advances any coverage", async 
     return { ...response, toolCalls: [{ ...submission, arguments: { summaries: summaries.slice(0, 1) } }] };
   } });
   await expect(compressRecords({ ...args, records: [source("tn_01", "one", "x".repeat(40000)), source("tn_02", "two", "x".repeat(40000))] })).rejects.toThrow("coverage mismatch");
-  expect(calls).toBe(1);
+  expect(calls).toBe(3);
   expect(readSource(args.dataDir, args.conversationId, args.module, "one")).toBeNull();
   expect(loadIndex(args.dataDir, args.conversationId, args.module).entries).toEqual([]);
   let cancelled = false;

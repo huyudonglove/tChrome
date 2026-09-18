@@ -166,7 +166,7 @@
 
 | `faultCode` | 何时 |
 |---|---|
-| `arguments_not_json` | `function.arguments` 解析失败。对象原样用；字符串 `JSON.parse`；不修复围栏、尾逗号或单引号。不补字段 |
+| `arguments_not_json` | `function.arguments` 解析失败。对象原样用；字符串经全 Provider 共用外壳拯救（围栏、尾逗号、结构单引号只修外壳）后再 `JSON.parse`。不补字段。格式错误回灌模型自救，最多 3 次 |
 | `unknown_tool` | `name` 不在 `baseToolsIds` + `toolIds` |
 | `missing_required` | catalog `required` 缺或空；`missing` 列出字段名 |
 | `wrong_type` | Ajv：类型对不上 schema |
