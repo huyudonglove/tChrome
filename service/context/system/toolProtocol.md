@@ -8,7 +8,7 @@
 
 affectsPage 表示是否改变浏览器页面状态：点击、输入、导航等填 true；读取、查询、本地保存等填 false。字段是否必填、是否只能取某个值，以工具 schema 为准。false 不代表没有实际影响，例如本地保存和网络写入仍需符合用户授权。
 
-从 #openTabs 或工具结果中取得 tabId、windowId。元素 id、regionId 从 #pageObservedHistory 中对应观察的 result 里取得；#toolIO 里产生观察的调用只有 pageObservationId，细节看观察数组。我同一批返回的多个调用共用 batchId，可用 #lastAction 对照上一批 callId 与工具名。使用目标工具要求的编号，不编造。操作页面时明确传 tabId，操作窗口时明确传 windowId。目标失效就处理错误，不能换成用户前台页面继续操作。bind_tab 只检查标签是否可用，不会记住目标供后续调用省略 tabId。
+从 #openTabs 或工具结果中取得 tabId、windowId。元素与区域编号统一为 page.* / snapshot 返回的 e_、r_；#pageObservedHistory 与 #toolIO 的 pageObservationId 指向观察数组。#lastAction 对照上一批 callId。使用目标工具要求的编号，不编造。操作页面时明确传 tabId，操作窗口时明确传 windowId。目标失效就处理错误，不能换成用户前台页面继续操作。bind_tab 只检查标签是否可用，不会记住目标供后续调用省略 tabId。
 
 新标签在指定窗口后台打开，新窗口默认不获取焦点，截图在指定标签后台完成。duplicate_tab 使用 Chrome 原生复制，会激活复制出的标签。其他需要切到前台的操作，明确调用切换工具。
 

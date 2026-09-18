@@ -1,7 +1,7 @@
 import { idPrefix } from '../../service/identity/catalog.ts';
 
 const STORAGE_KEY = 'tchrome-browser-id-counters';
-const kinds = new Set(['elementRef', 'pageElement', 'pageRegion']);
+const kinds = new Set(['pageElement', 'pageRegion']);
 
 // One worker owns the persistent high water marks for every tab and document.
 export function createBrowserIdAllocator(storage) {

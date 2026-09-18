@@ -2,30 +2,17 @@
   "type": "function",
   "function": {
     "name": "page.get_dom",
-    "description": "取区域或元素的 HTML 片段。\n参数：id（页面工具返回的目标标识），必填 tabId（目标标签编号）。\n返回：ok、html（页面结构片段）。",
+    "description": "取区域或元素的完整 HTML 片段。\n参数：id（页面工具返回的 e_01/r_01），必填 tabId。\n返回：ok、id、tag、totalChars、html。超长结果由 Runtime 统一门禁外置（preview+path），可用 evidence.search 按 callId 检索。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": {
-          "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
-        },
-        "tabId": {
-          "type": "integer",
-          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
-        },
-        "id": {
-          "type": "string"
-        }
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
+        "tabId": { "type": "integer", "description": "目标标签编号；从 #openTabs 或工具返回取得。" },
+        "id": { "type": "string", "description": "page.* 返回的 e_01/r_01" }
       },
-      "required": [
-        "reason",
-        "affectsPage",
-        "id",
-        "tabId"
-      ]
+      "required": ["reason", "affectsPage", "id", "tabId"],
+      "additionalProperties": false
     }
   }
 }

@@ -2,36 +2,18 @@
   "type": "function",
   "function": {
     "name": "find_on_page",
-    "description": "按文本查找可见交互控件，不返回整页正文，也不接受 CSS 选择器。先搜索全部控件，再限制返回数量。\n参数：text 必填，必填 tabId、limit（默认40，最多100）。\n返回：ok、title、url、elements[{ref,tag,text,label,...}]、total、truncated。ref 只用于 click/type 等工具，不能作为 page.click 的 id；页面导航或元素移除后失效。",
+    "description": "按文本查找可见交互控件，不返回整页正文，也不接受 CSS 选择器。\n参数：text 必填，必填 tabId、limit（默认40，最多100）。\n返回：ok、title、url、elements[{id,ref,domId,tag,text,label,...}]、total、truncated。id/ref 为 e_ 编号（与 page.* 同一套），可用于 click/type/scroll_to/wait；页面导航或元素移除后失效。",
     "parameters": {
       "type": "object",
       "properties": {
-        "text": {
-          "type": "string",
-          "minLength": 1
-        },
-        "reason": {
-          "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
-        },
-        "tabId": {
-          "type": "integer",
-          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
-        },
-        "limit": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 100
-        }
+        "text": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean" },
+        "tabId": { "type": "integer", "description": "目标标签编号；从 #openTabs 或工具返回取得。" },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 100 }
       },
-      "required": [
-        "reason",
-        "affectsPage",
-        "text",
-        "tabId"
-      ]
+      "required": ["reason", "affectsPage", "text", "tabId"],
+      "additionalProperties": false
     }
   }
 }

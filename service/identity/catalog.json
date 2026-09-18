@@ -125,13 +125,6 @@
     "allocation": "counter",
     "description": "归档来源"
   },
-  "elementRef": {
-    "field": "ref",
-    "prefix": "el",
-    "scope": "browser",
-    "allocation": "browser-counter",
-    "description": "浏览器元素引用"
-  },
   "pageElement": {
     "field": "id",
     "prefix": "e",

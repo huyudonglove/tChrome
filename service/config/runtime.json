@@ -10,9 +10,6 @@
   "tls": {
     "timeoutMs": 8000
   },
-  "query": {
-    "returnChars": 2000
-  },
   "results": {
     "inlineChars": 4000,
     "previewChars": 100,

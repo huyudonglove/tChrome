@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.click",
-    "description": "按 page.* 页面观察返回的元素 id 点击控件。\n先从 page.list_interactive_elements 等 page.* 工具取得真实 e_01 格式编号，再传入 id；不接受 el_01 引用或目标文字，按文字/快照引用点击请用 click。\n必填 tabId 指定标签，reason 仅用于展示行动说明。返回：ok、clicked、id。",
+    "description": "按元素编号点击控件。\n先从 page.list_interactive_elements 或 snapshot_page 取得 e_01 格式编号，再传入 id；不接受目标文字。\n必填 tabId。返回：ok、clicked、id。",
     "parameters": {
       "type": "object",
       "properties": {

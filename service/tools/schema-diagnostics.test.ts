@@ -27,7 +27,7 @@ test("exclusive and conditional capture targets report the actual rule", () => {
   expect(missing.detail).toContain("exactly one alternative");
   expect(missing.detail).toContain('"required":["ref"]');
   expect(missing.detail).toContain('"required":["selector"]');
-  const both = check("capture_page", { ...base, ref: "el_01", selector: "button" });
+  const both = check("capture_page", { ...base, ref: "e_01", selector: "button" });
   expect(both.detail).toContain('exactly one alternative');
   const viewport = check("capture_page", { ...base, mode: "viewport", selector: "button" });
   expect(viewport.detail).toContain('must NOT be valid');

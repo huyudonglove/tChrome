@@ -15,6 +15,22 @@ export function toolHistoryView(records: ToolIOItem[], observations: PageObserva
         ? Boolean((observation.result as { ok?: unknown }).ok)
         : true;
       result = { ok: observedOk, pageObservationId: observation.id };
+    } else if (record.name === "context.query" && record.return.stage === "complete"
+      && result && typeof result === "object" && !Array.isArray(result)) {
+      // Query originals live in #currentQuery; keep toolIO as a pointer like page observations.
+      const query = result as Record<string, unknown>;
+      const records = Array.isArray(query.records) ? query.records : [];
+      result = {
+        ok: query.ok ?? true,
+        status: query.status,
+        sumId: query.sumId,
+        module: query.module,
+        intent: query.intent,
+        currentQuery: true,
+        recordCount: records.length,
+        ...(query.faultCode ? { faultCode: query.faultCode } : {}),
+        ...(query.detail ? { detail: query.detail } : {}),
+      };
     }
     return {
       callId: record.callId,

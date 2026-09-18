@@ -2,68 +2,37 @@
   "type": "function",
   "function": {
     "name": "type",
-    "description": "向指定可编辑控件输入 text。必须提供 ref 或非空 target；不会默认选择当前焦点。ref 来自 snapshot_page 或 find_on_page，不可混用 page.* 的 id。ref 失效不回退按文字定位；target 多项匹配时明确失败。返回：ok、value。",
+    "description": "向指定可编辑控件输入 text。必须提供 ref（e_ 编号）或非空 target；不会默认选择当前焦点。ref 失效不回退按文字定位；target 多项匹配时明确失败。返回：ok、value。",
     "parameters": {
       "type": "object",
       "properties": {
-        "text": {
-          "type": "string"
-        },
+        "text": { "type": "string" },
         "ref": {
           "type": "string",
-          "description": "参数含义见工具说明。",
-          "pattern": "^el_[0-9]{2,}$"
+          "description": "page.* 或 snapshot 返回的 e_ 编号",
+          "pattern": "^(?:e|r)_[0-9]{2,}$"
         },
-        "target": {
-          "type": "string",
-          "description": "参数含义见工具说明。",
-          "minLength": 1
-        },
-        "tabId": {
-          "type": "integer",
-          "description": "目标标签编号；从 #openTabs 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
-        },
-        "reason": {
-          "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
-        }
+        "target": { "type": "string", "minLength": 1 },
+        "tabId": { "type": "integer", "description": "目标标签编号；从 #openTabs 或工具返回取得。" },
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean" }
       },
-      "required": [
-        "reason",
-        "affectsPage",
-        "text",
-        "tabId"
-      ],
+      "required": ["reason", "affectsPage", "text", "tabId"],
       "anyOf": [
         {
-          "required": [
-            "ref"
-          ],
+          "required": ["ref"],
           "type": "object",
           "properties": {
             "ref": {
               "type": "string",
-              "description": "参数含义见工具说明。",
-              "pattern": "^el_[0-9]{2,}$"
+              "description": "page.* 或 snapshot 返回的 e_ 编号",
+              "pattern": "^(?:e|r)_[0-9]{2,}$"
             }
           }
         },
-        {
-          "required": [
-            "target"
-          ],
-          "type": "object",
-          "properties": {
-            "target": {
-              "type": "string",
-              "description": "参数含义见工具说明。",
-              "minLength": 1
-            }
-          }
-        }
-      ]
+        { "required": ["target"], "type": "object", "properties": { "target": { "type": "string", "minLength": 1 } } }
+      ],
+      "additionalProperties": false
     }
   }
 }

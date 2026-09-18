@@ -301,6 +301,55 @@
         }
       ]
     },
+    "checklist": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "todo",
+                      "doing",
+                      "done"
+                    ]
+                  }
+                },
+                "required": [
+                  "text",
+                  "status"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "updatedAt": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "$ref": "#/$defs/contextFileReference"
+        }
+      ]
+    },
     "queryHistory": {
       "anyOf": [
         {
@@ -356,6 +405,7 @@
     "notes",
     "toolIO",
     "lastAction",
+    "checklist",
     "queryHistory",
     "currentQuery",
     "tools"
@@ -833,9 +883,6 @@
         },
         "sourceCallId": {
           "$ref": "#/$defs/callId"
-        },
-        "nextCursor": {
-          "type": "string"
         },
         "detail": {
           "type": "string"

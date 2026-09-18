@@ -21,6 +21,6 @@ segment.batchIds 标识本段工具批次；complete=false 为增量，complete=
 
 ## queryHistory（可选）
 
-queryId 标识查询，sumId 指向入口摘要，module/intent 是查询条件，status 是返回状态；records 保留原模块字段和 ID。查询顶层 turnId 是发起轮次，records 内 turnId 是来源轮次。nextCursor 表示可续读；fragment 的 offset、totalChars、text 表示原记录 JSON 的连续片段。
+queryId 标识查询，sumId 指向入口摘要，module/intent 是查询条件，status 是返回状态；records 保留原模块字段和 ID。查询顶层 turnId 是发起轮次，records 内 turnId 是来源轮次。
 
 只把影响本轮结果的查询结论合入 result，不复制原文；回查不等于本轮重新执行或验证历史操作。错误、部分返回或空值不支持推断未返回的证据。

@@ -4,7 +4,7 @@ import { withDebugger } from './dialogs.js';
 export function elementBounds(input) {
   let node;
   if (input.ref !== undefined) {
-    if (typeof input.ref !== 'string' || !/^el_[0-9]{2,}$/.test(input.ref)) return {ok: false, faultCode: 'invalid_ref', error: 'ref 必须来自 snapshot_page/find_on_page；CSS 选择器请使用 selector'};
+    if (typeof input.ref !== 'string' || !/^(?:e|r)_[0-9]{2,}$/.test(input.ref)) return {ok: false, faultCode: 'invalid_ref', error: 'ref 必须是 page.* 或 snapshot 返回的 e_/r_ 编号；CSS 选择器请使用 selector'};
     node = globalThis.__tChromeElementRefs?.refs.get(input.ref);
     if (!node?.isConnected) return {ok: false, faultCode: 'stale_ref', error: '元素 ref 已失效，请重新查找'};
   } else {

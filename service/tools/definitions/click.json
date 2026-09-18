@@ -2,14 +2,14 @@
   "type": "function",
   "function": {
     "name": "click",
-    "description": "按目标文字或快照引用点击控件；按 page.* 元素编号点击请用 page.click。\n提供 targetText 或 ref 至少一个；同时提供时优先 ref。targetText 是要点击的控件文字，不是开关，也不是行动说明。文字匹配多个控件时先用 find_on_page 查找并取得 ref。ref 无效时不回退文字定位。\n例：{\"tabId\":123,\"targetText\":\"登录\",\"affectsPage\":true}。必填 tabId 指定标签，reason 仅用于展示行动说明。\n返回：ok、clicked。",
+    "description": "按元素编号或目标文字点击控件。\n提供 ref/id 或 targetText 至少一个；同时提供时优先编号。编号为 page.* 或 snapshot 返回的 e_。targetText 是要点击的控件文字，不是行动说明。文字匹配多个控件时先用 list/snapshot 取得 e_ 再点击。\n例：{\"tabId\":123,\"ref\":\"e_05\",\"affectsPage\":true}。必填 tabId。\n返回：ok、clicked。",
     "parameters": {
       "type": "object",
       "properties": {
         "ref": {
           "type": "string",
-          "description": "snapshot_page 或 find_on_page 返回的 el_01 引用；不可使用 page.* 返回的 e_01 格式编号。",
-          "pattern": "^el_[0-9]{2,}$",
+          "description": "page.* 或 snapshot 返回的 e_ 编号",
+          "pattern": "^(?:e|r)_[0-9]{2,}$",
           "minLength": 1
         },
         "tabId": {
@@ -25,7 +25,7 @@
         },
         "targetText": {
           "type": "string",
-          "description": "要点击的控件可见文字、value 或 aria-label，例如“登录”；必须是非空字符串。",
+          "description": "要点击的控件可见文字、value 或 aria-label；必须是非空字符串。",
           "minLength": 1
         }
       },
@@ -35,28 +35,24 @@
       ],
       "anyOf": [
         {
-          "required": [
-            "ref"
-          ],
+          "required": ["ref"],
           "type": "object",
           "properties": {
             "ref": {
               "type": "string",
-              "description": "snapshot_page 或 find_on_page 返回的 el_01 引用；不可使用 page.* 返回的 e_01 格式编号。",
-              "pattern": "^el_[0-9]{2,}$",
+              "description": "page.* 或 snapshot 返回的 e_ 编号",
+              "pattern": "^(?:e|r)_[0-9]{2,}$",
               "minLength": 1
             }
           }
         },
         {
-          "required": [
-            "targetText"
-          ],
+          "required": ["targetText"],
           "type": "object",
           "properties": {
             "targetText": {
               "type": "string",
-              "description": "要点击的控件可见文字、value 或 aria-label，例如“登录”；必须是非空字符串。",
+              "description": "要点击的控件可见文字、value 或 aria-label；必须是非空字符串。",
               "minLength": 1
             }
           }

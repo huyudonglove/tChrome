@@ -119,8 +119,8 @@ test("capture_page validates mode-specific target parameters", () => {
   const valid = (arguments_: Record<string, unknown>) => checkToolCalls(
     [{id: "capture", name: "capture_page", arguments: {tabId: 1, reason: "观察", affectsPage: false, ...arguments_}}], tools, [], ["capture_page"],
   ).schemaOk;
-  for (const args of [{mode: "viewport"}, {mode: "full_page"}, {mode: "element", ref: "el_01"}, {mode: "element", selector: "#target"}]) expect(valid(args)).toBe(true);
-  for (const args of [{}, {mode: "pdf"}, {mode: "element"}, {mode: "element", ref: "e1"}, {mode: "element", ref: "el_01", selector: "#target"}, {mode: "viewport", selector: "#target"}]) expect(valid(args)).toBe(false);
+  for (const args of [{mode: "viewport"}, {mode: "full_page"}, {mode: "element", ref: "e_01"}, {mode: "element", selector: "#target"}]) expect(valid(args)).toBe(true);
+  for (const args of [{}, {mode: "pdf"}, {mode: "element"}, {mode: "element", ref: "e1"}, {mode: "element", ref: "e_01", selector: "#target"}, {mode: "viewport", selector: "#target"}]) expect(valid(args)).toBe(false);
 });
 
 test("send_http requires an HTTP link string and documents all request fields", () => {

@@ -15,7 +15,7 @@ GUI。Side Panel + background。样式对标 telance，组件放 `ui/`。浏览�
 `see_diag` 在浏览器层读取标签和弹窗状态，不执行页面脚本。`dialog.status` 为 `open`、`closed` 或 `unknown`：分别表示捕获到未关闭弹窗、已确认关闭、当前状态无法确认。连接调试器前已出现的弹窗不一定补发开启事件，因此 `unknown` 不能解释为无弹窗；仍可使用 `handle_dialog` 处理。`wait_new_tab` 只等调用后的新标签创建，不等待原生对话框。
 
 
-工具定位与截图：`snapshot_page` / `find_on_page` 返回稳定的 `el_01` ref，仅供 `click` / `type` / `focus` 等使用；`page.*` 使用 `e_01` 元素和 `r_01` 区域编号，不能与 ref 混用。三类编号共用扩展持久计数器，跨标签、导航和 worker 重启不复用；同一节点在重复观察中保持编号。ref 在导航或元素移除后失效，不会回退点击其他控件；文本匹配多项时要求先查找并指定 ref。`find_on_page` 搜索全部可见交互控件，再限制返回数量，不附带整页正文。`page_find` 使用 `window.find` 选中并滚动到文本，不打开 Ctrl+F 面板。
+工具定位与截图：`snapshot_page` / `find_on_page` 返回与 page.* 同一套 `e_01` 编号，可供 `click` / `type` / `page.*` 使用；区域为 `r_01`。编号共用扩展持久计数器，跨标签、导航和 worker 重启不复用；同一节点在重复观察中保持编号。导航或元素移除后编号失效，不会回退点击其他控件；文本匹配多项时要求先查找并指定 id。`find_on_page` 搜索全部可见交互控件，再限制返回数量，不附带整页正文。`page_find` 使用 `window.find` 选中并滚动到文本，不打开 Ctrl+F 面板。
 
 `capture_page` 的 viewport 模式截可视区；full_page 模式使用 CDP 捕获已渲染的整页内容，不滚动触发懒加载或展开独立滚动容器。单边超过 16000 或总面积超过 3200 万像素时明确失败。`list_downloads` 列出最近下载；`wait_download` 必须指定 downloadId，等待下载完成、中断或超时。
 

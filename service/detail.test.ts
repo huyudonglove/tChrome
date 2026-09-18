@@ -31,7 +31,7 @@ function fixture(dataDir: string, text = "精确证据".repeat(250)) {
   saveLedger(dataDir, ledger);
   return { cv, ledger, turns, sumId, tool };
 }
-const queryCall = (sumId: string, module = "toolIO", cursor?: string) => reply([{ id: "query", name: "context.query", arguments: { reason: "查原文", affectsPage: false, sumId, module, intent: "读取详细证据", ...(cursor ? { cursor } : {}) } }]);
+const queryCall = (sumId: string, module = "toolIO") => reply([{ id: "query", name: "context.query", arguments: { reason: "查原文", affectsPage: false, sumId, module, intent: "读取详细证据" } }]);
 
 test("query insertion triggers the 200K gate, protects current evidence, rotates and persists history", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "query-loop-"));
@@ -62,8 +62,18 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
           return [tag.slice(1), tag === "#skill" || tag === "#tools" ? body : JSON.parse(body)];
         }));
         expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
-        expect(section(input.messages[1]!.content, "currentQuery").records).toEqual([f.tool]);
-        expect(JSON.stringify(section(input.messages[1]!.content, "toolIO"))).not.toContain(f.tool.return.text);
+        const current = section(input.messages[1]!.content, "currentQuery");
+        const toolIO = section(input.messages[1]!.content, "toolIO");
+        const queryRow = toolIO.find((row: any) => row.name === "context.query");
+        expect(queryRow?.return?.result).toMatchObject({ currentQuery: true });
+        expect(JSON.stringify(queryRow)).not.toContain(f.tool.return.text);
+        if (current.externalized) {
+          expect(current.search).toBe("evidence.search");
+          expect(String(current.preview).length).toBeGreaterThan(0);
+        } else {
+          expect(current.records).toEqual([f.tool]);
+        }
+        expect(JSON.stringify(toolIO)).not.toContain(f.tool.return.text);
         return queryCall(f.sumId, "userInput");
       }
       if (main === 3) {
@@ -83,7 +93,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
-test("cursor pagination stays below 2000 characters and cancellation preserves the previous query", async () => {
+test("unified gate externalizes large currentQuery and cancellation preserves the previous query", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "query-pages-"));
   try {
     const f = fixture(dataDir, "原始证据".repeat(1800)); let main = 0, aux = 0;
@@ -99,10 +109,10 @@ test("cursor pagination stays below 2000 characters and cancellation preserves t
       main++;
       if (main === 1) return queryCall(f.sumId);
       const current = section(input.messages[1]!.content, "currentQuery");
-      expect(JSON.stringify(current.records).length).toBeLessThanOrEqual(2000);
-      if (main === 2) { expect(current.status).toBe("partial"); return queryCall(f.sumId, "toolIO", current.nextCursor); }
-      expect(aux).toBe(1);
-      expect(current.records[0].fragment.offset).toBeGreaterThan(0);
+      expect(current.externalized).toBe(true);
+      expect(current.search).toBe("evidence.search");
+      expect(current.preview).toBeDefined();
+      expect(current.records).toEqual([]);
       return queryCall(f.sumId, "userInput");
     } };
     const running = handleTurn({ repoRoot, dataDir, provider }, { userInput: "读取详情", submittedAt: "2026-09-12" });
@@ -110,7 +120,9 @@ test("cursor pagination stays below 2000 characters and cancellation preserves t
     const before = loadLedger(dataDir, f.cv).currentQuery;
     stopTurn(dataDir); release();
     expect((await running).output).toEqual({ kind: "error", faultCode: "stopped" });
-    expect(loadLedger(dataDir, f.cv).currentQuery).toEqual(before);
-    expect(loadLedger(dataDir, f.cv).queryHistory).toHaveLength(1);
+    const after = loadLedger(dataDir, f.cv);
+    expect(after.currentQuery).toEqual(before);
+    // Second query was cancelled mid-flight; first query remains current (not yet rotated to history).
+    expect(after.queryHistory).toEqual([]);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });

@@ -95,7 +95,7 @@ test.each(outputs)("session uses authoritative $output.kind and preserves diagno
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("running legacy toolIO and live queue retain reasons without raw returns", () => {
+test("running toolIO and live queue retain reasons without raw returns", () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-session-progress-"));
   try {
     const ledger = emptyLedger("cv_01");

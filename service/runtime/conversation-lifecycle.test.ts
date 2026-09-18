@@ -32,7 +32,7 @@ test("deleting a running conversation cannot reuse its identity or overwrite its
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
-test("legacy conversation deletion records the watermark before removing its directory", () => {
+test("conversation deletion records the watermark before removing its directory", () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-legacy-ids-"));
   try {
     saveLedger(dataDir, emptyLedger("cv_42"));

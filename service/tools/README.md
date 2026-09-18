@@ -10,7 +10,7 @@
 
 `registry.ts` 读取本模块定义。System #baseTools 展示常驻能力导航，User #tools 展示本会话已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送。`schema.ts` 校验调用，Runtime 对主 Agent 响应统一执行校验后调度。校验前按 schema 中明确声明的字段类型，将精确的 `"true"` / `"false"` 转为布尔值，将 JSON 数字字符串转为有限数字（绝对值不超过安全整数上限，integer 字段必须为安全整数）；嵌套对象和数组沿 properties/items 处理。转换后的参数通过原有校验后交给执行器；不补必填项、不转换文本、不把单值包装成数组，也不猜测联合分支的类型。`service/context/` 负责同一服务内的上下文装配。Chrome API 操作由 `extension/tools/` 的宿主执行器完成，经浏览器桥接收服务调度；工具注册和 schema 仍统一维护在本模块。工具返回结构化结果与 effects，`service/runtime/effects.ts` 统一应用状态和持久化。
 
-浏览器元素引用使用 `el_01`（snapshot/find）、`e_01`（page.* 元素）和 `r_01`（page.* 区域）。扩展通过统一编号目录生成前缀，由 service worker 在 `chrome.storage.local` 持久自增分配；跨标签、导航和 worker 重启不复用。编号绑定实际 DOM 节点，同一节点重复观察保持编号；旧节点消失或不可见时操作失败，不按新枚举位置重新解释旧编号。
+浏览器元素与区域使用 `e_01` / `r_01`（page.* 与 snapshot 共用）。扩展通过统一编号目录生成前缀，由 service worker 在 `chrome.storage.local` 持久自增分配；跨标签、导航和 worker 重启不复用。编号绑定实际 DOM 节点，同一节点重复观察保持编号；旧节点消失或不可见时操作失败，不按新枚举位置重新解释旧编号。
 
 `web_search` 搜索公开网页链接；`tavily_search` 通过 Tavily 高级搜索返回网页及相关内容，单次 HTTP 请求入口为 `send_http`。旧搜索名称、`api_execute` 和未实现的接口登记入口已删除；未知工具调用明确失败。
 
@@ -28,7 +28,7 @@
 
 ## 压缩归档查询
 
-常驻 `context.query(sumId, module, intent, cursor?)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，查询 Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将对应记录放入 currentQuery；工具返回只含状态和引用。每次 records 的紧凑 JSON 最多 2000 字符；超出返回 partial 与 nextCursor，可带原查询参数和 cursor 继续读取，无需再次调用查询 Agent。超大单条保留身份字段及 fragment:{offset,totalChars,text}，text 是原记录 JSON 的连续片段，不是摘要。查询不会刷新页面。
+常驻 `context.query(sumId, module, intent)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将完整 records 放入 currentQuery；#toolIO 只投影 currentQuery 指针。查询结果与其它工具返回共用统一内联门禁（默认 4000 字符），超出时注入 externalized 摘要（preview+path），可用 evidence.search 检索。查询不会刷新页面。
 
 查询模块统一为 conversationHistory；每份归档保留轮次内部的输入、目标变化、工具、页面观察、记忆增量及最终输出。目录与原文由 `service/context-archive/` 管理，工具层只校验参数并调度 `service/agents/query/`。查询 Agent 自己管理提示词、输入输出协议与业务校验，模型请求复用现有 `provider.complete`。查询 Agent 仅选择候选，返回 ID 不能作为文件路径。查询结果不再经过普通工具的二次截断。
 

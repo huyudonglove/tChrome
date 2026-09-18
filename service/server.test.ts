@@ -53,7 +53,7 @@ test("拒绝 DNS 重绑定地址和无 Origin 跨站请求，保留本机客户�
 });
 
 
-test("连接设置兼容旧文件，provider 与代理独立保存，拒绝无效更新", async () => {
+test("连接设置 provider 与代理独立保存，拒绝无效更新", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-connection-"));
   const oldKey = Bun.env.SHININGSPACE_API_KEY;
   const oldDefault = Bun.env.TCHROME_PROVIDER;

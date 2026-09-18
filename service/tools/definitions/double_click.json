@@ -8,8 +8,8 @@
       "properties": {
         "ref": {
           "type": "string",
-          "description": "参数含义见工具说明。",
-          "pattern": "^el_[0-9]{2,}$",
+          "description": "page.* 或 snapshot 返回的 e_ 编号",
+          "pattern": "^(?:e|r)_[0-9]{2,}$",
           "minLength": 1
         },
         "text": {
@@ -43,7 +43,7 @@
             "ref": {
               "type": "string",
               "description": "参数含义见工具说明。",
-              "pattern": "^el_[0-9]{2,}$",
+              "pattern": "^(?:e|r)_[0-9]{2,}$",
               "minLength": 1
             }
           }

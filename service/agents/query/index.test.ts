@@ -30,18 +30,14 @@ test("query limits candidates to requested summary and module, retains native id
   expect((await queryContext({...input,provider:provider(["tn_02"])})).status).toBe("error");
   expect((await queryContext({...input,module:"summaries",provider:provider()})).records.map(r=>r.sumId)).toEqual(["sum_03","sum_01"]);
 });
-test("oversized record pages exact JSON without repeated model calls, cursor cannot cross request",async()=>{
+test("oversized records return in one shot for the unified inline gate",async()=>{
   const input=fixture('带有"转义\\字符'.repeat(1500)); let calls=0;
-  const p=provider(["tn_01"],()=>calls++); let result=await queryContext({...input,provider:p}); const initialCalls=calls; expect(initialCalls).toBe(1); let raw="";
-  while(true){
-    expect(JSON.stringify(result.records).length).toBeLessThanOrEqual(2000);
-    const part=result.records[0]!.fragment as {offset:number;text:string};expect(part.offset).toBe(raw.length);raw+=part.text;
-    if(!result.nextCursor)break;
-    expect((await queryContext({...input, intent:"不同意图",cursor:result.nextCursor,provider:p})).status).toBe("error");
-    result=await queryContext({...input,cursor:result.nextCursor,provider:p});
-  }
-  expect(result.status).toBe("complete");expect(calls).toBeGreaterThan(0);
-  expect(JSON.parse(raw).return.text).toBe('带有"转义\\字符'.repeat(1500));expect(calls).toBe(initialCalls);
+  const p=provider(["tn_01"],()=>calls++);
+  const result=await queryContext({...input,provider:p});
+  expect(calls).toBe(1);
+  expect(result.status).toBe("complete");
+  expect(result.records).toHaveLength(1);
+  expect(JSON.parse(JSON.stringify(result.records[0]!.return.text))).toBe('带有"转义\\字符'.repeat(1500));
 });
 test("complete candidates use one request; failure, cancellation and unmatched result do not return evidence",async()=>{
   const input=fixture("x".repeat(50000));let calls=0;
