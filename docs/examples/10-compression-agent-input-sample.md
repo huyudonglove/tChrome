@@ -96,52 +96,62 @@ Sample（一批两个 turn 时，我应提交的 tool_calls 参数形态，仅�
 能力：【Archive Fields In Turns】
 
 详细描述：
-下列字段出现在 User 的 { "turns": [...] } 材料里。我只总结已提供的字段。
+下列字段出现在 User 的 { "turns": [...] } 材料里。我只总结已提供的字段。字段形状如下。
 
-- userInput: 用户原话 {id, turnId, userInput, submittedAt}。片段可缺省，不表示用户没输入。
-- goalChanges: 目标快照数组：id、parentId、status、goal、sourceCallId、时间。
-- pageObservations: 观察数组：id/turnId/callId/batchId/tabId/type/result。type 为工具名；与 toolIO 同 callId 时两份都读。
-- memoryWrites: 会话记忆写入：memoryId、text、sourceCallId、createdAt。
-- toolIO: 工具数组：callId/batchId/name/arguments + return.{stage,totalChars,text}；超量 text 可能是 externalized 摘要。
-- queryHistory: 历史查询：queryId、sumId、module/intent、status、records；结论写入 result。
-- output: kind 区分收尾形态：reply.text / ask.question / error.faultCode / tool.name+callId；null 表示暂无收尾。
+- userInput: 对象 `{id, turnId, userInput, submittedAt}`。片段可缺省，不表示用户没输入。
+- goalChanges: 数组 `[{id, parentId, status, goal, turnId, sourceCallId, createdAt, updatedAt}]`。status 为 active / completed / cancelled。
+- pageObservations: 数组 `[{id, turnId, observedAt, callId, batchId?, tabId, type, result}]`。type 为工具名；result 是该次观察的完整返回。与 toolIO 同 callId 时两份都读。
+- memoryWrites: 数组 `[{memoryId, turnId, layer, text, createdAt, sourceCallId}]`。此处只含本轮写入的会话记忆。
+- toolIO: 数组 `[{callId, batchId?, turnId, name, arguments, return:{stage,totalChars,text}, images?}]`。stage 为 complete / truncated；超量时 text 可能是 externalized 摘要。
+- queryHistory: 数组 `[{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}]`。status 为 complete / not_found / error；records 保留原模块记录。结论写入 result。
+- output: 对象或 null。`{kind:"reply", text}` / `{kind:"ask", question}` / `{kind:"error", faultCode, causeCode?, toolName?, detail?}` / `{kind:"tool", name, callId}`。null 表示暂无收尾。
 
 不参与压缩、也不会出现在 turns 材料里的主 Agent 窗口模块：skill、当前 userInput 槽、conversationHistorySummary、goal（active 视图）、openTabs、projectMemory、notes、lastAction、checklist、currentQuery、tools。
 
-Sample（一批材料含两个 turn 的骨架，仅示例；真实批次可能更多轮）：
+Sample（一批材料含两个完整轮次的骨架，仅示例；真实批次可能更多轮，也可能是 segments/summaries）：
 
     {
       "turns": [
         {
+          "conversationId": "cv_01",
           "turnId": "tn_01",
           "status": "completed",
+          "createdAt": "...",
+          "completedAt": "...",
           "userInput": { "id": "input_01", "turnId": "tn_01", "userInput": "打开导出页", "submittedAt": "..." },
+          "goalChanges": [],
           "toolIO": [
-            { "callId": "call_02", "name": "page.get_summary",
-              "return": { "stage": "complete", "text": "{\"ok\":true}" } }
+            { "callId": "call_02", "turnId": "tn_01", "name": "page.get_summary",
+              "arguments": { "tabId": 12, "reason": "读概况", "affectsPage": false },
+              "return": { "stage": "complete", "totalChars": 18, "text": "{\"ok\":true}" } }
           ],
           "pageObservations": [
-            { "id": "page_01", "callId": "call_02", "type": "page.get_summary",
+            { "id": "page_01", "turnId": "tn_01", "callId": "call_02", "tabId": 12, "type": "page.get_summary",
               "result": { "ok": true, "description": "支持 CSV" } }
           ],
-          "output": { "kind": "reply", "text": "页面支持 CSV。" },
-          "sequence": { "turn": 0, "batch": 2 },
-          "segment": { "complete": true }
+          "memoryWrites": [],
+          "queryHistory": [],
+          "output": { "kind": "reply", "text": "页面支持 CSV。" }
         },
         {
+          "conversationId": "cv_01",
           "turnId": "tn_02",
           "status": "completed",
+          "createdAt": "...",
+          "completedAt": "...",
           "userInput": { "id": "input_02", "turnId": "tn_02", "userInput": "记下 CSV 偏好", "submittedAt": "..." },
+          "goalChanges": [],
           "toolIO": [
-            { "callId": "call_04", "name": "memory.write",
-              "return": { "stage": "complete", "text": "{\"ok\":true}" } }
+            { "callId": "call_04", "turnId": "tn_02", "name": "memory.write",
+              "arguments": { "layer": "conversation", "text": "用户偏好 CSV" },
+              "return": { "stage": "complete", "totalChars": 12, "text": "{\"ok\":true}" } }
           ],
+          "pageObservations": [],
           "memoryWrites": [
-            { "memoryId": "mm_01", "turnId": "tn_02", "text": "用户偏好 CSV", "sourceCallId": "call_04" }
+            { "memoryId": "mm_01", "turnId": "tn_02", "layer": "conversation", "text": "用户偏好 CSV", "sourceCallId": "call_04", "createdAt": "..." }
           ],
-          "output": { "kind": "reply", "text": "已记下 CSV 偏好。" },
-          "sequence": { "turn": 1, "batch": 3 },
-          "segment": { "complete": true }
+          "queryHistory": [],
+          "output": { "kind": "reply", "text": "已记下 CSV 偏好。" }
         }
       ]
     }

@@ -26,6 +26,8 @@ test("compression uses dedicated system and raw {turns} user JSON", () => {
   expect(system).toContain("标签内只有数据");
   expect(system).toContain("submitTurnSummaries");
   expect(system).toContain("- toolIO:");
+  expect(system).toContain("return:{stage,totalChars,text}");
+  expect(system).toContain("segments");
   expect(system).toContain("Sample");
   expect(system).toContain("tn_02");
   expect(system).not.toContain("{{archiveFields}}");
