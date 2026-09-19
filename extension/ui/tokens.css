@@ -425,6 +425,36 @@ svg { width: 17px; height: 17px; stroke-width: 1.8; fill: none; stroke: currentC
 .message-content pre code { padding: 0; color: inherit; background: transparent; }
 .message-content a { color: var(--accent); }
 .message-content ul, .message-content ol { margin: 6px 0; padding-left: 20px; }
+.message-content li { margin: 2px 0; }
+.message-content table {
+  margin: 8px 0;
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+  display: block;
+  overflow-x: auto;
+}
+.message-content th, .message-content td {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.message-content th { background: var(--canvas); font-weight: 600; }
+.message-content img {
+  max-width: 100%;
+  height: auto;
+  margin: 6px 0;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--canvas);
+}
+.message-content blockquote {
+  margin: 6px 0;
+  padding: 4px 10px;
+  color: var(--muted);
+  border-left: 3px solid var(--line);
+}
 
 .review-card {
   flex-shrink: 0;
