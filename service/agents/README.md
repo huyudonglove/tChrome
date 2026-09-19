@@ -11,7 +11,7 @@
 
 `service/context-archive/` 负责不可变原文与摘要存储、目录索引、覆盖关系和来源展开。运行数据继续保存在 `conversations/<conversationId>/compression/<module>/`。Runtime 在发送主请求前触发压缩，`context.query` 工具触发查询；主 Agent 的窗口投影与提示词组装仍由 `service/context/` 管理。
 
-每个 Agent 的 `tools/` 是本 Agent 专用工具 schema 的唯一来源：压缩通过 `submitTurnSummaries` 提交逐轮结构化摘要；查询通过 `submitMatches` 提交 turnIds（未找到时为空数组）。这些工具仅装配到对应 Agent 请求，不进入主 Agent 工具目录。这一次回包只调本 Agent 的返回工具一次，结果放进该工具参数，正文不作为业务结果；协议层读取工具文件并按同一 schema 校验参数，目录 ID 范围等语义约束另行校验。
+每个 Agent 的 `tools/` 是本 Agent 专用工具 schema 的唯一来源：压缩通过 `submitTurnSummaries` 按历史顺序**逐轮**提交 `{tag, actions, result}`（userRequest 由 Runtime 写入）；成功立刻落盘，失败停止后续轮次并保留原文。查询通过 `submitMatches` 提交 turnIds（未找到时为空数组）。这些工具仅装配到对应 Agent 请求，不进入主 Agent 工具目录。每一次回包只调本 Agent 的返回工具一次，结果放进该工具参数，正文不作为业务结果；协议层读取工具文件并按同一 schema 校验参数，目录 ID 范围等语义约束另行校验。
 
 主 Agent 提交 sumId、module、intent。Runtime 沿摘要来源关系展开指定模块，给查询 Agent 提供带 turnId 的候选原文；Agent 通过 submitMatches 选择轮次。Runtime 校验返回值属于候选集合，再读取原模块记录并保留身份字段。
 

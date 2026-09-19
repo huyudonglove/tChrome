@@ -35,7 +35,7 @@ const references = (value: unknown): { path: string; chars: number; format: stri
 const provider = (run: (user: string) => CompletionResult): Provider => ({ complete: async ({ messages, tools }) => {
   if (tools.some(tool => tool.function.name === "submitTurnSummaries")) {
     const turns = compressionTurnsFromUserMessage(messages[1]!.content);
-    return response({ id: "summary", name: "submitTurnSummaries", arguments: { summaries: turns.map(({ turnId }) => ({ turnId, tag: "容量测试", userRequest: "处理大文本", actions: "保存和读取文件", result: "成功" })) } });
+    return response({ id: "summary", name: "submitTurnSummaries", arguments: { tag: "容量测试", actions: "保存和读取文件", result: "成功" } });
   }
   expect(messages.reduce((size, message) => size + message.content.length, 0)).toBeLessThanOrEqual(250_000);
   const values = xmlSlots(messages[1]!.content);

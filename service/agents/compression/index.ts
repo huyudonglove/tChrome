@@ -1,31 +1,55 @@
 import { allocateRecordId } from "../../runtime/ids.ts";
 import type { Provider } from "../../types.ts";
-import { requestTurnSummaries, type CompressionTurn, type TurnSummary } from "./protocol.ts";
+import { requestTurnSummary, type CompressionTurn } from "./protocol.ts";
 import { commitArchive, loadIndex } from "../../context-archive/store.ts";
 import type { CompressionModule, CompressionRecord, SourceRecord } from "../../context-archive/types.ts";
 
 type Input = {
   dataDir: string; conversationId: string; repoRoot: string; provider: Provider;
   module: CompressionModule; records: SourceRecord[]; isCancelled?: () => boolean;
+  onProgress?: (event: CompressProgress) => void;
 };
+
+export type CompressOutcome = {
+  status: "completed" | "stopped" | "noop";
+  committedTurnIds: string[];
+  failedTurnId?: string;
+  totalTurns: number;
+};
+
+export type CompressProgress =
+  | { type: "start"; total: number }
+  | { type: "turn"; completed: number; total: number; turnId: string }
+  | { type: "stopped"; completed: number; total: number; failedTurnId?: string };
+
 const running = new Map<string, { isCancelled?: () => boolean }>();
 function asTurn(content: unknown): CompressionTurn {
   if (!content || typeof content !== "object" || !("turnId" in content) || typeof content.turnId !== "string" || !content.turnId.trim()) throw new Error("Compression source missing turnId");
   return content as CompressionTurn;
 }
 
-/** Called only by the runtime's shared window-budget flow; index commit is all-or-none. */
-export async function compressRecords(input: Input): Promise<void> {
+function turnOrder(sources: SourceRecord[]): number {
+  const sequence = (sources[0]?.content as { sequence?: { turn?: number } } | null | undefined)?.sequence;
+  return typeof sequence?.turn === "number" ? sequence.turn : Number.MAX_SAFE_INTEGER;
+}
+
+/**
+ * Sequential compression walk.
+ * Each turn is one request. Success archives that turn immediately and drops its originals
+ * from the window via coveredSourceIds. The first failure stops the walk: that turn and all
+ * later turns keep originals until a later compressAt trigger retries from uncovered turns.
+ */
+export async function compressRecords(input: Input): Promise<CompressOutcome> {
   const lock = JSON.stringify([input.dataDir, input.conversationId, input.module]);
   const previous = running.get(lock);
   if (previous && !previous.isCancelled?.()) throw new Error("Compression already running for this conversation");
   const owner = { isCancelled: input.isCancelled };
   running.set(lock, owner);
-  try { await compress(input); }
+  try { return await compress(input); }
   finally { if (running.get(lock) === owner) running.delete(lock); }
 }
 
-async function compress(input: Input): Promise<void> {
+async function compress(input: Input): Promise<CompressOutcome> {
   const check = () => { if (input.isCancelled?.()) throw new Error("Compression cancelled"); };
   check();
   const index = loadIndex(input.dataDir, input.conversationId, input.module);
@@ -38,40 +62,70 @@ async function compress(input: Input): Promise<void> {
     if (prior && JSON.stringify(prior) !== JSON.stringify(record)) throw new Error(`Conflicting source: ${record.id}`);
     unique.set(record.id, record);
   }
-  const records = [...unique.values()];
-  const added: CompressionRecord[] = [];
-  const append = (summary: TurnSummary, level: number, sourceIds: string[]) => {
-    const record: CompressionRecord = { id: allocateRecordId(input.dataDir, input.conversationId, "sum"), module: input.module, level, ...summary, sourceIds, createdAt: new Date().toISOString() };
-    index.entries.push(record); added.push(record); return record;
-  };
   const groups = new Map<string, SourceRecord[]>();
-  for (const record of records) {
+  for (const record of unique.values()) {
     const id = asTurn(record.content).turnId;
     groups.set(id, [...(groups.get(id) ?? []), record]);
   }
-  const activeEntries = index.activeIds.map(id => index.entries.find(record => record.id === id)!);
-  const previousByTurn = new Map([...groups.keys()].map(turnId => [turnId, activeEntries.filter(record => record.turnId === turnId)]));
-  const turns = [...groups].map(([turnId, sources]) => {
-    const previous = previousByTurn.get(turnId)!;
-    if (!previous.length && sources.length === 1) return asTurn(sources[0]!.content);
-    return { turnId, segments: sources.map(source => asTurn(source.content)), summaries: previous.map(({ tag, userRequest, actions, result }) => ({ tag, userRequest, actions, result })) };
-  });
-  if (!turns.length) return;
-  check();
-  const summaries = await requestTurnSummaries({ ...input, turns });
-  check();
-  for (const summary of summaries) {
-    const sources = groups.get(summary.turnId)!;
-    const previous = previousByTurn.get(summary.turnId)!;
-    const record = append(summary, previous.length ? Math.max(...previous.map(item => item.level)) + 1 : 1, [...previous.map(item => item.id), ...sources.map(source => source.id)]);
-    if (previous.length) {
-      const replaced = new Set(previous.map(item => item.id));
+  const ordered = [...groups.entries()].sort((a, b) => turnOrder(a[1]) - turnOrder(b[1]));
+  if (!ordered.length) return { status: "noop", committedTurnIds: [], totalTurns: 0 };
+
+  const total = ordered.length;
+  input.onProgress?.({ type: "start", total });
+  const activeEntries = () => index.activeIds.map(id => index.entries.find(record => record.id === id)!);
+  const committedTurnIds: string[] = [];
+  const stop = (failedTurnId: string): CompressOutcome => {
+    input.onProgress?.({ type: "stopped", completed: committedTurnIds.length, total, failedTurnId });
+    return { status: "stopped", committedTurnIds, failedTurnId, totalTurns: total };
+  };
+
+  for (const [turnId, sources] of ordered) {
+    check();
+    const priorSummaries = activeEntries().filter(record => record.turnId === turnId);
+    const turn: CompressionTurn = !priorSummaries.length && sources.length === 1
+      ? asTurn(sources[0]!.content)
+      : {
+          turnId,
+          segments: sources.map(source => asTurn(source.content)),
+          summaries: priorSummaries.map(({ tag, userRequest, actions, result }) => ({ tag, userRequest, actions, result })),
+        };
+
+    let summary;
+    try {
+      summary = await requestTurnSummary({
+        provider: input.provider,
+        repoRoot: input.repoRoot,
+        turn,
+        dataDir: input.dataDir,
+        conversationId: input.conversationId,
+        module: input.module,
+      });
+    } catch (error) {
+      if (input.isCancelled?.() || (error instanceof Error && /cancel/i.test(error.message))) throw error;
+      return stop(turnId);
+    }
+    check();
+
+    const level = priorSummaries.length ? Math.max(...priorSummaries.map(item => item.level)) + 1 : 1;
+    const record: CompressionRecord = {
+      id: allocateRecordId(input.dataDir, input.conversationId, "sum"),
+      module: input.module,
+      level,
+      ...summary,
+      sourceIds: [...priorSummaries.map(item => item.id), ...sources.map(source => source.id)],
+      createdAt: new Date().toISOString(),
+    };
+    index.entries.push(record);
+    if (priorSummaries.length) {
+      const replaced = new Set(priorSummaries.map(item => item.id));
       index.activeIds = [...new Set(index.activeIds.map(id => replaced.has(id) ? record.id : id))];
     } else index.activeIds.push(record.id);
     sources.forEach(source => covered.add(source.id));
+    index.coveredSourceIds = [...covered];
+    commitArchive(input.dataDir, input.conversationId, index, sources, [record]);
+    committedTurnIds.push(turnId);
+    input.onProgress?.({ type: "turn", completed: committedTurnIds.length, total, turnId });
   }
-  if (!added.length) return;
-  index.coveredSourceIds = [...covered];
-  check();
-  commitArchive(input.dataDir, input.conversationId, index, records, added);
+
+  return { status: committedTurnIds.length ? "completed" : "noop", committedTurnIds, totalTurns: total };
 }

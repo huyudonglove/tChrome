@@ -5,7 +5,7 @@ import { allocateRecordId } from "./ids.ts";
 import type { Ledger, Turn, Provider, ToolIOItem } from "../types.ts";
 import type { Memories } from "../memory/types.ts";
 import { archiveDir, loadIndex } from "../context-archive/store.ts";
-import { compressRecords } from "../agents/compression/index.ts";
+import { compressRecords, type CompressOutcome, type CompressProgress } from "../agents/compression/index.ts";
 import type { SourceRecord } from "../context-archive/types.ts";
 import type { QueryEvidence } from "../context/projections/queries.ts";
 import { compressedArchiveFields, loadModuleRegistry } from "../context/modules.ts";
@@ -82,7 +82,7 @@ export function contextState(dataDir: string, ledger: Ledger, turn: Turn, memori
   };
 }
 
-type CompressionInput = { dataDir: string; repoRoot: string; provider: Provider; ledger: Ledger; turn: Turn; memories: Memories; isCancelled: () => boolean; onStart?: () => void };
+type CompressionInput = { dataDir: string; repoRoot: string; provider: Provider; ledger: Ledger; turn: Turn; memories: Memories; isCancelled: () => boolean; onStart?: () => void; onProgress?: (event: CompressProgress) => void };
 
 type Coverage = ReturnType<typeof sourceCoverage>;
 
@@ -148,8 +148,8 @@ function archiveContentFromInventory(
   return content;
 }
 
-/** Called only inside the single 200K send-boundary flow, never at turn completion. */
-export async function compressContext(input: CompressionInput, phase: "history" | "current" = "history") {
+/** Called only inside the 200K send-boundary flow; sequential per-turn commits, never at turn completion. */
+export async function compressContext(input: CompressionInput, phase: "history" | "current" = "history"): Promise<CompressOutcome> {
   if (input.isCancelled()) throw new Error("compression_cancelled");
   const { ledger, turn, memories, dataDir, repoRoot } = input;
   const index = loadIndex(dataDir, ledger.conversationId, HISTORY_MODULE);
@@ -211,7 +211,7 @@ export async function compressContext(input: CompressionInput, phase: "history" 
       } });
     }
   }
-  if (!records.length) return;
+  if (!records.length) return { status: "noop", committedTurnIds: [], totalTurns: 0 };
   input.onStart?.();
-  await compressRecords({ ...input, conversationId: ledger.conversationId, module: HISTORY_MODULE, records });
+  return await compressRecords({ ...input, conversationId: ledger.conversationId, module: HISTORY_MODULE, records });
 }

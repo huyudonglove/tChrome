@@ -340,10 +340,21 @@ export async function handleTurn(
         try {
           for (const phase of ["history", "current"] as const) {
             if (windowChars(messages[0]!.content, messages[1]!.content) < ledger.compressAt) break;
-            await compressContext({ ...deps, ledger, turn, memories, isCancelled: () => wasStopped(deps.dataDir, ledger.conversationId, turn.turnId), onStart: () => {
+            const outcome = await compressContext({ ...deps, ledger, turn, memories, isCancelled: () => wasStopped(deps.dataDir, ledger.conversationId, turn.turnId), onStart: () => {
               if (!compressionStarted) appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-start", turnId, data: { windowChars: initialChars } });
               compressionStarted = true;
               appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-phase", turnId, data: { phase } });
+            }, onProgress: (progress) => {
+              compressionStarted = true;
+              if (progress.type === "start") {
+                appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-progress", turnId, data: { completed: 0, total: progress.total } });
+                return;
+              }
+              if (progress.type === "turn") {
+                appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-progress", turnId, data: { completed: progress.completed, total: progress.total, turnId: progress.turnId } });
+                return;
+              }
+              appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-progress", turnId, data: { completed: progress.completed, total: progress.total, failedTurnId: progress.failedTurnId } });
             } }, phase);
             if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
           ledger.checklist = null;
@@ -351,6 +362,8 @@ export async function handleTurn(
         }
             state = contextState(deps.dataDir, ledger, turn, memories);
             messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries);
+            // Sequential compression: a failed turn keeps originals; this boundary stops compressing and still sends the main model.
+            if (outcome?.status === "stopped") break;
           }
           if (compressionStarted) appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress", turnId, data: { beforeChars: initialChars, afterChars: windowChars(messages[0]!.content, messages[1]!.content) } });
         } catch (error) {

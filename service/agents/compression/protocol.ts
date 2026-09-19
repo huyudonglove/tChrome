@@ -4,10 +4,11 @@ import { join } from "node:path";
 import Ajv from "ajv";
 import { compressionLog } from "./log.ts";
 import { compressionSystemFromModules } from "./context/loader.ts";
-import { unwrapStringArrayField } from "../../tools/arguments.ts";
 import type { ChatMessage, ChatTool, CompletionResult, Provider } from "../../types.ts";
+
 export type TurnSummary = { turnId: string; tag: string; userRequest: string; actions: string; result: string };
 export type CompressionTurn = { turnId: string; [field: string]: unknown };
+export type SubmittedTurnFields = { tag: string; actions: string; result: string };
 
 /** Format/schema failures go back to the model for self-repair; transport faults do not loop. */
 export const COMPRESSION_FORMAT_ATTEMPTS = 3;
@@ -23,6 +24,16 @@ function formatFault(response: CompletionResult, toolName: string): string | nul
   if (typeof call.id !== "string" || !call.id.trim()) return "missing valid call ID";
   if (call.name !== toolName) return `tool mismatch: expected ${toolName}, received ${call.name}`;
   return null;
+}
+
+export function userRequestFromTurn(turn: CompressionTurn): string {
+  const input = turn.userInput;
+  const raw = input && typeof input === "object" && "userInput" in input && typeof input.userInput === "string"
+    ? input.userInput.trim()
+    : "";
+  if (!raw) return "本轮未提供用户输入";
+  // Runtime fills userRequest from the turn's original input; keep a short excerpt so summaries can shrink the window.
+  return raw.length <= 200 ? raw : `${raw.slice(0, 200)}…`;
 }
 
 /** Layered compression System: context/modules.json + overview.md + system/*.md */
@@ -42,34 +53,36 @@ export function compressionTurnsFromUserMessage(content: string): CompressionTur
   return (JSON.parse((match?.[1] ?? normalized).trim()) as { turns: CompressionTurn[] }).turns;
 }
 
-export function compressionRepairInstruction(toolName: string, expectedIds: string[], fault: string): string {
-  const ids = JSON.stringify(expectedIds);
-  if (fault.startsWith("Compression turn coverage mismatch")) {
-    return `上一次 turnId 对不上。本批必须原样复制这些 turnId，一条不少也不多：${ids}。不要改写或缩短 ID。请修正后，在这一次回包里只调一次 ${toolName}，五个字段均为非空字符串。`;
+export function compressionRepairInstruction(toolName: string, turnId: string, fault: string): string {
+  if (fault.includes('"must be object"') || fault.includes("must be object")) {
+    return `上一次参数不是对象。只提交 {tag, actions, result} 三个非空字符串，不要包数组，也不要填 turnId。本轮是 ${turnId}。请修正后，在这一次回包里只调一次 ${toolName}。`;
   }
-  if (fault.includes("must be array")) {
-    return `上一次 summaries 不是数组。summaries 必须是对象数组，不是字符串。本批 turnId 必须是 ${ids}，一条不少也不多。请修正后，在这一次回包里只调一次 ${toolName}。`;
-  }
-  return `上一次 submitTurnSummaries 无效。请看 fault。summaries 是对象数组，turnId 必须是 ${ids}，五个字段均为非空字符串。请修正后，在这一次回包里只调一次 ${toolName}。`;
+  return `上一次 ${toolName} 无效。请看 fault。只提交 {tag, actions, result} 三个非空字符串。本轮是 ${turnId}，不要填 turnId。请修正后，在这一次回包里只调一次 ${toolName}。`;
 }
 
-export async function requestTurnSummaries(input: { provider: Provider; repoRoot: string; turns: CompressionTurn[]; dataDir: string; conversationId: string; module?: string }): Promise<TurnSummary[]> {
+/** One turn per request: sequential callers archive on success and stop the walk on failure. */
+export async function requestTurnSummary(input: {
+  provider: Provider;
+  repoRoot: string;
+  turn: CompressionTurn;
+  dataDir: string;
+  conversationId: string;
+  module?: string;
+}): Promise<TurnSummary> {
   const log = compressionLog(input.dataDir, input.conversationId);
   const append = (stage: string, data: unknown) => {
-    // Diagnostic storage must never hide a provider or validation failure.
     try { log.append(stage, data); } catch {}
   };
-  append("start", { conversationId: input.conversationId, module: input.module, turnIds: input.turns.map(turn => turn.turnId) });
+  append("start", { conversationId: input.conversationId, module: input.module, turnId: input.turn.turnId });
   try {
-    const expectedIds = input.turns.map(turn => turn.turnId);
-    const expected = new Set(expectedIds);
-    if (!expected.size || expected.size !== input.turns.length) throw new Error("Invalid compression input turns");
+    const turnId = input.turn.turnId.trim();
+    if (!turnId) throw new Error("Invalid compression input turn");
     const system = compressionSystemPrompt(input.repoRoot);
     const tool = JSON.parse(readFileSync(join(input.repoRoot, "service/agents/compression/tools/submit-turn-summaries.json"), "utf8")) as ChatTool;
     const validate = new Ajv({ allErrors: true }).compile(tool.function.parameters);
     const baseMessages: ChatMessage[] = [
       { role: "system", content: system },
-      { role: "user", content: compressionUserPrompt(input.repoRoot, input.turns) },
+      { role: "user", content: compressionUserPrompt(input.repoRoot, [input.turn]) },
     ];
     let lastError = "";
     for (let attempt = 1; attempt <= COMPRESSION_FORMAT_ATTEMPTS; attempt++) {
@@ -82,7 +95,7 @@ export async function requestTurnSummaries(input: { provider: Provider; repoRoot
             attempt,
             maxAttempts: COMPRESSION_FORMAT_ATTEMPTS,
             fault: modelSpeech(lastError),
-            instruction: modelSpeech(compressionRepairInstruction(tool.function.name, expectedIds, lastError)),
+            instruction: modelSpeech(compressionRepairInstruction(tool.function.name, turnId, lastError)),
           }),
         },
       ];
@@ -101,27 +114,22 @@ export async function requestTurnSummaries(input: { provider: Provider; repoRoot
         continue;
       }
       const call = response.toolCalls[0]!;
-      unwrapStringArrayField(call.arguments, "summaries");
       if (!validate(call.arguments)) {
         lastError = `Compression submission schema failed: ${JSON.stringify(validate.errors)}`;
         append("validation-error", { attempt, errors: validate.errors });
         if (attempt === COMPRESSION_FORMAT_ATTEMPTS) throw new Error(lastError);
         continue;
       }
-      const values = (call.arguments as { summaries: TurnSummary[] }).summaries;
-      const byId = new Map(values.map(value => [value.turnId, value]));
-      if (values.length !== expected.size || byId.size !== expected.size || values.some(value => !expected.has(value.turnId))) {
-        lastError = `Compression turn coverage mismatch: expected ${JSON.stringify([...expected])}, received ${JSON.stringify(values.map(value => value.turnId))}`;
-        append("coverage-error", { attempt, detail: lastError });
-        if (attempt === COMPRESSION_FORMAT_ATTEMPTS) throw new Error(lastError);
-        continue;
-      }
-      const summaries = input.turns.map(({ turnId }) => {
-        const value = byId.get(turnId)!;
-        return { turnId, tag: value.tag.trim(), userRequest: value.userRequest.trim(), actions: value.actions.trim(), result: value.result.trim() };
-      });
-      append("complete", { attempt, summaries });
-      return summaries;
+      const value = call.arguments as SubmittedTurnFields;
+      const summary: TurnSummary = {
+        turnId,
+        tag: value.tag.trim(),
+        userRequest: userRequestFromTurn(input.turn),
+        actions: value.actions.trim(),
+        result: value.result.trim(),
+      };
+      append("complete", { attempt, summary });
+      return summary;
     }
     throw new Error(`Compression agent format failed after ${COMPRESSION_FORMAT_ATTEMPTS} attempts: ${lastError}`);
   } catch (error) {

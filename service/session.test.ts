@@ -39,16 +39,18 @@ test("session compression activity follows the active turn and clears after comp
   emit("compress-start", {}, "tn_old");
   expect(view().activity).toBeNull();
   emit("compress-start");
-  expect(view().activity).toEqual({ kind: "compressing", phase: null });
-  for (const phase of ["history", "current", "summaries"] as const) {
-    emit("compress-phase", { phase });
-    expect(view().activity).toEqual({ kind: "compressing", phase });
-  }
+  expect(view().activity).toEqual({ kind: "compressing", phase: null, completed: 0, total: null });
+  emit("compress-progress", { completed: 0, total: 5 });
+  expect(view().activity).toEqual({ kind: "compressing", phase: null, completed: 0, total: 5 });
+  emit("compress-phase", { phase: "history" });
+  emit("compress-progress", { completed: 2, total: 5, turnId: "tn_02" });
+  expect(view().activity).toEqual({ kind: "compressing", phase: "history", completed: 2, total: 5 });
   emit("compress", {}, "tn_old");
-  expect(view().activity?.phase).toBe("summaries");
+  expect(view().activity?.completed).toBe(2);
   emit("compress");
   expect(view().activity).toBeNull();
   emit("compress-start");
+  emit("compress-progress", { completed: 1, total: 2 });
   emit("compress-error");
   expect(view().activity).toBeNull();
   emit("compress-phase", { phase: "history" });

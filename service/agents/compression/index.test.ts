@@ -18,21 +18,31 @@ function model(observe?: (turns: CompressionTurn[]) => void, body = "核对成�
   return { async complete(input) {
     const turns = compressionTurnsFromUserMessage(input.messages[1]!.content);
     observe?.(turns);
-    return { finish: "tool_calls", content: "", toolCalls: [{ id: "summary", name: "submitTurnSummaries", arguments: { summaries: turns.map(({ turnId }) => ({ turnId, tag: "负责人／状态", userRequest: "保持状态", actions: "修改负责人", result: body })) } }], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] };
+    return { finish: "tool_calls", content: "", toolCalls: [{ id: "summary", name: "submitTurnSummaries", arguments: { tag: "负责人／状态", actions: "修改负责人", result: body } }], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] };
   } };
 }
-test("batches turns in one request and preserves independent immutable sources", async () => {
+test("sequential per-turn requests commit each success and keep independent immutable sources", async () => {
   const calls: CompressionTurn[][] = [];
   const args = setup(model(turns => calls.push(turns)));
   const records = [source("tn_01"), source("tn_02")];
-  await compressRecords({ ...args, records });
-  expect(calls).toHaveLength(1);
-  expect(calls[0]!.map(turn => turn.turnId)).toEqual(["tn_01", "tn_02"]);
+  const progress: unknown[] = [];
+  const outcome = await compressRecords({ ...args, records, onProgress: event => progress.push(event) });
+  expect(outcome).toEqual({ status: "completed", committedTurnIds: ["tn_01", "tn_02"], totalTurns: 2 });
+  expect(progress).toEqual([
+    { type: "start", total: 2 },
+    { type: "turn", completed: 1, total: 2, turnId: "tn_01" },
+    { type: "turn", completed: 2, total: 2, turnId: "tn_02" },
+  ]);
+  expect(calls).toHaveLength(2);
+  expect(calls[0]!.map(turn => turn.turnId)).toEqual(["tn_01"]);
+  expect(calls[1]!.map(turn => turn.turnId)).toEqual(["tn_02"]);
   const first = loadIndex(args.dataDir, args.conversationId, args.module);
   expect(first.entries.map(record => record.id)).toEqual(["sum_01", "sum_02"]);
-  expect(first.entries.map(record => record.sourceIds)).toEqual([["tn_01"], ["tn_02"]]);
-  await compressRecords({ ...args, records });
-  expect(calls).toHaveLength(1);
+  expect(first.entries.map(record => record.turnId)).toEqual(["tn_01", "tn_02"]);
+  expect(first.entries.map(record => record.userRequest)).toEqual(["保持状态，只改负责人", "保持状态，只改负责人"]);
+  const again = await compressRecords({ ...args, records });
+  expect(again.status).toBe("noop");
+  expect(calls).toHaveLength(2);
   expect(resolveSources(args.dataDir, args.conversationId, args.module, first.activeIds)).toEqual(records);
 });
 test("new segments consolidate only their own turn with exact source ancestry", async () => {
@@ -48,23 +58,34 @@ test("new segments consolidate only their own turn with exact source ancestry", 
   expect(next.entries[2]!.sourceIds).toEqual([initial.entries[0]!.id, "segment_2"]);
   expect(resolveSources(args.dataDir, args.conversationId, args.module, [next.entries[2]!.id])).toEqual([first, last]);
 });
-test("invalid turn coverage or cancellation never advances any coverage", async () => {
-  let calls = 0;
+test("failed turn stops sequence: prefix stays covered, later turns keep originals", async () => {
   const good = model();
   const args = setup({ async complete(input) {
-    calls++;
-    const response = await good.complete(input);
-    const submission = response.toolCalls[0]!;
-    const summaries = (submission.arguments as { summaries: unknown[] }).summaries;
-    return { ...response, toolCalls: [{ ...submission, arguments: { summaries: summaries.slice(0, 1) } }] };
+    const turns = compressionTurnsFromUserMessage(input.messages[1]!.content);
+    if (turns[0]!.turnId === "tn_02") {
+      return { finish: "tool_calls", content: "", toolCalls: [{ id: "summary", name: "submitTurnSummaries", arguments: { tag: "", actions: "a", result: "x" } }], attempts: 3, parseOk: true, schemaOk: false, faultCode: "schema_failed", missing: [] };
+    }
+    return good.complete(input);
   } });
-  await expect(compressRecords({ ...args, records: [source("tn_01", "one", "x".repeat(40000)), source("tn_02", "two", "x".repeat(40000))] })).rejects.toThrow("coverage mismatch");
-  expect(calls).toBe(3);
-  expect(readSource(args.dataDir, args.conversationId, args.module, "one")).toBeNull();
-  expect(loadIndex(args.dataDir, args.conversationId, args.module).entries).toEqual([]);
-  let cancelled = false;
-  await expect(compressRecords({ ...args, provider: model(() => { cancelled = true; }), records: [source("tn_01")], isCancelled: () => cancelled })).rejects.toThrow("cancelled");
+  const records = [source("tn_01", "one"), source("tn_02", "two")];
+  const progress: unknown[] = [];
+  const outcome = await compressRecords({ ...args, records, onProgress: event => progress.push(event) });
+  expect(outcome.status).toBe("stopped");
+  expect(outcome.committedTurnIds).toEqual(["tn_01"]);
+  expect(outcome.failedTurnId).toBe("tn_02");
+  expect(outcome.totalTurns).toBe(2);
+  expect(progress.at(-1)).toEqual({ type: "stopped", completed: 1, total: 2, failedTurnId: "tn_02" });
+  expect(readSource(args.dataDir, args.conversationId, args.module, "one")).toEqual(records[0]);
+  expect(readSource(args.dataDir, args.conversationId, args.module, "two")).toBeNull();
+  const index = loadIndex(args.dataDir, args.conversationId, args.module);
+  expect(index.coveredSourceIds).toEqual(["one"]);
+  expect(index.activeIds).toEqual(["sum_01"]);
+});
+test("cancellation before any success commits nothing", async () => {
+  const args = setup(model());
+  await expect(compressRecords({ ...args, records: [source("tn_01")], isCancelled: () => true })).rejects.toThrow("cancelled");
   expect(readSource(args.dataDir, args.conversationId, args.module, "tn_01")).toBeNull();
+  expect(loadIndex(args.dataDir, args.conversationId, args.module).entries).toEqual([]);
 });
 test("oversized string is sent whole in one request and archived unchanged", async () => {
   const calls: CompressionTurn[][] = [];

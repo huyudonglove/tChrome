@@ -15,7 +15,7 @@ type Message = { turnId?: string; role: "user" | "assistant" | "tool"; text: str
 type SessionView = {
   conversationId: string | null;
   status: string;
-  activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null } | null;
+  activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null; completed?: number; total?: number | null } | null;
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
   liveTool: { name: string; callId: string } | null;
   checklist: { title?: string; items: { text: string; status: string }[] } | null;
@@ -103,9 +103,13 @@ export function App() {
   const switching = useRef(false);
   const running = sending || session.status === "running";
   const compressing = session.status === "running" && session.activity?.kind === "compressing";
-  const compressionText = session.activity?.phase
+  const phaseText = session.activity?.phase
     ? { history: "正在压缩历史记录", current: "正在压缩当前轮记录", summaries: "正在压缩已有摘要" }[session.activity.phase]
     : "正在压缩上下文";
+  const progress = session.activity && typeof session.activity.total === "number" && session.activity.total > 0
+    ? ` ${session.activity.completed ?? 0}/${session.activity.total}`
+    : "";
+  const compressionText = `${phaseText}${progress}`;
 
   const loadAll = async () => {
     const generation = submission.current;
@@ -493,7 +497,7 @@ export function App() {
       {compressing && !serviceDown ? (
         <div className="compression-status" role="status" aria-live="polite">
           <strong>{compressionText}</strong>
-          <span>完成后自动继续，可随时停止。</span>
+          <span>按轮顺序压缩，完成后自动继续，可随时停止。</span>
         </div>
       ) : null}
       {session.checklist && session.checklist.items.length ? (

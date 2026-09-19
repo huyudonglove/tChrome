@@ -53,8 +53,9 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
       if (input.tools[0]?.function.name === "submitTurnSummaries") {
         compressed++; expect(input.messages[1]!.content).not.toContain(f.tool.return.text);
         expect(main).toBe(1);
-        expect(sessionView(dataDir, f.cv).activity).toEqual({ kind: "compressing", phase: "history" });
-        return reply([{ id: "summaries", name: "submitTurnSummaries", arguments: { summaries: compressionTurnsFromUserMessage(input.messages[1]!.content).map(turn => ({ turnId: turn.turnId, tag: "早期要求", userRequest: "早期要求", actions: "已处理", result: "已完成" })) } }]);
+        expect(sessionView(dataDir, f.cv).activity).toMatchObject({ kind: "compressing", phase: "history" });
+        expect(sessionView(dataDir, f.cv).activity?.total).toBeGreaterThan(0);
+        return reply([{ id: "summaries", name: "submitTurnSummaries", arguments: { tag: "早期要求", actions: "已处理", result: "已完成" } }]);
       }
       main++;
       if (main === 1) { expect(compressed).toBe(0); return queryCall(f.sumId); }
