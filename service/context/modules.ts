@@ -164,7 +164,19 @@ export function loadContextModules(root: string): ContextModules {
   return { overview, systemOrder, userOrder, systemSlots, userSlots };
 }
 
-export function systemTextFromModules(modules: ContextModules, currentDate: string, baseToolGuide = ""): string {
+export function hostOsLabel(platform = process.platform, arch = process.arch): string {
+  const name = platform === "darwin" ? "macOS" : platform === "win32" ? "Windows" : platform === "linux" ? "Linux" : platform;
+  return `${name} (${platform}/${arch})`;
+}
+
+export function systemTextFromModules(
+  modules: ContextModules,
+  currentDate: string,
+  baseToolGuide = "",
+  env: { cwd?: string; os?: string } = {},
+): string {
+  const cwd = env.cwd ?? process.cwd();
+  const os = env.os ?? hostOsLabel();
   const parts: string[] = [];
   for (const tag of modules.systemOrder) {
     const module = modules.systemSlots[tag]!;
@@ -175,7 +187,12 @@ export function systemTextFromModules(modules: ContextModules, currentDate: stri
         ? module.body.replaceAll("{{data}}", payload)
         : `${module.body}\n\n${payload}`)
       : module.body.replaceAll("{{data}}", "");
-    if (tag === "#overview") body = body.replaceAll("{{currentDate}}", currentDate);
+    if (tag === "#overview") {
+      body = body
+        .replaceAll("{{currentDate}}", currentDate)
+        .replaceAll("{{cwd}}", cwd)
+        .replaceAll("{{os}}", os);
+    }
     parts.push(`<${id}>\n能力：${module.capability}\n\n详细描述：\n${body}\n</${id}>`);
   }
   return parts.join("\n\n");

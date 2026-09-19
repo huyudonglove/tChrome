@@ -6,6 +6,7 @@ import type { ToolEffect, ToolExecution } from "./effects.ts";
 import type { BrowserHost, CurrentPage, ToolArguments } from "../types.ts";
 import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
 import { LOCAL_TOOL_NAMES, runLocalTool } from "./local-tools.ts";
+import { COMPOUND_TOOL_NAMES, runCompoundTool } from "./compound-tools.ts";
 import { listItems, saveItem, deleteItem } from "../library/store.ts";
 import { readScript } from "../scripts/store.ts";
 import { failedTool, normalizeToolExecution } from "./result.ts";
@@ -379,6 +380,14 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   }
   if ((SERVICE_TOOL_NAMES as readonly string[]).includes(name)) {
     return externalResult(await runServiceTool(dataDir, name, hostArgs(args), input.signal));
+  }
+  if ((COMPOUND_TOOL_NAMES as readonly string[]).includes(name)) {
+    if (!host) return failedTool(`${name} 没有浏览器桥`, "browser_unavailable");
+    const compoundArgs = hostArgs(input.arguments);
+    if ((compoundArgs.tabId === undefined || compoundArgs.tabId === null) && Number.isInteger(input.defaultTabId) && input.defaultTabId! >= 0) {
+      compoundArgs.tabId = input.defaultTabId;
+    }
+    return externalResult(await runCompoundTool(name, compoundArgs, host));
   }
   if (browserNames.includes(name)) {
     if (!host) return failedTool(`${name} 没有浏览器桥`, "browser_unavailable");

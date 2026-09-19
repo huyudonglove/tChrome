@@ -1,0 +1,23 @@
+{
+  "type": "function",
+  "function": {
+    "name": "page.fill_role",
+    "description": "复合：A11y 定位（role±name）→ 输入 text。一次 tool_call 完成定位+填写。\n参数：必填 tabId、role、text；可选 name、matchIndex、clearBeforeType、pressEnter。\n多匹配且未给 matchIndex 时返回 ambiguous_target，不自动选第一个。返回：ok、id、value。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": true },
+        "tabId": { "type": "integer", "description": "目标标签编号" },
+        "role": { "type": "string", "description": "可访问角色，例如 textbox / combobox / searchbox" },
+        "name": { "type": "string", "description": "可访问名子串" },
+        "matchIndex": { "type": "integer", "minimum": 0, "description": "多匹配时必填，0 起" },
+        "text": { "type": "string", "description": "要写入的文本" },
+        "clearBeforeType": { "type": "boolean", "description": "输入前清空控件" },
+        "pressEnter": { "type": "boolean", "description": "输入后按 Enter" }
+      },
+      "required": ["reason", "affectsPage", "tabId", "role", "text"],
+      "additionalProperties": false
+    }
+  }
+}

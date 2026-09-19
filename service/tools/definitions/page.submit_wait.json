@@ -1,0 +1,21 @@
+{
+  "type": "function",
+  "function": {
+    "name": "page.submit_wait",
+    "description": "复合：按元素 id 点击提交，并等待匹配网络响应（urlContains）。用于表单提交等「点击后要等接口」的链路，一次 tool_call 完成。\n参数：必填 tabId、id（page.* e_ 编号）、urlContains；可选 status、ms。\n点击失败则不把 wait 结果当作成功。返回：ok、id、clicked、wait{ok,url,status}。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": true },
+        "tabId": { "type": "integer", "description": "目标标签编号" },
+        "id": { "type": "string", "description": "page.* 返回的 e_ 编号（提交按钮）" },
+        "urlContains": { "type": "string", "description": "要等待的响应 URL 子串，例如 /api/save" },
+        "status": { "type": "integer", "description": "可选 HTTP 状态码" },
+        "ms": { "type": "integer", "description": "等待超时毫秒" }
+      },
+      "required": ["reason", "affectsPage", "tabId", "id", "urlContains"],
+      "additionalProperties": false
+    }
+  }
+}

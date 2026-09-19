@@ -11,8 +11,13 @@ import { paths } from "../runtime/store.ts";
 
 const jsonBody = (value: unknown) => JSON.stringify(value, null, 2);
 
-export function systemText(contextModules: ContextModules, currentDate: string, baseToolGuide = ""): string {
-  return systemTextFromModules(contextModules, currentDate, baseToolGuide);
+export function systemText(
+  contextModules: ContextModules,
+  currentDate: string,
+  baseToolGuide = "",
+  env: { cwd?: string; os?: string } = {},
+): string {
+  return systemTextFromModules(contextModules, currentDate, baseToolGuide, env);
 }
 
 export function userText(input: {

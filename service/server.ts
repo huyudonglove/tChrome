@@ -10,6 +10,7 @@ import { executorVersion, executorMismatchMessage } from "./executor-version.ts"
 import { abortAllLocalProcesses } from "./tools/local-process.ts";
 import { cancelAllExecutions } from "./runtime/execution.ts";
 import { listItems, saveItem, deleteItem, LibraryError } from "./library/store.ts";
+import { readWidgetPage, saveWidgetHtml } from "./widgets/store.ts";
 
 const loadEnv = () => {
   const envPath = join(import.meta.dir, ".env");
@@ -103,6 +104,14 @@ export function createServer(options: ServeOptions = {}) {
     fetch: async (request: Request) => {
       const url = new URL(request.url);
       const origin = request.headers.get("origin");
+      // Widget pages are public on localhost so extension iframes can load them
+      // as normal web documents (own JS context, not extension CSP).
+      if (request.method === "GET" && url.pathname.startsWith("/widget/")) {
+        const id = url.pathname.slice("/widget/".length);
+        const page = readWidgetPage(dataDir, id);
+        if (!page) return new Response("widget not found", { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
+        return new Response(page, { status: 200, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+      }
       // Check before routing: omitting CORS headers alone cannot prevent writes.
       if (!["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)
         || (origin !== null && !trustedOrigin(origin, url))
@@ -123,6 +132,14 @@ export function createServer(options: ServeOptions = {}) {
             "access-control-allow-headers": "content-type",
           },
         });
+      }
+      if (request.method === "POST" && url.pathname === "/widget") {
+        let body: { html?: unknown } | null = null;
+        try { body = await request.json() as { html?: unknown }; } catch { body = null; }
+        const html = typeof body?.html === "string" ? body.html : "";
+        const saved = saveWidgetHtml(dataDir, html);
+        if ("error" in saved) return respond(saved, 400);
+        return respond(saved);
       }
       if (request.method === "GET" && url.pathname === "/health") {
         return respond({ ok: true, extension: extensionView() });

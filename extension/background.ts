@@ -78,6 +78,15 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 // Recreate the alarm whenever the worker starts (alarms may be cleared on restart).
 chrome.alarms.create(PUMP_ALARM, { periodInMinutes: 0.5 });
+
+// Side panel cannot reliably navigate itself; open reply links in a normal tab.
+chrome.runtime.onMessage.addListener((message: unknown) => {
+  const msg = message as { type?: string; url?: string } | null;
+  if (msg?.type !== "tchrome.open-url" || typeof msg.url !== "string") return;
+  const url = msg.url.trim();
+  if (!/^(?:https?|file):/i.test(url)) return;
+  void chrome.tabs.create({ url });
+});
 tick();
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });

@@ -9,6 +9,7 @@
     "storage",
     "alarms",
     "tabs",
+    "windows",
     "scripting",
     "activeTab",
     "cookies",

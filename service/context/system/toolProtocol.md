@@ -14,6 +14,8 @@ affectsPage 表示是否改变浏览器页面状态：点击、输入、导航�
 
 脚本先用 script_patch 保存，收到保存成功的结果后，再提交执行调用。script_patch 不能与 execute_javascript、local.run 或 local.process_start 放在同一批。
 
+高频浏览器链路优先用复合工具，减少往返：page.click_role（role±name 定位后点击，可选 waitText/waitUrlContains）、page.fill_role（定位后输入）、page.submit_wait（按 id 提交并 wait_response）、page.select_role（定位下拉后选择）、page.click_text（按可见文字定位后点击）、page.fill_submit（fields 逐项填写后提交，可选等待）。多匹配时必须给 matchIndex 或收窄 name，工具不会默认取第一个。
+
 Sample（page.get_summary 的 arguments，仅示例）：
 
     {

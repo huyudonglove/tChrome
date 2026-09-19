@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { renderMarkdown } from "./markdown";
-import { DOWN, requestJSON, errorText } from "./service";
+import { DOWN, requestJSON, errorText, SERVICE } from "./service";
 import { shouldSubmitOnEnter, stopCurrentSession } from "./interactions";
 import { LibraryPanel } from "./LibraryPanel";
 
@@ -68,7 +68,94 @@ const Avatar = ({ who }: { who: "user" | "assistant" }) => (
 const MdContent = ({ text }: { text: string }) => {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (ref.current) ref.current.innerHTML = renderMarkdown(text);
+    const el = ref.current;
+    if (!el) return;
+    let cancelled = false;
+    el.innerHTML = renderMarkdown(text);
+    const mountWidgets = async () => {
+      const nodes = [...el.querySelectorAll("tchrome-widget")];
+      for (const node of nodes) {
+        const html = (node as HTMLElement).innerHTML || node.textContent || "";
+        if (!html.trim()) continue;
+        try {
+          const saved = await requestJSON<{ id?: string; error?: string }>("/widget", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ html }),
+          });
+          if (cancelled || !saved?.id) continue;
+          const iframe = document.createElement("iframe");
+          iframe.src = `${SERVICE}/widget/${saved.id}`;
+          iframe.title = "tchrome-widget";
+          iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-modals");
+          iframe.style.cssText = "width:100%;min-height:300px;border:1px solid var(--line);border-radius:12px;background:#141422;margin:8px 0;";
+          node.replaceWith(iframe);
+        } catch {
+          /* keep original node if service is down */
+        }
+      }
+    };
+    void mountWidgets();
+    const onClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target?.closest) return;
+      const button = target.closest(
+        "button[data-open-url],button[data-href],button[data-copy],button[data-action],[role=button][data-open-url],[role=button][data-href],[role=button][data-copy],[role=button][data-action]",
+      ) as HTMLElement | null;
+      if (button) {
+        event.preventDefault();
+        const open = button.getAttribute("data-open-url") || button.getAttribute("data-href");
+        const copy = button.getAttribute("data-copy");
+        const action = button.getAttribute("data-action");
+        if (open) {
+          chrome.runtime?.sendMessage?.({ type: "tchrome.open-url", url: open.trim() });
+          return;
+        }
+        if (copy !== null) {
+          void navigator.clipboard?.writeText(copy);
+          return;
+        }
+        if (action) {
+          const targetId = button.getAttribute("data-target");
+          const targetEl = targetId ? el.querySelector(`[id="${targetId}"]`) : null;
+          if (action === "pick") {
+            const items = (button.getAttribute("data-items") || "").split("|").map(s => s.trim()).filter(Boolean);
+            if (items.length && targetEl) {
+              targetEl.textContent = items[Math.floor(Math.random() * items.length)];
+              button.style.transform = "scale(0.96)";
+              window.setTimeout(() => { button.style.transform = ""; }, 80);
+            }
+            return;
+          }
+          if (action === "count" && targetEl) {
+            const n = Number.parseInt(targetEl.textContent || "0", 10);
+            targetEl.textContent = String((Number.isFinite(n) ? n : 0) + 1);
+            button.style.transform = "scale(0.96)";
+            window.setTimeout(() => { button.style.transform = ""; }, 80);
+            return;
+          }
+          if (action === "set" && targetEl) {
+            targetEl.textContent = button.getAttribute("data-value") ?? "";
+            return;
+          }
+        }
+      }
+      const anchor = target.closest("a[href]") as HTMLAnchorElement | null;
+      const href = anchor?.getAttribute("href")?.trim();
+      if (!href || href.startsWith("#")) return;
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        chrome.runtime?.sendMessage?.({ type: "tchrome.open-url", url: href });
+      } catch {
+        /* extension context may be reloading */
+      }
+    };
+    el.addEventListener("click", onClick);
+    return () => {
+      cancelled = true;
+      el.removeEventListener("click", onClick);
+    };
   }, [text]);
   return <div className="message-content" ref={ref} />;
 };
