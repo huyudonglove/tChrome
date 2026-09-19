@@ -915,6 +915,10 @@
         "text": {
           "type": "string"
         },
+        "summary": {
+          "type": "string",
+          "description": "kind=reply 时的收口汇总；Agent 材料只带 summary，不带完整 text。"
+        },
         "question": {
           "type": "string"
         },

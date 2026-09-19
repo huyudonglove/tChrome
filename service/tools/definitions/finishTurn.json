@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "finishTurn",
-    "description": "结束本轮对话。已能回答用户或需要说明无法继续时，先根据已返回的结果确认完成情况再调用。\n参数：必填 text：向用户展示的完整最终回复；必填 summary：对 text 的汇总精简，供后续 Agent 上下文与压缩链路使用（保留结论、数字、限制与待办，后续应能据此准确答复用户）。\n返回：summary（不是完整 text）并结束本轮；回复不依赖 content。完整 text 只给用户与 trace，不回传模型。",
+    "description": "结束本轮对话。已能回答用户或需要说明无法继续时，先根据已返回的结果确认完成情况再调用。\n参数：必填 text：向用户展示的完整最终回复；必填 summary：对 text 的汇总精简，骨架必须与 text 一致（text 若是 1/2/3 分点或分节，summary 也按同样的 1/2/3 分点或分节压缩，不得合并成一段）。\n返回：summary（不是完整 text）并结束本轮；回复不依赖 content。完整 text 只给用户与 trace，不回传模型。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -16,7 +16,7 @@
           "type": "string",
           "minLength": 1,
           "pattern": "\\S",
-          "description": "对 text 的汇总精简：保留结论、关键数字、限制与待办，使后续轮次无需完整 text 也能准确答复用户。禁止只写关键词式空壳。"
+          "description": "对 text 的汇总精简。骨架与 text 对齐：text 有 1/2/3 分点或分节时，summary 保持相同分点/分节顺序与结构，只压缩各点措辞；禁止把多点合并成一段。保留结论、关键数字、限制与待办。"
         },
         "reason": {
           "type": "string",

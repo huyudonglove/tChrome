@@ -31,6 +31,6 @@
     { "id": "currentQuery", "role": "user", "order": 16, "file": "user/currentQuery.md", "consumers": ["main"], "compress": false, "description": "Current Query" },
     { "id": "tools", "role": "user", "order": 17, "file": "user/tools.md", "consumers": ["main"], "compress": false, "description": "Loaded Tools" },
 
-    { "id": "turnOutput", "role": "archive", "order": 1, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "output", "coverage": "settledTurnOnly", "description": "Turn closing output", "inputSemantics": "对象或 null。`{kind:\"reply\", text}` 中的 text 为收口 summary（完整用户回复仅在 trace）；`{kind:\"ask\", question}` / `{kind:\"error\", faultCode, causeCode?, toolName?, detail?}` / `{kind:\"tool\", name, callId}`。null 表示暂无收尾。" }
+    { "id": "turnOutput", "role": "archive", "order": 1, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "output", "coverage": "settledTurnOnly", "description": "Turn closing output", "inputSemantics": "对象或 null。`{kind:\"reply\", summary}` 为收口汇总（字段名固定为 summary，不写入 text；summary 骨架与 text 对齐，不合并分点）；`{kind:\"ask\", question}` / `{kind:\"error\", faultCode, causeCode?, toolName?, detail?}` / `{kind:\"tool\", name, callId}`。null 表示暂无收尾。" }
   ]
 }

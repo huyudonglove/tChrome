@@ -20,7 +20,8 @@ test("turn process joins existing records without mixing turns or mutable memory
  expect(record.goalChanges[0]!.status).toBe("active");
  expect(record.pageObservations).toEqual(first.assembled.pageObservedHistory);
  expect(record.userInput.id).toBe(first.input.id);
- expect(record.output).toEqual({ kind: "reply", text: "已修改并核对" });
+ expect(record.output).toEqual({ kind: "reply", summary: "已修改并核对" });
+ expect(record.output).not.toHaveProperty("text");
  expect(record).not.toHaveProperty("notes");expect(record).not.toHaveProperty("memory");
  record.toolIO[0]!.return.text="修改投影";
  expect(JSON.stringify({ledger,first})).toBe(snapshot);

@@ -47,7 +47,8 @@ test("whole-turn grouping removes covered module increments, retaining current s
       const source = oneTurnOf(input.messages);
       expect(source.turnId).toBe(`tn_0${calls}`);
       expect(source.memoryWrites[0].turnId).toBe(source.turnId);
-      expect(source.output.text).toBe(`完成${source.turnId}`);
+      expect((source.output as { summary?: string }).summary).toBe(`完成${source.turnId}`);
+      expect(source.output).not.toHaveProperty("text");
       return summaryResponse(input.messages);
     } };
     const before = JSON.stringify({ ledger, current, memories });
@@ -158,7 +159,8 @@ test("segmented turn later closes into one active summary without rearchiving co
     const sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
     const tail = sources.find(row => row.id === "src_02")!.content as { toolIO: unknown[]; memoryWrites: unknown[]; goalChanges: unknown[]; output: unknown };
     expect(tail.toolIO).toHaveLength(2); expect(tail.goalChanges).toEqual([]); expect(tail.memoryWrites).toEqual([]);
-    expect(tail.output).toEqual({ kind: "reply", text: first.output.kind === "reply" ? first.output.summary : "" });
+    expect(tail.output).toEqual({ kind: "reply", summary: first.output.kind === "reply" ? first.output.summary : "" });
+    expect(tail.output).not.toHaveProperty("text");
     expect((sources[0]!.content as { segment: { complete: boolean } }).segment.complete).toBe(false);
     expect(contextState(dataDir, ledger, current, memories).ledger.goals).toEqual(ledger.goals);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }

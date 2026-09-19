@@ -10,7 +10,7 @@
 | --- | --- |
 | tag | 便于检索的主题（对象/事件/约束） |
 | actions | 实际执行的关键步骤、修正与失败，串联成一段；区分计划与已执行 |
-| result | 已验证结果、最终回复摘要（材料里 output.text 已是收口 summary）、错误或等待状态；保留证据差异 |
+| result | 已验证结果、最终回复摘要（材料里 output.summary，字段名固定为 summary，不是 text；summary 骨架与 text 对齐）、错误或等待状态；保留证据差异 |
 
 userRequest 不由我提交；Runtime 会从本轮用户原话写入摘要。
 

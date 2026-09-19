@@ -34,7 +34,8 @@ const projectors: Record<string, (ctx: ProjectContext) => unknown> = {
   queryHistory: ({ ledger, turn }) => ledger.queryHistory.filter(item => item.turnId === turn.turnId),
   output: ({ turn }) => {
     const out = turn.output;
-    if (out && out.kind === "reply") return { kind: "reply", text: out.summary };
+    // Agent-facing archive uses field name summary only; never copy summary into text.
+    if (out && out.kind === "reply") return { kind: "reply", summary: out.summary };
     return out;
   },
 };

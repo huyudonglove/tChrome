@@ -112,7 +112,7 @@ function archiveContentFromInventory(
       continue;
     }
     if (field === "output") {
-      // Projectors already map reply → {kind:"reply", text:summary} for agent-facing archive.
+      // Agent-facing archive: reply uses field name summary only; never rewrite text to hold summary.
       content[field] = options.complete ? history.output : null;
       continue;
     }
