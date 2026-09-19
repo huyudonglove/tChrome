@@ -10,7 +10,7 @@ import type { CompletionResult, Provider } from "../types.ts";
 const repoRoot = join(import.meta.dir, "../..");
 const completed: CompletionResult = { finish: "tool_calls", content: "", attempts: 1, parseOk: true,
   schemaOk: true, faultCode: null, missing: [], toolCalls: [{ id: "finish", name: "finishTurn",
-    arguments: { reason: "完成", affectsPage: false, text: "结果" } }] };
+    arguments: { reason: "完成", affectsPage: false, text: "结果", summary: "结果"} }] };
 
 test("deleting a running conversation cannot reuse its identity or overwrite its replacement", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-lifecycle-"));
@@ -27,7 +27,7 @@ test("deleting a running conversation cannot reuse its identity or overwrite its
     expect(loadLedger(dataDir, "cv_02").status).toBe("running");
     expect(loadTurn(dataDir, "cv_02", "tn_01").input.text).toBe("NEW");
     releases[1]!(completed);
-    expect((await next).output).toEqual({ kind: "reply", text: "结果" });
+    expect((await next).output).toEqual({ kind: "reply", text: "结果", summary: "结果" });
     expect(newConversation(dataDir).conversationId).toBe("cv_03");
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
@@ -64,7 +64,7 @@ test("loop scopes bridge requests so stopping a queued conversation leaves the a
     expect((await second).output).toEqual({ kind: "error", faultCode: "stopped" });
     expect(bridge.current()!.id).toBe(activeId);
     bridge.resolve(activeId, { ok: true });
-    expect((await first).output).toEqual({ kind: "reply", text: "结果" });
+    expect((await first).output).toEqual({ kind: "reply", text: "结果", summary: "结果" });
     expect(loadLedger(dataDir, "cv_01").status).toBe("idle");
     expect(loadLedger(dataDir, "cv_02").status).toBe("paused");
   } finally { bridge.abort(); rmSync(dataDir, { recursive: true, force: true }); }

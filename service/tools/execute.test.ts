@@ -31,14 +31,15 @@ test("library tool persists and manages the same cross-conversation items as the
 });
 
 test("closing tools use their explicit message arguments", async () => {
-  expect(await run("finishTurn", { text: " 新回复 " })).toBe("新回复");
+  expect(await run("finishTurn", { text: " 新回复 ", summary: " 新摘要 " })).toBe("新摘要");
   expect(await run("askUser", { question: " 新问题 ", choice: ["是", "否"] })).toBe("新问题\n选项：是 / 否");
 });
 
 test.each([undefined, "", "  ", 42, null])("invalid closing text %j cannot end or pause a turn", async (value) => {
   for (const [name, field] of [["finishTurn", "text"], ["askUser", "question"]] as const) {
+    const args = name === "finishTurn" ? { text: value, summary: "摘要" } : { question: value, choice: ["是", "否"] };
     const execution = await executeTool({
-      name, arguments: { [field]: value, choice: ["是", "否"] }, dataDir: "", browserNames: [],
+      name, arguments: args, dataDir: "", browserNames: [],
       lookup: { unusedTools: [], knownTools: [], enabledTools: [] },
     });
     expect(execution.text).toContain(name === "finishTurn" ? "finishTurn 的回复为空" : "askUser 的问题为空");
@@ -46,17 +47,39 @@ test.each([undefined, "", "  ", 42, null])("invalid closing text %j cannot end o
   }
 });
 
-test.each([{ name: "finishTurn", field: "text" }, { name: "askUser", field: "question" }])(
-  "$name schema requires a nonblank user-facing message", ({ name, field }) => {
-    const tool = JSON.parse(readFileSync(new URL(`./definitions/${name}.json`, import.meta.url), "utf8")) as ChatTool;
-    const check = (args: ExecuteInput["arguments"]) => checkToolCalls([
-      { id: "closing", name, arguments: { reason: "完成当前步骤", affectsPage: false, choice: [], ...args } },
-    ], [tool], [name], []);
-    expect(check({}).faultCode).toBe("missing_required");
-    for (const value of ["", " \n\t "]) expect(check({ [field]: value }).schemaOk).toBe(false);
-    expect(check({ [field]: "有效正文" }).schemaOk).toBe(true);
-  },
-);
+test.each([undefined, "", "  ", 42, null])("invalid finishTurn summary %j cannot end the turn", async (value) => {
+  const execution = await executeTool({
+    name: "finishTurn", arguments: { text: "完整回复", summary: value }, dataDir: "", browserNames: [],
+    lookup: { unusedTools: [], knownTools: [], enabledTools: [] },
+  });
+  expect(execution.text).toContain("summary 为空");
+  expect(execution.effects).toEqual([{ type: "queue.clear" }]);
+});
+
+test("finishTurn schema requires nonblank text and summary", () => {
+  const tool = JSON.parse(readFileSync(new URL(`./definitions/finishTurn.json`, import.meta.url), "utf8")) as ChatTool;
+  const check = (args: ExecuteInput["arguments"]) => checkToolCalls([
+    { id: "closing", name: "finishTurn", arguments: { reason: "完成当前步骤", affectsPage: false, ...args } },
+  ], [tool], ["finishTurn"], []);
+  expect(check({}).faultCode).toBe("missing_required");
+  expect(check({ text: "有效正文" }).faultCode).toBe("missing_required");
+  expect(check({ summary: "有效摘要" }).faultCode).toBe("missing_required");
+  expect(check({ text: "有效正文", summary: "有效摘要" }).schemaOk).toBe(true);
+  for (const value of ["", " \n\t "]) {
+    expect(check({ text: value, summary: "有效摘要" }).schemaOk).toBe(false);
+    expect(check({ text: "有效正文", summary: value }).schemaOk).toBe(false);
+  }
+});
+
+test("askUser schema requires a nonblank user-facing message", () => {
+  const tool = JSON.parse(readFileSync(new URL(`./definitions/askUser.json`, import.meta.url), "utf8")) as ChatTool;
+  const check = (args: ExecuteInput["arguments"]) => checkToolCalls([
+    { id: "closing", name: "askUser", arguments: { reason: "完成当前步骤", affectsPage: false, choice: [], ...args } },
+  ], [tool], ["askUser"], []);
+  expect(check({}).faultCode).toBe("missing_required");
+  for (const value of ["", " \n\t "]) expect(check({ question: value }).schemaOk).toBe(false);
+  expect(check({ question: "有效正文" }).schemaOk).toBe(true);
+});
 
 test("JavaScript values with a target tabId are recorded as page observations", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "script-execute-"));

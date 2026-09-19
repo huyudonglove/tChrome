@@ -129,7 +129,7 @@ test("标签快照走扩展桥；未连接时文字请求可继续，停止释�
   const server = createServer({dataDir: dir, repoRoot, provider: {complete: async input => {
     const tabs = input.messages[1]!.content.match(/<openTabs>\n[\s\S]*?\n\n内容：\n([\s\S]*?)\n<\/openTabs>/);
     snapshots.push(JSON.parse(tabs![1]!));
-    return {finish: "tool_calls", content: "", toolCalls: [{id: "reply", name: "finishTurn", arguments: {text: "完成"}}], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: []};
+    return {finish: "tool_calls", content: "", toolCalls: [{id: "reply", name: "finishTurn", arguments: {text: "完成", summary: "完成"}}], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: []};
   }}});
   const post = () => server.fetch(new Request(`${base}/turn`, {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({userInput: "你好", submittedAt: "now"})}));
   try {

@@ -99,11 +99,11 @@ test("真实 Provider 到 Runtime：多个坏调用留账，合法兄弟照跑",
       call("missing", "notes.write", '{"reason":"test","affectsPage":false}'),
       call("valid", "notes.write", '{"reason":"test","affectsPage":false,"key":"kept","value":"yes"}'),
       call("broken_2", "notes.write", "{broken"),
-    ]) : sse([call("done", "finishTurn", '{"reason":"done","affectsPage":false,"text":"完成"}')]);
+    ]) : sse([call("done", "finishTurn", '{"reason":"done","affectsPage":false,"text":"完成","summary":"完成"}')]);
   } });
   try {
     const result = await handleTurn({ dataDir: dir, repoRoot: resolve(import.meta.dir, "../.."), provider: providerFor(server.port!) }, { userInput: "测试", submittedAt: "2026-09-08T00:00:00.000Z" });
-    expect(result.output).toEqual({ kind: "reply", text: "完成" });
+    expect(result.output).toEqual({ kind: "reply", text: "完成", summary: "完成" });
     const ledger = loadLedger(dir, "cv_01");
     expect(ledger.notes.kept).toBe("yes");
     expect(ledger.toolIO.map((item) => item.callId)).toEqual(["call_03", "call_04", "call_01", "call_02", "call_05"]);
@@ -129,13 +129,13 @@ for (const policy of ["unknown_tool", "missing_required", "exclusive_resident"])
     const dir = mkdtempSync(join(tmpdir(), "tchrome-runtime-policy-"));
     let requests = 0;
     const valid = call("valid", "notes.write", JSON.stringify({ reason: "test", affectsPage: false, key: "kept", value: "yes" }));
-    const done = call("done", "finishTurn", JSON.stringify({ reason: "done", affectsPage: false, text: "完成" }));
+    const done = call("done", "finishTurn", JSON.stringify({ reason: "done", affectsPage: false, text: "完成", summary: "完成" }));
     const bad = policy === "exclusive_resident" ? done : call("invalid", policy === "unknown_tool" ? "not_registered" : "notes.write", "{}");
     const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => sse(++requests === 1 ? [bad, valid] : [done]) });
     try {
       const reply = await handleTurn({ dataDir: dir, repoRoot: resolve(import.meta.dir, "../.."), provider: providerFor(server.port!) },
         { userInput: "测试", submittedAt: "now" });
-      expect(reply.output).toEqual({ kind: "reply", text: "完成" });
+      expect(reply.output).toEqual({ kind: "reply", text: "完成", summary: "完成" });
       const ledger = loadLedger(dir, reply.conversationId);
       expect(ledger.notes.kept).toBe(policy === "exclusive_resident" ? undefined : "yes");
       expect(ledger.toolIO.some((row) => row.return.text.includes(policy))).toBe(true);

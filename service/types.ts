@@ -75,7 +75,7 @@ export type Assembled = {
 export type TurnOutput =
   | { kind: "tool"; name: string; callId: string }
   | { kind: "ask"; question: string }
-  | { kind: "reply"; text: string }
+  | { kind: "reply"; text: string; summary: string }
   | { kind: "error"; faultCode: string; causeCode?: string; toolName?: string; detail?: string };
 
 export type Turn = {

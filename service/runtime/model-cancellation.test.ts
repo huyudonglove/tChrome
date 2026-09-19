@@ -12,7 +12,7 @@ import { deleteConversation, ensureSession, listConversationIds, loadLedger, loa
 const repoRoot = join(import.meta.dir, "../..");
 const body = { userInput: "继续", submittedAt: "2026-09-12" };
 const completion = (toolCalls: CompletionResult["toolCalls"]): CompletionResult => ({ content: "", finish: "tool_calls", toolCalls, attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] });
-const finish = (text = "完成") => completion([{ id: "finish", name: "finishTurn", arguments: { reason: "已完成", affectsPage: false, text } }]);
+const finish = (text = "完成") => completion([{ id: "finish", name: "finishTurn", arguments: { reason: "已完成", affectsPage: false, text, summary: text } }]);
 const deferred = <T>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done; }); return { promise, resolve }; };
 async function within<T>(promise: Promise<T>): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;
@@ -28,7 +28,7 @@ function aborted(signal: AbortSignal | undefined): Promise<never> {
 }
 function seed(dataDir: string, large = false) {
   const { conversationId: cv } = ensureSession(dataDir), ledger = loadLedger(dataDir, cv);
-  const turns = Array.from({ length: 5 }, (_, i): Turn => ({ goalChanges: [], conversationId: cv, turnId: `tn_0${i + 1}`, status: "completed", createdAt: "2026-09-12", completedAt: "2026-09-12", input: { id: `input_0${i + 1}`, text: large ? "历史要求".repeat(12000) : `历史要求${i}`, submittedAt: "2026-09-12" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], openTabs: { ok: true, windows: [] }, currentPage: null, pageObservedHistory: [] }, output: { kind: "reply", text: "完成" } }));
+  const turns = Array.from({ length: 5 }, (_, i): Turn => ({ goalChanges: [], conversationId: cv, turnId: `tn_0${i + 1}`, status: "completed", createdAt: "2026-09-12", completedAt: "2026-09-12", input: { id: `input_0${i + 1}`, text: large ? "历史要求".repeat(12000) : `历史要求${i}`, submittedAt: "2026-09-12" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], openTabs: { ok: true, windows: [] }, currentPage: null, pageObservedHistory: [] }, output: { kind: "reply", text: "完成", summary: "完成" } }));
   ledger.turnIds = turns.map(turn => turn.turnId); ledger.userInputHistory = turns.slice(0, -1).map(inputRecord);
   turns.forEach(turn => saveTurn(dataDir, turn)); saveLedger(dataDir, ledger);
   return { cv, turns };
@@ -91,7 +91,7 @@ test("a replacement turn has its own signal and ignores a stopped provider's lat
     expect((await within(a)).output).toEqual({ kind: "error", faultCode: "stopped" });
     const b = await handleTurn({ dataDir, repoRoot, provider: { complete: async input => { signalB = input.signal; return finish("新轮结果"); } } }, body);
     expect(signalB).toBeInstanceOf(AbortSignal); expect(signalB).not.toBe(signalA); expect(signalA?.aborted).toBe(true);
-    expect(b.output).toEqual({ kind: "reply", text: "新轮结果" });
+    expect(b.output).toEqual({ kind: "reply", text: "新轮结果", summary: "新轮结果" });
     late.resolve(finish("旧轮迟到结果")); await Promise.resolve(); await Promise.resolve();
     expect(loadTurn(dataDir, b.conversationId, b.turnId).output).toEqual(b.output);
     expect(loadLedger(dataDir, b.conversationId).turnIds.at(-1)).toBe(b.turnId);
@@ -134,7 +134,7 @@ test("immediately restarting during cancelled compression allows the new turn to
     } } }, body);
     expect((await within(a)).output).toEqual({ kind: "error", faultCode: "stopped" });
     const reply = await within(b);
-    expect(reply.output).toEqual({ kind: "reply", text: "重启后完成" }); expect(compressed).toBeGreaterThan(0);
+    expect(reply.output).toEqual({ kind: "reply", text: "重启后完成", summary: "重启后完成" }); expect(compressed).toBeGreaterThan(0);
     expect(loadIndex(dataDir, cv, "conversationHistory").coveredSourceIds.length).toBeGreaterThan(0);
     late.resolve(finish("旧结果")); await Promise.resolve();
     expect(loadTurn(dataDir, cv, reply.turnId).output).toEqual(reply.output);

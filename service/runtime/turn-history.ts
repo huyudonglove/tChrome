@@ -32,7 +32,11 @@ const projectors: Record<string, (ctx: ProjectContext) => unknown> = {
   pageObservations: ({ turn }) => turn.assembled.pageObservedHistory.filter(item => item.turnId === turn.turnId),
   memoryWrites: ({ turn, memories }) => memories.conversation.filter(item => item.turnId === turn.turnId),
   queryHistory: ({ ledger, turn }) => ledger.queryHistory.filter(item => item.turnId === turn.turnId),
-  output: ({ turn }) => turn.output,
+  output: ({ turn }) => {
+    const out = turn.output;
+    if (out && out.kind === "reply") return { kind: "reply", text: out.summary };
+    return out;
+  },
 };
 
 const defaultRepoRoot = () => join(import.meta.dir, "../..");

@@ -30,9 +30,9 @@ test("script patch returns status to the model before filename execution reaches
           expect(messages[1]!.content).toContain('"operation": "created"');
           return response([call("execute_javascript", { filename: "demo.js", tabId: 12 })]);
         }
-        return response([call("finishTurn", { text: "完成" })]);
+        return response([call("finishTurn", { text: "完成", summary: "完成"})]);
       } } }, { userInput: "执行脚本", submittedAt: "now" });
-    expect(reply.output).toEqual({ kind: "reply", text: "完成" });
+    expect(reply.output).toEqual({ kind: "reply", text: "完成", summary: "完成" });
     expect(executions).toBe(1);
     const ledger = loadLedger(dataDir, reply.conversationId);
     expect(ledger.toolIO.find(row => row.name === "execute_javascript")!.arguments).toHaveProperty("filename", "demo.js");

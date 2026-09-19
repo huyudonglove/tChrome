@@ -122,13 +122,13 @@ test("closing effects persist lifecycle changes; empty replies request another i
   expect(fixture.apply(await fixture.execute("askUser", { question: "继续吗？", choice: ["是", "否"] })))
     .toEqual({ kind: "ask", question: "继续吗？\n选项：是 / 否" });
   expect(loadLedger(fixture.dataDir, fixture.ledger.conversationId).status).toBe("waiting_human");
-  expect(fixture.apply(await fixture.execute("finishTurn", { text: "已完成" }))).toEqual({ kind: "reply", text: "已完成" });
+  expect(fixture.apply(await fixture.execute("finishTurn", { text: "已完成", summary: "已完成"}))).toEqual({ kind: "reply", text: "已完成", summary: "已完成" });
   const saved = loadLedger(fixture.dataDir, fixture.ledger.conversationId);
   expect(saved.status).toBe("idle");
   expect(saved.active).toBeNull();
   expect(saved.pendingAsk).toBeNull();
   expect(saved.toolQueue).toEqual([]);
-  expect(loadTurn(fixture.dataDir, saved.conversationId, fixture.turn.turnId).output).toEqual({ kind: "reply", text: "已完成" });
+  expect(loadTurn(fixture.dataDir, saved.conversationId, fixture.turn.turnId).output).toEqual({ kind: "reply", text: "已完成", summary: "已完成" });
   const empty = await fixture.execute("finishTurn", {});
   expect(empty.effects).toEqual([{ type: "queue.clear" }]);
   expect(empty.text).toContain("finishTurn 的回复为空");

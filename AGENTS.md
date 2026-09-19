@@ -21,6 +21,6 @@
 
 - 所有已结束轮次可进入压缩；当前轮保留最近两个完整工具批次，较早批次可归档。没有新来源时不单独重压已有摘要，也不显示压缩活动。
 
-- 动态工具加载以会话为范围，跨 turn、重新打开与服务重启后保持；首次加载仍需下一次模型请求取得 schema。finishTurn 只要求非空 text，不自动补齐正文。script_patch 统一使用 git apply --recount 计算补丁块行数，不猜测修复结构或上下文。
+- 动态工具加载以会话为范围，跨 turn、重新打开与服务重启后保持；首次加载仍需下一次模型请求取得 schema。finishTurn 必填非空 text 与非空 summary，不自动补齐正文；text 只进侧栏与 trace，summary 进入 toolIO 投影与压缩 turns.output（骨架仍为 `{kind:"reply", text}`，其中 text 为 summary），不把完整 text 回传模型。script_patch 统一使用 git apply --recount 计算补丁块行数，不猜测修复结构或上下文。
 
 - skill 模块始终保留完整正文，不参与压缩，也不参与 250K 文件裁剪。

@@ -118,8 +118,11 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   }
   if (name === "finishTurn") {
     const text = typeof args.text === "string" ? args.text.trim() : "";
-    return text ? result(text, [{ type: "turn.reply", text }])
-      : { ...failedTool(errorMessage("empty_finish_turn", "model"), "empty_finish_turn"), effects: [{ type: "queue.clear" }] };
+    const summary = typeof args.summary === "string" ? args.summary.trim() : "";
+    if (!text) return { ...failedTool(errorMessage("empty_finish_turn", "model"), "empty_finish_turn"), effects: [{ type: "queue.clear" }] };
+    if (!summary) return { ...failedTool(errorMessage("empty_finish_summary", "model"), "empty_finish_summary"), effects: [{ type: "queue.clear" }] };
+    // Model-facing return is summary only; full text stays on the turn for panel/trace.
+    return result(summary, [{ type: "turn.reply", text, summary }]);
   }
   if (name === "askUser") {
     const text = typeof args.question === "string" ? args.question.trim() : "";

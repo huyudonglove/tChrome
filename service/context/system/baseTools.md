@@ -8,5 +8,5 @@
 
 Sample（工具清单格式，仅示例）：
 
-    - finishTurn：结束本轮对话。
+    - finishTurn：结束本轮对话（text 给用户，summary 进后续上下文）。
 </baseTools>

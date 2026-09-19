@@ -31,7 +31,7 @@ Sample（一次请求只含一个完整轮次的骨架，仅示例）：
           ],
           "memoryWrites": [],
           "queryHistory": [],
-          "output": { "kind": "reply", "text": "页面支持 CSV。" }
+          "output": { "kind": "reply", "text": "列表出现新记录，提交成功；无需回滚。" }
         }
       ]
     }

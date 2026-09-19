@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "finishTurn",
-    "description": "结束本轮对话。已能回答用户或需要说明无法继续时，先根据已返回的结果确认完成情况再调用。\n参数：必填 text：非空最终回复正文。\n返回：该正文并结束本轮；回复不依赖 content，不能只在 content 中写回复。",
+    "description": "结束本轮对话。已能回答用户或需要说明无法继续时，先根据已返回的结果确认完成情况再调用。\n参数：必填 text：向用户展示的完整最终回复；必填 summary：对 text 的汇总精简，供后续 Agent 上下文与压缩链路使用（保留结论、数字、限制与待办，后续应能据此准确答复用户）。\n返回：summary（不是完整 text）并结束本轮；回复不依赖 content。完整 text 只给用户与 trace，不回传模型。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,11 +10,17 @@
           "type": "string",
           "minLength": 1,
           "pattern": "\\S",
-          "description": "向用户展示的最终回复正文，说明已确认的结果或具体阻碍。"
+          "description": "向用户展示的最终回复正文，说明已确认的结果或具体阻碍。只进侧栏与 trace，不回传后续模型请求。"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "对 text 的汇总精简：保留结论、关键数字、限制与待办，使后续轮次无需完整 text 也能准确答复用户。禁止只写关键词式空壳。"
         },
         "reason": {
           "type": "string",
-          "description": "可选的行动说明；最终回复只读取 text。"
+          "description": "可选的行动说明；最终回复只读取 text 与 summary。"
         },
         "affectsPage": {
           "type": "boolean",
@@ -23,7 +29,8 @@
         }
       },
       "required": [
-        "text"
+        "text",
+        "summary"
       ]
     }
   }

@@ -16,7 +16,7 @@ export type ToolEffect =
   | { type: "tab.context.set"; tabId: number }
   | { type: "tab.context.clear" }
   | { type: "turn.ask"; question: string }
-  | { type: "turn.reply"; text: string }
+  | { type: "turn.reply"; text: string; summary: string }
   | { type: "queue.clear" };
 
 export type ToolExecution = { text: string; effects: ToolEffect[] };
