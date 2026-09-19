@@ -130,11 +130,15 @@ test("finishTurn 收口回复", async () => {
   expect(providerLog[0]!.response.toolCalls[0]!.name).toBe("finishTurn");
   const transcript = readFileSync(join(dir, "conversations", "cv_01", "provider.md"), "utf8");
   expect(transcript).toContain(`## ${reply.turnId} / 1`);
-  expect(transcript).toContain("### system");
+  expect(transcript).not.toContain("### system");
   expect(transcript).toContain("### user");
   expect(transcript).toContain("你好");
   expect(transcript).toContain("### content");
   expect(transcript).toContain("finishTurn");
+  expect(providerLog[0]!.systemHash).toMatch(/^[0-9a-f]{16}$/);
+  const systemLog = readFileSync(join(dir, "conversations", "cv_01", "provider-system.md"), "utf8");
+  expect(systemLog).toContain(`## system ${providerLog[0]!.systemHash}`);
+  expect(systemLog).toContain("### system");
   rmSync(dir, { recursive: true, force: true });
 });
 

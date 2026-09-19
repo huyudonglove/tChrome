@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, appendFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, appendFileSync, renameSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { createHash } from "node:crypto";
 import type { Ledger, LogEvent, ChatMessage, ProviderExchange, Session, Turn } from "../types.ts";
 import { idPrefix, nextId, nowIso } from "./ids.ts";
 import { wrapCachedText } from "./cache-lines.ts";
@@ -36,6 +37,7 @@ export const paths = (dataDir: string, cvId?: string) => {
     ledger: join(conv, "ledger.json"),
     events: join(conv, "events.jsonl"),
     provider: join(conv, "provider.md"),
+    providerSystem: join(conv, "provider-system.md"),
     turns: join(conv, "turns"),
     returns: join(conv, "returns"),
   };
@@ -122,35 +124,100 @@ export function appendEvent(dataDir: string, cvId: string, event: Omit<LogEvent,
   const line: LogEvent = { at: event.at ?? nowIso(), kind: event.kind, turnId: event.turnId, data: event.data };
   const path = paths(dataDir, cvId).events;
   mkdirSync(dirname(path), { recursive: true });
-  appendFileSync(path, `${JSON.stringify(line)}\n`);
+  const payload = `${JSON.stringify(line)}\n`;
+  rotateLogIfNeeded(path, Buffer.byteLength(payload, "utf8"));
+  if (existsSync(path)) appendFileSync(path, payload);
+  else writeFileSync(path, payload);
 }
 
 export function loadEvents(dataDir: string, cvId: string): LogEvent[] {
-  const path = paths(dataDir, cvId).events;
-  if (!existsSync(path)) return [];
-  return readFileSync(path, "utf8")
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => JSON.parse(line) as LogEvent);
+  const conv = paths(dataDir, cvId).conv;
+  const active = paths(dataDir, cvId).events;
+  const archives = existsSync(conv)
+    ? readdirSync(conv)
+        .filter((name) => /^events\.\d+\.jsonl$/.test(name))
+        .sort()
+        .map((name) => join(conv, name))
+    : [];
+  const rows: LogEvent[] = [];
+  for (const path of [...archives, active]) {
+    if (!existsSync(path)) continue;
+    for (const line of readFileSync(path, "utf8").split("\n")) {
+      if (!line) continue;
+      rows.push(JSON.parse(line) as LogEvent);
+    }
+  }
+  return rows;
 }
 
 export function loadProviderLog(dataDir: string, cvId: string): ProviderExchange[] {
-  const path = paths(dataDir, cvId).provider;
-  if (!existsSync(path)) return [];
-  const text = readFileSync(path, "utf8");
+  const conv = paths(dataDir, cvId).conv;
+  const active = paths(dataDir, cvId).provider;
+  const archives = existsSync(conv)
+    ? readdirSync(conv)
+        .filter((name) => /^provider\.\d+\.md$/.test(name))
+        .sort()
+        .map((name) => join(conv, name))
+    : [];
   const rows: ProviderExchange[] = [];
-  for (const block of text.split(/\n(?=## )/)) {
-    const heading = block.match(/^## (tn_\S+) \/ (\d+)/);
-    if (!heading) continue;
-    const json = block.match(/```json\n([\s\S]*?)\n```/);
-    if (!json?.[1]) continue;
-    rows.push(JSON.parse(json[1]) as ProviderExchange);
+  for (const path of [...archives, active]) {
+    if (!existsSync(path)) continue;
+    const text = readFileSync(path, "utf8");
+    for (const block of text.split(/\n(?=## )/)) {
+      const heading = block.match(/^## (tn_\S+) \/ (\d+)/);
+      if (!heading) continue;
+      const json = block.match(/```json\n([\s\S]*?)\n```/);
+      if (!json?.[1]) continue;
+      rows.push(JSON.parse(json[1]) as ProviderExchange);
+    }
   }
   return rows;
 }
 
 const fence = (label: string, body: string) => `### ${label}\n\n\`\`\`\n${body}\n\`\`\`\n`;
 
+/** Shared cap for append-only conversation logs (provider.md, events.jsonl). */
+const LOG_ROTATE_BYTES = 3 * 1024 * 1024;
+
+/**
+ * Rotate the active log when size + incoming would exceed 3MB.
+ * Archives as `<stem>.NN.<ext>` (provider.01.md, events.01.jsonl); active path stays the write target.
+ */
+function rotateLogIfNeeded(activePath: string, incomingBytes: number): void {
+  if (!existsSync(activePath)) return;
+  if (statSync(activePath).size + incomingBytes <= LOG_ROTATE_BYTES) return;
+  const dir = dirname(activePath);
+  const file = activePath.slice(activePath.lastIndexOf("/") + 1);
+  const dot = file.lastIndexOf(".");
+  const stem = dot > 0 ? file.slice(0, dot) : file;
+  const ext = dot > 0 ? file.slice(dot) : "";
+  const archivePattern = new RegExp(`^${stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\.(\\d+)${ext.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
+  let max = 0;
+  for (const name of readdirSync(dir)) {
+    const match = name.match(archivePattern);
+    if (!match) continue;
+    const index = Number(match[1]);
+    if (Number.isFinite(index) && index > max) max = index;
+  }
+  renameSync(activePath, join(dir, `${stem}.${String(max + 1).padStart(2, "0")}${ext}`));
+}
+
+const systemContentHash = (text: string) => createHash("sha256").update(text).digest("hex").slice(0, 16);
+
+/** System text is large and mostly stable: store once per content hash, not on every exchange. */
+function ensureProviderSystemRecord(providerSystemPath: string, hash: string, systemText: string): void {
+  mkdirSync(dirname(providerSystemPath), { recursive: true });
+  const marker = `## system ${hash}`;
+  if (existsSync(providerSystemPath)) {
+    const existing = readFileSync(providerSystemPath, "utf8");
+    if (existing.includes(marker)) return;
+    appendFileSync(providerSystemPath, `\n${marker}\n\n${fence("system", systemText)}`);
+    return;
+  }
+  writeFileSync(providerSystemPath, `${marker}\n\n${fence("system", systemText)}`);
+}
+
+/** Exchange body: metadata + user window + model reply. System full text lives in provider-system.md. */
 const renderProviderExchange = (row: ProviderExchange, messages: ChatMessage[], content: string) => {
   const calls = row.response.toolCalls.map((call) => `${call.name} ${JSON.stringify(call.arguments)}`).join("\n") || "(none)";
   return [
@@ -160,7 +227,6 @@ const renderProviderExchange = (row: ProviderExchange, messages: ChatMessage[], 
     JSON.stringify(row, null, 2),
     "```",
     "",
-    fence("system", messages.find((item) => item.role === "system")?.content ?? ""),
     fence("user", messages.find((item) => item.role === "user")?.content ?? ""),
     ...(messages.some(item => item.images?.length) ? [fence("images", JSON.stringify(messages.flatMap(item => item.images ?? []), null, 2))] : []),
     fence("content", content),
@@ -171,21 +237,26 @@ const renderProviderExchange = (row: ProviderExchange, messages: ChatMessage[], 
 export function appendProviderExchange(
   dataDir: string,
   cvId: string,
-  exchange: Omit<ProviderExchange, "at" | "outbound"> & { at?: string; messages: ChatMessage[]; content: string },
+  exchange: Omit<ProviderExchange, "at" | "outbound" | "systemHash"> & { at?: string; messages: ChatMessage[]; content: string },
 ): ProviderExchange {
   const log = loadProviderLog(dataDir, cvId);
+  const systemText = exchange.messages.find((item) => item.role === "system")?.content ?? "";
+  const systemHash = systemContentHash(systemText);
   const row: ProviderExchange = {
     at: exchange.at ?? nowIso(),
     turnId: exchange.turnId,
     outbound: log.filter((item) => item.turnId === exchange.turnId).length + 1,
+    systemHash,
     request: exchange.request,
     response: exchange.response,
   };
-  const path = paths(dataDir, cvId).provider;
-  mkdirSync(dirname(path), { recursive: true });
+  const file = paths(dataDir, cvId);
+  mkdirSync(dirname(file.provider), { recursive: true });
+  ensureProviderSystemRecord(file.providerSystem, systemHash, systemText);
   const chunk = `${renderProviderExchange(row, exchange.messages, exchange.content)}\n`;
-  if (existsSync(path)) appendFileSync(path, `\n${chunk}`);
-  else writeFileSync(path, chunk);
+  rotateLogIfNeeded(file.provider, Buffer.byteLength(chunk, "utf8"));
+  if (existsSync(file.provider)) appendFileSync(file.provider, `\n${chunk}`);
+  else writeFileSync(file.provider, chunk);
   return row;
 }
 

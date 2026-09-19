@@ -189,6 +189,8 @@ export type ProviderExchange = {
   at: string;
   turnId: string;
   outbound: number;
+  /** Content hash of the system window used for this exchange; full text lives in provider-system.md. */
+  systemHash?: string;
   request: {
     toolIds: string[];
   };

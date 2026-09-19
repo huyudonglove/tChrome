@@ -58,7 +58,10 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 session.json
 conversations/<cvId>/ledger.json
 conversations/<cvId>/events.jsonl
+conversations/<cvId>/events.NN.jsonl
 conversations/<cvId>/provider.md
+conversations/<cvId>/provider.NN.md
+conversations/<cvId>/provider-system.md
 conversations/<cvId>/turns/<turnId>.json
 conversations/<cvId>/memory/<memoryId>.json
 conversations/<cvId>/context-records/<kind>/<id>.json
@@ -75,7 +78,7 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。`returns/<ca
 
 ## events.jsonl
 
-每次数据产生追加一行，不覆盖。一行一个 JSON 对象。
+每次数据产生追加一行，不覆盖。一行一个 JSON 对象。单文件超过 3MB 时，先改名为 `events.NN.jsonl`（NN 自增），再开新的 `events.jsonl`。`loadEvents` 按 `events.01.jsonl`…再到 `events.jsonl` 的顺序读取全部行。
 
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
@@ -94,21 +97,24 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。`returns/<ca
 `kind=turn-output` 的 `data`：`output`。
 `kind=session` 的 `data`：`conversationId`，可选 `action`=`new`/`open`。
 
-## provider.md
+## provider.md / provider-system.md
 
-每个会话一份。每次出网追加一节。发送和返回都留。正文用真换行，不塞进 JSON 字符串。
+每次出网追加一节到当前 `provider.md`。单个 `provider.md` 超过 3MB 时，先改名为 `provider.NN.md`（NN 自增），再开新的 `provider.md`。`loadProviderLog` 按 `provider.01.md`…再到 `provider.md` 的顺序读取全部节。
 
-标题 `## tn_01 / 1`。json 围栏只放元数据。system / user / content / tool_calls 四个小节用普通围栏，正文真换行。
+主日志只记录 **user 窗口** 与模型返回，不再每条抄写 system。system 全文写入 `provider-system.md`：按正文 sha256 前 16 位分块，`## system <hash>` 首次出现或哈希变化时各记一次；exchange 的 json 围栏用 `systemHash` 引用。
+
+标题 `## tn_01 / 1`。json 围栏只放元数据。user / content / tool_calls 小节用普通围栏，正文真换行。
 
 | 字段 | 怎么填 |
 |---|---|
 | 标题 `## tn_ / outbound` | 本 Turn 第几次出网 |
-| json 围栏 | 元数据：`at` `toolIds` `finish` `toolCalls` `faultCode` |
-| `### system` / `### user` | 发给模型的窗口，真换行 |
+| json 围栏 | 元数据：`at` `systemHash` `toolIds` `finish` `toolCalls` `faultCode` |
+| `### user` | 发给模型的 User 窗口，真换行 |
 | `### content` | 模型 content，真换行 |
 | `### tool_calls` | 模型交的工具，一行一个 |
+| `provider-system.md` | 每个 `systemHash` 对应一份 System 全文 |
 
-`events.jsonl` 的 `provider-request` / `provider-response` 仍只记元数据。完整窗口看这份。
+`events.jsonl` 的 `provider-request` / `provider-response` 仍只记元数据。User 全文看 `provider.md`，System 全文看 `provider-system.md`。
 
 ## session.json
 
