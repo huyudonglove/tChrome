@@ -1,5 +1,9 @@
 [
   "web-observation",
   "reply-format",
-  "chrome-host-environment"
+  "chrome-host-environment",
+  "host-browser-coordination",
+  "spa-state-sync",
+  "api-causality-flow",
+  "canvas-webgl-probing"
 ]
