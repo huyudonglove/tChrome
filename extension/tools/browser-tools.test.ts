@@ -468,3 +468,44 @@ test("viewport capture targets the requested tab through CDP without activating 
   globals.chrome.debugger.sendCommand = async () => {throw Error('Capture unavailable');};
   expect(await runBrowserTool('capture_page', {tabId: 9012, mode: 'viewport'})).toMatchObject({ok: false, error: 'Capture unavailable'});
 });
+
+test("capture_page som annotates interactives, returns marks, and clears overlay", async () => {
+  const scriptCalls: any[] = [];
+  globals.chrome = {
+    tabs: {get: async () => ({id: 9100, windowId: 1, url: 'https://example.com'})},
+    scripting: {
+      executeScript: async (options: any) => {
+        scriptCalls.push(options);
+        const fnName = options.func?.name || '';
+        if (fnName === 'somClear') {
+          return [{result: {ok: true}}];
+        }
+        return [{result: {
+          ok: true,
+          pixelRatio: 2,
+          viewport: [800, 600],
+          total: 2,
+          marks: [
+            {badge: 1, id: 'e_01', x: 10, y: 20, w: 80, h: 24, role: 'button', name: '提交', tag: 'button'},
+            {badge: 2, id: 'e_02', x: 10, y: 60, w: 120, h: 28, role: 'link', name: '更多', tag: 'a'},
+          ],
+        }}];
+      },
+    },
+    debugger: {
+      attach: async () => {},
+      detach: async () => {},
+      sendCommand: async () => ({data: 'AA=='}),
+    },
+  };
+  const result = await runBrowserTool('capture_page', {tabId: 9100, mode: 'som', maxMarks: 20, roles: ['button', 'link']});
+  expect(result).toMatchObject({
+    ok: true,
+    mode: 'som',
+    image: 'data:image/jpeg;base64,AA==',
+    devicePixelRatio: 2,
+    viewport: [800, 600],
+  });
+  expect(result.marks?.map((m: any) => m.id)).toEqual(['e_01', 'e_02']);
+  expect(scriptCalls.length).toBeGreaterThanOrEqual(2);
+});

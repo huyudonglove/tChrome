@@ -8,6 +8,35 @@
 
 Canvas、WebGL、游戏等结果依赖画面的任务，JS 探针用于辅助定位和读取状态；关键操作后或程序状态不足以确认结果时，调用截图工具观察画面，再结合任务完成条件验证。截图可确认位置、对齐和画面变化，通关或稳定性还需对应证据；证据不足时继续核实，不宣称成功。按验证需要截图，无需每次操作都截图。只有本次随请求附带的图片可供观察；更早批次只保留路径，需要确认当前画面时重新截图。
 
+### 局部元素截图（省 Token、更清晰）
+
+大分辨率下小控件在整页图里容易糊，且整图更贵。需要看清**某个元素/控件**时，优先：
+
+```text
+catalog.add → capture_page
+capture_page(mode=element, tabId=…, ref=e_03)   # 或 selector="#submit"
+```
+
+- `ref`：page.* / snapshot / get_by_role 返回的 `e_`/`r_` 编号  
+- `selector`：唯一 CSS；与 `ref` **二选一**  
+- 返回本地 `image` 引用 + `element_rect`/`capture_rect`；只观察该切片，不要为小控件先截整页  
+- 验证整页布局、导航前后对比时才用 `viewport` / `full_page`
+
+### 视口 SoM 标注图（一屏多控件）
+
+复杂页面「点哪个」不明确时：
+
+```text
+capture_page(mode=som, tabId=…, maxMarks=40, roles=["button","link"])
+```
+
+- 图上红色角标 = 可交互控件；同时返回 `marks[{badge,id,x,y,…}]`  
+- 看图选定 badge → `page.click(id=marks[i].id)`（即 `e_` 编号）  
+- `marks` 为视口 CSS 像素；`devicePixelRatio` 仅作对照  
+- 截图后角标层自动清理；默认最多 40 个，可用 `roles` 降噪  
+
+两阶段：先 `som` 看全局 → 再 `mode=element` 对选定 `e_` 高清切片。
+
 ## 复杂表单与复合表格操作
 
 自定义下拉、日期选择器和级联浮层通常不接受直接文本注入。优先模拟交互链路：点击触发输入框唤起面板，再在可见浮层 DOM 中点击具体候选项；脚本设置时须同时触发 input、change 与 blur 事件，避免现代前端响应式状态未同步。

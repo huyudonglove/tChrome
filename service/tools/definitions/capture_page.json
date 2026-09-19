@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "capture_page",
-    "description": "捕获页面图片。必填 mode：viewport 截当前可视区；full_page 截已渲染整页；element 裁剪单个元素，必须且只能提供 ref（page.* / snapshot 返回的 e_01）或 selector（唯一 CSS 选择器）。必填 tabId。ref/selector 不用于其他模式。\n整页及元素模式不滚动触发懒加载、不展开独立滚动容器，超出图像尺寸上限时明确失败。所有模式均通过目标标签的 CDP 截图，不切换窗口或标签；失败直接返回错误。\n返回：ok、mode、image（本地图片引用）、mime；viewport 带 image_size/viewport；full_page 带 fullPage/page_size；element 带 element_rect/capture_rect（文档 CSS 坐标）及 clipped。PDF 使用 save_pdf。",
+    "description": "捕获页面图片。必填 mode：viewport 截可视区；full_page 截整页；element 裁剪单个元素（ref 或 selector 二选一）；som 为视口 Set-of-Marks：给可见可交互元素打数字角标后截图，返回 marks[{badge,id,x,y,w,h,role,name}]，用 id 调 page.click。som 可选 maxMarks（默认40，上限80）、roles（如 button/link）。必填 tabId。\n返回：ok、mode、image；som 另带 marks、viewport、devicePixelRatio（marks 为 CSS 像素）。截图后自动去掉角标层。PDF 用 save_pdf。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -22,7 +22,8 @@
           "enum": [
             "viewport",
             "full_page",
-            "element"
+            "element",
+            "som"
           ]
         },
         "ref": {
@@ -33,6 +34,17 @@
         "selector": {
           "type": "string",
           "minLength": 1
+        },
+        "maxMarks": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 80,
+          "description": "som 模式最多标注数量，默认 40"
+        },
+        "roles": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "som 可选：只标注这些可访问角色，如 button/link/textbox"
         }
       },
       "required": [

@@ -1,6 +1,6 @@
 import { savePagePdf } from './pdf.js';
 import { runCaptchaTool } from './captcha.js';
-import { captureElement } from './element-capture.js';
+import { captureElement, captureSom } from './element-capture.js';
 import { elementTool } from './element-tools.js';
 import { waitForDownload } from './downloads.js';
 import { withDebugger, monitorDialogs, dialogState, watchDialog, handleDialog, detachDebugger } from './dialogs.js';
@@ -661,7 +661,7 @@ const runOnTab = async (tabId, args, func) => {
 
 const capturePage = async (input) => {
   const tabId = input.tabId;
-  if (!['viewport', 'full_page', 'element'].includes(input.mode)) return {ok: false, error: 'capture_page 需要 mode=viewport|full_page|element'};
+  if (!['viewport', 'full_page', 'element', 'som'].includes(input.mode)) return {ok: false, error: 'capture_page 需要 mode=viewport|full_page|element|som'};
   if (input.mode !== 'element' && (input.ref !== undefined || input.selector !== undefined)) return {ok: false, error: 'ref/selector 仅用于 element 模式'};
   if (input.mode === 'full_page') {
     const tab = await getTab(tabId);
@@ -685,6 +685,11 @@ const capturePage = async (input) => {
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可截图的普通网页标签'};
     return captureElement(tab.id, input);
+  }
+  if (input.mode === 'som') {
+    const tab = await getTab(tabId);
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可截图的普通网页标签'};
+    return captureSom(tab.id, input);
   }
   if (input.mode === 'viewport') {
     const tab = await getTab(tabId);
