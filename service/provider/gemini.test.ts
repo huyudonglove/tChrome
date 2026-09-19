@@ -41,6 +41,7 @@ test("请求体包含 systemInstruction、google_search 与 functionDeclarations
     expect(captured.body.contents).toEqual([{ role: "user", parts: [{ text: "帮我查一下" }] }]);
     expect(captured.body.tools[0]).toEqual({ google_search: {} });
     expect(captured.body.tools[1].functionDeclarations[0].name).toBe("notes.write");
+    expect(captured.body.toolConfig).toEqual({ functionCallingConfig: { mode: "ANY" } });
   } finally { server.stop(true); }
 });
 
@@ -149,6 +150,7 @@ test("关闭 google_search 后 tools 仅剩 functionDeclarations", async () => {
     await providerFor(server.port!, { googleSearch: false }).complete({ messages, tools });
     expect(captured.tools).toHaveLength(1);
     expect(captured.tools[0].functionDeclarations).toBeDefined();
+    expect(captured.toolConfig).toEqual({ functionCallingConfig: { mode: "ANY" } });
   } finally { server.stop(true); }
 });
 

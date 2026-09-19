@@ -42,6 +42,7 @@ test("sanitizeToolNames sends underscore names and restores dots on return", asy
     });
     const result = await provider.complete({ messages: [{ role: "user", content: "查" }], tools: dottedTools });
     expect(sent.tools[0].function.name).toBe("context_query");
+    expect(sent.tool_choice).toBe("required");
     expect(result.toolCalls[0]?.name).toBe("context.query");
     expect(result.parseOk).toBe(true);
   } finally { server.stop(true); }
@@ -66,5 +67,6 @@ test("without sanitizeToolNames original dotted names are sent", async () => {
     const provider = createProvider({ apiKey: "local-test", baseURL: `http://127.0.0.1:${server.port}/v1`, proxy: "" });
     await provider.complete({ messages: [{ role: "user", content: "hi" }], tools: dottedTools });
     expect(sent.tools[0].function.name).toBe("context.query");
+    expect(sent.tool_choice).toBe("required");
   } finally { server.stop(true); }
 });

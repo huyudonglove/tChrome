@@ -127,6 +127,7 @@ export function createGeminiProvider(config: GeminiConfig = {}) {
       contents: [{ role: "user", parts }],
       ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
       ...(requestTools.length ? { tools: requestTools } : {}),
+      ...(functionDeclarations.length ? { toolConfig: { functionCallingConfig: { mode: "ANY" } } } : {}),
     };
 
     const response = await fetchWithIdleTimeout(
