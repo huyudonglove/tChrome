@@ -1,6 +1,6 @@
 # 数据存储与执行循环
 
-运行时数据保存在 `~/Library/Application Support/tChrome/`。`session.json` 指向当前会话；会话账本、轮次、会话记忆和归档按会话保存，项目长期记忆独立保存。完整目录与字段统一见 [schema](schema.md)。
+运行时数据保存在服务数据目录（绝对路径；默认用户主目录下 `Library/Application Support/tChrome`，`TCHROME_DATA` 可覆盖；模型通过 System `<overview>` 读取该绝对路径）。`session.json` 指向当前会话；会话账本、轮次、会话记忆和归档按会话保存，项目长期记忆独立保存。完整目录与字段统一见 [schema](schema.md)。
 
 用户输入创建新 Turn。本轮内模型可以多次调用工具；Runtime 持久化工具结果、目标变更、页面观察和记忆写入，再组装下一次请求。增量记录通过 `turnId` 关联到所属轮次，Ledger.goals 保存所有目标的最新状态，currentGoalId 指向当前任务；总目标 goal_ 与子目标 subgoal_ 分别自增，通过 parentId 关联。Turn.goalChanges 保存每次变更快照；`<goalHistory>` 展示已完成、已取消目标，更新目标不另建版本。当前页面和 notes 保存当前工作状态。
 

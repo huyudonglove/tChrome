@@ -52,7 +52,7 @@ Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.j
 
 ## 落盘文件
 
-运行时数据在 `~/Library/Application Support/tChrome/`：
+运行时数据在服务数据目录（绝对路径，默认为用户主目录下 `Library/Application Support/tChrome`，可用环境变量 `TCHROME_DATA` 覆盖；模型侧由 System `<overview>` 注入该绝对路径）：
 
 ```text
 session.json
