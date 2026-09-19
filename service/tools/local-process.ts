@@ -152,7 +152,7 @@ export function abortAllLocalProcesses(): void {
 async function execute(name: string, rawInput: unknown, scope: string, dataDir: string): Promise<Record<string, unknown>> {
   if (!scope) throw new Error("Local tools require a conversation scope");
   const input = (rawInput && typeof rawInput === "object" && !Array.isArray(rawInput) ? rawInput : {}) as Record<string, unknown>;
-  if (name === "local.capabilities") return { ok: true, platform: process.platform, home: homedir(), scriptExtensions: [".sh", ".py", ".js", ".mjs", ".cjs"], scriptExecution: "Save scripts with script_patch, then execute by filename. Each run uses an immutable private snapshot. Arguments are passed as literal strings.", outputRetention: "Complete stdout and stderr are retained and persisted in stdoutPath/stderrPath; process_status returns the complete cumulative output.", processLifetime: "No default timeout. An explicit timeoutMs, process_stop, conversation cancellation/deletion, or service shutdown terminates the process group. Parent exit does not terminate its children." };
+  if (name === "local.capabilities") return { ok: true, platform: process.platform, home: homedir(), scriptExtensions: [".sh", ".py", ".js", ".mjs", ".cjs"], scriptExecution: "Save scripts with script_patch, then execute by filename. Each run uses an immutable private snapshot. Arguments are passed as literal strings.", outputRetention: "Complete stdout and stderr are retained and persisted in stdoutPath/stderrPath; process_status returns the complete cumulative output.", processLifetime: "No default timeout. An explicit timeoutMs, process_stop, conversation cancellation/deletion, or service shutdown terminates the process group. Parent exit does not terminate its children. local.run may pass heartbeatSec: when the process is still running after that many seconds, the call returns heartbeat=true with processId and previews instead of waiting; poll local.process_status until exit.", heartbeatNote: "heartbeatSec is seconds, positive integer; on successful exit the heartbeat ends with the process." };
   if (name === "local.run" || name === "local.process_start" || name === "local.open") {
     const token = { scope, cancelled: false };
     pendingStarts.add(token);
@@ -161,6 +161,37 @@ async function execute(name: string, rawInput: unknown, scope: string, dataDir: 
       pendingStarts.delete(token);
       if (name !== "local.process_start") {
         entry.child.stdin.end();
+        const heartbeatSec = input.heartbeatSec;
+        if (name === "local.run" && heartbeatSec !== undefined) {
+          if (typeof heartbeatSec !== "number" || !Number.isSafeInteger(heartbeatSec) || heartbeatSec < 1) {
+            throw new Error("heartbeatSec must be a positive integer number of seconds");
+          }
+          const startedAt = Date.now();
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          const raced = await Promise.race([
+            entry.finished.then(() => "done" as const),
+            new Promise<"heartbeat">((resolve) => {
+              timer = setTimeout(() => resolve("heartbeat"), heartbeatSec * 1000);
+            }),
+          ]);
+          if (timer) clearTimeout(timer);
+          const stillRunning = entry.status === "running" && !entry.settled;
+          if (raced === "heartbeat" && stillRunning) {
+            const elapsedMs = Date.now() - startedAt;
+            const tail = (value: string) => value.length <= 240 ? value : `…${value.slice(-240)}`;
+            return {
+              ...snapshot(entry),
+              ok: true,
+              heartbeat: true,
+              status: "running",
+              heartbeatSec,
+              elapsedMs,
+              stdoutPreview: tail(entry.stdout),
+              stderrPreview: tail(entry.stderr),
+              note: `仍在执行（已过 ${heartbeatSec}s）。processId=${entry.processId}。用 local.process_status 查询累计输出，用 local.process_stop 结束；进程退出后本心跳销毁。`,
+            };
+          }
+        }
         await entry.finished;
       }
       return snapshot(entry);

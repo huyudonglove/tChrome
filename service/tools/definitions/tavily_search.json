@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "tavily_search",
-    "description": "通过 Tavily 高级搜索获取公开网页及相关内容。\nquery 去除首尾空白后搜索；maxResults 默认 5。固定使用 advanced 搜索。\n返回：ok、query、searchDepth、results（title、url、content、score）和 urls，最多 maxResults 条；每项 content 最多 4000 字符，超限标注 truncated。失败返回 faultCode、error。",
+    "description": "通过 Tavily 高级搜索获取公开网页及相关内容。\nquery 去除首尾空白后搜索；maxResults 默认 5。固定使用 advanced 搜索。可选 heartbeatSec：到点仍在执行则返回 heartbeat=true + jobId，用 job.status / job.stop。\n返回：ok、query、searchDepth、results（title、url、content、score）和 urls，最多 maxResults 条；每项 content 最多 4000 字符，超限标注 truncated。失败返回 faultCode、error。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -17,6 +17,11 @@
           "minimum": 1,
           "maximum": 10,
           "default": 5
+        },
+        "heartbeatSec": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "可选心跳秒数；搜索在该时间后仍在执行则提前返回 heartbeat=true + jobId"
         },
         "reason": {
           "type": "string"

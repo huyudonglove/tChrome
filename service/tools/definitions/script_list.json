@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "script_list",
-    "description": "列出 data/scripts 中可用脚本的文件名。返回 ok 和 files 数组，每项包含 filename、bytes，用于查找可读取、修改或执行的脚本。",
+    "description": "列出服务数据目录 scripts/ 中可用脚本的文件名。返回 ok 和 files 数组，每项包含 filename、bytes，用于查找可读取、修改或执行的脚本。",
     "parameters": {
       "type": "object",
       "properties": {

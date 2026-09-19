@@ -1,0 +1,27 @@
+{
+  "type": "function",
+  "function": {
+    "name": "memory.update",
+    "description": "按 memoryId 更新已有记忆正文（会话 mm_ 或长久 lm_）。\n参数：必填 memoryId、text（新的完整正文）。ID 从 <conversationMemory> / <projectMemory> 取，不编造。返回 ok、memoryId、layer、text。不改变记忆 ID 与层级。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean" },
+        "memoryId": {
+          "type": "string",
+          "description": "会话记忆 mm_ 或长久记忆 lm_ 编号",
+          "pattern": "^(?:mm|lm)_[0-9]{2,}$"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "更新后的完整记忆正文"
+        }
+      },
+      "required": ["reason", "affectsPage", "memoryId", "text"],
+      "additionalProperties": false
+    }
+  }
+}

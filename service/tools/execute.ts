@@ -7,6 +7,7 @@ import type { BrowserHost, CurrentPage, ToolArguments } from "../types.ts";
 import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
 import { LOCAL_TOOL_NAMES, runLocalTool } from "./local-tools.ts";
 import { COMPOUND_TOOL_NAMES, runCompoundTool } from "./compound-tools.ts";
+import { JOB_TOOL_NAMES, runJobTool, withJobHeartbeat, jobScope } from "./job-registry.ts";
 import { listItems, saveItem, deleteItem } from "../library/store.ts";
 import { readScript } from "../scripts/store.ts";
 import { failedTool, normalizeToolExecution } from "./result.ts";
@@ -90,7 +91,28 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       }
       if (!host) return failedTool("浏览器未连接", "browser_unavailable");
       const script = await readScript(dataDir, args.filename);
-      return externalResult(await host.execute(name, { code: script.code, ...(args.tabId !== undefined ? { tabId: args.tabId } : {}) }));
+      const payload = { code: script.code, ...(args.tabId !== undefined ? { tabId: args.tabId } : {}) };
+      if (args.heartbeatSec !== undefined) {
+        if (!input.conversationId) return failedTool("execute_javascript 心跳缺少会话标识", "invalid_arguments");
+        const executed = await withJobHeartbeat({
+          dataDir,
+          scope: jobScope(dataDir, input.conversationId),
+          toolName: name,
+          heartbeatSec: args.heartbeatSec,
+          parentSignal: input.signal,
+          start: async (runSignal) => {
+            const launch = host.executeTracked
+              ? host.executeTracked(name, payload)
+              : { id: "", result: host.execute(name, payload) };
+            const onAbort = () => { if (launch.id && host.abortById) host.abortById(launch.id); };
+            runSignal?.addEventListener("abort", onAbort, { once: true });
+            try { return { ...(await launch.result) } as Record<string, unknown>; }
+            finally { runSignal?.removeEventListener("abort", onAbort); }
+          },
+        });
+        return externalResult(executed);
+      }
+      return externalResult(await host.execute(name, payload));
     } catch (error) {
       return failedTool(error);
     }
@@ -352,6 +374,32 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     const count = (layer: string) => entries.filter((entry) => entry.layer === layer).length;
     return result(`落下 conversation=${count("conversation")} project=${count("project")}`, effects);
   }
+  if (name === "memory.update") {
+    const memoryId = String(args.memoryId ?? "").trim();
+    const text = String(args.text ?? "").trim();
+    if (!/^(?:mm|lm)_[0-9]{2,}$/.test(memoryId)) {
+      return failedTool("memoryId 必须是 mm_ 或 lm_ 记忆编号", "invalid_arguments", { toolName: name });
+    }
+    if (!text) return failedTool("text 不能为空", "invalid_arguments", { toolName: name });
+    if (!input.conversationId) return failedTool("memory.update 缺少会话标识", "invalid_arguments");
+    return result(JSON.stringify({
+      ok: true,
+      memoryId,
+      layer: memoryId.startsWith("lm_") ? "project" : "conversation",
+      text,
+    }), [{ type: "memory.update", memoryId, text }]);
+  }
+  if (name === "memory.delete") {
+    const memoryId = String(args.memoryId ?? "").trim();
+    if (!/^(?:mm|lm)_[0-9]{2,}$/.test(memoryId)) {
+      return failedTool("memoryId 必须是 mm_ 或 lm_ 记忆编号", "invalid_arguments", { toolName: name });
+    }
+    return result(JSON.stringify({
+      ok: true,
+      memoryId,
+      layer: memoryId.startsWith("lm_") ? "project" : "conversation",
+    }), [{ type: "memory.delete", memoryId }]);
+  }
   if (name === "context.query") {
     if (!input.queryContext) return failedTool("query_agent_unavailable", "query_failed");
     const queried = await input.queryContext({ sumId: String(args.sumId), module: args.module as QueryModule,
@@ -374,12 +422,16 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       detail: query.detail,
     }), [{ type: "query.set", query }]);
   }
+  if ((JOB_TOOL_NAMES as readonly string[]).includes(name)) {
+    if (!input.conversationId) return failedTool("job 工具缺少会话标识", "invalid_arguments");
+    return externalResult(await runJobTool(name, hostArgs(args), jobScope(dataDir, input.conversationId)));
+  }
   if ((LOCAL_TOOL_NAMES as readonly string[]).includes(name)) {
     if (!input.conversationId) return failedTool("本地工具缺少会话标识", "invalid_arguments");
     return externalResult(await runLocalTool(name, hostArgs(args), dataDir, input.conversationId));
   }
   if ((SERVICE_TOOL_NAMES as readonly string[]).includes(name)) {
-    return externalResult(await runServiceTool(dataDir, name, hostArgs(args), input.signal));
+    return externalResult(await runServiceTool(dataDir, name, hostArgs(args), input.signal, input.conversationId));
   }
   if ((COMPOUND_TOOL_NAMES as readonly string[]).includes(name)) {
     if (!host) return failedTool(`${name} 没有浏览器桥`, "browser_unavailable");

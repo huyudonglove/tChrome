@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "send_http_batch",
-    "description": "依次向 1 至 5 个完整 HTTP/HTTPS URL 发送 GET 请求。\n返回：ok（全部请求成功）、results（按输入顺序排列的响应或错误）；单个失败不丢弃其他结果，更多地址分批调用。\n空闲超时和重试次数由服务端统一网络配置控制；持续收到数据时继续读取，停止会话会取消请求和重试。",
+    "description": "依次向 1 至 5 个完整 HTTP/HTTPS URL 发送 GET 请求。\n返回：ok（全部请求成功）、results（按输入顺序排列的响应或错误）；单个失败不丢弃其他结果，更多地址分批调用。\nheartbeatSec：可选正整数秒。整批仍在执行时提前返回 heartbeat=true + jobId，用 job.status / job.stop。\n空闲超时和重试次数由服务端统一网络配置控制；持续收到数据时继续读取，停止会话会取消请求和重试。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -16,6 +16,11 @@
             "description": "要请求的完整 HTTP/HTTPS 链接地址字符串，必须包含协议和主机名，例如 \"https://example.com/api/items?id=1\"。不可传 true/false、相对路径或文件路径。"
           },
           "description": "要依次请求的完整 HTTP/HTTPS 链接地址数组，包含 1 至 5 项。"
+        },
+        "heartbeatSec": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "可选心跳秒数；整批在该时间后仍在执行则提前返回 heartbeat=true + jobId"
         },
         "reason": {
           "type": "string"

@@ -1,6 +1,6 @@
 import { saveContextRecord } from "./records.ts";
 import { wrapCachedText } from "./cache-lines.ts";
-import { saveMemory } from "../memory/store.ts";
+import { deleteMemory, saveMemory, updateMemory } from "../memory/store.ts";
 import type { Ledger, MemoryRecord, ToolQueueItem, Turn, TurnOutput } from "../types.ts";
 import type { ToolEffect } from "../tools/effects.ts";
 import { allocateRecordId, nowIso } from "./ids.ts";
@@ -55,6 +55,33 @@ export function applyToolEffects(input: {
           });
         }
         break;
+      case "memory.update": {
+        const memoryId = effect.memoryId;
+        if (!/^(?:mm|lm)_[0-9]{2,}$/.test(memoryId)) throw new Error("memory.update 需要 mm_/lm_ 记忆编号");
+        const text = String(effect.text ?? "").trim();
+        if (!text) throw new Error("memory.update 需要非空 text");
+        const updated = updateMemory(dataDir, ledger.conversationId, memoryId, text);
+        appendEvent(dataDir, ledger.conversationId, {
+          kind: "memory", turnId: turn.turnId,
+          data: { memoryId, layer: updated.layer, sourceCallId: call.callId, action: "update" },
+        });
+        break;
+      }
+      case "memory.delete": {
+        const memoryId = effect.memoryId;
+        if (!/^(?:mm|lm)_[0-9]{2,}$/.test(memoryId)) throw new Error("memory.delete 需要 mm_/lm_ 记忆编号");
+        const removed = deleteMemory(dataDir, ledger.conversationId, memoryId);
+        if (!removed.existed) throw new Error(`记忆 ${memoryId} 不存在`);
+        ledger.memoryIds.conversation = ledger.memoryIds.conversation.filter((id) => id !== memoryId);
+        ledger.memoryIds.project = ledger.memoryIds.project.filter((id) => id !== memoryId);
+        turn.assembled.conversationMemoryIds = turn.assembled.conversationMemoryIds.filter((id) => id !== memoryId);
+        turn.assembled.projectMemoryIds = turn.assembled.projectMemoryIds.filter((id) => id !== memoryId);
+        appendEvent(dataDir, ledger.conversationId, {
+          kind: "memory", turnId: turn.turnId,
+          data: { memoryId, layer: removed.layer, sourceCallId: call.callId, action: "delete" },
+        });
+        break;
+      }
       case "tools.enable":
         ledger.loadedToolIds = [...new Set([...ledger.loadedToolIds, ...effect.names])];
         turn.assembled.toolIds = [...new Set([...turn.assembled.toolIds, ...effect.names])];

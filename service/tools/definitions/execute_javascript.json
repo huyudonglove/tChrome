@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "execute_javascript",
-    "description": "通过 Chrome Debugger 在目标页面的主 JavaScript 环境执行 data/scripts 中已保存的 JavaScript 脚本，可访问页面变量并等待 Promise。多条语句用 IIFE 包装，必填 tabId 指定目标标签。\n返回：ok、type，以及结构化 value；undefined 无 value，NaN/Infinity/BigInt 等使用 unserializableValue；无法按值序列化时返回 serializable=false 和 description。输出超过16000个序列化字符时省略 value，返回 truncated=true、totalChars、valuePreview。错误返回 ok=false、error。超时或调试连接中断时执行状态可能未知，不自动重试有副作用的脚本。受 Chrome 调试权限和页面访问限制。\n参数：filename（单层 .js/.mjs/.cjs 文件名）、必填 tabId；reason 和 affectsPage 必填，affectsPage 根据实际脚本行为填写。\n脚本内容仍须是表达式，多语句或异步操作使用 IIFE。先用 script_patch 保存，确认成功后在下一次模型调用执行；同批补丁与执行会被拒绝。不接受内联 code。",
+    "description": "通过 Chrome Debugger 在目标页面的主 JavaScript 环境执行服务数据目录 scripts/ 中已保存的 JavaScript 脚本，可访问页面变量并等待 Promise。多条语句用 IIFE 包装，必填 tabId 指定目标标签。\nheartbeatSec：可选正整数秒。脚本在该时间后仍在执行则提前返回 heartbeat=true + jobId，用 job.status / job.stop；若扩展已在执行则 stop 无法中途打断。未传则等到完成。\n返回：ok、type，以及结构化 value；undefined 无 value，NaN/Infinity/BigInt 等使用 unserializableValue；无法按值序列化时返回 serializable=false 和 description。输出超过16000个序列化字符时省略 value，返回 truncated=true、totalChars、valuePreview。错误返回 ok=false、error。超时或调试连接中断时执行状态可能未知，不自动重试有副作用的脚本。受 Chrome 调试权限和页面访问限制。\n参数：filename（单层 .js/.mjs/.cjs 文件名）、必填 tabId；reason 和 affectsPage 必填，affectsPage 根据实际脚本行为填写。\n脚本内容仍须是表达式，多语句或异步操作使用 IIFE。先用 script_patch 保存，确认成功后在下一次模型调用执行；同批补丁与执行会被拒绝。不接受内联 code。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -19,7 +19,12 @@
         "filename": {
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*\\.(js|mjs|cjs)$",
-          "description": "data/scripts 下的单层脚本文件名，不含目录"
+          "description": "服务数据目录 scripts/ 下的单层脚本文件名，不含目录"
+        },
+        "heartbeatSec": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "可选心跳秒数；脚本在该时间后仍在执行则提前返回 heartbeat=true + jobId"
         }
       },
       "required": [

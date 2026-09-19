@@ -15,7 +15,7 @@ export function systemText(
   contextModules: ContextModules,
   currentDate: string,
   baseToolGuide = "",
-  env: { cwd?: string; os?: string } = {},
+  env: { cwd?: string; os?: string; dataDir?: string } = {},
 ): string {
   return systemTextFromModules(contextModules, currentDate, baseToolGuide, env);
 }

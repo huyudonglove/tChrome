@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { identityRulesText } from "../identity/catalog.ts";
 
@@ -169,13 +170,16 @@ export function hostOsLabel(platform = process.platform, arch = process.arch): s
   return `${name} (${platform}/${arch})`;
 }
 
+export type ContextEnv = { cwd?: string; os?: string; dataDir?: string };
+
 export function systemTextFromModules(
   modules: ContextModules,
   currentDate: string,
   baseToolGuide = "",
-  env: { cwd?: string; os?: string } = {},
+  env: ContextEnv = {},
 ): string {
   const cwd = env.cwd ?? process.cwd();
+  const dataDir = env.dataDir ?? defaultDataDirLabel();
   const os = env.os ?? hostOsLabel();
   const parts: string[] = [];
   for (const tag of modules.systemOrder) {
@@ -190,12 +194,18 @@ export function systemTextFromModules(
     if (tag === "#overview") {
       body = body
         .replaceAll("{{currentDate}}", currentDate)
+        .replaceAll("{{dataDir}}", dataDir)
         .replaceAll("{{cwd}}", cwd)
         .replaceAll("{{os}}", os);
     }
     parts.push(`<${id}>\n能力：${module.capability}\n\n详细描述：\n${body}\n</${id}>`);
   }
   return parts.join("\n\n");
+}
+
+/** Model-facing data root: same default as runtime store, overridable via TCHROME_DATA. */
+function defaultDataDirLabel(): string {
+  return process.env.TCHROME_DATA || join(homedir(), "Library", "Application Support", "tChrome");
 }
 
 /** Replace once: user-provided placeholder-looking text is literal data. */

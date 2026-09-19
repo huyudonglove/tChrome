@@ -6,6 +6,7 @@ import { fetchText } from "../network/http-text.ts";
 import { runAccountVault } from "./account-vault.ts";
 import { runTavilySearch } from "./tavily-search.ts";
 import { patchScript, readScript, listScripts } from "../scripts/store.ts";
+import { withJobHeartbeat, jobScope } from "./job-registry.ts";
 
 export const SERVICE_TOOL_NAMES = [
   "script_patch", "script_read", "script_list",
@@ -43,7 +44,23 @@ export async function runServiceTool(
   name: string,
   input: Record<string, unknown> = {},
   signal?: AbortSignal,
+  conversationId?: string,
 ) {
+  const heartbeatTools = new Set(["send_http", "send_http_batch", "web_search", "tavily_search"]);
+  if (heartbeatTools.has(name) && input.heartbeatSec !== undefined) {
+    try {
+      return await withJobHeartbeat({
+        dataDir,
+        scope: conversationId ? jobScope(dataDir, conversationId) : "",
+        toolName: name,
+        heartbeatSec: input.heartbeatSec,
+        parentSignal: signal,
+        start: (runSignal) => runServiceTool(dataDir, name, { ...input, heartbeatSec: undefined }, runSignal, conversationId),
+      });
+    } catch (error) {
+      return { ok: false, ...errorInfo(error), error: error instanceof Error ? error.message : String(error) };
+    }
+  }
   if (name === "script_patch") return patchScript(dataDir, input);
   if (name === "script_read" || name === "script_list") {
     try {

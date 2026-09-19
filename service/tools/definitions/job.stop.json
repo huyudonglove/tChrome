@@ -1,0 +1,30 @@
+{
+  "type": "function",
+  "function": {
+    "name": "job.stop",
+    "description": "停止本会话由 heartbeatSec 提前返回的后台任务。HTTP/搜索会取消请求；execute_javascript 若仍在桥接队列则移除，若扩展已在执行则无法中途打断，返回仍为 running。结束后用 job.status 查看。local.run 的进程用 local.process_stop。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "jobId": {
+          "type": "string",
+          "description": "heartbeat 返回的 job_ 编号"
+        },
+        "reason": {
+          "type": "string",
+          "description": "本次操作的目的"
+        },
+        "affectsPage": {
+          "type": "boolean",
+          "const": false
+        }
+      },
+      "required": [
+        "jobId",
+        "reason",
+        "affectsPage"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

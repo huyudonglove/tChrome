@@ -238,7 +238,10 @@ export type BrowserResult = {
 export type BrowserHost = {
   readOpenTabs?(): Promise<OpenTabs>;
   execute(name: string, input: Record<string, unknown>): Promise<BrowserResult>;
+  /** Optional tracked dispatch for heartbeat: exposes the bridge request id so job.stop can abort it. */
+  executeTracked?(name: string, input: Record<string, unknown>): { id: string; result: Promise<BrowserResult> };
   abort?(scope?: string): void;
+  abortById?(id: string): boolean;
   forScope?(scope: string): BrowserHost;
 };
 

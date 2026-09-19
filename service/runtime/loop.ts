@@ -87,6 +87,7 @@ const assemble = (toolRegistry: ToolRegistry, loadedToolIds: string[]): Assemble
 const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, images: ChatMessage["images"], summaries: Parameters<typeof userText>[0]["conversationSummaries"] = [], dataDir?: string): ChatMessage[] => {
   const system = systemText(contextModules, pacificDate(), toolGuideFor(toolRegistry, turn.assembled.baseToolsIds), {
     cwd: process.cwd(),
+    ...(dataDir ? { dataDir } : {}),
   });
   return [
     { role: "system", content: system },

@@ -1,0 +1,21 @@
+{
+  "type": "function",
+  "function": {
+    "name": "memory.delete",
+    "description": "按 memoryId 删除已有记忆（会话 mm_ 或长久 lm_）。\n参数：必填 memoryId。ID 从 <conversationMemory> / <projectMemory> 取。返回 ok、memoryId、layer、deleted。删除后窗口不再展示该条；不删除其他记忆或笔记。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean" },
+        "memoryId": {
+          "type": "string",
+          "description": "会话记忆 mm_ 或长久记忆 lm_ 编号",
+          "pattern": "^(?:mm|lm)_[0-9]{2,}$"
+        }
+      },
+      "required": ["reason", "affectsPage", "memoryId"],
+      "additionalProperties": false
+    }
+  }
+}

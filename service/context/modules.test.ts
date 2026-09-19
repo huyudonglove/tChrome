@@ -13,11 +13,12 @@ test("registry loads XML modules and system text uses angle-bracket tags", () =>
   expect(modules.systemOrder[0]).toBe("#overview");
   expect(modules.systemOrder).toContain("#identity");
   expect(modules.userOrder).toContain("#toolIO");
-  const system = systemTextFromModules(modules, "2026-09-06", "GUIDE", { cwd: "/tmp/tchrome-test", os: "macOS (darwin/arm64)" });
+  const system = systemTextFromModules(modules, "2026-09-06", "GUIDE", { cwd: "/tmp/tchrome-test", dataDir: "/tmp/tchrome-data", os: "macOS (darwin/arm64)" });
   expect(system.startsWith("<overview>")).toBe(true);
   expect(system).toContain("</overview>");
   expect(system).toContain("2026-09-06");
-  expect(system).toContain("当前工作目录（服务进程 cwd，绝对路径）：/tmp/tchrome-test");
+  expect(system).toContain("服务数据目录（绝对路径，脚本/进程输出/会话落盘都在此）：/tmp/tchrome-data");
+  expect(system).toContain("代码仓库路径（仅服务源码位置）：/tmp/tchrome-test");
   expect(system).toContain("操作系统：macOS (darwin/arm64)");
   expect(system).toContain("<identity>");
   expect(system).toContain("</identity>");

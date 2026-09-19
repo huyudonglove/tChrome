@@ -8,6 +8,8 @@ export type ToolEffect =
   | { type: "note.write"; key: string; value: string }
   | { type: "note.delete"; key: string }
   | { type: "memory.append"; entries: { layer: MemoryLayer; text: string }[] }
+  | { type: "memory.update"; memoryId: string; text: string }
+  | { type: "memory.delete"; memoryId: string }
   | { type: "tools.enable"; names: string[] }
   | { type: "page.set"; page: CurrentPage; result: Record<string, unknown> }
   | { type: "page.clear_result"; pageId: string }

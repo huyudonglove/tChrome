@@ -63,3 +63,17 @@ test("global abort drains current and waiting requests and ignores late results"
   expect(bridge.current()).toBeNull();
   expect(bridge.resolve(id, { ok: true })).toBe(false);
 });
+
+test("executeTracked exposes the request id and abortById removes only that pending call", async () => {
+  const bridge = createToolBridge(root());
+  const tracked = bridge.executeTracked!("script", {});
+  expect(tracked.id).toBe("br_01");
+  const other = bridge.execute("other", {});
+  expect(bridge.abortById(tracked.id)).toBe(true);
+  expect(await tracked.result).toEqual({ ok: false, faultCode: "stopped", error: "已停止" });
+  expect(bridge.current()!.name).toBe("other");
+  expect(bridge.abortById(tracked.id)).toBe(false);
+  bridge.resolve(bridge.current()!.id, { ok: true });
+  expect(await other).toEqual({ ok: true });
+});
+

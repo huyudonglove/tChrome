@@ -5,6 +5,8 @@
     "submitGoal",
     "context.query",
     "memory.write",
+    "memory.update",
+    "memory.delete",
     "notes.write",
     "notes.delete",
     "page.clear_result",
@@ -26,7 +28,9 @@
     "checklist.update",
     "page.recheck",
     "page.assert",
-    "tab.context"
+    "tab.context",
+    "job.status",
+    "job.stop"
   ],
   "coreToolIds": [
     "page.list_regions",
