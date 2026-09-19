@@ -2,29 +2,17 @@
   "type": "function",
   "function": {
     "name": "page.list_interactive_elements",
-    "description": "列可交互元素。可按 regionId 收窄。\n参数：可选 regionId（区域标识）；必填 tabId（目标标签编号）。\n返回：ok、elements[{id,regionId,role,tag,name,inView,disabled}]。",
+    "description": "列视口内可交互元素（A11y 投影）。每条：id（e_，可直接 click/wait）、role（标准化）、name、states{enabled,checked,selected,expanded,invalid,…}、tag、inView、regionId。role 含 div/span 模拟控件（有 role 或可访问名时）。可按 regionId 收窄。必填 tabId。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": {
-          "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
-        },
-        "tabId": {
-          "type": "integer",
-          "description": "目标标签编号；从 <openTabs> 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
-        },
-        "regionId": {
-          "type": "string"
-        }
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean" },
+        "tabId": { "type": "integer" },
+        "regionId": { "type": "string" }
       },
-      "required": [
-        "reason",
-        "affectsPage",
-        "tabId"
-      ]
+      "required": ["reason", "affectsPage", "tabId"],
+      "additionalProperties": false
     }
   }
 }

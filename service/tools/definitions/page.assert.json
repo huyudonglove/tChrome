@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.assert",
-    "description": "断言页面条件（只读）。参数同 page.recheck。\n任一条件不满足则 ok=false、faultCode=assertion_failed，并列出失败项。\n用于「操作是否成功」的明确验收；观察性检查用 page.recheck。",
+    "description": "断言页面条件（只读）。参数同 page.recheck，含 role±name±states。任一条件不满足则 ok=false、faultCode=assertion_failed，并列出失败项。用于操作成功验收；观察性检查用 page.recheck。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -16,7 +16,21 @@
         "urlContains": { "type": "string" },
         "titleContains": { "type": "string" },
         "role": { "type": "string" },
-        "name": { "type": "string" }
+        "name": { "type": "string" },
+        "states": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "checked": { "type": "boolean" },
+            "selected": { "type": "boolean" },
+            "expanded": { "type": "boolean" },
+            "invalid": { "type": "boolean" },
+            "attached": { "type": "boolean" },
+            "required": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "matchIndex": { "type": "integer", "minimum": 0 }
       },
       "required": ["reason", "affectsPage"],
       "additionalProperties": false

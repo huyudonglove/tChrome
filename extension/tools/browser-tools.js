@@ -282,6 +282,8 @@ const runPageTool = async (name, input = {}) => {
         visible: input.visible === true,
         enabled: input.enabled === true,
         stable: input.stable === true,
+        states: input.states && typeof input.states === 'object' && !Array.isArray(input.states) ? input.states : null,
+        matchIndex: input.matchIndex === undefined || input.matchIndex === null || input.matchIndex === '' ? null : Number(input.matchIndex),
         urlContains: String(input.urlContains ?? ''),
         titleContains: String(input.titleContains ?? ''),
         value: String(input.value ?? ''),
@@ -307,7 +309,43 @@ const runPageTool = async (name, input = {}) => {
           return rect.width >= 4 && rect.height >= 4;
         };
         const clip = (value, n = 80) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, n);
-        const roleOf = (node) => node.getAttribute('role') || node.tagName.toLowerCase();
+        const roleOf = (node) => {
+          const explicit = (node.getAttribute('role') || '').toLowerCase();
+          if (explicit) return explicit;
+          const tag = node.tagName.toLowerCase();
+          if (tag === 'a') return node.hasAttribute('href') ? 'link' : 'generic';
+          if (tag === 'button' || tag === 'summary') return 'button';
+          if (tag === 'select') return 'combobox';
+          if (tag === 'textarea') return 'textbox';
+          if (tag === 'input') {
+            const t = String(node.type || 'text').toLowerCase();
+            if (t === 'checkbox') return 'checkbox';
+            if (t === 'radio') return 'radio';
+            if (t === 'submit' || t === 'button' || t === 'reset') return 'button';
+            return 'textbox';
+          }
+          return tag;
+        };
+        const statesOf = (node) => {
+          const aria = (key) => {
+            const v = node.getAttribute(`aria-${key}`);
+            return v === null ? undefined : v === 'true' || v === '';
+          };
+          const states = {
+            attached: true,
+            enabled: !(node.disabled === true || node.getAttribute('aria-disabled') === 'true'),
+            checked: node.type === 'checkbox' || node.type === 'radio' || ['checkbox', 'radio', 'switch'].includes(roleOf(node))
+              ? Boolean(node.checked)
+              : aria('checked'),
+            selected: node.tagName === 'OPTION' || ['option', 'tab'].includes(roleOf(node))
+              ? Boolean(node.selected) || aria('selected') === true
+              : aria('selected'),
+            expanded: aria('expanded'),
+            invalid: node.getAttribute('aria-invalid') !== null && node.getAttribute('aria-invalid') !== 'false',
+            required: Boolean(node.required) || node.getAttribute('aria-required') === 'true',
+          };
+          return Object.fromEntries(Object.entries(states).filter(([, v]) => v !== undefined));
+        };
         const labelOf = (node) => {
           const explicit = node.id ? document.querySelector(`label[for="${CSS.escape(node.id)}"]`)?.innerText : '';
           return clip(explicit || node.closest('label')?.innerText || node.getAttribute('aria-label') || node.getAttribute('placeholder') || node.getAttribute('title') || node.innerText || node.value || node.alt || node.name);
@@ -351,6 +389,7 @@ const runPageTool = async (name, input = {}) => {
             disabled: Boolean(node.disabled || node.getAttribute('aria-disabled') === 'true'),
             required: Boolean(node.required || node.getAttribute('aria-required') === 'true'),
             inView,
+            states: statesOf(node),
             rect: {x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height)},
             node,
           });
@@ -362,11 +401,29 @@ const runPageTool = async (name, input = {}) => {
           const {node, ...rest} = item;
           return rest;
         };
-        const axNode = (node, depth) => {
-          if (!node || depth > 4) return null;
-          const kids = [...node.children].filter(visible).slice(0, 12).map((child) => axNode(child, depth + 1)).filter(Boolean);
-          return {role: roleOf(node), name: labelOf(node), tag: node.tagName.toLowerCase(), children: kids};
+        const a11yHits = (p) => {
+          const wantRole = String(p.role || '').toLowerCase();
+          const wantName = String(p.name ?? '');
+          let hits = elements;
+          if (p.id) hits = hits.filter((item) => item.id === p.id);
+          if (p.selector) {
+            try {
+              const nodes = [...document.querySelectorAll(p.selector)];
+              hits = hits.filter((item) => nodes.includes(item.node));
+            } catch { hits = []; }
+          }
+          if (wantRole) hits = hits.filter((item) => String(item.role || '').toLowerCase() === wantRole);
+          if (wantName) hits = hits.filter((item) => (item.name || '').includes(wantName));
+          if (p.states && typeof p.states === 'object') {
+            hits = hits.filter((item) => Object.entries(p.states).every(([key, value]) => {
+              if (value === undefined || value === null) return true;
+              if (key === 'attached') return value !== false;
+              return Boolean(item.states?.[key]) === Boolean(value);
+            }));
+          }
+          return hits;
         };
+        const stripStates = (item) => ({ id: item.id, regionId: item.regionId, role: item.role, tag: item.tag, name: item.name, inView: item.inView, disabled: item.disabled, states: item.states || {} });
         const id = payload.id;
         if (toolName === 'page.get_summary') {
           const headings = [...document.querySelectorAll('h1,h2,h3,[role="heading"]')].slice(0, 8)
@@ -400,8 +457,32 @@ const runPageTool = async (name, input = {}) => {
           return {
             ok: true,
             regionId: rid || null,
-            elements: rows.map((item) => ({id: item.id, regionId: item.regionId, role: item.role, tag: item.tag, name: item.name, inView: item.inView, disabled: item.disabled})),
+            elements: rows.map(stripStates),
           };
+        }
+        if (toolName === 'page.wait_a11y' || toolName === 'page.a11y_probe') {
+          const hits = a11yHits(payload);
+          const matchIndex = payload.matchIndex === null || payload.matchIndex === undefined || Number.isNaN(payload.matchIndex)
+            ? null : Number(payload.matchIndex);
+          const narrowing = Boolean(payload.role || payload.name || payload.states);
+          if (!hits.length) {
+            return { ok: false, faultCode: 'not_found', total: 0,
+              error: '未找到匹配 role/name/states 的可访问性节点',
+              role: payload.role || null, name: payload.name || null, states: payload.states || null };
+          }
+          if (narrowing && hits.length > 1 && matchIndex === null) {
+            return {
+              ok: false, faultCode: 'ambiguous_target', total: hits.length,
+              candidates: hits.slice(0, 8).map((item, index) => ({ index, id: item.id, role: item.role, name: item.name, states: item.states })),
+              error: `匹配到 ${hits.length} 个节点，须收窄 role/name 或提供 matchIndex`,
+            };
+          }
+          const index = matchIndex === null ? 0 : matchIndex;
+          if (!Number.isInteger(index) || index < 0 || index >= hits.length) {
+            return { ok: false, faultCode: 'invalid_arguments', total: hits.length, error: `matchIndex 超出范围 0..${hits.length - 1}` };
+          }
+          const hit = hits[index];
+          return { ok: true, id: hit.id, role: hit.role, name: hit.name, states: hit.states || {}, inView: hit.inView, total: hits.length, matchIndex: index };
         }
         if (toolName === 'page.inspect_region') {
           if (!id) return {ok: false, error: 'page.inspect_region 需要 id'};
@@ -573,11 +654,14 @@ const runPageTool = async (name, input = {}) => {
             const nodes = document.querySelectorAll(payload.selector);
             add(`selector:${payload.selector}`, nodes.length > 0, `count=${nodes.length}`);
           }
-          if (payload.role) {
-            const wantName = payload.name || '';
-            const hits = elements.filter((item) => item.role === payload.role
-              && (!wantName || (item.name || '').includes(wantName)));
-            add(`role:${payload.role}${wantName ? ':' + wantName : ''}`, hits.length > 0, `count=${hits.length}`);
+          if (payload.role || payload.states || (payload.name && !payload.selector && !id)) {
+            const hits = a11yHits(payload);
+            const label = `a11y role=${payload.role || '*'} name=${payload.name || ''} states=${JSON.stringify(payload.states || {})}`;
+            if (hits.length > 1 && payload.matchIndex === null && (payload.role || payload.name || payload.states)) {
+              add(label, false, `ambiguous total=${hits.length}`);
+            } else {
+              add(label, hits.length > 0, `count=${hits.length}${hits[0] ? ` states=${JSON.stringify(hits[0].states)}` : ''}`);
+            }
           }
           const ok = checks.length > 0 && checks.every((row) => row.ok);
           return { ok, tool: toolName, url: location.href, title: document.title, checks,
@@ -1132,6 +1216,17 @@ const executeBrowserTool = async (name, input = {}) => {
   }
   if (name === 'wait') {
     const deadline = Date.now() + Math.min(Number(input.ms) || 8000, 12000);
+    const useA11y = Boolean(input.role || (input.states && typeof input.states === 'object' && Object.keys(input.states).length));
+    if (useA11y) {
+      let last;
+      do {
+        last = await runPageTool('page.wait_a11y', input);
+        if (last?.ok) return last;
+        if (last && (last.faultCode === 'ambiguous_target' || last.faultCode === 'invalid_arguments')) return last;
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      } while (Date.now() < deadline);
+      return last;
+    }
     if (input.id || input.selector || input.visible || input.enabled || input.stable) {
       let last;
       do {

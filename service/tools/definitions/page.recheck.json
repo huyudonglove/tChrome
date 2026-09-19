@@ -2,21 +2,35 @@
   "type": "function",
   "function": {
     "name": "page.recheck",
-    "description": "轻量只读复验：观察页面条件是否满足，不作为断言。\n参数：至少一项检查条件（text / urlContains / titleContains / id / selector / role+name）；可选 tabId、frameId。\n返回：ok、checks[{name,ok,detail}]、url、title。ok=false 只表示「不满足」，不作为操作失败。\n成功验收请用 page.assert。",
+    "description": "轻量只读复验（不作为断言）。条件：text / urlContains / titleContains / id / selector / role±name±states。states 见 wait（enabled/checked/selected/expanded/invalid…）。多匹配 role/name 且未给 matchIndex 时不通过。成功验收用 page.assert。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": { "type": "string" },
         "affectsPage": { "type": "boolean", "const": false },
         "tabId": { "type": "integer" },
-        "frameId": { "type": "integer", "description": "可选；frame.list 返回的 frameId" },
-        "id": { "type": "string", "description": "e_/r_ 编号存在性检查" },
+        "frameId": { "type": "integer" },
+        "id": { "type": "string" },
         "selector": { "type": "string" },
-        "text": { "type": "string", "description": "页面正文包含该文本" },
+        "text": { "type": "string" },
         "urlContains": { "type": "string" },
         "titleContains": { "type": "string" },
         "role": { "type": "string" },
-        "name": { "type": "string", "description": "与 role 搭配的可访问名子串" }
+        "name": { "type": "string" },
+        "states": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "checked": { "type": "boolean" },
+            "selected": { "type": "boolean" },
+            "expanded": { "type": "boolean" },
+            "invalid": { "type": "boolean" },
+            "attached": { "type": "boolean" },
+            "required": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "matchIndex": { "type": "integer", "minimum": 0 }
       },
       "required": ["reason", "affectsPage"],
       "additionalProperties": false

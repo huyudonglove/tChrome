@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "wait",
-    "description": "等待条件满足。\n参数：可选 id（page.* e_/r_，等到该元素）、selector（CSS）、text（页面出现某段字）、visible/enabled（对 id/selector 要求可见/可点）、ms（超时，默认约 8 秒，上限 12 秒）；必填 tabId。\n返回：ok、found/visible/enabled 或 title/url/text。元素已存在但不满足 visible/enabled 时 ok=false。",
+    "description": "等待条件满足。三种定位：id/selector（可选 visible/enabled）；text（页面出现文字）；role±name±states（A11y，动态加载优先）。states 示例：{enabled:true}、{checked:true}、{expanded:false}、{attached:true}。多匹配 role/name 时返回 ambiguous_target，须收窄或 matchIndex。必填 tabId；ms 默认约 8 秒、上限 12 秒。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -12,8 +12,25 @@
         "id": { "type": "string", "description": "page.* 编号 e_/r_" },
         "selector": { "type": "string", "description": "CSS 选择器，可替代 id" },
         "text": { "type": "string" },
-        "visible": { "type": "boolean", "description": "true 时要求元素可见" },
-        "enabled": { "type": "boolean", "description": "true 时要求元素可用（非 disabled）" },
+        "role": { "type": "string", "description": "可访问角色，如 button / alert / dialog / checkbox" },
+        "name": { "type": "string", "description": "可访问名子串，与 role 搭配" },
+        "states": {
+          "type": "object",
+          "description": "等待 A11y 状态，如 enabled/checked/selected/expanded/invalid/attached",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "checked": { "type": "boolean" },
+            "selected": { "type": "boolean" },
+            "expanded": { "type": "boolean" },
+            "invalid": { "type": "boolean" },
+            "attached": { "type": "boolean" },
+            "required": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "matchIndex": { "type": "integer", "minimum": 0, "description": "多匹配时必填，0 起" },
+        "visible": { "type": "boolean", "description": "对 id/selector：要求元素可见" },
+        "enabled": { "type": "boolean", "description": "对 id/selector：要求非 disabled（角色等待请用 states.enabled）" },
         "ms": { "type": "integer" }
       },
       "required": ["reason", "affectsPage", "tabId"],

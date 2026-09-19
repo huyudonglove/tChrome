@@ -509,3 +509,36 @@ test("capture_page som annotates interactives, returns marks, and clears overlay
   expect(result.marks?.map((m: any) => m.id)).toEqual(['e_01', 'e_02']);
   expect(scriptCalls.length).toBeGreaterThanOrEqual(2);
 });
+
+test("wait A11y states probe uses role/name/states via page.wait_a11y", async () => {
+  const seen: any[] = [];
+  globals.chrome = {
+    tabs: {get: async () => ({id: 9200, windowId: 1, url: 'https://example.com'})},
+    scripting: {
+      executeScript: async (options: any) => {
+        const name = String(options.func || '');
+        const args = options.args?.[1] || options.args?.[0];
+        if (Array.isArray(options.args) && options.args[0] === 'page.wait_a11y') {
+          seen.push(options.args[1]);
+          return [{result: {ok: true, id: 'e_05', role: 'button', name: '下一步', states: {enabled: true}, total: 1, matchIndex: 0}}];
+        }
+        if (name.includes('innerHeight') || String(options.func).includes('innerWidth')) {
+          return [{result: [800, 600]}];
+        }
+        // inspectTab title/url/text
+        return [{result: {ok: true, title: 'T', url: 'https://example.com', text: ''}}];
+      },
+    },
+  };
+  const result = await runBrowserTool('wait', {
+    tabId: 9200,
+    reason: '等按钮可用',
+    affectsPage: false,
+    role: 'button',
+    name: '下一步',
+    states: {enabled: true},
+    ms: 1000,
+  });
+  expect(result).toMatchObject({ok: true, id: 'e_05', role: 'button'});
+  expect(seen[0]).toMatchObject({role: 'button', name: '下一步', states: {enabled: true}});
+});
