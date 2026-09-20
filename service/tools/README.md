@@ -8,7 +8,7 @@
 - `definitions/index.json`：动态工具的 browser / service 分类。
 - `definitions/groups.json`：常驻工具和初始动态工具分组。
 
-`registry.ts` 读取本模块定义。System `<baseTools>` 展示常驻能力导航，User `<tools>` 展示本会话已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送。`schema.ts` 校验调用，Runtime 对主 Agent 响应统一执行校验后调度。校验前按 schema 中明确声明的字段类型，将精确的 `"true"` / `"false"` 转为布尔值，将 JSON 数字字符串转为有限数字（绝对值不超过安全整数上限，integer 字段必须为安全整数）；嵌套对象和数组沿 properties/items 处理。转换后的参数通过原有校验后交给执行器；不补必填项、不转换文本、不把单值包装成数组，也不猜测联合分支的类型。`service/context/` 负责同一服务内的上下文装配。Chrome API 操作由 `extension/tools/` 的宿主执行器完成，经浏览器桥接收服务调度；工具注册和 schema 仍统一维护在本模块。工具返回结构化结果与 effects，`service/runtime/effects.ts` 统一应用状态和持久化。
+`registry.ts` 读取本模块定义。System `<environment>` 给出工具大类导航；`<baseTools>` 展示常驻能力导航，User `<tools>` 展示本会话已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送。`schema.ts` 校验调用，Runtime 对主 Agent 响应统一执行校验后调度。校验前按 schema 中明确声明的字段类型，将精确的 `"true"` / `"false"` 转为布尔值，将 JSON 数字字符串转为有限数字（绝对值不超过安全整数上限，integer 字段必须为安全整数）；嵌套对象和数组沿 properties/items 处理。转换后的参数通过原有校验后交给执行器；不补必填项、不转换文本、不把单值包装成数组，也不猜测联合分支的类型。`service/context/` 负责同一服务内的上下文装配。Chrome API 操作由 `extension/tools/` 的宿主执行器完成，经浏览器桥接收服务调度；工具注册和 schema 仍统一维护在本模块。工具返回结构化结果与 effects，`service/runtime/effects.ts` 统一应用状态和持久化。
 
 浏览器元素与区域使用 `e_01` / `r_01`（page.* 与 snapshot 共用）。扩展通过统一编号目录生成前缀，由 service worker 在 `chrome.storage.local` 持久自增分配；跨标签、导航和 worker 重启不复用。编号绑定实际 DOM 节点，同一节点重复观察保持编号；旧节点消失或不可见时操作失败，不按新枚举位置重新解释旧编号。
 

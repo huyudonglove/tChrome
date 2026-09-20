@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "list_browser_tools",
-    "description": "列出尚未加载的动态工具，包含浏览器、服务端网络和 local.* 本机文件/命令/进程能力。\n返回：ok、tools（工具名列表）；选定后用 catalog.add 加载，下一次拿到 schema 再调用。",
+    "description": "列出尚未加载的动态工具名称。能力大类见 System <environment>。选定后用 catalog.add 加载，下一次拿到 schema 再调用。",
     "parameters": {
       "type": "object",
       "properties": {
