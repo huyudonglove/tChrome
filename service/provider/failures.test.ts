@@ -38,6 +38,7 @@ const cases = [
 
 for (const scenario of cases) {
   test(`Chat/Responses parity: ${scenario.name}`, async () => {
+    const expectedAttempts = scenario.fault === "provider_invalid_response" ? 3 : 1;
     for (const api of ["chat", "responses"] as const) {
       let requests = 0;
       const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch() {
@@ -46,13 +47,27 @@ for (const scenario of cases) {
       } });
       try {
         const result = await createProvider({ api, apiKey: "local-test", proxy: "", baseURL: `http://127.0.0.1:${server.port}/v1` }).complete(input);
-        expect(result).toMatchObject({ finish: "error", faultCode: scenario.fault, attempts: 1, toolCalls: [], parseOk: false });
+        expect(result).toMatchObject({ finish: "error", faultCode: scenario.fault, attempts: expectedAttempts, toolCalls: [], parseOk: false });
         expect(result.toolCallFaults).toBeUndefined();
-        expect(requests).toBe(1);
+        expect(requests).toBe(expectedAttempts);
       } finally { server.stop(true); }
     }
   });
 }
+
+test("invalid response retries silently and uses the first valid completion", async () => {
+  let requests = 0;
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch() {
+    requests++;
+    if (requests < 3) return Response.json(chat("stop", { content: " ", tool_calls: [] }));
+    return Response.json(chat("stop", { content: "ok", tool_calls: [] }));
+  } });
+  try {
+    const result = await createProvider({ api: "chat", apiKey: "local-test", proxy: "", baseURL: `http://127.0.0.1:${server.port}/v1` }).complete(input);
+    expect(result).toMatchObject({ finish: "stop", content: "ok", toolCalls: [], faultCode: null, attempts: 3 });
+    expect(requests).toBe(3);
+  } finally { server.stop(true); }
+});
 
 test("Responses other incomplete reason is terminal", async () => {
   let requests = 0;

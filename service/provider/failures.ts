@@ -6,7 +6,7 @@ const policies = {
   output_limit: { faultCode: "provider_output_limit", retryable: false },
   refused: { faultCode: "provider_refused", retryable: false },
   incomplete: { faultCode: "provider_incomplete", retryable: false },
-  invalid_response: { faultCode: "provider_invalid_response", retryable: false },
+  invalid_response: { faultCode: "provider_invalid_response", retryable: true },
   server_error: { faultCode: "provider_error", retryable: true },
   rate_limit: { faultCode: "provider_error", retryable: true },
 } as const;

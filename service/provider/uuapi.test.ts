@@ -33,7 +33,8 @@ for (const finish of ["length", "content_filter", "stop", "unknown"]) {
       expect(response.faultCode).toBe(faultCode);
       expect(response.toolCalls).toEqual([]);
       expect(response.toolCallFaults).toBeUndefined();
-      expect(response.attempts).toBe(1);
+      const retriedInvalid = faultCode === "provider_invalid_response";
+      expect(response.attempts).toBe(retriedInvalid ? 3 : 1);
       const result = await handleTurn({ dataDir: dir, repoRoot: resolve(import.meta.dir, "../.."), provider },
         { userInput: "测试", submittedAt: "now" });
       const detailSuffix = finish === "length" ? "chat_output_limit"
@@ -44,7 +45,8 @@ for (const finish of ["length", "content_filter", "stop", "unknown"]) {
       const ledger = loadLedger(dir, result.conversationId);
       expect(ledger.notes.kept).toBeUndefined();
       expect(ledger.toolIO).toEqual([]);
-      expect(requests).toBe(2);
+      // complete() retries invalid responses; handleTurn issues another provider request.
+      expect(requests).toBe(retriedInvalid ? 6 : 2);
     } finally { server.stop(true); rmSync(dir, { recursive: true, force: true }); }
   });
 }
