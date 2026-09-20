@@ -82,7 +82,7 @@ async function resolveByRole(host: BrowserHost, tabId: unknown, reason: string, 
 
 /**
  * Service-side compound browser steps. Each call sequences existing extension
- * primitives via one host bridge — no new page semantics, no silent fallbacks.
+ * Compose page primitives via one host bridge call.
  */
 export async function runCompoundTool(
   name: string,

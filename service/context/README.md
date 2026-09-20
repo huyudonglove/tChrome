@@ -87,8 +87,6 @@ User 模块（含数据）：
 </toolIO>
 ```
 
-不再使用 `#tag` 编号清单。
-
 ## 加模块时改哪里
 
 1. `modules.json`：加一项（`consumers` / `compress` / `archiveField`）  

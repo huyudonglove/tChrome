@@ -17,9 +17,8 @@ test("registry loads XML modules and system text uses angle-bracket tags", () =>
   expect(system.startsWith("<overview>")).toBe(true);
   expect(system).toContain("</overview>");
   expect(system).toContain("2026-09-06");
-  expect(system).toContain("服务数据目录（绝对路径；脚本 scripts/、进程输出 process-output/、会话落盘、临时文件都在此）：/tmp/tchrome-data");
-  expect(system).toContain("代码仓库路径（仅服务源码位置；非用户明确要求的源码/文档修改，不要在此写入任何文件）：/tmp/tchrome-test");
-  expect(system).toContain("不要写 `~/` 缩写");
+  expect(system).toContain("服务数据目录（脚本 scripts/、进程输出 process-output/、会话落盘、临时文件）：/tmp/tchrome-data");
+  expect(system).toContain("代码仓库路径（服务源码）：/tmp/tchrome-test");
   expect(system).toContain("操作系统：macOS (darwin/arm64)");
   expect(system).toContain("<identity>");
   expect(system).toContain("</identity>");

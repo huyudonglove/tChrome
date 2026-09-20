@@ -101,7 +101,7 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。`returns/<ca
 
 每次出网追加一节到当前 `provider.md`。单个 `provider.md` 超过 3MB 时，先改名为 `provider.NN.md`（NN 自增），再开新的 `provider.md`。`loadProviderLog` 按 `provider.01.md`…再到 `provider.md` 的顺序读取全部节。
 
-主日志只记录 **user 窗口** 与模型返回，不再每条抄写 system。system 全文写入 `provider-system.md`：按正文 sha256 前 16 位分块，`## system <hash>` 首次出现或哈希变化时各记一次；exchange 的 json 围栏用 `systemHash` 引用。
+主日志记录 user 窗口与模型返回。system 全文写入 `provider-system.md`：按正文 sha256 前 16 位分块，`## system <hash>` 首次出现或哈希变化时各记一次；exchange 的 json 围栏用 `systemHash` 引用。
 
 标题 `## tn_01 / 1`。json 围栏只放元数据。user / content / tool_calls 小节用普通围栏，正文真换行。
 
@@ -250,7 +250,7 @@ conversationHistorySummary 显示当前有效摘要的 {sumId, turnId, tag, user
 
 ## 窗口模块
 
-用户一条输入开一个 Turn，CE 装配一次。本 Turn 内工具循环不再走 CE。
+用户一条输入开一个 Turn，CE 装配一次。本 Turn 内工具循环不走 CE。
 
 加载顺序由 `service/context/modules.json` 决定。每个模块是一份 XML 文件，含 `<id>`、能力、详细描述；User 模块另含独立的 `内容：` 段，通过 `{{data}}` 注入运行数据。System 与 User 窗口都渲染完整 XML 模块。
 

@@ -12,7 +12,7 @@
 
 浏览器元素与区域使用 `e_01` / `r_01`（page.* 与 snapshot 共用）。扩展通过统一编号目录生成前缀，由 service worker 在 `chrome.storage.local` 持久自增分配；跨标签、导航和 worker 重启不复用。编号绑定实际 DOM 节点，同一节点重复观察保持编号；旧节点消失或不可见时操作失败，不按新枚举位置重新解释旧编号。
 
-`web_search` 搜索公开网页链接；`tavily_search` 通过 Tavily 高级搜索返回网页及相关内容，单次 HTTP 请求入口为 `send_http`。旧搜索名称、`api_execute` 和未实现的接口登记入口已删除；未知工具调用明确失败。
+`web_search` 搜索公开网页链接；`tavily_search` 通过 Tavily 高级搜索返回网页及相关内容，单次 HTTP 请求入口为 `send_http`。未知工具调用明确失败。
 
 `tavily_search` 属于动态服务工具，默认不加载，通过 `catalog.add` 启用。服务环境需配置 `TAVILY_API_KEY`（空配置示例见 `service/.env.example`）。搜索固定为 advanced，query 去除首尾空白，maxResults 默认 5、范围 1 至 10；每条 content 最多 4000 字符，截断标注 truncated。结果包含 query、searchDepth、results 和 urls；失败使用下述统一错误格式。
 
@@ -30,7 +30,7 @@
 
 常驻 `context.query(sumId, module, intent)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将完整 records 放入 currentQuery；`<toolIO>` 只投影 currentQuery 指针。查询结果与其它工具返回共用统一内联门禁（默认 4000 字符），超出时注入 externalized 摘要（preview+path+totalLines/lineWidth）；本地全文按默认 100 字/行拆行，可用 evidence.search 按 keyword 或只传 startLine（约 400 字窗口）检索。查询不会刷新页面。
 
-查询模块统一为 conversationHistory；每份归档保留轮次内部的输入、目标变化、工具、页面观察、记忆增量及最终输出。目录与原文由 `service/context-archive/` 管理，工具层只校验参数并调度 `service/agents/query/`。查询 Agent 自己管理提示词、输入输出协议与业务校验，模型请求复用现有 `provider.complete`。查询 Agent 仅选择候选，返回 ID 不能作为文件路径。查询结果不再经过普通工具的二次截断。
+查询模块统一为 conversationHistory；每份归档保留轮次内部的输入、目标变化、工具、页面观察、记忆增量及最终输出。目录与原文由 `service/context-archive/` 管理，工具层只校验参数并调度 `service/agents/query/`。查询 Agent 自己管理提示词、输入输出协议与业务校验，模型请求复用现有 `provider.complete`。查询 Agent 仅选择候选，返回 ID 不能作为文件路径。查询结果走统一内联门禁，不按普通工具再截一层。
 
 脚本保存在服务数据目录下的 `scripts/`（该目录是绝对路径，由 System `<overview>` 注入；环境变量 `TCHROME_DATA` 可覆盖默认位置，模型调用不要写 `~/` 缩写）：`script_patch(filename, patch)` 仅应用单文件 git unified diff，支持新增、修改和删除；`script_read(filename)` 返回代码，`script_list()` 返回文件名，三者的 affectsPage 固定为 false。文件名为单层 .sh/.py/.js/.mjs/.cjs。执行快照在系统临时目录，进程输出在数据目录 `process-output/`；不要把临时脚本或执行产物写进代码仓库。
 
@@ -52,7 +52,7 @@ HTTP 传输由 `service/network/idle-fetch.ts` 统一检查响应活动，`http-
 
 点击工具：`click(targetText|ref)` 按控件文字或 snapshot_page/find_on_page 引用定位；`page.click(id)` 使用 page.* 的元素编号。两者保留独立引用体系，reason 是可选展示信息，不自动填充。click 不接受旧 text 字段，也不将非字符串强转为目标文字。
 
-工具参数对象原样接收，字符串仅执行一次标准 JSON.parse，不修复围栏、尾逗号或单引号。HTTP 正文、响应头、搜索正文和脚本输出不再隐式截断；发送主模型前由统一上下文门禁处理文本。浏览器桥不设独立总执行时限；已执行请求只重发结果，扩展 worker 恢复时结果未知则返回错误而不重做动作。
+工具参数对象原样接收，字符串仅执行一次标准 JSON.parse，不修复围栏、尾逗号或单引号。HTTP 正文、响应头、搜索正文和脚本输出完整保留；发送主模型前由统一上下文门禁处理文本。浏览器桥不设独立总执行时限；已执行请求只重发结果，扩展 worker 恢复时结果未知则返回错误而不重做动作。
 
 动态加载成功后将工具名持久写入会话 ledger.loadedToolIds，新 turn 合并默认工具与会话清单生成 tools[]；重新打开会话和服务重启不清空，新会话独立。finishTurn 必填 text，reason 和 affectsPage 可省略；text 给侧栏/trace，并作为后续模型上下文与压缩链路的收口正文，不从 content 补齐。
 
