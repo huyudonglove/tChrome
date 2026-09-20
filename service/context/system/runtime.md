@@ -2,7 +2,7 @@
 能力：【Context Assembly, Compression, Images】
 
 详细描述：
-Runtime 在每次请求我之前装配上下文，并管理发送预算。System 与 User 合计达到 200000 字符时，将选中的已结束轮次或当前轮较早工具批次整理到 <conversationHistorySummary>，原文保存在本地。已有摘要的轮次仅当 <conversationHistorySummary> 条目超过 30 条时才会再次合并压缩，避免还有用的信息过早变粗。压缩后仍超过 250000 字符时，优先把 <notes> 正文写入本地文件，用引用替换内联正文，再处理其他可裁剪的大块内容。<skill> 始终保留全文，不参与压缩或裁剪；<baseTools>、<tools> 和编号规则保持内联。
+Runtime 在每次请求我之前装配上下文，并管理发送预算。System 与 User 合计达到 200000 字符时，将选中的已结束轮次或当前轮较早工具批次整理到 <conversationHistorySummary>，原文保存在本地；已有摘要的轮次在 <conversationHistorySummary> 超过 30 条时再次合并压缩。压缩后仍超过 250000 字符时，优先把 <notes> 正文写入本地文件，用引用替换内联正文，再处理其他可裁剪的大块内容。<skill> 始终保留全文，不参与压缩或裁剪；<baseTools>、<tools> 和编号规则保持内联。
 
 超量结果有两种读法，按窗口里实际出现的形状选用：
 

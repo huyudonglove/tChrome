@@ -12,7 +12,7 @@ affectsPage 表示是否改变浏览器页面状态：点击、输入、导航�
 
 新标签在指定窗口后台打开，新窗口默认不获取焦点，截图在指定标签后台完成。duplicate_tab 会激活复制出的标签。其他需要切到前台的操作，明确调用切换工具。
 
-脚本先用 script_patch 保存，收到保存成功的结果后，再提交执行调用。script_patch 不能与 execute_javascript、local.run 或 local.process_start 放在同一批。长命令传 heartbeatSec（如 30）：local.run 到点仍在跑返回 heartbeat=true 与 processId，用 local.process_status / local.process_stop；send_http、send_http_batch、web_search、tavily_search、execute_javascript 到点仍在跑返回 heartbeat=true 与 jobId，用 job.status / job.stop。任务结束后心跳结束。local.* 的 cwd 与临时/执行产物使用 <overview> 中的服务数据目录绝对路径。
+脚本先用 script_patch 保存，收到保存成功的结果后，再提交执行调用。script_patch 不能与 execute_javascript、local.run 或 local.process_start 放在同一批。长命令可传 heartbeatSec（如 30）：local.run 到点仍在跑返回 heartbeat=true 与 processId，用 local.process_status / local.process_stop；send_http、send_http_batch、web_search、tavily_search、execute_javascript 到点仍在跑返回 heartbeat=true 与 jobId，用 job.status / job.stop。local.* 的 cwd 与临时/执行产物使用 <overview> 的服务数据目录绝对路径。
 
 高频浏览器链路优先用复合工具，减少往返：page.click_role（role±name 定位后点击，可选 waitText/waitUrlContains）、page.fill_role（定位后输入）、page.submit_wait（按 id 提交并 wait_response）、page.select_role（定位下拉后选择）、page.click_text（按可见文字定位后点击）、page.fill_submit（fields 逐项填写后提交，可选等待）。多匹配时必须给 matchIndex 或收窄 name，工具不会默认取第一个。观察小控件优先 capture_page(mode=element, ref|selector) 局部切片；一屏多控件时用 mode=som 取角标图，再按 marks[].id 点击。动态内容用 wait(role, name, states={enabled|checked|expanded|attached…})；验收用 page.assert(role, name, states)，list_interactive_elements 的每条含 states。
 

@@ -2,13 +2,13 @@
   "type": "function",
   "function": {
     "name": "local.run",
-    "description": "Execute a saved script by filename in absolute cwd. Save with script_patch in an earlier call. Extensions: .sh uses zsh, .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches.\ncwd: absolute path from System overview service dataDir (never ~/ shorthand, never the code repo unless the user explicitly asked to run inside that repo).\nheartbeatSec: optional positive seconds (e.g. 30). If the process is still running when that time elapses, return immediately with heartbeat=true, status=running, processId, stdoutPreview/stderrPreview — do not wait forever. Then use local.process_status to poll, or local.process_stop to kill. If the process exits before heartbeatSec, you get the normal complete result and the heartbeat ends. No heartbeatSec: wait until completion (optional timeoutMs still kills the group when elapsed).\nComplete stdout/stderr persist in stdoutPath/stderrPath. Nonzero exit means failure.",
+    "description": "Execute a saved script by filename in absolute cwd. Save with script_patch in an earlier call. Extensions: .sh uses zsh, .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches.\ncwd: absolute path; use the service data directory from System overview unless the user names another directory.\nheartbeatSec: optional positive seconds (e.g. 30). If the process is still running when that time elapses, return heartbeat=true, status=running, processId, stdoutPreview/stderrPreview. Then use local.process_status or local.process_stop. If the process exits before heartbeatSec, the call returns the complete result. Without heartbeatSec, the call waits for completion (timeoutMs still applies).\nComplete stdout/stderr persist in stdoutPath/stderrPath. Nonzero exit means failure.",
     "parameters": {
       "type": "object",
       "properties": {
         "cwd": {
           "type": "string",
-          "description": "运行目录的绝对路径。使用 System <overview> 注入的服务数据目录绝对路径（不要用 ~/），不要使用代码仓库路径，避免污染项目。"
+          "description": "运行目录的绝对路径；默认取 <overview> 中的服务数据目录。"
         },
         "timeoutMs": {
           "type": "integer",

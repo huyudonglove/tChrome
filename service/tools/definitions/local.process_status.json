@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.process_status",
-    "description": "查询本会话后台进程（含 local.run heartbeat 返回的 processId）。返回 status、exitCode、signal、完整累计 stdout/stderr，以及持久化路径 stdoutPath/stderrPath。status=running 表示仍在执行；exited/timeout/stopped 表示已结束（心跳随之销毁）。",
+    "description": "查询本会话后台进程（含 local.run heartbeat 返回的 processId）。返回 status、exitCode、signal、完整累计 stdout/stderr，以及持久化路径 stdoutPath/stderrPath。status=running 表示仍在执行；exited/timeout/stopped 表示已结束。",
     "parameters": {
       "type": "object",
       "properties": {

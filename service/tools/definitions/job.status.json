@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "job.status",
-    "description": "查询本会话 heartbeatSec 提前返回的后台任务（HTTP/搜索/execute_javascript）。返回 status、toolName、elapsedMs；completed/failed 时含完整 result。status=running 表示仍在执行；completed/failed/stopped 表示已结束（心跳随之销毁）。local.run 的进程仍用 local.process_status。",
+    "description": "查询本会话 heartbeatSec 提前返回的后台任务（HTTP/搜索/execute_javascript）。返回 status、toolName、elapsedMs；completed/failed 时含完整 result。status=running 表示仍在执行。local.run 的进程用 local.process_status。",
     "parameters": {
       "type": "object",
       "properties": {

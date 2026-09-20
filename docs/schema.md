@@ -182,7 +182,7 @@ Runtime 独占维护。当前会话指针。
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
 | `mcpIds` | string[] | 本轮 MCP；没有就 `[]` |
 | `openTabs` | object | 每次请求主模型前刷新；成功为 `{ok:true, windows:[{windowId, focused, tabs:[{tabId, url, title, active}]}]}`，失败为 `{ok:false, error}`；注入 `<openTabs>` |
-| `currentPage` | object \| null | 内部保存最近实际页面观察，初始 null，由有效页面工具返回更新；不再单独注入插槽 |
+| `currentPage` | object \| null | 最近实际页面观察，初始 null，由有效页面工具返回更新；窗口无独立插槽 |
 | `pageObservedHistory` | object[] | 页面观察统一数组，初始 `[]`，按旧到新追加。每条：id、turnId、callId、batchId?、tabId、type（工具名）、result（完整返回）；存储另含 observedAt。注入 `<pageObservedHistory>` 时保留完整 result |
 
 `currentPage`：

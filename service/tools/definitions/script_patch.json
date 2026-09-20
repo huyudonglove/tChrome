@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "script_patch",
-    "description": "用 git unified diff 在服务数据目录 scripts/ 新增、修改或删除一个脚本文件（不是代码仓库）。filename 指定单层文件名，patch 只能修改该文件；返回修改状态，不执行脚本。必须等本次补丁成功后的下一次模型调用，再用 execute_javascript、local.run 或 local.process_start 执行；同批补丁与执行会被拒绝。",
+    "description": "用 git unified diff 在服务数据目录 scripts/ 新增、修改或删除一个脚本文件。filename 指定单层文件名，patch 只能修改该文件；返回修改状态，不执行脚本。必须等本次补丁成功后的下一次模型调用，再用 execute_javascript、local.run 或 local.process_start 执行；同批补丁与执行会被拒绝。",
     "parameters": {
       "type": "object",
       "properties": {

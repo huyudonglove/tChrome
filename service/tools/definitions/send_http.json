@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "send_http",
-    "description": "向完整 HTTP/HTTPS URL 发送请求，跟随重定向；method 默认 GET。请求可能修改远端数据。\n返回：ok、status、url（最终地址）、text（最多 8000 字符）。\nheartbeatSec：可选正整数秒（如 30）。请求在该时间后仍在执行则提前返回 heartbeat=true + jobId，用 job.status / job.stop；请求完成或结束后心跳销毁。未传则等到完成。\n空闲超时和重试次数由服务端统一网络配置控制；持续收到数据时继续读取，停止会话会取消请求和重试。",
+    "description": "向完整 HTTP/HTTPS URL 发送请求，跟随重定向；method 默认 GET。请求可能修改远端数据。\n返回：ok、status、url（最终地址）、text（最多 8000 字符）。\nheartbeatSec：可选正整数秒（如 30）。请求在该时间后仍在执行则返回 heartbeat=true + jobId，用 job.status / job.stop；未传则等到完成。\n空闲超时和重试次数由服务端统一网络配置控制；持续收到数据时继续读取，停止会话会取消请求和重试。",
     "parameters": {
       "type": "object",
       "properties": {
