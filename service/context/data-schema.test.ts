@@ -45,6 +45,9 @@ test("assembled User slots follow the shared data contract and preserve query re
     values[name] = name === "skill" || name === "tools" ? body : JSON.parse(body);
   }
   expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
+  expect(values.openTabs.turnId).toBe("tn_02");
+  expect(values.notes).toEqual({ turnId: "tn_02", notes: { scope: "仅核对" } });
+  expect(values.currentQuery.turnId).toBe("tn_02");
   expect(values.goal.currentGoalId).toBe("subgoal_02");
   expect(values.goal.goals.map((row: { id: string }) => row.id)).toEqual(["goal_02", "goal_03", "subgoal_02"]);
   expect(values.goalHistory.map((row: { id: string; status: string }) => [row.id, row.status])).toEqual([["subgoal_01", "completed"], ["goal_03", "cancelled"]]);

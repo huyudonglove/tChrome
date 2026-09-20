@@ -144,7 +144,7 @@ test("标签快照走扩展桥；未连接时文字请求可继续，停止释�
     const snapshot = {ok: true, windows: [{windowId: 1, focused: true, tabs: [{tabId: 12, active: true, url: "https://example.com", title: "测试"}]}]};
     server.bridge.resolve(request.id, snapshot);
     expect((await (await pending).json()).output.kind).toBe("reply");
-    expect(snapshots[1]).toEqual(snapshot);
+    expect(snapshots[1]).toEqual({ ...snapshot, turnId: expect.stringMatching(/^tn_/) });
     const stopped = post();
     await Bun.sleep(0);
     expect(server.bridge.current()?.name).toBe("__openTabs");

@@ -23,6 +23,15 @@ export type CompressProgress =
   | { type: "stopped"; completed: number; total: number; failedTurnId?: string };
 
 const running = new Map<string, { isCancelled?: () => boolean }>();
+
+/**
+ * conversationHistorySummary (active summaries) may re-enter merge compression only when
+ * there are more than this many active entries. At or below the threshold, turns that
+ * already have summaries are skipped so useful detail is not forced into a coarser level.
+ * First-time turn compression is unchanged.
+ */
+export const SUMMARY_RECOMPRESS_MIN_ACTIVE = 30;
+
 function asTurn(content: unknown): CompressionTurn {
   if (!content || typeof content !== "object" || !("turnId" in content) || typeof content.turnId !== "string" || !content.turnId.trim()) throw new Error("Compression source missing turnId");
   return content as CompressionTurn;
@@ -38,6 +47,8 @@ function turnOrder(sources: SourceRecord[]): number {
  * Each turn is one request. Success archives that turn immediately and drops its originals
  * from the window via coveredSourceIds. The first failure stops the walk: that turn and all
  * later turns keep originals until a later compressAt trigger retries from uncovered turns.
+ * Turns that already have conversationHistorySummary entries skip re-compression unless
+ * active summary count exceeds SUMMARY_RECOMPRESS_MIN_ACTIVE.
  */
 export async function compressRecords(input: Input): Promise<CompressOutcome> {
   const lock = JSON.stringify([input.dataDir, input.conversationId, input.module]);
@@ -82,11 +93,66 @@ async function compress(input: Input): Promise<CompressOutcome> {
   for (const [turnId, sources] of ordered) {
     check();
     const priorSummaries = activeEntries().filter(record => record.turnId === turnId);
-    const turn: CompressionTurn = !priorSummaries.length && sources.length === 1
-      ? asTurn(sources[0]!.content)
+    const isQueryOnlySource = (source: SourceRecord) => {
+      const c = source.content as Record<string, unknown> | null;
+      if (!c || typeof c !== "object") return false;
+      const queries = Array.isArray(c.queryHistory) ? c.queryHistory : [];
+      if (!queries.length) return false;
+      for (const key of ["toolIO", "pageObservations", "memoryWrites", "goalChanges"] as const) {
+        const list = c[key];
+        if (Array.isArray(list) && list.length) return false;
+      }
+      return c.output == null;
+    };
+    const querySources = sources.filter(isQueryOnlySource);
+    const mergeSources = sources.filter((source) => !isQueryOnlySource(source));
+    // Existing summaries stay coarse-blocked; independent query sources may still archive first-time.
+    if (priorSummaries.length > 0 && index.activeIds.length <= SUMMARY_RECOMPRESS_MIN_ACTIVE) {
+      if (!querySources.length) continue;
+      const turn: CompressionTurn = {
+        turnId,
+        segments: querySources.map(source => asTurn(source.content)),
+        summaries: [],
+      };
+      let querySummary;
+      try {
+        querySummary = await requestTurnSummary({
+          provider: input.provider,
+          repoRoot: input.repoRoot,
+          turn,
+          dataDir: input.dataDir,
+          conversationId: input.conversationId,
+          module: input.module,
+        });
+      } catch (error) {
+        if (input.isCancelled?.() || (error instanceof Error && /cancel/i.test(error.message))) throw error;
+        return stop(turnId);
+      }
+      check();
+      const record: CompressionRecord = {
+        id: allocateRecordId(input.dataDir, input.conversationId, "sum"),
+        module: input.module,
+        level: 1,
+        ...querySummary,
+        sourceIds: querySources.map(source => source.id),
+        createdAt: new Date().toISOString(),
+      };
+      index.entries.push(record);
+      index.activeIds.push(record.id);
+      querySources.forEach(source => covered.add(source.id));
+      index.coveredSourceIds = [...covered];
+      commitArchive(input.dataDir, input.conversationId, index, querySources, [record]);
+      committedTurnIds.push(turnId);
+      input.onProgress?.({ type: "turn", completed: committedTurnIds.length, total, turnId });
+      continue;
+    }
+    const effectiveSources = priorSummaries.length > 0 ? [...mergeSources, ...querySources] : sources;
+    if (!effectiveSources.length) continue;
+    const turn: CompressionTurn = !priorSummaries.length && effectiveSources.length === 1
+      ? asTurn(effectiveSources[0]!.content)
       : {
           turnId,
-          segments: sources.map(source => asTurn(source.content)),
+          segments: effectiveSources.map(source => asTurn(source.content)),
           summaries: priorSummaries.map(({ tag, userRequest, actions, result }) => ({ tag, userRequest, actions, result })),
         };
 
@@ -112,7 +178,7 @@ async function compress(input: Input): Promise<CompressOutcome> {
       module: input.module,
       level,
       ...summary,
-      sourceIds: [...priorSummaries.map(item => item.id), ...sources.map(source => source.id)],
+      sourceIds: [...priorSummaries.map(item => item.id), ...effectiveSources.map(source => source.id)],
       createdAt: new Date().toISOString(),
     };
     index.entries.push(record);
@@ -120,9 +186,9 @@ async function compress(input: Input): Promise<CompressOutcome> {
       const replaced = new Set(priorSummaries.map(item => item.id));
       index.activeIds = [...new Set(index.activeIds.map(id => replaced.has(id) ? record.id : id))];
     } else index.activeIds.push(record.id);
-    sources.forEach(source => covered.add(source.id));
+    effectiveSources.forEach(source => covered.add(source.id));
     index.coveredSourceIds = [...covered];
-    commitArchive(input.dataDir, input.conversationId, index, sources, [record]);
+    commitArchive(input.dataDir, input.conversationId, index, effectiveSources, [record]);
     committedTurnIds.push(turnId);
     input.onProgress?.({ type: "turn", completed: committedTurnIds.length, total, turnId });
   }

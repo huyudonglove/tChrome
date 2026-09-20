@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import type { Provider } from "../../types.ts";
-import { compressRecords } from "./index.ts";
+import { compressRecords, SUMMARY_RECOMPRESS_MIN_ACTIVE } from "./index.ts";
 import { compressionTurnsFromUserMessage } from "./protocol.ts";
 import { archiveDir, loadIndex, readSource, resolveSources } from "../../context-archive/store.ts";
 import type { CompressionTurn } from "./protocol.ts";
@@ -45,18 +45,40 @@ test("sequential per-turn requests commit each success and keep independent immu
   expect(calls).toHaveLength(2);
   expect(resolveSources(args.dataDir, args.conversationId, args.module, first.activeIds)).toEqual(records);
 });
-test("new segments consolidate only their own turn with exact source ancestry", async () => {
+test("new segments stay uncompressed until active summaries exceed the gate", async () => {
   const args = setup(model());
   const first = source("tn_01", "segment_1");
   await compressRecords({ ...args, records: [first, source("tn_02")] });
   const initial = loadIndex(args.dataDir, args.conversationId, args.module);
+  expect(initial.activeIds).toHaveLength(2);
   const last = source("tn_01", "segment_2", "最终确认");
-  await compressRecords({ ...args, records: [last] });
+  const deferred = await compressRecords({ ...args, records: [last] });
+  expect(deferred.committedTurnIds).toEqual([]);
+  const still = loadIndex(args.dataDir, args.conversationId, args.module);
+  expect(still.entries).toHaveLength(2);
+  expect(still.activeIds).toEqual(initial.activeIds);
+  expect(readSource(args.dataDir, args.conversationId, args.module, "segment_2")).toBeNull();
+});
+
+test("summary layer re-enters compression once active summaries exceed the gate", async () => {
+  const args = setup(model());
+  const first = source("tn_01", "segment_1");
+  await compressRecords({ ...args, records: [first] });
+  // Fill conversationHistorySummary past the threshold with other turns.
+  const filler = Array.from({ length: SUMMARY_RECOMPRESS_MIN_ACTIVE }, (_, i) => source(`tn_fill_${i + 1}`, `fill_${i + 1}`));
+  const filled = await compressRecords({ ...args, records: filler });
+  expect(filled.status).toBe("completed");
+  const index = loadIndex(args.dataDir, args.conversationId, args.module);
+  expect(index.activeIds.length).toBeGreaterThan(SUMMARY_RECOMPRESS_MIN_ACTIVE);
+  const last = source("tn_01", "segment_2", "最终确认");
+  const merged = await compressRecords({ ...args, records: [last] });
+  expect(merged.committedTurnIds).toEqual(["tn_01"]);
   const next = loadIndex(args.dataDir, args.conversationId, args.module);
-  expect(next.entries).toHaveLength(3);
-  expect(next.activeIds).toEqual([next.entries[2]!.id, next.entries[1]!.id]);
-  expect(next.entries[2]!.sourceIds).toEqual([initial.entries[0]!.id, "segment_2"]);
-  expect(resolveSources(args.dataDir, args.conversationId, args.module, [next.entries[2]!.id])).toEqual([first, last]);
+  const mergedRecord = next.entries.find(row => row.turnId === "tn_01" && row.sourceIds.includes("segment_2"))!;
+  expect(mergedRecord.level).toBe(2);
+  expect(mergedRecord.sourceIds).toEqual(["sum_01", "segment_2"]);
+  expect(next.activeIds).toContain(mergedRecord.id);
+  expect(next.activeIds).not.toContain("sum_01");
 });
 test("failed turn stops sequence: prefix stays covered, later turns keep originals", async () => {
   const good = model();
@@ -96,24 +118,21 @@ test("oversized string is sent whole in one request and archived unchanged", asy
   expect(calls).toEqual([[original.content]]);
   expect(readSource(args.dataDir, args.conversationId, args.module, "large")).toEqual(original);
 });
-test("new sources merge only their own turn summaries; no sources skip model requests", async () => {
+test("new sources skip model requests when summary layer is not yet due for merge", async () => {
   const args = setup(model(undefined, "已验证".repeat(600)));
   await compressRecords({ ...args, records: [source("tn_01"), source("tn_02")] });
   const before = loadIndex(args.dataDir, args.conversationId, args.module);
   expect(before.entries).toHaveLength(2);
   const calls: CompressionTurn[][] = [];
   const segment = source("tn_01", "segment_2", "补充证据");
-  await compressRecords({ ...args, provider: model(turns => calls.push(turns)), records: [segment] });
-  expect(calls).toHaveLength(1);
-  expect(calls[0]!.map(turn => turn.turnId)).toEqual(["tn_01"]);
-  expect(calls[0]![0]!.segments).toEqual([segment.content]);
+  const deferred = await compressRecords({ ...args, provider: model(turns => calls.push(turns)), records: [segment] });
+  expect(deferred.committedTurnIds).toEqual([]);
+  expect(calls).toHaveLength(0);
   const next = loadIndex(args.dataDir, args.conversationId, args.module);
-  await compressRecords({ ...args, provider: model(turns => calls.push(turns)), records: [segment] });
+  expect(next.entries.map(record => record.level)).toEqual([1, 1]);
   await compressRecords({ ...args, provider: model(turns => calls.push(turns)), records: [] });
-  expect(calls).toHaveLength(1);
-  expect(next.entries.map(record => record.level)).toEqual([1, 1, 2]);
-  expect(next.entries.slice(2).map(record => record.sourceIds)).toEqual([[before.entries[0]!.id, "segment_2"]]);
-  expect(resolveSources(args.dataDir, args.conversationId, args.module, next.activeIds).map(record => record.id)).toEqual(["tn_01", "tn_02", "segment_2"]);
+  expect(calls).toHaveLength(0);
+  expect(resolveSources(args.dataDir, args.conversationId, args.module, next.activeIds).map(record => record.id)).toEqual(["tn_01", "tn_02"]);
 });
 
 test("failed index commit never reuses an orphan summary ID on retry", async () => {

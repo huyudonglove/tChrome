@@ -12,16 +12,16 @@
 | `userInputHistory` | 用户输入记录数组 | `id` |
 | `goal` | `{currentGoalId, goals}`；goals 为全部 active 目标及其父级记录 | `currentGoalId`、记录 `id` / `parentId` |
 | `goalHistory` | completed / cancelled 的目标记录数组 | `id` / `parentId` |
-| `openTabs` | `{ok:true, windows:[{windowId, focused, tabs:[{tabId, url, title, active}]}]}` 或 `{ok:false, error}` | 浏览器原始 windowId / tabId |
+| `openTabs` | `{turnId, ok:true, windows:[...]}` 或 `{turnId, ok:false, error}` | 浏览器原始 windowId / tabId |
 | `pageObservedHistory` | 页面观察数组（旧→新）：`id / turnId / callId / batchId? / tabId / type / result` | `id` |
 | `projectMemory` | `[{memoryId, turnId, sourceCallId?, sourceConversationId?, text}]` | `memoryId`（`lm_`） |
 | `conversationMemory` | 同上 | `memoryId`（`mm_`） |
-| `notes` | 字符串键值对象，空值为 `{}` | 键名 |
+| `notes` | `{turnId, notes:{key:text}}`，空值为 `{turnId, notes:{}}` | turnId + key |
 | `toolIO` | 窗口投影 `[{callId, turnId, batchId?, name, arguments, return:{stage, result}}]`；查询指针含 `currentQuery` / `recordCount` | `callId` |
 | `lastAction` | `{batchId, turnId, calls}` 或 `null` | `batchId` |
-| `checklist` | `{title?, items}` 或 `null` | 无 |
+| `checklist` | `{turnId, title?, items}` 或 `null` | turnId |
 | `queryHistory` | 查询记录数组（可含 externalized 形状） | `queryId` |
-| `currentQuery` | 查询记录或 `null` | `queryId` |
+| `currentQuery` | 查询记录（含 turnId）或 `null` | `queryId` |
 | `tools` | 本轮已加载动态工具的能力导航文本，每项为工具名和说明首句 | 工具名 |
 
 目标记录统一为 `{id, parentId, status, turnId, sourceCallId?, goal}`。总目标 `goal_01` 的 parentId 为 null；子目标 `subgoal_01` 的 parentId 指向总目标。两类编号在会话内分别持久自增，更新保留原 ID。currentGoalId 可为 null；新会话 goal 为 `{currentGoalId:null,goals:[]}`，goalHistory 为 `[]`。磁盘以 Ledger.goals 保存全部最新记录、currentGoalId 保存选择，Turn.goalChanges 保存调用时的变更快照。

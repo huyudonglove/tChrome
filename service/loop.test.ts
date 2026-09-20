@@ -68,7 +68,7 @@ test("每次主模型请求刷新 openTabs，焦点变化不覆盖页面观察�
         expect(snapshot.windows[0].tabs[1].active).toBe(true);
         expect(body).toContain("已观察原页面");
       }
-      if (requests === 3) expect(snapshot).toEqual({ok: false, error: "读取窗口失败"});
+      if (requests === 3) expect(snapshot).toEqual({ok: false, error: "读取窗口失败", turnId: expect.stringMatching(/^tn_/)});
       return ok({finish: "tool_calls", toolCalls: [requests < 3
         ? {id: `read_${requests}`, name: "page.get_summary", arguments: {tabId: 12, reason: "查看原页面", affectsPage: false}}
         : {id: "finish", name: "finishTurn", arguments: {text: "完成"}}]});

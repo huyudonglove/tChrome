@@ -62,7 +62,7 @@ test("oversized notes stay durable, can be deleted by the model, and do not bloc
       expect(ledger.notes.large).toBe(value);
       return response(call("notes.delete", { key: "large" }));
     }
-    expect(slot(user, "#notes")).toEqual({});
+    expect(slot(user, "#notes")).toMatchObject({ turnId: expect.stringMatching(/^tn_/), notes: {} });
     return finish();
   }) }, { userInput: "保存后删除大笔记", submittedAt: "now" });
   expect(reply.output).toEqual({ kind: "reply", text: "完成" });
@@ -167,7 +167,9 @@ test("uncompressible notes between 200K and 250K remain inline and allow the mai
   let calls = 0;
   const base = provider(user => {
     calls++;
-    expect(slot(user, "#notes")).toEqual(ledger.notes);
+    const notesView = slot(user, "#notes") as { turnId?: string; notes?: Record<string, string> };
+    expect(notesView.turnId).toMatch(/^tn_/);
+    expect(notesView.notes).toEqual(ledger.notes);
     expect(existsSync(join(dataDir, "context-files"))).toBe(false);
     return finish();
   });
@@ -200,7 +202,9 @@ test("history above 250K is compressed before any content is externalized", () =
   const base = provider(user => {
     main++;
     expect(summaries).toBeGreaterThan(0);
-    expect(slot(user, "#notes")).toEqual(ledger.notes);
+    const notesView = slot(user, "#notes") as { turnId?: string; notes?: Record<string, string> };
+    expect(notesView.turnId).toMatch(/^tn_/);
+    expect(notesView.notes).toEqual(ledger.notes);
     expect(existsSync(join(dataDir, "context-files"))).toBe(false);
     return finish();
   });

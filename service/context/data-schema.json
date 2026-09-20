@@ -115,6 +115,9 @@
         {
           "type": "object",
           "properties": {
+            "turnId": {
+              "$ref": "#/$defs/turnId"
+            },
             "ok": {
               "const": true
             },
@@ -169,6 +172,7 @@
             }
           },
           "required": [
+            "turnId",
             "ok",
             "windows"
           ],
@@ -177,6 +181,9 @@
         {
           "type": "object",
           "properties": {
+            "turnId": {
+              "$ref": "#/$defs/turnId"
+            },
             "ok": {
               "const": false
             },
@@ -185,6 +192,7 @@
             }
           },
           "required": [
+            "turnId",
             "ok",
             "error"
           ],
@@ -259,9 +267,22 @@
       "anyOf": [
         {
           "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
+          "properties": {
+            "turnId": {
+              "$ref": "#/$defs/turnId"
+            },
+            "notes": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "turnId",
+            "notes"
+          ],
+          "additionalProperties": false
         },
         {
           "$ref": "#/$defs/contextFileReference"
@@ -309,6 +330,9 @@
         {
           "type": "object",
           "properties": {
+            "turnId": {
+              "$ref": "#/$defs/turnId"
+            },
             "title": {
               "type": "string"
             },
@@ -341,6 +365,7 @@
             }
           },
           "required": [
+            "turnId",
             "items"
           ],
           "additionalProperties": false

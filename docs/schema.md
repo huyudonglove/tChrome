@@ -93,7 +93,7 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。`returns/<ca
 `kind=provider-response` 的 `data`：`finish` `content` `toolCalls` `attempts` `parseOk` `schemaOk` `faultCode` `missing`。
 `kind=tool` 的 `data`：`callId` `name` `arguments` `return`。
 `kind=memory` 的 `data`：`memoryId` `layer` `sourceCallId`。
-`kind=compress` 的 data 为 beforeChars、afterChars；compress-start 记录压缩前 windowChars，compress-error 记录失败 detail。每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 以正文或文件引用保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
+`kind=compress` 的 data 为 beforeChars、afterChars；compress-start 记录压缩前 windowChars，compress-error 记录失败 detail。每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。已有摘要的轮次仅当 conversationHistorySummary 的 active 条数超过 30 时才再进入合并/升档压缩；≤30 跳过重压（独立的 query 原文仍可首次归档）。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 以正文或文件引用保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
 `kind=turn-output` 的 `data`：`output`。
 `kind=session` 的 `data`：`conversationId`，可选 `action`=`new`/`open`。
 
@@ -242,9 +242,9 @@ conversationHistorySummary 显示当前有效摘要的 {sumId, turnId, tag, user
 | `records/<id>.json` | {id, module, level, tag, turnId, userRequest, actions, result, sourceIds, createdAt}，每次压缩追加不可变记录 |
 | `sources/<id>.json` | {id, content}，完整原始内容，工具使用完整落盘结果 |
 
-每条摘要关联一个真实 turnId 和对应原始轮次或执行片段来源 ID，同批次的不同轮次分别保存。level 是记录结构字段，不触发额外的分层合并。activeIds 保存窗口当前摘要，coveredSourceIds 记录已归档覆盖的来源。runtime 按来源内容过滤发送视图，不清除账本原文。查询展开来源、去重并保持原顺序。
+每条摘要关联一个真实 turnId 和对应原始轮次或执行片段来源 ID，同批次的不同轮次分别保存。level 在已有摘要的轮次再次合并时 +1；仅当 active 摘要条数超过 30 才允许该合并。activeIds 保存窗口当前摘要，coveredSourceIds 记录已归档覆盖的来源。runtime 按来源内容过滤发送视图，不清除账本原文。查询展开来源、去重并保持原顺序。
 
-每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 以正文或文件引用保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
+每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。已有摘要的轮次仅当 conversationHistorySummary 的 active 条数超过 30 时才再进入合并/升档压缩；≤30 跳过重压（独立的 query 原文仍可首次归档）。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 以正文或文件引用保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
 
 模型输出校验成功、完整来源与摘要落盘后，才原子更新目录索引和覆盖关系。失败或取消不提交该批次覆盖，原文继续可用；此前成功提交的归档保留。索引是提交点，中断可能留下未被索引引用的文件。窗口按来源覆盖过滤历史输入、已结束目标、页面观察、会话记忆写入和工具记录，本地原文不删除。
 

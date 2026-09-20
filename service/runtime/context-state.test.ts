@@ -6,7 +6,8 @@ import { emptyLedger, saveTurn, ensureSession, saveLedger, loadLedger, stopTurn 
 import { allocateRecordId, inputRecord } from "./ids.ts";
 import { contextState, compressContext } from "./context-state.ts";
 import { compressionTurnsFromUserMessage } from "../agents/compression/protocol.ts";
-import { loadIndex, resolveSources } from "../context-archive/store.ts";
+import { loadIndex, resolveSources, commitArchive } from "../context-archive/store.ts";
+import { SUMMARY_RECOMPRESS_MIN_ACTIVE } from "../agents/compression/index.ts";
 import type { Ledger, Turn, Provider, CompletionResult } from "../types.ts";
 import type { Memories } from "../memory/types.ts";
 import { handleTurn } from "./loop.ts";
@@ -152,9 +153,18 @@ test("segmented turn later closes into one active summary without rearchiving co
     first.status = "completed"; first.completedAt = "2026-09-11"; first.output = { kind: "reply", text: "已核对" }; saveTurn(dataDir, first);
     for (let i = 2; i <= 5; i++) { const row = makeTurn(ledger.conversationId, `tn_0${i}`); ledger.turnIds.push(row.turnId); saveTurn(dataDir, row); }
     const current = makeTurn(ledger.conversationId, "tn_06"); ledger.turnIds.push(current.turnId); ledger.active = { turnId: current.turnId };
+    // Raise active summary count past the re-compress gate so tn_01 may merge.
+    const seeded = loadIndex(dataDir, ledger.conversationId, "conversationHistory");
+    while (seeded.activeIds.length <= SUMMARY_RECOMPRESS_MIN_ACTIVE) {
+      const id = `sum_pad_${seeded.activeIds.length}`;
+      seeded.entries.push({ id, module: "conversationHistory", level: 1, tag: id, turnId: `tn_pad_${seeded.activeIds.length}`, userRequest: "u", actions: "a", result: "r", sourceIds: [], createdAt: "2026-09-11" });
+      seeded.activeIds.push(id);
+    }
+    commitArchive(dataDir, ledger.conversationId, seeded, [], []);
     await compressContext({ dataDir, repoRoot, provider, ledger, turn: current, memories, isCancelled: () => false });
     const index = loadIndex(dataDir, ledger.conversationId, "conversationHistory");
-    expect(index.activeIds.map(id => index.entries.find(row => row.id === id)!.turnId)).toEqual(["tn_01", "tn_02", "tn_03", "tn_04", "tn_05"]);
+    const realTurnIds = index.activeIds.map(id => index.entries.find(row => row.id === id)!.turnId).filter(id => id.startsWith("tn_0"));
+    expect(realTurnIds).toEqual(["tn_01", "tn_02", "tn_03", "tn_04", "tn_05"]);
     const sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
     const tail = sources.find(row => row.id === "src_02")!.content as { toolIO: unknown[]; memoryWrites: unknown[]; goalChanges: unknown[]; output: unknown };
     expect(tail.toolIO).toHaveLength(2); expect(tail.goalChanges).toEqual([]); expect(tail.memoryWrites).toEqual([]);
@@ -212,7 +222,8 @@ test("retired query evidence is archived independently of an already-covered too
     expect(contextState(dataDir, ledger, current, memories).ledger.queryHistory).toEqual([]);
     expect(ledger.queryHistory).toHaveLength(1);
     const index = loadIndex(dataDir, ledger.conversationId, "conversationHistory");
-    expect(index.activeIds).toHaveLength(1);
+    // Gate keeps the batch summary; the retired query archives as its own active entry.
+    expect(index.activeIds.length).toBe(2);
     const sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
     expect(sources.filter(row => row.id === "src_02")).toHaveLength(1);
     expect((sources.find(row => row.id === "src_02")!.content as { queryHistory: unknown[] }).queryHistory).toEqual(ledger.queryHistory);
@@ -238,7 +249,9 @@ test("a later retired query remains archivable after its entire turn is covered"
     expect(contextState(dataDir, ledger, current, memories).ledger.queryHistory).toEqual([]);
     expect(JSON.stringify(ledger)).toBe(snapshot);
     const index = loadIndex(dataDir, ledger.conversationId, "conversationHistory");
-    expect(index.activeIds.map(id => index.entries.find(row => row.id === id)!.turnId)).toEqual(["tn_01", "tn_02", "tn_03", "tn_04", "tn_05"]);
+    const turnIds = index.activeIds.map(id => index.entries.find(row => row.id === id)!.turnId);
+    // Original turns plus an extra active summary for the retired query on tn_01.
+    expect(turnIds).toEqual(["tn_01", "tn_02", "tn_03", "tn_04", "tn_05", "tn_01"]);
     const sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
     expect(sources.filter(row => row.id === "src_01")).toHaveLength(1);
     expect(sources.filter(row => row.id === "src_03")).toHaveLength(1);

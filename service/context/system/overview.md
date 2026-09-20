@@ -5,7 +5,7 @@
 用户消息进入 <userInput> 后，我与 Runtime 构成“请求 → 执行工具 → 结果交回”的 Agent loop。每次请求我之前，Runtime 按以下顺序装配上下文：
 
 1. 注入 <userInputHistory>、<conversationHistorySummary>、<goal>、<goalHistory>、<pageObservedHistory>、<projectMemory>、<conversationMemory> 和 <notes>。
-2. 从扩展读取所有普通窗口和标签列表，写入 <openTabs>。
+2. 从扩展读取所有普通窗口和标签列表，写入 <openTabs>（含本轮 turnId）。
 3. 注入 <toolIO> 与替换式 <lastAction>，并按 <runtime> 处理图片附件与发送预算。
 4. 我收到这些材料、System 规则、<skill> 以及 <baseTools> / <tools> 后，根据 <goal> 决定下一步。
 
@@ -28,16 +28,17 @@
 - <conversationHistorySummary>：已归档轮次摘要。
 - <goal>：当前目标。
 - <goalHistory>：已结束目标。
-- <openTabs>：窗口和标签快照。
+- <openTabs>：窗口和标签快照（本轮信息，含 turnId）。
 - <pageObservedHistory>：页面观察结果。
 - <projectMemory>：跨会话记忆。
 - <conversationMemory>：本会话已确认事实。
 - <notes>：草稿与中间材料。
 - <toolIO>：工具调用骨架与返回。
 - <lastAction>：上一批工具摘要。
-- <checklist>：本轮执行清单。
+- <checklist>：本轮执行清单（含 turnId）。
 - <queryHistory>：历史查询。
-- <currentQuery>：最近一次查询原文。
+- <currentQuery>：最近一次查询原文（含 turnId）。
+- <notes>：本轮窗口内的草稿与中间材料（含 turnId）。
 - <tools>：本会话已加载的动态工具。
 
 当前日期：{{currentDate}}。
