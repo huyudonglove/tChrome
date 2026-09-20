@@ -70,7 +70,7 @@ test("checklist tools write ledger and clear when turn ends", async () => {
       { text: "步骤一", status: "done" },
       { text: "步骤二改", status: "doing" },
     ]);
-    const finish = await exec("finishTurn", { reason: "收口", affectsPage: false, text: "完成", summary: "完成" });
+    const finish = await exec("finishTurn", { reason: "收口", affectsPage: false, text: "完成" });
     applyToolEffects({ dataDir, ledger, turn, call: { callId: "c3", name: "finishTurn", arguments: {} }, effects: finish.effects });
     expect(ledger.checklist).toBeNull();
   } finally { rmSync(dataDir, { recursive: true, force: true }); }

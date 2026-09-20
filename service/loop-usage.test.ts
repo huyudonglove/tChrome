@@ -14,7 +14,7 @@ const result = (partial: Partial<CompletionResult>): CompletionResult => ({
 const call = (id: string, name: string, args: Record<string, unknown> = {}): ToolCall => ({
   id, name, arguments: { reason: "执行当前步骤", affectsPage: false, ...args },
 });
-const finish = () => result({ toolCalls: [call("finish", "finishTurn", { text: "任务完成", summary: "任务完成"})] });
+const finish = () => result({ toolCalls: [call("finish", "finishTurn", { text: "任务完成"})] });
 const invalid = () => result({ schemaOk: false, faultCode: "missing_required", missing: ["reason"],
   toolCalls: [{ id: "invalid", name: "page.get_summary", arguments: {} }],
 });
@@ -50,7 +50,7 @@ test("more than 20 successful tool rounds can finish normally", async () => {
     toolCalls: [call(`page_${index}`, "page.get_summary", { tabId: 1 })],
   }));
   await run([...steps, finish()], ({ reply, turn, ledger, modelRequests, browserCalls }) => {
-    expect(reply.output).toEqual({ kind: "reply", text: "任务完成", summary: "任务完成" });
+    expect(reply.output).toEqual({ kind: "reply", text: "任务完成" });
     expect(ledger.status).toBe("idle");
     expect(modelRequests).toBe(26);
     expect(browserCalls).toHaveLength(25);
@@ -62,9 +62,9 @@ test("one model response counts every executed browser, resident and closing too
   await run([result({ toolCalls: [
     call("page", "page.get_summary", { tabId: 1 }),
     call("note", "notes.write", { key: "finding", value: "已核实" }),
-    call("finish", "finishTurn", { text: "任务完成", summary: "任务完成"}),
+    call("finish", "finishTurn", { text: "任务完成"}),
   ] })], ({ reply, turn, ledger, modelRequests, browserCalls }) => {
-    expect(reply.output).toEqual({ kind: "reply", text: "任务完成", summary: "任务完成" });
+    expect(reply.output).toEqual({ kind: "reply", text: "任务完成" });
     expect(modelRequests).toBe(1);
     expect(browserCalls).toEqual(["page.get_summary"]);
     expect(ledger.notes.finding).toBe("已核实");
@@ -75,7 +75,7 @@ test("one model response counts every executed browser, resident and closing too
 test("a valid tool round resets consecutive invalid submission count", async () => {
   await run([invalid(), emptyReply(), result({ toolCalls: [call("valid", "page.get_summary", { tabId: 1 })] }),
     invalid(), emptyReply(), finish()], ({ reply, turn, modelRequests, browserCalls }) => {
-    expect(reply.output).toEqual({ kind: "reply", text: "任务完成", summary: "任务完成" });
+    expect(reply.output).toEqual({ kind: "reply", text: "任务完成" });
     expect(modelRequests).toBe(6);
     expect(browserCalls).toEqual(["page.get_summary"]);
     expect(turn.usage).toEqual({ modelRequests: 6, toolCalls: 2 });
@@ -128,7 +128,7 @@ test("same-name invalid calls retain independent diagnostics and schema before s
     bad("missing", { id: "e1", text: "x" }),
     bad("type", { tabId: 1, id: "e2", text: false, reason: "输入", affectsPage: true }),
   ] }), result({ toolCalls: [call("fixed", "page.type", { tabId: 1, id: "e2", text: "x", affectsPage: true })] }), finish()], ({ reply, ledger, browserCalls }) => {
-    expect(reply.output).toEqual({ kind: "reply", text: "任务完成", summary: "任务完成" });
+    expect(reply.output).toEqual({ kind: "reply", text: "任务完成" });
     const rows = ledger.toolIO.filter(row => row.name === "page.type");
     expect(rows).toHaveLength(3);
     expect(rows[0]!.callId).not.toBe(rows[1]!.callId);

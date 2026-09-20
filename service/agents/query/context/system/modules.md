@@ -13,7 +13,7 @@ request：
   - toolIO：工具参数与结果（归档形态，含 return.text）
   - pageObservations：页面观察
   - memoryWrites：会话记忆写入
-  - output：当轮收尾。kind=reply 时字段为 summary（收口汇总，不是完整 text）；ask/error/tool 同前；kind=tool 表示停在该调用、还没收口
+  - output：当轮收尾。kind=reply 时字段为 text（最终回复正文）；ask/error/tool 同前；kind=tool 表示停在该调用、还没收口
   - queryHistory：当轮历史查询
   - summaries：入口及来源摘要对象 {sumId, turnId, tag, userRequest, actions, result}，不是原文
 - intent：本次要找什么；我按它判断哪些轮次含相关证据。

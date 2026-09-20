@@ -93,7 +93,7 @@ Sample（本轮 submitTurnSummaries 的 arguments，仅示例）：
 - memoryWrites: 数组 `[{memoryId, turnId, layer, text, createdAt, sourceCallId}]`。此处只含本轮写入的会话记忆。
 - toolIO: 数组 `[{callId, batchId?, turnId, name, arguments, return:{stage,totalChars,text}, images?}]`。stage 为 complete / truncated；超量时 text 可能是 externalized 摘要。
 - queryHistory: 数组 `[{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}]`。status 为 complete / not_found / error；records 保留原模块记录。结论写入 result。
-- output: 对象或 null。`{kind:"reply", summary}` 为收口汇总（字段名固定为 summary，不写入 text；summary 骨架与 text 对齐，不合并分点）；`{kind:"ask", question}` / `{kind:"error", faultCode, causeCode?, toolName?, detail?}` / `{kind:"tool", name, callId}`。null 表示暂无收尾。
+- output: 对象或 null。`{kind:"reply", text}` 为最终回复正文；`{kind:"ask", question}` / `{kind:"error", faultCode, causeCode?, toolName?, detail?}` / `{kind:"tool", name, callId}`。null 表示暂无收尾。
 
 不参与压缩、也不会出现在 turns 材料里的主 Agent 窗口模块：skill、当前这一轮的 <userInput>、conversationHistorySummary、goal（active 视图）、openTabs、projectMemory、notes、lastAction、checklist、currentQuery、tools。
 
@@ -120,7 +120,7 @@ Sample（一次请求只含一个完整轮次的骨架，仅示例）：
           ],
           "memoryWrites": [],
           "queryHistory": [],
-          "output": { "kind": "reply", "summary": "1. 列表已出现新记录\n2. 提交成功\n3. 无需回滚" }
+          "output": { "kind": "reply", "text": "1. 列表已出现新记录\n2. 提交成功\n3. 无需回滚" }
         }
       ]
     }
@@ -170,7 +170,7 @@ User 消息只有一层标签，**标签内只有数据**，没有说明文字�
 | --- | --- |
 | tag | 便于检索的主题（对象/事件/约束） |
 | actions | 实际执行的关键步骤、修正与失败，串联成一段；区分计划与已执行 |
-| result | 已验证结果、最终回复摘要（材料里 output.summary，字段名固定为 summary，不是 text；summary 骨架与 text 对齐）、错误或等待状态；保留证据差异 |
+| result | 已验证结果、最终回复（材料里 output.text）、错误或等待状态；保留证据差异 |
 
 userRequest 不由我提交；Runtime 会从本轮用户原话写入摘要。
 

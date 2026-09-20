@@ -1,18 +1,18 @@
-# Canvas / WebGL 富图形与游戏化探查 (Canvas & WebGL Probing)
+# Canvas 与 WebGL 应用操作 (Canvas & WebGL)
 
-Canvas 2D、WebGL、三维看版及基于物理引擎的 Web 应用（如 Figma、Excalidraw、2048、在线游戏）将所有图形直接绘制至像素位图，脱离了标准 DOM 与 A11y 语义树，属于自动化中的「语义黑盒」。
+Canvas 2D、WebGL 等页面（如在线绘图工具、看板、小游戏）将内容直接绘制在像素画布上，缺少常规 DOM 节点和无障碍树，无法直接通过元素 ID 或角色定位。
 
-## 1. 底层存储与状态总线直接穿透 (Store Piercing)
+## 1. 检查底层数据与存储
 
-- **穿透渲染黑盒，直取业务模型**：
-  - 现代富图形应用大多采用单一状态树（Redux、Zustand、Pinia 或 `localStorage` 底座）驱动渲染。
-  - 优先探查宿主存储层（如 Excalidraw 的 `localStorage.getItem("excalidraw")`），直接读取画布元素拓扑或游戏得分状态矩阵；
-  - 状态写入反哺：构造标准 JSON 拓扑注入存储层并派发系统事件或刷新，实现毫秒级工业架构图重绘，远胜低效物理绘制。
+- **优先查看数据模型**：
+  - 很多画布应用在内存或本地存储中保留了结构化数据（如 Redux、Zustand、Pinia 或 `localStorage`）。
+  - 可以先检查页面存储（如 `localStorage.getItem(...)`），直接读取图形数据或状态；
+  - 部分场景下直接修改数据并触发页面重绘，比模拟鼠标轨迹绘制更直接、准确。
 
-## 2. 原型链 Hook 与实时状态探针 (API & Context Hooking)
+## 2. 脚本注入与状态监听
 
-- **Canvas 绘制上下文拦截**：
-  - 在页面初始化阶段通过脚本 Hook `CanvasRenderingContext2D.prototype.fillText` 或 WebGL 渲染循环，实时捕获屏幕文字、精灵坐标及碰撞体数据：
+- **拦截 Canvas 绘制方法**：
+  - 在页面加载时通过注入脚本，重写 `CanvasRenderingContext2D.prototype.fillText` 或 WebGL 渲染方法，获取绘制在画布上的文字和坐标：
     ```javascript
     const origFillText = CanvasRenderingContext2D.prototype.fillText;
     CanvasRenderingContext2D.prototype.fillText = function(text, x, y) {
@@ -21,14 +21,14 @@ Canvas 2D、WebGL、三维看版及基于物理引擎的 Web 应用（如 Figma�
       return origFillText.apply(this, arguments);
     };
     ```
-- **游戏循环与时钟劫持**：
-  - 针对高帧率复杂动画或游戏，可注入脚本劫持 `requestAnimationFrame` 或挂载全局控制器，实现逐帧单步步进与启发式算法决策。
+- **控制动画与刷新**：
+  - 对于快速变动的动画或游戏，可通过脚本控制 `requestAnimationFrame` 或调用页面内部暴露的方法，实现按步推进。
 
-## 3. 混合视觉定位与连续物理时序 (Hybrid Vision & Input Sequence)
+## 3. 视觉标注与模拟操作
 
-- **Set-of-Marks (SoM) 与高清切片协同**：
-  - 纯画面无 DOM 场景下，调用 `capture_page(mode="som")` 自动提取离散高亮角标降低模型空间推理负担；
-  - 局部关键区域使用 `capture_page(mode="element", selector="canvas")` 获取高保真图像核验细节。
-- **物理指针拖拽与按键时序**：
-  - 绘图与拖拽必须遵循完整鼠标时序：`pointerdown` → `pointermove`（多点平滑插值）→ `pointerup`；
-  - 游戏交互使用 `press(key, tabId)` 模拟键盘物理下发，按键间隔控制在 100~200ms 之间，避免事件被前端节流丢弃。
+- **使用标注截图与局部切片**：
+  - 在没有 DOM 的界面上，调用 `capture_page(mode="som")` 获取带角标的截图，辅助判断点击位置；
+  - 需要核验局部细节时，使用 `capture_page(mode="element", selector="canvas")` 查看局部图像。
+- **模拟连续鼠标与键盘操作**：
+  - 绘制或拖拽操作需要按照完整时序执行：`pointerdown` → `pointermove`（平滑移动）→ `pointerup`；
+  - 模拟键盘按键使用 `press(key, tabId)`，两次按键之间保持 100~200ms 间隔，避免按键事件被页面丢弃。

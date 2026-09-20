@@ -195,13 +195,8 @@
     "recovery": "inspect_state"
   },
   "empty_finish_turn": {
-    "model": "finishTurn 的回复为空。请将对用户说的话写入非空 text，将汇总精简写入非空 summary，再调用 finishTurn。",
+    "model": "finishTurn 的回复为空。请将对用户说的话写入非空 text，再调用 finishTurn。",
     "user": "模型连续返回了空回复，本轮已停止。",
-    "recovery": "correct_arguments"
-  },
-  "empty_finish_summary": {
-    "model": "finishTurn 的 summary 为空。请在 text 之外填写非空 summary：保留结论、关键数字、限制与待办，使后续轮次无需完整 text 也能准确答复用户。",
-    "user": "模型未提供有效的收口摘要，本轮已停止。",
     "recovery": "correct_arguments"
   },
   "empty_ask_user": {
@@ -210,7 +205,7 @@
     "recovery": "correct_arguments"
   },
   "need_finish_turn": {
-    "model": "没有 tool_calls。请将最终回复写入 text、将汇总精简写入 summary 并调用 finishTurn；需要用户补充信息时用 question 参数调用 askUser。",
+    "model": "没有 tool_calls。请将最终回复写入非空 text 并调用 finishTurn；需要用户补充信息时用 question 参数调用 askUser。",
     "user": "模型没有生成有效的最终回复，本轮未完成。",
     "recovery": "correct_arguments"
   },

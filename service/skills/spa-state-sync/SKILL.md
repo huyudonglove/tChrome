@@ -1,11 +1,11 @@
-# 现代 SPA 状态同步与事件合成 (SPA State Sync & Event Dispatch)
+# 单页应用 (SPA) 状态与交互处理
 
-在 React、Vue、Angular 等现代前端单页应用（SPA）中，表单输入与控件通常由框架的受控状态（Controlled State）或虚拟 DOM 管理。直接修改 DOM 属性（如 `input.value = "..."`）不会触发框架内部状态更新，常导致提交时数据丢失或校验失败。
+在 React、Vue、Angular 等现代单页应用中，输入框和组件通常由框架内部状态管理。直接修改 DOM 属性（如 `input.value = "..."`）不会触发框架状态更新，容易导致提交时数据丢失。
 
-## 1. 受控表单与动态输入同步机制
+## 1. 表单输入与事件触发
 
-- **标准原型链 Setter 穿透**：
-  - React 等框架重写了 HTMLInputElement 的 `value` setter。纯 JS 脚本赋值时，必须调用原型链原生方法，随后显式派发合成事件：
+- **使用原生 Setter 触发事件**：
+  - React 等框架重写了输入框的 `value` setter。如果必须通过 JavaScript 直接修改输入框，需要调用原生原型链方法并派发事件：
     ```javascript
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
     nativeInputValueSetter.call(inputEl, "目标文本");
@@ -13,22 +13,22 @@
     inputEl.dispatchEvent(new Event("change", { bubbles: true }));
     inputEl.dispatchEvent(new Event("blur", { bubbles: true }));
     ```
-- **复合工具优先法则**：
-  - 优先使用 `page.fill_role`、`page.type` 等经过 CDP 物理输入协议包装的工具，自动模拟原生按键序列与焦点事件，天然触发框架响应式管线。
+- **优先使用复合输入工具**：
+  - 优先使用 `page.fill_role`、`page.type` 等工具，这些工具通过 CDP 协议模拟真实键盘输入，能自动触发框架的响应式更新。
 
-## 2. 虚拟列表与动态视口滚动 (Virtual List)
+## 2. 虚拟列表滚动与定位
 
-- **视口外节点懒加载与回收**：
-  - 复杂表格或长列表（如 Ant Design Table、ag-Grid、TanStack Virtual）仅在 DOM 中保留当前可见行，视口外元素未挂载。
-- **定位与操作 SOP**：
-  1. **容器滚动先行**：先定位到滚动容器元素，通过 `element.scrollTo({ top: ..., behavior: 'smooth' })` 或按键 `PageDown`/`ArrowDown` 将目标项滚动进入视口中央；
-  2. **等待渲染沉降**：调用 `wait(role, name, states={attached:true})` 确认行容器及操作控件已挂载到 DOM/A11y 树；
-  3. **局部锚定交互**：先以唯一主键/标识锁定行容器（`tr`/`div[role="row"]`），再在子树内调用 `page.click_role` 执行操作，严禁全局贪婪匹配。
+- **视口外元素未渲染**：
+  - 虚拟表格或长列表（如 Ant Design Table、ag-Grid）只渲染当前视口可见的行，视口外的元素不会出现在 DOM 中。
+- **操作步骤**：
+  1. **滚动到目标位置**：先定位到滚动容器，通过 `element.scrollTo(...)` 或按键滚动将目标行移入视口；
+  2. **等待元素出现**：调用 `wait(role, name, states={attached:true})` 确认目标行已挂载；
+  3. **精确定位行内控件**：先根据行的唯一文本找到行容器（如 `tr`），再在行内查找操作按钮，避免全局匹配点错行。
 
-## 3. 浮层、级联组件与 Shadow DOM
+## 3. 弹窗、下拉菜单与 Shadow DOM
 
-- **动态挂载浮层（Portal / Modal）**：
-  - Select 下拉菜单、DatePicker、Tooltip 通常渲染在 `document.body` 根节点的 Portal 容器中，脱离原本父组件 DOM 结构；
-  - 操作 SOP：先点击触发框唤起浮层，再使用全局可访问名定位弹出的浮层选项，切勿在触发框内部寻找 option 节点。
-- **Web Components 与 Shadow DOM 穿透**：
-  - 常规 `querySelector` 无法穿透 `shadowRoot`。探查时需递归遍历 `el.shadowRoot`，或使用支持穿透的 CSS 深度选择器，或优先借助浏览器内核自动展平的 A11y 树直接定位。
+- **脱离父节点的弹窗浮层**：
+  - 下拉选择框（Select）、日期选择器、模态弹窗通常直接挂载在 `document.body` 下，脱离了触发按钮原本的 DOM 结构；
+  - 操作步骤：先点击触发按钮唤起菜单，再在页面全局范围内按名称查找并点击弹出的选项，不要在原触发按钮内部寻找选项。
+- **Shadow DOM 查找**：
+  - 普通 `querySelector` 无法直接穿透 `shadowRoot`。如果页面使用了 Web Components，需要访问 `el.shadowRoot`，或优先使用基于无障碍树（A11y）的定位工具直接操作。

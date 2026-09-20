@@ -16,14 +16,14 @@ import { compressionTurnsFromUserMessage } from "./agents/compression/protocol.t
 import type { CompletionResult, Provider, Turn } from "./types.ts";
 const repoRoot = join(import.meta.dir, "..");
 const reply = (toolCalls: CompletionResult["toolCalls"]): CompletionResult => ({ content: "", finish: "tool_calls", toolCalls, attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] });
-const finish = () => reply([{ id: "finish", name: "finishTurn", arguments: { reason: "已核对", affectsPage: false, text: "完成", summary: "完成"} }]);
+const finish = () => reply([{ id: "finish", name: "finishTurn", arguments: { reason: "已核对", affectsPage: false, text: "完成"} }]);
 const section = (user: string, tag: string) => {
   const m = user.match(new RegExp(`<${tag}>\\n[\\s\\S]*?\\n\\n内容：\\n([\\s\\S]*?)\\n</${tag}>`));
   return JSON.parse(m![1]!);
 };
 function fixture(dataDir: string, text = "精确证据".repeat(250)) {
   const { conversationId: cv } = ensureSession(dataDir), ledger = loadLedger(dataDir, cv);
-  const turns = Array.from({ length: 6 }, (_, i): Turn => ({ goalChanges: [], conversationId: cv, turnId: allocateRecordId(dataDir, cv, "turn"), status: "completed", createdAt: "2026-09-12", completedAt: "2026-09-12", input: { id: allocateRecordId(dataDir, cv, "input"), text: `要求${i}`, submittedAt: "2026-09-12" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], openTabs: { ok: true, windows: [] }, currentPage: null, pageObservedHistory: [] }, output: { kind: "reply", text: "完成", summary: "完成" } }));
+  const turns = Array.from({ length: 6 }, (_, i): Turn => ({ goalChanges: [], conversationId: cv, turnId: allocateRecordId(dataDir, cv, "turn"), status: "completed", createdAt: "2026-09-12", completedAt: "2026-09-12", input: { id: allocateRecordId(dataDir, cv, "input"), text: `要求${i}`, submittedAt: "2026-09-12" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], openTabs: { ok: true, windows: [] }, currentPage: null, pageObservedHistory: [] }, output: { kind: "reply", text: "完成" } }));
   ledger.turnIds = turns.map(row => row.turnId); ledger.userInputHistory = turns.slice(0, -1).map(inputRecord);
   turns.forEach(turn => saveTurn(dataDir, turn));
   const tool = { callId: allocateRecordId(dataDir, cv, "call"), turnId: "tn_01", batchId: allocateRecordId(dataDir, cv, "batch"), name: "page.get_summary", arguments: {}, return: { stage: "complete", totalChars: text.length, text } };
@@ -92,7 +92,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
       }
       return finish();
     } };
-    expect((await handleTurn({ repoRoot, dataDir, provider }, { userInput: "读取详情", submittedAt: "2026-09-12" })).output).toEqual({ kind: "reply", text: "完成", summary: "完成" });
+    expect((await handleTurn({ repoRoot, dataDir, provider }, { userInput: "读取详情", submittedAt: "2026-09-12" })).output).toEqual({ kind: "reply", text: "完成" });
     expect(loadLedger(dataDir, f.cv).currentQuery?.queryId).toBe("query_02");
     expect(loadIndex(dataDir, f.cv, "conversationHistory").coveredSourceIds).toContain("src_02");
     await handleTurn({ repoRoot, dataDir, provider }, { userInput: "继续", submittedAt: "2026-09-12" });

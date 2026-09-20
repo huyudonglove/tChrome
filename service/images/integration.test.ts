@@ -27,7 +27,7 @@ test("截图按调用批次发送，历史仅保留路径，删除会话清理�
     [screenshotCall, screenshotCall],
     [{ name: "notes.write", arguments: { key: "observation", value: "已观察两张截图", reason: "记录", affectsPage: false } }],
     [screenshotCall],
-    [{ name: "finishTurn", arguments: { reason: "已观察图片", affectsPage: false, text: "完成", summary: "完成"} }],
+    [{ name: "finishTurn", arguments: { reason: "已观察图片", affectsPage: false, text: "完成"} }],
   ];
   const server = Bun.serve({
     hostname: "127.0.0.1", port: 0,
@@ -57,7 +57,7 @@ test("截图按调用批次发送，历史仅保留路径，删除会话清理�
       } },
     }, { userInput: "截图看看页面", submittedAt: new Date().toISOString() });
 
-    expect(reply.output).toEqual({ kind: "reply", text: "完成", summary: "完成" });
+    expect(reply.output).toEqual({ kind: "reply", text: "完成" });
     expect(executed).toEqual(["capture_page", "capture_page", "capture_page"]);
     expect(requests).toHaveLength(5);
     const imagesOf = (request: any) => request.messages

@@ -14,7 +14,7 @@ import { compressionTurnsFromUserMessage } from "../agents/compression/protocol.
 const repoRoot = join(import.meta.dir, "../..");
 const call = (name: string, args: Record<string, unknown> = {}): ToolCall => ({ id: name, name, arguments: { reason: "容量回归测试", affectsPage: false, ...args } });
 const response = (...toolCalls: ToolCall[]): CompletionResult => ({ finish: "tool_calls", content: "", attempts: 1, parseOk: true, schemaOk: true, missing: [], faultCode: null, toolCalls });
-const finish = () => response(call("finishTurn", { text: "完成", summary: "完成"}));
+const finish = () => response(call("finishTurn", { text: "完成"}));
 const xmlSlots = (user: string): Record<string, unknown> => {
   const values: Record<string, unknown> = {};
   const re = /<([A-Za-z][A-Za-z0-9]*)>\n[\s\S]*?\n\n内容：\n([\s\S]*?)\n<\/\1>/g;
@@ -65,7 +65,7 @@ test("oversized notes stay durable, can be deleted by the model, and do not bloc
     expect(slot(user, "#notes")).toEqual({});
     return finish();
   }) }, { userInput: "保存后删除大笔记", submittedAt: "now" });
-  expect(reply.output).toEqual({ kind: "reply", text: "完成", summary: "完成" });
+  expect(reply.output).toEqual({ kind: "reply", text: "完成" });
   expect(step).toBe(3);
   expect(loadLedger(dataDir, reply.conversationId).notes).toEqual({});
   let nextCalls = 0;
@@ -189,7 +189,7 @@ test("history above 250K is compressed before any content is externalized", () =
     createdAt: "2026-09-11", completedAt: "2026-09-11",
     input: {id: `input_${String(i + 1).padStart(2, "0")}`, text: "H".repeat(35000), submittedAt: "2026-09-11"},
     assembled: {baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], openTabs: { ok: true, windows: [] }, currentPage: null, pageObservedHistory: []},
-    output: {kind: "reply", text: "已完成", summary: "已完成" },
+    output: {kind: "reply", text: "已完成" },
   }));
   ledger.turnIds = turns.map(turn => turn.turnId);
   ledger.userInputHistory = turns.map(inputRecord);

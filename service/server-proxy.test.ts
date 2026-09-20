@@ -14,7 +14,7 @@ for (const variable of ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY"]) {
       actual.push((init as RequestInit & { proxy?: string })?.proxy);
       return Response.json({ id: "local-test", choices: [{ index: 0, finish_reason: "tool_calls", message: {
         role: "assistant", content: "", tool_calls: [{ id: "finish", type: "function", function: {
-          name: "finishTurn", arguments: JSON.stringify({ reason: "已完成", affectsPage: false, text: "完成", summary: "完成" }),
+          name: "finishTurn", arguments: JSON.stringify({ reason: "已完成", affectsPage: false, text: "完成" }),
         } }],
       } }] });
     }) as typeof fetch);

@@ -913,11 +913,8 @@
           ]
         },
         "text": {
-          "type": "string"
-        },
-        "summary": {
           "type": "string",
-          "description": "kind=reply 时的收口汇总；Agent 材料只带 summary，不带完整 text。"
+          "description": "kind=reply 时的最终回复正文（侧栏与后续上下文同一 text）。"
         },
         "question": {
           "type": "string"

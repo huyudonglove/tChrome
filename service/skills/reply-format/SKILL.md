@@ -1,6 +1,6 @@
 ## 回复格式（本地侧栏）
 
-侧栏用 GFM + HTML 渲染 finishTurn.text。**扩展 CSP 禁止内联 JS**：`onclick` / `javascript:` 一律不执行（属性会被去掉）。summary 骨架与 text 对齐（分点不合并）。
+侧栏用 GFM + HTML 渲染 finishTurn.text。**扩展 CSP 禁止内联 JS**：`onclick` / `javascript:` 一律不执行（属性会被去掉）。后续上下文与压缩使用同一 text。
 
 ### 展示
 

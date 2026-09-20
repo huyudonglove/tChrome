@@ -21,7 +21,7 @@
 
 主 Agent 的 Prompt 正文与加载器都在 `service/context/`。唯一顺序源是 `modules.json`；每个模块是一份 XML 文件，含能力与详细描述。System 与 User 窗口都渲染完整 XML 模块；User 模块另含 `内容：` 段注入运行数据。Skill 正文位于独立的 `service/skills/<name>/SKILL.md`，由 runtime 加载后注入 `<skill>`；`context/user/skill.md` 只提供模块说明和数据占位。
 
-工具 API 定义位于 `service/tools/definitions/`，分组在 groups.json。说明唯一来自 function.description，index 只分类；System `<baseTools>` 展示常驻能力导航，User `<tools>` 展示本会话已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送。过程展示仅使用工具 arguments.reason；最终回复、提问分别使用 finishTurn 的 text（侧栏）与 askUser.arguments.question，不回退到模型 content。模型后续上下文与压缩链路只使用 finishTurn.summary，不回传完整 text。运行提示位于 shared/error-messages.json。上下文 README 是维护入口，不进入模型窗口。
+工具 API 定义位于 `service/tools/definitions/`，分组在 groups.json。说明唯一来自 function.description，index 只分类；System `<baseTools>` 展示常驻能力导航，User `<tools>` 展示本会话已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送。过程展示仅使用工具 arguments.reason；最终回复、提问分别使用 finishTurn 的 text（侧栏）与 askUser.arguments.question，不回退到模型 content。模型后续上下文与压缩链路也使用 finishTurn.text。运行提示位于 shared/error-messages.json。上下文 README 是维护入口，不进入模型窗口。
 
 HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`。密钥在本目录 `.env`。落盘在服务数据目录（绝对路径；默认用户主目录下 `Library/Application Support/tChrome`，`TCHROME_DATA` 可覆盖；模型经 System `<overview>` 使用该绝对路径）的 `session.json` + `conversations/<cvId>/`。每次出网把 **User 窗口** 与模型交口写 `conversations/<cvId>/provider.md`（单文件超 3MB 轮转为 `provider.NN.md`）；System 全文按内容哈希写入 `provider-system.md`，exchange 用 `systemHash` 引用，正文真换行。
 

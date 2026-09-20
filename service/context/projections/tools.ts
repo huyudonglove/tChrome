@@ -33,7 +33,7 @@ export function toolHistoryView(records: ToolIOItem[], observations: PageObserva
       };
     }
     const args = record.name === "finishTurn"
-      ? { summary: typeof (record.arguments as { summary?: unknown }).summary === "string" ? (record.arguments as { summary: string }).summary : "" }
+      ? { text: typeof (record.arguments as { text?: unknown }).text === "string" ? (record.arguments as { text: string }).text : "" }
       : { ...record.arguments };
     return {
       callId: record.callId,

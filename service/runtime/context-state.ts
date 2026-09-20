@@ -63,7 +63,7 @@ export function contextState(dataDir: string, ledger: Ledger, turn: Turn, memori
   const turnOrder = new Map(ledger.turnIds.map((id, i) => [id, i]));
   const summaries = index.activeIds.map(id => {
     const entry = byId.get(id);
-    if (!entry) throw new Error(`Missing active turn summary: ${id}`);
+    if (!entry) throw new Error(`Missing active turn summary record: ${id}`);
     return entry;
   }).sort((a, b) => (turnOrder.get(a.turnId) ?? Infinity) - (turnOrder.get(b.turnId) ?? Infinity));
   const retainedGoals = activeGoalIds(ledger.goals);
@@ -112,7 +112,7 @@ function archiveContentFromInventory(
       continue;
     }
     if (field === "output") {
-      // Agent-facing archive: reply uses field name summary only; never rewrite text to hold summary.
+      // Agent-facing archive uses finishTurn text as the reply body.
       content[field] = options.complete ? history.output : null;
       continue;
     }

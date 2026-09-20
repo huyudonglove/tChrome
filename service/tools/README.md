@@ -54,6 +54,6 @@ HTTP 传输由 `service/network/idle-fetch.ts` 统一检查响应活动，`http-
 
 工具参数对象原样接收，字符串仅执行一次标准 JSON.parse，不修复围栏、尾逗号或单引号。HTTP 正文、响应头、搜索正文和脚本输出不再隐式截断；发送主模型前由统一上下文门禁处理文本。浏览器桥不设独立总执行时限；已执行请求只重发结果，扩展 worker 恢复时结果未知则返回错误而不重做动作。
 
-动态加载成功后将工具名持久写入会话 ledger.loadedToolIds，新 turn 合并默认工具与会话清单生成 tools[]；重新打开会话和服务重启不清空，新会话独立。finishTurn 必填 text 与 summary，reason 和 affectsPage 可省略；text 给侧栏与 trace，summary 进入后续模型上下文与压缩链路，二者均非空，不从 content 补齐。
+动态加载成功后将工具名持久写入会话 ledger.loadedToolIds，新 turn 合并默认工具与会话清单生成 tools[]；重新打开会话和服务重启不清空，新会话独立。finishTurn 必填 text，reason 和 affectsPage 可省略；text 给侧栏/trace，并作为后续模型上下文与压缩链路的收口正文，不从 content 补齐。
 
 浏览器目标字段统一为 `tabId` 和 `windowId`。页面操作必须明确指定 `tabId`，窗口操作和新建标签必须指定 `windowId`；目标失效返回错误，不回退到前台。`bind_tab` 仅验证指定标签，不建立隐式绑定。新标签后台打开，新窗口默认不获取焦点，视口截图使用 CDP 在指定标签截图；`duplicate_tab` 保留 Chrome 原生复制并激活新标签的行为。

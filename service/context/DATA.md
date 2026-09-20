@@ -28,6 +28,6 @@
 
 查询记录统一为 `{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}`。`records` 直接保存原模块记录，不新增通用 `id`，不加 `content` 包装；身份字段沿用原记录。查询自身的 `turnId` 与结果记录的 `turnId` 分别表示发起轮次和来源轮次。`status` 为 `complete / not_found / error`。
 
-工具投影的 `return` 为 `{stage, result}`；result 与 pageObservedHistory 中同一 callId 的观察对应时，只保留 `{ok, pageObservationId}`，完整观察结果在 `<pageObservedHistory>`。context.query 的 result 为 `{ok, status, sumId, module, intent, currentQuery:true, recordCount}`。归档原文使用 `{stage, totalChars, text}`，只出现在压缩/查询候选里，不进主模型窗口。窗口中 finishTurn 的 arguments 仅含 summary，不含完整 text。
+工具投影的 `return` 为 `{stage, result}`；result 与 pageObservedHistory 中同一 callId 的观察对应时，只保留 `{ok, pageObservationId}`，完整观察结果在 `<pageObservedHistory>`。context.query 的 result 为 `{ok, status, sumId, module, intent, currentQuery:true, recordCount}`。归档原文使用 `{stage, totalChars, text}`，只出现在压缩/查询候选里，不进主模型窗口。窗口中 finishTurn 的 arguments 仅含 text。
 
 Schema 检查字段类型、必填项、ID 格式及已知记录结构，拒绝未声明的顶层模块和记录字段。编号至少两位，前缀来自 ID 清单。Schema 不检查编号唯一性、自增状态、引用是否存在或查询是否命中，也不实现查询链路；统一内联门禁由 Runtime 验证。

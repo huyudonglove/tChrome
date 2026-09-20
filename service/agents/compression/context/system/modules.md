@@ -31,7 +31,7 @@ Sample（一次请求只含一个完整轮次的骨架，仅示例）：
           ],
           "memoryWrites": [],
           "queryHistory": [],
-          "output": { "kind": "reply", "summary": "1. 列表已出现新记录\n2. 提交成功\n3. 无需回滚" }
+          "output": { "kind": "reply", "text": "1. 列表已出现新记录\n2. 提交成功\n3. 无需回滚" }
         }
       ]
     }

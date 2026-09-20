@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { emptyLedger, saveTurn } from "./store.ts";
 import { assembleTurnHistory, loadSettledTurnHistory } from "./turn-history.ts";
 import type { Turn } from "../types.ts";
-const turn = (turnId:string):Turn => ({goalChanges:[],conversationId:"cv_test",turnId,status:"completed",createdAt:"2026-09-11",completedAt:"2026-09-11",input:{id:`input_${turnId}`,text:"只改负责人",submittedAt:"2026-09-11"},assembled:{baseToolsIds:[],toolIds:[],conversationMemoryIds:[],projectMemoryIds:[],mcpIds:[],openTabs: { ok: true, windows: [] },currentPage:null,pageObservedHistory:[]},output:{kind:"reply",text:"已修改并核对", summary: "已修改并核对" }});
+const turn = (turnId:string):Turn => ({goalChanges:[],conversationId:"cv_test",turnId,status:"completed",createdAt:"2026-09-11",completedAt:"2026-09-11",input:{id:`input_${turnId}`,text:"只改负责人",submittedAt:"2026-09-11"},assembled:{baseToolsIds:[],toolIds:[],conversationMemoryIds:[],projectMemoryIds:[],mcpIds:[],openTabs: { ok: true, windows: [] },currentPage:null,pageObservedHistory:[]},output:{kind:"reply",text:"已修改并核对" }});
 test("turn process joins existing records without mixing turns or mutable memory/notes",()=>{
  const ledger=emptyLedger("cv_test");ledger.turnIds=["tn_01","tn_02"];
  ledger.notes={draft:"当前草稿"};
@@ -20,8 +20,7 @@ test("turn process joins existing records without mixing turns or mutable memory
  expect(record.goalChanges[0]!.status).toBe("active");
  expect(record.pageObservations).toEqual(first.assembled.pageObservedHistory);
  expect(record.userInput.id).toBe(first.input.id);
- expect(record.output).toEqual({ kind: "reply", summary: "已修改并核对" });
- expect(record.output).not.toHaveProperty("text");
+ expect(record.output).toEqual({ kind: "reply", text: "已修改并核对" });
  expect(record).not.toHaveProperty("notes");expect(record).not.toHaveProperty("memory");
  record.toolIO[0]!.return.text="修改投影";
  expect(JSON.stringify({ledger,first})).toBe(snapshot);

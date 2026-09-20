@@ -201,7 +201,7 @@ export function applyToolEffects(input: {
       case "turn.reply":
         turn.status = "completed";
         turn.completedAt = nowIso();
-        output = turn.output = { kind: "reply", text: effect.text, summary: effect.summary };
+        output = turn.output = { kind: "reply", text: effect.text };
         ledger.status = "idle";
         ledger.active = null;
         ledger.pendingAsk = null;

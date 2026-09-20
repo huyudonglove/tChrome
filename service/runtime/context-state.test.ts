@@ -11,7 +11,7 @@ import type { Ledger, Turn, Provider, CompletionResult } from "../types.ts";
 import type { Memories } from "../memory/types.ts";
 import { handleTurn } from "./loop.ts";
 const repoRoot = join(import.meta.dir, "../..");
-const makeTurn = (cv: string, id: string, text = id): Turn => ({ goalChanges: [], conversationId: cv, turnId: id, status: "completed", createdAt: "2026-09-11", completedAt: "2026-09-11", input: { id: `input_${id}`, text, submittedAt: "2026-09-11" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], openTabs: { ok: true, windows: [] }, currentPage: null, pageObservedHistory: [] }, output: { kind: "reply", text: `完成${id}`, summary: `完成${id}` } });
+const makeTurn = (cv: string, id: string, text = id): Turn => ({ goalChanges: [], conversationId: cv, turnId: id, status: "completed", createdAt: "2026-09-11", completedAt: "2026-09-11", input: { id: `input_${id}`, text, submittedAt: "2026-09-11" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], openTabs: { ok: true, windows: [] }, currentPage: null, pageObservedHistory: [] }, output: { kind: "reply", text: `完成${id}` } });
 const result = (partial: Partial<CompletionResult>): CompletionResult => ({ finish: "tool_calls", content: "", toolCalls: [], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [], ...partial });
 const summaryResponse = (_messages: Parameters<Provider["complete"]>[0]["messages"]) => result({ toolCalls: [{ id: "submit", name: "submitTurnSummaries", arguments: { tag: "历史事项", actions: "已检查", result: "该轮已完成" } }] });
 const oneTurnOf = (messages: Parameters<Provider["complete"]>[0]["messages"]) => {
@@ -47,8 +47,7 @@ test("whole-turn grouping removes covered module increments, retaining current s
       const source = oneTurnOf(input.messages);
       expect(source.turnId).toBe(`tn_0${calls}`);
       expect(source.memoryWrites[0].turnId).toBe(source.turnId);
-      expect((source.output as { summary?: string }).summary).toBe(`完成${source.turnId}`);
-      expect(source.output).not.toHaveProperty("text");
+      expect((source.output as { text?: string }).text).toBe(`完成${source.turnId}`);
       return summaryResponse(input.messages);
     } };
     const before = JSON.stringify({ ledger, current, memories });
@@ -81,10 +80,10 @@ for (const fail of [false, true]) test(`sequential 200K walk archives prefix; fa
       main++;
       if (!fail) expect(input.messages[1]!.content).toContain("该轮已完成");
       expect(input.messages[1]!.content).not.toContain("#toolIOSummary");
-      return result({ toolCalls: [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", affectsPage: false, text: "完成", summary: "完成"} }] });
+      return result({ toolCalls: [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", affectsPage: false, text: "完成"} }] });
     } };
     const reply = await handleTurn({ dataDir, repoRoot, provider }, { userInput: "继续", submittedAt: "2026-09-11" });
-    expect(reply.output).toEqual({ kind: "reply", text: "完成", summary: "完成" });
+    expect(reply.output).toEqual({ kind: "reply", text: "完成" });
     expect(main).toBe(1);
     expect(aux).toBe(fail ? 3 : 5);
     expect(loadLedger(dataDir, session.conversationId).userInputHistory).toHaveLength(5);
@@ -96,7 +95,7 @@ test("below 200K no compression request occurs at turn boundary", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "context-below-"));
   try {
     const session = ensureSession(dataDir), ledger = loadLedger(dataDir, session.conversationId); seed(dataDir, ledger); saveLedger(dataDir, ledger);
-    const provider: Provider = { complete: async input => { expect(input.tools[0]!.function.name).not.toBe("submitTurnSummaries"); return result({ toolCalls: [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", affectsPage: false, text: "完成", summary: "完成"} }] }); } };
+    const provider: Provider = { complete: async input => { expect(input.tools[0]!.function.name).not.toBe("submitTurnSummaries"); return result({ toolCalls: [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", affectsPage: false, text: "完成"} }] }); } };
     await handleTurn({ dataDir, repoRoot, provider }, { userInput: "继续", submittedAt: "2026-09-11" });
     expect(loadIndex(dataDir, session.conversationId, "conversationHistory").activeIds).toEqual([]);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
@@ -150,7 +149,7 @@ test("segmented turn later closes into one active summary without rearchiving co
     const memories: Memories = { project: [], conversation: [{ memoryId: "mm_1", turnId: first.turnId, layer: "conversation", text: "只改负责人", sourceCallId: "call_0", createdAt: "2026-09-11" }] };
     const provider: Provider = { complete: async input => summaryResponse(input.messages) };
     await compressContext({ dataDir, repoRoot, provider, ledger, turn: first, memories, isCancelled: () => false }, "current");
-    first.status = "completed"; first.completedAt = "2026-09-11"; first.output = { kind: "reply", text: "已核对", summary: "已核对" }; saveTurn(dataDir, first);
+    first.status = "completed"; first.completedAt = "2026-09-11"; first.output = { kind: "reply", text: "已核对" }; saveTurn(dataDir, first);
     for (let i = 2; i <= 5; i++) { const row = makeTurn(ledger.conversationId, `tn_0${i}`); ledger.turnIds.push(row.turnId); saveTurn(dataDir, row); }
     const current = makeTurn(ledger.conversationId, "tn_06"); ledger.turnIds.push(current.turnId); ledger.active = { turnId: current.turnId };
     await compressContext({ dataDir, repoRoot, provider, ledger, turn: current, memories, isCancelled: () => false });
@@ -159,8 +158,7 @@ test("segmented turn later closes into one active summary without rearchiving co
     const sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
     const tail = sources.find(row => row.id === "src_02")!.content as { toolIO: unknown[]; memoryWrites: unknown[]; goalChanges: unknown[]; output: unknown };
     expect(tail.toolIO).toHaveLength(2); expect(tail.goalChanges).toEqual([]); expect(tail.memoryWrites).toEqual([]);
-    expect(tail.output).toEqual({ kind: "reply", summary: first.output.kind === "reply" ? first.output.summary : "" });
-    expect(tail.output).not.toHaveProperty("text");
+    expect(tail.output).toEqual({ kind: "reply", text: first.output.kind === "reply" ? first.output.text : "" });
     expect((sources[0]!.content as { segment: { complete: boolean } }).segment.complete).toBe(false);
     expect(contextState(dataDir, ledger, current, memories).ledger.goals).toEqual(ledger.goals);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
@@ -177,12 +175,12 @@ test("200K during a live tool loop compresses older batches before the next main
       if (main === 4) { expect(aux).toBeGreaterThan(0); expect(input.messages[1]!.content).toContain("<conversationHistorySummary>"); }
       return result({ toolCalls: main <= 3
         ? Array.from({ length: 20 }, (_, i) => ({ id: `p${main}_${i}`, name: "page.get_summary", arguments: { reason: "读取", affectsPage: false, tabId: 1 } }))
-        : [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", affectsPage: false, text: "完成", summary: "完成"} }] });
+        : [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", affectsPage: false, text: "完成"} }] });
     } };
     const reply = await handleTurn({ dataDir, repoRoot, provider, host: { execute: async () => ({
       ok: true, tabId: 1, url: "https://example.com/p", title: "页", description: "证".repeat(3500),
     }) } }, { userInput: "核对结果", submittedAt: "2026-09-11" });
-    expect(reply.output).toEqual({ kind: "reply", text: "完成", summary: "完成" }); expect(main).toBe(4);
+    expect(reply.output).toEqual({ kind: "reply", text: "完成" }); expect(main).toBe(4);
     const ledger = loadLedger(dataDir, reply.conversationId);
     expect(ledger.toolIO).toHaveLength(61);
     expect(loadIndex(dataDir, reply.conversationId, "conversationHistory").coveredSourceIds.length).toBeGreaterThan(0);
