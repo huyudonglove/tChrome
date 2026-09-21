@@ -2,6 +2,10 @@
 
 本目录是本机服务的工具能力模块，统一管理定义、注册、参数校验和服务端执行。工具 API 的 schema 与专用说明来源位于本模块 `definitions/`。
 
+文件口径：`definitions/` 下每个**工具**一个 JSON（以 `function.name` 为准）；另有 `index.json`、`groups.json` 两个清单文件，不计入工具数。目录里 `.json` 个数 = 工具数 + 2。
+
+命名：带点号的名字是命名空间工具（如 `page.click`、`local.run`、`video.record`）；单词名是浏览器动作与观察工具（如 `click`、`type`、`scroll`、`capture_page`）。两套都在 `index.json` 的 browser / service 列表中登记，调用时以 tools[] 里的 schema 为准。
+
 `affectsPage` 的通用含义统一写在 System 的 `<toolProtocol>` 中；各工具定义只维护自身类型、必填、固定值和专用说明，不重复装配通用解释。
 
 - `definitions/<工具名>.json`：工具名称、`function.description`、参数 schema。
@@ -22,7 +26,7 @@
 
 `local-files.ts` 提供绝对路径的文件读写、列表、搜索、复制、移动与删除；`local-process.ts` 提供脚本执行、后台进程、标准输入、终止和系统打开。`local-tools.ts` 统一分派本机工具并建立会话作用域。工具定义仍只维护在 `definitions/local.*.json`，通过现有动态目录发现和 `catalog.add` 加载，不另建浏览器到本机的通信通道。
 
-脚本在服务电脑上按扩展名选择解释器执行，必须提供绝对 cwd。仅在显式提供 timeoutMs 时设置执行时限。stdout/stderr 完整写入 process-output/<processId>/ 并返回正文与绝对路径，不设并发数量上限。后台进程ID只属于创建它的会话，服务重启后失效；停止会话、删除会话和服务正常退出会终止对应进程组。新建或切换会话不停止原会话任务；需要停止时先停止原会话。已结束进程记录保留至服务结束。
+脚本在服务电脑上按扩展名选择解释器执行（zsh / python3 / bun），不依赖文件可执行位；必须提供绝对 cwd。`script_patch` 仅接受 `new file mode 100644` 一类纯内容补丁，拒绝 rename、mode 变更与 `100755`。stdout/stderr 完整写入 process-output/<processId>/，进程 ID 只属于创建它的会话，服务重启后失效；停止会话、删除会话和服务正常退出会终止对应进程组。新建或切换会话不停止原会话任务；需要停止时先停止原会话。已结束进程记录保留至服务结束。
 
 本地能力使用服务进程的操作系统权限，不绕过macOS权限；文件修改即时生效，不随聊天记录删除而回滚。`affectsPage=false` 仅说明不影响浏览器页面，不表示本地操作没有副作用。文件复制/移动默认拒绝已存在目标，移动的默认实现是复制成功后删除源，操作期间应避免源被其他程序修改。
 

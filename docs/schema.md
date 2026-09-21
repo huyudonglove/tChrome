@@ -29,7 +29,7 @@ docs/                     数据协议与阶段示例
 scripts/                  构建与示例同步
 ```
 
-Load unpacked：`bun build` 把 `extension/` 打进 `dist/`，仓根 `manifest.json` 拷进 `dist/`。Chrome 加载 `dist/`。`dist/` 已 gitignore。产物路径仍是 `background.js` / `sidepanel.html`。GUI 只跟本机服务说话。密钥、落盘、出网 UUAPI 在 `service/`。
+Load unpacked：在仓库根执行 `bun run scripts/build-extension.ts`，产物在 `dist/`（含由仓库根 `manifest.json` 拷贝的 `dist/manifest.json`）。Chrome 加载 `dist/`，不是 `extension/` 源码目录。
 
 ## 本机 HTTP
 
