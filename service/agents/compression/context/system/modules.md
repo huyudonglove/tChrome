@@ -2,11 +2,11 @@
 能力：【Archive Fields In Turns】
 
 详细描述：
-下列字段出现在 User 的 { "turns": [...] } 材料里。我只总结已提供的字段。字段形状如下。
+下列字段出现在 User 的 { "turns": [...] } 材料里。我只总结已提供的字段。
 
 {{archiveFields}}
 
-不参与压缩、也不会出现在 turns 材料里的主 Agent 窗口模块：skill、当前这一轮的 <userInput>、conversationHistorySummary、goal（active 视图）、openTabs、projectMemory、notes、lastAction、checklist、currentQuery、tools。
+材料对象外层还包含 conversationId、turnId、status、createdAt、completedAt、sequence、segment。不参与压缩、也不会出现在 turns 材料里的主 Agent 窗口模块：skill、conversationHistorySummary、goal（active 视图）、openTabs、projectMemory、notes、lastAction、checklist、currentQuery、tools。
 
 Sample（一次请求只含一个完整轮次的骨架，仅示例）：
 
@@ -31,7 +31,10 @@ Sample（一次请求只含一个完整轮次的骨架，仅示例）：
           ],
           "memoryWrites": [],
           "queryHistory": [],
-          "output": { "kind": "reply", "text": "1. 列表已出现新记录\n2. 提交成功\n3. 无需回滚" }
+          "reflection": { "turnId": "tn_01", "items": [{ "id": "rf_01", "text": "已确认页面支持 CSV；未下载文件二次核验。", "focus": "证据" }] },
+          "output": { "kind": "reply", "text": "1. 列表已出现新记录\n2. 提交成功\n3. 无需回滚" },
+          "sequence": { "turn": 0, "batch": 2 },
+          "segment": { "complete": true }
         }
       ]
     }
@@ -43,7 +46,7 @@ Sample（一次请求只含一个完整轮次的骨架，仅示例）：
         {
           "turnId": "tn_03",
           "segments": [
-            { "conversationId": "cv_01", "turnId": "tn_03", "status": "completed", "toolIO": [], "output": { "kind": "tool", "name": "page.click", "callId": "call_08" } }
+            { "conversationId": "cv_01", "turnId": "tn_03", "status": "completed", "toolIO": [], "reflection": null, "output": { "kind": "tool", "name": "page.click", "callId": "call_08" } }
           ],
           "summaries": [{ "tag": "导出", "userRequest": "导出本月报表", "actions": "打开导出页", "result": "页面支持 CSV" }]
         }

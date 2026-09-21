@@ -227,7 +227,7 @@ Memory 投影保持全部可见原文。会话记忆根据来源 turnId 随轮�
 - 页面观察：`{id, turnId, tabId, url, title, description, observedAt, callId, toolName}`，当前页和对应历史项共用观察 ID。
 - 记忆继续使用 memory 文件及 memoryId，注入模型时仅显示原文。
 
-conversationHistorySummary 显示当前有效摘要的 {sumId, turnId, tag, userRequest, actions, result}；sumId 用于查询入口，来源关系保存在本地归档。
+conversationHistorySummary 显示当前有效摘要的 {sumId, turnId, tag, userRequest, actions, result}；sumId 用于查询入口，来源关系保存在本地归档。压缩材料字段：userInput、goalChanges、toolIO、pageObservations、memoryWrites、queryHistory、reflection、output。
 
 ## compression/conversationHistory/
 

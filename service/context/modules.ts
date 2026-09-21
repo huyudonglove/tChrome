@@ -89,6 +89,14 @@ export function compressionArchiveFieldsMarkdown(root: string): string {
   return lines.join("\n");
 }
 
+/** Shell fields always present on archive turn/segment objects. */
+export function compressionTurnShellMarkdown(): string {
+  return [
+    "材料对象外层：conversationId、turnId、status、createdAt、completedAt、sequence{turn,batch}、segment{complete,batchIds?}。",
+    "下列 archiveField 为该轮进入压缩的模块；不在此列表的窗口模块不进入 turns 材料。",
+  ].join("\n");
+}
+
 /** Parse B-style XML module: <id>能力/详细描述[/内容]</id> */
 export function parseModule(text: string, expectedTag: string): ContextModule {
   const trimmed = text.replaceAll("\r\n", "\n").trim();
@@ -186,11 +194,13 @@ export function systemTextFromModules(
   for (const tag of modules.systemOrder) {
     const module = modules.systemSlots[tag]!;
     const id = tag.slice(1);
-    const payload = tag === "#baseTools" ? baseToolGuide : tag === "#recordIdentity" ? identityRulesText() : "";
-    let body = payload
+    const extra = tag === "#baseTools" ? baseToolGuide
+      : tag === "#recordIdentity" ? identityRulesText()
+      : "";
+    let body = extra
       ? (module.body.includes("{{data}}")
-        ? module.body.replaceAll("{{data}}", payload)
-        : `${module.body}\n\n${payload}`)
+        ? module.body.replaceAll("{{data}}", extra)
+        : `${module.body}\n\n${extra}`)
       : module.body.replaceAll("{{data}}", "");
     if (tag === "#overview") {
       body = body

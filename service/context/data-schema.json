@@ -335,6 +335,52 @@
         }
       ]
     },
+    "reflection": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "turnId": {
+              "$ref": "#/$defs/turnId"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^rf_[0-9]{2,}$"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "focus": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "turnId",
+            "items"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "$ref": "#/$defs/contextFileReference"
+        }
+      ]
+    },
     "toolIO": {
       "anyOf": [
         {
