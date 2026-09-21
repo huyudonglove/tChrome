@@ -8,6 +8,7 @@ export const providerOptions = [
   { id: "deepseek", label: "DeepSeek", model: "deepseek-v4.1-flash" },
   { id: "caicai", label: "CaicAI", model: "DeepSeek-V4.1-Flash" },
   { id: "deepseek-official", label: "DeepSeek Official", model: "deepseek-flash" },
+  { id: "xcode", label: "Xcode.best", model: "deepseek-flash" },
 ] as const;
 export type ProviderName = typeof providerOptions[number]["id"];
 export function isProviderName(value: unknown): value is ProviderName {
