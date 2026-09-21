@@ -8,7 +8,7 @@ export const providerOptions = [
   { id: "deepseek", label: "DeepSeek", model: "deepseek-v4.1-flash" },
   { id: "caicai", label: "CaicAI", model: "DeepSeek-V4.1-Flash" },
   { id: "deepseek-official", label: "DeepSeek Official", model: "deepseek-flash" },
-  { id: "xcode", label: "Xcode.best", model: "deepseek-flash" },
+  { id: "xcode", label: "Xcode.best", model: "deepseek-v4.1-flash" },
 ] as const;
 export type ProviderName = typeof providerOptions[number]["id"];
 export function isProviderName(value: unknown): value is ProviderName {
@@ -61,7 +61,7 @@ export function configuredProvider(proxy: string | undefined, name = Bun.env.TCH
     return createProvider({
       apiKey: Bun.env.XCODE_API_KEY ?? "",
       baseURL: Bun.env.XCODE_BASE_URL ?? "https://xcode.best/v1",
-      model: Bun.env.XCODE_MODEL ?? "deepseek-flash",
+      model: Bun.env.XCODE_MODEL ?? "deepseek-v4.1-flash",
       reasoningEffort: (Bun.env.XCODE_REASONING_EFFORT ?? "medium") as ProviderConfig["reasoningEffort"],
       sanitizeToolNames: true,
       proxy,
