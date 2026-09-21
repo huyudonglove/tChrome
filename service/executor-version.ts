@@ -6,7 +6,7 @@ import { join } from "node:path";
 // Keep this deterministic: file names and bytes only, no paths, timestamps or env.
 export function executorVersion(repoRoot: string): string {
   const hash = createHash("sha256");
-  const files = ["manifest.json", "extension/background.ts", "extension/content-console.js", "service/executor-version.ts"];
+  const files = ["extension/manifest.json", "extension/background.ts", "extension/content-console.js", "service/executor-version.ts"];
   for (const directory of ["extension/tools", "service/tools/definitions"]) {
     for (const name of readdirSync(join(repoRoot, directory)).sort()) {
       if (directory === "extension/tools" ? name.endsWith(".js") : name.endsWith(".json")) files.push(`${directory}/${name}`);

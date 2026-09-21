@@ -160,20 +160,28 @@ The local service listens on `http://127.0.0.1:18788`. Check `http://127.0.0.1:1
 
 ```text
 tChrome/
-├── extension/             # Chrome side panel frontend (React + Tailwind)
+├── extension/             # Chrome extension source
+│   ├── manifest.json      # Extension manifest; copied to dist/manifest.json on build
 │   ├── sidepanel/         # Side panel UI, Library management interface
 │   └── tools/             # Browser host-side tool execution adapters (A11y projection & CDP)
 ├── service/               # Local Bun core service
 │   ├── runtime/           # Execution loop, scheduler, error handling, state machine
-│   ├── context/           # Prompt composition, System rules, and section layout (4000 guardrail)
-│   ├── tools/             # Tool definitions, schema validation, registry (A11y & compound tools)
-│   ├── skills/            # Domain skills & operational runbooks (Web observation, host env)
-│   ├── agents/            # Specialized sub-agents (Compression & Query agents)
+│   ├── context/           # Prompt composition, System rules, and section layout
+│   ├── tools/             # Tool definitions, schema validation, registry
+│   ├── skills/            # Domain skills & operational runbooks
+│   ├── agents/            # Compression & Query agents (each with its own context/modules.json)
 │   ├── memory/            # Tiered memory engine (conversation & project memory)
 │   ├── library/           # Local persistent structured asset store
 │   └── provider/          # LLM protocol adapters (OpenAI-compatible, etc.)
-└── docs/                  # Protocol specifications and data architecture docs
+├── shared/                # Shared error catalog and types
+├── scripts/               # Extension build and docs example sync
+├── docs/                  # Protocol specifications and data architecture docs
+├── dist/                  # Build output; Chrome load-unpacked target
+├── package.json
+└── tsconfig.json
 ```
+
+Chrome loads `dist/`. The manifest source is `extension/manifest.json`.
 
 ---
 

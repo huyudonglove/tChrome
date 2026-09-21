@@ -160,20 +160,28 @@ bun run service
 
 ```text
 tChrome/
-├── extension/             # Chrome 侧栏扩展前端 (React + Tailwind)
+├── extension/             # Chrome 侧栏扩展（源码）
+│   ├── manifest.json      # 扩展清单；构建时拷贝为 dist/manifest.json
 │   ├── sidepanel/         # 侧栏交互界面、资料库管理面板
-│   └── tools/             # 浏览器宿主端工具执行适配器 (A11y 投影与 CDP 联动)
+│   └── tools/             # 浏览器宿主端工具执行适配器 (A11y 投影与 CDP)
 ├── service/               # 本机 Bun 核心服务
 │   ├── runtime/           # 执行循环、任务调度、容错与状态机
-│   ├── context/           # 上下文组装、System 规则与栏目编排 (4000 门禁防护)
-│   ├── tools/             # 工具定义库、参数校验与注册中心 (A11y 与复合工具)
-│   ├── skills/            # 领域操作知识库 (Web 观察、宿主感知、回复规范)
-│   ├── agents/            # 专用子智能体 (压缩 Agent、精准回查 Agent)
-│   ├── memory/            # 分层记忆引擎 (会话记忆与长期记忆)
+│   ├── context/           # 上下文组装、System 规则与栏目编排
+│   ├── tools/             # 工具定义库、参数校验与注册中心
+│   ├── skills/            # 领域操作知识库
+│   ├── agents/            # 压缩 Agent、查询 Agent（各自独立的 context/modules.json）
+│   ├── memory/            # 分层记忆引擎
 │   ├── library/           # 本地持久化结构化资料库
-│   └── provider/          # 多模型协议适配器 (OpenAI 兼容协议等)
-└── docs/                  # 字段协议与数据存储设计文档
+│   └── provider/          # 多模型协议适配器
+├── shared/                # 扩展与服务共用的错误码等
+├── scripts/               # 构建扩展、同步文档示例
+├── docs/                  # 协议与数据设计文档
+├── dist/                  # 构建产物；Chrome load unpacked 加载此目录
+├── package.json
+└── tsconfig.json
 ```
+
+Chrome 加载 `dist/`；清单源文件是 `extension/manifest.json`。
 
 ---
 

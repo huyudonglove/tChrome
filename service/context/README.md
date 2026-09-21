@@ -1,6 +1,8 @@
 # 上下文模块
 
-模块的**唯一注册表**是 [modules.json](modules.json)：顺序、XML 文件路径、给谁用（`consumers`）、是否进压缩（`compress` / `archiveField`）。主 Agent 的归档字段与压缩岗共用这张表；查询岗另有 `service/agents/query/context/modules.json`。
+模块的**唯一注册表**是 [modules.json](modules.json)：顺序、XML 文件路径、给谁用（`consumers`）、是否进压缩（`compress` / `archiveField`）。主 Agent 的归档字段与压缩岗共用这张表。
+
+三套 `modules.json` 各自独立、互不共用：主 Agent 在 `service/context/`，压缩 Agent 在 `service/agents/compression/context/`，查询 Agent 在 `service/agents/query/context/`。改哪一岗就改哪一份，不要把字段从一份复制到另一份。
 
 | 入口 | 职责 |
 |---|---|
@@ -91,8 +93,9 @@ User 模块（含数据）：
 
 1. `modules.json`：加一项（`consumers` / `compress` / `archiveField`）  
 2. `system/` 或 `user/`：对应 XML 正文文件  
-3. 需进压缩：`service/runtime/turn-history.ts` 的 `projectors` 补取数函数  
-4. 压缩措辞：只动 `agents/compression/context/`（字段说明自动来自注册表）
+3. 需进压缩：同一 `archiveField` 要在 `service/runtime/turn-history.ts` 的 `projectors` 提供取数函数，并在 `modules.ts` 的 `DEFAULT_SEMANTICS`（或该项 `inputSemantics`）写清材料形状；缺 projector 时装配归档会抛错  
+4. 压缩 Agent 岗措辞：只动 `agents/compression/context/`（字段说明由主注册表生成）  
+5. 窗口投影：主 Agent User 槽位在 `context/projections/` 与 `window.ts`；与 turn-history 的 archiveField 是同一数据的两种视图
 
 ## 数据结构
 

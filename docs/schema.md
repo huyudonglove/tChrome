@@ -29,7 +29,7 @@ docs/                     数据协议与阶段示例
 scripts/                  构建与示例同步
 ```
 
-Load unpacked：在仓库根执行 `bun run scripts/build-extension.ts`，产物在 `dist/`（含由仓库根 `manifest.json` 拷贝的 `dist/manifest.json`）。Chrome 加载 `dist/`，不是 `extension/` 源码目录。
+Load unpacked：在仓库根执行 `bun run scripts/build-extension.ts`，产物在 `dist/`。扩展清单为 `extension/manifest.json`，构建时拷贝为 `dist/manifest.json`。Chrome 加载 `dist/`。
 
 ## 本机 HTTP
 

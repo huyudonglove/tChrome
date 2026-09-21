@@ -6,7 +6,7 @@ import { executorVersion } from "../service/executor-version.ts";
 const root = join(import.meta.dir, "..");
 const dist = join(root, "dist");
 mkdirSync(join(dist, "ui"), { recursive: true });
-cpSync(join(root, "manifest.json"), join(dist, "manifest.json"));
+cpSync(join(root, "extension", "manifest.json"), join(dist, "manifest.json"));
 cpSync(join(root, "extension", "icons"), join(dist, "icons"), { recursive: true });
 cpSync(join(root, "extension", "ui", "tokens.css"), join(dist, "ui", "tokens.css"));
 cpSync(join(root, "extension", "sidepanel", "library.css"), join(dist, "ui", "library.css"));
