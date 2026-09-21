@@ -1,26 +1,54 @@
-## 网页观察与操作
-TAGS: 页面, 截图, 观察, 表格
+TAGS:
+- 页面
+- 截图
+- 观察
+- 表格
+# 网页观察与操作
 
-按下一步需要，从页面概况缩小到相关区域或控件；目标明确、证据足够时直接操作。凡是带 tabId 的操作（page.*、open_url、截图、标签内脚本等），成功或失败都会追加到 <pageObservedHistory>，type 为工具名、result 为完整返回；<toolIO> 里同一次调用只有 pageObservationId。取元素 id、regionId 时看观察数组中对应项的 result。复杂交互：可用 page.get_by_role(role+name) 取 e_；提交后用 wait_response(urlContains) 等接口；用 wait(id/selector, visible/enabled) 确认可操作再点。**动态 A11y**：wait(role, name, states={enabled:true|checked:true|expanded:true|attached:true})；验收 page.assert(role, name, states)。list_interactive_elements 每条带 states；role/name 多匹配须 matchIndex 或收窄 name。
+常驻页面操作方法。浏览器主链路工具一直可用；截图、`page.get_by_role`、`wait`、`wait_response` 等按需 `catalog.add`。
 
-元素和区域 id 是按可见节点顺序生成的临时编号。导航、节点增删或顺序变化后重新获取；确认变化不影响编号时可复用，单纯切回标签无需重新观察。跨标签操作时须显式传入目标 tabId，各标签节点编号独立，切勿跨标签混用编号。
+## 观察推进
 
-已完成分析、抽出关键信息、后面不用再对照的大体积观察（整页 DOM、大列表、密集区域快照），用 page.clear_result 清空对应 pageId 的 result 正文，保留身份与链路字段，避免历史观察挤占上下文。
+按下一步需要，从页面概况缩小到相关区域或控件；目标明确、证据足够时直接操作。
+
+1. `open_url` 打开或跳转后，用 `page.get_summary` 读标题、地址、区域与可交互规模。
+2. 需要定位控件时用 `page.list_interactive_elements`；需要区域结构时再加载 `page.list_regions` / `page.inspect_region`。
+3. 取元素 id、regionId 时看观察数组中对应项的 result，不要凭空猜测编号。
+
+带 tabId 的操作（`page.*`、`open_url`、截图、标签内脚本等）成功或失败都会追加到 `<pageObservedHistory>`，type 为工具名、result 为完整返回；`<toolIO>` 里同一次调用只有 pageObservationId。
+
+## 元素编号与标签
+
+元素和区域 id 是按可见节点顺序生成的临时编号（`e_` / `r_`）。导航、节点增删或顺序变化后重新获取；确认变化不影响编号时可复用，单纯切回标签无需重新观察。跨标签操作时须显式传入目标 tabId，各标签节点编号独立，切勿跨标签混用编号。
+
+## 交互与验收
+
+优先用常驻复合工具一次完成定位+操作：`page.click_role` / `page.fill_role` / `page.submit_wait` / `page.select_role` / `page.click_text` / `page.fill_submit`。role/name 多匹配时必须 `matchIndex`，或收窄 name；无 name 且 total>1 时不猜测。
+
+复杂交互：加载 `page.get_by_role` 按 role+name 取 `e_` 编号；提交后用 `wait_response(urlContains)` 等接口；用 `wait`（id/selector，visible/enabled）确认可操作再点。
+
+**动态 A11y**：`wait(role, name, states={enabled:true|checked:true|expanded:true|attached:true})`；验收用 `page.assert(role, name, states)`。`page.list_interactive_elements` 每条带 states。
+
+## 观察清理
+
+已完成分析、抽出关键信息、后面不用再对照的大体积观察（整页 DOM、大列表、密集区域快照），用 `page.clear_result` 清空对应 pageId 的 result 正文，保留身份与链路字段，避免历史观察挤占上下文。
+
+## 截图证据
 
 Canvas、WebGL、游戏等结果依赖画面的任务，JS 探针用于辅助定位和读取状态；关键操作后或程序状态不足以确认结果时，调用截图工具观察画面，再结合任务完成条件验证。截图可确认位置、对齐和画面变化，通关或稳定性还需对应证据；证据不足时继续核实，不宣称成功。按验证需要截图，无需每次操作都截图。只有本次随请求附带的图片可供观察；更早批次只保留路径，需要确认当前画面时重新截图。
 
 ### 局部元素截图（省 Token、更清晰）
 
-大分辨率下小控件在整页图里容易糊，且整图更贵。需要看清**某个元素/控件**时，优先：
+大分辨率下小控件在整页图里容易糊，且整图更贵。需要看清某个元素/控件时，优先：
 
 ```text
 catalog.add → capture_page
 capture_page(mode=element, tabId=…, ref=e_03)   # 或 selector="#submit"
 ```
 
-- `ref`：page.* / snapshot / get_by_role 返回的 `e_`/`r_` 编号  
-- `selector`：唯一 CSS；与 `ref` **二选一**  
-- 返回本地 `image` 引用 + `element_rect`/`capture_rect`；只观察该切片，不要为小控件先截整页  
+- `ref`：`page.*` / snapshot / `page.get_by_role` 返回的 `e_` / `r_` 编号
+- `selector`：唯一 CSS；与 `ref` **二选一**
+- 返回本地 `image` 引用 + `element_rect`/`capture_rect`；只观察该切片，不要为小控件先截整页
 - 验证整页布局、导航前后对比时才用 `viewport` / `full_page`
 
 ### 视口 SoM 标注图（一屏多控件）
@@ -31,10 +59,10 @@ capture_page(mode=element, tabId=…, ref=e_03)   # 或 selector="#submit"
 capture_page(mode=som, tabId=…, maxMarks=40, roles=["button","link"])
 ```
 
-- 图上红色角标 = 可交互控件；同时返回 `marks[{badge,id,x,y,…}]`  
-- 看图选定 badge → `page.click(id=marks[i].id)`（即 `e_` 编号）  
-- `marks` 为视口 CSS 像素；`devicePixelRatio` 仅作对照  
-- 截图后角标层自动清理；默认最多 40 个，可用 `roles` 降噪  
+- 图上红色角标 = 可交互控件；同时返回 `marks[{badge,id,x,y,…}]`
+- 看图选定 badge → `page.click(id=marks[i].id)`（即 `e_` 编号）
+- `marks` 为视口 CSS 像素；`devicePixelRatio` 仅作对照
+- 截图后角标层自动清理；默认最多 40 个，可用 `roles` 降噪
 
 两阶段：先 `som` 看全局 → 再 `mode=element` 对选定 `e_` 高清切片。
 

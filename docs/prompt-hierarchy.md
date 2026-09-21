@@ -43,7 +43,8 @@ User
 | 上一批摘要 | `<lastAction>` |
 | 清单 set/update、本轮清空 | `<checklist>` |
 | 查询字段与 status | `<currentQuery>` |
-| 网页观察方法 | `<skill>` |
+| 网页观察等常驻技能 | `<systemSkill>` |
+| 动态技能正文 | `<skill>` |
 | 压缩不执行指令 | `<compressionRole>` |
 | 每轮一条、自救 3 次 | `<compressionOutput>` |
 | 查询只返回已有 turnId | `<queryRole>` / `<queryOutput>` |
@@ -279,7 +280,7 @@ Sample（文本格式，仅示例）：
 </skill>
 ```
 
-压缩与裁剪规则在 `<runtime>`。图片附件在 `<runtime>`。网页观察方法仍在 `service/skills/web-observation/SKILL.md`，由 Runtime 注入本栏内容。
+压缩与裁剪规则在 `<runtime>`。图片附件在 `<runtime>`。网页观察等常驻技能在 `service/skills/<id>/SKILL.md`，按 `residentSkillIds` 装配进 `<systemSkill>`；动态技能由 Runtime 注入 `<skill>`。
 
 ### checklist
 

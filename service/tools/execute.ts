@@ -8,7 +8,7 @@ import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
 import { LOCAL_TOOL_NAMES, runLocalTool } from "./local-tools.ts";
 import { COMPOUND_TOOL_NAMES, runCompoundTool } from "./compound-tools.ts";
 import { JOB_TOOL_NAMES, runJobTool, withJobHeartbeat, jobScope } from "./job-registry.ts";
-import { skillCatalog } from "../skills/loader.ts";
+import { loadSkillManifest, skillCatalog } from "../skills/loader.ts";
 import { listItems, saveItem, deleteItem } from "../library/store.ts";
 import { readScript } from "../scripts/store.ts";
 import { failedTool, normalizeToolExecution } from "./result.ts";
@@ -379,6 +379,9 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   if (name === "skill.load") {
     const id = typeof args.id === "string" ? args.id.trim() : "";
     if (!id) return failedTool("skill.load 的 id 为空", "invalid_arguments", { toolName: name });
+    if (loadSkillManifest(repoRoot).residentSkillIds.includes(id)) {
+      return failedTool(`技能 ${id} 为常驻技能，正文已在 <systemSkill>`, "invalid_arguments", { toolName: name });
+    }
     const hit = skillCatalog(repoRoot).find(item => item.id === id);
     if (!hit) return failedTool(`未知技能 ${id}`, "invalid_arguments", { toolName: name });
     return result(JSON.stringify({ ok: true, id: hit.id, tags: hit.tags, purpose: hit.purpose }), [{ type: "skill.load", id }]);

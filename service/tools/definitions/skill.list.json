@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "skill.list",
-    "description": "列出会话可用技能：id、tags、首句。可选按 tag 过滤。加载后正文在 <skill>。\n返回：ok、skills[{id, tags, purpose}]。",
+    "description": "列出可动态加载的技能：id、tags、首句。可选按 tag 过滤。常驻技能正文在 <systemSkill>。动态正文 skill.load 后进入 User <skill>。\n返回：ok、skills[{id, tags, purpose}]。",
     "parameters": {
       "type": "object",
       "properties": {

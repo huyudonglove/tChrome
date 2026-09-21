@@ -1,5 +1,9 @@
+TAGS:
+- chrome
+- 配置
+- 宿主
+- 只读
 ## Chrome 本机宿主环境感知 (Host Environment)
-TAGS: chrome, 配置, 宿主, 只读
 
 当扩展沙箱限制访问 `chrome://settings` 或受特权页面隔离时，切换为宿主物理视角，利用 `local.fs_read` 读取磁盘上的 Chrome 配置文件。调用时把下表 `~` 展开为本机主目录绝对路径；分析产物写在服务数据目录（见 `<overview>`）。
 

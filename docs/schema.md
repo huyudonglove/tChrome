@@ -256,7 +256,7 @@ conversationHistorySummary 显示当前有效摘要的 {sumId, turnId, tag, user
 
 加载器返回 systemOrder / userOrder，systemSlots / userSlots 保存模块元数据与对应正文。阶段 JSON 中 systemSlots / userSlots 是对应的 10 / 16 个内部 `#id` 名数组，并非模块对象。
 
-system 的 runtime 管装配预算、压缩外置与图片附件，execution 聚焦推进流程，toolProtocol 管调用/返回协议，boundaries 管授权和证据来源。网页方法维护于 `service/skills/web-observation/SKILL.md`，runtime 按 `service/skills/index.json` 加载后作为数据注入 `<skill>`，模块描述仍由 `service/context/user/skill.md` 提供。User 模块投影保留记录 ID、轮次与来源关联和完整内容；工具 schema 以 definitions 为准。
+system 的 runtime 管装配预算、压缩外置与图片附件，execution 聚焦推进流程，toolProtocol 管调用/返回协议，boundaries 管授权和证据来源。网页观察等常驻技能维护于 `service/skills/<id>/SKILL.md`，按 `service/skills/index.json` 的 `residentSkillIds` 装配进 System `<systemSkill>`；动态技能按 `dynamicSkillIds` 登记，由 skill.load 注入 User `<skill>`。User 模块投影保留记录 ID、轮次与来源关联和完整内容；工具 schema 以 definitions 为准。
 
 System `<baseTools>` 展示常驻能力导航，User `<tools>` 展示本会话已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送，唯一来源仍是 `service/tools/definitions/<id>.json` 的 function.description。调整模块后同步生成导航、装配测试与阶段示例。
 

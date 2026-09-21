@@ -1,9 +1,13 @@
-[
-  "web-observation",
-  "reply-format",
-  "chrome-host-environment",
-  "host-browser-coordination",
-  "spa-state-sync",
-  "api-causality-flow",
-  "canvas-webgl-probing"
-]
+{
+  "residentSkillIds": [
+    "web-observation"
+  ],
+  "dynamicSkillIds": [
+    "reply-format",
+    "chrome-host-environment",
+    "host-browser-coordination",
+    "spa-state-sync",
+    "api-causality-flow",
+    "canvas-webgl-probing"
+  ]
+}

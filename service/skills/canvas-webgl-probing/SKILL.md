@@ -1,5 +1,9 @@
+TAGS:
+- canvas
+- webgl
+- 富图形
+- 存储穿透
 # Canvas 与 WebGL 应用操作 (Canvas & WebGL)
-TAGS: canvas, webgl, 富图形, 存储穿透
 
 Canvas 2D、WebGL 等页面（如在线绘图工具、看板、小游戏）将内容直接绘制在像素画布上，缺少常规 DOM 节点和无障碍树，无法直接通过元素 ID 或角色定位。
 
