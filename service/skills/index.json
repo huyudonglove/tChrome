@@ -8,6 +8,7 @@
     "host-browser-coordination",
     "spa-state-sync",
     "api-causality-flow",
-    "canvas-webgl-probing"
+    "canvas-webgl-probing",
+    "network-state-troubleshooting"
   ]
 }
