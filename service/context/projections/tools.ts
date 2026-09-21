@@ -35,13 +35,16 @@ export function toolHistoryView(records: ToolIOItem[], observations: PageObserva
     const args = record.name === "finishTurn"
       ? { text: typeof (record.arguments as { text?: unknown }).text === "string" ? (record.arguments as { text: string }).text : "" }
       : { ...record.arguments };
+    const finalResult = record.name === "finishTurn" && record.return.stage === "complete" && typeof result === "string"
+      ? (result === (args as { text: string }).text ? { ok: true, replied: true } : result)
+      : result;
     return {
       callId: record.callId,
       turnId: record.turnId,
       batchId: record.batchId,
       name: record.name,
       arguments: args,
-      return: { stage: record.return.stage, result },
+      return: { stage: record.return.stage, result: finalResult },
     };
   });
 }
