@@ -4,9 +4,9 @@
 
 **An autonomous AI partner steering, observing, operating, and preserving memory in your everyday Chrome browser.**
 
-https://github.com/user-attachments/assets/a5b5e1a3-2cf6-4b94-9201-a52ef6cb4404
+https://github.com/user-attachments/assets/da4cfcb9-a5be-44cf-80d7-ca6c83620d26
 
-*Demo: Helm autonomously observing, planning, and solving multi-step complex interaction challenges (WebGames River Crossing benchmark) live in the daily Chrome browser.*
+*Demo: Helm autonomously observing, planning, and solving multi-step complex interaction challenges (10-disk Tower of Hanoi benchmark, 1,023 optimal steps) live in the daily Chrome browser.*
 
 ---
 
