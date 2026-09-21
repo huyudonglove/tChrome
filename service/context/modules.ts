@@ -46,7 +46,7 @@ const DEFAULT_SEMANTICS: Record<string, string> = {
   toolIO: "数组 `[{callId, batchId?, turnId, name, arguments, return:{stage,totalChars,text}, images?}]`。stage 为 complete / truncated；超量时 text 可能是 externalized 摘要。",
   queryHistory: "数组 `[{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}]`。status 为 complete / not_found / error；records 保留原模块记录。结论写入 result。",
   output: "对象或 null。`{kind:\"reply\", text}` 为最终回复正文（侧栏与后续上下文同一 text）；`{kind:\"ask\", question}` 在等用户；`{kind:\"error\", faultCode, causeCode?, toolName?, detail?}` 本轮失败；`{kind:\"tool\", name, callId}` 停在该工具调用、还没收口。null 表示暂无收尾。",
-  reflection: "对象或 null。`{turnId, text, focus?}` 为本轮 reflect.write 写入的总结与反思；null 表示本轮未填写。",
+  reflection: "对象或 null。`{turnId, items:[{id,text,focus?}]}` 为本轮反思列表（rf_ 编号）；null 或空 items 表示未填写。",
 };
 
 export function loadModuleRegistry(root: string): ModuleRegistry {

@@ -11,6 +11,7 @@ import { JOB_TOOL_NAMES, runJobTool, withJobHeartbeat, jobScope } from "./job-re
 import { listItems, saveItem, deleteItem } from "../library/store.ts";
 import { readScript } from "../scripts/store.ts";
 import { failedTool, normalizeToolExecution } from "./result.ts";
+import { allocateRecordId } from "../runtime/ids.ts";
 import { join } from "node:path";
 import { loadFullReturn, paths } from "../runtime/store.ts";
 import { loadContextRecord } from "../runtime/records.ts";
@@ -163,9 +164,17 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   if (name === "reflect.write") {
     const text = typeof args.text === "string" ? args.text.trim() : "";
     if (!text) return failedTool("reflect.write 的 text 为空", "invalid_arguments", { toolName: name });
+    if (!input.conversationId) return failedTool("reflect.write 缺少会话标识", "invalid_arguments", { toolName: name });
     const focus = typeof args.focus === "string" && args.focus.trim() ? args.focus.trim() : undefined;
-    return result(JSON.stringify({ ok: true, text, ...(focus ? { focus } : {}) }),
-      [{ type: "reflect.write", text, ...(focus ? { focus } : {}) }]);
+    const replaceId = typeof args.id === "string" && args.id.trim() ? args.id.trim() : undefined;
+    const id = replaceId ?? allocateRecordId(dataDir, input.conversationId, "reflect");
+    return result(JSON.stringify({ ok: true, id, text, ...(focus ? { focus } : {}) }),
+      [{ type: "reflect.write", id, text, ...(focus ? { focus } : {}), ...(replaceId ? { replace: true } : {}) }]);
+  }
+  if (name === "reflect.delete") {
+    const id = typeof args.id === "string" ? args.id.trim() : "";
+    if (!/^rf_[0-9]{2,}$/.test(id)) return failedTool("id 必须是 rf_ 编号", "invalid_arguments", { toolName: name });
+    return result(JSON.stringify({ ok: true, id, deleted: true }), [{ type: "reflect.delete", id }]);
   }
   if (name === "notes.write") {
     const key = String(args.key ?? "").trim();

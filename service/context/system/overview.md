@@ -39,7 +39,7 @@
 - <queryHistory>：历史查询。
 - <currentQuery>：最近一次查询原文（含 turnId）。
 - <notes>：本轮窗口内的草稿与中间材料（含 turnId）。
-- <reflection>：本轮总结与反思（reflect.write，可覆盖）。
+- <reflection>：本轮反思列表（reflect.write / reflect.delete，rf_ 编号）。
 - <tools>：本会话已加载的动态工具。
 
 当前日期：{{currentDate}}。

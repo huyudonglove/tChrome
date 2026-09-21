@@ -1,0 +1,30 @@
+{
+  "type": "function",
+  "function": {
+    "name": "reflect.delete",
+    "description": "按 id 删除当前 turn 的一条反思记录（rf_ 编号，来自 <reflection>）。删除后窗口不再展示该条。\n参数：必填 id。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean",
+          "const": false
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^rf_[0-9]{2,}$",
+          "description": "要删除的反思编号"
+        }
+      },
+      "required": [
+        "reason",
+        "affectsPage",
+        "id"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

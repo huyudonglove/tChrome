@@ -51,7 +51,7 @@ export function userText(input: {
     "#conversationMemory": memories.conversation,
     // Turn-scoped info package: workspace snapshots also carry the active turnId.
     "#notes": jsonBody({ turnId: turn.turnId, notes: ledger.notes }),
-    "#reflection": jsonBody(turn.reflect ? { turnId: turn.turnId, ...turn.reflect } : null),
+    "#reflection": jsonBody(turn.reflect?.length ? { turnId: turn.turnId, items: turn.reflect } : null),
     "#userInputHistory": jsonBody(inputHistoryView(ledger.userInputHistory)),
     "#userInput": jsonBody({ id: turn.input.id, turnId: turn.turnId, userInput: turn.input.text }),
     "#conversationHistorySummary": jsonBody(turnSummaryView(input.conversationSummaries)),

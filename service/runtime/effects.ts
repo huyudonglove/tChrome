@@ -181,9 +181,24 @@ export function applyToolEffects(input: {
         };
         break;
       }
-      case "reflect.write":
-        turn.reflect = { text: effect.text, ...(effect.focus ? { focus: effect.focus } : {}) };
+      case "reflect.write": {
+        const list = turn.reflect ?? [];
+        const record = { id: effect.id, text: effect.text, ...(effect.focus ? { focus: effect.focus } : {}) };
+        if (effect.replace) {
+          const index = list.findIndex(item => item.id === effect.id);
+          if (index < 0) throw new Error(`反思 ${effect.id} 不存在`);
+          list[index] = record;
+        } else list.push(record);
+        turn.reflect = list;
         break;
+      }
+      case "reflect.delete": {
+        const list = turn.reflect ?? [];
+        const next = list.filter(item => item.id !== effect.id);
+        if (next.length === list.length) throw new Error(`反思 ${effect.id} 不存在`);
+        turn.reflect = next;
+        break;
+      }
       case "tab.context.set": {
         ledger.contextTab = { tabId: effect.tabId, setAt: nowIso() };
         break;

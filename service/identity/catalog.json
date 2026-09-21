@@ -111,6 +111,13 @@
     "allocation": "counter",
     "description": "心跳提前返回的后台任务"
   },
+  "reflect": {
+    "field": "id",
+    "prefix": "rf",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "本轮反思记录"
+  },
   "account": {
     "field": "id",
     "prefix": "account",

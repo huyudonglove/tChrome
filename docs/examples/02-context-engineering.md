@@ -84,6 +84,7 @@
     "page.assert",
     "tab.context",
     "reflect.write",
+    "reflect.delete",
     "job.status",
     "job.stop"
   ],

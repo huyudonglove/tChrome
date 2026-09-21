@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
 import { join } from "node:path";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { loadToolRegistry } from "./registry.ts";
 import { executeTool } from "./execute.ts";
 import { applyToolEffects } from "../runtime/effects.ts";
@@ -20,44 +22,71 @@ const turn = (): Turn => ({
   output: null,
 });
 
-test("reflect.write is a resident tool and overwrites the current turn reflection", async () => {
+test("reflect.write allocates rf_ ids and reflect.delete removes by id", async () => {
   const registry = loadToolRegistry(repoRoot);
   expect(registry.tools["reflect.write"]).toBeTruthy();
+  expect(registry.tools["reflect.delete"]).toBeTruthy();
   expect(registry.toolGroups.baseToolsIds).toContain("reflect.write");
-  expect(registry.tools["reflect.write"]!.function.parameters).toMatchObject({
-    required: expect.arrayContaining(["text"]),
-  });
+  expect(registry.toolGroups.baseToolsIds).toContain("reflect.delete");
 
-  const first = await executeTool({
-    name: "reflect.write",
-    arguments: { reason: "收口前反思", affectsPage: false, text: "先记一次", focus: "证据" },
-    dataDir: "",
-    browserNames: [],
-    lookup: { unusedTools: [], knownTools: ["reflect.write"], enabledTools: ["reflect.write"] },
-  });
-  expect(JSON.parse(first.text)).toMatchObject({ ok: true, text: "先记一次", focus: "证据" });
-  expect(first.effects).toEqual([{ type: "reflect.write", text: "先记一次", focus: "证据" }]);
+  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-reflect-"));
+  try {
+    const ledger = emptyLedger("cv_reflect");
+    const current = turn();
+    current.conversationId = ledger.conversationId;
+    const call = (callId: string, name: string) => ({
+      callId, turnId: current.turnId, name, arguments: {},
+      return: { stage: "complete" as const, totalChars: 1, text: "" },
+    });
 
-  const ledger = emptyLedger("cv_01");
-  const current = turn();
-  const dataDir = "";
-  const call = { callId: "call_01", turnId: "tn_01", name: "reflect.write", arguments: {}, return: { stage: "complete" as const, totalChars: 1, text: "" } };
-  applyToolEffects({
-    dataDir,
-    ledger,
-    turn: current,
-    call,
-    effects: first.effects,
-  });
-  expect(current.reflect).toEqual({ text: "先记一次", focus: "证据" });
+    const first = await executeTool({
+      name: "reflect.write",
+      arguments: { reason: "收口前反思", affectsPage: false, text: "先记一次", focus: "证据" },
+      dataDir,
+      conversationId: ledger.conversationId,
+      browserNames: [],
+      lookup: { unusedTools: [], knownTools: ["reflect.write"], enabledTools: ["reflect.write"] },
+    });
+    const firstBody = JSON.parse(first.text) as { ok: boolean; id: string };
+    expect(firstBody.ok).toBe(true);
+    expect(firstBody.id).toMatch(/^rf_[0-9]{2,}$/);
+    applyToolEffects({ dataDir, ledger, turn: current, call: call("call_01", "reflect.write"), effects: first.effects });
+    expect(current.reflect).toEqual([{ id: firstBody.id, text: "先记一次", focus: "证据" }]);
 
-  const second = await executeTool({
-    name: "reflect.write",
-    arguments: { reason: "更新反思", affectsPage: false, text: "覆盖后的正文" },
-    dataDir: "",
-    browserNames: [],
-    lookup: { unusedTools: [], knownTools: ["reflect.write"], enabledTools: ["reflect.write"] },
-  });
-  applyToolEffects({ dataDir, ledger, turn: current, call: { ...call, callId: "call_02" }, effects: second.effects });
-  expect(current.reflect).toEqual({ text: "覆盖后的正文" });
+    const second = await executeTool({
+      name: "reflect.write",
+      arguments: { reason: "再记一条", affectsPage: false, text: "第二条" },
+      dataDir,
+      conversationId: ledger.conversationId,
+      browserNames: [],
+      lookup: { unusedTools: [], knownTools: ["reflect.write"], enabledTools: ["reflect.write"] },
+    });
+    const secondBody = JSON.parse(second.text) as { id: string };
+    expect(secondBody.id).not.toBe(firstBody.id);
+    applyToolEffects({ dataDir, ledger, turn: current, call: call("call_02", "reflect.write"), effects: second.effects });
+    expect(current.reflect).toHaveLength(2);
+
+    const updated = await executeTool({
+      name: "reflect.write",
+      arguments: { reason: "更新第一条", affectsPage: false, id: firstBody.id, text: "修订正文" },
+      dataDir,
+      conversationId: ledger.conversationId,
+      browserNames: [],
+      lookup: { unusedTools: [], knownTools: ["reflect.write"], enabledTools: ["reflect.write"] },
+    });
+    applyToolEffects({ dataDir, ledger, turn: current, call: call("call_03", "reflect.write"), effects: updated.effects });
+    expect(current.reflect?.find(item => item.id === firstBody.id)).toEqual({ id: firstBody.id, text: "修订正文" });
+
+    const removed = await executeTool({
+      name: "reflect.delete",
+      arguments: { reason: "删除一条", affectsPage: false, id: secondBody.id },
+      dataDir,
+      conversationId: ledger.conversationId,
+      browserNames: [],
+      lookup: { unusedTools: [], knownTools: ["reflect.delete"], enabledTools: ["reflect.delete"] },
+    });
+    expect(JSON.parse(removed.text)).toMatchObject({ ok: true, id: secondBody.id, deleted: true });
+    applyToolEffects({ dataDir, ledger, turn: current, call: call("call_04", "reflect.delete"), effects: removed.effects });
+    expect(current.reflect?.map(item => item.id)).toEqual([firstBody.id]);
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });

@@ -17,7 +17,7 @@
 | `projectMemory` | `[{memoryId, turnId, sourceCallId?, sourceConversationId?, text}]` | `memoryId`（`lm_`） |
 | `conversationMemory` | 同上 | `memoryId`（`mm_`） |
 | `notes` | `{turnId, notes:{key:text}}`，空值为 `{turnId, notes:{}}` | turnId + key |
-| `reflection` | `{turnId, text, focus?}` 或 `null` | turnId |
+| `reflection` | `{turnId, items:[{id,text,focus?}]}` 或 `null` | rf_ |
 | `toolIO` | 窗口投影 `[{callId, turnId, batchId?, name, arguments, return:{stage, result}}]`；查询指针含 `currentQuery` / `recordCount` | `callId` |
 | `lastAction` | `{batchId, turnId, calls}` 或 `null` | `batchId` |
 | `checklist` | `{turnId, title?, items}` 或 `null` | turnId |
