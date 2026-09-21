@@ -70,6 +70,8 @@ export function emptyLedger(conversationId: string): Ledger {
     pendingAsk: null,
     turnIds: [],
     loadedToolIds: [],
+    loadedSkillIds: [],
+    loadedSkillIds: [],
     userInputHistory: [],
     goals: [],
     currentGoalId: null,

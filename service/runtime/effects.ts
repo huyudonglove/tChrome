@@ -86,6 +86,11 @@ export function applyToolEffects(input: {
         ledger.loadedToolIds = [...new Set([...ledger.loadedToolIds, ...effect.names])];
         turn.assembled.toolIds = [...new Set([...turn.assembled.toolIds, ...effect.names])];
         break;
+      case "skill.load": {
+        if (!effect.id.trim()) throw new Error("skill.load 需要非空 id");
+        ledger.loadedSkillIds = [...new Set([...(ledger.loadedSkillIds ?? []), effect.id])];
+        break;
+      }
       case "page.set": {
         const id = allocateRecordId(dataDir, ledger.conversationId, "page");
         const resultChars = JSON.stringify(effect.result).length;

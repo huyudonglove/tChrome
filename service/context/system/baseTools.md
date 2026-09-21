@@ -9,6 +9,9 @@
 Sample（工具清单格式，仅示例）：
 
     - finishTurn：结束本轮对话（text 给用户，并进入后续上下文）。
+    - catalog.add：加载动态工具。
+    - skill.list：列出可用技能。
+    - skill.load：按 id 加载技能正文到 <skill>。
     - reflect.write：写入本轮总结与反思（rf_ 编号，可带 id 更新）。
     - reflect.delete：按 rf_ 编号删除本轮反思。
 </baseTools>

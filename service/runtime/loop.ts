@@ -8,7 +8,7 @@ import { failedTool, toolFailure } from "../tools/result.ts";
 import { systemText, userText, windowChars } from "../context/window.ts";
 import { ContextBudgetError } from "../context/overflow.ts";
 import { beginExecution } from "./execution.ts";
-import { loadSkills } from "../skills/loader.ts";
+import { skillGuide, loadedSkillText } from "../skills/loader.ts";
 import { loadContextModules, type ContextModules } from "../context/modules.ts";
 import { loadToolRegistry, coreToolIds, dynamicToolIds, toolSchemas, toolGuideFor, type ToolRegistry } from "../tools/registry.ts";
 import { executeTool } from "../tools/execute.ts";
@@ -84,11 +84,11 @@ const assemble = (toolRegistry: ToolRegistry, loadedToolIds: string[]): Assemble
   openTabs: { ok: false, error: "尚未读取标签列表" },
 });
 
-const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, images: ChatMessage["images"], summaries: Parameters<typeof userText>[0]["conversationSummaries"] = [], dataDir?: string): ChatMessage[] => {
+const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, images: ChatMessage["images"], summaries: Parameters<typeof userText>[0]["conversationSummaries"] = [], dataDir?: string, skillNav = ""): ChatMessage[] => {
   const system = systemText(contextModules, pacificDate(), toolGuideFor(toolRegistry, turn.assembled.baseToolsIds), {
     cwd: process.cwd(),
     ...(dataDir ? { dataDir } : {}),
-  });
+  }, skillNav);
   return [
     { role: "system", content: system },
     { role: "user", content: userText({
@@ -270,7 +270,9 @@ export async function handleTurn(
     ledger.userInputHistory.push(inputRecord(last));
   }
   const contextModules = loadContextModules(deps.repoRoot);
-  const skillText = loadSkills(deps.repoRoot);
+  const skillNav = skillGuide(deps.repoRoot);
+  const skillTextOf = () => loadedSkillText(deps.repoRoot, ledger.loadedSkillIds ?? []);
+  let skillText = skillTextOf();
   const toolRegistry = loadToolRegistry(deps.repoRoot);
   const turnId = allocateRecordId(deps.dataDir, ledger.conversationId, "turn");
   const turn: Turn = {
@@ -336,7 +338,7 @@ export async function handleTurn(
         .filter(item => item.turnId === turn.turnId && item.batchId === imageBatchId)
         .flatMap(item => (item.images ?? []).map(image => ({ ...image, callId: item.callId })));
       let state = contextState(deps.dataDir, ledger, turn, memories);
-      let messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries);
+      let messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav);
       const initialChars = windowChars(messages[0]!.content, messages[1]!.content);
       if (initialChars >= ledger.compressAt) {
         let compressionStarted = false;
@@ -364,7 +366,8 @@ export async function handleTurn(
           return stoppedReply(ledger, turn);
         }
             state = contextState(deps.dataDir, ledger, turn, memories);
-            messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries);
+            skillText = skillTextOf();
+            messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav);
             // Sequential compression: a failed turn keeps originals; this boundary stops compressing and still sends the main model.
             if (outcome?.status === "stopped") break;
           }
@@ -392,7 +395,8 @@ export async function handleTurn(
       // The send boundary first compresses at 200K, then externalizes notes first only
       // if the resulting view exceeds 250K. File publication precedes model dispatch.
       try {
-        messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, deps.dataDir);
+        skillText = skillTextOf();
+        messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, deps.dataDir, skillNav);
       } catch (error) {
         turn.status = "failed";
         turn.completedAt = nowIso();

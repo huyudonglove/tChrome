@@ -205,6 +205,7 @@ export function systemTextFromModules(
   currentDate: string,
   baseToolGuide = "",
   env: ContextEnv = {},
+  skillGuide = "",
 ): string {
   const cwd = env.cwd ?? process.cwd();
   const dataDir = env.dataDir ?? defaultDataDirLabel();
@@ -215,6 +216,7 @@ export function systemTextFromModules(
     const id = tag.slice(1);
     const extra = tag === "#baseTools" ? baseToolGuide
       : tag === "#recordIdentity" ? identityRulesText()
+      : tag === "#systemSkill" ? skillGuide
       : "";
     let body = extra
       ? (module.body.includes("{{data}}")

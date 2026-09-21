@@ -111,6 +111,8 @@ Provider 用同一套 messages，user `<toolIO>` 写成上面数组。模型交�
     "evidence.search",
     "catalog.add",
     "list_browser_tools",
+    "skill.list",
+    "skill.load",
     "open_url",
     "page.get_summary",
     "page.list_interactive_elements",
@@ -156,7 +158,8 @@ Provider 用同一套 messages，user `<toolIO>` 写成上面数组。模型交�
     "#toolProtocol",
     "#boundaries",
     "#output",
-    "#baseTools"
+    "#baseTools",
+    "#systemSkill"
   ],
   "userSlots": [
     "#skill",

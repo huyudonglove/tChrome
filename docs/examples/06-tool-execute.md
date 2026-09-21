@@ -183,6 +183,8 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "evidence.search",
     "catalog.add",
     "list_browser_tools",
+    "skill.list",
+    "skill.load",
     "open_url",
     "page.get_summary",
     "page.list_interactive_elements",
@@ -228,7 +230,8 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "#toolProtocol",
     "#boundaries",
     "#output",
-    "#baseTools"
+    "#baseTools",
+    "#systemSkill"
   ],
   "userSlots": [
     "#skill",

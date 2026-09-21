@@ -24,7 +24,8 @@
 - <boundaries>：授权边界与参考材料。
 - <output>：reason 与最终答复。
 - <baseTools>：常驻工具导航。
-- <skill>：当前任务可用的操作方法。
+- <skill>：本会话已加载的技能正文。
+- <systemSkill>：技能清单与 skill.list / skill.load 用法。
 - <userInput>：当前用户原话。
 - <userInputHistory>：更早的用户原话。
 - <conversationHistorySummary>：已归档轮次摘要。

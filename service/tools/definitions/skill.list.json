@@ -1,0 +1,16 @@
+{
+  "type": "function",
+  "function": {
+    "name": "skill.list",
+    "description": "列出会话可用技能（id 与首句）。加载后正文在 <skill>。\n返回：ok、skills[{id, purpose}]。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false }
+      },
+      "required": ["reason", "affectsPage"],
+      "additionalProperties": false
+    }
+  }
+}

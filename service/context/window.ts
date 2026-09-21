@@ -16,8 +16,9 @@ export function systemText(
   currentDate: string,
   baseToolGuide = "",
   env: { cwd?: string; os?: string; dataDir?: string } = {},
+  skillGuide = "",
 ): string {
-  return systemTextFromModules(contextModules, currentDate, baseToolGuide, env);
+  return systemTextFromModules(contextModules, currentDate, baseToolGuide, env, skillGuide);
 }
 
 export function userText(input: {

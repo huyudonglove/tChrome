@@ -36,6 +36,8 @@
     "evidence.search",
     "catalog.add",
     "list_browser_tools",
+    "skill.list",
+    "skill.load",
     "open_url",
     "page.get_summary",
     "page.list_interactive_elements",
@@ -81,7 +83,8 @@
     "#toolProtocol",
     "#boundaries",
     "#output",
-    "#baseTools"
+    "#baseTools",
+    "#systemSkill"
   ],
   "userSlots": [
     "#skill",
@@ -291,6 +294,8 @@
     "evidence.search",
     "catalog.add",
     "list_browser_tools",
+    "skill.list",
+    "skill.load",
     "open_url",
     "page.get_summary",
     "page.list_interactive_elements",
@@ -336,7 +341,8 @@
     "#toolProtocol",
     "#boundaries",
     "#output",
-    "#baseTools"
+    "#baseTools",
+    "#systemSkill"
   ],
   "userSlots": [
     "#skill",

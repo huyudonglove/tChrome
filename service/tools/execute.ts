@@ -8,6 +8,7 @@ import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
 import { LOCAL_TOOL_NAMES, runLocalTool } from "./local-tools.ts";
 import { COMPOUND_TOOL_NAMES, runCompoundTool } from "./compound-tools.ts";
 import { JOB_TOOL_NAMES, runJobTool, withJobHeartbeat, jobScope } from "./job-registry.ts";
+import { skillCatalog } from "../skills/loader.ts";
 import { listItems, saveItem, deleteItem } from "../library/store.ts";
 import { readScript } from "../scripts/store.ts";
 import { failedTool, normalizeToolExecution } from "./result.ts";
@@ -21,6 +22,8 @@ import { runtimeConfig } from "../config/runtime.ts";
 
 const questionWithChoices = (question: string, choice: string[]): string =>
   choice.length === 0 ? question : `${question}\n选项：${choice.join(" / ")}`;
+
+const repoRoot = join(import.meta.dir, "../..");
 
 export function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -368,6 +371,16 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       matches,
       ...(matches.length ? {} : { faultCode: "not_found", detail: "关键字未命中缓存原文" }),
     }));
+  }
+  if (name === "skill.list") {
+    return result(JSON.stringify({ ok: true, skills: skillCatalog(repoRoot) }));
+  }
+  if (name === "skill.load") {
+    const id = typeof args.id === "string" ? args.id.trim() : "";
+    if (!id) return failedTool("skill.load 的 id 为空", "invalid_arguments", { toolName: name });
+    const hit = skillCatalog(repoRoot).find(item => item.id === id);
+    if (!hit) return failedTool(`未知技能 ${id}`, "invalid_arguments", { toolName: name });
+    return result(JSON.stringify({ ok: true, id: hit.id, purpose: hit.purpose }), [{ type: "skill.load", id }]);
   }
   if (name === "catalog.add") {
     const names = [...new Set(asStringArray(args.names))];

@@ -1,11 +1,11 @@
 # Skill 能力
 
-本目录维护可复用的操作方法，与 context 和 tools 同属 service 能力层。
+本目录维护可复用的操作方法。
 
-- `index.json`：启用的 Skill 目录名及顺序，不重复正文。空数组表示不注入 Skill。
-- `<name>/SKILL.md`：该 Skill 的方法、经验和注意事项；相关参考资料也可放在同一目录，当前加载器只读取 SKILL.md。
-- `loader.ts`：校验目录清单并按顺序读取正文，原样拼接，不解析能力语义。
+- `index.json`：登记可用技能目录名（数组）。
+- `<name>/SKILL.md`：技能正文。
+- `loader.ts`：清单校验、目录列举、按 id 读取；`skillGuide` 供 System `<systemSkill>`，`loadedSkillText` 供 User `<skill>`。
 
-Runtime 在每轮开始时读取一次 Skill 内容，本轮多次模型请求使用同一份。Context 不读取此目录，只将 runtime 提供的文本注入 `<skill>`。`context/user/skill.md` 保留模块用途说明和 `{{data}}` 占位，不维护具体方法。
+常驻工具 `skill.list` / `skill.load` 管理会话内加载；`ledger.loadedSkillIds` 持久化。System `<systemSkill>` 始终有技能导航；正文只出现在已加载的 `<skill>`。系统级技能说明写在 `<systemSkill>`，不经 User 动态加载。
 
-新增 Skill：创建独立目录及 SKILL.md，在 index.json 中加入目录名。当前启用项全部注入，不做自动筛选或按需工具加载。修改后运行示例同步脚本和相关验证。
+新增技能：建 `service/skills/<id>/SKILL.md`，需要出现在 skill.list 时加入 `index.json`。修改后运行 `bun run scripts/sync-context-examples.ts` 与 `bun run check`。
