@@ -137,7 +137,6 @@ export function createProvider(config: ProviderConfig = {}) {
       stream: false,
       messages: outgoing,
       tools: wireTools,
-      ...(wireTools.length ? { tool_choice: "required" as const } : {}),
     }, { signal }).asResponse();
     // Avoid the SDK's total body-duration timeout: received chunks reset our idle timer.
     const response = await rawResponse.json() as ChatCompletion;

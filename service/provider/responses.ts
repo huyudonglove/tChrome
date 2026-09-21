@@ -48,7 +48,6 @@ export async function completeResponses(client: OpenAI, input: {
       parameters: tool.function.parameters,
       strict: false,
     })),
-    ...(input.tools.length ? { tool_choice: "required" as const } : {}),
   }, { signal: input.signal }).asResponse();
   const response = await rawResponse.json() as ModelResponse;
 
