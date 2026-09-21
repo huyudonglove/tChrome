@@ -57,9 +57,13 @@ export function loadSkills(repoRoot: string): string {
 }
 
 export function skillCatalog(repoRoot: string, tag?: string): { id: string; tags: string[]; purpose: string }[] {
-  const items = listSkills(repoRoot).map(item => {
-    const skill = readSkill(repoRoot, item.id);
-    const purpose = skill.description.split(/[。\n]/, 1)[0]!.trim() || item.id;
+  const ids = [...enabledSkillIds(repoRoot)];
+  for (const item of listSkills(repoRoot)) {
+    if (!ids.includes(item.id)) ids.push(item.id);
+  }
+  const items = ids.map(id => {
+    const skill = readSkill(repoRoot, id);
+    const purpose = skill.description.split(/[。\n]/, 1)[0]!.trim() || id;
     return { id: skill.id, tags: skill.tags, purpose };
   });
   if (!tag) return items;
