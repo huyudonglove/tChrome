@@ -52,6 +52,7 @@
     "page.recheck",
     "page.assert",
     "tab.context",
+    "reflect.write",
     "job.status",
     "job.stop"
   ],
@@ -93,6 +94,7 @@
     "#projectMemory",
     "#conversationMemory",
     "#notes",
+    "#reflection",
     "#toolIO",
     "#lastAction",
     "#checklist",
@@ -304,6 +306,7 @@
     "page.recheck",
     "page.assert",
     "tab.context",
+    "reflect.write",
     "job.status",
     "job.stop"
   ],
@@ -345,6 +348,7 @@
     "#projectMemory",
     "#conversationMemory",
     "#notes",
+    "#reflection",
     "#toolIO",
     "#lastAction",
     "#checklist",

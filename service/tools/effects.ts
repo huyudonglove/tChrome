@@ -15,6 +15,7 @@ export type ToolEffect =
   | { type: "page.clear_result"; pageId: string }
   | { type: "checklist.set"; title?: string; items: { text: string; status: "todo" | "doing" | "done" }[] }
   | { type: "checklist.update"; items: { index: number; status?: "todo" | "doing" | "done"; text?: string }[] }
+  | { type: "reflect.write"; text: string; focus?: string }
   | { type: "tab.context.set"; tabId: number }
   | { type: "tab.context.clear" }
   | { type: "turn.ask"; question: string }

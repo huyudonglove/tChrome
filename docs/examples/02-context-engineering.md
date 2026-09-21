@@ -83,6 +83,7 @@
     "page.recheck",
     "page.assert",
     "tab.context",
+    "reflect.write",
     "job.status",
     "job.stop"
   ],

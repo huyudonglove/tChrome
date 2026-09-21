@@ -19,6 +19,7 @@ export type TurnHistoryRecord = {
   pageObservations: PageObservation[];
   memoryWrites: MemoryRecord[];
   queryHistory: QueryEvidence[];
+  reflection: { turnId: string; text: string; focus?: string } | null;
   output: TurnOutput | null;
 };
 
@@ -32,6 +33,7 @@ const projectors: Record<string, (ctx: ProjectContext) => unknown> = {
   pageObservations: ({ turn }) => turn.assembled.pageObservedHistory.filter(item => item.turnId === turn.turnId),
   memoryWrites: ({ turn, memories }) => memories.conversation.filter(item => item.turnId === turn.turnId),
   queryHistory: ({ ledger, turn }) => ledger.queryHistory.filter(item => item.turnId === turn.turnId),
+  reflection: ({ turn }) => (turn.reflect ? { turnId: turn.turnId, ...turn.reflect } : null),
   output: ({ turn }) => {
     const out = turn.output;
     if (out && out.kind === "reply") return { kind: "reply", text: out.text };

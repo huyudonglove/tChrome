@@ -87,6 +87,7 @@ export type Turn = {
   completedAt: string | null;
   input: { id: string; text: string; submittedAt: string };
   assembled: Assembled;
+  reflect?: { text: string; focus?: string } | null;
   output: TurnOutput | null;
   // Optional for conversations saved before usage counters were introduced.
   usage?: { modelRequests: number; toolCalls: number };

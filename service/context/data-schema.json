@@ -289,6 +289,35 @@
         }
       ]
     },
+    "reflection": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "turnId": {
+              "$ref": "#/$defs/turnId"
+            },
+            "text": {
+              "type": "string"
+            },
+            "focus": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "turnId",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "$ref": "#/$defs/contextFileReference"
+        }
+      ]
+    },
     "toolIO": {
       "anyOf": [
         {
@@ -428,6 +457,7 @@
     "projectMemory",
     "conversationMemory",
     "notes",
+    "reflection",
     "toolIO",
     "lastAction",
     "checklist",

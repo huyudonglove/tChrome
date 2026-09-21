@@ -160,6 +160,13 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       return failedTool(error, "invalid_arguments");
     }
   }
+  if (name === "reflect.write") {
+    const text = typeof args.text === "string" ? args.text.trim() : "";
+    if (!text) return failedTool("reflect.write 的 text 为空", "invalid_arguments", { toolName: name });
+    const focus = typeof args.focus === "string" && args.focus.trim() ? args.focus.trim() : undefined;
+    return result(JSON.stringify({ ok: true, text, ...(focus ? { focus } : {}) }),
+      [{ type: "reflect.write", text, ...(focus ? { focus } : {}) }]);
+  }
   if (name === "notes.write") {
     const key = String(args.key ?? "").trim();
     const value = String(args.value ?? "");

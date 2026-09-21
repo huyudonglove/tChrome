@@ -199,6 +199,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "page.recheck",
     "page.assert",
     "tab.context",
+    "reflect.write",
     "job.status",
     "job.stop"
   ],
@@ -240,6 +241,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "#projectMemory",
     "#conversationMemory",
     "#notes",
+    "#reflection",
     "#toolIO",
     "#lastAction",
     "#checklist",

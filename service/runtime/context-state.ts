@@ -112,8 +112,11 @@ function archiveContentFromInventory(
       continue;
     }
     if (field === "output") {
-      // Agent-facing archive uses finishTurn text as the reply body.
       content[field] = options.complete ? history.output : null;
+      continue;
+    }
+    if (field === "reflection") {
+      content[field] = options.complete ? history.reflection : null;
       continue;
     }
     if (field === "userInput") {

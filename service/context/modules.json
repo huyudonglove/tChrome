@@ -24,12 +24,13 @@
     { "id": "projectMemory", "role": "user", "order": 9, "file": "user/projectMemory.md", "consumers": ["main"], "compress": false, "description": "Long-Term Memory" },
     { "id": "conversationMemory", "role": "user", "order": 10, "file": "user/conversationMemory.md", "consumers": ["main", "compression"], "compress": true, "archiveField": "memoryWrites", "coverage": "sourceCallId", "description": "Conversation Memory" },
     { "id": "notes", "role": "user", "order": 11, "file": "user/notes.md", "consumers": ["main"], "compress": false, "description": "Drafts, Candidates" },
-    { "id": "toolIO", "role": "user", "order": 12, "file": "user/toolIO.md", "consumers": ["main", "compression"], "compress": true, "archiveField": "toolIO", "coverage": "batch", "description": "Tool IO" },
-    { "id": "lastAction", "role": "user", "order": 13, "file": "user/lastAction.md", "consumers": ["main"], "compress": false, "description": "Last Tool Batch" },
-    { "id": "checklist", "role": "user", "order": 14, "file": "user/checklist.md", "consumers": ["main"], "compress": false, "description": "Execution Checklist" },
-    { "id": "queryHistory", "role": "user", "order": 15, "file": "user/queryHistory.md", "consumers": ["main", "compression"], "compress": true, "archiveField": "queryHistory", "coverage": "queryId", "description": "Query History" },
-    { "id": "currentQuery", "role": "user", "order": 16, "file": "user/currentQuery.md", "consumers": ["main"], "compress": false, "description": "Current Query" },
-    { "id": "tools", "role": "user", "order": 17, "file": "user/tools.md", "consumers": ["main"], "compress": false, "description": "Loaded Tools" },
+    { "id": "reflection", "role": "user", "order": 12, "file": "user/reflection.md", "consumers": ["main", "compression"], "compress": true, "archiveField": "reflection", "coverage": "turn", "description": "Turn reflection" },
+    { "id": "toolIO", "role": "user", "order": 13, "file": "user/toolIO.md", "consumers": ["main", "compression"], "compress": true, "archiveField": "toolIO", "coverage": "batch", "description": "Tool IO" },
+    { "id": "lastAction", "role": "user", "order": 14, "file": "user/lastAction.md", "consumers": ["main"], "compress": false, "description": "Last Tool Batch" },
+    { "id": "checklist", "role": "user", "order": 15, "file": "user/checklist.md", "consumers": ["main"], "compress": false, "description": "Execution Checklist" },
+    { "id": "queryHistory", "role": "user", "order": 16, "file": "user/queryHistory.md", "consumers": ["main", "compression"], "compress": true, "archiveField": "queryHistory", "coverage": "queryId", "description": "Query History" },
+    { "id": "currentQuery", "role": "user", "order": 17, "file": "user/currentQuery.md", "consumers": ["main"], "compress": false, "description": "Current Query" },
+    { "id": "tools", "role": "user", "order": 18, "file": "user/tools.md", "consumers": ["main"], "compress": false, "description": "Loaded Tools" },
 
     { "id": "turnOutput", "role": "archive", "order": 1, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "output", "coverage": "settledTurnOnly", "description": "Turn closing output", "inputSemantics": "对象或 null。`{kind:\"reply\", text}` 为最终回复正文；`{kind:\"ask\", question}` / `{kind:\"error\", faultCode, causeCode?, toolName?, detail?}` / `{kind:\"tool\", name, callId}`。null 表示暂无收尾。" }
   ]

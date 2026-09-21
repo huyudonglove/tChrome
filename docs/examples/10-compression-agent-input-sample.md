@@ -91,6 +91,7 @@ Sample（本轮 submitTurnSummaries 的 arguments，仅示例）：
 - goalChanges: 数组 `[{id, parentId, status, goal, turnId, sourceCallId, createdAt, updatedAt}]`。status 为 active / completed / cancelled。
 - pageObservations: 数组 `[{id, turnId, observedAt, callId, batchId?, tabId, type, result}]`。type 为工具名；result 是该次观察的完整返回。与 toolIO 同 callId 时两份都读。
 - memoryWrites: 数组 `[{memoryId, turnId, layer, text, createdAt, sourceCallId}]`。此处只含本轮写入的会话记忆。
+- reflection: 对象或 null。`{turnId, text, focus?}` 为本轮 reflect.write 写入的总结与反思；null 表示本轮未填写。
 - toolIO: 数组 `[{callId, batchId?, turnId, name, arguments, return:{stage,totalChars,text}, images?}]`。stage 为 complete / truncated；超量时 text 可能是 externalized 摘要。
 - queryHistory: 数组 `[{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}]`。status 为 complete / not_found / error；records 保留原模块记录。结论写入 result。
 - output: 对象或 null。`{kind:"reply", text}` 为最终回复正文；`{kind:"ask", question}` / `{kind:"error", faultCode, causeCode?, toolName?, detail?}` / `{kind:"tool", name, callId}`。null 表示暂无收尾。

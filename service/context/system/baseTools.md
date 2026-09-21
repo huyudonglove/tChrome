@@ -9,4 +9,5 @@
 Sample（工具清单格式，仅示例）：
 
     - finishTurn：结束本轮对话（text 给用户，并进入后续上下文）。
+    - reflect.write：记录本轮总结与反思（建议收口前调用，可覆盖）。
 </baseTools>

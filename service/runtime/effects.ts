@@ -181,6 +181,9 @@ export function applyToolEffects(input: {
         };
         break;
       }
+      case "reflect.write":
+        turn.reflect = { text: effect.text, ...(effect.focus ? { focus: effect.focus } : {}) };
+        break;
       case "tab.context.set": {
         ledger.contextTab = { tabId: effect.tabId, setAt: nowIso() };
         break;
