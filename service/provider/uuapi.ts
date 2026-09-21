@@ -98,7 +98,7 @@ const parseCalls = (calls: AccCall[]) => {
 
 export function createProvider(config: ProviderConfig = {}) {
   const apiKey = config.apiKey ?? Bun.env.UUAPI_API_KEY;
-  const baseURL = config.baseURL ?? "https://uuapi.net/v1";
+  const baseURL = config.baseURL ?? "https://uuapi.io/v1";
   const model = config.model ?? MODEL;
   const reasoningEffort = config.reasoningEffort ?? Bun.env.UUAPI_REASONING_EFFORT ?? "high";
   if (reasoningEffort !== "low" && reasoningEffort !== "medium" && reasoningEffort !== "high") {
