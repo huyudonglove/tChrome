@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "skill.load",
-    "description": "按 id 加载技能正文到本轮 <skill>，会话内保持。重复加载同 id 覆盖该技能。\n参数：必填 id（见 skill.list）。\n返回：ok、id、purpose。",
+    "description": "按 id 加载技能正文到本轮 <skill>，会话内保持。id 与 tags 见 skill.list。\n参数：必填 id。\n返回：ok、id、tags、purpose。",
     "parameters": {
       "type": "object",
       "properties": {

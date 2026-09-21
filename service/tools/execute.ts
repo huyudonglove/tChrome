@@ -373,14 +373,15 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     }));
   }
   if (name === "skill.list") {
-    return result(JSON.stringify({ ok: true, skills: skillCatalog(repoRoot) }));
+    const tag = typeof args.tag === "string" && args.tag.trim() ? args.tag.trim() : undefined;
+    return result(JSON.stringify({ ok: true, skills: skillCatalog(repoRoot, tag) }));
   }
   if (name === "skill.load") {
     const id = typeof args.id === "string" ? args.id.trim() : "";
     if (!id) return failedTool("skill.load 的 id 为空", "invalid_arguments", { toolName: name });
     const hit = skillCatalog(repoRoot).find(item => item.id === id);
     if (!hit) return failedTool(`未知技能 ${id}`, "invalid_arguments", { toolName: name });
-    return result(JSON.stringify({ ok: true, id: hit.id, purpose: hit.purpose }), [{ type: "skill.load", id }]);
+    return result(JSON.stringify({ ok: true, id: hit.id, tags: hit.tags, purpose: hit.purpose }), [{ type: "skill.load", id }]);
   }
   if (name === "catalog.add") {
     const names = [...new Set(asStringArray(args.names))];

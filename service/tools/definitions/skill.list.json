@@ -2,12 +2,18 @@
   "type": "function",
   "function": {
     "name": "skill.list",
-    "description": "列出会话可用技能（id 与首句）。加载后正文在 <skill>。\n返回：ok、skills[{id, purpose}]。",
+    "description": "列出会话可用技能：id、tags、首句。可选按 tag 过滤。加载后正文在 <skill>。\n返回：ok、skills[{id, tags, purpose}]。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean", "const": false }
+        "affectsPage": { "type": "boolean", "const": false },
+        "tag": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "可选；只列出含该 tag 的技能"
+        }
       },
       "required": ["reason", "affectsPage"],
       "additionalProperties": false

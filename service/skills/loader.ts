@@ -32,13 +32,21 @@ export function listSkills(repoRoot: string): { id: string }[] {
     });
 }
 
-export function readSkill(repoRoot: string, id: string): SkillDocument {
+export function readSkill(repoRoot: string, id: string): SkillDocument & { tags: string[] } {
   if (!id || id.includes("..") || id.includes("/") || id.includes("\\")) throw new Error("invalid skill id");
   const path = join(repoRoot, "service/skills", id, "SKILL.md");
   const body = readFileSync(path, "utf8").trim();
   if (!body) throw new Error(`empty skill ${id}`);
-  const description = body.split(/\n/, 1)[0]!.replace(/^#+\s*/, "").trim();
-  return { id, body, description: description || id };
+  const lines = body.split(/\r?\n/);
+  const description = lines[0]!.replace(/^#+\s*/, "").trim() || id;
+  let tags: string[] = [];
+  for (const line of lines.slice(0, 8)) {
+    const match = line.match(/^TAGS[:：]\s*(.+)$/i);
+    if (!match) continue;
+    tags = match[1]!.split(/[,，、\s]+/).map(part => part.trim()).filter(Boolean);
+    break;
+  }
+  return { id, body, description, tags };
 }
 
 export function loadSkills(repoRoot: string): string {
@@ -48,16 +56,21 @@ export function loadSkills(repoRoot: string): string {
     .join("\n\n");
 }
 
-export function skillCatalog(repoRoot: string): { id: string; purpose: string }[] {
-  return listSkills(repoRoot).map(item => {
-    const body = readSkill(repoRoot, item.id);
-    const first = body.description.split(/[。\n]/, 1)[0]!.trim();
-    return { id: item.id, purpose: first || item.id };
+export function skillCatalog(repoRoot: string, tag?: string): { id: string; tags: string[]; purpose: string }[] {
+  const items = listSkills(repoRoot).map(item => {
+    const skill = readSkill(repoRoot, item.id);
+    const purpose = skill.description.split(/[。\n]/, 1)[0]!.trim() || item.id;
+    return { id: skill.id, tags: skill.tags, purpose };
   });
+  if (!tag) return items;
+  const want = tag.trim().toLowerCase();
+  return items.filter(item => item.tags.some(t => t.toLowerCase() === want));
 }
 
 export function skillGuide(repoRoot: string): string {
-  return skillCatalog(repoRoot).map(item => `- ${item.id}：${item.purpose}。`).join("\n");
+  return skillCatalog(repoRoot)
+    .map(item => `- ${item.id}｜${item.tags.length ? item.tags.join("/") : "—"}｜${item.purpose}。`)
+    .join("\n");
 }
 
 export function loadedSkillText(repoRoot: string, loadedIds: string[]): string {
