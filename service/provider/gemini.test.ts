@@ -156,10 +156,11 @@ test("关闭 google_search 后 tools 仅剩 functionDeclarations", async () => {
 
 test("providerOptions registers all gateways with key env mapping", () => {
   expect(providerOptions.map((item) => item.id)).toEqual([
-    "uuapi", "shiningspace", "gemini", "deepseek", "caicai", "deepseek-official",
+    "uuapi", "shiningspace", "gemini", "deepseek", "caicai", "deepseek-official", "xcode",
   ]);
   expect(providerApiKeyEnv.gemini).toBe("GEMINI_API_KEY");
   expect(providerApiKeyEnv.deepseek).toBe("DEEPSEEK_API_KEY");
   expect(providerApiKeyEnv.caicai).toBe("CAICAI_API_KEY");
   expect(providerApiKeyEnv["deepseek-official"]).toBe("DEEPSEEK_OFFICIAL_API_KEY");
+  expect(providerApiKeyEnv.xcode).toBe("XCODE_API_KEY");
 });

@@ -22,6 +22,7 @@ export const providerApiKeyEnv: Record<ProviderName, string> = {
   deepseek: "DEEPSEEK_API_KEY",
   caicai: "CAICAI_API_KEY",
   "deepseek-official": "DEEPSEEK_OFFICIAL_API_KEY",
+  xcode: "XCODE_API_KEY",
 };
 
 export function configuredProvider(proxy: string | undefined, name = Bun.env.TCHROME_PROVIDER ?? "uuapi") {
@@ -56,8 +57,18 @@ export function configuredProvider(proxy: string | undefined, name = Bun.env.TCH
       proxy,
     });
   }
+  if (name === "xcode") {
+    return createProvider({
+      apiKey: Bun.env.XCODE_API_KEY ?? "",
+      baseURL: Bun.env.XCODE_BASE_URL ?? "https://xcode.best/v1",
+      model: Bun.env.XCODE_MODEL ?? "deepseek-flash",
+      reasoningEffort: (Bun.env.XCODE_REASONING_EFFORT ?? "medium") as ProviderConfig["reasoningEffort"],
+      sanitizeToolNames: true,
+      proxy,
+    });
+  }
   if (name !== "shiningspace") {
-    throw new Error("TCHROME_PROVIDER must be uuapi, shiningspace, gemini, deepseek, caicai or deepseek-official");
+    throw new Error("TCHROME_PROVIDER must be uuapi, shiningspace, gemini, deepseek, caicai, deepseek-official or xcode");
   }
   const effort = Bun.env.SHININGSPACE_REASONING_EFFORT ?? "medium";
   if (!["low", "medium", "high"].includes(effort)) throw new Error("SHININGSPACE_REASONING_EFFORT must be low, medium or high");
