@@ -50,6 +50,32 @@ const git = async (cwd: string, args: string[], patch?: string) => {
   return out;
 };
 
+export async function writeScript(dataDir: string, input: {filename?: unknown; code?: unknown}): Promise<Record<string, unknown>> {
+  const key = resolve(dataDir);
+  const previous = locks.get(key) ?? Promise.resolve();
+  const operation = previous.catch(() => {}).then(async () => {
+    let staging: string | undefined;
+    try {
+      const {filename, code} = input;
+      if (!validName(filename)) throw new Error('脚本文件名无效');
+      if (typeof code !== 'string') throw new Error('代码必须是字符串');
+      const dir = await directory(dataDir);
+      const path = join(dir, filename);
+      const info = await regular(path);
+      staging = await mkdtemp(join(dir, '.write-'));
+      const next = join(staging, filename);
+      await writeFile(next, code, {mode: 0o600});
+      await rename(next, path);
+      return {ok: true, filename, operation: info ? 'updated' : 'created', bytes: Buffer.byteLength(code, 'utf8')};
+    } catch (error) { return {ok: false, ...errorInfo(error), error: error instanceof Error ? error.message : String(error)}; }
+    finally {
+      if (staging) await rm(staging, {recursive: true, force: true}).catch(() => {});
+    }
+  });
+  locks.set(key, operation);
+  try { return await operation; } finally { if (locks.get(key) === operation) locks.delete(key); }
+}
+
 export async function patchScript(dataDir: string, input: {filename?: unknown; patch?: unknown}): Promise<Record<string, unknown>> {
   const key = resolve(dataDir);
   const previous = locks.get(key) ?? Promise.resolve();

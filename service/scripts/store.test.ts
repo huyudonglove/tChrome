@@ -2,7 +2,7 @@ import {test, expect} from 'bun:test';
 import {mkdtemp, mkdir, readFile, rm, symlink, writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {patchScript, readScript} from './store.ts';
+import {patchScript, writeScript, readScript} from './store.ts';
 const add = (name = 'demo.js') => `--- /dev/null\n+++ b/${name}\n@@ -0,0 +1 @@\n+one\n`;
 const edit = (old = 'one', next = 'two') => `--- a/demo.js\n+++ b/demo.js\n@@ -1 +1 @@\n-${old}\n+${next}\n`;
 const temp = async (run: (dir:string)=>Promise<void>) => {
@@ -57,4 +57,17 @@ test('list includes ordinary scripts and read/patch preserve large files',()=>te
  expect((await readScript(dir,'big.js')).code.length).toBe(1_048_577);
  expect((await patchScript(dir,{filename:'demo.js',patch:'--- /dev/null\n+++ b/demo.js\n@@ -0,0 +1 @@\n+'+'x'.repeat(2_097_153)+'\n'})).ok).toBe(true);
  expect((await readScript(dir,'demo.js')).code.length).toBe(2_097_154);
+}));
+
+test('writeScript writes, overwrites, and rejects invalid filename/symlinks', () => temp(async dir => {
+  expect((await writeScript(dir, { filename: 'demo.js', code: 'console.log("hello");\n' })).ok).toBe(true);
+  expect((await readScript(dir, 'demo.js')).code).toBe('console.log("hello");\n');
+
+  // Overwrite
+  expect((await writeScript(dir, { filename: 'demo.js', code: 'console.log("updated");\n' })).ok).toBe(true);
+  expect((await readScript(dir, 'demo.js')).code).toBe('console.log("updated");\n');
+
+  // Reject invalid extensions / path traversal
+  expect((await writeScript(dir, { filename: '../demo.js', code: 'bad' })).ok).toBe(false);
+  expect((await writeScript(dir, { filename: 'demo.txt', code: 'bad' })).ok).toBe(false);
 }));

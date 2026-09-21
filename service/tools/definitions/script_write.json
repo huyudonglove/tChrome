@@ -1,0 +1,35 @@
+{
+  "type": "function",
+  "function": {
+    "name": "script_write",
+    "description": "向服务数据目录 scripts/ 直接全量写入或覆盖一个脚本文件。filename 指定单层文件名，code 为脚本完整源码；返回写入状态与字节数，不执行脚本。必须等本次写入成功后的下一次模型调用，再用 execute_javascript、local.run 或 local.process_start 执行；同批写入与执行会被拒绝。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "filename": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*\\.(sh|py|js|mjs|cjs)$",
+          "description": "服务数据目录 scripts/ 下的单层脚本文件名，不含目录"
+        },
+        "code": {
+          "type": "string",
+          "description": "脚本的完整源码正文"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "affectsPage": {
+          "type": "boolean",
+          "const": false
+        }
+      },
+      "required": [
+        "filename",
+        "code",
+        "reason",
+        "affectsPage"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
