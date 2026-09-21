@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { createHash } from "node:crypto";
 import type { Ledger, LogEvent, ChatMessage, ProviderExchange, Session, Turn } from "../types.ts";
+import { runtimeConfig } from "../config/runtime.ts";
 import { idPrefix, nextId, nowIso } from "./ids.ts";
 import { wrapCachedText } from "./cache-lines.ts";
 import { abortLocalProcesses } from "../tools/local-process.ts";
@@ -82,7 +83,7 @@ export function emptyLedger(conversationId: string): Ledger {
     currentQuery: null,
     queryHistory: [],
     windowChars: 0,
-    compressAt: 200000,
+    compressAt: runtimeConfig.context.compressAtChars,
     memoryIds: { conversation: [], project: [] },
   };
 }

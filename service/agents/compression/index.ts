@@ -1,4 +1,5 @@
 import { allocateRecordId } from "../../runtime/ids.ts";
+import { runtimeConfig } from "../../config/runtime.ts";
 import type { Provider } from "../../types.ts";
 import { requestTurnSummary, type CompressionTurn } from "./protocol.ts";
 import { commitArchive, loadIndex } from "../../context-archive/store.ts";
@@ -25,7 +26,7 @@ export type CompressProgress =
 const running = new Map<string, { isCancelled?: () => boolean }>();
 
 /** Turns that already have active summaries merge only when the active list is longer than this. */
-export const SUMMARY_RECOMPRESS_MIN_ACTIVE = 30;
+export const SUMMARY_RECOMPRESS_MIN_ACTIVE = runtimeConfig.context.summaryRecompressMinActive;
 
 function asTurn(content: unknown): CompressionTurn {
   if (!content || typeof content !== "object" || !("turnId" in content) || typeof content.turnId !== "string" || !content.turnId.trim()) throw new Error("Compression source missing turnId");

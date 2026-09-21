@@ -3,6 +3,9 @@ import { resolve } from "node:path";
 import { loadContextModules, parseModule, renderSlots, systemTextFromModules } from "./modules.ts";
 import { systemText, userText } from "./window.ts";
 import { emptyLedger } from "../runtime/store.ts";
+import { promptNumberSlots, assertPromptNumbersMatchRuntime } from "./prompt-numbers.ts";
+import { SUMMARY_RECOMPRESS_MIN_ACTIVE } from "../agents/compression/index.ts";
+import { runtimeConfig } from "../config/runtime.ts";
 import type { Turn } from "../types.ts";
 
 const root = resolve(import.meta.dir, "../..");
@@ -20,6 +23,11 @@ test("registry loads XML modules and system text uses angle-bracket tags", () =>
   expect(system).toContain("服务数据目录（脚本 scripts/、进程输出 process-output/、会话落盘、临时文件）：/tmp/tchrome-data");
   expect(system).toContain("代码仓库路径（服务源码）：/tmp/tchrome-test");
   expect(system).toContain("操作系统：macOS (darwin/arm64)");
+  expect(SUMMARY_RECOMPRESS_MIN_ACTIVE).toBe(runtimeConfig.context.summaryRecompressMinActive);
+  const slots = promptNumberSlots();
+  for (const value of Object.values(slots)) expect(system).toContain(value);
+  expect(() => assertPromptNumbersMatchRuntime(system)).not.toThrow();
+  expect(system).not.toContain("{{compressAt}}");
   expect(system).toContain("<identity>");
   expect(system).toContain("</identity>");
   expect(system).toContain("<runtime>");

@@ -1,8 +1,9 @@
 import {createHash, randomUUID} from 'node:crypto';
 import {linkSync, lstatSync, mkdirSync, readFileSync, unlinkSync, writeFileSync} from 'node:fs';
 import {resolve, join} from 'node:path';
+import {runtimeConfig} from '../config/runtime.ts';
 
-export const CONTEXT_INLINE_CHARS = 250_000;
+export const CONTEXT_INLINE_CHARS = runtimeConfig.context.externalizeAtChars;
 
 export class ContextBudgetError extends Error {
   override name = 'ContextBudgetError';

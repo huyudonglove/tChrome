@@ -5,7 +5,7 @@
     { "id": "overview", "role": "system", "order": 1, "file": "system/overview.md", "consumers": ["main"], "description": "Agent Loop, Context Assembly" },
     { "id": "identity", "role": "system", "order": 2, "file": "system/identity.md", "consumers": ["main"], "description": "Identity, Collaboration, Language" },
     { "id": "environment", "role": "system", "order": 3, "file": "system/environment.md", "consumers": ["main"], "description": "Environment, Tool Discovery" },
-    { "id": "runtime", "role": "system", "order": 4, "file": "system/runtime.md", "consumers": ["main"], "description": "Context Assembly, Compression, Images" },
+    { "id": "runtime", "role": "system", "order": 4, "file": "system/runtime.md", "consumers": ["main"], "description": "Context Assembly, Compression, Images", "inject": ["compressAt", "externalizeAt", "summaryRecompressMin", "keepBatches", "inlineChars", "previewChars", "lineWidth", "searchContextChars"] },
     { "id": "recordIdentity", "role": "system", "order": 5, "file": "system/recordIdentity.md", "consumers": ["main"], "description": "ID Rules, Record References" },
     { "id": "execution", "role": "system", "order": 6, "file": "system/execution.md", "consumers": ["main"], "description": "Task Execution, Verification, Recovery" },
     { "id": "toolProtocol", "role": "system", "order": 7, "file": "system/toolProtocol.md", "consumers": ["main"], "description": "Tool Calls, Parameters, Execution Order" },

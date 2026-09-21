@@ -9,10 +9,11 @@ import { compressRecords, type CompressOutcome, type CompressProgress } from "..
 import type { SourceRecord } from "../context-archive/types.ts";
 import type { QueryEvidence } from "../context/projections/queries.ts";
 import { compressedArchiveFields, loadModuleRegistry } from "../context/modules.ts";
+import { runtimeConfig } from "../config/runtime.ts";
 import { assembleTurnHistory, loadSettledTurnHistory, type TurnHistoryRecord } from "./turn-history.ts";
 
 export const HISTORY_MODULE = "conversationHistory" as const;
-const KEEP_BATCHES = 2;
+const KEEP_BATCHES = runtimeConfig.context.keepToolBatches;
 const querySourceKey = (queryId: string) => JSON.stringify(["query", queryId]);
 const fullTurnKey = (turnId: string) => JSON.stringify(["turn", turnId]);
 const batchKey = (row: ToolIOItem) => row.batchId ?? row.callId;

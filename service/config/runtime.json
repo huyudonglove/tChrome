@@ -17,5 +17,11 @@
     "searchContextChars": 400,
     "searchMaxContextChars": 400,
     "searchMaxMatches": 8
+  },
+  "context": {
+    "compressAtChars": 200000,
+    "externalizeAtChars": 250000,
+    "summaryRecompressMinActive": 30,
+    "keepToolBatches": 2
   }
 }

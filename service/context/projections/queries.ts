@@ -1,4 +1,6 @@
 // Query storage and execution are owned by runtime; these are model-facing views.
+import { runtimeConfig } from "../../config/runtime.ts";
+
 export type QueryRecord = Record<string, unknown> & { turnId: string };
 
 export type QueryEvidence = {
@@ -23,10 +25,10 @@ export type QueryViewOptions = {
 
 /** Same unified inline gate as other tool-derived views: full body when small, pointer when large. */
 export const queryView = (query: QueryEvidence, options: QueryViewOptions = {}) => {
-  const inlineChars = options.inlineChars ?? 4000;
-  const previewChars = options.previewChars ?? 100;
-  const searchContextChars = options.searchContextChars ?? 400;
-  const lineWidth = options.lineWidth ?? 100;
+  const inlineChars = options.inlineChars ?? runtimeConfig.results.inlineChars;
+  const previewChars = options.previewChars ?? runtimeConfig.results.previewChars;
+  const searchContextChars = options.searchContextChars ?? runtimeConfig.results.searchContextChars;
+  const lineWidth = options.lineWidth ?? runtimeConfig.results.lineWidth;
   const view = {
     queryId: query.queryId,
     turnId: query.turnId,

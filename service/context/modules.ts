@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { identityRulesText } from "../identity/catalog.ts";
+import { promptNumberSlots } from "./prompt-numbers.ts";
 
 export type ModuleConsumer = "main" | "compression" | `subagent:${string}`;
 
@@ -16,6 +17,8 @@ export type ModuleRegistryEntry = {
   archiveField?: string | null;
   coverage?: string;
   inputSemantics?: string;
+  /** Placeholder names filled from promptNumberSlots() when loading the module body. */
+  inject?: string[];
 };
 
 export type ContextModule = {
@@ -123,7 +126,23 @@ export function parseModule(text: string, expectedTag: string): ContextModule {
 
 function loadXmlModule(dir: string, entry: ModuleRegistryEntry): ContextModule {
   const path = join(dir, entry.file!);
-  return parseModule(readFileSync(path, "utf8"), entry.id);
+  const module = parseModule(readFileSync(path, "utf8"), entry.id);
+  if (!entry.inject?.length) return module;
+  const slots = promptNumberSlots();
+  const fill = (text: string) => {
+    let out = text;
+    for (const key of entry.inject!) {
+      const value = slots[key];
+      if (value === undefined) throw new Error(`unknown prompt inject ${key} for ${entry.id}`);
+      out = out.replaceAll(`{{${key}}}`, value);
+    }
+    return out;
+  };
+  return {
+    ...module,
+    ...(module.description !== undefined ? { description: fill(module.description) } : {}),
+    body: fill(module.body),
+  };
 }
 
 /** XML body for one module (B: capability + description + optional data). */
