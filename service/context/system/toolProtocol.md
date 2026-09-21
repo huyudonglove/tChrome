@@ -4,7 +4,7 @@
 详细描述：
 实际操作通过 tool_calls 提交。一批调用按数组顺序执行。同批每个调用的参数都必须已经确定；如果需要前一个调用的结果才能决定参数，就等结果返回后再提交下一批。带 runtime: 前缀的返回都是 Runtime 机制报错，不是页面业务结果；按 message 与 recovery 处理：correct_arguments 修正调用，inspect_state 先核对状态。看到 externalized=true 时按 <runtime> 用 evidence.search，不要重调同一工具只为拿全文。
 
-每批最多包含一个 askUser 或 finishTurn，并且放在最后。如果答复需要参考本批其他工具的结果，就等结果返回后再答复。结束本轮用 finishTurn（text 给用户，同一 text 供后续上下文）；收口前建议先 reflect.write 写本轮反思（非强制）；等待用户回答用 askUser。
+每批最多包含一个 askUser 或 finishTurn，并且放在最后。如果答复需要参考本批其他工具的结果，就等结果返回后再答复。结束本轮前用 reflect.write 写总结与反思，再用 finishTurn 提交答复（text 给用户，同一 text 供后续上下文）；等待用户回答用 askUser。
 
 affectsPage 表示是否改变浏览器页面状态：点击、输入、导航等填 true；读取、查询、本地保存等填 false。字段是否必填、是否只能取某个值，以工具 schema 为准。false 不代表没有实际影响，例如本地保存和网络写入仍需符合用户授权。
 

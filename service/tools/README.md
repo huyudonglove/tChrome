@@ -36,7 +36,7 @@
 
 `execute_javascript` 使用 filename（仅 .js/.mjs/.cjs）和必填 tabId，不接受内联 code；内容为页面表达式，多语句或异步逻辑使用 IIFE。`local.run` / `local.process_start` 使用 filename 和绝对路径 cwd，可选 args 字符串数组及 timeoutMs；.sh 由 zsh、.py 由 python3、.js/.mjs/.cjs 由 bun 执行，不接受内联 command。补丁只返回状态，必须在确认成功后的下一次模型调用执行；Runtime 拒绝同批 script_patch 与脚本执行。
 
-长耗时调用可显式传 heartbeatSec（正整数秒，无默认）：`local.run` 提前返回 processId，用 `local.process_status` / `local.process_stop`；`send_http`、`send_http_batch`、`web_search`、`tavily_search`、`execute_javascript` 提前返回 jobId，用常驻 `job.status` / `job.stop`。任务结束后心跳销毁；停止会话/删除会话会取消对应任务。
+长耗时调用可传 heartbeatSec（正整数秒）：`local.run` 提前返回 processId，用 `local.process_status` / `local.process_stop`；`send_http`、`send_http_batch`、`web_search`、`tavily_search`、`execute_javascript` 提前返回 jobId，用常驻 `job.status` / `job.stop`。任务结束后心跳结束；停止会话/删除会话会取消对应任务。
 
 本机每次执行读取已保存文件并创建私有快照，后续补丁不会改变正在运行的脚本。普通相对文件路径按 cwd 解析；脚本自身路径和相对 import 按快照位置解析，不支持依赖托管目录中相邻脚本的相对导入。服务运行环境需安装 Git，补丁解析、检查与应用统一使用 `git apply --recount`，由 Git 按正文计算 hunk 行数。补丁仍需合法 unified diff 结构、匹配原文上下文及末尾换行；不猜测修复正文。
 

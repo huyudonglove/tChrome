@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "reflect.write",
-    "description": "记录当前 turn 的总结与反思（做了什么、依据、风险与下一步）。收口前建议调用，非强制。每次写入分配 rf_ 编号并追加到本轮列表；传 id 时更新该条。正文进入 <reflection> 并随该轮进入压缩材料。\n参数：必填 text；可选 focus、id。",
+    "description": "记录当前 turn 的总结与反思（做了什么、依据、风险与下一步）。每次写入分配 rf_ 编号并追加到本轮列表；传 id 时更新该条。正文进入 <reflection> 并随该轮进入压缩材料。\n参数：必填 text；可选 focus、id。",
     "parameters": {
       "type": "object",
       "properties": {

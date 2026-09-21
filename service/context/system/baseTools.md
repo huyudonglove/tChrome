@@ -9,6 +9,6 @@
 Sample（工具清单格式，仅示例）：
 
     - finishTurn：结束本轮对话（text 给用户，并进入后续上下文）。
-    - reflect.write：写入本轮反思（分配 rf_ 编号，可带 id 更新）。
+    - reflect.write：写入本轮总结与反思（rf_ 编号，可带 id 更新）。
     - reflect.delete：按 rf_ 编号删除本轮反思。
 </baseTools>
