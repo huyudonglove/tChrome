@@ -1,7 +1,6 @@
 import { patchScript } from "../scripts/store.ts";
 import { expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
-import { symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { handleTurn } from "../runtime/loop.ts";
@@ -17,22 +16,18 @@ const response = (name: string, args: Record<string, unknown>): CompletionResult
   toolCalls: [{ id: name, name, arguments: { ...args, reason: "验证本地工具", affectsPage: false } }],
 });
 
-test("filesystem tools preserve the managed scripts patch boundary", async () => {
-  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-script-boundary-"));
+test("filesystem tools read and write the scripts directory", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-script-fs-"));
   try {
     expect(await patchScript(dataDir, { filename: "saved.sh", patch: "--- /dev/null\n+++ b/saved.sh\n@@ -0,0 +1 @@\n+printf saved\n" })).toMatchObject({ ok: true });
     const scripts = join(dataDir, "scripts"), saved = join(scripts, "saved.sh");
-    await symlink(scripts, join(dataDir, "alias"));
-    for (const [name, args] of [
-      ["local.fs_write", { path: saved, content: "overwrite" }],
-      ["local.fs_write", { path: join(dataDir, "alias", "new.sh"), content: "bypass" }],
-      ["local.fs_mkdir", { path: join(scripts, "nested") }],
-      ["local.fs_delete", { path: dataDir, recursive: true }],
-      ["local.fs_copy", { source: saved, destination: join(scripts, "copied.sh") }],
-      ["local.fs_move", { source: saved, destination: join(dataDir, "moved.sh") }],
-    ] as const) expect(await runLocalTool(name, args, dataDir, "cv_01")).toMatchObject({ ok: false, error: expect.stringContaining("script_patch") });
     expect(await runLocalTool("local.fs_read", { path: saved }, dataDir, "cv_01")).toMatchObject({ ok: true, content: "printf saved\n" });
+    expect(await runLocalTool("local.fs_write", { path: saved, content: "printf overwritten\n" }, dataDir, "cv_01")).toMatchObject({ ok: true });
+    expect(await runLocalTool("local.fs_read", { path: saved }, dataDir, "cv_01")).toMatchObject({ ok: true, content: "printf overwritten\n" });
+    expect(await runLocalTool("local.fs_write", { path: join(scripts, "new.sh"), content: "printf new\n" }, dataDir, "cv_01")).toMatchObject({ ok: true });
+    expect(await runLocalTool("local.fs_mkdir", { path: join(scripts, "nested") }, dataDir, "cv_01")).toMatchObject({ ok: true });
     expect(await runLocalTool("local.fs_write", { path: join(dataDir, "ordinary.txt"), content: "data" }, dataDir, "cv_01")).toMatchObject({ ok: true });
+    expect(await runLocalTool("local.fs_delete", { path: join(scripts, "new.sh") }, dataDir, "cv_01")).toMatchObject({ ok: true });
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 

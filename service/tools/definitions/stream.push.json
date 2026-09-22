@@ -1,0 +1,28 @@
+{
+  "type": "function",
+  "function": {
+    "name": "stream.push",
+    "description": "把宿主文件经二进制流管道送到浏览器侧发起请求，不经 Base64 中转。\ntarget.kind=http：扩展用该文件字节作为请求体提交（可选 method/headers）。\n参数：必填 path（宿主绝对路径）、target。\n返回：ok、streamId、bytes，以及 target 提交结果（如 status）。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": true },
+        "path": { "type": "string", "description": "宿主绝对路径" },
+        "target": {
+          "type": "object",
+          "properties": {
+            "kind": { "type": "string", "enum": ["http"] },
+            "url": { "type": "string", "description": "提交地址" },
+            "method": { "type": "string", "description": "可选，默认 POST" },
+            "headers": { "type": "object", "description": "可选请求头" }
+          },
+          "required": ["kind", "url"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["reason", "affectsPage", "path", "target"],
+      "additionalProperties": false
+    }
+  }
+}

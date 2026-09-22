@@ -15,9 +15,9 @@
 - 验证码探测与处理
 - 本机宿主 local.*：文件读写与检索、脚本执行与后台进程
 - 服务端网络与搜索：HTTP 请求/批量/探测、网页搜索、Tavily
-- 资料库与脚本管理：library、script_patch/read/list
+- 资料库与脚本管理：library、script_write/patch/read/list
 
 local.* 操作服务所在电脑。文件路径与 local.run / local.process_start 的 cwd 使用绝对路径，默认取 <overview> 的服务数据目录。进程标识在所属会话与本次服务运行期间有效。脚本在数据目录 scripts/，执行快照在系统临时目录，stdout/stderr 在数据目录 process-output/。路径见 <overview>。
 
-脚本用 script_patch 保存、script_read 读取、script_list 查找。执行页面脚本或本机脚本时，用 filename 指定已经保存的文件。参数与返回以 tools[] 里已加载工具的 schema 为准。
+脚本写在数据目录 scripts/：script_patch 用单文件补丁，script_write 全量覆盖，也可用 local.fs_* 读写；script_read 读取、script_list 查找。执行页面脚本或本机脚本时，用 filename 指定已经保存的文件。参数与返回以 tools[] 里已加载工具的 schema 为准。
 </environment>

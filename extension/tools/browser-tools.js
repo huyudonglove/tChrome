@@ -4,6 +4,7 @@ import { captureElement, captureSom } from './element-capture.js';
 import { elementTool } from './element-tools.js';
 import { waitForDownload } from './downloads.js';
 import { withDebugger, monitorDialogs, dialogState, watchDialog, handleDialog, detachDebugger } from './dialogs.js';
+import { streamCapture, streamReceive } from './stream-pipe.js';
 export const BROWSER_TOOL_NAMES = [
   'page.get_summary', 'page.list_regions', 'page.list_interactive_elements',
   'page.inspect_region', 'page.inspect_element', 'page.get_dom',
@@ -37,6 +38,7 @@ export const BROWSER_TOOL_NAMES = [
   'combo.select', 'date.select', 'tab.context',
   'har', 'video.capture_sequence', 'video.record',
   'fingerprint.read', 'fingerprint.apply',
+  'stream.capture', 'stream.receive', 'image.crop_pixels',
 ];
 
 // Network is shared with network_throttle; stop removes only this monitor's
@@ -745,7 +747,7 @@ const runOnTab = async (tabId, args, func) => {
 
 const capturePage = async (input) => {
   const tabId = input.tabId;
-  if (!['viewport', 'full_page', 'element', 'som'].includes(input.mode)) return {ok: false, error: 'capture_page 需要 mode=viewport|full_page|element|som'};
+  if (!['viewport', 'full_page', 'element', 'som', 'rect'].includes(input.mode)) return {ok: false, error: 'capture_page 需要 mode=viewport|full_page|element|som|rect'};
   if (input.mode !== 'element' && (input.ref !== undefined || input.selector !== undefined)) return {ok: false, error: 'ref/selector 仅用于 element 模式'};
   if (input.mode === 'full_page') {
     const tab = await getTab(tabId);
@@ -764,6 +766,25 @@ const capturePage = async (input) => {
         return {ok: true, tabId: tab.id, image: `data:image/jpeg;base64,${shot.data}`, mime: 'image/jpeg', fullPage: true, page_size: [size.width, size.height]};
       });
     } catch (error) { return {ok: false, error: String(error)}; }
+  }
+  if (input.mode === 'rect') {
+    const x = Number(input.x), y = Number(input.y), width = Number(input.width), height = Number(input.height);
+    if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return {ok: false, error: 'rect 需要 x、y、width、height（CSS 像素，width/height > 0）'};
+    if (width > 8000 || height > 8000 || width * height > 16000000) return {ok: false, faultCode: 'page_too_large', error: '矩形超过裁切上限，请缩小 width/height'};
+    const tab = await getTab(tabId);
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可截图的普通网页标签'};
+    try {
+      return await withDebugger(tab.id, async () => {
+        const shot = await chrome.debugger.sendCommand({tabId: tab.id}, 'Page.captureScreenshot', {
+          format: 'jpeg', quality: 80, captureBeyondViewport: true, fromSurface: true,
+          clip: {x, y, width, height, scale: 1},
+        });
+        if (!shot?.data) return {ok: false, error: '浏览器未返回截图'};
+        return {ok: true, tabId: tab.id, image: `data:image/jpeg;base64,${shot.data}`, mime: 'image/jpeg', crop_rect: [x, y, width, height]};
+      });
+    } catch (error) {
+      return {ok: false, error: error instanceof Error ? error.message : String(error)};
+    }
   }
   if (input.mode === 'element') {
     const tab = await getTab(tabId);
@@ -2081,6 +2102,25 @@ const executeBrowserTool = async (name, input = {}) => {
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可监控的普通网页标签'};
     return monitorWebSockets(tab.id, input.action);
+  }
+  if (name === 'stream.capture') return streamCapture(input);
+  if (name === 'stream.receive') return streamReceive(input);
+  if (name === 'image.crop_pixels') {
+    try {
+      const x = Number(input.x), y = Number(input.y), width = Number(input.width), height = Number(input.height);
+      const blob = await (await fetch(String(input.dataUrl ?? ''))).blob();
+      const bitmap = await createImageBitmap(blob);
+      const canvas = new OffscreenCanvas(width, height);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bitmap, x, y, width, height, 0, 0, width, height);
+      const out = await canvas.convertToBlob({ type: 'image/png' });
+      const buf = new Uint8Array(await out.arrayBuffer());
+      let binary = '';
+      for (let i = 0; i < buf.length; i += 0x8000) binary += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+      return { ok: true, dataUrl: `data:image/png;base64,${btoa(binary)}` };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
   }
   return {ok: false, error: `未接执行器 ${name}`};
 };

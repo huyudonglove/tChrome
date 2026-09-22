@@ -6,6 +6,7 @@ import type { Ledger, LogEvent, ChatMessage, ProviderExchange, Session, Turn } f
 import { runtimeConfig } from "../config/runtime.ts";
 import { idPrefix, nextId, nowIso } from "./ids.ts";
 import { wrapCachedText } from "./cache-lines.ts";
+import { appendAsset, textSummary } from "../assets/catalog.ts";
 import { abortLocalProcesses } from "../tools/local-process.ts";
 import { abortJobsForScope, jobScope } from "../tools/job-registry.ts";
 import { localScope } from "../tools/local-tools.ts";
@@ -114,7 +115,16 @@ export function saveTurn(dataDir: string, turn: Turn): void {
 export function saveFullReturn(dataDir: string, cvId: string, callId: string, full: string): void {
   const dir = paths(dataDir, cvId).returns;
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, `${callId}.txt`), wrapCachedText(full));
+  const path = join(dir, `${callId}.txt`);
+  writeFileSync(path, wrapCachedText(full));
+  appendAsset(dataDir, cvId, {
+    name: `${callId}.txt`,
+    kind: "text",
+    bytes: Buffer.byteLength(full, "utf8"),
+    summary: textSummary(full),
+    source: { callId },
+    path: `returns/${callId}.txt`,
+  });
 }
 
 export function loadFullReturn(dataDir: string, cvId: string, callId: string): string | null {

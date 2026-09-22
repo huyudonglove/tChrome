@@ -16,7 +16,8 @@
     "lineWidth": 100,
     "searchContextChars": 400,
     "searchMaxContextChars": 400,
-    "searchMaxMatches": 8
+    "searchMaxMatches": 8,
+    "imageInlineBytes": 262144
   },
   "context": {
     "compressAtChars": 200000,

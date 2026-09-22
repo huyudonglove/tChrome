@@ -5,6 +5,9 @@ import type { QueryRecord, QueryEvidence } from "../context/projections/queries.
 import type { ToolEffect, ToolExecution } from "./effects.ts";
 import type { BrowserHost, CurrentPage, ToolArguments } from "../types.ts";
 import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
+import { STREAM_TOOL_NAMES, runStreamTool } from "./stream-tools.ts";
+import { IMAGE_TOOL_NAMES, runImageTool } from "./image-crop.ts";
+import { loadAssets } from "../assets/catalog.ts";
 import { LOCAL_TOOL_NAMES, runLocalTool } from "./local-tools.ts";
 import { COMPOUND_TOOL_NAMES, runCompoundTool } from "./compound-tools.ts";
 import { JOB_TOOL_NAMES, runJobTool, withJobHeartbeat, jobScope } from "./job-registry.ts";
@@ -91,7 +94,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   if (name === "execute_javascript") {
     try {
       if ("code" in args || typeof args.filename !== "string" || !/\.(?:js|mjs|cjs)$/.test(args.filename)) {
-        return failedTool("请先用 script_patch 保存 JavaScript 文件，再传 filename 执行。", "invalid_arguments");
+        return failedTool("请先保存 JavaScript 文件到 scripts/，再传 filename 执行。", "invalid_arguments");
       }
       if (!host) return failedTool("浏览器未连接", "browser_unavailable");
       const script = await readScript(dataDir, args.filename);
@@ -455,6 +458,21 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   if ((JOB_TOOL_NAMES as readonly string[]).includes(name)) {
     if (!input.conversationId) return failedTool("job 工具缺少会话标识", "invalid_arguments");
     return externalResult(await runJobTool(name, hostArgs(args), jobScope(dataDir, input.conversationId)));
+  }
+  if ((STREAM_TOOL_NAMES as readonly string[]).includes(name)) {
+    return externalResult(await runStreamTool(name, hostArgs(args), host));
+  }
+  if ((IMAGE_TOOL_NAMES as readonly string[]).includes(name)) {
+    return externalResult(await runImageTool(name, hostArgs(args), host, dataDir, input.conversationId));
+  }
+  if (name === "asset.list") {
+    if (!input.conversationId) return failedTool("asset.list 缺少会话标识", "invalid_arguments");
+    const assets = loadAssets(dataDir, input.conversationId).filter((item) => {
+      if (typeof args.kind === "string" && args.kind && item.kind !== args.kind) return false;
+      if (typeof args.name === "string" && args.name.trim() && !item.name.includes(args.name.trim())) return false;
+      return true;
+    });
+    return result(JSON.stringify({ ok: true, assets }));
   }
   if ((LOCAL_TOOL_NAMES as readonly string[]).includes(name)) {
     if (!input.conversationId) return failedTool("本地工具缺少会话标识", "invalid_arguments");

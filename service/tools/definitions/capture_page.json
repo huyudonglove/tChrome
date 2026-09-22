@@ -2,39 +2,30 @@
   "type": "function",
   "function": {
     "name": "capture_page",
-    "description": "捕获页面图片。必填 mode：viewport 截可视区；full_page 截整页；element 裁剪单个元素（ref 或 selector 二选一）；som 为视口 Set-of-Marks：给可见可交互元素打数字角标后截图，返回 marks[{badge,id,x,y,w,h,role,name}]，用 id 调 page.click。som 可选 maxMarks（默认40，上限80）、roles（如 button/link）。必填 tabId。\n返回：ok、mode、image；som 另带 marks、viewport、devicePixelRatio（marks 为 CSS 像素）。截图后自动去掉角标层。PDF 用 save_pdf。",
+    "description": "捕获页面图片。必填 mode：viewport 截可视区；full_page 截整页；element 裁剪单个元素（ref 或 selector 二选一）；rect 按 CSS 像素矩形裁切（必填 x、y、width、height，适合降级后精准取区域）；som 为视口 Set-of-Marks：给可见可交互元素打数字角标后截图，返回 marks[{badge,id,x,y,w,h,role,name}]，用 id 调 page.click。som 可选 maxMarks（默认40，上限80）、roles（如 button/link）。必填 tabId。\n返回：ok、mode、image；som 另带 marks、viewport、devicePixelRatio（marks 为 CSS 像素）；rect 另带 crop_rect。截图后自动去掉角标层。PDF 用 save_pdf。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": {
-          "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean",
-          "const": false
-        },
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
         "tabId": {
           "type": "integer",
           "description": "目标标签编号；从 <openTabs> 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
         },
         "mode": {
           "type": "string",
-          "enum": [
-            "viewport",
-            "full_page",
-            "element",
-            "som"
-          ]
+          "enum": ["viewport", "full_page", "element", "rect", "som"]
         },
         "ref": {
           "type": "string",
           "pattern": "^(?:e|r)_[0-9]{2,}$",
           "minLength": 1
         },
-        "selector": {
-          "type": "string",
-          "minLength": 1
-        },
+        "selector": { "type": "string", "minLength": 1 },
+        "x": { "type": "number", "description": "mode=rect 左上角 x（CSS 像素）" },
+        "y": { "type": "number", "description": "mode=rect 左上角 y（CSS 像素）" },
+        "width": { "type": "number", "description": "mode=rect 宽（>0）" },
+        "height": { "type": "number", "description": "mode=rect 高（>0）" },
         "maxMarks": {
           "type": "integer",
           "minimum": 1,
@@ -47,51 +38,29 @@
           "description": "som 可选：只标注这些可访问角色，如 button/link/textbox"
         }
       },
-      "required": [
-        "reason",
-        "affectsPage",
-        "mode",
-        "tabId"
-      ],
+      "required": ["reason", "affectsPage", "mode", "tabId"],
       "additionalProperties": false,
       "allOf": [
         {
           "if": {
-            "properties": {
-              "mode": {
-                "const": "element"
-              }
-            },
-            "required": [
-              "mode"
-            ],
+            "properties": { "mode": { "const": "element" } },
+            "required": ["mode"],
             "type": "object"
           },
           "then": {
             "oneOf": [
               {
-                "required": [
-                  "ref"
-                ],
+                "required": ["ref"],
                 "type": "object",
                 "properties": {
-                  "ref": {
-                    "type": "string",
-                    "pattern": "^(?:e|r)_[0-9]{2,}$",
-                    "minLength": 1
-                  }
+                  "ref": { "type": "string", "pattern": "^(?:e|r)_[0-9]{2,}$", "minLength": 1 }
                 }
               },
               {
-                "required": [
-                  "selector"
-                ],
+                "required": ["selector"],
                 "type": "object",
                 "properties": {
-                  "selector": {
-                    "type": "string",
-                    "minLength": 1
-                  }
+                  "selector": { "type": "string", "minLength": 1 }
                 }
               }
             ]
@@ -100,29 +69,61 @@
             "not": {
               "anyOf": [
                 {
-                  "required": [
-                    "ref"
-                  ],
+                  "required": ["ref"],
                   "type": "object",
                   "properties": {
-                    "ref": {
-                      "type": "string",
-                      "pattern": "^(?:e|r)_[0-9]{2,}$",
-                      "minLength": 1
-                    }
+                    "ref": { "type": "string", "minLength": 1 }
                   }
                 },
                 {
-                  "required": [
-                    "selector"
-                  ],
+                  "required": ["selector"],
                   "type": "object",
                   "properties": {
-                    "selector": {
-                      "type": "string",
-                      "minLength": 1
-                    }
+                    "selector": { "type": "string", "minLength": 1 }
                   }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "mode": { "const": "rect" } },
+            "required": ["mode"],
+            "type": "object"
+          },
+          "then": {
+            "type": "object",
+            "required": ["x", "y", "width", "height"],
+            "properties": {
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "width": { "type": "number" },
+              "height": { "type": "number" }
+            }
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["x"],
+                  "type": "object",
+                  "properties": { "x": { "type": "number" } }
+                },
+                {
+                  "required": ["y"],
+                  "type": "object",
+                  "properties": { "y": { "type": "number" } }
+                },
+                {
+                  "required": ["width"],
+                  "type": "object",
+                  "properties": { "width": { "type": "number" } }
+                },
+                {
+                  "required": ["height"],
+                  "type": "object",
+                  "properties": { "height": { "type": "number" } }
                 }
               ]
             }

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.process_start",
-    "description": "Execute a saved script by filename in absolute cwd. Save with script_patch in an earlier call. Extensions: .sh uses zsh, .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches. No default timeout; optional timeoutMs terminates the process group when elapsed. Complete stdout/stderr are returned and persisted in stdoutPath/stderrPath. Returns processId immediately; use local.process_status, local.process_write and local.process_stop to interact.",
+    "description": "Execute a saved script by filename in absolute cwd. Save first with script_patch, script_write or local.fs_write. Extensions: .sh uses zsh, .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches. No default timeout; optional timeoutMs terminates the process group when elapsed. Complete stdout/stderr are returned and persisted in stdoutPath/stderrPath. Returns processId immediately; use local.process_status, local.process_write and local.process_stop to interact. script_patch must run in an earlier call than this execution.",
     "parameters": {
       "type": "object",
       "properties": {

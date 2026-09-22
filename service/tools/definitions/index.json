@@ -115,7 +115,11 @@
     "video.capture_sequence",
     "video.record",
     "fingerprint.read",
-    "fingerprint.apply"
+    "fingerprint.apply",
+    "stream.pull",
+    "stream.push",
+    "image.crop",
+    "asset.list"
   ],
   "service": [
     "send_http",

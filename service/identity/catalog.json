@@ -97,6 +97,13 @@
     "allocation": "counter",
     "description": "图片附件"
   },
+  "asset": {
+    "field": "assetId",
+    "prefix": "ast",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "归档资产 L1 目录项"
+  },
   "process": {
     "field": "processId",
     "prefix": "proc",

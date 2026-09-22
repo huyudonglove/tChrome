@@ -11,6 +11,7 @@ import { abortAllLocalProcesses } from "./tools/local-process.ts";
 import { cancelAllExecutions } from "./runtime/execution.ts";
 import { listItems, saveItem, deleteItem, LibraryError } from "./library/store.ts";
 import { readWidgetPage, saveWidgetHtml } from "./widgets/store.ts";
+import { getStreamHub } from "./stream/pipe.ts";
 
 const loadEnv = () => {
   const envPath = join(import.meta.dir, ".env");
@@ -99,6 +100,7 @@ export function createServer(options: ServeOptions = {}) {
   return {
     dataDir,
     bridge,
+    streamHub: getStreamHub(),
     get proxyEnabled() { return proxyEnabled; },
     get providerName() { return providerName; },
     fetch: async (request: Request) => {
@@ -266,7 +268,40 @@ if (isMain) {
   const hostname = "127.0.0.1";
   const port = 18788;
   const server = createServer();
-  Bun.serve({ hostname, port, fetch: server.fetch });
+  const hub = getStreamHub();
+  Bun.serve({
+    hostname,
+    port,
+    fetch: (request, bunServer) => {
+      const url = new URL(request.url);
+      if (request.method === "GET" && url.pathname === "/stream") {
+        const origin = request.headers.get("origin");
+        const hostOk = ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname);
+        const originOk = origin === null
+          || /^chrome-extension:\/\/[a-p]{32}$/.test(origin)
+          || origin === Bun.env.TCHROME_EXTENSION_ORIGIN;
+        if (!hostOk || !originOk) return new Response("forbidden origin", { status: 403 });
+        const upgraded = bunServer.upgrade(request);
+        return upgraded ? undefined as unknown as Response : new Response("stream upgrade failed", { status: 400 });
+      }
+      return server.fetch(request);
+    },
+    websocket: {
+      open(ws) {
+        const send = (data: ArrayBuffer) => { try { ws.send(data); } catch { /* closed */ } };
+        (ws as { streamSend?: typeof send }).streamSend = send;
+        hub.attach(send);
+      },
+      message(ws, message) {
+        const raw = typeof message === "string" ? new TextEncoder().encode(message) : message;
+        hub.handleMessage(raw instanceof Uint8Array ? raw : new Uint8Array(raw as ArrayBuffer));
+      },
+      close(ws) {
+        const send = (ws as { streamSend?: (data: ArrayBuffer) => void }).streamSend;
+        if (send) hub.detach(send);
+      },
+    },
+  });
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.once(signal, () => {
       cancelAllExecutions();

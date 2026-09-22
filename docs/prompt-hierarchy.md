@@ -127,7 +127,7 @@ User
 
 local.* 操作的是服务所在电脑。文件路径和 local.run / local.process_start 的 cwd 都使用绝对路径，能否访问由服务进程的权限决定。进程标识只在所属会话和本次服务运行期间有效。
 
-脚本用 script_patch 保存、script_read 读取、script_list 查找。执行页面脚本或本机脚本时，用 filename 指定已经保存的文件。
+脚本写在 scripts/（script_patch / script_write / local.fs_*），script_read 读取、script_list 查找。执行页面脚本或本机脚本时，用 filename 指定已经保存的文件。
 </environment>
 ```
 
@@ -198,7 +198,7 @@ affectsPage 表示是否改变浏览器页面状态：点击、输入、导航�
 
 新标签在指定窗口后台打开，新窗口默认不获取焦点，截图在指定标签后台完成。duplicate_tab 会激活复制出的标签。其他需要切到前台的操作，明确调用切换工具。
 
-脚本先用 script_patch 保存，收到保存成功的结果后，再提交执行调用。script_patch 不能与 execute_javascript、local.run 或 local.process_start 放在同一批。
+脚本先写入 scripts/，收到保存成功的结果后，再提交执行调用。script_patch 不能与 execute_javascript、local.run 或 local.process_start 放在同一批。
 
 Sample（page.get_summary 的 arguments，仅示例）：
 

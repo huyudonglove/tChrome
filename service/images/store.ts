@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { allocateRecordId, idPrefix } from "../runtime/ids.ts";
+import { appendAsset, imageSummary } from "../assets/catalog.ts";
 
 export interface ImageReference {
   id: string;
@@ -119,6 +120,14 @@ export function saveImage(dataDir: string, cvId: string, dataUrl: string): Image
   const temporary = join(dir, `${id}.index.tmp`);
   writeFileSync(temporary, JSON.stringify(index), { flag: "wx" });
   renameSync(temporary, join(dir, "index.json"));
+  appendAsset(dataDir, cvId, {
+    name: `${id}.${mimeType === "image/png" ? "png" : "jpg"}`,
+    kind: "image",
+    bytes: ref.bytes,
+    summary: imageSummary({ width: ref.width, height: ref.height, mime: mimeType, bytes: ref.bytes }),
+    source: {},
+    path: ref.path,
+  });
   return ref;
 }
 

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.capabilities",
-    "description": "Report local platform, home directory, supported script extensions, timeout and output limits. Save scripts with script_patch before executing by filename.",
+    "description": "Report local platform, home directory, supported script extensions, timeout and output limits. Save scripts under scripts/ (script_patch, script_write or local.fs_write) before executing by filename.",
     "parameters": {
       "type": "object",
       "properties": {

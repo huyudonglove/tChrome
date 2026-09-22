@@ -1,0 +1,21 @@
+{
+  "type": "function",
+  "function": {
+    "name": "image.crop",
+    "description": "对已归档图片按矩形裁切，得到更小的新图。适合页面已变化或只关心原图某一角时；不重新截图，直接从保存的像素裁。\n参数：必填 imageId（如 img_01）与矩形 x、y、width、height（相对原图像素）。\n返回：ok、imageId（新图）、path、width、height、bytes、sourceImageId。裁切结果仍会经过入窗门禁。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
+        "imageId": { "type": "string", "description": "已归档图片编号，如 img_01" },
+        "x": { "type": "number", "description": "矩形左上角 x" },
+        "y": { "type": "number", "description": "矩形左上角 y" },
+        "width": { "type": "number", "description": "矩形宽（>0）" },
+        "height": { "type": "number", "description": "矩形高（>0）" }
+      },
+      "required": ["reason", "affectsPage", "imageId", "x", "y", "width", "height"],
+      "additionalProperties": false
+    }
+  }
+}

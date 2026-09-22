@@ -59,7 +59,7 @@ function lookup(input: Record<string, unknown>, scope: string): Entry {
   return entry;
 }
 async function start(input: Record<string, unknown>, scope: string, token: { cancelled: boolean }, dataDir: string, open: boolean): Promise<Entry> {
-  if ("command" in input || "code" in input) throw new Error("Inline code is not accepted; save a script with script_patch and provide filename");
+  if ("command" in input || "code" in input) throw new Error("Inline code is not accepted; save a script under scripts/ and provide filename");
   const cwd = open ? homedir() : requiredString(input, "cwd");
   if (!isAbsolute(cwd) || !(await stat(cwd)).isDirectory()) throw new Error("cwd must be an existing absolute directory");
   const timeoutMs = input.timeoutMs;
@@ -152,7 +152,7 @@ export function abortAllLocalProcesses(): void {
 async function execute(name: string, rawInput: unknown, scope: string, dataDir: string): Promise<Record<string, unknown>> {
   if (!scope) throw new Error("Local tools require a conversation scope");
   const input = (rawInput && typeof rawInput === "object" && !Array.isArray(rawInput) ? rawInput : {}) as Record<string, unknown>;
-  if (name === "local.capabilities") return { ok: true, platform: process.platform, home: homedir(), scriptExtensions: [".sh", ".py", ".js", ".mjs", ".cjs"], scriptExecution: "Save scripts with script_patch, then execute by filename. Each run uses an immutable private snapshot. Arguments are passed as literal strings.", outputRetention: "Complete stdout and stderr are retained and persisted in stdoutPath/stderrPath; process_status returns the complete cumulative output.", processLifetime: "No default timeout. An explicit timeoutMs, process_stop, conversation cancellation/deletion, or service shutdown terminates the process group. Parent exit does not terminate its children. local.run may pass heartbeatSec: when the process is still running after that many seconds, the call returns heartbeat=true with processId and previews instead of waiting; poll local.process_status until exit.", heartbeatNote: "heartbeatSec is seconds, positive integer; on successful exit the heartbeat ends with the process." };
+  if (name === "local.capabilities") return { ok: true, platform: process.platform, home: homedir(), scriptExtensions: [".sh", ".py", ".js", ".mjs", ".cjs"], scriptExecution: "Save scripts under scripts/ (script_patch, script_write or local.fs_write), then execute by filename. Each run uses an immutable private snapshot. Arguments are passed as literal strings.", outputRetention: "Complete stdout and stderr are retained and persisted in stdoutPath/stderrPath; process_status returns the complete cumulative output.", processLifetime: "No default timeout. An explicit timeoutMs, process_stop, conversation cancellation/deletion, or service shutdown terminates the process group. Parent exit does not terminate its children. local.run may pass heartbeatSec: when the process is still running after that many seconds, the call returns heartbeat=true with processId and previews instead of waiting; poll local.process_status until exit.", heartbeatNote: "heartbeatSec is seconds, positive integer; on successful exit the heartbeat ends with the process." };
   if (name === "local.run" || name === "local.process_start" || name === "local.open") {
     const token = { scope, cancelled: false };
     pendingStarts.add(token);

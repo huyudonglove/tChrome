@@ -2,6 +2,7 @@ import { saveContextRecord } from "./records.ts";
 import { allocateRecordId, inputRecord } from "./ids.ts";
 import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
+import { admitImages, admitText, deferredImageNote } from "../admission.ts";
 import { projectMemories } from "../memory/window.ts";
 import { errorInfo, errorMessage } from "../../shared/errors.ts";
 import { failedTool, toolFailure } from "../tools/result.ts";
@@ -89,6 +90,8 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
     cwd: process.cwd(),
     ...(dataDir ? { dataDir } : {}),
   }, skillNav);
+  const { inline, deferred } = admitImages(images ?? []);
+  const imageNote = deferredImageNote(deferred);
   return [
     { role: "system", content: system },
     { role: "user", content: userText({
@@ -96,7 +99,7 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
       currentQuery: ledger.currentQuery, queryHistory: ledger.queryHistory,
       toolGuide: toolGuideFor(toolRegistry, turn.assembled.toolIds),
       ...(dataDir ? { inlineBudget: { dataDir, system } } : {}),
-    }), images },
+    }) + (imageNote ? `\n\n${imageNote}` : ""), images: inline },
   ];
 };
 
@@ -199,22 +202,12 @@ const runQueue = async (input: {
     const full = stored.text;
     saveFullReturn(dataDir, ledger.conversationId, item.callId, full);
     // Oversized returns stay on disk; the window only gets a searchable pointer.
-    const inlineLimit = runtimeConfig.results.inlineChars;
-    const viewText = full.length > inlineLimit
-      ? JSON.stringify({
-        ok: true,
-        externalized: true,
-        callId: item.callId,
-        name: item.name,
-        totalChars: full.length,
-        totalLines: Math.ceil(full.length / runtimeConfig.results.lineWidth),
-        lineWidth: runtimeConfig.results.lineWidth,
-        preview: full.slice(0, runtimeConfig.results.previewChars),
-        path: join(paths(dataDir, ledger.conversationId).returns, `${item.callId}.txt`),
-        message: `runtime: 单次结果超过 ${inlineLimit} 字符，已按 ${runtimeConfig.results.lineWidth} 字/行缓存本地（共 ${Math.ceil(full.length / runtimeConfig.results.lineWidth)} 行）；preview 为原文前 ${runtimeConfig.results.previewChars} 字符。用 evidence.search(callId=${item.callId}, keyword) 取关键字片段，或只传 startLine 从该行起读约 ${runtimeConfig.results.searchContextChars} 字。`,
-        search: "evidence.search",
-      })
-      : full;
+    const admittedText = admitText(full, {
+      callId: item.callId,
+      name: item.name,
+      path: join(paths(dataDir, ledger.conversationId).returns, `${item.callId}.txt`),
+    });
+    const viewText = admittedText.mode === "inline" ? admittedText.text : JSON.stringify(admittedText.payload);
     const row: ToolIOItem = {
       ...item,
       turnId: turn.turnId,
