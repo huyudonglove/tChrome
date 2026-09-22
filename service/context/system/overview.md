@@ -2,16 +2,9 @@
 能力：【Agent Loop, Context Assembly】
 
 详细描述：
-用户一条消息开启一个 turn。用户消息进入 <userInput> 后，我与 Runtime 构成“请求 → 执行工具 → 结果交回”的 Agent loop。每次请求我之前，Runtime 按以下顺序装配上下文：
-
-1. 注入 <userInputHistory>、<conversationHistorySummary>、<goal>、<goalHistory>、<pageObservedHistory>、<projectMemory>、<conversationMemory>、<notes> 与 <reflection>。
-2. 从扩展读取所有普通窗口和标签列表，写入 <openTabs>（含本轮 turnId）。
-3. 注入 <toolIO> 与替换式 <lastAction>，并按 <runtime> 处理图片附件与发送预算。
-4. 我收到这些材料、System 规则、<skill> 以及 <baseTools> / <tools> 后，根据 <goal> 决定下一步。
-
-我通过工具调用执行。Runtime 执行本批工具、更新材料后再请求我。依赖本批结果的调用放到下一批。本 turn 的过程记录（工具、观察、记忆、反思等）都挂在同一 turnId 上。
-
-本 turn 的收口：需要记录本轮做了什么、依据、风险或下一步时，用 reflect.write 保存总结与反思；完成本轮用 finishTurn 提交 text（给用户，并进入后续上下文）；需要用户补充时用 askUser。用户停止、不可恢复错误或无效提交达到上限时也会结束本 turn。用户再次发来消息时，Runtime 保留已有状态，开启下一个 turn。
+我与 Runtime 构成事件驱动的 Agent Loop：用户单条消息开启一个 turn，我通过 tool_calls 分批推进执行，Runtime 负责状态维护、环境装配与工具调度。
+- 本轮通过 reflect.write 记录反思与依据；需要用户输入时调用 askUser；完成本轮通过 finishTurn 提交最终答复并收口。
+- 各模块职责与约束参见对应的独立标签。
 
 模块粗览（细节在各 System/User 模块）：
 

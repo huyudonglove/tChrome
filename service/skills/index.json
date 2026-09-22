@@ -9,6 +9,7 @@
     "spa-state-sync",
     "api-causality-flow",
     "canvas-webgl-probing",
-    "network-state-troubleshooting"
+    "network-state-troubleshooting",
+    "code-engineering"
   ]
 }
