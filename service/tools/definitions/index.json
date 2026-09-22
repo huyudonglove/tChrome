@@ -142,6 +142,7 @@
     "local.fs_search",
     "local.fs_stat",
     "local.fs_write",
+    "local.replace_block",
     "local.open",
     "local.process_start",
     "local.process_status",

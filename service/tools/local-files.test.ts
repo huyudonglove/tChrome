@@ -68,3 +68,47 @@ test("directories require explicit recursive deletion and absolute paths are enf
   expect(await run("local.fs_write", { path: "relative", content: "x" })).toMatchObject({ ok: false });
   expect(await run("local.fs_delete", { path: "/", recursive: true })).toMatchObject({ ok: false });
 });
+
+test("local.replace_block replaces unique block and rejects mismatched matches", async () => {
+  const path = join(root, "replace_target.txt");
+  await writeFile(path, "const a = 1;\nconst b = 2;\nconst c = 1;\n", "utf8");
+
+  // 1. 唯一匹配替换成功
+  const r1 = await run("local.replace_block", {
+    path,
+    search: "const b = 2;",
+    replace: "const b = 20;",
+  });
+  expect(r1).toMatchObject({ ok: true, matches: 1 });
+  expect(await readFile(path, "utf8")).toBe("const a = 1;\nconst b = 20;\nconst c = 1;\n");
+
+  // 2. 匹配次数不符合预期时报错，原文件保持不变
+  const r2 = await run("local.replace_block", {
+    path,
+    search: "const a = 1;",
+    replace: "const a = 10;",
+    expectedMatches: 2, // 实际只有 1 个
+  });
+  expect(r2.ok).toBe(false);
+  expect(String(r2.error)).toContain("Expected 2 match(es)");
+  expect(await readFile(path, "utf8")).toBe("const a = 1;\nconst b = 20;\nconst c = 1;\n");
+
+  // 3. 搜索内容未找到时报错
+  const r3 = await run("local.replace_block", {
+    path,
+    search: "const not_exist = 0;",
+    replace: "const not_exist = 1;",
+  });
+  expect(r3.ok).toBe(false);
+  expect(String(r3.error)).toContain("Expected 1 match(es) for search block, but found 0");
+
+  // 4. 多次匹配显式指定 expectedMatches
+  const r4 = await run("local.replace_block", {
+    path,
+    search: "= 1;",
+    replace: "= 100;",
+    expectedMatches: 2,
+  });
+  expect(r4).toMatchObject({ ok: true, matches: 2 });
+  expect(await readFile(path, "utf8")).toBe("const a = 100;\nconst b = 20;\nconst c = 100;\n");
+});

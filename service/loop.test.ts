@@ -904,3 +904,28 @@ test("工具抛错写入记录，清空执行状态并允许下一次模型请�
     expect(loadTurn(dir, reply.conversationId, reply.turnId).status).toBe("completed");
   } finally { globalThis.fetch = originalFetch; rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("纯文本 content 自动包装为 finishTurn 成功收口", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-auto-finish-"));
+  const provider = mock([
+    ok({
+      finish: "stop",
+      content: "这是模型输出的纯文本答复",
+    }),
+  ]);
+  try {
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "测试纯文本", submittedAt: "2026-09-06T00:00:00.000Z" });
+    expect(reply.output).toEqual({ kind: "reply", text: "这是模型输出的纯文本答复" });
+    const ledger = loadLedger(dir, "cv_01");
+    expect(ledger.status).toBe("idle");
+    const autoFinishCall = ledger.toolIO.find((row) => row.name === "finishTurn");
+    expect(autoFinishCall).toBeDefined();
+    expect(autoFinishCall?.arguments).toEqual({ text: "这是模型输出的纯文本答复" });
+    expect(autoFinishCall?.return.text).toBe("这是模型输出的纯文本答复");
+    const turn = loadTurn(dir, "cv_01", reply.turnId);
+    expect(turn.status).toBe("completed");
+    expect(turn.usage?.toolCalls).toBe(1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

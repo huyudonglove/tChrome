@@ -1,11 +1,11 @@
 import { errorInfo } from "../../shared/errors.ts";
 import { constants } from "node:fs";
-import { cp, lstat, mkdir, open, opendir, rename, rm } from "node:fs/promises";
+import { cp, lstat, mkdir, open, opendir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { isAbsolute, join, resolve, sep } from "node:path";
 
 export const LOCAL_FILE_TOOL_NAMES = [
   "local.fs_list", "local.fs_stat", "local.fs_read", "local.fs_write", "local.fs_mkdir",
-  "local.fs_copy", "local.fs_move", "local.fs_delete", "local.fs_search",
+  "local.fs_copy", "local.fs_move", "local.fs_delete", "local.fs_search", "local.replace_block",
 ] as const;
 
 function pathArg(input: Record<string, unknown>, key = "path") {
@@ -87,6 +87,26 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
           }
           return { ok: true, path, content: buffer.subarray(0, consumed).toString("utf8"), offset, nextOffset: offset + consumed, size: stat.size, truncated: offset + consumed < stat.size };
         } finally { await file.close(); }
+      }
+      case "local.replace_block": {
+        if (typeof input.search !== "string" || !input.search.length) throw new Error("search must be a non-empty string");
+        if (typeof input.replace !== "string") throw new Error("replace must be a string");
+        const expectedMatches = integer(input, "expectedMatches", 1, 1, 1000);
+        const stat = await lstat(path);
+        if (!stat.isFile()) throw new Error("path must be a regular file");
+        const original = await readFile(path, "utf8");
+        let count = 0;
+        let pos = 0;
+        while ((pos = original.indexOf(input.search, pos)) !== -1) {
+          count++;
+          pos += input.search.length;
+        }
+        if (count !== expectedMatches) {
+          throw new Error(`Expected ${expectedMatches} match(es) for search block, but found ${count}`);
+        }
+        const updated = original.split(input.search).join(input.replace);
+        await writeFile(path, updated, "utf8");
+        return { ok: true, path, matches: count, bytesWritten: Buffer.byteLength(updated) };
       }
       case "local.fs_write": {
         if (typeof input.content !== "string") throw new Error("content must be a string");

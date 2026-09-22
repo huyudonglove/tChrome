@@ -11,10 +11,24 @@ export function toolHistoryView(records: ToolIOItem[], observations: PageObserva
     let result = resultView(record.return.text);
     const observation = byCall.get(`${record.turnId}:${record.callId}`);
     if (observation && record.return.stage === "complete") {
-      const observedOk = observation.result && typeof observation.result === "object" && "ok" in observation.result
-        ? Boolean((observation.result as { ok?: unknown }).ok)
+      const obsRes = observation.result && typeof observation.result === "object"
+        ? (observation.result as Record<string, unknown>)
+        : null;
+      const observedOk = obsRes && "ok" in obsRes
+        ? Boolean(obsRes.ok)
         : true;
-      result = { ok: observedOk, pageObservationId: observation.id };
+      if (!observedOk && obsRes) {
+        result = {
+          ok: false,
+          pageObservationId: observation.id,
+          ...(obsRes.faultCode ? { faultCode: obsRes.faultCode } : {}),
+          ...(obsRes.message ? { message: obsRes.message } : {}),
+          ...(obsRes.recovery ? { recovery: obsRes.recovery } : {}),
+          ...(obsRes.details ? { details: obsRes.details } : {}),
+        };
+      } else {
+        result = { ok: true, pageObservationId: observation.id };
+      }
     } else if (record.name === "context.query" && record.return.stage === "complete"
       && result && typeof result === "object" && !Array.isArray(result)) {
       // Query originals live in <currentQuery>; keep toolIO as a pointer like page observations.

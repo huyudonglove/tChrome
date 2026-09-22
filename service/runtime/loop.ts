@@ -623,6 +623,36 @@ export async function handleTurn(
         continue;
       }
       if (result.finish === "stop" && result.toolCalls.length === 0) {
+        const textContent = (result.content ?? "").trim();
+        if (textContent && !result.grounding) {
+          const autoCallId = allocateRecordId(deps.dataDir, ledger.conversationId, "call");
+          const autoBatchId = allocateRecordId(deps.dataDir, ledger.conversationId, "batch");
+          ledger.toolQueue = [{
+            batchId: autoBatchId,
+            callId: autoCallId,
+            name: "finishTurn",
+            arguments: { text: textContent },
+          }];
+          const closed = await runQueue({
+            dataDir: deps.dataDir,
+            ledger,
+            turn,
+            toolRegistry,
+            provider: deps.provider, repoRoot: deps.repoRoot, signal: deps.signal,
+            browserNames: toolRegistry.index.browser,
+            host,
+          });
+          saveTurn(deps.dataDir, turn);
+          saveLedger(deps.dataDir, ledger);
+          if (closed) {
+            appendEvent(deps.dataDir, ledger.conversationId, {
+              kind: "turn-output",
+              turnId,
+              data: { output: closed },
+            });
+            return { conversationId: ledger.conversationId, turnId, output: closed };
+          }
+        }
         submitFails += 1;
         const failure = failedTool(errorMessage("need_finish_turn", "model"), "need_finish_turn");
         ledger.toolIO.push({

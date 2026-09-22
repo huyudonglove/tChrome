@@ -11,10 +11,10 @@ import type { Turn } from "../types.ts";
 
 const lookup = { knownTools: ["evidence.search", "page.clear_result"], enabledTools: ["evidence.search"], unusedTools: [] };
 
-test("evidence.search returns default ±400 context around keyword from cached call return", async () => {
+test("evidence.search returns default ±2000 context around keyword from cached call return", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-search-"));
   try {
-    const body = `${"x".repeat(500)}NEEDLE_IN_HAYSTACK${"y".repeat(500)}`;
+    const body = `${"x".repeat(2500)}NEEDLE_IN_HAYSTACK${"y".repeat(2500)}`;
     saveFullReturn(dataDir, "cv_01", "call_09", body);
     const execution = await executeTool({
       name: "evidence.search",
@@ -53,11 +53,11 @@ test("cached returns are line-wrapped on disk at lineWidth", () => {
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
-test("evidence.search lines mode reads from startLine within the 400-char window", async () => {
+test("evidence.search lines mode reads from startLine within the searchContextChars window", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-lines-"));
   try {
     const width = runtimeConfig.results.lineWidth;
-    const body = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(width, `${(i + 1) % 10}`)).join("");
+    const body = Array.from({ length: 30 }, (_, i) => String(i + 1).padStart(width, `${(i + 1) % 10}`)).join("");
     saveFullReturn(dataDir, "cv_01", "call_lines", body);
     const execution = await executeTool({
       name: "evidence.search",
@@ -69,11 +69,11 @@ test("evidence.search lines mode reads from startLine within the 400-char window
     const parsed = JSON.parse(execution.text);
     expect(parsed.ok).toBe(true);
     expect(parsed.mode).toBe("lines");
-    expect(parsed.totalLines).toBe(12);
+    expect(parsed.totalLines).toBe(30);
     expect(parsed.startLine).toBe(3);
-    // Same default window as keyword search: 400 chars → 4 full lines at width 100.
-    expect(parsed.endLine).toBe(6);
-    expect(parsed.lines.map((row: { line: number }) => row.line)).toEqual([3, 4, 5, 6]);
+    // Same default window as keyword search: searchContextChars chars → ~20 full lines at width 100.
+    expect(parsed.endLine).toBe(22);
+    expect(parsed.lines.map((row: { line: number }) => row.line)).toEqual(Array.from({ length: 20 }, (_, i) => i + 3));
     expect(parsed.lines[0].text).toHaveLength(width);
     const textLen = parsed.lines.reduce((sum: number, row: { text: string }) => sum + row.text.length, 0);
     expect(textLen).toBeLessThanOrEqual(runtimeConfig.results.searchContextChars);
