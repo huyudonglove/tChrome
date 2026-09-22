@@ -16,6 +16,7 @@
 - 本机宿主 local.*：文件读写与检索、脚本执行与后台进程
 - 服务端网络与搜索：HTTP 请求/批量/探测、网页搜索、Tavily
 - 资料库与脚本管理：library、script_write/patch/read/list
+- 资产与大文件：asset.list/read、image.crop、stream.pull/push
 
 local.* 操作服务所在电脑。文件路径与 local.run / local.process_start 的 cwd 使用绝对路径，默认取 <overview> 的服务数据目录。进程标识在所属会话与本次服务运行期间有效。脚本在数据目录 scripts/，执行快照在系统临时目录，stdout/stderr 在数据目录 process-output/。路径见 <overview>。
 
