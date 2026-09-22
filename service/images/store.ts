@@ -94,7 +94,7 @@ export function imageFilePath(dataDir: string, cvId: string, ref: ImageReference
   return join(directory(dataDir, cvId), `${ref.id}.${extension}`);
 }
 
-export function saveImage(dataDir: string, cvId: string, dataUrl: string, source: { tool?: string; callId?: string; tabId?: number; url?: string; element?: string } = {}): ImageReference {
+export function saveImage(dataDir: string, cvId: string, dataUrl: string, source: { tool?: string; callId?: string; tabId?: number; url?: string; element?: string; tabTitle?: string } = {}): ImageReference {
   if (dataUrl.length > Math.ceil(MAX_BYTES / 3) * 4 + 30) fail("image exceeds 20 MiB limit");
   const match = /^data:(image\/(?:png|jpeg));base64,([A-Za-z0-9+/]*={0,2})$/.exec(dataUrl);
   if (!match) fail("expected PNG or JPEG base64 data URL");

@@ -206,7 +206,14 @@ const runQueue = async (input: {
     if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
       return { kind: "error", faultCode: "stopped" };
     }
-    const stored = storeToolImages(dataDir, ledger.conversationId, execution.text, { tool: item.name, callId: item.callId });
+    const observed = (([...turn.assembled.pageObservedHistory].reverse().find((row) => row.callId === item.callId)?.result ?? {}) as { url?: string; title?: string });
+    const stored = storeToolImages(dataDir, ledger.conversationId, execution.text, {
+      tool: item.name, callId: item.callId,
+      ...(typeof item.arguments.tabId === "number" ? { tabId: item.arguments.tabId } : {}),
+      ...(typeof item.arguments.ref === "string" ? { element: item.arguments.ref } : {}),
+      ...(observed.url ? { url: observed.url } : {}),
+      ...(observed.title ? { tabTitle: observed.title } : {}),
+    });
     for (const image of stored.images) {
       if (image.bytes > runtimeConfig.results.imageInlineBytes) {
         await ensureThumb(dataDir, ledger.conversationId, image, host);

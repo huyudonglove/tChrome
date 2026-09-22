@@ -44,8 +44,33 @@ export function appendAsset(
   return record;
 }
 
-/** 文本摘要：首行标题（若像标题）+ 第一句完整句。 */
+/** 粗分文本形态，决定摘要写法。 */
+export function textFlavor(text: string): "code" | "json" | "prose" {
+  const head = text.slice(0, 400);
+  if (/^[\s]*[[{]/.test(head)) return "json";
+  const codeMarks = (head.match(/(?:function |const |let |var |import |export |def |class |=>|<\/?[a-z]+>)/g) ?? []).length;
+  if (codeMarks >= 2 || /^#!/.test(head) || /;\s*$/m.test(head.split("\n").slice(0, 5).join("\n"))) return "code";
+  return "prose";
+}
+
+/** 文本摘要：按形态取标题/首句或代码签名。 */
 export function textSummary(text: string): string {
+  const flavor = textFlavor(text);
+  if (flavor === "code") {
+    const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const signature = lines.find((line) => /^(?:#!|import |export |from |def |class |function |const |let |interface |type )/.test(line)) ?? lines[0] ?? "";
+    return signature.slice(0, 120);
+  }
+  if (flavor === "json") {
+    try {
+      const parsed = JSON.parse(text) as unknown;
+      if (Array.isArray(parsed)) return `json[] ×${parsed.length}`;
+      if (parsed && typeof parsed === "object") {
+        const keys = Object.keys(parsed as Record<string, unknown>).slice(0, 6);
+        return `json{${keys.join(",")}}`;
+      }
+    } catch { /* fall through to prose */ }
+  }
   const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const noise = /^[\s\p{P}\p{S}]+$/u;
   const meaningful = lines.filter((line) => !noise.test(line));

@@ -7,7 +7,8 @@ import type { BrowserHost, CurrentPage, ToolArguments } from "../types.ts";
 import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
 import { STREAM_TOOL_NAMES, runStreamTool } from "./stream-tools.ts";
 import { IMAGE_TOOL_NAMES, runImageTool } from "./image-crop.ts";
-import { loadAssets } from "../assets/catalog.ts";
+import { loadAssets, textFlavor } from "../assets/catalog.ts";
+import { admitText } from "../admission.ts";
 import { LOCAL_TOOL_NAMES, runLocalTool } from "./local-tools.ts";
 import { COMPOUND_TOOL_NAMES, runCompoundTool } from "./compound-tools.ts";
 import { JOB_TOOL_NAMES, runJobTool, withJobHeartbeat, jobScope } from "./job-registry.ts";
@@ -494,7 +495,10 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
         : typeof args.keyword === "string" && args.keyword
           ? full.slice(Math.max(0, full.indexOf(args.keyword) - 200), Math.max(0, full.indexOf(args.keyword) - 200) + 400)
           : full.slice(0, runtimeConfig.results.inlineChars);
-      return result(JSON.stringify({ ok: true, asset, window }));
+      const admitted = admitText(window, { path: asset.path, name: asset.name });
+      return admitted.mode === "inline"
+        ? result(JSON.stringify({ ok: true, asset, window: admitted.text, flavor: textFlavor(window) }))
+        : result(JSON.stringify({ ok: true, asset, ...((admitted as { payload?: Record<string, unknown> }).payload ?? {}), flavor: textFlavor(window) }));
     }
     return externalResult(await runServiceTool(dataDir, "evidence.search", {
       callId: asset.source.callId ?? asset.name.replace(/\.txt$/, ""),

@@ -4,7 +4,7 @@ export function storeToolImages(
   dataDir: string,
   conversationId: string,
   text: string,
-  source: { tool?: string; callId?: string; tabId?: number; url?: string; element?: string } = {},
+  source: { tool?: string; callId?: string; tabId?: number; url?: string; element?: string; tabTitle?: string } = {},
 ): { text: string; images: ImageReference[] } {
   if (!/data:image\/[^;,\s]+;base64,/.test(text)) return { text, images: [] };
   const images: ImageReference[] = [];
