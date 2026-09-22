@@ -116,6 +116,7 @@
     "video.record",
     "fingerprint.read",
     "fingerprint.apply",
+    "network.mock",
     "stream.pull",
     "stream.push",
     "image.crop",

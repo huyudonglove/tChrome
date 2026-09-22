@@ -38,6 +38,7 @@ export const BROWSER_TOOL_NAMES = [
   'combo.select', 'date.select', 'tab.context',
   'har', 'video.capture_sequence', 'video.record',
   'fingerprint.read', 'fingerprint.apply',
+  'network.mock',
   'stream.capture', 'stream.receive', 'image.crop_pixels', 'image.shrink',
 ];
 
@@ -85,6 +86,168 @@ const monitorWebSockets = async (tab, action) => {
     if (!socketMonitors.has(tab)) throw new Error('WebSocket 监控启动时调试器已断开');
     return {ok: true, tabId: tab, started: true};
   } catch (error) { cleanup(); return {ok: false, tabId: tab, error: String(error)}; }
+};
+
+const mockManagers = new Map();
+const patternToRegex = (pattern) => {
+  const regexStr = pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '.*')
+    .replace(/\?/g, '.');
+  return new RegExp(`^${regexStr}$`, 'i');
+};
+const utf8ToBase64 = (str) => {
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(str, 'utf-8').toString('base64');
+  }
+  return btoa(unescape(encodeURIComponent(str)));
+};
+
+const manageNetworkMock = async (tab, input = {}) => {
+  const action = input.action;
+  if (!['set', 'list', 'clear'].includes(action)) {
+    return { ok: false, tabId: tab, error: '需要 action=set|list|clear' };
+  }
+
+  let manager = mockManagers.get(tab);
+
+  if (action === 'list') {
+    const rules = manager ? Array.from(manager.rules.values()).map(({ id, urlPattern, resourceType, status, statusText, headers, body, errorReason }) => ({
+      id, urlPattern, resourceType, status, statusText, headers, body, errorReason,
+    })) : [];
+    return { ok: true, tabId: tab, action: 'list', count: rules.length, rules };
+  }
+
+  if (action === 'clear') {
+    if (!manager) return { ok: true, tabId: tab, action: 'clear', clearedCount: 0, currentRules: [] };
+    if (input.ruleId) {
+      const existed = manager.rules.delete(input.ruleId);
+      if (manager.rules.size === 0) {
+        await manager.cleanup();
+      }
+      return { ok: true, tabId: tab, action: 'clear', ruleId: input.ruleId, removed: existed, currentRules: Array.from(manager.rules.keys()) };
+    }
+    const count = manager.rules.size;
+    await manager.cleanup();
+    return { ok: true, tabId: tab, action: 'clear', clearedCount: count, currentRules: [] };
+  }
+
+  const ruleInput = input.rule;
+  if (!ruleInput || typeof ruleInput !== 'object' || !ruleInput.urlPattern) {
+    return { ok: false, tabId: tab, error: 'action=set 需要提供 rule 对象，且必须包含 urlPattern' };
+  }
+
+  const ruleId = String(ruleInput.id || `mock_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`);
+  const compiledRule = {
+    id: ruleId,
+    urlPattern: String(ruleInput.urlPattern),
+    regex: patternToRegex(String(ruleInput.urlPattern)),
+    resourceType: ruleInput.resourceType ? String(ruleInput.resourceType) : undefined,
+    status: Number.isInteger(ruleInput.status) ? ruleInput.status : 200,
+    statusText: ruleInput.statusText ? String(ruleInput.statusText) : 'OK',
+    headers: ruleInput.headers && typeof ruleInput.headers === 'object' ? ruleInput.headers : {},
+    body: ruleInput.body != null ? String(ruleInput.body) : '',
+    errorReason: ruleInput.errorReason ? String(ruleInput.errorReason) : undefined,
+  };
+
+  if (!manager) {
+    const events = chrome.debugger.onEvent;
+    const detached = chrome.debugger.onDetach;
+    const removed = chrome.tabs.onRemoved;
+    const rules = new Map();
+
+    const onEvent = async (source, method, params) => {
+      if (source.tabId !== tab || method !== 'Fetch.requestPaused') return;
+      const { requestId, request, resourceType } = params;
+      try {
+        let matchedRule = null;
+        for (const r of rules.values()) {
+          if (r.resourceType && resourceType && r.resourceType.toLowerCase() !== resourceType.toLowerCase()) {
+            continue;
+          }
+          if (r.regex.test(request.url)) {
+            matchedRule = r;
+            break;
+          }
+        }
+
+        if (matchedRule) {
+          if (matchedRule.errorReason) {
+            await chrome.debugger.sendCommand({ tabId: tab }, 'Fetch.failRequest', {
+              requestId,
+              errorReason: matchedRule.errorReason,
+            });
+          } else {
+            const responseHeaders = Object.entries(matchedRule.headers).map(([name, value]) => ({
+              name: String(name),
+              value: String(value),
+            }));
+            const bodyBase64 = utf8ToBase64(matchedRule.body);
+            await chrome.debugger.sendCommand({ tabId: tab }, 'Fetch.fulfillRequest', {
+              requestId,
+              responseCode: matchedRule.status,
+              responsePhrase: matchedRule.statusText,
+              responseHeaders,
+              body: bodyBase64,
+            });
+          }
+        } else {
+          await chrome.debugger.sendCommand({ tabId: tab }, 'Fetch.continueRequest', { requestId });
+        }
+      } catch (err) {
+        // 请求已被处理或页面调试会话终止，静默忽略
+      }
+    };
+
+    const cleanup = async () => {
+      events?.removeListener?.(onEvent);
+      detached?.removeListener?.(onDetach);
+      removed?.removeListener?.(onRemoved);
+      rules.clear();
+      mockManagers.delete(tab);
+      try {
+        await chrome.debugger.sendCommand({ tabId: tab }, 'Fetch.disable', {}).catch(() => {});
+      } catch (_) {}
+    };
+
+    const onDetach = (source) => { if (source?.tabId === tab) cleanup(); };
+    const onRemoved = (id) => { if (id === tab) cleanup(); };
+
+    events?.addListener?.(onEvent);
+    detached?.addListener?.(onDetach);
+    removed?.addListener?.(onRemoved);
+
+    manager = { rules, cleanup };
+    mockManagers.set(tab, manager);
+
+    try {
+      await withDebugger(tab, () => chrome.debugger.sendCommand({ tabId: tab }, 'Fetch.enable', {
+        patterns: [{ urlPattern: '*', requestStage: 'Request' }]
+      }));
+    } catch (error) {
+      await cleanup();
+      return { ok: false, tabId: tab, error: `开启 Fetch 拦截失败：${String(error)}` };
+    }
+  }
+
+  manager.rules.set(ruleId, compiledRule);
+  return {
+    ok: true,
+    tabId: tab,
+    action: 'set',
+    ruleId,
+    rule: {
+      id: compiledRule.id,
+      urlPattern: compiledRule.urlPattern,
+      resourceType: compiledRule.resourceType,
+      status: compiledRule.status,
+      statusText: compiledRule.statusText,
+      headers: compiledRule.headers,
+      body: compiledRule.body,
+      errorReason: compiledRule.errorReason,
+    },
+    totalRules: manager.rules.size,
+  };
 };
 
 export const mapImagePointToViewport = (point, imageSize, viewport) => {
@@ -2102,6 +2265,11 @@ const executeBrowserTool = async (name, input = {}) => {
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可监控的普通网页标签'};
     return monitorWebSockets(tab.id, input.action);
+  }
+  if (name === 'network.mock') {
+    const tab = await getTab(tabId);
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可操作网络拦截的普通网页标签'};
+    return manageNetworkMock(tab.id, input);
   }
   if (name === 'stream.capture') return streamCapture(input);
   if (name === 'stream.receive') return streamReceive(input);

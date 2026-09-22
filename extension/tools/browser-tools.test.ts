@@ -542,3 +542,106 @@ test("wait A11y states probe uses role/name/states via page.wait_a11y", async ()
   expect(result).toMatchObject({ok: true, id: 'e_05', role: 'button'});
   expect(seen[0]).toMatchObject({role: 'button', name: '下一步', states: {enabled: true}});
 });
+
+test("network.mock manages rules and handles CDP Fetch events correctly", async () => {
+  const sentCommands: Array<{ method: string; params: any }> = [];
+  const eventListeners: Array<(source: any, method: string, params: any) => void> = [];
+
+  globals.chrome = {
+    tabs: { get: async () => ({ id: 501, windowId: 1, url: 'https://example.com' }) },
+    debugger: {
+      attach: async () => {},
+      detach: async () => {},
+      sendCommand: async (target: any, method: string, params: any) => {
+        sentCommands.push({ method, params });
+        return {};
+      },
+      onEvent: {
+        addListener: (fn: any) => eventListeners.push(fn),
+        removeListener: (fn: any) => {
+          const idx = eventListeners.indexOf(fn);
+          if (idx !== -1) eventListeners.splice(idx, 1);
+        },
+      },
+      onDetach: { addListener: () => {}, removeListener: () => {} },
+    },
+  };
+
+  // 1. set mock rule
+  const setResult = await runBrowserTool('network.mock', {
+    tabId: 501,
+    reason: 'Mock user api',
+    affectsPage: true,
+    action: 'set',
+    rule: {
+      id: 'rule_user',
+      urlPattern: '*/api/user/*',
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: 0, user: 'mocked' }),
+    },
+  });
+
+  expect(setResult).toMatchObject({
+    ok: true,
+    tabId: 501,
+    action: 'set',
+    ruleId: 'rule_user',
+    totalRules: 1,
+  });
+
+  // Verify Fetch.enable was called
+  expect(sentCommands.some((c) => c.method === 'Fetch.enable')).toBe(true);
+
+  // 2. list rules
+  const listResult = await runBrowserTool('network.mock', {
+    tabId: 501,
+    reason: 'List rules',
+    affectsPage: true,
+    action: 'list',
+  });
+  expect(listResult).toMatchObject({
+    ok: true,
+    action: 'list',
+    count: 1,
+  });
+  expect(listResult.rules?.[0].id).toBe('rule_user');
+
+  // 3. simulate CDP Fetch.requestPaused event - matched URL
+  sentCommands.length = 0;
+  for (const listener of eventListeners) {
+    await listener({ tabId: 501 }, 'Fetch.requestPaused', {
+      requestId: 'req_01',
+      request: { url: 'https://example.com/api/user/100', method: 'GET' },
+      resourceType: 'Fetch',
+    });
+  }
+
+  expect(sentCommands.some((c) => c.method === 'Fetch.fulfillRequest' && c.params.requestId === 'req_01' && c.params.responseCode === 200)).toBe(true);
+
+  // 4. simulate CDP Fetch.requestPaused event - unmatched URL
+  sentCommands.length = 0;
+  for (const listener of eventListeners) {
+    await listener({ tabId: 501 }, 'Fetch.requestPaused', {
+      requestId: 'req_02',
+      request: { url: 'https://example.com/api/orders', method: 'GET' },
+      resourceType: 'Fetch',
+    });
+  }
+
+  expect(sentCommands.some((c) => c.method === 'Fetch.continueRequest' && c.params.requestId === 'req_02')).toBe(true);
+
+  // 5. clear rules
+  const clearResult = await runBrowserTool('network.mock', {
+    tabId: 501,
+    reason: 'Clear all rules',
+    affectsPage: true,
+    action: 'clear',
+  });
+  expect(clearResult).toMatchObject({
+    ok: true,
+    action: 'clear',
+    clearedCount: 1,
+  });
+});
+

@@ -1,0 +1,57 @@
+{
+  "type": "function",
+  "function": {
+    "name": "network.mock",
+    "description": "浏览器网络请求拦截与 Mock 打桩。基于 CDP Fetch 域支持对匹配 URL 的请求拦截并伪造响应（状态码、响应头、正文），或模拟底层网络故障与连接拒绝。\n参数：必填 tabId、action（set|list|clear）；action=set 时提供 rule。\n返回：ok、action、tabId、rules 或 currentRules。action=clear 返回 clearedCount。具有全局穿透力，前端控制台与页面 JS 无感知透明生效。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string", "description": "本次操作的目的" },
+        "affectsPage": { "type": "boolean", "const": true },
+        "tabId": { "type": "integer", "description": "目标标签编号；从 <openTabs> 或工具返回取得。" },
+        "action": {
+          "type": "string",
+          "enum": ["set", "list", "clear"],
+          "description": "操作类型：set 设置/追加规则，list 查看当前生效规则，clear 清除全部或指定规则"
+        },
+        "ruleId": {
+          "type": "string",
+          "description": "规则标识，clear 时若提供则仅删除指定 ruleId，若不传则清空该标签全部规则"
+        },
+        "rule": {
+          "type": "object",
+          "description": "Mock 规则配置（action=set 时使用）",
+          "properties": {
+            "id": { "type": "string", "description": "可选自定义规则标识，不填自动生成" },
+            "urlPattern": { "type": "string", "description": "匹配 URL 模式，支持通配符 *，例如 */api/user/* 或 https://example.com/data" },
+            "resourceType": {
+              "type": "string",
+              "enum": ["Document", "Stylesheet", "Image", "Media", "Font", "Script", "XHR", "Fetch", "EventSource", "WebSocket", "Manifest", "Other"],
+              "description": "可选资源类型过滤，默认拦截所有匹配该 urlPattern 的资源"
+            },
+            "status": { "type": "integer", "description": "伪造的 HTTP 响应状态码，默认 200" },
+            "statusText": { "type": "string", "description": "伪造的状态文本，如 OK、Not Found" },
+            "headers": {
+              "type": "object",
+              "additionalProperties": { "type": "string" },
+              "description": "伪造的响应头字典，例如 {\"Content-Type\": \"application/json\", \"Access-Control-Allow-Origin\": \"*\"}"
+            },
+            "body": { "type": "string", "description": "伪造的响应正文（字符串或 JSON 字符串）" },
+            "errorReason": {
+              "type": "string",
+              "enum": [
+                "Failed", "Aborted", "TimedOut", "AccessDenied", "ConnectionClosed",
+                "ConnectionReset", "ConnectionRefused", "ConnectionAborted", "ConnectionFailed",
+                "NameNotResolved", "InternetDisconnected", "AddressUnreachable", "BlockedByClient", "BlockedByResponse"
+              ],
+              "description": "模拟底层网络失败原因。若配置该项，则触发 Fetch.failRequest，优先级高于响应伪造"
+            }
+          },
+          "required": ["urlPattern"]
+        }
+      },
+      "required": ["reason", "affectsPage", "tabId", "action"],
+      "additionalProperties": false
+    }
+  }
+}
