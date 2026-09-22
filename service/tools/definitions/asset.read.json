@@ -1,0 +1,23 @@
+{
+  "type": "function",
+  "function": {
+    "name": "asset.read",
+    "description": "统一取用入口。text/binary：用 keyword 或 startLine 从 L2 读片段（等价 evidence.search）；image：无矩形返回 L1 元数据，带 x/y/width/height 则等价 image.crop。\n参数：必填 assetId（ast_ 编号）。可选 keyword、startLine，或 image 矩形 x、y、width、height。\n返回：按类型给 preview/片段或裁切图元数据；结果仍会经过入窗门禁。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
+        "assetId": { "type": "string", "description": "ast_ 编号，来自 asset.list" },
+        "keyword": { "type": "string", "description": "文本检索关键字" },
+        "startLine": { "type": "integer", "minimum": 1, "description": "从该行起读窗口" },
+        "x": { "type": "number", "description": "image 裁切矩形 x" },
+        "y": { "type": "number", "description": "image 裁切矩形 y" },
+        "width": { "type": "number", "description": "image 裁切宽" },
+        "height": { "type": "number", "description": "image 裁切高" }
+      },
+      "required": ["reason", "affectsPage", "assetId"],
+      "additionalProperties": false
+    }
+  }
+}

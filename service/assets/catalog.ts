@@ -65,13 +65,15 @@ export function imageSummary(meta: {
   bytes: number;
   tool?: string;
   tabTitle?: string;
-  urlHost?: string;
+  url?: string;
   element?: string;
 }): string {
   const parts = [`${meta.width}×${meta.height}`, meta.tool ?? "image"];
   if (meta.element) parts.push(meta.element);
   if (meta.tabTitle) parts.push(meta.tabTitle);
-  else if (meta.urlHost) parts.push(meta.urlHost);
+  else if (meta.url) {
+    try { parts.push(new URL(meta.url).host); } catch { /* keep factual only */ }
+  }
   parts.push(`${meta.bytes}B`);
   return parts.join(" · ");
 }

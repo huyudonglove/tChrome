@@ -35,7 +35,7 @@ export async function runImageTool(
     if (!result?.ok || typeof result.dataUrl !== "string") {
       return { ok: false, error: String(result?.error ?? "裁切失败") };
     }
-    const saved = saveImage(dataDir, conversationId, result.dataUrl);
+    const saved = saveImage(dataDir, conversationId, result.dataUrl, { tool: "image.crop" });
     const view = admitImage(saved);
     return {
       ok: true,

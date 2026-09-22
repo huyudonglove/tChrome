@@ -188,3 +188,25 @@ const concatChunks = (chunks) => {
   }
   return out;
 };
+
+/** 入库前压一档：最长边 maxSide（默认 384）的 jpeg 缩略图。 */
+export const imageShrink = async (input) => {
+  try {
+    const maxSide = Math.min(1024, Math.max(64, Number(input.maxSide) || 384));
+    const blob = await (await fetch(String(input.dataUrl ?? ""))).blob();
+    const bitmap = await createImageBitmap(blob);
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = new OffscreenCanvas(width, height);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    const out = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.72 });
+    const buf = new Uint8Array(await out.arrayBuffer());
+    let binary = "";
+    for (let i = 0; i < buf.length; i += 0x8000) binary += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+    return { ok: true, dataUrl: `data:image/jpeg;base64,${btoa(binary)}`, width, height, bytes: buf.length };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+};

@@ -4,7 +4,7 @@ import { captureElement, captureSom } from './element-capture.js';
 import { elementTool } from './element-tools.js';
 import { waitForDownload } from './downloads.js';
 import { withDebugger, monitorDialogs, dialogState, watchDialog, handleDialog, detachDebugger } from './dialogs.js';
-import { streamCapture, streamReceive } from './stream-pipe.js';
+import { streamCapture, streamReceive, imageShrink } from './stream-pipe.js';
 export const BROWSER_TOOL_NAMES = [
   'page.get_summary', 'page.list_regions', 'page.list_interactive_elements',
   'page.inspect_region', 'page.inspect_element', 'page.get_dom',
@@ -38,7 +38,7 @@ export const BROWSER_TOOL_NAMES = [
   'combo.select', 'date.select', 'tab.context',
   'har', 'video.capture_sequence', 'video.record',
   'fingerprint.read', 'fingerprint.apply',
-  'stream.capture', 'stream.receive', 'image.crop_pixels',
+  'stream.capture', 'stream.receive', 'image.crop_pixels', 'image.shrink',
 ];
 
 // Network is shared with network_throttle; stop removes only this monitor's
@@ -2105,6 +2105,7 @@ const executeBrowserTool = async (name, input = {}) => {
   }
   if (name === 'stream.capture') return streamCapture(input);
   if (name === 'stream.receive') return streamReceive(input);
+  if (name === 'image.shrink') return imageShrink(input);
   if (name === 'image.crop_pixels') {
     try {
       const x = Number(input.x), y = Number(input.y), width = Number(input.width), height = Number(input.height);

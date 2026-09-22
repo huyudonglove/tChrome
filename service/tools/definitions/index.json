@@ -119,7 +119,8 @@
     "stream.pull",
     "stream.push",
     "image.crop",
-    "asset.list"
+    "asset.list",
+    "asset.read"
   ],
   "service": [
     "send_http",

@@ -57,7 +57,7 @@ test("stream.pull writes browser bytes through the pipe and stream.push uploads 
     const pull = await runStreamTool("stream.pull", {
       source: { kind: "http", url: "https://example.com/a" },
       path: dest,
-    }, sharedHost);
+    }, sharedHost, dir, "cv_01");
     expect(pull).toMatchObject({ ok: true, path: dest, bytes: 5 });
     expect(readFileSync(dest, "utf8")).toBe("hello");
 
@@ -66,7 +66,7 @@ test("stream.pull writes browser bytes through the pipe and stream.push uploads 
     const push = await runStreamTool("stream.push", {
       path: source,
       target: { kind: "http", url: "https://example.com/upload" },
-    }, sharedHost);
+    }, sharedHost, dir, "cv_01");
     expect(push).toMatchObject({ ok: true, bytes: 3, status: 201 });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

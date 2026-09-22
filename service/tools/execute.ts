@@ -460,7 +460,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     return externalResult(await runJobTool(name, hostArgs(args), jobScope(dataDir, input.conversationId)));
   }
   if ((STREAM_TOOL_NAMES as readonly string[]).includes(name)) {
-    return externalResult(await runStreamTool(name, hostArgs(args), host));
+    return externalResult(await runStreamTool(name, hostArgs(args), host, dataDir, input.conversationId));
   }
   if ((IMAGE_TOOL_NAMES as readonly string[]).includes(name)) {
     return externalResult(await runImageTool(name, hostArgs(args), host, dataDir, input.conversationId));
@@ -473,6 +473,34 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       return true;
     });
     return result(JSON.stringify({ ok: true, assets }));
+  }
+  if (name === "asset.read") {
+    if (!input.conversationId) return failedTool("asset.read 缺少会话标识", "invalid_arguments");
+    const assetId = String(args.assetId ?? "").trim();
+    const asset = loadAssets(dataDir, input.conversationId).find((item) => item.assetId === assetId);
+    if (!asset) return failedTool(`找不到资产 ${assetId}`, "file_not_found");
+    if (asset.kind === "image") {
+      const imageId = asset.name.replace(/\.[^.]+$/, "");
+      const rect = { x: args.x, y: args.y, width: args.width, height: args.height };
+      if (Object.values(rect).every((n) => typeof n === "number")) {
+        return externalResult(await runImageTool("image.crop", { imageId, ...rect }, host, dataDir, input.conversationId));
+      }
+      return result(JSON.stringify({ ok: true, asset, fetchHint: "要像素请传 x/y/width/height 走 image.crop，或 capture_page(mode=element|rect)" }));
+    }
+    if (!asset.source.callId) {
+      const full = readFileSync(join(dataDir, "conversations", input.conversationId, asset.path), "utf8");
+      const window = args.startLine
+        ? full.split(/\r?\n/).slice(Number(args.startLine) - 1, Number(args.startLine) + 3).join("\n")
+        : typeof args.keyword === "string" && args.keyword
+          ? full.slice(Math.max(0, full.indexOf(args.keyword) - 200), Math.max(0, full.indexOf(args.keyword) - 200) + 400)
+          : full.slice(0, runtimeConfig.results.inlineChars);
+      return result(JSON.stringify({ ok: true, asset, window }));
+    }
+    return externalResult(await runServiceTool(dataDir, "evidence.search", {
+      callId: asset.source.callId ?? asset.name.replace(/\.txt$/, ""),
+      ...(typeof args.keyword === "string" && args.keyword ? { keyword: args.keyword } : {}),
+      ...(typeof args.startLine === "number" ? { startLine: args.startLine } : { keyword: "" }),
+    }, input.signal, input.conversationId));
   }
   if ((LOCAL_TOOL_NAMES as readonly string[]).includes(name)) {
     if (!input.conversationId) return failedTool("本地工具缺少会话标识", "invalid_arguments");

@@ -1,3 +1,4 @@
+import { appendAsset } from "../assets/catalog.ts";
 import { getStreamHub } from "../stream/pipe.ts";
 import type { BrowserHost } from "../types.ts";
 
@@ -12,8 +13,15 @@ const absPath = (value: unknown): string | null => {
   return path.startsWith("/") ? path : null;
 };
 
-export async function runStreamTool(name: string, input: Record<string, unknown>, host: BrowserHost | undefined): Promise<Record<string, unknown>> {
+export async function runStreamTool(
+  name: string,
+  input: Record<string, unknown>,
+  host: BrowserHost | undefined,
+  dataDir: string,
+  conversationId: string | undefined,
+): Promise<Record<string, unknown>> {
   if (!host) return { ok: false, error: "stream 需要浏览器桥" };
+  if (!conversationId) return { ok: false, error: "stream 工具缺少会话标识" };
   const hub = getStreamHub();
   const streamId = allocateStreamId();
   try {
@@ -27,6 +35,14 @@ export async function runStreamTool(name: string, input: Record<string, unknown>
       const streamed = await pullPromise;
       if (!streamed.ok) return { ok: false, streamId, error: streamed.error };
       if (capture && capture.ok === false) return { ok: false, streamId, error: String((capture as { error?: unknown }).error ?? "stream.capture failed") };
+      appendAsset(dataDir, conversationId, {
+        name: path.split("/").pop() || `stream-${streamId}`,
+        kind: "binary",
+        bytes: streamed.bytes,
+        summary: `stream.pull ${(source as { kind?: string }).kind ?? "data"} · ${streamed.bytes}B`,
+        source: { tool: "stream.pull", ...(typeof (source as { url?: string }).url === "string" ? { url: (source as { url?: string }).url } : {}) },
+        path,
+      });
       return { ok: true, streamId, path: streamed.path, bytes: streamed.bytes };
     }
     const path = absPath(input.path);
@@ -38,10 +54,17 @@ export async function runStreamTool(name: string, input: Record<string, unknown>
     const pushed = await hub.pushFile(streamId, path);
     const result = await receive;
     if (!pushed.ok) return { ok: false, streamId, error: pushed.error };
+    appendAsset(dataDir, conversationId, {
+      name: path.split("/").pop() || `push-${streamId}`,
+      kind: "binary",
+      bytes: pushed.bytes,
+      summary: `stream.push ${pushed.bytes}B`,
+      source: { tool: "stream.push" },
+      path,
+    });
     return { ok: true, streamId, bytes: pushed.bytes, ...(result && typeof result === "object" ? result as Record<string, unknown> : {}) };
   } catch (error) {
     hub.abort(streamId, error instanceof Error ? error.message : String(error));
     return { ok: false, streamId, error: error instanceof Error ? error.message : String(error) };
   }
 }
-

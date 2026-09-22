@@ -3,6 +3,7 @@ import { allocateRecordId, inputRecord } from "./ids.ts";
 import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
 import { admitImages, admitText, deferredImageNote } from "../admission.ts";
+import { ensureThumb, loadThumbRef } from "../images/thumb.ts";
 import { projectMemories } from "../memory/window.ts";
 import { errorInfo, errorMessage } from "../../shared/errors.ts";
 import { failedTool, toolFailure } from "../tools/result.ts";
@@ -91,7 +92,14 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
     ...(dataDir ? { dataDir } : {}),
   }, skillNav);
   const { inline, deferred } = admitImages(images ?? []);
-  const imageNote = deferredImageNote(deferred);
+  const thumbs: NonNullable<ChatMessage["images"]> = [];
+  if (dataDir) {
+    for (const image of deferred) {
+      const thumb = loadThumbRef(dataDir, ledger.conversationId, image.id);
+      if (thumb) thumbs.push({ ...thumb, ...("callId" in image ? { callId: (image as { callId?: string }).callId } : {}) });
+    }
+  }
+  const imageNote = deferredImageNote(deferred) + (thumbs.length ? " 已附缩略图，细节仍需 image.crop 或 mode=element|rect。" : "");
   return [
     { role: "system", content: system },
     { role: "user", content: userText({
@@ -99,7 +107,7 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
       currentQuery: ledger.currentQuery, queryHistory: ledger.queryHistory,
       toolGuide: toolGuideFor(toolRegistry, turn.assembled.toolIds),
       ...(dataDir ? { inlineBudget: { dataDir, system } } : {}),
-    }) + (imageNote ? `\n\n${imageNote}` : ""), images: inline },
+    }) + (imageNote ? `\n\n${imageNote}` : ""), images: [...inline, ...thumbs] },
   ];
 };
 
@@ -198,7 +206,12 @@ const runQueue = async (input: {
     if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
       return { kind: "error", faultCode: "stopped" };
     }
-    const stored = storeToolImages(dataDir, ledger.conversationId, execution.text);
+    const stored = storeToolImages(dataDir, ledger.conversationId, execution.text, { tool: item.name, callId: item.callId });
+    for (const image of stored.images) {
+      if (image.bytes > runtimeConfig.results.imageInlineBytes) {
+        await ensureThumb(dataDir, ledger.conversationId, image, host);
+      }
+    }
     const full = stored.text;
     saveFullReturn(dataDir, ledger.conversationId, item.callId, full);
     // Oversized returns stay on disk; the window only gets a searchable pointer.
