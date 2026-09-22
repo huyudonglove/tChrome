@@ -143,6 +143,7 @@
     "local.fs_stat",
     "local.fs_write",
     "local.replace_block",
+    "local.diagnose",
     "local.open",
     "local.process_start",
     "local.process_status",
