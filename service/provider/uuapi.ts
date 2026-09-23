@@ -48,8 +48,6 @@ type CompletionInput = {
   signal?: AbortSignal;
   /** required 时试发 tool_choice；网关/模型拒绝则本次降级 auto。 */
   toolChoice?: "auto" | "required";
-  onText?: (delta: string) => void;
-  onTextReset?: () => void;
 };
 
 const keyMissing = () => {
@@ -121,8 +119,8 @@ export function createProvider(config: ProviderConfig = {}) {
       fetchWithIdleTimeout(url, { ...init, ...(proxy ? { proxy } : {}) } as RequestInit),
   });
 
-  const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: { dataDir: string; conversationId: string }, signal?: AbortSignal, toolChoice?: "auto" | "required", onText?: (delta: string) => void) => {
-    if (config.api === "responses") return completeResponses(client, { model, reasoningEffort, messages, tools, imageContext, signal, toolChoice, onText });
+  const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: { dataDir: string; conversationId: string }, signal?: AbortSignal, toolChoice?: "auto" | "required") => {
+    if (config.api === "responses") return completeResponses(client, { model, reasoningEffort, messages, tools, imageContext, signal, toolChoice });
     const sanitize = config.sanitizeToolNames === true;
     const { tools: wireTools, byWire } = mapToolsForWire(tools, sanitize);
     const outgoing: ChatCompletionMessageParam[] = messages.map(message => {
@@ -170,7 +168,6 @@ export function createProvider(config: ProviderConfig = {}) {
       const delta = choice?.delta;
       if (delta?.content) {
         content += delta.content;
-        onText?.(delta.content);
       }
       if (delta?.refusal || choice?.message?.refusal) refusal = true;
       for (const partial of delta?.tool_calls ?? []) {
@@ -210,8 +207,7 @@ export function createProvider(config: ProviderConfig = {}) {
         if (input.signal?.aborted) return stoppedResult(attempts);
         attempts = attempt;
         try {
-          input.onTextReset?.();
-          const { content, calls, finish } = await once(input.messages, input.tools, input.imageContext, input.signal, toolChoice, input.onText);
+          const { content, calls, finish } = await once(input.messages, input.tools, input.imageContext, input.signal, toolChoice);
           if (input.signal?.aborted) return stoppedResult(attempts);
           // Both adapters reject incomplete or invalid batches before argument parsing.
           if (finish === "stop") {

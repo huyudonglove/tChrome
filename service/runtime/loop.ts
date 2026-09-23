@@ -32,7 +32,6 @@ import type {
 import { checkToolCalls } from "../tools/schema.ts";
 import { contextState, compressContext } from "./context-state.ts";
 import { queryContext } from "../agents/query/index.ts";
-import { getModelTextHub } from "./stream-text.ts";
 import { nowIso, pacificDate } from "./ids.ts";
 import { join } from "node:path";
 import { runtimeConfig } from "../config/runtime.ts";
@@ -187,7 +186,7 @@ const runQueue = async (input: {
   }));
   const done = new Map<number, ToolExecution>();
   const inflight = new Set<Promise<void>>();
-  const live = new Map<number, { name: string; callId: string }>();
+  const live = new Map<number, { name: string; callId: string; reason?: string }>();
   let appliedUpTo = -1;
   let closed: TurnOutput | null = null;
 
@@ -199,7 +198,8 @@ const runQueue = async (input: {
   };
 
   const launch = (slot: Slot, nextStart: number): Promise<void> => {
-    live.set(slot.index, { name: slot.item.name, callId: slot.item.callId });
+    const reason = typeof slot.item.arguments?.reason === "string" ? slot.item.arguments.reason : undefined;
+    live.set(slot.index, { name: slot.item.name, callId: slot.item.callId, ...(reason ? { reason } : {}) });
     turn.usage ??= { modelRequests: 0, toolCalls: 0 };
     turn.usage.toolCalls += 1;
     syncQueue(nextStart);
@@ -526,24 +526,12 @@ export async function handleTurn(
         turnId,
         data: { windowChars: ledger.windowChars, toolIds: [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds], usage: { ...turn.usage } },
       });
-      const modelText = getModelTextHub();
       const providerResult = await deps.provider.complete({
         messages,
         tools,
         imageContext: { dataDir: deps.dataDir, conversationId: ledger.conversationId },
         ...(submitFails > 0 ? { toolChoice: "required" as const } : {}),
-        onTextReset: () => modelText.reset(ledger.conversationId),
-        onText: (delta) => modelText.delta(ledger.conversationId, delta),
       });
-      modelText.end(ledger.conversationId);
-      // Keep streamed model text visible after the draft clears; tools still run after this point.
-      if (providerResult.content.trim()) {
-        appendEvent(deps.dataDir, ledger.conversationId, {
-          kind: "model-content",
-          turnId,
-          data: { text: providerResult.content },
-        });
-      }
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
           ledger.checklist = null;
           return stoppedReply(ledger, turn);

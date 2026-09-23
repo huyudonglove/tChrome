@@ -21,8 +21,6 @@ type CompletionInput = {
   imageContext?: { dataDir: string; conversationId: string };
   signal?: AbortSignal;
   toolChoice?: "auto" | "required";
-  onText?: (delta: string) => void;
-  onTextReset?: () => void;
 };
 
 type GeminiPart = {
@@ -102,7 +100,7 @@ export function createGeminiProvider(config: GeminiConfig = {}) {
     return { complete: async (input: CompletionInput) => input.signal?.aborted ? stoppedResult(0) : keyMissing() };
   }
 
-  const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: CompletionInput["imageContext"], toolChoice?: CompletionInput["toolChoice"], onText?: (delta: string) => void) => {
+  const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: CompletionInput["imageContext"], toolChoice?: CompletionInput["toolChoice"]) => {
     const system = messages.find((message) => message.role === "system")?.content ?? "";
     const user = messages.find((message) => message.role === "user");
     if (!user) throw new ProviderFailure("invalid_response", "gemini_missing_user_message");
@@ -186,7 +184,6 @@ export function createGeminiProvider(config: GeminiConfig = {}) {
       for (const part of candidate.content?.parts ?? []) {
         if (typeof part.text === "string" && part.text) {
           content += part.text;
-          onText?.(part.text);
         }
         if (part.functionCall) {
           const name = part.functionCall.name;
@@ -222,8 +219,7 @@ export function createGeminiProvider(config: GeminiConfig = {}) {
         if (input.signal?.aborted) return stoppedResult(attempts);
         attempts = attempt;
         try {
-          input.onTextReset?.();
-          const { content, calls, finish, grounding } = await once(input.messages, input.tools, input.imageContext, toolChoice, input.onText);
+          const { content, calls, finish, grounding } = await once(input.messages, input.tools, input.imageContext, toolChoice);
           if (input.signal?.aborted) return stoppedResult(attempts);
           if (finish === "stop") {
             return {

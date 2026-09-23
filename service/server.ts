@@ -5,7 +5,6 @@ import { resolveProxy } from "./provider/uuapi.ts";
 import { configuredProvider, isProviderName, providerApiKeyEnv, providerOptions } from "./provider/config.ts";
 import { ensureSession, loadSession, defaultDataDir, currentSessionView, listConversations, openConversation, newConversation, deleteConversation, stopTurn } from "./runtime/store.ts";
 import { createToolBridge, type ToolBridge } from "./runtime/bridge.ts";
-import { getModelTextHub } from "./runtime/stream-text.ts";
 import type { BrowserResult, BrowserHost, OpenTabs } from "./types.ts";
 import { executorVersion, executorMismatchMessage } from "./executor-version.ts";
 import { abortAllLocalProcesses } from "./tools/local-process.ts";
@@ -146,36 +145,6 @@ export function createServer(options: ServeOptions = {}) {
       }
       if (request.method === "GET" && url.pathname === "/health") {
         return respond({ ok: true, extension: extensionView() });
-      }
-      if (request.method === "GET" && url.pathname === "/model-stream") {
-        // SSE draft of the in-flight model text. Tools still wait for CompletionResult.
-        const hub = getModelTextHub();
-        const encoder = new TextEncoder();
-        const stream = new ReadableStream<Uint8Array>({
-          start(controller) {
-            const send = (payload: unknown) => {
-              try { controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`)); } catch { /* closed */ }
-            };
-            send({ type: "snapshot", drafts: hub.snapshot() });
-            const unsubscribe = hub.subscribe((event) => send(event));
-            const close = () => {
-              unsubscribe();
-              try { controller.close(); } catch { /* already closed */ }
-            };
-            request.signal.addEventListener("abort", close, { once: true });
-          },
-        });
-        const response = new Response(stream, {
-          status: 200,
-          headers: {
-            "content-type": "text/event-stream; charset=utf-8",
-            "cache-control": "no-cache, no-transform",
-            connection: "keep-alive",
-            "vary": "Origin",
-            ...(origin ? { "access-control-allow-origin": origin } : {}),
-          },
-        });
-        return response;
       }
       if ((request.method === "GET" && url.pathname === "/tool-request") || (request.method === "POST" && url.pathname === "/tool-result")) {
         const actualVersion = url.searchParams.get("executorVersion");

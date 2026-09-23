@@ -25,9 +25,7 @@ export type SessionView = {
   conversationId: string | null;
   status: Ledger["status"] | "idle";
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
-  liveTools: { name: string; callId: string }[];
-  /** In-flight model text draft (display only; tools wait for the full response). */
-  streamText?: string | null;
+  liveTools: { name: string; callId: string; reason?: string }[];
   activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null; completed: number; total: number | null } | null;
   checklist: Ledger["checklist"];
   messages: SessionMessage[];
@@ -55,11 +53,11 @@ const pushLiveTools = (input: {
   const liveIds = new Set(ledger.liveTools.map((item) => item.callId));
   for (const live of ledger.liveTools) {
     if (live.name === "finishTurn" || live.name === "askUser") continue;
-    const queued = ledger.toolQueue.find((item) => item.callId === live.callId);
+    const reason = typeof live.reason === "string" && live.reason.trim() ? live.reason.trim() : "";
     messages.push({
       turnId,
       role: "tool",
-      text: toolText({ arguments: queued?.arguments }, "正在执行工具"),
+      text: reason || `正在执行 ${live.name}`,
       name: live.name,
       live: true,
     });
@@ -67,7 +65,7 @@ const pushLiveTools = (input: {
   for (const item of ledger.toolQueue) {
     if (liveIds.has(item.callId)) continue;
     if (item.name === "finishTurn" || item.name === "askUser") continue;
-    messages.push({ turnId, role: "tool", text: toolText(item, "等待执行工具"), name: item.name });
+    messages.push({ turnId, role: "tool", text: toolText(item, `等待执行 ${item.name}`), name: item.name });
   }
 };
 
@@ -105,11 +103,6 @@ export function projectSessionView({ ledger, events, turns }: {
     // Tool arguments supply progress; only turn.output supplies the final reply.
     // Provider content and raw tool results stay in the logs.
     for (const event of turnEvents) {
-      if (event.kind === "model-content") {
-        const text = String((event.data as { text?: unknown }).text ?? "").trim();
-        if (text) messages.push({ turnId, role: "assistant", text });
-        continue;
-      }
       if (event.kind !== "tool") continue;
       const name = String(event.data.name ?? "");
       if (name === "finishTurn" || name === "askUser") continue;
@@ -137,12 +130,11 @@ export function projectSessionView({ ledger, events, turns }: {
     pendingAsk = { turnId: ledger.pendingAsk.turnId, question: ledger.pendingAsk.question, choice };
   }
   return { conversationId: ledger.conversationId, status: ledger.status, pendingAsk, liveTools: ledger.liveTools,
-    streamText: "",
     activity: compressionActivity(ledger, events), checklist: ledger.checklist ?? null, messages };
 }
 
 export const emptySessionView = (): SessionView => ({
-  conversationId: null, status: "idle", pendingAsk: null, liveTools: [], streamText: "", activity: null, checklist: null, messages: [],
+  conversationId: null, status: "idle", pendingAsk: null, liveTools: [], activity: null, checklist: null, messages: [],
 });
 
 export function projectConversationList(rows: { ledger: Ledger; lastTurn: Turn | null }[]): ConversationItem[] {

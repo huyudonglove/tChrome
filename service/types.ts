@@ -132,7 +132,7 @@ export type Ledger = {
   goals: GoalRecord[];
   currentGoalId: string | null;
   toolQueue: ToolQueueItem[];
-  liveTools: { name: string; callId: string }[];
+  liveTools: { name: string; callId: string; reason?: string }[];
   toolIO: ToolIOItem[];
   lastAction: LastAction | null;
   checklist: Checklist;
@@ -229,10 +229,6 @@ export type Provider = {
     imageContext?: { dataDir: string; conversationId: string };
     signal?: AbortSignal;
     toolChoice?: "auto" | "required";
-    /** Streamed model text for display. Tool calls still wait for the full response. */
-    onText?: (delta: string) => void;
-    /** Called when a retry restarts the stream so the draft can be cleared. */
-    onTextReset?: () => void;
   }): Promise<CompletionResult>;
 };
 

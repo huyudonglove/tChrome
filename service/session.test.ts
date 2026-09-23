@@ -107,7 +107,7 @@ test("running toolIO and live queue retain reasons without raw returns", () => {
     ledger.active = { turnId: "tn_01" };
     ledger.toolIO = [{ turnId: "tn_01", callId: "old", name: "page.get_summary", arguments: {},
       return: { stage: "complete", totalChars: 18, text: '{"data":"PRIVATE"}' } }];
-    ledger.liveTools = [{ callId: "live", name: "page.click" }];
+    ledger.liveTools = [{ callId: "live", name: "page.click", reason: "点击提交按钮" }];
     ledger.toolQueue = [{ callId: "queued", name: "page.type", arguments: { reason: "很长的进度说明".repeat(30) } }];
     saveLedger(dir, ledger);
     saveTurn(dir, makeTurn(null));
@@ -115,7 +115,7 @@ test("running toolIO and live queue retain reasons without raw returns", () => {
     const view = sessionView(dir, "cv_01");
     expect(view.messages.map((row) => row.role)).toEqual(["user", "tool", "tool", "tool"]);
     expect(view.messages[1]?.text).toBe("工具调用已结束");
-    expect(view.messages[2]).toMatchObject({ name: "page.click", text: "正在执行工具", live: true });
+    expect(view.messages[2]).toMatchObject({ name: "page.click", text: "点击提交按钮", live: true });
     expect(view.messages[3]?.text).toBe("很长的进度说明".repeat(30));
     expect(JSON.stringify(view)).not.toContain("PRIVATE");
   } finally { rmSync(dir, { recursive: true, force: true }); }

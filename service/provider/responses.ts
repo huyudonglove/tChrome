@@ -13,7 +13,6 @@ export async function completeResponses(client: OpenAI, input: {
   imageContext?: { dataDir: string; conversationId: string };
   signal?: AbortSignal;
   toolChoice?: "auto" | "required";
-  onText?: (delta: string) => void;
 }): Promise<{
   content: string;
   calls: { id: string; name: string; arguments: string }[];
@@ -83,7 +82,6 @@ export async function completeResponses(client: OpenAI, input: {
     };
     if (event.type === "response.output_text.delta" && typeof event.delta === "string") {
       content += event.delta;
-      input.onText?.(event.delta);
     } else if (event.type === "response.output_item.done" && event.item?.type === "function_call") {
       if (event.item.status && event.item.status !== "completed") {
         throw new ProviderFailure("incomplete", `responses_call_${event.item.status}`);

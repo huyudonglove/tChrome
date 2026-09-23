@@ -17,8 +17,7 @@ type SessionView = {
   status: string;
   activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null; completed?: number; total?: number | null } | null;
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
-  liveTools: { name: string; callId: string }[];
-  streamText?: string | null;
+  liveTools: { name: string; callId: string; reason?: string }[];
   checklist: { title?: string; items: { text: string; status: string }[] } | null;
   messages: Message[];
 };
@@ -36,7 +35,7 @@ type ConversationItem = {
   preview: string;
 };
 
-const emptySession = (): SessionView => ({ conversationId: null, status: "idle", activity: null, pendingAsk: null, liveTools: [], streamText: "", checklist: null, messages: [] });
+const emptySession = (): SessionView => ({ conversationId: null, status: "idle", activity: null, pendingAsk: null, liveTools: [], checklist: null, messages: [] });
 
 const SUGGESTIONS = [
   { label: "看当前页", text: "当前页标题是什么" },
@@ -240,46 +239,6 @@ export function App() {
       clearInterval(timer);
     };
   }, []);
-
-  useEffect(() => {
-    // Live model-text draft over SSE; tools still start only after the full response.
-    let alive = true;
-    let source: EventSource | undefined;
-    const conversationId = session.conversationId;
-    const connect = () => {
-      if (!alive) return;
-      source = new EventSource(`${SERVICE}/model-stream`);
-      source.onmessage = (event) => {
-        if (!alive) return;
-        try {
-          const payload = JSON.parse(event.data as string) as {
-            type: string;
-            text?: string;
-            drafts?: Record<string, string>;
-            conversationId?: string;
-          };
-          if (payload.type === "snapshot") {
-            const text = conversationId ? (payload.drafts?.[conversationId] ?? "") : "";
-            setSession(prev => ({ ...prev, streamText: text }));
-            return;
-          }
-          if (payload.conversationId && conversationId && payload.conversationId !== conversationId) return;
-          if (payload.type === "reset") setSession(prev => ({ ...prev, streamText: "" }));
-          else if (payload.type === "delta") setSession(prev => ({ ...prev, streamText: (prev.streamText ?? "") + (payload.text ?? "") }));
-          else if (payload.type === "end") setSession(prev => ({ ...prev, streamText: "" }));
-        } catch { /* ignore malformed frame */ }
-      };
-      source.onerror = () => {
-        source?.close();
-        if (alive) setTimeout(connect, 1500);
-      };
-    };
-    connect();
-    return () => {
-      alive = false;
-      source?.close();
-    };
-  }, [session.conversationId]);
 
   useEffect(() => {
     let alive = true;
@@ -576,37 +535,40 @@ export function App() {
                 ))}
               </div>
             </div>
-          ) : session.messages.map((message, index) => (
-            <article key={`${message.turnId ?? "local"}-${index}`} className={`message-row ${message.role}`}>
-              {message.role === "tool" ? null : <Avatar who={message.role === "user" ? "user" : "assistant"} />}
-              <div className="message-body">
-                {message.role === "tool" ? (
-                  <p className={`tool-step${message.live ? " live" : ""}`}>
-                    {message.text || (message.live ? "正在处理" : "处理步骤")}
-                    {message.live ? " …" : ""}
-                  </p>
-                ) : message.role === "assistant" && message.text
-                  ? <MdContent text={message.text} />
-                  : message.text ? <p>{message.text}</p> : null}
-              </div>
-            </article>
-          ))}
-          {session.streamText ? (
-            <article className="message-row assistant">
-              <Avatar who="assistant" />
-              <div className="message-body">
-                <MdContent text={session.streamText} />
-              </div>
-            </article>
-          ) : null}
-          {running && !compressing && !session.liveTools?.length && !session.streamText && session.messages.at(-1)?.role === "user" ? (
-            <article className="message-row assistant muted">
-              <Avatar who="assistant" />
-              <div className="message-body"><div className="waiting-dots" role="status" aria-label="正在处理">
-                <span aria-hidden="true">.</span><span aria-hidden="true">.</span><span aria-hidden="true">.</span>
-              </div></div>
-            </article>
-          ) : null}
+          ) : (() => {
+            const visible = session.messages;
+            // Dots cover every wait without a live tool line (model I/O or idle queue).
+            const last = visible.at(-1);
+            const waiting = running && !compressing && !session.liveTools?.length
+              && (last?.role === "user" || last?.role === "tool" || !last);
+            return (
+              <>
+                {visible.map((message, index) => (
+                  <article key={`${message.turnId ?? "local"}-${index}`} className={`message-row ${message.role}`}>
+                    {message.role === "tool" ? null : <Avatar who={message.role === "user" ? "user" : "assistant"} />}
+                    <div className="message-body">
+                      {message.role === "tool" ? (
+                        <p className={`tool-step${message.live ? " live" : ""}`}>
+                          {message.text || (message.live ? "正在处理" : "处理步骤")}
+                          {message.live ? " …" : ""}
+                        </p>
+                      ) : message.role === "assistant" && message.text
+                        ? <MdContent text={message.text} />
+                        : message.text ? <p>{message.text}</p> : null}
+                    </div>
+                  </article>
+                ))}
+                {waiting ? (
+                  <article className="message-row assistant muted">
+                    <Avatar who="assistant" />
+                    <div className="message-body"><div className="waiting-dots" role="status" aria-label="正在处理">
+                      <span aria-hidden="true">.</span><span aria-hidden="true">.</span><span aria-hidden="true">.</span>
+                    </div></div>
+                  </article>
+                ) : null}
+              </>
+            );
+          })()}
         </div>
         {showJump ? (
           <button className="jump-to-bottom" type="button" title="回到底部" aria-label="回到底部" onClick={() => scrollToBottom("smooth")}>
