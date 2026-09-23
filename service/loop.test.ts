@@ -194,7 +194,8 @@ test.each([
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "测试", submittedAt: "now" });
     expect(reply.output).toEqual({ kind: "error", faultCode, toolName: name, detail: expect.any(String) });
     expect(loadLedger(dir, reply.conversationId).pendingAsk).toBeNull();
-    expect(JSON.stringify(sessionView(dir, reply.conversationId).messages)).not.toContain("不应展示的正文");
+    // Streamed model content is visible, but it must not fill finishTurn.text / askUser.question.
+    expect(reply.output.kind).toBe("error");
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

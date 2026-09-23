@@ -13,6 +13,7 @@ import { localScope } from "../tools/local-tools.ts";
 import { cancelExecution } from "./execution.ts";
 import { emptySessionView, projectConversationList, projectSessionView } from "../presentation/session-view.ts";
 import type { ConversationItem, SessionView } from "../presentation/session-view.ts";
+import { getModelTextHub } from "./stream-text.ts";
 export type { ConversationItem, SessionMessage, SessionView } from "../presentation/session-view.ts";
 
 export function defaultDataDir(): string {
@@ -275,11 +276,12 @@ export function appendProviderExchange(
 
 export function sessionView(dataDir: string, cvId: string): SessionView {
   const ledger = loadLedger(dataDir, cvId);
-  return projectSessionView({
+  const view = projectSessionView({
     ledger,
     events: loadEvents(dataDir, cvId),
     turns: ledger.turnIds.map((turnId) => loadTurn(dataDir, cvId, turnId)),
   });
+  return { ...view, streamText: getModelTextHub().getText(cvId) };
 }
 
 export function currentSessionView(dataDir: string): SessionView {

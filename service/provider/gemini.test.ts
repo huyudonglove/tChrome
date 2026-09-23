@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { createGeminiProvider } from "./gemini.ts";
+import { sseResponse } from "./sse.ts";
 import { runtimeConfig } from "../config/runtime.ts";
 import { providerApiKeyEnv, providerOptions } from "./config.ts";
 
@@ -24,7 +25,10 @@ const tools = [{
   },
 }];
 
-const geminiBody = (body: unknown, status = 200) => Response.json(body, { status });
+const geminiBody = (body: unknown, status = 200) =>
+  status >= 400
+    ? Response.json(body, { status })
+    : sseResponse(Array.isArray(body) ? body : [body], { status });
 
 test("请求体包含 systemInstruction、google_search 与 functionDeclarations", async () => {
   let captured: any;
@@ -36,7 +40,7 @@ test("请求体包含 systemInstruction、google_search 与 functionDeclarations
     const result = await providerFor(server.port!).complete({ messages, tools });
     expect(result.finish).toBe("stop");
     expect(result.content).toBe("好的");
-    expect(captured.url).toContain("/models/gemini-3.8-flash:generateContent");
+    expect(captured.url).toContain("/models/gemini-3.8-flash:streamGenerateContent?alt=sse");
     expect(captured.headers["x-goog-api-key"]).toBe("local-test");
     expect(captured.body.systemInstruction.parts[0].text).toBe("SYSTEM_RULES");
     expect(captured.body.contents).toEqual([{ role: "user", parts: [{ text: "帮我查一下" }] }]);

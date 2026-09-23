@@ -26,6 +26,8 @@ export type SessionView = {
   status: Ledger["status"] | "idle";
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
   liveTools: { name: string; callId: string }[];
+  /** In-flight model text draft (display only; tools wait for the full response). */
+  streamText?: string | null;
   activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null; completed: number; total: number | null } | null;
   checklist: Ledger["checklist"];
   messages: SessionMessage[];
@@ -103,6 +105,11 @@ export function projectSessionView({ ledger, events, turns }: {
     // Tool arguments supply progress; only turn.output supplies the final reply.
     // Provider content and raw tool results stay in the logs.
     for (const event of turnEvents) {
+      if (event.kind === "model-content") {
+        const text = String((event.data as { text?: unknown }).text ?? "").trim();
+        if (text) messages.push({ turnId, role: "assistant", text });
+        continue;
+      }
       if (event.kind !== "tool") continue;
       const name = String(event.data.name ?? "");
       if (name === "finishTurn" || name === "askUser") continue;
@@ -130,11 +137,12 @@ export function projectSessionView({ ledger, events, turns }: {
     pendingAsk = { turnId: ledger.pendingAsk.turnId, question: ledger.pendingAsk.question, choice };
   }
   return { conversationId: ledger.conversationId, status: ledger.status, pendingAsk, liveTools: ledger.liveTools,
+    streamText: "",
     activity: compressionActivity(ledger, events), checklist: ledger.checklist ?? null, messages };
 }
 
 export const emptySessionView = (): SessionView => ({
-  conversationId: null, status: "idle", pendingAsk: null, liveTools: [], activity: null, checklist: null, messages: [],
+  conversationId: null, status: "idle", pendingAsk: null, liveTools: [], streamText: "", activity: null, checklist: null, messages: [],
 });
 
 export function projectConversationList(rows: { ledger: Ledger; lastTurn: Turn | null }[]): ConversationItem[] {

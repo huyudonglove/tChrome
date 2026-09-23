@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createProvider } from "./uuapi.ts";
+import { sseResponse } from "./sse.ts";
 import { runtimeConfig } from "../config/runtime.ts";
 import { handleTurn } from "../runtime/loop.ts";
 import { loadLedger, loadProviderLog } from "../runtime/store.ts";
@@ -10,10 +11,17 @@ import { loadLedger, loadProviderLog } from "../runtime/store.ts";
 const input = { messages: [], tools: [] };
 const providerFor = (port: number) => createProvider({ apiKey: "local-test", baseURL: `http://127.0.0.1:${port}/v1`, proxy: "" });
 const call = (id: string, name: string, args: string) => ({ id, type: "function", function: { name, arguments: args } });
-const sse = (calls: ReturnType<typeof call>[], content = "", finish = "tool_calls") => Response.json({
-  id: "test", object: "chat.completion", choices: [{ index: 0,
-    message: { role: "assistant", content, tool_calls: calls }, finish_reason: finish }],
-});
+const sse = (calls: ReturnType<typeof call>[], content = "", finish = "tool_calls") => {
+  const events: unknown[] = [];
+  if (content) events.push({ choices: [{ index: 0, delta: { content } }] });
+  for (const [index, toolCall] of calls.entries()) {
+    events.push({
+      choices: [{ index: 0, delta: { tool_calls: [{ index, id: toolCall.id, function: { name: toolCall.function.name, arguments: toolCall.function.arguments } }] } }],
+    });
+  }
+  events.push({ choices: [{ index: 0, delta: {}, finish_reason: finish }] });
+  return sseResponse(events);
+};
 
 for (const finish of ["length", "content_filter", "stop", "unknown"]) {
   const faultCode = finish === "length" ? "provider_output_limit" : finish === "content_filter" ? "provider_refused" : "provider_invalid_response";

@@ -1,11 +1,12 @@
 import OpenAI from "openai";
 import { setTimeout as sleep } from "node:timers/promises";
 import { completeResponses } from "./responses.ts";
+import { sseDataEvents } from "./sse.ts";
 import { ProviderFailure, classifyProviderFailure, isToolChoiceRejection } from "./failures.ts";
 import { runtimeConfig } from "../config/runtime.ts";
 import { fetchWithIdleTimeout } from "../network/idle-fetch.ts";
 import { readImageDataUrl } from "../images/store.ts";
-import type { ChatCompletion, ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { parseToolArguments } from "../tools/arguments.ts";
 import type { ChatMessage, ChatTool, CompletionResult, ToolCall, ToolCallFault } from "../types.ts";
 
@@ -47,6 +48,8 @@ type CompletionInput = {
   signal?: AbortSignal;
   /** required 时试发 tool_choice；网关/模型拒绝则本次降级 auto。 */
   toolChoice?: "auto" | "required";
+  onText?: (delta: string) => void;
+  onTextReset?: () => void;
 };
 
 const keyMissing = () => {
@@ -118,8 +121,8 @@ export function createProvider(config: ProviderConfig = {}) {
       fetchWithIdleTimeout(url, { ...init, ...(proxy ? { proxy } : {}) } as RequestInit),
   });
 
-  const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: { dataDir: string; conversationId: string }, signal?: AbortSignal, toolChoice?: "auto" | "required") => {
-    if (config.api === "responses") return completeResponses(client, { model, reasoningEffort, messages, tools, imageContext, signal, toolChoice });
+  const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: { dataDir: string; conversationId: string }, signal?: AbortSignal, toolChoice?: "auto" | "required", onText?: (delta: string) => void) => {
+    if (config.api === "responses") return completeResponses(client, { model, reasoningEffort, messages, tools, imageContext, signal, toolChoice, onText });
     const sanitize = config.sanitizeToolNames === true;
     const { tools: wireTools, byWire } = mapToolsForWire(tools, sanitize);
     const outgoing: ChatCompletionMessageParam[] = messages.map(message => {
@@ -136,31 +139,66 @@ export function createProvider(config: ProviderConfig = {}) {
     const rawResponse = await client.chat.completions.create({
       model,
       reasoning_effort: reasoningEffort,
-      stream: false,
+      stream: true,
       messages: outgoing,
       tools: wireTools,
       ...(toolChoice === "required" ? { tool_choice: "required" as const } : {}),
     }, { signal }).asResponse();
-    // Avoid the SDK's total body-duration timeout: received chunks reset our idle timer.
-    const response = await rawResponse.json() as ChatCompletion;
-    const choice = response?.choices?.[0];
-    if (!choice?.message) throw new ProviderFailure("invalid_response", "chat_missing_choice_or_message");
-    if (choice.finish_reason === "content_filter" || choice.message.refusal) throw new ProviderFailure("refused", "chat_content_refused");
-    if (choice.finish_reason === "length") throw new ProviderFailure("output_limit", "chat_output_limit");
-    if (!["stop", "tool_calls"].includes(choice.finish_reason)) throw new ProviderFailure("invalid_response", `chat_unexpected_finish: ${choice.finish_reason}`);
-    if (choice.message.tool_calls != null && !Array.isArray(choice.message.tool_calls)) throw new ProviderFailure("invalid_response", "chat_invalid_tool_calls");
-    const calls: AccCall[] = (choice.message.tool_calls ?? []).map((call) => {
-      if (call?.type !== "function" || typeof call.id !== "string" || !call.id.trim()
-        || typeof call.function?.name !== "string" || !call.function.name.trim() || typeof call.function.arguments !== "string") {
+    if (!rawResponse.ok || !rawResponse.body) {
+      const payload = await rawResponse.json().catch(() => ({})) as { error?: { message?: string } };
+      const message = payload.error?.message || `HTTP ${rawResponse.status}`;
+      throw Object.assign(new Error(message), { status: rawResponse.status });
+    }
+    // Text streams for display; tool_calls assemble only after the stream ends.
+    let content = "";
+    let finish: string | null = null;
+    let refusal = false;
+    const callAcc = new Map<number, AccCall>();
+    for await (const data of sseDataEvents(rawResponse.body)) {
+      const chunk = JSON.parse(data) as {
+        choices?: {
+          delta?: {
+            content?: string | null;
+            refusal?: string | null;
+            tool_calls?: { index?: number; id?: string; function?: { name?: string; arguments?: string } }[];
+          };
+          finish_reason?: string | null;
+          message?: { refusal?: string | null };
+        }[];
+      };
+      const choice = chunk.choices?.[0];
+      const delta = choice?.delta;
+      if (delta?.content) {
+        content += delta.content;
+        onText?.(delta.content);
+      }
+      if (delta?.refusal || choice?.message?.refusal) refusal = true;
+      for (const partial of delta?.tool_calls ?? []) {
+        const index = typeof partial.index === "number" ? partial.index : callAcc.size;
+        const current = callAcc.get(index) ?? { id: "", name: "", arguments: "" };
+        if (partial.id) current.id = partial.id;
+        if (partial.function?.name) current.name += partial.function.name;
+        if (partial.function?.arguments) current.arguments += partial.function.arguments;
+        callAcc.set(index, current);
+      }
+      if (choice?.finish_reason) finish = choice.finish_reason;
+    }
+    if (refusal || finish === "content_filter") throw new ProviderFailure("refused", "chat_content_refused");
+    if (finish === "length") throw new ProviderFailure("output_limit", "chat_output_limit");
+    if (!["stop", "tool_calls"].includes(finish ?? "")) throw new ProviderFailure("invalid_response", `chat_unexpected_finish: ${finish ?? "missing"}`);
+    const calls: AccCall[] = [...callAcc.entries()].sort((a, b) => a[0] - b[0]).map(([, call]) => {
+      if (call.name) call.name = byWire.get(call.name) ?? call.name;
+      return call;
+    });
+    for (const call of calls) {
+      if (!call.id.trim() || !call.name.trim()) {
         throw new ProviderFailure("invalid_response", "chat_invalid_function_call");
       }
-      return { id: call.id, name: byWire.get(call.function.name) ?? call.function.name, arguments: call.function.arguments };
-    });
-    if (choice.message.content != null && typeof choice.message.content !== "string") throw new ProviderFailure("invalid_response", "chat_invalid_content");
-    if (choice.finish_reason === "stop" && calls.length) throw new ProviderFailure("invalid_response", "chat_stop_with_tool_calls");
-    if (choice.finish_reason === "tool_calls" && !calls.length) throw new ProviderFailure("invalid_response", "chat_missing_tool_calls");
-    if (!calls.length && !choice.message.content?.trim()) throw new ProviderFailure("invalid_response", "chat_empty_output");
-    return { content: choice.message.content ?? "", calls, finish: choice.finish_reason };
+    }
+    if (finish === "stop" && calls.length) throw new ProviderFailure("invalid_response", "chat_stop_with_tool_calls");
+    if (finish === "tool_calls" && !calls.length) throw new ProviderFailure("invalid_response", "chat_missing_tool_calls");
+    if (!calls.length && !content.trim()) throw new ProviderFailure("invalid_response", "chat_empty_output");
+    return { content, calls, finish: finish as "stop" | "tool_calls" };
   };
 
   return {
@@ -172,7 +210,8 @@ export function createProvider(config: ProviderConfig = {}) {
         if (input.signal?.aborted) return stoppedResult(attempts);
         attempts = attempt;
         try {
-          const { content, calls, finish } = await once(input.messages, input.tools, input.imageContext, input.signal, toolChoice);
+          input.onTextReset?.();
+          const { content, calls, finish } = await once(input.messages, input.tools, input.imageContext, input.signal, toolChoice, input.onText);
           if (input.signal?.aborted) return stoppedResult(attempts);
           // Both adapters reject incomplete or invalid batches before argument parsing.
           if (finish === "stop") {

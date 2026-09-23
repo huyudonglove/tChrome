@@ -1,5 +1,6 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { ProviderFailure, classifyProviderFailure, isToolChoiceRejection } from "./failures.ts";
+import { sseDataEvents } from "./sse.ts";
 import { runtimeConfig } from "../config/runtime.ts";
 import { fetchWithIdleTimeout } from "../network/idle-fetch.ts";
 import { readImageDataUrl } from "../images/store.ts";
@@ -20,6 +21,8 @@ type CompletionInput = {
   imageContext?: { dataDir: string; conversationId: string };
   signal?: AbortSignal;
   toolChoice?: "auto" | "required";
+  onText?: (delta: string) => void;
+  onTextReset?: () => void;
 };
 
 type GeminiPart = {
@@ -99,7 +102,7 @@ export function createGeminiProvider(config: GeminiConfig = {}) {
     return { complete: async (input: CompletionInput) => input.signal?.aborted ? stoppedResult(0) : keyMissing() };
   }
 
-  const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: CompletionInput["imageContext"], toolChoice?: CompletionInput["toolChoice"]) => {
+  const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: CompletionInput["imageContext"], toolChoice?: CompletionInput["toolChoice"], onText?: (delta: string) => void) => {
     const system = messages.find((message) => message.role === "system")?.content ?? "";
     const user = messages.find((message) => message.role === "user");
     if (!user) throw new ProviderFailure("invalid_response", "gemini_missing_user_message");
@@ -132,7 +135,7 @@ export function createGeminiProvider(config: GeminiConfig = {}) {
     };
 
     const response = await fetchWithIdleTimeout(
-      `${baseURL}/models/${encodeURIComponent(model)}:generateContent`,
+      `${baseURL}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`,
       {
         method: "POST",
         headers: {
@@ -143,50 +146,70 @@ export function createGeminiProvider(config: GeminiConfig = {}) {
         ...(proxy ? { proxy } : {}),
       } as RequestInit,
     );
-    const payload = await response.json() as GeminiResponse;
-    if (!response.ok) {
+    if (!response.ok || !response.body) {
+      const payload = await response.json().catch(() => ({})) as GeminiResponse;
       const status = response.status;
       const message = payload.error?.message || payload.error?.status || `HTTP ${status}`;
-      const error = Object.assign(new Error(message.replaceAll(apiKey, "[REDACTED]")), { status });
-      throw error;
-    }
-    if (payload.error) {
-      const status = Number(payload.error.code ?? 500);
-      const message = (payload.error.message || payload.error.status || "gemini_error").replaceAll(apiKey, "[REDACTED]");
-      throw Object.assign(new Error(message), { status });
+      throw Object.assign(new Error(message.replaceAll(apiKey, "[REDACTED]")), { status });
     }
 
-    const candidate = payload.candidates?.[0];
-    if (!candidate) {
-      const blockReason = payload.promptFeedback?.blockReason;
+    let content = "";
+    const calls: { id: string; name: string; arguments: string }[] = [];
+    let grounding: ProviderGrounding | undefined;
+    let finishReason: string | undefined;
+    let blockReason: string | undefined;
+    let sawPayload = false;
+
+    for await (const data of sseDataEvents(response.body)) {
+      const chunk = JSON.parse(data) as GeminiResponse;
+      sawPayload = true;
+      if (chunk.error) {
+        const status = Number(chunk.error.code ?? 500);
+        const message = (chunk.error.message || chunk.error.status || "gemini_error").replaceAll(apiKey, "[REDACTED]");
+        throw Object.assign(new Error(message), { status });
+      }
+      const candidate = chunk.candidates?.[0];
+      if (!candidate) {
+        blockReason = chunk.promptFeedback?.blockReason ?? blockReason;
+        continue;
+      }
+      if (candidate.finishReason) finishReason = candidate.finishReason;
+      blockReason = chunk.promptFeedback?.blockReason ?? blockReason;
+      const chunkGrounding = parseGrounding(candidate.groundingMetadata);
+      if (chunkGrounding) {
+        grounding = grounding ? {
+          name: grounding.name,
+          queries: [...grounding.queries, ...chunkGrounding.queries],
+          sources: [...grounding.sources, ...chunkGrounding.sources],
+        } : chunkGrounding;
+      }
+      for (const part of candidate.content?.parts ?? []) {
+        if (typeof part.text === "string" && part.text) {
+          content += part.text;
+          onText?.(part.text);
+        }
+        if (part.functionCall) {
+          const name = part.functionCall.name;
+          if (typeof name !== "string" || !name.trim()) {
+            throw new ProviderFailure("invalid_response", "gemini_invalid_function_call");
+          }
+          calls.push({
+            id: `gem_call_${String(calls.length + 1).padStart(2, "0")}`,
+            name,
+            arguments: JSON.stringify(part.functionCall.args ?? {}),
+          });
+        }
+      }
+    }
+
+    if (!sawPayload) {
       if (blockReason) throw new ProviderFailure("refused", `gemini_block: ${blockReason}`);
       throw new ProviderFailure("invalid_response", "gemini_missing_candidate");
     }
-    const failure = finishFailure(candidate.finishReason, payload.promptFeedback?.blockReason);
+    const failure = finishFailure(finishReason, blockReason);
     if (failure) throw failure;
-
-    const text: string[] = [];
-    const calls: { id: string; name: string; arguments: string }[] = [];
-    let index = 0;
-    for (const part of candidate.content?.parts ?? []) {
-      if (typeof part.text === "string" && part.text) text.push(part.text);
-      if (part.functionCall) {
-        const name = part.functionCall.name;
-        if (typeof name !== "string" || !name.trim()) {
-          throw new ProviderFailure("invalid_response", "gemini_invalid_function_call");
-        }
-        index += 1;
-        calls.push({
-          id: `gem_call_${String(index).padStart(2, "0")}`,
-          name,
-          arguments: JSON.stringify(part.functionCall.args ?? {}),
-        });
-      }
-    }
-    const content = text.join("\n").trim();
-    const grounding = parseGrounding(candidate.groundingMetadata);
+    content = content.trim();
     if (!calls.length && !content && !grounding) throw new ProviderFailure("invalid_response", "gemini_empty_output");
-    // Grounding stays out of content and toolCalls; Runtime records it as evidence only.
     return { content, calls, grounding, finish: calls.length ? "tool_calls" as const : "stop" as const };
   };
 
@@ -199,7 +222,8 @@ export function createGeminiProvider(config: GeminiConfig = {}) {
         if (input.signal?.aborted) return stoppedResult(attempts);
         attempts = attempt;
         try {
-          const { content, calls, finish, grounding } = await once(input.messages, input.tools, input.imageContext, toolChoice);
+          input.onTextReset?.();
+          const { content, calls, finish, grounding } = await once(input.messages, input.tools, input.imageContext, toolChoice, input.onText);
           if (input.signal?.aborted) return stoppedResult(attempts);
           if (finish === "stop") {
             return {

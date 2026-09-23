@@ -32,6 +32,7 @@ import type {
 import { checkToolCalls } from "../tools/schema.ts";
 import { contextState, compressContext } from "./context-state.ts";
 import { queryContext } from "../agents/query/index.ts";
+import { getModelTextHub } from "./stream-text.ts";
 import { nowIso, pacificDate } from "./ids.ts";
 import { join } from "node:path";
 import { runtimeConfig } from "../config/runtime.ts";
@@ -525,12 +526,24 @@ export async function handleTurn(
         turnId,
         data: { windowChars: ledger.windowChars, toolIds: [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds], usage: { ...turn.usage } },
       });
+      const modelText = getModelTextHub();
       const providerResult = await deps.provider.complete({
         messages,
         tools,
         imageContext: { dataDir: deps.dataDir, conversationId: ledger.conversationId },
         ...(submitFails > 0 ? { toolChoice: "required" as const } : {}),
+        onTextReset: () => modelText.reset(ledger.conversationId),
+        onText: (delta) => modelText.delta(ledger.conversationId, delta),
       });
+      modelText.end(ledger.conversationId);
+      // Keep streamed model text visible after the draft clears; tools still run after this point.
+      if (providerResult.content.trim()) {
+        appendEvent(deps.dataDir, ledger.conversationId, {
+          kind: "model-content",
+          turnId,
+          data: { text: providerResult.content },
+        });
+      }
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
           ledger.checklist = null;
           return stoppedReply(ledger, turn);
