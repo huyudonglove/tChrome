@@ -5,7 +5,7 @@ import { isAbsolute, join, resolve, sep } from "node:path";
 
 export const LOCAL_FILE_TOOL_NAMES = [
   "local.fs_list", "local.fs_stat", "local.fs_read", "local.fs_write", "local.fs_mkdir",
-  "local.fs_copy", "local.fs_move", "local.fs_delete", "local.fs_search", "local.replace_block",
+  "local.fs_copy", "local.fs_move", "local.fs_delete", "local.fs_search", "local.fs_grep", "local.replace_block",
 ] as const;
 
 function pathArg(input: Record<string, unknown>, key = "path") {
@@ -153,6 +153,85 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
           }
         }
         return { ok: true, path, matches, scanned, truncated, errors };
+      }
+      case "local.fs_grep": {
+        if (typeof input.query !== "string" || !input.query.length || input.query.length > 500) {
+          throw new Error("query must be a literal substring of 1 to 500 characters");
+        }
+        const query = input.query;
+        const limit = integer(input, "limit", 50, 1, 200);
+        const maxFiles = integer(input, "maxFiles", 400, 1, 5000);
+        const maxFileBytes = integer(input, "maxFileBytes", 1048576, 1, 1048576);
+        const maxEntries = integer(input, "maxEntries", 10000, 1, 100000);
+        const contextChars = integer(input, "contextChars", 80, 0, 200);
+        if (!(await lstat(path)).isDirectory()) throw new Error("path must be a directory, not a symlink");
+        const pending = [path];
+        const matches: Record<string, unknown>[] = [];
+        let scannedFiles = 0;
+        let scannedEntries = 0;
+        let truncated = false;
+        const skipped: { path: string; reason: string }[] = [];
+        const errors: { path: string; error: string }[] = [];
+        const skipDirs = new Set(["node_modules", ".git"]);
+        outer: while (pending.length) {
+          const directory = pending.pop()!;
+          try {
+            for await (const entry of await opendir(directory)) {
+              if (scannedEntries >= maxEntries || matches.length >= limit) { truncated = true; break outer; }
+              scannedEntries++;
+              const entryPath = join(directory, entry.name);
+              if (entry.isSymbolicLink()) continue;
+              if (entry.isDirectory()) {
+                if (skipDirs.has(entry.name)) {
+                  if (skipped.length < 100) skipped.push({ path: entryPath, reason: "skipped directory" });
+                  continue;
+                }
+                pending.push(entryPath);
+                continue;
+              }
+              if (!entry.isFile()) continue;
+              if (scannedFiles >= maxFiles) { truncated = true; break outer; }
+              scannedFiles++;
+              const stat = await lstat(entryPath);
+              if (!stat.isFile()) continue;
+              if (stat.size > maxFileBytes) {
+                if (skipped.length < 100) skipped.push({ path: entryPath, reason: "file exceeds maxFileBytes" });
+                continue;
+              }
+              const bytes = await readFile(entryPath);
+              if (bytes.includes(0)) {
+                if (skipped.length < 100) skipped.push({ path: entryPath, reason: "binary" });
+                continue;
+              }
+              const text = bytes.toString("utf8");
+              let from = 0;
+              while (matches.length < limit) {
+                const at = text.indexOf(query, from);
+                if (at === -1) break;
+                const lineStart = text.lastIndexOf("\n", at - 1) + 1;
+                const lineEnd = text.indexOf("\n", at);
+                const lineText = text.slice(lineStart, lineEnd === -1 ? text.length : lineEnd);
+                const column = at - lineStart + 1;
+                const line = text.slice(0, at).split("\n").length;
+                matches.push({
+                  path: entryPath,
+                  line,
+                  column,
+                  before: lineText.slice(Math.max(0, column - 1 - contextChars), column - 1),
+                  hit: query,
+                  after: lineText.slice(column - 1 + query.length, column - 1 + query.length + contextChars),
+                });
+                from = at + Math.max(query.length, 1);
+                if (matches.length >= limit) { truncated = true; break outer; }
+              }
+            }
+          } catch (error) {
+            if (directory === path) throw error;
+            if (errors.length < 100) errors.push({ path: directory, error: error instanceof Error ? error.message : String(error) });
+            truncated = true;
+          }
+        }
+        return { ok: true, path, matches, scannedFiles, scannedEntries, truncated, skipped, errors };
       }
       default: throw new Error(`Unknown local file tool: ${name}`);
     }

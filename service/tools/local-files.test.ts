@@ -112,3 +112,41 @@ test("local.replace_block replaces unique block and rejects mismatched matches",
   expect(r4).toMatchObject({ ok: true, matches: 2 });
   expect(await readFile(path, "utf8")).toBe("const a = 100;\nconst b = 20;\nconst c = 100;\n");
 });
+
+test("grep finds literal text with line context and skips binaries, noisy dirs, and symlinks", async () => {
+  const nested = join(root, "nested");
+  const file = join(nested, "notes.txt");
+  await mkdir(nested);
+  await writeFile(file, "alpha needle beta\nsecond needle\n");
+  await writeFile(join(nested, "skip.bin"), Buffer.from([0x00, ...Buffer.from("needle")]));
+  await mkdir(join(nested, "node_modules"));
+  await writeFile(join(nested, "node_modules", "hidden.txt"), "needle\n");
+  await mkdir(join(nested, ".git"));
+  await writeFile(join(nested, ".git", "hidden.txt"), "needle\n");
+  await writeFile(join(nested, "wide.txt"), "needle-and-more-text");
+  await symlink(file, join(nested, "link.txt"));
+  await symlink(root, join(nested, "loop"));
+  const result = await run("local.fs_grep", { path: root, query: "needle", contextChars: 6 });
+  expect(result).toMatchObject({ ok: true, truncated: false });
+  const matches = [...(result.matches as { path: string; line: number }[])].sort((a, b) =>
+    a.path === b.path ? a.line - b.line : a.path < b.path ? -1 : 1);
+  expect(matches).toEqual([
+    { path: file, line: 1, column: 7, before: "alpha ", hit: "needle", after: " beta" },
+    { path: file, line: 2, column: 8, before: "econd ", hit: "needle", after: "" },
+    { path: join(nested, "wide.txt"), line: 1, column: 1, before: "", hit: "needle", after: "-and-m" },
+  ]);
+  expect(JSON.stringify(result.matches)).not.toContain("hidden.txt");
+  expect(JSON.stringify(result.matches)).not.toContain("link.txt");
+  expect(result.skipped).toEqual(expect.arrayContaining([
+    { path: join(nested, "skip.bin"), reason: "binary" },
+    { path: join(nested, "node_modules"), reason: "skipped directory" },
+    { path: join(nested, ".git"), reason: "skipped directory" },
+  ]));
+  const limited = await run("local.fs_grep", { path: root, query: "needle", limit: 1 });
+  expect(limited).toMatchObject({ ok: true, truncated: true });
+  expect(limited.matches).toHaveLength(1);
+  expect(await run("local.fs_grep", { path: root, query: "needle", maxFileBytes: 4 })).toMatchObject({
+    ok: true, matches: [],
+  });
+  expect(await run("local.fs_grep", { path: join(nested, "loop"), query: "needle" })).toMatchObject({ ok: false });
+});

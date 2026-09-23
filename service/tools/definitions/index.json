@@ -141,6 +141,7 @@
     "local.fs_move",
     "local.fs_read",
     "local.fs_search",
+    "local.fs_grep",
     "local.fs_stat",
     "local.fs_write",
     "local.replace_block",
