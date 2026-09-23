@@ -184,7 +184,10 @@ test("200K during a live tool loop compresses older batches before the next main
       main++;
       if (main === 4) { expect(aux).toBeGreaterThan(0); expect(input.messages[1]!.content).toContain("<conversationHistorySummary>"); }
       return result({ toolCalls: main <= 3
-        ? Array.from({ length: 20 }, (_, i) => ({ id: `p${main}_${i}`, name: "page.get_summary", arguments: { reason: "读取", affectsPage: false, tabId: 1 } }))
+        ? [
+            ...(main > 1 ? [{ id: `c${main}`, name: "checkContinue", arguments: { reason: "继续", affectsPage: false, cont: true } }] : []),
+            ...Array.from({ length: main > 1 ? 19 : 20 }, (_, i) => ({ id: `p${main}_${i}`, name: "page.get_summary", arguments: { reason: "读取", affectsPage: false, tabId: 1 } })),
+          ]
         : [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", affectsPage: false, text: "完成"} }] });
     } };
     const reply = await handleTurn({ dataDir, repoRoot, provider, host: { execute: async () => ({

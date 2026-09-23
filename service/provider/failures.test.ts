@@ -7,6 +7,7 @@ import { handleTurn } from "../runtime/loop.ts";
 import { loadLedger } from "../runtime/store.ts";
 import OpenAI from "openai";
 import { classifyProviderFailure } from "./failures.ts";
+import { runtimeConfig } from "../config/runtime.ts";
 
 test("failure policy distinguishes transport errors, local errors, and cancellation", () => {
   for (const error of [new OpenAI.APIConnectionError({}), new OpenAI.APIConnectionTimeoutError()]) {
@@ -37,8 +38,8 @@ const cases = [
 ];
 
 for (const scenario of cases) {
+  const expectedAttempts = scenario.fault === "provider_invalid_response" ? runtimeConfig.network.maxAttempts : 1;
   test(`Chat/Responses parity: ${scenario.name}`, async () => {
-    const expectedAttempts = scenario.fault === "provider_invalid_response" ? 3 : 1;
     for (const api of ["chat", "responses"] as const) {
       let requests = 0;
       const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch() {
@@ -52,7 +53,7 @@ for (const scenario of cases) {
         expect(requests).toBe(expectedAttempts);
       } finally { server.stop(true); }
     }
-  });
+  }, expectedAttempts > 1 ? 60_000 : 15_000);
 }
 
 test("invalid response retries silently and uses the first valid completion", async () => {
@@ -83,6 +84,7 @@ test("Responses other incomplete reason is terminal", async () => {
 });
 
 for (const status of [400, 401, 403, 408, 429, 500, 503]) {
+  const expectedAttempts = status === 408 || status === 429 || status >= 500 ? runtimeConfig.network.maxAttempts : 1;
   test(`Chat/Responses HTTP ${status} use identical retry policy`, async () => {
     await Promise.all((["chat", "responses"] as const).map(async api => {
       let requests = 0;
@@ -92,12 +94,11 @@ for (const status of [400, 401, 403, 408, 429, 500, 503]) {
       } });
       try {
         const result = await createProvider({ api, apiKey: "local-test", proxy: "", baseURL: `http://127.0.0.1:${server.port}/v1` }).complete(input);
-        const expectedAttempts = status === 408 || status === 429 || status >= 500 ? 3 : 1;
         expect(result).toMatchObject({ finish: "error", faultCode: status === 401 ? "provider_key_invalid" : status === 403 ? "provider_forbidden" : "provider_error", attempts: expectedAttempts, toolCalls: [] });
         expect(requests).toBe(expectedAttempts);
       } finally { server.stop(true); }
     }));
-  });
+  }, expectedAttempts > 1 ? 30_000 : 15_000);
 }
 
 test("Chat/Responses local input errors do not retry or request", async () => {
@@ -120,9 +121,9 @@ test("Chat/Responses SDK connection failures retry", async () => {
   server.stop(true);
   await Promise.all((["chat", "responses"] as const).map(async api => {
     const result = await createProvider({ api, apiKey: "local-test", proxy: "", baseURL: `http://127.0.0.1:${port}/v1` }).complete(input);
-    expect(result).toMatchObject({ finish: "error", faultCode: "provider_error", attempts: 3, toolCalls: [] });
+    expect(result).toMatchObject({ finish: "error", faultCode: "provider_error", attempts: runtimeConfig.network.maxAttempts, toolCalls: [] });
   }));
-});
+}, 30_000);
 
 test("Chat/Responses Runtime never executes tools from output-limited responses", async () => {
   for (const api of ["chat", "responses"] as const) {

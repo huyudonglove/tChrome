@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createProvider } from "./uuapi.ts";
+import { runtimeConfig } from "../config/runtime.ts";
 import { handleTurn } from "../runtime/loop.ts";
 import { loadLedger, loadProviderLog } from "../runtime/store.ts";
 
@@ -16,6 +17,7 @@ const sse = (calls: ReturnType<typeof call>[], content = "", finish = "tool_call
 
 for (const finish of ["length", "content_filter", "stop", "unknown"]) {
   const faultCode = finish === "length" ? "provider_output_limit" : finish === "content_filter" ? "provider_refused" : "provider_invalid_response";
+  const retriedInvalid = faultCode === "provider_invalid_response";
   test(`${finish} 工具批次整批拒绝，合法兄弟不执行`, async () => {
     const dir = mkdtempSync(join(tmpdir(), "tchrome-provider-finish-"));
     let requests = 0;
@@ -34,7 +36,7 @@ for (const finish of ["length", "content_filter", "stop", "unknown"]) {
       expect(response.toolCalls).toEqual([]);
       expect(response.toolCallFaults).toBeUndefined();
       const retriedInvalid = faultCode === "provider_invalid_response";
-      expect(response.attempts).toBe(retriedInvalid ? 3 : 1);
+      expect(response.attempts).toBe(retriedInvalid ? runtimeConfig.network.maxAttempts : 1);
       const result = await handleTurn({ dataDir: dir, repoRoot: resolve(import.meta.dir, "../.."), provider },
         { userInput: "测试", submittedAt: "now" });
       const detailSuffix = finish === "length" ? "chat_output_limit"
@@ -46,9 +48,9 @@ for (const finish of ["length", "content_filter", "stop", "unknown"]) {
       expect(ledger.notes.kept).toBeUndefined();
       expect(ledger.toolIO).toEqual([]);
       // complete() retries invalid responses; handleTurn issues another provider request.
-      expect(requests).toBe(retriedInvalid ? 6 : 2);
+      expect(requests).toBe(retriedInvalid ? runtimeConfig.network.maxAttempts * 2 : 2);
     } finally { server.stop(true); rmSync(dir, { recursive: true, force: true }); }
-  });
+  }, retriedInvalid ? 60_000 : 15_000);
 }
 
 test("正常 stop 文本响应保持成功", async () => {
@@ -62,7 +64,31 @@ test("正常 stop 文本响应保持成功", async () => {
   } finally { server.stop(true); }
 });
 
+test("tool_choice required 被拒后降级 auto 重试且不消耗 attempts", async () => {
+  let requests = 0;
+  const bodies: any[] = [];
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(request) {
+    requests++;
+    const body = await request.json();
+    bodies.push(body);
+    if (body.tool_choice === "required") {
+      return Response.json({ error: { message: "Invalid 'tool_choice': thinking mode does not support required", type: "invalid_request_error" } }, { status: 400 });
+    }
+    return sse([call("c1", "finishTurn", '{"text":"好"}')]);
+  } });
+  try {
+    const result = await providerFor(server.port!).complete({ ...input, toolChoice: "required" });
+    expect(requests).toBe(2);
+    expect(bodies[0]!.tool_choice).toBe("required");
+    expect(bodies[1]!.tool_choice).toBeUndefined();
+    expect(result.attempts).toBe(1);
+    expect(result.finish).toBe("tool_calls");
+    expect(result.toolCalls[0]?.name).toBe("finishTurn");
+  } finally { server.stop(true); }
+});
+
 for (const status of [500, 429, 401, 400]) {
+  const retried = status >= 500 || status === 429;
   test(`HTTP ${status} 实际请求数与 attempts 一致`, async () => {
     let requests = 0;
     const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch() {
@@ -71,11 +97,11 @@ for (const status of [500, 429, 401, 400]) {
     } });
     try {
       const result = await providerFor(server.port!).complete(input);
-      expect(requests).toBe(status >= 500 || status === 429 ? 3 : 1);
+      expect(requests).toBe(retried ? runtimeConfig.network.maxAttempts : 1);
       expect(result.attempts).toBe(requests);
       expect(result.faultCode).toBe(status === 401 ? "provider_key_invalid" : "provider_error");
     } finally { server.stop(true); }
-  });
+  }, retried ? 30_000 : 10_000);
 }
 
 for (const badIndex of [0, 1, 2]) {

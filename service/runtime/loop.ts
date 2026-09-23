@@ -3,6 +3,7 @@ import { allocateRecordId, inputRecord } from "./ids.ts";
 import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
 import { admitImages, admitText, deferredImageNote } from "../admission.ts";
+import { escalate } from "./escalation.ts";
 import { ensureThumb, loadThumbRef } from "../images/thumb.ts";
 import { projectMemories } from "../memory/window.ts";
 import { errorInfo, errorMessage } from "../../shared/errors.ts";
@@ -235,6 +236,14 @@ const runQueue = async (input: {
       return: { stage: "complete", totalChars: full.length, text: viewText },
     };
     ledger.toolIO.push(row);
+    const escalation = escalate(ledger.toolIO.filter((r) => r.turnId === turn.turnId), item.name);
+    if (escalation.action === "force_end" || escalation.action === "interrupt") {
+      saveLedger(dataDir, ledger);
+      return { kind: "reply", text: escalation.text };
+    }
+    if (escalation.action === "hint") {
+      row.return = { ...row.return, text: `${row.return.text}\n\n${escalation.text}` };
+    }
     let output: TurnOutput | null = null;
     try {
       output = applyToolEffects({ dataDir, ledger, turn, call: item, effects: execution.effects });
@@ -438,6 +447,7 @@ export async function handleTurn(
         messages,
         tools,
         imageContext: { dataDir: deps.dataDir, conversationId: ledger.conversationId },
+        ...(submitFails > 0 ? { toolChoice: "required" as const } : {}),
       });
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
           ledger.checklist = null;

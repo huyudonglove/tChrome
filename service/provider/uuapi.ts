@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { setTimeout as sleep } from "node:timers/promises";
 import { completeResponses } from "./responses.ts";
-import { ProviderFailure, classifyProviderFailure } from "./failures.ts";
+import { ProviderFailure, classifyProviderFailure, isToolChoiceRejection } from "./failures.ts";
 import { runtimeConfig } from "../config/runtime.ts";
 import { fetchWithIdleTimeout } from "../network/idle-fetch.ts";
 import { readImageDataUrl } from "../images/store.ts";
@@ -45,6 +45,8 @@ type CompletionInput = {
   tools: ChatTool[];
   imageContext?: { dataDir: string; conversationId: string };
   signal?: AbortSignal;
+  /** required 时试发 tool_choice；网关/模型拒绝则本次降级 auto。 */
+  toolChoice?: "auto" | "required";
 };
 
 const keyMissing = () => {
@@ -116,8 +118,8 @@ export function createProvider(config: ProviderConfig = {}) {
       fetchWithIdleTimeout(url, { ...init, ...(proxy ? { proxy } : {}) } as RequestInit),
   });
 
-  const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: { dataDir: string; conversationId: string }, signal?: AbortSignal) => {
-    if (config.api === "responses") return completeResponses(client, { model, reasoningEffort, messages, tools, imageContext, signal });
+  const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: { dataDir: string; conversationId: string }, signal?: AbortSignal, toolChoice?: "auto" | "required") => {
+    if (config.api === "responses") return completeResponses(client, { model, reasoningEffort, messages, tools, imageContext, signal, toolChoice });
     const sanitize = config.sanitizeToolNames === true;
     const { tools: wireTools, byWire } = mapToolsForWire(tools, sanitize);
     const outgoing: ChatCompletionMessageParam[] = messages.map(message => {
@@ -137,6 +139,7 @@ export function createProvider(config: ProviderConfig = {}) {
       stream: false,
       messages: outgoing,
       tools: wireTools,
+      ...(toolChoice === "required" ? { tool_choice: "required" as const } : {}),
     }, { signal }).asResponse();
     // Avoid the SDK's total body-duration timeout: received chunks reset our idle timer.
     const response = await rawResponse.json() as ChatCompletion;
@@ -164,11 +167,12 @@ export function createProvider(config: ProviderConfig = {}) {
     complete: async (input: CompletionInput): Promise<CompletionResult> => {
       let lastError: unknown;
       let attempts = 0;
+      let toolChoice = input.toolChoice;
       for (let attempt = 1; attempt <= runtimeConfig.network.maxAttempts; attempt++) {
         if (input.signal?.aborted) return stoppedResult(attempts);
         attempts = attempt;
         try {
-          const { content, calls, finish } = await once(input.messages, input.tools, input.imageContext, input.signal);
+          const { content, calls, finish } = await once(input.messages, input.tools, input.imageContext, input.signal, toolChoice);
           if (input.signal?.aborted) return stoppedResult(attempts);
           // Both adapters reject incomplete or invalid batches before argument parsing.
           if (finish === "stop") {
@@ -211,6 +215,11 @@ export function createProvider(config: ProviderConfig = {}) {
           };
         } catch (error) {
           if (input.signal?.aborted) return stoppedResult(attempts);
+          if (toolChoice === "required" && isToolChoiceRejection(error)) {
+            toolChoice = undefined;
+            attempt -= 1;
+            continue;
+          }
           lastError = error;
           if (!classifyProviderFailure(error).retryable || attempt === runtimeConfig.network.maxAttempts) break;
           try {

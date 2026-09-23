@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { createGeminiProvider } from "./gemini.ts";
+import { runtimeConfig } from "../config/runtime.ts";
 import { providerApiKeyEnv, providerOptions } from "./config.ts";
 
 const providerFor = (port: number, extra: { googleSearch?: boolean } = {}) =>
@@ -41,7 +42,7 @@ test("请求体包含 systemInstruction、google_search 与 functionDeclarations
     expect(captured.body.contents).toEqual([{ role: "user", parts: [{ text: "帮我查一下" }] }]);
     expect(captured.body.tools[0]).toEqual({ google_search: {} });
     expect(captured.body.tools[1].functionDeclarations[0].name).toBe("notes.write");
-    expect(captured.body.toolConfig).toEqual({ functionCallingConfig: { mode: "ANY" } });
+    expect(captured.body.toolConfig).toEqual({ functionCallingConfig: { mode: "AUTO" } });
   } finally { server.stop(true); }
 });
 
@@ -125,6 +126,7 @@ test("grounding 作为独立字段返回，不混入 content 或 toolCalls", asy
 });
 
 for (const status of [401, 429, 500]) {
+  const retried = status === 429 || status >= 500;
   test(`HTTP ${status} 重试次数与 Chat/Responses 策略一致`, async () => {
     let requests = 0;
     const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch() {
@@ -133,11 +135,11 @@ for (const status of [401, 429, 500]) {
     } });
     try {
       const result = await providerFor(server.port!).complete({ messages, tools });
-      expect(requests).toBe(status === 429 || status >= 500 ? 3 : 1);
+      expect(requests).toBe(retried ? runtimeConfig.network.maxAttempts : 1);
       expect(result.attempts).toBe(requests);
       expect(result.faultCode).toBe(status === 401 ? "provider_key_invalid" : "provider_error");
     } finally { server.stop(true); }
-  });
+  }, retried ? 30_000 : 10_000);
 }
 
 test("关闭 google_search 后 tools 仅剩 functionDeclarations", async () => {
@@ -150,7 +152,29 @@ test("关闭 google_search 后 tools 仅剩 functionDeclarations", async () => {
     await providerFor(server.port!, { googleSearch: false }).complete({ messages, tools });
     expect(captured.tools).toHaveLength(1);
     expect(captured.tools[0].functionDeclarations).toBeDefined();
-    expect(captured.toolConfig).toEqual({ functionCallingConfig: { mode: "ANY" } });
+    expect(captured.toolConfig).toEqual({ functionCallingConfig: { mode: "AUTO" } });
+  } finally { server.stop(true); }
+});
+
+test("toolChoice required 映射为 ANY，被拒后降级 AUTO", async () => {
+  let requests = 0;
+  const bodies: any[] = [];
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(request) {
+    requests++;
+    const body = await request.json();
+    bodies.push(body);
+    if (body.toolConfig?.functionCallingConfig?.mode === "ANY") {
+      return geminiBody({ error: { message: "functionCallingConfig.mode ANY is not supported", code: 400 } }, 400);
+    }
+    return geminiBody({ candidates: [{ finishReason: "STOP", content: { parts: [{ text: "ok" }] } }] });
+  } });
+  try {
+    const result = await providerFor(server.port!, { googleSearch: false }).complete({ messages, tools, toolChoice: "required" });
+    expect(requests).toBe(2);
+    expect(bodies[0]!.toolConfig.functionCallingConfig.mode).toBe("ANY");
+    expect(bodies[1]!.toolConfig.functionCallingConfig.mode).toBe("AUTO");
+    expect(result.attempts).toBe(1);
+    expect(result.finish).toBe("stop");
   } finally { server.stop(true); }
 });
 

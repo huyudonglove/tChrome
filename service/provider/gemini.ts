@@ -1,5 +1,5 @@
 import { setTimeout as sleep } from "node:timers/promises";
-import { ProviderFailure, classifyProviderFailure } from "./failures.ts";
+import { ProviderFailure, classifyProviderFailure, isToolChoiceRejection } from "./failures.ts";
 import { runtimeConfig } from "../config/runtime.ts";
 import { fetchWithIdleTimeout } from "../network/idle-fetch.ts";
 import { readImageDataUrl } from "../images/store.ts";
@@ -19,6 +19,7 @@ type CompletionInput = {
   tools: ChatTool[];
   imageContext?: { dataDir: string; conversationId: string };
   signal?: AbortSignal;
+  toolChoice?: "auto" | "required";
 };
 
 type GeminiPart = {
@@ -98,7 +99,7 @@ export function createGeminiProvider(config: GeminiConfig = {}) {
     return { complete: async (input: CompletionInput) => input.signal?.aborted ? stoppedResult(0) : keyMissing() };
   }
 
-  const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: CompletionInput["imageContext"]) => {
+  const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: CompletionInput["imageContext"], toolChoice?: CompletionInput["toolChoice"]) => {
     const system = messages.find((message) => message.role === "system")?.content ?? "";
     const user = messages.find((message) => message.role === "user");
     if (!user) throw new ProviderFailure("invalid_response", "gemini_missing_user_message");
@@ -127,7 +128,7 @@ export function createGeminiProvider(config: GeminiConfig = {}) {
       contents: [{ role: "user", parts }],
       ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
       ...(requestTools.length ? { tools: requestTools } : {}),
-      ...(functionDeclarations.length ? { toolConfig: { functionCallingConfig: { mode: "ANY" } } } : {}),
+      ...(functionDeclarations.length ? { toolConfig: { functionCallingConfig: { mode: toolChoice === "required" ? "ANY" : "AUTO" } } } : {}),
     };
 
     const response = await fetchWithIdleTimeout(
@@ -193,11 +194,12 @@ export function createGeminiProvider(config: GeminiConfig = {}) {
     complete: async (input: CompletionInput): Promise<CompletionResult> => {
       let lastError: unknown;
       let attempts = 0;
+      let toolChoice = input.toolChoice;
       for (let attempt = 1; attempt <= runtimeConfig.network.maxAttempts; attempt++) {
         if (input.signal?.aborted) return stoppedResult(attempts);
         attempts = attempt;
         try {
-          const { content, calls, finish, grounding } = await once(input.messages, input.tools, input.imageContext);
+          const { content, calls, finish, grounding } = await once(input.messages, input.tools, input.imageContext, toolChoice);
           if (input.signal?.aborted) return stoppedResult(attempts);
           if (finish === "stop") {
             return {
@@ -220,6 +222,11 @@ export function createGeminiProvider(config: GeminiConfig = {}) {
           };
         } catch (error) {
           if (input.signal?.aborted) return stoppedResult(attempts);
+          if (toolChoice === "required" && isToolChoiceRejection(error)) {
+            toolChoice = undefined;
+            attempt -= 1;
+            continue;
+          }
           lastError = error;
           if (!classifyProviderFailure(error).retryable || attempt === runtimeConfig.network.maxAttempts) break;
           try {

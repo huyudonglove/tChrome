@@ -1,7 +1,7 @@
 {
   "network": {
     "idleTimeoutMs": 90000,
-    "maxAttempts": 3,
+    "maxAttempts": 10,
     "retryDelayMs": 1000
   },
   "sdk": {

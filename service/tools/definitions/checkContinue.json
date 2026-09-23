@@ -1,0 +1,17 @@
+{
+  "type": "function",
+  "function": {
+    "name": "checkContinue",
+    "description": "执行预算检查点。同一工具在本轮超过 20 次时应调用：true=继续执行，false=直接结束本 turn。60 次仍未调用将由 Runtime 强制收口。\n参数：必填 cont（boolean）。\n返回：ok、cont、同工具计数。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": { "type": "string" },
+        "affectsPage": { "type": "boolean", "const": false },
+        "cont": { "type": "boolean", "description": "true 继续；false 中断本 turn" }
+      },
+      "required": ["reason", "affectsPage", "cont"],
+      "additionalProperties": false
+    }
+  }
+}

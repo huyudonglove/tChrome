@@ -156,6 +156,8 @@
     "script_write",
     "script_patch",
     "script_read",
-    "script_list"
+    "script_list",
+    "checkContinue",
+    "reportProgress"
   ]
 }

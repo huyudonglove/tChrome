@@ -11,6 +11,7 @@ export async function completeResponses(client: OpenAI, input: {
   tools: ChatTool[];
   imageContext?: { dataDir: string; conversationId: string };
   signal?: AbortSignal;
+  toolChoice?: "auto" | "required";
 }): Promise<{
   content: string;
   calls: { id: string; name: string; arguments: string }[];
@@ -48,6 +49,7 @@ export async function completeResponses(client: OpenAI, input: {
       parameters: tool.function.parameters,
       strict: false,
     })),
+    ...(input.toolChoice === "required" ? { tool_choice: "required" as const } : {}),
   }, { signal: input.signal }).asResponse();
   const response = await rawResponse.json() as ModelResponse;
 

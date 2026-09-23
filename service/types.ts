@@ -225,6 +225,7 @@ export type Provider = {
     tools: ChatTool[];
     imageContext?: { dataDir: string; conversationId: string };
     signal?: AbortSignal;
+    toolChoice?: "auto" | "required";
   }): Promise<CompletionResult>;
 };
 

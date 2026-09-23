@@ -7,3 +7,4 @@ dist/
 .playwright-mcp/
 preview-panel/
 compound-tools-safeguards.html
+docs/

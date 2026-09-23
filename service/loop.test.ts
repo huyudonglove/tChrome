@@ -677,20 +677,21 @@ test("缺字段写进 toolIO 再出网，不补齐", async () => {
 
 test("stop 没有 tool_calls 就写 needFinishTurn 再出网", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-need-finish-"));
-  const provider = mock([
-    ok({
-      finish: "stop",
-      content: "",
-      toolCalls: [],
-    }),
-    ok({
-      finish: "tool_calls",
-      content: "",
-      toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { text: "测完了", reason: "答完", affectsPage: false} }],
-    }),
-  ]);
+  const seen: (string | undefined)[] = [];
+  const results = [
+    ok({ finish: "stop", content: "", toolCalls: [] }),
+    ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "call_01", name: "finishTurn", arguments: { text: "测完了", reason: "答完", affectsPage: false} }] }),
+  ];
+  let i = 0;
+  const provider: Provider = {
+    complete: async (input) => {
+      seen.push(input.toolChoice);
+      return results[i++] ?? results.at(-1)!;
+    },
+  };
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "测完了吗", submittedAt: "2026-09-06T00:00:00.000Z" });
   expect(reply.output).toEqual({ kind: "reply", text: "测完了" });
+  expect(seen).toEqual([undefined, "required"]);
   const ledger = loadLedger(dir, "cv_01");
   expect(ledger.toolIO[0]!.name).toBe("finishTurn");
   expect(ledger.toolIO[0]!.return.text).toContain("没有 tool_calls");

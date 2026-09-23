@@ -16,6 +16,12 @@ export class ProviderFailure extends Error {
   constructor(readonly kind: FailureKind, detail: string) { super(detail); this.name = "ProviderFailure"; }
 }
 
+/** 网关或 thinking 模式拒绝 tool_choice / functionCallingConfig，可降级 auto 后原样重试。 */
+export function isToolChoiceRejection(error: unknown): boolean {
+  const text = error instanceof Error ? error.message : String(error);
+  return /tool_choice|toolChoice|functionCallingConfig/i.test(text);
+}
+
 export function classifyProviderFailure(error: unknown): { faultCode: string; retryable: boolean } {
   if (error instanceof ProviderFailure) return policies[error.kind];
   if (error instanceof HttpIdleTimeoutError) return { faultCode: "provider_error", retryable: true };
