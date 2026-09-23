@@ -23,7 +23,7 @@ export function admitText(
       lineWidth,
       preview: full.slice(0, previewChars),
       path: meta.path,
-      message: `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（preview 前 ${previewChars} 字，全文 ${totalLines} 行）。要细节请更精准：evidence.search(${locate}, keyword) 或 startLine，取回结果会再过同一门禁。`,
+      message: `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（preview 前 ${previewChars} 字，全文 ${totalLines} 行）。要细节请更精准：evidence.search(windows=[{${locate},keyword|startLine}])，可一次带多个窗口；取回结果会再过同一门禁。`,
       search: "evidence.search",
     },
   };

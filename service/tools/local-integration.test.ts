@@ -21,9 +21,9 @@ test("filesystem tools read and write the scripts directory", async () => {
   try {
     expect(await patchScript(dataDir, { filename: "saved.sh", patch: "--- /dev/null\n+++ b/saved.sh\n@@ -0,0 +1 @@\n+printf saved\n" })).toMatchObject({ ok: true });
     const scripts = join(dataDir, "scripts"), saved = join(scripts, "saved.sh");
-    expect(await runLocalTool("local.fs_read", { path: saved }, dataDir, "cv_01")).toMatchObject({ ok: true, content: "printf saved\n" });
+    expect(await runLocalTool("local.fs_read", { items: [{ path: saved }] }, dataDir, "cv_01")).toMatchObject({ ok: true, results: [{ ok: true, content: "printf saved\n" }] });
     expect(await runLocalTool("local.fs_write", { path: saved, content: "printf overwritten\n" }, dataDir, "cv_01")).toMatchObject({ ok: true });
-    expect(await runLocalTool("local.fs_read", { path: saved }, dataDir, "cv_01")).toMatchObject({ ok: true, content: "printf overwritten\n" });
+    expect(await runLocalTool("local.fs_read", { items: [{ path: saved }] }, dataDir, "cv_01")).toMatchObject({ ok: true, results: [{ ok: true, content: "printf overwritten\n" }] });
     expect(await runLocalTool("local.fs_write", { path: join(scripts, "new.sh"), content: "printf new\n" }, dataDir, "cv_01")).toMatchObject({ ok: true });
     expect(await runLocalTool("local.fs_mkdir", { path: join(scripts, "nested") }, dataDir, "cv_01")).toMatchObject({ ok: true });
     expect(await runLocalTool("local.fs_write", { path: join(dataDir, "ordinary.txt"), content: "data" }, dataDir, "cv_01")).toMatchObject({ ok: true });

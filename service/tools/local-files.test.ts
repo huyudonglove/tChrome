@@ -15,16 +15,30 @@ test("writes and appends files; UTF-8 byte pagination preserves complete charact
   let offset = 0;
   let content = "";
   for (let page = 0; page < 10; page++) {
-    const result = await run("local.fs_read", { path, offset, limit: 4 });
+    const result = await run("local.fs_read", { items: [{ path, offset, limit: 4 }] });
     expect(result.ok).toBe(true);
-    content += result.content;
-    offset = result.nextOffset as number;
-    if (!result.truncated) break;
+    const row = (result.results as Record<string, unknown>[])[0]!;
+    content += row.content as string;
+    offset = row.nextOffset as number;
+    if (!row.truncated) break;
   }
   expect(content).toBe("abc你好世界!");
   expect(offset).toBe(16);
-  expect(await run("local.fs_read", { path: root })).toMatchObject({ ok: false });
-  expect(await run("local.fs_read", { path, offset: 100 })).toMatchObject({ content: "", truncated: false });
+  expect(await run("local.fs_read", { items: [{ path: root }] })).toMatchObject({ ok: false, results: [{ ok: false }] });
+  expect(await run("local.fs_read", { items: [{ path, offset: 100 }] })).toMatchObject({ ok: true, results: [{ content: "", truncated: false }] });
+});
+
+test("fs_read items read several files in one call with per-item ok", async () => {
+  const a = join(root, "a.txt");
+  const b = join(root, "b.txt");
+  const missing = join(root, "missing.txt");
+  await writeFile(a, "AAA");
+  await writeFile(b, "BBB");
+  const result = await run("local.fs_read", { items: [{ path: a }, { path: b }, { path: missing }] }) as { ok: boolean; results: { ok: boolean; content?: string; faultCode?: string }[] };
+  expect(result.ok).toBe(false);
+  expect(result.results.map((row) => row.content)).toEqual(["AAA", "BBB", undefined]);
+  expect(result.results[0]!.ok).toBe(true);
+  expect(result.results[2]).toMatchObject({ ok: false });
 });
 
 test("copy and move reject existing destinations by default without changing source", async () => {

@@ -18,23 +18,24 @@ test("evidence.search returns default ±2000 context around keyword from cached 
     saveFullReturn(dataDir, "cv_01", "call_09", body);
     const execution = await executeTool({
       name: "evidence.search",
-      arguments: { reason: "查关键字", callId: "call_09", keyword: "NEEDLE_IN_HAYSTACK" },
+      arguments: { reason: "查关键字", windows: [{ callId: "call_09", keyword: "NEEDLE_IN_HAYSTACK" }] },
       dataDir,
       conversationId: "cv_01",
       lookup,
     });
-    const parsed = JSON.parse(execution.text);
-    expect(parsed.ok).toBe(true);
-    expect(parsed.mode).toBe("search");
-    expect(parsed.matchCount).toBe(1);
-    expect(parsed.path).toBe(join(dataDir, "conversations", "cv_01", "returns", "call_09.txt"));
-    expect(parsed.lineWidth).toBe(runtimeConfig.results.lineWidth);
-    expect(parsed.totalLines).toBe(Math.ceil(body.length / runtimeConfig.results.lineWidth));
-    expect(parsed.matches[0].hit).toBe("NEEDLE_IN_HAYSTACK");
-    expect(parsed.matches[0].lineStart).toBeGreaterThan(0);
-    expect(parsed.matches[0].lineEnd).toBeGreaterThanOrEqual(parsed.matches[0].lineStart);
-    expect(parsed.matches[0].before.length).toBe(runtimeConfig.results.searchContextChars);
-    expect(parsed.matches[0].after.length).toBe(runtimeConfig.results.searchContextChars);
+    const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[] };
+    const row = parsed.results[0]! as Record<string, unknown>;
+    expect(row.ok).toBe(true);
+    expect(row.mode).toBe("search");
+    expect(row.matchCount).toBe(1);
+    expect(row.path).toBe(join(dataDir, "conversations", "cv_01", "returns", "call_09.txt"));
+    expect(row.lineWidth).toBe(runtimeConfig.results.lineWidth);
+    expect(row.totalLines).toBe(Math.ceil(body.length / runtimeConfig.results.lineWidth));
+    expect((row.matches as { hit: string; lineStart: number; lineEnd: number; before: string; after: string }[])[0]!.hit).toBe("NEEDLE_IN_HAYSTACK");
+    expect((row.matches as { lineStart: number }[])[0]!.lineStart).toBeGreaterThan(0);
+    expect((row.matches as { lineStart: number; lineEnd: number }[])[0]!.lineEnd).toBeGreaterThanOrEqual((row.matches as { lineStart: number }[])[0]!.lineStart);
+    expect((row.matches as { before: string }[])[0]!.before.length).toBe(runtimeConfig.results.searchContextChars);
+    expect((row.matches as { after: string }[])[0]!.after.length).toBe(runtimeConfig.results.searchContextChars);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
@@ -61,21 +62,22 @@ test("evidence.search lines mode reads from startLine within the searchContextCh
     saveFullReturn(dataDir, "cv_01", "call_lines", body);
     const execution = await executeTool({
       name: "evidence.search",
-      arguments: { reason: "按行读", callId: "call_lines", startLine: 3 },
+      arguments: { reason: "按行读", windows: [{ callId: "call_lines", startLine: 3 }] },
       dataDir,
       conversationId: "cv_01",
       lookup,
     });
-    const parsed = JSON.parse(execution.text);
-    expect(parsed.ok).toBe(true);
-    expect(parsed.mode).toBe("lines");
-    expect(parsed.totalLines).toBe(30);
-    expect(parsed.startLine).toBe(3);
+    const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[] };
+    const row = parsed.results[0]! as Record<string, unknown>;
+    expect(row.ok).toBe(true);
+    expect(row.mode).toBe("lines");
+    expect(row.totalLines).toBe(30);
+    expect(row.startLine).toBe(3);
     // Same default window as keyword search: searchContextChars chars → ~20 full lines at width 100.
-    expect(parsed.endLine).toBe(22);
-    expect(parsed.lines.map((row: { line: number }) => row.line)).toEqual(Array.from({ length: 20 }, (_, i) => i + 3));
-    expect(parsed.lines[0].text).toHaveLength(width);
-    const textLen = parsed.lines.reduce((sum: number, row: { text: string }) => sum + row.text.length, 0);
+    expect(row.endLine).toBe(22);
+    expect((row.lines as { line: number }[]).map((item) => item.line)).toEqual(Array.from({ length: 20 }, (_, i) => i + 3));
+    expect((row.lines as { text: string }[])[0]!.text).toHaveLength(width);
+    const textLen = (row.lines as { text: string }[]).reduce((sum, item) => sum + item.text.length, 0);
     expect(textLen).toBeLessThanOrEqual(runtimeConfig.results.searchContextChars);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
@@ -86,16 +88,16 @@ test("evidence.search rejects keyword with startLine and blank modes", async () 
     saveFullReturn(dataDir, "cv_01", "call_01", "hello world");
     const both = await executeTool({
       name: "evidence.search",
-      arguments: { reason: "x", callId: "call_01", keyword: "hello", startLine: 1 },
+      arguments: { reason: "x", windows: [{ callId: "call_01", keyword: "hello", startLine: 1 }] },
       dataDir, conversationId: "cv_01", lookup,
     });
-    expect(JSON.parse(both.text)).toMatchObject({ ok: false, faultCode: "invalid_arguments" });
+    expect(JSON.parse(both.text)).toMatchObject({ ok: false, results: [{ ok: false, faultCode: "invalid_arguments" }] });
     const blank = await executeTool({
       name: "evidence.search",
-      arguments: { reason: "x", callId: "call_01" },
+      arguments: { reason: "x", windows: [{ callId: "call_01" }] },
       dataDir, conversationId: "cv_01", lookup,
     });
-    expect(JSON.parse(blank.text)).toMatchObject({ ok: false, faultCode: "invalid_arguments" });
+    expect(JSON.parse(blank.text)).toMatchObject({ ok: false, results: [{ ok: false, faultCode: "invalid_arguments" }] });
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
@@ -109,16 +111,45 @@ test("evidence.search reads page observation archive and returns file path", asy
     });
     const execution = await executeTool({
       name: "evidence.search",
-      arguments: { reason: "查元素", pageId: "page_01", keyword: "alpha-target" },
+      arguments: { reason: "查元素", windows: [{ pageId: "page_01", keyword: "alpha-target" }] },
       dataDir,
       conversationId: "cv_01",
       lookup,
     });
-    const parsed = JSON.parse(execution.text);
-    expect(parsed.ok).toBe(true);
-    expect(parsed.source).toBe("page:page_01");
-    expect(parsed.path).toContain("context-records/pageObservation/page_01.json");
-    expect(parsed.matches[0].hit).toBe("alpha-target");
+    const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[] };
+    const row = parsed.results[0]! as Record<string, unknown>;
+    expect(row.ok).toBe(true);
+    expect(row.source).toBe("page:page_01");
+    expect(row.path).toContain("context-records/pageObservation/page_01.json");
+    expect((row.matches as { hit: string }[])[0]!.hit).toBe("alpha-target");
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+});
+
+test("evidence.search returns one result per window and keeps per-item ok", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-multi-"));
+  try {
+    saveFullReturn(dataDir, "cv_01", "call_a", "alpha NEEDLE beta");
+    saveFullReturn(dataDir, "cv_01", "call_b", "gamma DELTA epsilon");
+    const execution = await executeTool({
+      name: "evidence.search",
+      arguments: {
+        reason: "两段一起读",
+        windows: [
+          { callId: "call_a", keyword: "NEEDLE" },
+          { callId: "call_b", startLine: 1 },
+          { callId: "call_missing", keyword: "x" },
+        ],
+      },
+      dataDir,
+      conversationId: "cv_01",
+      lookup,
+    });
+    const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[] };
+    expect(parsed.ok).toBe(false);
+    expect(parsed.results).toHaveLength(3);
+    expect(parsed.results[0]).toMatchObject({ ok: true, mode: "search", matchCount: 1 });
+    expect(parsed.results[1]).toMatchObject({ ok: true, mode: "lines" });
+    expect(parsed.results[2]).toMatchObject({ ok: false, faultCode: "file_not_found" });
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
@@ -171,15 +202,15 @@ test("evidence.search rejects missing sources and blank keywords", async () => {
   try {
     const missing = await executeTool({
       name: "evidence.search",
-      arguments: { reason: "x", callId: "call_missing", keyword: "abc" },
+      arguments: { reason: "x", windows: [{ callId: "call_missing", keyword: "abc" }] },
       dataDir, conversationId: "cv_01", lookup,
     });
-    expect(JSON.parse(missing.text)).toMatchObject({ ok: false, faultCode: "file_not_found" });
+    expect(JSON.parse(missing.text)).toMatchObject({ ok: false, results: [{ ok: false, faultCode: "file_not_found" }] });
     const blank = await executeTool({
       name: "evidence.search",
-      arguments: { reason: "x", callId: "call_01", keyword: "  " },
+      arguments: { reason: "x", windows: [{ callId: "call_01", keyword: "  " }] },
       dataDir, conversationId: "cv_01", lookup,
     });
-    expect(JSON.parse(blank.text)).toMatchObject({ ok: false, faultCode: "invalid_arguments" });
+    expect(JSON.parse(blank.text)).toMatchObject({ ok: false, results: [{ ok: false, faultCode: "invalid_arguments" }] });
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });

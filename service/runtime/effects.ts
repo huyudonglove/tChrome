@@ -112,7 +112,7 @@ export function applyToolEffects(input: {
               lineWidth,
               preview: previewSource.slice(0, runtimeConfig.results.previewChars),
               path: join(paths(dataDir, ledger.conversationId).conv, "context-records", "pageObservation", `${id}.json`),
-              message: `runtime: 观察结果超过 ${inlineLimit} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；preview 为原文前 ${runtimeConfig.results.previewChars} 字符。用 evidence.search(pageId=${id}, keyword) 按关键字取片段，或只传 startLine 从该行起读约 ${runtimeConfig.results.searchContextChars} 字。`,
+              message: `runtime: 观察结果超过 ${inlineLimit} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；preview 为原文前 ${runtimeConfig.results.previewChars} 字符。用 evidence.search(windows=[{pageId:"${id}",keyword|startLine}]) 取片段，可一次带多个窗口。`,
               search: "evidence.search",
             };
           })()

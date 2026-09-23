@@ -2,37 +2,51 @@
   "type": "function",
   "function": {
     "name": "evidence.search",
-    "description": "在已缓存的超量结果中检索或按行读取。单次工具返回或页面观察 result 超过内联门禁时，Runtime 只注入摘要与本地 path，全文按固定行宽（默认 100 字/行）写入本地；摘要含 totalLines。\n参数：必填 callId 或 pageId 二选一；检索用 keyword，按行读用 startLine（与 keyword 互斥）；可选 contextChars（默认 2000）。\n按行读取只传 startLine，从该行起返回约 2000 字（上限 4000）（与关键字检索同限），不传 endLine。返回：ok、source、path、lineWidth、totalLines、totalChars、mode=search|lines；search 时 matchCount 与 matches[{offset,lineStart,lineEnd,before,hit,after}]；lines 时 startLine/endLine 与 lines[{line,text}]。只回片段或指定行，不回灌全文。\n执行调度：parallel（Runtime 固定，不必返回）。",
+    "description": "在已缓存的超量结果中检索或按行读取，一次最多 8 个窗口。单次工具返回或页面观察 result 超过内联门禁时，Runtime 只注入摘要与本地 path，全文按固定行宽（默认 100 字/行）写入本地；摘要含 totalLines。\nwindows 每项：callId 或 pageId 二选一；检索用 keyword，按行读用 startLine（与 keyword 互斥）；可选 contextChars（默认 2000）。按行读取只传 startLine，从该行起约 2000 字（上限 4000），不传 endLine。\n返回 results[]，每项含 ok、source、path、lineWidth、totalLines、totalChars、mode=search|lines 及 matches 或 lines；只回片段或指定行，不回灌全文。逐项 ok，失败项带 faultCode/detail。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string"
         },
-        "keyword": {
-          "type": "string",
-          "description": "关键字检索；与 startLine 互斥"
-        },
-        "callId": {
-          "type": "string",
-          "description": "工具调用 ID（call_xx）；与 pageId 二选一"
-        },
-        "pageId": {
-          "type": "string",
-          "description": "页面观察 ID（page_xx）；与 callId 二选一"
-        },
-        "startLine": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "按行读取的起始行（1 起）；提供后进入 lines 模式，不可与 keyword 同用。只需传开始行，窗口约 2000 字（上限 4000）"
-        },
-        "contextChars": {
-          "type": "integer",
-          "description": "关键字两侧保留的字符数，或按行读取的窗口字符数，默认 2000"
+        "windows": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "description": "一次最多 8 个检索/读行窗口",
+          "items": {
+            "type": "object",
+            "properties": {
+              "keyword": {
+                "type": "string",
+                "description": "关键字检索；与 startLine 互斥"
+              },
+              "callId": {
+                "type": "string",
+                "description": "工具调用 ID（call_xx）；与 pageId 二选一"
+              },
+              "pageId": {
+                "type": "string",
+                "description": "页面观察 ID（page_xx）；与 callId 二选一"
+              },
+              "startLine": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "按行读取的起始行（1 起）；提供后进入 lines 模式，不可与 keyword 同用"
+              },
+              "contextChars": {
+                "type": "integer",
+                "description": "关键字两侧保留的字符数，或按行读取的窗口字符数，默认 2000"
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
         }
       },
       "required": [
-        "reason"
+        "reason",
+        "windows"
       ],
       "additionalProperties": false
     }

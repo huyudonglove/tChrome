@@ -10,7 +10,7 @@ test("admitText inlines small text and degrades large text with a precise-fetch 
   expect(large.payload.externalized).toBe(true);
   expect(large.payload.preview).toBe("x".repeat(100));
   expect(String(large.payload.message)).toContain("更精准");
-  expect(String(large.payload.message)).toContain("evidence.search(callId=call_01");
+  expect(String(large.payload.message)).toContain("evidence.search(windows=[{callId=call_01");
 });
 
 test("admitImages splits by byte gate and deferred note asks for a tighter capture", () => {

@@ -58,7 +58,7 @@ export const queryView = (query: QueryEvidence, options: QueryViewOptions = {}) 
     lineWidth,
     preview: serialized.slice(0, previewChars),
     ...(options.path ? { path: options.path } : {}),
-    message: `runtime: 查询结果超过 ${inlineChars} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；preview 为原文前 ${previewChars} 字符。用 evidence.search 按 callId 与 keyword，或只传 startLine（约 ${searchContextChars} 字窗口）检索。`,
+    message: `runtime: 查询结果超过 ${inlineChars} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；preview 为原文前 ${previewChars} 字符。用 evidence.search(windows=[{callId,keyword|startLine}])，可一次带多个窗口。`,
     search: "evidence.search",
     records: [] as QueryRecord[],
   };

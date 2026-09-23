@@ -111,15 +111,16 @@ test("large script results use evidence.search while small follow-up pages stay 
       expect(stub.externalized).toBe(true);
       expect(String(stub.preview).length).toBeGreaterThan(0);
       expect(String(stub.path)).toContain("returns");
-      return response(call("evidence.search", { callId: row.callId, keyword: "PAGE_SENTINEL", contextChars: 20 }));
+      return response(call("evidence.search", { windows: [{ callId: row.callId, keyword: "PAGE_SENTINEL", contextChars: 20 }] }));
     }
     const toolIO = slot(user, "#toolIO");
     const search = toolIO.find((row: any) => row.name === "evidence.search");
     expect(search).toBeDefined();
     const parsed = typeof search.return.result === "string" ? JSON.parse(search.return.result) : search.return.result;
+    const hit = parsed.results[0];
     expect(parsed.ok).toBe(true);
-    expect(parsed.matches[0].hit).toBe("PAGE_SENTINEL");
-    expect(String(parsed.path)).toContain("returns");
+    expect(hit.matches[0].hit).toBe("PAGE_SENTINEL");
+    expect(String(hit.path)).toContain("returns");
     return finish();
   }) }, { userInput: "读取大脚本并检索关键标记", submittedAt: "now" });
   expect(reply.output.kind).toBe("reply");

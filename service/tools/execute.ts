@@ -254,71 +254,97 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   }
   if (name === "evidence.search") {
     if (!input.conversationId) return failedTool("evidence.search 缺少会话标识", "invalid_arguments");
-    const keyword = typeof args.keyword === "string" ? args.keyword : "";
-    const callId = typeof args.callId === "string" ? args.callId.trim() : "";
-    const pageId = typeof args.pageId === "string" ? args.pageId.trim() : "";
-    if (!callId && !pageId) return failedTool("callId 或 pageId 必须提供一个", "invalid_arguments");
-    if (callId && pageId) return failedTool("callId 与 pageId 只能提供一个", "invalid_arguments");
-    const rawStart = args.startLine;
-    const startLine = rawStart == null || rawStart === "" ? null : Number(rawStart);
-    const hasLineMode = startLine !== null;
-    if (hasLineMode && keyword.trim()) return failedTool("keyword 与 startLine 互斥：检索或按行读取二选一", "invalid_arguments");
-    if (!hasLineMode && !keyword.trim()) return failedTool("必须提供 keyword 或 startLine", "invalid_arguments");
-    if (startLine !== null && (!Number.isInteger(startLine) || startLine < 1)) return failedTool("startLine 必须是 ≥1 的整数", "invalid_arguments");
-    const limits = runtimeConfig.results;
-    const rawWindow = Number(args.contextChars ?? limits.searchContextChars);
-    const contextChars = Number.isFinite(rawWindow)
-      ? Math.min(limits.searchMaxContextChars, Math.max(20, Math.floor(rawWindow)))
-      : limits.searchContextChars;
-    const lineWidth = limits.lineWidth;
-    let haystack = "";
-    let source = "";
-    let path = "";
-    if (callId) {
-      path = join(paths(dataDir, input.conversationId).returns, `${callId}.txt`);
-      haystack = loadFullReturn(dataDir, input.conversationId, callId) ?? "";
-      source = `call:${callId}`;
-    } else {
-      const textPath = join(dataDir, "conversations", input.conversationId, "context-records", "pageObservation", `${pageId}.txt`);
-      const jsonPath = join(dataDir, "conversations", input.conversationId, "context-records", "pageObservation", `${pageId}.json`);
-      path = textPath;
-      if (existsSync(textPath)) {
-        haystack = readFileSync(textPath, "utf8");
+    const windows = Array.isArray(args.windows) ? args.windows as Record<string, unknown>[] : [];
+    if (windows.length < 1 || windows.length > 8) return failedTool("windows 必须是 1..8 个窗口", "invalid_arguments");
+    const searchOne = (win: Record<string, unknown>): Record<string, unknown> => {
+      const keyword = typeof win.keyword === "string" ? win.keyword : "";
+      const callId = typeof win.callId === "string" ? win.callId.trim() : "";
+      const pageId = typeof win.pageId === "string" ? win.pageId.trim() : "";
+      if (!callId && !pageId) return { ok: false, faultCode: "invalid_arguments", detail: "callId 或 pageId 必须提供一个" };
+      if (callId && pageId) return { ok: false, faultCode: "invalid_arguments", detail: "callId 与 pageId 只能提供一个" };
+      const rawStart = win.startLine;
+      const startLine = rawStart == null || rawStart === "" ? null : Number(rawStart);
+      const hasLineMode = startLine !== null;
+      if (hasLineMode && keyword.trim()) return { ok: false, faultCode: "invalid_arguments", detail: "keyword 与 startLine 互斥：检索或按行读取二选一" };
+      if (!hasLineMode && !keyword.trim()) return { ok: false, faultCode: "invalid_arguments", detail: "必须提供 keyword 或 startLine" };
+      if (startLine !== null && (!Number.isInteger(startLine) || startLine < 1)) return { ok: false, faultCode: "invalid_arguments", detail: "startLine 必须是 ≥1 的整数" };
+      const limits = runtimeConfig.results;
+      const rawWindow = Number(win.contextChars ?? limits.searchContextChars);
+      const contextChars = Number.isFinite(rawWindow)
+        ? Math.min(limits.searchMaxContextChars, Math.max(20, Math.floor(rawWindow)))
+        : limits.searchContextChars;
+      const lineWidth = limits.lineWidth;
+      let haystack = "";
+      let source = "";
+      let path = "";
+      if (callId) {
+        path = join(paths(dataDir, input.conversationId!).returns, `${callId}.txt`);
+        haystack = loadFullReturn(dataDir, input.conversationId!, callId) ?? "";
+        source = `call:${callId}`;
       } else {
-        path = jsonPath;
-        const raw = loadContextRecord(dataDir, input.conversationId, "pageObservation", pageId);
-        if (raw) {
-          try {
-            const record = JSON.parse(raw) as { result?: unknown };
-            const body = typeof record.result === "string" ? record.result : JSON.stringify(record.result ?? null);
-            haystack = wrapCachedText(body);
-          } catch {
-            haystack = wrapCachedText(raw);
+        const textPath = join(dataDir, "conversations", input.conversationId!, "context-records", "pageObservation", `${pageId}.txt`);
+        const jsonPath = join(dataDir, "conversations", input.conversationId!, "context-records", "pageObservation", `${pageId}.json`);
+        path = textPath;
+        if (existsSync(textPath)) {
+          haystack = readFileSync(textPath, "utf8");
+        } else {
+          path = jsonPath;
+          const raw = loadContextRecord(dataDir, input.conversationId!, "pageObservation", pageId);
+          if (raw) {
+            try {
+              const record = JSON.parse(raw) as { result?: unknown };
+              const body = typeof record.result === "string" ? record.result : JSON.stringify(record.result ?? null);
+              haystack = wrapCachedText(body);
+            } catch {
+              haystack = wrapCachedText(raw);
+            }
           }
         }
+        source = `page:${pageId}`;
       }
-      source = `page:${pageId}`;
-    }
-    const lines = linesOf(haystack);
-    const totalLines = lines.length;
-    const totalChars = haystack.length;
-    if (!haystack) {
-      return result(JSON.stringify({
-        ok: false,
-        faultCode: "file_not_found",
-        source,
-        path,
-        keyword,
-        lineWidth,
-        detail: "未找到已缓存的原文，确认 callId/pageId 是否来自本会话超量结果",
-      }));
-    }
-    if (hasLineMode) {
-      const from = startLine!;
-      if (from > totalLines) {
-        return result(JSON.stringify({
+      const lines = linesOf(haystack);
+      const totalLines = lines.length;
+      const totalChars = haystack.length;
+      if (!haystack) {
+        return {
           ok: false,
-          faultCode: "not_found",
+          faultCode: "file_not_found",
+          source,
+          path,
+          keyword,
+          lineWidth,
+          detail: "未找到已缓存的原文，确认 callId/pageId 是否来自本会话超量结果",
+        };
+      }
+      if (hasLineMode) {
+        const from = startLine!;
+        if (from > totalLines) {
+          return {
+            ok: false,
+            faultCode: "not_found",
+            source,
+            path,
+            mode: "lines",
+            lineWidth,
+            totalLines,
+            totalChars,
+            startLine: from,
+            detail: `startLine 超出总行数 ${totalLines}`,
+          };
+        }
+        let used = 0;
+        let to = from - 1;
+        while (to < totalLines) {
+          const next = lines[to]!.length;
+          if (to >= from && used + next > contextChars) break;
+          used += next;
+          to += 1;
+          if (used >= contextChars) break;
+        }
+        if (to < from) to = from;
+        const slice = lines.slice(from - 1, to).map((text, index) => ({ line: from + index, text }));
+        return {
+          ok: true,
           source,
           path,
           mode: "lines",
@@ -326,64 +352,43 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
           totalLines,
           totalChars,
           startLine: from,
-          detail: `startLine 超出总行数 ${totalLines}`,
-        }));
+          endLine: to,
+          contextChars,
+          lines: slice,
+        };
       }
-      // Same 400-char window as keyword search: only startLine is required.
-      let used = 0;
-      let to = from - 1;
-      while (to < totalLines) {
-        const next = lines[to]!.length;
-        if (to >= from && used + next > contextChars) break;
-        used += next;
-        to += 1;
-        if (used >= contextChars) break;
+      const matches: { offset: number; lineStart: number; lineEnd: number; before: string; hit: string; after: string }[] = [];
+      const lowerHay = haystack.toLowerCase();
+      const needle = keyword.toLowerCase();
+      let from = 0;
+      while (matches.length < limits.searchMaxMatches) {
+        const at = lowerHay.indexOf(needle, from);
+        if (at === -1) break;
+        const before = haystack.slice(Math.max(0, at - contextChars), at);
+        const hit = haystack.slice(at, at + keyword.length);
+        const after = haystack.slice(at + keyword.length, at + keyword.length + contextChars);
+        const lineStart = lineNumberAt(haystack, at);
+        const lineEnd = lineNumberAt(haystack, at + hit.length - 1);
+        matches.push({ offset: at, lineStart, lineEnd, before, hit, after });
+        from = at + Math.max(1, keyword.length);
       }
-      if (to < from) to = from;
-      const slice = lines.slice(from - 1, to).map((text, index) => ({ line: from + index, text }));
-      return result(JSON.stringify({
-        ok: true,
+      return {
+        ok: matches.length > 0,
         source,
         path,
-        mode: "lines",
+        mode: "search",
+        keyword,
+        contextChars,
         lineWidth,
         totalLines,
         totalChars,
-        startLine: from,
-        endLine: to,
-        contextChars,
-        lines: slice,
-      }));
-    }
-    const matches: { offset: number; lineStart: number; lineEnd: number; before: string; hit: string; after: string }[] = [];
-    const lowerHay = haystack.toLowerCase();
-    const needle = keyword.toLowerCase();
-    let from = 0;
-    while (matches.length < limits.searchMaxMatches) {
-      const at = lowerHay.indexOf(needle, from);
-      if (at === -1) break;
-      const before = haystack.slice(Math.max(0, at - contextChars), at);
-      const hit = haystack.slice(at, at + keyword.length);
-      const after = haystack.slice(at + keyword.length, at + keyword.length + contextChars);
-      const lineStart = lineNumberAt(haystack, at);
-      const lineEnd = lineNumberAt(haystack, at + hit.length - 1);
-      matches.push({ offset: at, lineStart, lineEnd, before, hit, after });
-      from = at + Math.max(1, keyword.length);
-    }
-    return result(JSON.stringify({
-      ok: matches.length > 0,
-      source,
-      path,
-      mode: "search",
-      keyword,
-      contextChars,
-      lineWidth,
-      totalLines,
-      totalChars,
-      matchCount: matches.length,
-      matches,
-      ...(matches.length ? {} : { faultCode: "not_found", detail: "关键字未命中缓存原文" }),
-    }));
+        matchCount: matches.length,
+        matches,
+        ...(matches.length ? {} : { faultCode: "not_found", detail: "关键字未命中缓存原文" }),
+      };
+    };
+    const results = windows.map(searchOne);
+    return result(JSON.stringify({ ok: results.every((row) => row.ok), results }));
   }
   if (name === "skill.list") {
     const tag = typeof args.tag === "string" && args.tag.trim() ? args.tag.trim() : undefined;
@@ -509,11 +514,18 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
         ? result(JSON.stringify({ ok: true, asset, window: admitted.text, flavor: textFlavor(window) }))
         : result(JSON.stringify({ ok: true, asset, ...((admitted as { payload?: Record<string, unknown> }).payload ?? {}), flavor: textFlavor(window) }));
     }
-    return externalResult(await runServiceTool(dataDir, "evidence.search", {
-      callId: asset.source.callId ?? asset.name.replace(/\.txt$/, ""),
-      ...(typeof args.keyword === "string" && args.keyword ? { keyword: args.keyword } : {}),
-      ...(typeof args.startLine === "number" ? { startLine: args.startLine } : { keyword: "" }),
-    }, input.signal, input.conversationId));
+    return await executeTool({
+      ...input,
+      name: "evidence.search",
+      arguments: {
+        reason: typeof args.reason === "string" ? args.reason : "asset.read",
+        windows: [{
+          callId: asset.source.callId ?? asset.name.replace(/\.txt$/, ""),
+          ...(typeof args.keyword === "string" && args.keyword ? { keyword: args.keyword } : {}),
+          ...(typeof args.startLine === "number" ? { startLine: args.startLine } : { keyword: "" }),
+        }],
+      },
+    });
   }
   if ((LOCAL_TOOL_NAMES as readonly string[]).includes(name)) {
     if (!input.conversationId) return failedTool("本地工具缺少会话标识", "invalid_arguments");

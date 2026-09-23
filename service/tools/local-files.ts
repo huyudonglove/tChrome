@@ -30,8 +30,44 @@ function typeOf(value: { isSymbolicLink(): boolean; isDirectory(): boolean; isFi
   return value.isSymbolicLink() ? "symlink" : value.isDirectory() ? "directory" : value.isFile() ? "file" : "other";
 }
 
+async function readOneFile(rawPath: unknown, rawOffset: unknown, rawLimit: unknown): Promise<Record<string, unknown>> {
+  try {
+    const path = pathArg({ path: rawPath });
+    const offset = integer({ offset: rawOffset }, "offset", 0, 0, Number.MAX_SAFE_INTEGER);
+    const limit = integer({ limit: rawLimit }, "limit", 65536, 4, 1048576);
+    const file = await open(path, constants.O_RDONLY | constants.O_NONBLOCK);
+    try {
+      const stat = await file.stat();
+      if (!stat.isFile()) throw new Error("path must be a regular file");
+      const buffer = Buffer.alloc(limit + 1);
+      const { bytesRead } = await file.read(buffer, 0, buffer.length, offset);
+      let consumed = Math.min(bytesRead, limit);
+      // Keep complete UTF-8 characters when the next page starts at nextOffset.
+      if (bytesRead > limit) {
+        while (consumed > 0 && (buffer[consumed]! & 0xc0) === 0x80) consumed--;
+        if (consumed === 0) consumed = limit; // Invalid UTF-8 must still make progress.
+      }
+      return { ok: true, path, content: buffer.subarray(0, consumed).toString("utf8"), offset, nextOffset: offset + consumed, size: stat.size, truncated: offset + consumed < stat.size };
+    } finally { await file.close(); }
+  } catch (error) {
+    const { faultCode, detail, message } = errorInfo(error, "tool_execution_failed");
+    return { ok: false, faultCode, error: detail || message };
+  }
+}
+
 export async function runLocalFileTool(name: string, input: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
   try {
+    if (name === "local.fs_read") {
+      const items = input.items;
+      if (!Array.isArray(items) || items.length < 1 || items.length > 8) {
+        throw new Error("items must be an array of 1..8 {path, offset?, limit?}");
+      }
+      const results = await Promise.all(items.map((item) => {
+        const row = (item ?? {}) as Record<string, unknown>;
+        return readOneFile(row.path, row.offset, row.limit);
+      }));
+      return { ok: results.every((row) => row.ok), results };
+    }
     if (name === "local.fs_copy" || name === "local.fs_move") {
       const source = pathArg(input, "source");
       const destination = pathArg(input, "destination");
@@ -69,24 +105,6 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
           entries.push({ name: entry.name, path: join(path, entry.name), type: typeOf(entry) });
         }
         return { ok: true, path, entries, truncated };
-      }
-      case "local.fs_read": {
-        const offset = integer(input, "offset", 0, 0, Number.MAX_SAFE_INTEGER);
-        const limit = integer(input, "limit", 65536, 4, 1048576);
-        const file = await open(path, constants.O_RDONLY | constants.O_NONBLOCK);
-        try {
-          const stat = await file.stat();
-          if (!stat.isFile()) throw new Error("path must be a regular file");
-          const buffer = Buffer.alloc(limit + 1);
-          const { bytesRead } = await file.read(buffer, 0, buffer.length, offset);
-          let consumed = Math.min(bytesRead, limit);
-          // Keep complete UTF-8 characters when the next page starts at nextOffset.
-          if (bytesRead > limit) {
-            while (consumed > 0 && (buffer[consumed]! & 0xc0) === 0x80) consumed--;
-            if (consumed === 0) consumed = limit; // Invalid UTF-8 must still make progress.
-          }
-          return { ok: true, path, content: buffer.subarray(0, consumed).toString("utf8"), offset, nextOffset: offset + consumed, size: stat.size, truncated: offset + consumed < stat.size };
-        } finally { await file.close(); }
       }
       case "local.replace_block": {
         if (typeof input.search !== "string" || !input.search.length) throw new Error("search must be a non-empty string");
