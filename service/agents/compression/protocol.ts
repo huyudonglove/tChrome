@@ -15,14 +15,15 @@ export const COMPRESSION_FORMAT_ATTEMPTS = 3;
 
 function formatFault(response: CompletionResult, toolName: string): string | null {
   if (response.finish === "error" && response.faultCode) return null;
-  if (response.finish !== "tool_calls") return `finish=${response.finish}; 必须通过一次 ${toolName} 工具调用提交摘要`;
-  if (response.toolCalls.length !== 1) return `toolCalls.length=${response.toolCalls.length}; 这一次回包只能有一个 ${toolName}`;
+  if (response.finish !== "tool_calls") return `finish=${response.finish}; 必须通过 ${toolName} 工具调用提交摘要`;
+  if (!response.toolCalls.length) return `toolCalls.length=0; 至少调用一次 ${toolName}`;
   if (response.faultCode || !response.parseOk || !response.schemaOk || response.toolCallFaults?.length || response.missing.length) {
     return response.detail || response.faultCode || (!response.parseOk ? "parse_failed" : "schema_failed");
   }
-  const call = response.toolCalls[0]!;
-  if (typeof call.id !== "string" || !call.id.trim()) return "missing valid call ID";
-  if (call.name !== toolName) return `tool mismatch: expected ${toolName}, received ${call.name}`;
+  for (const call of response.toolCalls) {
+    if (typeof call.id !== "string" || !call.id.trim()) return "missing valid call ID";
+    if (call.name !== toolName) return `tool mismatch: expected ${toolName}, received ${call.name}`;
+  }
   return null;
 }
 
@@ -55,20 +56,20 @@ export function compressionTurnsFromUserMessage(content: string): CompressionTur
 
 export function compressionRepairInstruction(toolName: string, turnId: string, fault: string): string {
   if (fault.includes('"must be object"') || fault.includes("must be object")) {
-    return `上一次参数不是对象。只提交 {tag, actions, result} 三个非空字符串，不要包数组，也不要填 turnId。本轮是 ${turnId}。请修正后，在这一次回包里只调一次 ${toolName}。`;
+    return `上一次参数不是对象。每个 ${toolName} 只提交 {tag, actions, result} 三个非空字符串，不要包数组，也不要填 turnId。本轮是 ${turnId}。大轮可拆成多条 ${toolName}（同属本轮）。请修正后在一次回包里调用一或多个 ${toolName}。`;
   }
-  return `上一次 ${toolName} 无效。请看 fault。只提交 {tag, actions, result} 三个非空字符串。本轮是 ${turnId}，不要填 turnId。请修正后，在这一次回包里只调一次 ${toolName}。`;
+  return `上一次 ${toolName} 无效。请看 fault。每个 ${toolName} 只提交 {tag, actions, result} 三个非空字符串。本轮是 ${turnId}，不要填 turnId。大轮可拆成多条 ${toolName}（同属本轮）。请修正后在一次回包里调用一或多个 ${toolName}。`;
 }
 
-/** One turn per request: sequential callers archive on success and stop the walk on failure. */
-export async function requestTurnSummary(input: {
+/** One turn per request. One response may carry several summaries for that turn; all must be valid. */
+export async function requestTurnSummaries(input: {
   provider: Provider;
   repoRoot: string;
   turn: CompressionTurn;
   dataDir: string;
   conversationId: string;
   module?: string;
-}): Promise<TurnSummary> {
+}): Promise<TurnSummary[]> {
   const log = compressionLog(input.dataDir, input.conversationId);
   const append = (stage: string, data: unknown) => {
     try { log.append(stage, data); } catch {}
@@ -113,23 +114,31 @@ export async function requestTurnSummary(input: {
         if (attempt === COMPRESSION_FORMAT_ATTEMPTS) throw new Error(`Compression agent format failed after ${COMPRESSION_FORMAT_ATTEMPTS} attempts: ${protocolFault}`);
         continue;
       }
-      const call = response.toolCalls[0]!;
-      if (!validate(call.arguments)) {
-        lastError = `Compression submission schema failed: ${JSON.stringify(validate.errors)}`;
+      // All calls in the response must validate; a partial batch is not committed.
+      const summaries: TurnSummary[] = [];
+      let schemaFault: string | null = null;
+      for (const call of response.toolCalls) {
+        if (!validate(call.arguments)) {
+          schemaFault = `Compression submission schema failed: ${JSON.stringify(validate.errors)}`;
+          break;
+        }
+        const value = call.arguments as SubmittedTurnFields;
+        summaries.push({
+          turnId,
+          tag: value.tag.trim(),
+          userRequest: userRequestFromTurn(input.turn),
+          actions: value.actions.trim(),
+          result: value.result.trim(),
+        });
+      }
+      if (schemaFault) {
+        lastError = schemaFault;
         append("validation-error", { attempt, errors: validate.errors });
         if (attempt === COMPRESSION_FORMAT_ATTEMPTS) throw new Error(lastError);
         continue;
       }
-      const value = call.arguments as SubmittedTurnFields;
-      const summary: TurnSummary = {
-        turnId,
-        tag: value.tag.trim(),
-        userRequest: userRequestFromTurn(input.turn),
-        actions: value.actions.trim(),
-        result: value.result.trim(),
-      };
-      append("complete", { attempt, summary });
-      return summary;
+      append("complete", { attempt, summaries });
+      return summaries;
     }
     throw new Error(`Compression agent format failed after ${COMPRESSION_FORMAT_ATTEMPTS} attempts: ${lastError}`);
   } catch (error) {

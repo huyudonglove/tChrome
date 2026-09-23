@@ -23,5 +23,6 @@ export const pageView = (page: PageObservation) => ({
 export const lastActionView = (action: LastAction | null) => action;
 
 
+/** One summary row; a large turn may have several rows sharing the same turnId. */
 export type TurnSummary = { id: string; turnId: string; tag: string; userRequest: string; actions: string; result: string };
 export const turnSummaryView = (records: TurnSummary[] = []) => records.map(({ id, turnId, tag, userRequest, actions, result }) => ({ sumId: id, turnId, tag, userRequest, actions, result }));

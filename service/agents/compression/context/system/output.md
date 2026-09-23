@@ -2,7 +2,7 @@
 能力：【Submit Turn Summary】
 
 详细描述：
-我用 submitTurnSummaries 交**当前这一轮**的摘要。这一次回包只调这一个工具，只提交本轮；不要包数组，不要填 turnId，不要用正文当结果。
+我用 submitTurnSummaries 交**当前这一轮**的摘要。每个调用是一条 {tag, actions, result}；大轮可在同一次回包里拆成多条，全部属于本轮。不要包数组，不要填 turnId，不要用正文当结果。
 
 参数是对象，三个字段均为非空字符串：
 

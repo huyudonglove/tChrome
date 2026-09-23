@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `skill` | 字符串 | 无 |
 | `userInput` | `{id, turnId, userInput}` | `id` |
-| `conversationHistorySummary` | `[{sumId, turnId, tag, userRequest, actions, result}]` | `sumId` |
+| `conversationHistorySummary` | `[{sumId, turnId, tag, userRequest, actions, result}]`；同一 `turnId` 可多条（大轮拆段） | `sumId` |
 | `userInputHistory` | 用户输入记录数组 | `id` |
 | `goal` | `{currentGoalId, goals}`；goals 为全部 active 目标及其父级记录 | `currentGoalId`、记录 `id` / `parentId` |
 | `goalHistory` | completed / cancelled 的目标记录数组 | `id` / `parentId` |

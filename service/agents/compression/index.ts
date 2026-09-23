@@ -1,7 +1,7 @@
 import { allocateRecordId } from "../../runtime/ids.ts";
 import { runtimeConfig } from "../../config/runtime.ts";
 import type { Provider } from "../../types.ts";
-import { requestTurnSummary, type CompressionTurn } from "./protocol.ts";
+import { requestTurnSummaries, type CompressionTurn } from "./protocol.ts";
 import { commitArchive, loadIndex } from "../../context-archive/store.ts";
 import type { CompressionModule, CompressionRecord, SourceRecord } from "../../context-archive/types.ts";
 
@@ -114,9 +114,9 @@ async function compress(input: Input): Promise<CompressOutcome> {
           summaries: priorForTurn.map(({ tag, userRequest, actions, result }) => ({ tag, userRequest, actions, result })),
         };
 
-    let summary;
+    let summaries;
     try {
-      summary = await requestTurnSummary({
+      summaries = await requestTurnSummaries({
         provider: input.provider,
         repoRoot: input.repoRoot,
         turn,
@@ -131,22 +131,25 @@ async function compress(input: Input): Promise<CompressOutcome> {
     check();
 
     const level = priorForTurn.length ? Math.max(...priorForTurn.map(item => item.level)) + 1 : 1;
-    const record: CompressionRecord = {
+    const sourceIds = [...priorForTurn.map(item => item.id), ...sourcesForTurn.map(source => source.id)];
+    const createdAt = new Date().toISOString();
+    const records: CompressionRecord[] = summaries.map((summary) => ({
       id: allocateRecordId(input.dataDir, input.conversationId, "sum"),
       module: input.module,
       level,
       ...summary,
-      sourceIds: [...priorForTurn.map(item => item.id), ...sourcesForTurn.map(source => source.id)],
-      createdAt: new Date().toISOString(),
-    };
-    index.entries.push(record);
+      sourceIds: [...sourceIds],
+      createdAt,
+    }));
+    for (const record of records) index.entries.push(record);
     if (priorForTurn.length) {
       const replaced = new Set(priorForTurn.map(item => item.id));
-      index.activeIds = [...new Set(index.activeIds.map(id => replaced.has(id) ? record.id : id))];
-    } else index.activeIds.push(record.id);
+      const nextIds = records.map(record => record.id);
+      index.activeIds = [...new Set(index.activeIds.flatMap(id => (replaced.has(id) ? nextIds : [id])))];
+    } else index.activeIds.push(...records.map(record => record.id));
     sourcesForTurn.forEach(source => covered.add(source.id));
     index.coveredSourceIds = [...covered];
-    commitArchive(input.dataDir, input.conversationId, index, sourcesForTurn, [record]);
+    commitArchive(input.dataDir, input.conversationId, index, sourcesForTurn, records);
     committedTurnIds.push(turnId);
     input.onProgress?.({ type: "turn", completed: committedTurnIds.length, total, turnId });
   }

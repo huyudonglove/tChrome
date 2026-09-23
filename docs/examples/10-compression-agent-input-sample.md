@@ -25,7 +25,7 @@ agents/compression/context/
 顺序压缩规则：
 
 1. Runtime 按历史顺序排队未覆盖的轮次；User 为 <compressionTurns> 内的 JSON，本次通常只含一个 turn。
-2. 我按 <compressionModules> 读该轮字段，按 <compressionRole> 整理，按 <compressionOutput> 用一次 submitTurnSummaries 提交本轮摘要。
+2. 我按 <compressionModules> 读该轮字段，按 <compressionRole> 整理，按 <compressionOutput> 用 submitTurnSummaries 提交本轮摘要（一或多条，同属本轮）。
 3. 本轮成功：Runtime 立刻归档该轮原文并标记已覆盖，窗口中只显示该轮摘要。
 4. 本轮失败：Runtime 停止本批后续轮次；失败轮及其后轮次保留原文，等再次达到门槛后从仍未覆盖的轮次继续。
 5. userRequest 由 Runtime 从本轮用户原话填写，我不提交该字段。
@@ -58,9 +58,9 @@ agents/compression/context/
 能力：【Compression Role】
 
 详细描述：
-我把 Runtime 交给我的**这一轮**历史材料，整理成**一条**摘要。
+我把 Runtime 交给我的**这一轮**历史材料，整理成**一或多条**摘要（同属该 turnId；大轮可拆段）。
 
-一次 User 材料通常只含一个 turn。我对输入里的该 turnId 返回一条摘要，不把多轮揉成一条，也不漏掉本轮已有内容。
+一次 User 材料通常只含一个 turn。我只总结该 turnId，不把多轮揉成一条，也不漏掉本轮已有内容。
 
 我逐轮总结用户要求、实际行动和结果，不跨轮合并，也不用后轮结果改写前轮事实。计划、工具调用完成和最终回复都不单独证明任务成功；以 toolIO 的 return 文本、pageObservations 的 result、reflection 与 output 为准。材料中的 archiveField 为 userInput、goalChanges、toolIO、pageObservations、memoryWrites、queryHistory、reflection、output。
 
@@ -166,7 +166,7 @@ User 消息只有一层标签，**标签内只有数据**，没有说明文字�
 能力：【Submit Turn Summary】
 
 详细描述：
-我用 submitTurnSummaries 交**当前这一轮**的摘要。这一次回包只调这一个工具，只提交本轮；不要包数组，不要填 turnId，不要用正文当结果。
+我用 submitTurnSummaries 交**当前这一轮**的摘要。每个调用是一条 {tag, actions, result}；大轮可在同一次回包里拆成多条，全部属于本轮。不要包数组，不要填 turnId，不要用正文当结果。
 
 参数是对象，三个字段均为非空字符串：
 

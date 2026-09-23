@@ -14,13 +14,28 @@ function setup(provider: Provider) {
   return { dataDir, conversationId: "cv_test", repoRoot: resolve(import.meta.dir, "../../.."), provider, module: "conversationHistory" as const };
 }
 const source = (turnId: string, id = turnId, text = "保持状态，只改负责人") => ({ id, content: { turnId, userInput: { userInput: text }, goalChanges: [], toolIO: [], pageObservations: [], memoryWrites: [], output: null } });
-function model(observe?: (turns: CompressionTurn[]) => void, body = "核对成功"): Provider {
+function model(observe?: (turns: CompressionTurn[]) => void, body = "核对成功", batches = 1): Provider {
   return { async complete(input) {
     const turns = compressionTurnsFromUserMessage(input.messages[1]!.content);
     observe?.(turns);
-    return { finish: "tool_calls", content: "", toolCalls: [{ id: "summary", name: "submitTurnSummaries", arguments: { tag: "负责人／状态", actions: "修改负责人", result: body } }], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] };
+    const toolCalls = Array.from({ length: batches }, (_, index) => ({
+      id: `summary_${index + 1}`,
+      name: "submitTurnSummaries",
+      arguments: { tag: `负责人／状态 ${index + 1}`, actions: "修改负责人", result: body },
+    }));
+    return { finish: "tool_calls", content: "", toolCalls, attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] };
   } };
 }
+test("one response with several summaries commits them under the same turnId", async () => {
+  const args = setup(model(undefined, "核对成功", 3));
+  const outcome = await compressRecords({ ...args, records: [source("tn_01", "src_01")] });
+  expect(outcome).toEqual({ status: "completed", committedTurnIds: ["tn_01"], totalTurns: 1 });
+  const index = loadIndex(args.dataDir, args.conversationId, args.module);
+  expect(index.entries.map(row => row.turnId)).toEqual(["tn_01", "tn_01", "tn_01"]);
+  expect(index.activeIds).toEqual(["sum_01", "sum_02", "sum_03"]);
+  expect(index.coveredSourceIds).toEqual(["src_01"]);
+  expect(index.entries.every(row => row.sourceIds.includes("src_01"))).toBe(true);
+});
 test("sequential per-turn requests commit each success and keep independent immutable sources", async () => {
   const calls: CompressionTurn[][] = [];
   const args = setup(model(turns => calls.push(turns)));

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "submitTurnSummaries",
-    "description": "提交当前这一轮的摘要。一次调用只覆盖 User 材料里的这一轮；tag、actions、result 均为非空字符串。userRequest 由 Runtime 从本轮用户原话填写，不要提交。",
+    "description": "提交当前这一轮的摘要。一次调用是一条 {tag, actions, result}；大轮可在同一次回包里调用多次，全部归属 User 材料里这一轮。userRequest 由 Runtime 从本轮用户原话填写，不要提交。",
     "parameters": {
       "type": "object",
       "properties": {
