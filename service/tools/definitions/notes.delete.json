@@ -2,15 +2,12 @@
   "type": "function",
   "function": {
     "name": "notes.delete",
-    "description": "删除过时的工作笔记。\n参数：必填 key：<notes> 中要删除的项。\n返回：已删除的 key，不删除其他笔记或记忆。",
+    "description": "删除过时的工作笔记。\n参数：必填 key：<notes> 中要删除的项。\n返回：已删除的 key，不删除其他笔记或记忆。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         },
         "key": {
           "type": "string"
@@ -18,9 +15,9 @@
       },
       "required": [
         "reason",
-        "affectsPage",
         "key"
       ]
     }
-  }
+  },
+  "execution": "serial"
 }

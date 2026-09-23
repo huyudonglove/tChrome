@@ -6,21 +6,21 @@ const root = "/Users/huyudong/Projects/tChrome";
 const registry = loadToolRegistry(root);
 
 const cases: [string, Record<string, unknown>][] = [
-  ["download", { reason: "下模型", affectsPage: false, url: "https://example.com/a.glb" }],
-  ["control_download", { reason: "暂停", affectsPage: false, downloadId: 3, action: "pause" }],
-  ["set_cookie", { reason: "登录态", affectsPage: true, name: "sid", value: "x", url: "https://example.com" }],
-  ["delete_cookie", { reason: "清会话", affectsPage: true, name: "sid" }],
-  ["clear_cookies", { reason: "清站", affectsPage: true, origin: "https://example.com" }],
-  ["cookies", { reason: "读 cookie", affectsPage: false, tabId: 1, url: "https://example.com" }],
-  ["profile_vault", { reason: "保存档案", affectsPage: false, action: "save", profileId: "p1", data: { a: 1 } }],
-  ["cache_storage", { reason: "读缓存", affectsPage: false, tabId: 1, action: "list", cache: "app" }],
-  ["indexeddb", { reason: "读库", affectsPage: false, tabId: 1, action: "list", db: "app" }],
-  ["page_storage", { reason: "写本地", affectsPage: true, tabId: 1, action: "write", key: "k", value: "v" }],
-  ["network_throttle", { reason: "弱网", affectsPage: true, tabId: 1, profile: "slow-3g" }],
-  ["set_zoom", { reason: "放大", affectsPage: true, tabId: 1, zoom: 1.25 }],
-  ["see_console", { reason: "看报错", affectsPage: false, tabId: 1, level: "error" }],
-  ["emulate_device", { reason: "手机视口", affectsPage: true, tabId: 1, device: "iphone", width: 390, height: 844 }],
-  ["export_data", { reason: "导出报告", affectsPage: false, data: { ok: true }, filename: "report.json" }],
+  ["download", { reason: "下模型", url: "https://example.com/a.glb" }],
+  ["control_download", { reason: "暂停", downloadId: 3, action: "pause" }],
+  ["set_cookie", { reason: "登录态", name: "sid", value: "x", url: "https://example.com" }],
+  ["delete_cookie", { reason: "清会话", name: "sid" }],
+  ["clear_cookies", { reason: "清站", origin: "https://example.com" }],
+  ["cookies", { reason: "读 cookie", tabId: 1, url: "https://example.com" }],
+  ["profile_vault", { reason: "保存档案", action: "save", profileId: "p1", data: { a: 1 } }],
+  ["cache_storage", { reason: "读缓存", tabId: 1, action: "list", cache: "app" }],
+  ["indexeddb", { reason: "读库", tabId: 1, action: "list", db: "app" }],
+  ["page_storage", { reason: "写本地", tabId: 1, action: "write", key: "k", value: "v" }],
+  ["network_throttle", { reason: "弱网", tabId: 1, profile: "slow-3g" }],
+  ["set_zoom", { reason: "放大", tabId: 1, zoom: 1.25 }],
+  ["see_console", { reason: "看报错", tabId: 1, level: "error" }],
+  ["emulate_device", { reason: "手机视口", tabId: 1, device: "iphone", width: 390, height: 844 }],
+  ["export_data", { reason: "导出报告", data: { ok: true }, filename: "report.json" }],
 ];
 
 test("expanded tool schemas accept implementation-facing parameters", () => {
@@ -36,7 +36,7 @@ test("download still requires url", () => {
   const result = checkToolCalls([{
     id: "c1",
     name: "download",
-    arguments: { reason: "x", affectsPage: false },
+    arguments: { reason: "x" },
   }], tools, [], ["download"]);
   expect(result.schemaOk).toBe(false);
 });

@@ -77,7 +77,7 @@ export function emptyLedger(conversationId: string): Ledger {
     goals: [],
     currentGoalId: null,
     toolQueue: [],
-    liveTool: null,
+    liveTools: [],
     toolIO: [],
     lastAction: null,
     checklist: null,
@@ -378,7 +378,7 @@ export function stopTurn(dataDir: string): SessionView {
   ledger.active = null;
   ledger.pendingAsk = null;
   ledger.toolQueue = [];
-  ledger.liveTool = null;
+  ledger.liveTools = [];
   saveLedger(dataDir, ledger);
   appendEvent(dataDir, session.conversationId, { kind: "session", data: { conversationId: session.conversationId, action: "stop" } });
   return sessionView(dataDir, session.conversationId);

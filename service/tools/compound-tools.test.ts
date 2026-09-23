@@ -16,9 +16,9 @@ test("compound tools are registered in baseTools and schemas are valid", () => {
   }
   const tools = toolSchemas(registry, ["page.click_role", "page.fill_role", "page.submit_wait"]);
   const ok = checkToolCalls([
-    { id: "c1", name: "page.click_role", arguments: { reason: "点提交", affectsPage: true, tabId: 1, role: "button", name: "提交" } },
-    { id: "c2", name: "page.fill_role", arguments: { reason: "填邮箱", affectsPage: true, tabId: 1, role: "textbox", name: "邮箱", text: "a@b.c" } },
-    { id: "c3", name: "page.submit_wait", arguments: { reason: "提交并等待", affectsPage: true, tabId: 1, id: "e_03", urlContains: "/api/save" } },
+    { id: "c1", name: "page.click_role", arguments: { reason: "点提交", tabId: 1, role: "button", name: "提交" } },
+    { id: "c2", name: "page.fill_role", arguments: { reason: "填邮箱", tabId: 1, role: "textbox", name: "邮箱", text: "a@b.c" } },
+    { id: "c3", name: "page.submit_wait", arguments: { reason: "提交并等待", tabId: 1, id: "e_03", urlContains: "/api/save" } },
   ], tools, [], ["page.click_role", "page.fill_role", "page.submit_wait"]);
   expect(ok.schemaOk).toBe(true);
 });
@@ -110,7 +110,7 @@ test("page.fill_role types after locate; page.submit_wait clicks then reports wa
 test("executeTool routes compound names through host bridge", async () => {
   const execution = await executeTool({
     name: "page.click_role",
-    arguments: { reason: "点", affectsPage: true, tabId: 3, role: "button", name: "确定", matchIndex: 0 },
+    arguments: { reason: "点", tabId: 3, role: "button", name: "确定", matchIndex: 0 },
     dataDir: "",
     browserNames: [],
     host: {

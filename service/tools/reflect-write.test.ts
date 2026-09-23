@@ -41,7 +41,7 @@ test("reflect.write allocates rf_ ids and reflect.delete removes by id", async (
 
     const first = await executeTool({
       name: "reflect.write",
-      arguments: { reason: "收口前反思", affectsPage: false, text: "先记一次", focus: "证据" },
+      arguments: { reason: "收口前反思", text: "先记一次", focus: "证据" },
       dataDir,
       conversationId: ledger.conversationId,
       browserNames: [],
@@ -55,7 +55,7 @@ test("reflect.write allocates rf_ ids and reflect.delete removes by id", async (
 
     const second = await executeTool({
       name: "reflect.write",
-      arguments: { reason: "再记一条", affectsPage: false, text: "第二条" },
+      arguments: { reason: "再记一条", text: "第二条" },
       dataDir,
       conversationId: ledger.conversationId,
       browserNames: [],
@@ -68,7 +68,7 @@ test("reflect.write allocates rf_ ids and reflect.delete removes by id", async (
 
     const updated = await executeTool({
       name: "reflect.write",
-      arguments: { reason: "更新第一条", affectsPage: false, id: firstBody.id, text: "修订正文" },
+      arguments: { reason: "更新第一条", id: firstBody.id, text: "修订正文" },
       dataDir,
       conversationId: ledger.conversationId,
       browserNames: [],
@@ -79,7 +79,7 @@ test("reflect.write allocates rf_ ids and reflect.delete removes by id", async (
 
     const removed = await executeTool({
       name: "reflect.delete",
-      arguments: { reason: "删除一条", affectsPage: false, id: secondBody.id },
+      arguments: { reason: "删除一条", id: secondBody.id },
       dataDir,
       conversationId: ledger.conversationId,
       browserNames: [],

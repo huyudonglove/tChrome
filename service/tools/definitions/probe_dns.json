@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "probe_dns",
-    "description": "解析域名地址。\n参数：host（域名） 或 url（网址）。\n返回：ok、addresses（解析地址）。",
+    "description": "解析域名地址。\n参数：host（域名） 或 url（网址）。\n返回：ok、addresses（解析地址）。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -17,15 +17,12 @@
         },
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         }
       },
       "required": [
-        "reason",
-        "affectsPage"
+        "reason"
       ]
     }
-  }
+  },
+  "execution": "parallel"
 }

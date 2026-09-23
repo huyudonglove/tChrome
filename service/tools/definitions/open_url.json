@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "open_url",
-    "description": "打开指定网址并读回标题正文。\n参数：url（网址），必填 tabId（目标标签编号）。\n返回：ok、title（页面标题）、url（页面地址）、text（返回文本）、tabId。",
+    "description": "打开指定网址并读回标题正文。\n参数：url（网址），必填 tabId（目标标签编号）。\n返回：ok、title（页面标题）、url（页面地址）、text（返回文本）、tabId。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -12,9 +12,6 @@
         "reason": {
           "type": "string"
         },
-        "affectsPage": {
-          "type": "boolean"
-        },
         "tabId": {
           "type": "integer",
           "description": "目标标签编号；从 <openTabs> 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
@@ -22,10 +19,10 @@
       },
       "required": [
         "reason",
-        "affectsPage",
         "url",
         "tabId"
       ]
     }
-  }
+  },
+  "execution": "serial"
 }

@@ -2,15 +2,12 @@
   "type": "function",
   "function": {
     "name": "submitGoal",
-    "description": "创建、更新或切换会话目标。创建总目标传 goal，创建子目标同时传 parentId（已有总目标 ID）；系统分别分配 goal_01 / subgoal_01，自增且不复用。更新传 id，仅修改明确提供的 goal、status，保留 ID 与父级关系。status 为 active、completed 或 cancelled；创建默认 active。活跃目标的创建或更新会将其选为当前目标；当前子目标结束后回到仍活跃的父目标，否则清空当前选择。切换不自动结束其他目标，结束总目标不连带结束子目标。进入新阶段时维护子目标，完成或取消须明确提交；具体尝试写 notes。返回 {ok, record, currentGoalId}，record 为完整目标记录；<goal> 展示活跃目标及父级，<goalHistory> 展示已结束目标。记录目标不会执行目标或结束本轮。",
+    "description": "创建、更新或切换会话目标。创建总目标传 goal，创建子目标同时传 parentId（已有总目标 ID）；系统分别分配 goal_01 / subgoal_01，自增且不复用。更新传 id，仅修改明确提供的 goal、status，保留 ID 与父级关系。status 为 active、completed 或 cancelled；创建默认 active。活跃目标的创建或更新会将其选为当前目标；当前子目标结束后回到仍活跃的父目标，否则清空当前选择。切换不自动结束其他目标，结束总目标不连带结束子目标。进入新阶段时维护子目标，完成或取消须明确提交；具体尝试写 notes。返回 {ok, record, currentGoalId}，record 为完整目标记录；<goal> 展示活跃目标及父级，<goalHistory> 展示已结束目标。记录目标不会执行目标或结束本轮。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         },
         "id": {
           "type": "string",
@@ -36,9 +33,9 @@
         }
       },
       "required": [
-        "reason",
-        "affectsPage"
+        "reason"
       ]
     }
-  }
+  },
+  "execution": "serial"
 }

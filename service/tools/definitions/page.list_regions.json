@@ -2,15 +2,12 @@
   "type": "function",
   "function": {
     "name": "page.list_regions",
-    "description": "列指定页区域，每项带 id。\n参数：必填 tabId（目标标签编号）。\n返回：ok、regions[{id,role,name,heading,interactiveCount}]。",
+    "description": "列指定页区域，每项带 id。\n参数：必填 tabId（目标标签编号）。\n返回：ok、regions[{id,role,name,heading,interactiveCount}]。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         },
         "tabId": {
           "type": "integer",
@@ -19,9 +16,9 @@
       },
       "required": [
         "reason",
-        "affectsPage",
         "tabId"
       ]
     }
-  }
+  },
+  "execution": "parallel"
 }

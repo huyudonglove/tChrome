@@ -2,17 +2,32 @@
   "type": "function",
   "function": {
     "name": "har",
-    "description": "录制页面网络请求并导出 HAR（HTTP Archive）结构。\n参数：action=start|stop|read；必填 tabId。start 开始 CDP 网络监听；stop 返回 har.log.entries（大结果走统一 4000 门禁，可用 evidence.search）；read 查看是否在录。\n返回：ok、entryCount、har。",
+    "description": "录制页面网络请求并导出 HAR（HTTP Archive）结构。\n参数：action=start|stop|read；必填 tabId。start 开始 CDP 网络监听；stop 返回 har.log.entries（大结果走统一 4000 门禁，可用 evidence.search）；read 查看是否在录。\n返回：ok、entryCount、har。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean", "const": false },
-        "tabId": { "type": "integer" },
-        "action": { "type": "string", "enum": ["start", "stop", "read"] }
+        "reason": {
+          "type": "string"
+        },
+        "tabId": {
+          "type": "integer"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "start",
+            "stop",
+            "read"
+          ]
+        }
       },
-      "required": ["reason", "affectsPage", "tabId", "action"],
+      "required": [
+        "reason",
+        "tabId",
+        "action"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

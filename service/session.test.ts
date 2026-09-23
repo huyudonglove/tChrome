@@ -18,7 +18,7 @@ const makeTurn = (output: TurnOutput | null): Turn => ({ goalChanges: [],
 });
 
 const outputs: { output: TurnOutput; expected: string }[] = [
-  { output: { kind: "error", faultCode: "missing_required", toolName: "click", detail: "click missing required: affectsPage; data/text must be string" }, expected: "工具调用缺少必填参数。\n工具：click\nclick missing required: affectsPage; data/text must be string" },
+  { output: { kind: "error", faultCode: "missing_required", toolName: "click", detail: "click missing required: tabId; data/text must be string" }, expected: "工具调用缺少必填参数。\n工具：click\nclick missing required: tabId; data/text must be string" },
   { output: { kind: "reply", text: "这是商品详情页。" }, expected: "这是商品详情页。" },
   { output: { kind: "ask", question: "选择哪个商品？" }, expected: "选择哪个商品？" },
   { output: { kind: "error", faultCode: "stopped" }, expected: "已停止" },
@@ -107,7 +107,7 @@ test("running toolIO and live queue retain reasons without raw returns", () => {
     ledger.active = { turnId: "tn_01" };
     ledger.toolIO = [{ turnId: "tn_01", callId: "old", name: "page.get_summary", arguments: {},
       return: { stage: "complete", totalChars: 18, text: '{"data":"PRIVATE"}' } }];
-    ledger.liveTool = { callId: "live", name: "page.click" };
+    ledger.liveTools = [{ callId: "live", name: "page.click" }];
     ledger.toolQueue = [{ callId: "queued", name: "page.type", arguments: { reason: "很长的进度说明".repeat(30) } }];
     saveLedger(dir, ledger);
     saveTurn(dir, makeTurn(null));

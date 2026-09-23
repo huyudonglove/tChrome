@@ -55,7 +55,7 @@ export const pageFromBrowser = (result: {
 const hostArgs = (args: ToolArguments): Record<string, unknown> => {
   const extra: Record<string, unknown> = { ...args };
   delete extra.reason;
-  delete extra.affectsPage;
+  delete extra.execution;
   return extra;
 };
 

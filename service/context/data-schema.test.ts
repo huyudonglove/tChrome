@@ -23,7 +23,7 @@ test("assembled User slots follow the shared data contract and preserve query re
   ledger.goals.push({ ...ledger.goals[0]!, id: "subgoal_02", parentId: "goal_03" });
   ledger.currentGoalId = "subgoal_02";
   ledger.notes = { scope: "仅核对" };
-  const tool: ToolIOItem = { callId: "call_01", turnId: "tn_01", batchId: "batch_01", name: "page.get_summary", arguments: { reason: "核对状态", affectsPage: false, businessId: "task-A" }, return: { stage: "complete", totalChars: 3, text: JSON.stringify({ ok: true, tabId: 42, title: "任务", url: "https://example.com", description: "待处理" }) } };
+  const tool: ToolIOItem = { callId: "call_01", turnId: "tn_01", batchId: "batch_01", name: "page.get_summary", arguments: { reason: "核对状态", businessId: "task-A" }, return: { stage: "complete", totalChars: 3, text: JSON.stringify({ ok: true, tabId: 42, title: "任务", url: "https://example.com", description: "待处理" }) } };
   ledger.toolIO = [tool];
   const page = { id: "page_01", turnId: "tn_01", callId: "call_01", tabId: 42, type: "page.get_summary", result: { ok: true, tabId: 42, title: "任务", url: "https://example.com", description: "待处理" }, observedAt: "2026-09-12" };
   const turn: Turn = { goalChanges: [],

@@ -6,7 +6,7 @@
 
 命名：带点号的名字是命名空间工具（如 `page.click`、`local.run`、`video.record`）；单词名是浏览器动作与观察工具（如 `click`、`type`、`scroll`、`capture_page`）。两套都在 `index.json` 的 browser / service 列表中登记，调用时以 tools[] 里的 schema 为准。
 
-`affectsPage` 的通用含义统一写在 System 的 `<toolProtocol>` 中；各工具定义只维护自身类型、必填、固定值和专用说明，不重复装配通用解释。
+`execution`（parallel|serial）的通用含义写在 System 的 `<toolProtocol>` 中：parallel 可与同批并发，serial 等当前执行队列清空后独占。该值由定义文件顶层的 `execution` 决定并注入工具说明供模型参考；模型不必返回，也不能用参数修改。各工具定义只维护自身类型、必填、固定值和专用说明，不重复装配通用解释。
 
 - `definitions/<工具名>.json`：工具名称、`function.description`、参数 schema。
 - `definitions/index.json`：动态工具的 browser / service 分类。
@@ -28,7 +28,7 @@
 
 脚本在服务电脑上按扩展名选择解释器执行（zsh / python3 / bun），不依赖文件可执行位；必须提供绝对 cwd。`script_patch` 仅接受 `new file mode 100644` 一类纯内容补丁，拒绝 rename、mode 变更与 `100755`。stdout/stderr 完整写入 process-output/<processId>/，进程 ID 只属于创建它的会话，服务重启后失效；停止会话、删除会话和服务正常退出会终止对应进程组。新建或切换会话不停止原会话任务；需要停止时先停止原会话。已结束进程记录保留至服务结束。
 
-本地能力使用服务进程的操作系统权限，不绕过macOS权限；文件修改即时生效，不随聊天记录删除而回滚。`affectsPage=false` 仅说明不影响浏览器页面，不表示本地操作没有副作用。文件复制/移动默认拒绝已存在目标，移动的默认实现是复制成功后删除源，操作期间应避免源被其他程序修改。
+本地能力使用服务进程的操作系统权限，不绕过macOS权限；文件修改即时生效，不随聊天记录删除而回滚。execution=parallel 仅表示可与同批其他 parallel 调用并发，不表示本地操作没有副作用。文件复制/移动默认拒绝已存在目标，移动的默认实现是复制成功后删除源，操作期间应避免源被其他程序修改。
 
 ## 压缩归档查询
 
@@ -36,7 +36,7 @@
 
 查询模块统一为 conversationHistory；每份归档保留轮次内部的输入、目标变化、工具、页面观察、记忆增量及最终输出。目录与原文由 `service/context-archive/` 管理，工具层只校验参数并调度 `service/agents/query/`。查询 Agent 自己管理提示词、输入输出协议与业务校验，模型请求复用现有 `provider.complete`。查询 Agent 仅选择候选，返回 ID 不能作为文件路径。查询结果走统一内联门禁，不按普通工具再截一层。
 
-脚本保存在服务数据目录下的 `scripts/`（该目录是绝对路径，由 System `<overview>` 注入；环境变量 `TCHROME_DATA` 可覆盖默认位置，模型调用不要写 `~/` 缩写）：可用 `script_patch(filename, patch)` 应用单文件 git unified diff（新增、修改、删除），或 `script_write(filename, code)` 全量写入，也可用 `local.fs_*` 直接读写该目录；`script_read(filename)` 返回代码，`script_list()` 返回文件名。脚本类工具的 affectsPage 固定为 false。文件名为单层 .sh/.py/.js/.mjs/.cjs。执行快照在系统临时目录，进程输出在数据目录 `process-output/`；不要把临时脚本或执行产物写进代码仓库。
+脚本保存在服务数据目录下的 `scripts/`（该目录是绝对路径，由 System `<overview>` 注入；环境变量 `TCHROME_DATA` 可覆盖默认位置，模型调用不要写 `~/` 缩写）：可用 `script_patch(filename, patch)` 应用单文件 git unified diff（新增、修改、删除），或 `script_write(filename, code)` 全量写入，也可用 `local.fs_*` 直接读写该目录；`script_read(filename)` 返回代码，`script_list()` 返回文件名。脚本类工具默认 execution=serial。文件名为单层 .sh/.py/.js/.mjs/.cjs。执行快照在系统临时目录，进程输出在数据目录 `process-output/`；不要把临时脚本或执行产物写进代码仓库。
 
 `execute_javascript` 使用 filename（仅 .js/.mjs/.cjs）和必填 tabId，不接受内联 code；内容为页面表达式，多语句或异步逻辑使用 IIFE。`local.run` / `local.process_start` 使用 filename 和绝对路径 cwd，可选 args 字符串数组及 timeoutMs；.sh 由 zsh、.py 由 python3、.js/.mjs/.cjs 由 bun 执行，不接受内联 command。补丁只返回状态，必须在确认成功后的下一次模型调用执行；Runtime 拒绝同批 script_patch 与脚本执行。
 
@@ -54,7 +54,7 @@ HTTP 传输由 `service/network/idle-fetch.ts` 统一检查响应活动，`http-
 
 查询保留底层错误码；压缩失败在回合输出中使用 compression_failed，并通过可选 causeCode 保留底层原因。侧栏分别显示请求超时、主动取消、连接失败、HTTP 错误和响应格式错误。
 
-参数校验反馈包含参数 schema 和完整诊断；anyOf/oneOf 的候选分支保持替代关系，missing 仅列共同或已适用条件的必填字段。每个失败调用按 callId 独立记录，同名调用不会互相覆盖。模型自行修正调用参数并继续，历史参数保留 affectsPage；连续无效调用仍有停止上限，避免无限请求，达到上限只报告未完成状态，不要求用户补填工具参数。
+参数校验反馈包含参数 schema 和完整诊断；anyOf/oneOf 的候选分支保持替代关系，missing 仅列共同或已适用条件的必填字段。每个失败调用按 callId 独立记录，同名调用不会互相覆盖。模型自行修正调用参数并继续，历史参数原样保留；连续无效调用仍有停止上限，避免无限请求，达到上限只报告未完成状态，不要求用户补填工具参数。
 
 点击工具：`click(targetText|ref)` 按控件文字或 snapshot_page/find_on_page 引用定位；`page.click(id)` 使用 page.* 的元素编号。两者保留独立引用体系，reason 是可选展示信息，不自动填充。click 不接受旧 text 字段，也不将非字符串强转为目标文字。
 

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.open",
-    "description": "使用系统默认应用打开本机绝对路径。成功表示启动请求成功，不代表已验证应用显示内容。",
+    "description": "使用系统默认应用打开本机绝对路径。成功表示启动请求成功，不代表已验证应用显示内容。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -12,18 +12,14 @@
         "reason": {
           "type": "string",
           "description": "本次操作的目的"
-        },
-        "affectsPage": {
-          "type": "boolean",
-          "const": false
         }
       },
       "required": [
         "path",
-        "reason",
-        "affectsPage"
+        "reason"
       ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

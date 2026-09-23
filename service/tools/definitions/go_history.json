@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "go_history",
-    "description": "浏览器前进或后退。\n参数：可选 action=back|forward；必填 tabId（目标标签编号）。\n返回：ok。",
+    "description": "浏览器前进或后退。\n参数：可选 action=back|forward；必填 tabId（目标标签编号）。\n返回：ok。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -12,17 +12,14 @@
         },
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         }
       },
       "required": [
         "reason",
-        "affectsPage",
         "tabId"
       ],
       "additionalProperties": true
     }
-  }
+  },
+  "execution": "serial"
 }

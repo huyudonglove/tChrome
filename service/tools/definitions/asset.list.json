@@ -2,17 +2,32 @@
   "type": "function",
   "function": {
     "name": "asset.list",
-    "description": "列出本会话归档资产的 L1 目录（assetId、name、kind、bytes、summary、path）。可选 kind 或名称子串过滤。正文在 L2，用 evidence.search / image.crop 等按需取。\n返回：ok、assets[]。",
+    "description": "列出本会话归档资产的 L1 目录（assetId、name、kind、bytes、summary、path）。可选 kind 或名称子串过滤。正文在 L2，用 evidence.search / image.crop 等按需取。\n返回：ok、assets[]。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean", "const": false },
-        "kind": { "type": "string", "enum": ["image", "text", "binary", "dom"] },
-        "name": { "type": "string", "description": "名称子串过滤" }
+        "reason": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "image",
+            "text",
+            "binary",
+            "dom"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "description": "名称子串过滤"
+        }
       },
-      "required": ["reason", "affectsPage"],
+      "required": [
+        "reason"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "parallel"
 }

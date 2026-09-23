@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.fs_move",
-    "description": "移动文件或目录，默认拒绝已存在目标，采用复制成功后删除源（非原子）。overwrite=true使用系统rename，跨设备会报错而保留源。操作期间避免其他进程修改源。",
+    "description": "移动文件或目录，默认拒绝已存在目标，采用复制成功后删除源（非原子）。overwrite=true使用系统rename，跨设备会报错而保留源。操作期间避免其他进程修改源。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -19,19 +19,15 @@
         },
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean",
-          "const": false
         }
       },
       "required": [
         "source",
         "destination",
-        "reason",
-        "affectsPage"
+        "reason"
       ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

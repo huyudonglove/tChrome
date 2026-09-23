@@ -10,18 +10,19 @@ const check = (name: string, args: Record<string, unknown>) => checkToolCalls(
 
 test("target alternatives stay separate from mandatory arguments", () => {
   const result = check("click", { reason: "操作" });
-  expect(result.missing).toEqual(["affectsPage"]);
+  expect(result.missing).toEqual([]);
+  expect(result.faultCode).toBe("wrong_type");
   expect(result.detail).toContain("at least one alternative");
   expect(result.detail).toContain('"required":["ref"]');
   expect(result.detail).toContain('"required":["targetText"]');
   expect(result.detail).not.toContain("missing required: ref, targetText");
   const wrongText = check("click", { reason: "操作", targetText: true });
-  expect(wrongText.missing).toEqual(["affectsPage"]);
+  expect(wrongText.missing).toEqual([]);
   expect(wrongText.detail).toContain("data/targetText must be string");
 });
 
 test("exclusive and conditional capture targets report the actual rule", () => {
-  const base = { reason: "截图", affectsPage: false, mode: "element" };
+  const base = { reason: "截图", mode: "element" };
   const missing = check("capture_page", base);
   expect(missing.missing).toEqual([]);
   expect(missing.detail).toContain("exactly one alternative");
@@ -36,15 +37,15 @@ test("exclusive and conditional capture targets report the actual rule", () => {
 });
 
 test("conditional library requirements remain mandatory and retain simultaneous type errors", () => {
-  const save = check("library", { action: "save", reason: "保存", affectsPage: false, tags: [3] });
+  const save = check("library", { action: "save", reason: "保存", tags: [3] });
   expect(save.missing).toEqual(["type", "title"]);
   expect(save.detail).toContain("data/tags/0 must be string");
-  expect(check("library", { action: "get", reason: "读取", affectsPage: false }).missing).toEqual(["id"]);
+  expect(check("library", { action: "get", reason: "读取" }).missing).toEqual(["id"]);
 });
 
 test("missing discriminators do not activate unrelated conditional requirements", () => {
-  expect(check("library", { reason: "保存", affectsPage: false }).missing).toEqual(["action"]);
-  const capture = check("capture_page", { reason: "截图", affectsPage: false });
+  expect(check("library", { reason: "保存" }).missing).toEqual(["action"]);
+  const capture = check("capture_page", { reason: "截图" });
   expect(capture.missing).toEqual(["mode"]);
   expect(capture.detail).not.toContain("alternative");
 });

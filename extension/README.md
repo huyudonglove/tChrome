@@ -10,7 +10,7 @@ GUI。Side Panel + background。样式对标 telance，组件放 `ui/`。浏览�
 
 `extension/tools/` 是 Chrome 宿主执行层，调用 tabs、scripting、debugger 等 API。统一工具注册、参数定义与校验位于 `service/tools/`，扩展从浏览器桥接收已调度请求。
 
-原生对话框通过 Chrome Debugger 的 Page 事件记录，通过 `Page.handleJavaScriptDialog` 处理。`handle_dialog` 接受 `action: "accept" | "dismiss"`、必填 `tabId` 和可选 `promptText`，直接处理已经弹出的 alert、confirm、prompt 或 beforeunload，无需提前调用本工具。确认可能触发提交或离开页面，`affectsPage` 必须为 `true`。执行时无弹窗返回 `no_dialog`，其他处理失败返回 `dialog_handle_failed`。
+原生对话框通过 Chrome Debugger 的 Page 事件记录，通过 `Page.handleJavaScriptDialog` 处理。`handle_dialog` 接受 `action: "accept" | "dismiss"`、必填 `tabId` 和可选 `promptText`，直接处理已经弹出的 alert、confirm、prompt 或 beforeunload，无需提前调用本工具。确认可能触发提交或离开页面，默认 execution=serial。执行时无弹窗返回 `no_dialog`，其他处理失败返回 `dialog_handle_failed`。
 
 `see_diag` 在浏览器层读取标签和弹窗状态，不执行页面脚本。`dialog.status` 为 `open`、`closed` 或 `unknown`：分别表示捕获到未关闭弹窗、已确认关闭、当前状态无法确认。连接调试器前已出现的弹窗不一定补发开启事件，因此 `unknown` 不能解释为无弹窗；仍可使用 `handle_dialog` 处理。`wait_new_tab` 只等调用后的新标签创建，不等待原生对话框。
 

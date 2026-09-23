@@ -5,7 +5,7 @@ import { checkToolCalls } from "./schema.ts";
 
 const registry = loadToolRegistry(join(import.meta.dir, "../.."));
 const check = (name: string, args: Record<string, unknown>) => checkToolCalls(
-  [{ id: "call_01", name, arguments: { reason: "管理浏览器标签", affectsPage: true, ...args } }],
+  [{ id: "call_01", name, arguments: { reason: "管理浏览器标签", ...args } }],
   toolSchemas(registry, [name]), [], [name],
 );
 

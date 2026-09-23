@@ -12,7 +12,7 @@ import { deleteConversation, ensureSession, listConversationIds, loadLedger, loa
 const repoRoot = join(import.meta.dir, "../..");
 const body = { userInput: "继续", submittedAt: "2026-09-12" };
 const completion = (toolCalls: CompletionResult["toolCalls"]): CompletionResult => ({ content: "", finish: "tool_calls", toolCalls, attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] });
-const finish = (text = "完成") => completion([{ id: "finish", name: "finishTurn", arguments: { reason: "已完成", affectsPage: false, text } }]);
+const finish = (text = "完成") => completion([{ id: "finish", name: "finishTurn", arguments: { reason: "已完成", text } }]);
 const deferred = <T>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done; }); return { promise, resolve }; };
 async function within<T>(promise: Promise<T>): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;
@@ -72,7 +72,7 @@ test("query uses the main request's signal and cancellation cannot install query
     const provider: Provider = { complete: async input => {
       if (input.tools[0]?.function.name === "submitMatches") { expect(input.signal).toBe(mainSignal); entered.resolve(input.signal); return aborted(input.signal); }
       mainCalls++; mainSignal = input.signal;
-      return completion([{ id: "query", name: "context.query", arguments: { reason: "核对历史", affectsPage: false, sumId: summary.id, module: "userInput", intent: "读取要求" } }]);
+      return completion([{ id: "query", name: "context.query", arguments: { reason: "核对历史", sumId: summary.id, module: "userInput", intent: "读取要求" } }]);
     } };
     const running = handleTurn({ dataDir, repoRoot, provider }, body), signal = await within(entered.promise);
     stopTurn(dataDir); expect(signal?.aborted).toBe(true);

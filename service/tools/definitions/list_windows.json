@@ -2,22 +2,19 @@
   "type": "function",
   "function": {
     "name": "list_windows",
-    "description": "列出浏览器窗口。\n返回：ok、windows[{windowId,focused,type}]。focused 表示窗口是否获得输入焦点。",
+    "description": "列出浏览器窗口。\n返回：ok、windows[{windowId,focused,type}]。focused 表示窗口是否获得输入焦点。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         }
       },
       "required": [
-        "reason",
-        "affectsPage"
+        "reason"
       ],
       "additionalProperties": true
     }
-  }
+  },
+  "execution": "parallel"
 }

@@ -2,16 +2,25 @@
   "type": "function",
   "function": {
     "name": "reportProgress",
-    "description": "向用户侧记录当前进度（做了什么、依据、卡点、下一步）。连续执行仍无法完成时调用；汇报 3 次仍未收口会进入询问用户/建议结束的升级链。\n参数：必填 text。\n返回：ok、count。",
+    "description": "向用户侧记录当前进度（做了什么、依据、卡点、下一步）。连续执行仍无法完成时调用；汇报 3 次仍未收口会进入询问用户/建议结束的升级链。\n参数：必填 text。\n返回：ok、count。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean", "const": false },
-        "text": { "type": "string", "minLength": 1, "description": "进度说明" }
+        "reason": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "进度说明"
+        }
       },
-      "required": ["reason", "affectsPage", "text"],
+      "required": [
+        "reason",
+        "text"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

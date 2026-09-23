@@ -2,22 +2,19 @@
   "type": "function",
   "function": {
     "name": "see_env",
-    "description": "读取所有普通浏览器窗口及其完整标签列表，不改变焦点。\n返回：ok、windows[{windowId,focused,tabs[{tabId,url,title,active}]}]。active 表示该窗口选中的标签，focused 表示窗口获得输入焦点；两者同时为 true 才是当前操作焦点。用户切换前台不代表任务目标改变。",
+    "description": "读取所有普通浏览器窗口及其完整标签列表，不改变焦点。\n返回：ok、windows[{windowId,focused,tabs[{tabId,url,title,active}]}]。active 表示该窗口选中的标签，focused 表示窗口获得输入焦点；两者同时为 true 才是当前操作焦点。用户切换前台不代表任务目标改变。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         }
       },
       "required": [
-        "reason",
-        "affectsPage"
+        "reason"
       ],
       "additionalProperties": true
     }
-  }
+  },
+  "execution": "parallel"
 }

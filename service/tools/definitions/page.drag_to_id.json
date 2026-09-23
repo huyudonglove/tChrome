@@ -2,18 +2,33 @@
   "type": "function",
   "function": {
     "name": "page.drag_to_id",
-    "description": "把源元素拖到目标元素（按 e_/r_ 中心点坐标执行拖拽）。\n参数：必填 sourceId、targetId、tabId。\n返回：ok、from{x,y}、to{x,y}。",
+    "description": "把源元素拖到目标元素（按 e_/r_ 中心点坐标执行拖拽）。\n参数：必填 sourceId、targetId、tabId。\n返回：ok、from{x,y}、to{x,y}。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean", "const": true },
-        "tabId": { "type": "integer" },
-        "sourceId": { "type": "string", "description": "源元素 e_/r_ 编号" },
-        "targetId": { "type": "string", "description": "目标元素 e_/r_ 编号" }
+        "reason": {
+          "type": "string"
+        },
+        "tabId": {
+          "type": "integer"
+        },
+        "sourceId": {
+          "type": "string",
+          "description": "源元素 e_/r_ 编号"
+        },
+        "targetId": {
+          "type": "string",
+          "description": "目标元素 e_/r_ 编号"
+        }
       },
-      "required": ["reason", "affectsPage", "tabId", "sourceId", "targetId"],
+      "required": [
+        "reason",
+        "tabId",
+        "sourceId",
+        "targetId"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

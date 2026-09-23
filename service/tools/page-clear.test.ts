@@ -37,7 +37,7 @@ test("page.clear_result keeps identity and marks result cleared", async () => {
   try {
     const execution = await executeTool({
       name: "page.clear_result",
-      arguments: { reason: "元素详情不再需要", affectsPage: false, pageId: "page_01" },
+      arguments: { reason: "元素详情不再需要", pageId: "page_01" },
       dataDir,
       pageObservationIds: ["page_01"],
       lookup: { knownTools: ["page.clear_result"], enabledTools: ["page.clear_result"], unusedTools: [] },
@@ -61,7 +61,7 @@ test("unknown pageId is rejected before effects", async () => {
   try {
     const execution = await executeTool({
       name: "page.clear_result",
-      arguments: { reason: "清理", affectsPage: false, pageId: "page_99" },
+      arguments: { reason: "清理", pageId: "page_99" },
       dataDir,
       pageObservationIds: ["page_01"],
       lookup: { knownTools: ["page.clear_result"], enabledTools: ["page.clear_result"], unusedTools: [] },

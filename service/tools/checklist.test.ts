@@ -18,11 +18,11 @@ test("checklist.set and checklist.update are resident and schema-valid", () => {
   const tools = toolSchemas(registry, ["checklist.set", "checklist.update"]);
   expect(checkToolCalls([
     { id: "c1", name: "checklist.set", arguments: {
-      reason: "开始执行", affectsPage: false, title: "上传检查",
+      reason: "开始执行", title: "上传检查",
       items: [{ text: "打开页" }, { text: "定位控件", status: "doing" }],
     } },
     { id: "c2", name: "checklist.update", arguments: {
-      reason: "更新进度", affectsPage: false,
+      reason: "更新进度",
       items: [{ index: 0, status: "done" }],
     } },
   ], tools, registry.toolGroups.baseToolsIds, ["checklist.set", "checklist.update"]).schemaOk).toBe(true);
@@ -52,7 +52,7 @@ test("checklist tools write ledger and clear when turn ends", async () => {
       lookup: { knownTools: ["checklist.set", "checklist.update", "finishTurn"], enabledTools: ["checklist.set", "checklist.update", "finishTurn"], unusedTools: [] },
     });
     const set = await exec("checklist.set", {
-      reason: "开始", affectsPage: false, title: "任务",
+      reason: "开始", title: "任务",
       items: [{ text: "步骤一" }, { text: "步骤二", status: "todo" }],
     });
     expect(JSON.parse(set.text)).toMatchObject({ ok: true, count: 2 });
@@ -62,7 +62,7 @@ test("checklist tools write ledger and clear when turn ends", async () => {
       items: [{ text: "步骤一", status: "todo" }, { text: "步骤二", status: "todo" }],
     });
     const upd = await exec("checklist.update", {
-      reason: "推进", affectsPage: false,
+      reason: "推进",
       items: [{ index: 0, status: "done" }, { index: 1, status: "doing", text: "步骤二改" }],
     });
     applyToolEffects({ dataDir, ledger, turn, call: { callId: "c2", name: "checklist.update", arguments: {} }, effects: upd.effects });
@@ -70,7 +70,7 @@ test("checklist tools write ledger and clear when turn ends", async () => {
       { text: "步骤一", status: "done" },
       { text: "步骤二改", status: "doing" },
     ]);
-    const finish = await exec("finishTurn", { reason: "收口", affectsPage: false, text: "完成" });
+    const finish = await exec("finishTurn", { reason: "收口", text: "完成" });
     applyToolEffects({ dataDir, ledger, turn, call: { callId: "c3", name: "finishTurn", arguments: {} }, effects: finish.effects });
     expect(ledger.checklist).toBeNull();
   } finally { rmSync(dataDir, { recursive: true, force: true }); }

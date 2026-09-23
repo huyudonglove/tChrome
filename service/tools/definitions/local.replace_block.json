@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.replace_block",
-    "description": "在指定文件中精准查找并替换目标文本块。默认要求必须恰好唯一匹配一次（expectedMatches=1），匹配次数不符合时直接报错不修改，防止误伤代码。",
+    "description": "在指定文件中精准查找并替换目标文本块。默认要求必须恰好唯一匹配一次（expectedMatches=1），匹配次数不符合时直接报错不修改，防止误伤代码。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -24,20 +24,16 @@
         },
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean",
-          "const": false
         }
       },
       "required": [
         "path",
         "search",
         "replace",
-        "reason",
-        "affectsPage"
+        "reason"
       ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

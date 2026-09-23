@@ -7,7 +7,7 @@ import { loadLedger } from "../runtime/store.ts";
 import { executeTool } from "../tools/execute.ts";
 import type { CompletionResult, ToolCall } from "../types.ts";
 
-const call = (name: string, args: Record<string, unknown>): ToolCall => ({ id: name, name, arguments: { reason: "脚本测试", affectsPage: false, ...args } });
+const call = (name: string, args: Record<string, unknown>): ToolCall => ({ id: name, name, arguments: { reason: "脚本测试", ...args } });
 const response = (toolCalls: ToolCall[]): CompletionResult => ({ finish: "tool_calls", content: "", attempts: 1, parseOk: true, schemaOk: true, missing: [], faultCode: null, toolCalls });
 const patch = "--- /dev/null\n+++ b/demo.js\n@@ -0,0 +1 @@\n+(() => 42)()\n";
 

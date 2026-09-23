@@ -2,23 +2,55 @@
   "type": "function",
   "function": {
     "name": "page.click_role",
-    "description": "复合：A11y 定位（role±name）→ 点击 → 可选等待。一次 tool_call 完成定位+点击，减少往返。\n参数：必填 tabId、role；可选 name（可访问名子串）、matchIndex（多匹配时必须）、waitText 或 waitUrlContains（二选一，可省略）、ms、status。\n无 name 且 total>1 时不猜测，返回 ambiguous_target 与 candidates。返回：ok、id、clicked、wait。",
+    "description": "复合：A11y 定位（role±name）→ 点击 → 可选等待。一次 tool_call 完成定位+点击，减少往返。\n参数：必填 tabId、role；可选 name（可访问名子串）、matchIndex（多匹配时必须）、waitText 或 waitUrlContains（二选一，可省略）、ms、status。\n无 name 且 total>1 时不猜测，返回 ambiguous_target 与 candidates。返回：ok、id、clicked、wait。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string", "description": "这次复合操作要做什么、为什么做" },
-        "affectsPage": { "type": "boolean", "const": true },
-        "tabId": { "type": "integer", "description": "目标标签编号；从 <openTabs> 或工具返回取得" },
-        "role": { "type": "string", "description": "可访问角色，例如 button / link" },
-        "name": { "type": "string", "description": "可访问名子串；多匹配时可用 matchIndex" },
-        "matchIndex": { "type": "integer", "minimum": 0, "description": "在匹配列表中的序号（0 起）；total>1 时必填" },
-        "waitText": { "type": "string", "description": "点击后等待页面出现该文本；与 waitUrlContains 互斥" },
-        "waitUrlContains": { "type": "string", "description": "点击后等待 URL 含该子串的网络响应；与 waitText 互斥" },
-        "status": { "type": "integer", "description": "waitUrlContains 时可选的 HTTP 状态码" },
-        "ms": { "type": "integer", "description": "等待超时毫秒，上限与 wait/wait_response 一致" }
+        "reason": {
+          "type": "string",
+          "description": "这次复合操作要做什么、为什么做"
+        },
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 <openTabs> 或工具返回取得"
+        },
+        "role": {
+          "type": "string",
+          "description": "可访问角色，例如 button / link"
+        },
+        "name": {
+          "type": "string",
+          "description": "可访问名子串；多匹配时可用 matchIndex"
+        },
+        "matchIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "在匹配列表中的序号（0 起）；total>1 时必填"
+        },
+        "waitText": {
+          "type": "string",
+          "description": "点击后等待页面出现该文本；与 waitUrlContains 互斥"
+        },
+        "waitUrlContains": {
+          "type": "string",
+          "description": "点击后等待 URL 含该子串的网络响应；与 waitText 互斥"
+        },
+        "status": {
+          "type": "integer",
+          "description": "waitUrlContains 时可选的 HTTP 状态码"
+        },
+        "ms": {
+          "type": "integer",
+          "description": "等待超时毫秒，上限与 wait/wait_response 一致"
+        }
       },
-      "required": ["reason", "affectsPage", "tabId", "role"],
+      "required": [
+        "reason",
+        "tabId",
+        "role"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

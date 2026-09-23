@@ -12,7 +12,7 @@ import { validateUserData } from "./data-schema.ts";
 import { compressionTurnsFromUserMessage } from "../agents/compression/protocol.ts";
 
 const repoRoot = join(import.meta.dir, "../..");
-const call = (name: string, args: Record<string, unknown> = {}): ToolCall => ({ id: name, name, arguments: { reason: "容量回归测试", affectsPage: false, ...args } });
+const call = (name: string, args: Record<string, unknown> = {}): ToolCall => ({ id: name, name, arguments: { reason: "容量回归测试", ...args } });
 const response = (...toolCalls: ToolCall[]): CompletionResult => ({ finish: "tool_calls", content: "", attempts: 1, parseOk: true, schemaOk: true, missing: [], faultCode: null, toolCalls });
 const finish = () => response(call("finishTurn", { text: "完成"}));
 const xmlSlots = (user: string): Record<string, unknown> => {

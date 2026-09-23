@@ -4,7 +4,6 @@ import { parseToolArguments, unwrapStringArrayField } from "./arguments.ts";
 test("arguments 是对象就直接用，不补字段", () => {
   const parsed = parseToolArguments({
     reason: "填邮箱",
-    affectsPage: true,
     id: "e1",
     text: "a@b.com",
   });
@@ -12,7 +11,6 @@ test("arguments 是对象就直接用，不补字段", () => {
   if (parsed.ok) {
     expect(parsed.value).toEqual({
       reason: "填邮箱",
-      affectsPage: true,
       id: "e1",
       text: "a@b.com",
     });
@@ -22,7 +20,6 @@ test("arguments 是对象就直接用，不补字段", () => {
 test("流式把对象拼成字符串后还能 parse", () => {
   const chunk = JSON.stringify({
     reason: "填邮箱",
-    affectsPage: true,
     id: "e1",
     text: "a@b.com",
   });
@@ -41,7 +38,7 @@ test("共用拯救格式：围栏、尾逗号、结构单引号只修外壳", ()
   expect(parseToolArguments('"{}"').ok).toBe(false);
 });
 
-test("空字符串当空对象，不填 reason / affectsPage", () => {
+test("空字符串当空对象，不填 reason / execution", () => {
   const parsed = parseToolArguments("");
   expect(parsed.ok).toBe(true);
   if (parsed.ok) expect(Object.keys(parsed.value)).toEqual([]);

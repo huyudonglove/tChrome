@@ -12,7 +12,7 @@ const result = (partial: Partial<CompletionResult>): CompletionResult => ({
   parseOk: true, schemaOk: true, faultCode: null, missing: [], ...partial,
 });
 const call = (id: string, name: string, args: Record<string, unknown> = {}): ToolCall => ({
-  id, name, arguments: { reason: "执行当前步骤", affectsPage: false, ...args },
+  id, name, arguments: { reason: "执行当前步骤", ...args },
 });
 const finish = () => result({ toolCalls: [call("finish", "finishTurn", { text: "任务完成"})] });
 const invalid = () => result({ schemaOk: false, faultCode: "missing_required", missing: ["reason"],
@@ -108,14 +108,14 @@ test("mixed missing and type errors reach model feedback and final output", asyn
   await run([result({ toolCalls: [call("enable", "catalog.add", { names: ["click"] })] }), invalidClick(), invalidClick(), invalidClick()], ({ reply, ledger, browserCalls }) => {
     if (reply.output.kind === "error") {
       expect(reply.output.detail).toContain("data/targetText must be string");
-      expect(reply.output.detail).toContain("affectsPage");
+      expect(reply.output.detail).toContain("at least one alternative");
     }
     expect(reply.output).toMatchObject({ kind: "error", faultCode: "missing_required", toolName: "click" });
     const feedback = ledger.toolIO.filter(row => row.name === "click");
     expect(feedback).toHaveLength(3);
     for (const row of feedback) {
       const failure = JSON.parse(row.return.text);
-      expect(failure.missing).toContain("affectsPage");
+      expect(failure.missing).toEqual(["tabId"]);
       expect(failure.details.reason).toContain("data/targetText must be string");
     }
     expect(browserCalls).toEqual([]);
@@ -126,8 +126,8 @@ test("same-name invalid calls retain independent diagnostics and schema before s
   const bad = (id: string, args: Record<string, unknown>) => ({ id, name: "page.type", arguments: args });
   await run([result({ toolCalls: [
     bad("missing", { id: "e1", text: "x" }),
-    bad("type", { tabId: 1, id: "e2", text: false, reason: "输入", affectsPage: true }),
-  ] }), result({ toolCalls: [call("fixed", "page.type", { tabId: 1, id: "e2", text: "x", affectsPage: true })] }), finish()], ({ reply, ledger, browserCalls }) => {
+    bad("type", { tabId: 1, id: "e2", text: false, reason: "输入" }),
+  ] }), result({ toolCalls: [call("fixed", "page.type", { tabId: 1, id: "e2", text: "x" })] }), finish()], ({ reply, ledger, browserCalls }) => {
     expect(reply.output).toEqual({ kind: "reply", text: "任务完成" });
     const rows = ledger.toolIO.filter(row => row.name === "page.type");
     expect(rows).toHaveLength(3);

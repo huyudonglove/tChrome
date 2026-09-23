@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "finishTurn",
-    "description": "结束本轮对话。已能回答用户或需要说明无法继续时，先根据已返回的结果确认完成情况再调用。\n参数：必填 text：向用户展示的完整最终回复；同一正文也进入后续上下文与压缩链路。\n返回：text 并结束本轮；回复不依赖 content。",
+    "description": "结束本轮对话。已能回答用户或需要说明无法继续时，先根据已返回的结果确认完成情况再调用。\n参数：必填 text：向用户展示的完整最终回复；同一正文也进入后续上下文与压缩链路。\n返回：text 并结束本轮；回复不依赖 content。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -15,11 +15,6 @@
         "reason": {
           "type": "string",
           "description": "可选的行动说明；最终回复只读取 text。"
-        },
-        "affectsPage": {
-          "type": "boolean",
-          "const": false,
-          "description": "可省略；收口不执行页面操作，传入时只能为 false。"
         }
       },
       "required": [
@@ -27,5 +22,6 @@
       ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

@@ -13,7 +13,7 @@ import type { CompletionResult } from "../types.ts";
 const repoRoot = join(import.meta.dir, "../..");
 const response = (name: string, args: Record<string, unknown>): CompletionResult => ({
   finish: "tool_calls", content: "", attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [],
-  toolCalls: [{ id: name, name, arguments: { ...args, reason: "验证本地工具", affectsPage: false } }],
+  toolCalls: [{ id: name, name, arguments: { ...args, reason: "验证本地工具" } }],
 });
 
 test("filesystem tools read and write the scripts directory", async () => {

@@ -2,15 +2,12 @@
   "type": "function",
   "function": {
     "name": "ungroup_tabs",
-    "description": "将指定标签移出分组。\n参数：必填 tabIds（标签编号列表）。\n返回：ok。",
+    "description": "将指定标签移出分组。\n参数：必填 tabIds（标签编号列表）。\n返回：ok。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         },
         "tabIds": {
           "type": "array",
@@ -23,10 +20,10 @@
       },
       "required": [
         "reason",
-        "affectsPage",
         "tabIds"
       ],
       "additionalProperties": true
     }
-  }
+  },
+  "execution": "serial"
 }

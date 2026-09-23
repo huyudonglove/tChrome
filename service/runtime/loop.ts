@@ -156,6 +156,13 @@ const writeFault = (dataDir: string, ledger: Ledger, turnId: string, result: Com
   });
 };
 
+// Schedule is a Runtime-owned property of each tool. The model may read it to
+// order calls, but cannot override it through arguments.
+const resolveExecutionMode = (
+  item: { name: string },
+  defaults: Record<string, "parallel" | "serial">,
+): "parallel" | "serial" => defaults[item.name] ?? "serial";
+
 const runQueue = async (input: {
   dataDir: string;
   ledger: Ledger;
@@ -168,104 +175,179 @@ const runQueue = async (input: {
   signal?: AbortSignal;
 }): Promise<TurnOutput | null> => {
   const { dataDir, ledger, turn, toolRegistry, host, browserNames } = input;
-  while (ledger.toolQueue.length) {
-    const item = ledger.toolQueue.shift();
-    if (!item) break;
-    if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
-      return { kind: "error", faultCode: "stopped" };
-    }
-    ledger.liveTool = { name: item.name, callId: item.callId };
+  // Microtask/macrotask schedule over the batch: parallel joins the current wave;
+  // serial drains the wave first, then runs alone with no overlap.
+  type Slot = { item: ToolQueueItem; index: number; mode: "parallel" | "serial" };
+  const batch = ledger.toolQueue.splice(0, ledger.toolQueue.length);
+  const slots: Slot[] = batch.map((item, index) => ({
+    item,
+    index,
+    mode: resolveExecutionMode(item, toolRegistry.execution),
+  }));
+  const done = new Map<number, ToolExecution>();
+  const inflight = new Set<Promise<void>>();
+  const live = new Map<number, { name: string; callId: string }>();
+  let appliedUpTo = -1;
+  let closed: TurnOutput | null = null;
+
+  const syncQueue = (nextStart: number) => {
+    if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) return;
+    ledger.toolQueue = slots.slice(nextStart).map((slot) => slot.item);
+    ledger.liveTools = [...live.values()];
     saveLedger(dataDir, ledger);
+  };
+
+  const launch = (slot: Slot, nextStart: number): Promise<void> => {
+    live.set(slot.index, { name: slot.item.name, callId: slot.item.callId });
     turn.usage ??= { modelRequests: 0, toolCalls: 0 };
     turn.usage.toolCalls += 1;
-    saveTurn(dataDir, turn);
-    let execution: ToolExecution;
-    try {
-      execution = await executeTool({
-        name: item.name,
-        arguments: item.arguments,
-        dataDir,
-        conversationId: ledger.conversationId,
-        browserNames,
-        goalContext: { goals: ledger.goals, currentGoalId: ledger.currentGoalId, turnId: turn.turnId, sourceCallId: item.callId },
-        host,
-        signal: input.signal,
-        pageObservationIds: turn.assembled.pageObservedHistory.map((row) => row.id),
-        defaultTabId: ledger.contextTab?.tabId ?? null,
-        queryContext: args => queryContext({ dataDir, conversationId: ledger.conversationId, repoRoot: input.repoRoot, provider: input.provider, ...args, isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId) }),
-        lookup: {
-          knownTools: Object.keys(toolRegistry.tools),
-          enabledTools: [...turn.assembled.toolIds, ...toolRegistry.toolGroups.baseToolsIds],
-          unusedTools: dynamicToolIds(toolRegistry).filter((id) => !turn.assembled.toolIds.includes(id)),
-        },
+    syncQueue(nextStart);
+    if (!wasStopped(dataDir, ledger.conversationId, turn.turnId)) saveTurn(dataDir, turn);
+    const running = (async () => {
+      let execution: ToolExecution;
+      try {
+        execution = await executeTool({
+          name: slot.item.name,
+          arguments: slot.item.arguments,
+          dataDir,
+          conversationId: ledger.conversationId,
+          browserNames,
+          goalContext: { goals: ledger.goals, currentGoalId: ledger.currentGoalId, turnId: turn.turnId, sourceCallId: slot.item.callId },
+          host,
+          signal: input.signal,
+          pageObservationIds: turn.assembled.pageObservedHistory.map((row) => row.id),
+          defaultTabId: ledger.contextTab?.tabId ?? null,
+          queryContext: args => queryContext({ dataDir, conversationId: ledger.conversationId, repoRoot: input.repoRoot, provider: input.provider, ...args, isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId) }),
+          lookup: {
+            knownTools: Object.keys(toolRegistry.tools),
+            enabledTools: [...turn.assembled.toolIds, ...toolRegistry.toolGroups.baseToolsIds],
+            unusedTools: dynamicToolIds(toolRegistry).filter((id) => !turn.assembled.toolIds.includes(id)),
+          },
+        });
+      } catch (error) {
+        // A failed tool is evidence for the model to correct its next call. It must
+        // pass through the same recording/effect boundary as any normal result.
+        execution = failedTool(error, "tool_execution_failed", { toolName: slot.item.name });
+      }
+      done.set(slot.index, execution);
+      live.delete(slot.index);
+    })();
+    const tracked = running.then(() => { inflight.delete(tracked); }, () => { inflight.delete(tracked); });
+    inflight.add(tracked);
+    return tracked;
+  };
+
+  const applyReady = async (): Promise<TurnOutput | null> => {
+    while (appliedUpTo + 1 < slots.length && done.has(appliedUpTo + 1)) {
+      if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
+        return { kind: "error", faultCode: "stopped" };
+      }
+      const index = appliedUpTo + 1;
+      const slot = slots[index]!;
+      const execution = done.get(index)!;
+      appliedUpTo = index;
+      const item = slot.item;
+      const observed = (([...turn.assembled.pageObservedHistory].reverse().find((row) => row.callId === item.callId)?.result ?? {}) as { url?: string; title?: string });
+      const stored = storeToolImages(dataDir, ledger.conversationId, execution.text, {
+        tool: item.name, callId: item.callId,
+        ...(typeof item.arguments.tabId === "number" ? { tabId: item.arguments.tabId } : {}),
+        ...(typeof item.arguments.ref === "string" ? { element: item.arguments.ref } : {}),
+        ...(observed.url ? { url: observed.url } : {}),
+        ...(observed.title ? { tabTitle: observed.title } : {}),
       });
-    } catch (error) {
-      // A failed tool is evidence for the model to correct its next call. It must
-      // pass through the same recording/effect boundary as any normal result.
-      execution = failedTool(error, "tool_execution_failed", { toolName: item.name });
+      for (const image of stored.images) {
+        if (image.bytes > runtimeConfig.results.imageInlineBytes) {
+          await ensureThumb(dataDir, ledger.conversationId, image, host);
+        }
+      }
+      const full = stored.text;
+      saveFullReturn(dataDir, ledger.conversationId, item.callId, full);
+      // Oversized returns stay on disk; the window only gets a searchable pointer.
+      const admittedText = admitText(full, {
+        callId: item.callId,
+        name: item.name,
+        path: join(paths(dataDir, ledger.conversationId).returns, `${item.callId}.txt`),
+      });
+      const viewText = admittedText.mode === "inline" ? admittedText.text : JSON.stringify(admittedText.payload);
+      const row: ToolIOItem = {
+        ...item,
+        turnId: turn.turnId,
+        ...(stored.images.length ? { images: stored.images } : {}),
+        return: { stage: "complete", totalChars: full.length, text: viewText },
+      };
+      ledger.toolIO.push(row);
+      const escalation = escalate(ledger.toolIO.filter((r) => r.turnId === turn.turnId), item.name);
+      if (escalation.action === "force_end" || escalation.action === "interrupt") {
+        saveLedger(dataDir, ledger);
+        return { kind: "reply", text: escalation.text };
+      }
+      if (escalation.action === "hint") {
+        row.return = { ...row.return, text: `${row.return.text}\n\n${escalation.text}` };
+      }
+      let output: TurnOutput | null = null;
+      try {
+        output = applyToolEffects({ dataDir, ledger, turn, call: item, effects: execution.effects });
+      } catch (error) {
+        if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) return { kind: "error", faultCode: "stopped" };
+        // Effects can fail after earlier writes succeeded. Report evidence without replaying them.
+        const text = failedTool(error, "tool_execution_failed", { toolName: item.name,
+          details: { executionState: "部分操作可能已生效，请先检查已保存记录与当前状态，不要直接重放整批操作。" } }).text;
+        row.return = { stage: "complete", totalChars: text.length, text };
+        saveFullReturn(dataDir, ledger.conversationId, item.callId, text);
+        saveTurn(dataDir, turn);
+        saveLedger(dataDir, ledger);
+      }
+      appendEvent(dataDir, ledger.conversationId, {
+        kind: "tool",
+        turnId: turn.turnId,
+        data: { callId: item.callId, name: item.name, arguments: item.arguments, return: row.return, ...(row.images ? { images: row.images } : {}) },
+      });
+      if (output) return output;
     }
+    return null;
+  };
+
+  const drainWave = async (): Promise<TurnOutput | null> => {
+    while (inflight.size) {
+      await Promise.race(inflight);
+      if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
+        return { kind: "error", faultCode: "stopped" };
+      }
+      const out = await applyReady();
+      if (out) return out;
+    }
+    return applyReady();
+  };
+
+  for (let i = 0; i < slots.length; i++) {
+    const slot = slots[i]!;
     if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
       return { kind: "error", faultCode: "stopped" };
     }
-    const observed = (([...turn.assembled.pageObservedHistory].reverse().find((row) => row.callId === item.callId)?.result ?? {}) as { url?: string; title?: string });
-    const stored = storeToolImages(dataDir, ledger.conversationId, execution.text, {
-      tool: item.name, callId: item.callId,
-      ...(typeof item.arguments.tabId === "number" ? { tabId: item.arguments.tabId } : {}),
-      ...(typeof item.arguments.ref === "string" ? { element: item.arguments.ref } : {}),
-      ...(observed.url ? { url: observed.url } : {}),
-      ...(observed.title ? { tabTitle: observed.title } : {}),
-    });
-    for (const image of stored.images) {
-      if (image.bytes > runtimeConfig.results.imageInlineBytes) {
-        await ensureThumb(dataDir, ledger.conversationId, image, host);
+    if (slot.mode === "parallel") {
+      void launch(slot, i + 1);
+      closed = await applyReady();
+      if (closed) break;
+    } else {
+      closed = await drainWave();
+      if (closed) break;
+      if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
+        return { kind: "error", faultCode: "stopped" };
       }
+      await launch(slot, i + 1);
+      if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
+        return { kind: "error", faultCode: "stopped" };
+      }
+      closed = await applyReady();
+      if (closed) break;
     }
-    const full = stored.text;
-    saveFullReturn(dataDir, ledger.conversationId, item.callId, full);
-    // Oversized returns stay on disk; the window only gets a searchable pointer.
-    const admittedText = admitText(full, {
-      callId: item.callId,
-      name: item.name,
-      path: join(paths(dataDir, ledger.conversationId).returns, `${item.callId}.txt`),
-    });
-    const viewText = admittedText.mode === "inline" ? admittedText.text : JSON.stringify(admittedText.payload);
-    const row: ToolIOItem = {
-      ...item,
-      turnId: turn.turnId,
-      ...(stored.images.length ? { images: stored.images } : {}),
-      return: { stage: "complete", totalChars: full.length, text: viewText },
-    };
-    ledger.toolIO.push(row);
-    const escalation = escalate(ledger.toolIO.filter((r) => r.turnId === turn.turnId), item.name);
-    if (escalation.action === "force_end" || escalation.action === "interrupt") {
-      saveLedger(dataDir, ledger);
-      return { kind: "reply", text: escalation.text };
-    }
-    if (escalation.action === "hint") {
-      row.return = { ...row.return, text: `${row.return.text}\n\n${escalation.text}` };
-    }
-    let output: TurnOutput | null = null;
-    try {
-      output = applyToolEffects({ dataDir, ledger, turn, call: item, effects: execution.effects });
-    } catch (error) {
-      if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) return { kind: "error", faultCode: "stopped" };
-      // Effects can fail after earlier writes succeeded. Report evidence without replaying them.
-      const text = failedTool(error, "tool_execution_failed", { toolName: item.name,
-        details: { executionState: "部分操作可能已生效，请先检查已保存记录与当前状态，不要直接重放整批操作。" } }).text;
-      row.return = { stage: "complete", totalChars: text.length, text };
-      saveFullReturn(dataDir, ledger.conversationId, item.callId, text);
-      ledger.liveTool = null;
-      saveTurn(dataDir, turn);
-      saveLedger(dataDir, ledger);
-    }
-    appendEvent(dataDir, ledger.conversationId, {
-      kind: "tool",
-      turnId: turn.turnId,
-      data: { callId: item.callId, name: item.name, arguments: item.arguments, return: row.return, ...(row.images ? { images: row.images } : {}) },
-    });
-    if (output) return output;
   }
-  return null;
+  if (!closed) closed = await drainWave();
+  if (!wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
+    ledger.liveTools = [...live.values()];
+    saveLedger(dataDir, ledger);
+  }
+  return closed;
 };
 
 export async function handleTurn(
@@ -518,7 +600,7 @@ export async function handleTurn(
         ledger.status = "failed";
         ledger.checklist = null;
         ledger.active = null;
-        ledger.liveTool = null;
+        ledger.liveTools = [];
         saveTurn(deps.dataDir, turn);
         saveLedger(deps.dataDir, ledger);
         appendEvent(deps.dataDir, ledger.conversationId, {
@@ -618,7 +700,7 @@ export async function handleTurn(
           ledger.status = "failed";
         ledger.checklist = null;
           ledger.active = null;
-          ledger.liveTool = null;
+          ledger.liveTools = [];
           saveTurn(deps.dataDir, turn);
           saveLedger(deps.dataDir, ledger);
           appendEvent(deps.dataDir, ledger.conversationId, {
@@ -679,7 +761,7 @@ export async function handleTurn(
           ledger.status = "failed";
         ledger.checklist = null;
           ledger.active = null;
-          ledger.liveTool = null;
+          ledger.liveTools = [];
           saveTurn(deps.dataDir, turn);
           saveLedger(deps.dataDir, ledger);
           appendEvent(deps.dataDir, ledger.conversationId, {
@@ -753,7 +835,7 @@ export async function handleTurn(
     ledger.status = "failed";
         ledger.checklist = null;
     ledger.active = null;
-    ledger.liveTool = null;
+    ledger.liveTools = [];
     ledger.toolQueue = [];
     saveTurn(deps.dataDir, turn);
     saveLedger(deps.dataDir, ledger);
@@ -769,7 +851,7 @@ export async function handleTurn(
           return stoppedReply(ledger, turn);
         }
     const cause = errorInfo(error);
-    const liveTool = ledger.liveTool;
+    const liveTool = ledger.liveTools[0];
     turn.status = "failed";
     turn.completedAt = nowIso();
     turn.output = { kind: "error", faultCode: "tool_execution_failed", detail: cause.detail,
@@ -778,7 +860,7 @@ export async function handleTurn(
     ledger.status = "failed";
         ledger.checklist = null;
     ledger.active = null;
-    ledger.liveTool = null;
+    ledger.liveTools = [];
     ledger.toolQueue = [];
     // Keep effects already applied before the exception; never replay the batch.
     if (liveTool) {

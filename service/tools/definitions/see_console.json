@@ -2,17 +2,33 @@
   "type": "function",
   "function": {
     "name": "see_console",
-    "description": "读取页面 console 日志（需页面已注入监听；开启后的日志才可读）。\n参数：level=error|warn|log|all（默认 error）；必填 tabId。\n返回：ok、count、items。",
+    "description": "读取页面 console 日志（需页面已注入监听；开启后的日志才可读）。\n参数：level=error|warn|log|all（默认 error）；必填 tabId。\n返回：ok、count、items。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean", "const": false },
-        "tabId": { "type": "integer", "description": "目标标签编号；从 <openTabs> 或工具返回取得。" },
-        "level": { "type": "string", "enum": ["error", "warn", "log", "all"] }
+        "reason": {
+          "type": "string"
+        },
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 <openTabs> 或工具返回取得。"
+        },
+        "level": {
+          "type": "string",
+          "enum": [
+            "error",
+            "warn",
+            "log",
+            "all"
+          ]
+        }
       },
-      "required": ["reason", "affectsPage", "tabId"],
+      "required": [
+        "reason",
+        "tabId"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "parallel"
 }

@@ -2,15 +2,12 @@
   "type": "function",
   "function": {
     "name": "page.get_element_state",
-    "description": "看元素焦点、禁用、勾选、当前值。\n参数：id（页面工具返回的目标标识），必填 tabId（目标标签编号）。\n返回：ok、focused、disabled、value（当前值）、inView。",
+    "description": "看元素焦点、禁用、勾选、当前值。\n参数：id（页面工具返回的目标标识），必填 tabId（目标标签编号）。\n返回：ok、focused、disabled、value（当前值）、inView。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         },
         "tabId": {
           "type": "integer",
@@ -22,10 +19,10 @@
       },
       "required": [
         "reason",
-        "affectsPage",
         "id",
         "tabId"
       ]
     }
-  }
+  },
+  "execution": "parallel"
 }

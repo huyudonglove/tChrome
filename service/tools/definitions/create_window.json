@@ -2,15 +2,12 @@
   "type": "function",
   "function": {
     "name": "create_window",
-    "description": "后台新开一个窗口，不请求输入焦点。\n参数：可选 url（要打开的完整浏览器链接地址），省略时使用浏览器默认的新建页面。\n返回：ok、windowId（窗口编号）。",
+    "description": "后台新开一个窗口，不请求输入焦点。\n参数：可选 url（要打开的完整浏览器链接地址），省略时使用浏览器默认的新建页面。\n返回：ok、windowId（窗口编号）。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         },
         "url": {
           "type": "string",
@@ -19,10 +16,10 @@
         }
       },
       "required": [
-        "reason",
-        "affectsPage"
+        "reason"
       ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

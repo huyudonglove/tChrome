@@ -33,7 +33,6 @@ test("HTTP heartbeat returns jobId and job.status later delivers the full result
       url: "https://example.com/slow",
       heartbeatSec: 1,
       reason: "长请求",
-      affectsPage: false,
     }, undefined, conversationId);
     const beat = await pending;
     expect(beat).toMatchObject({ ok: true, heartbeat: true, status: "running", toolName: "send_http" });
@@ -64,7 +63,6 @@ test("job.stop cancels an in-flight HTTP heartbeat request", async () => {
       url: "https://example.com/hang",
       heartbeatSec: 1,
       reason: "取消",
-      affectsPage: false,
     }, undefined, conversationId);
     const jobId = String((beat as { jobId: string }).jobId);
     const stopped = await runJobTool("job.stop", { jobId }, jobScope(dataDir, conversationId));
@@ -80,7 +78,6 @@ test("without heartbeatSec the HTTP call waits for the complete body", async () 
     const result = await runServiceTool(dataDir, "send_http", {
       url: "https://example.com",
       reason: "同步",
-      affectsPage: false,
     }, undefined, conversationId);
     expect(result).toMatchObject({ ok: true, text: "done" });
     expect(result).not.toHaveProperty("heartbeat");
@@ -122,7 +119,7 @@ test("execute_javascript heartbeat uses job.status and forwards the eventual scr
   };
   const pending = executeTool({
     name: "execute_javascript",
-    arguments: { filename, tabId: 1, reason: "长脚本", affectsPage: false, heartbeatSec: 1 },
+    arguments: { filename, tabId: 1, reason: "长脚本", heartbeatSec: 1 },
     dataDir,
     conversationId,
     browserNames: ["execute_javascript"],
@@ -136,7 +133,7 @@ test("execute_javascript heartbeat uses job.status and forwards the eventual scr
   await Bun.sleep(20);
   const status = await executeTool({
     name: "job.status",
-    arguments: { jobId, reason: "查询", affectsPage: false },
+    arguments: { jobId, reason: "查询" },
     dataDir,
     conversationId,
     browserNames: [],

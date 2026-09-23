@@ -2,16 +2,12 @@
   "type": "function",
   "function": {
     "name": "reflect.write",
-    "description": "记录当前 turn 的总结与反思（做了什么、依据、风险与下一步）。每次写入分配 rf_ 编号并追加到本轮列表；传 id 时更新该条。正文进入 <reflection> 并随该轮进入压缩材料。\n参数：必填 text；可选 focus、id。",
+    "description": "记录当前 turn 的总结与反思（做了什么、依据、风险与下一步）。每次写入分配 rf_ 编号并追加到本轮列表；传 id 时更新该条。正文进入 <reflection> 并随该轮进入压缩材料。\n参数：必填 text；可选 focus、id。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean",
-          "const": false
         },
         "text": {
           "type": "string",
@@ -33,10 +29,10 @@
       },
       "required": [
         "reason",
-        "affectsPage",
         "text"
       ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

@@ -2,15 +2,12 @@
   "type": "function",
   "function": {
     "name": "open_tab",
-    "description": "在指定 windowId 窗口后台新开标签，不激活新页。\n参数：必填 windowId；可选 url（完整链接），省略时打开 about:blank。\n返回：ok、tabId（新标签编号）、windowId、url、title。继续操作新页时显式传入该 tabId。",
+    "description": "在指定 windowId 窗口后台新开标签，不激活新页。\n参数：必填 windowId；可选 url（完整链接），省略时打开 about:blank。\n返回：ok、tabId（新标签编号）、windowId、url、title。继续操作新页时显式传入该 tabId。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         },
         "url": {
           "type": "string",
@@ -24,10 +21,10 @@
       },
       "required": [
         "reason",
-        "affectsPage",
         "windowId"
       ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

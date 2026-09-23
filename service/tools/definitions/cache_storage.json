@@ -2,20 +2,43 @@
   "type": "function",
   "function": {
     "name": "cache_storage",
-    "description": "读写页内 Cache Storage。\n参数：action=read|write|delete|list；list 可省略 cache；其余操作建议提供 cache；读写删除需 key；write 需 value。必填 tabId。\n返回：ok、value/keys/caches。",
+    "description": "读写页内 Cache Storage。\n参数：action=read|write|delete|list；list 可省略 cache；其余操作建议提供 cache；读写删除需 key；write 需 value。必填 tabId。\n返回：ok、value/keys/caches。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean" },
-        "tabId": { "type": "integer", "description": "目标标签编号；从 <openTabs> 或工具返回取得。" },
-        "action": { "type": "string", "enum": ["read", "write", "delete", "list"] },
-        "cache": { "type": "string", "description": "缓存名" },
-        "key": { "type": "string" },
-        "value": { "type": "string" }
+        "reason": {
+          "type": "string"
+        },
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 <openTabs> 或工具返回取得。"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "read",
+            "write",
+            "delete",
+            "list"
+          ]
+        },
+        "cache": {
+          "type": "string",
+          "description": "缓存名"
+        },
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
       },
-      "required": ["reason", "affectsPage", "tabId"],
+      "required": [
+        "reason",
+        "tabId"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

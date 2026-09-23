@@ -28,16 +28,16 @@ test("P0-P2 automation tools are registered with schemas", () => {
     "combo.select", "date.select", "tab.context", "clipboard.page_write", "clipboard.page_read",
   ]);
   expect(checkToolCalls([
-    { id: "c1", name: "page.assert", arguments: { reason: "核验", affectsPage: false, tabId: 12, text: "上传成功", urlContains: "/upload" } },
-    { id: "c2", name: "page.drag_to_id", arguments: { reason: "拖拽", affectsPage: true, tabId: 12, sourceId: "e_01", targetId: "e_02" } },
-    { id: "c3", name: "frame.list", arguments: { reason: "列 frame", affectsPage: false, tabId: 12 } },
-    { id: "c4", name: "network.grep", arguments: { reason: "搜响应", affectsPage: false, tabId: 12, urlContains: "/api/", keyword: "ok" } },
-    { id: "c5", name: "dialog.wait", arguments: { reason: "等弹窗", affectsPage: false, tabId: 12, timeoutMs: 3000 } },
-    { id: "c6", name: "combo.select", arguments: { reason: "选下拉", affectsPage: true, tabId: 12, id: "e_03", value: "stl" } },
-    { id: "c7", name: "date.select", arguments: { reason: "选日期", affectsPage: true, tabId: 12, id: "e_04", value: "2026-01-02" } },
-    { id: "c8", name: "tab.context", arguments: { reason: "绑定标签", affectsPage: false, action: "set", tabId: 12 } },
-    { id: "c9", name: "clipboard.page_write", arguments: { reason: "写剪贴板", affectsPage: true, tabId: 12, text: "hello" } },
-    { id: "c10", name: "clipboard.page_read", arguments: { reason: "读剪贴板", affectsPage: false, tabId: 12 } },
+    { id: "c1", name: "page.assert", arguments: { reason: "核验", tabId: 12, text: "上传成功", urlContains: "/upload" } },
+    { id: "c2", name: "page.drag_to_id", arguments: { reason: "拖拽", tabId: 12, sourceId: "e_01", targetId: "e_02" } },
+    { id: "c3", name: "frame.list", arguments: { reason: "列 frame", tabId: 12 } },
+    { id: "c4", name: "network.grep", arguments: { reason: "搜响应", tabId: 12, urlContains: "/api/", keyword: "ok" } },
+    { id: "c5", name: "dialog.wait", arguments: { reason: "等弹窗", tabId: 12, timeoutMs: 3000 } },
+    { id: "c6", name: "combo.select", arguments: { reason: "选下拉", tabId: 12, id: "e_03", value: "stl" } },
+    { id: "c7", name: "date.select", arguments: { reason: "选日期", tabId: 12, id: "e_04", value: "2026-01-02" } },
+    { id: "c8", name: "tab.context", arguments: { reason: "绑定标签", action: "set", tabId: 12 } },
+    { id: "c9", name: "clipboard.page_write", arguments: { reason: "写剪贴板", tabId: 12, text: "hello" } },
+    { id: "c10", name: "clipboard.page_read", arguments: { reason: "读剪贴板", tabId: 12 } },
   ], tools, registry.toolGroups.coreToolIds, [
     "page.assert", "page.drag_to_id", "frame.list", "network.grep", "dialog.wait",
     "combo.select", "date.select", "tab.context", "clipboard.page_write", "clipboard.page_read",
@@ -61,7 +61,7 @@ test("tab.context sets default tab and fills later browser calls", async () => {
   const exec = executeTool;
   const set = await exec({
     name: "tab.context",
-    arguments: { reason: "绑定", affectsPage: false, action: "set", tabId: 42 },
+    arguments: { reason: "绑定", action: "set", tabId: 42 },
     dataDir,
     defaultTabId: ledger.contextTab?.tabId ?? null,
     lookup: { knownTools: ["tab.context"], enabledTools: ["tab.context"], unusedTools: [] },
@@ -72,7 +72,7 @@ test("tab.context sets default tab and fills later browser calls", async () => {
   let seen: any = null;
   const page = await exec({
     name: "page.recheck",
-    arguments: { reason: "复验", affectsPage: false, urlContains: "example" },
+    arguments: { reason: "复验", urlContains: "example" },
     dataDir,
     defaultTabId: ledger.contextTab?.tabId ?? null,
     lookup: { knownTools: ["page.recheck"], enabledTools: ["page.recheck"], unusedTools: [] },
@@ -86,7 +86,7 @@ test("tab.context sets default tab and fills later browser calls", async () => {
   // page.recheck is browser tool - need browserNames
   const page2 = await exec({
     name: "page.recheck",
-    arguments: { reason: "复验", affectsPage: false, urlContains: "example" },
+    arguments: { reason: "复验", urlContains: "example" },
     dataDir,
     defaultTabId: ledger.contextTab?.tabId ?? null,
     browserNames: ["page.recheck"],
@@ -102,7 +102,7 @@ test("tab.context sets default tab and fills later browser calls", async () => {
   expect(seen.tabId).toBe(42);
   const clear = await exec({
     name: "tab.context",
-    arguments: { reason: "清除", affectsPage: false, action: "clear" },
+    arguments: { reason: "清除", action: "clear" },
     dataDir,
     defaultTabId: ledger.contextTab?.tabId ?? null,
     lookup: { knownTools: ["tab.context"], enabledTools: ["tab.context"], unusedTools: [] },

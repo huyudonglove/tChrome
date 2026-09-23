@@ -2,17 +2,27 @@
   "type": "function",
   "function": {
     "name": "clipboard.page_write",
-    "description": "向页面剪贴板写入文本（navigator.clipboard.writeText）。受页面权限与用户手势限制，失败时返回原因。",
+    "description": "向页面剪贴板写入文本（navigator.clipboard.writeText）。受页面权限与用户手势限制，失败时返回原因。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean" },
-        "tabId": { "type": "integer" },
-        "text": { "type": "string" }
+        "reason": {
+          "type": "string"
+        },
+        "tabId": {
+          "type": "integer"
+        },
+        "text": {
+          "type": "string"
+        }
       },
-      "required": ["reason", "affectsPage", "tabId", "text"],
+      "required": [
+        "reason",
+        "tabId",
+        "text"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

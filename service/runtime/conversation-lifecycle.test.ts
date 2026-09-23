@@ -10,7 +10,7 @@ import type { CompletionResult, Provider } from "../types.ts";
 const repoRoot = join(import.meta.dir, "../..");
 const completed: CompletionResult = { finish: "tool_calls", content: "", attempts: 1, parseOk: true,
   schemaOk: true, faultCode: null, missing: [], toolCalls: [{ id: "finish", name: "finishTurn",
-    arguments: { reason: "完成", affectsPage: false, text: "结果"} }] };
+    arguments: { reason: "完成", text: "结果"} }] };
 
 test("deleting a running conversation cannot reuse its identity or overwrite its replacement", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-lifecycle-"));
@@ -48,21 +48,21 @@ test("loop scopes bridge requests so stopping a queued conversation leaves the a
   const bridge = createToolBridge(dataDir);
   let calls = 0;
   const provider: Provider = { complete: async () => calls++ < 2
-    ? { ...completed, toolCalls: [{ id: `page_${calls}`, name: "page.get_summary", arguments: { reason: "读取", affectsPage: false, tabId: 1 } }] }
+    ? { ...completed, toolCalls: [{ id: `page_${calls}`, name: "page.get_summary", arguments: { reason: "读取", tabId: 1 } }] }
     : completed };
   const deps = { dataDir, repoRoot, provider, host: { ...bridge, forScope: (scope: string) => ({ ...bridge.forScope!(scope), readOpenTabs: async () => ({ ok: true as const, windows: [] }) }) } };
   try {
     const first = handleTurn(deps, { userInput: "FIRST", submittedAt: "now" });
     await Bun.sleep(0);
-    const activeId = bridge.current()!.id;
+    const activeId = bridge.list()[0]!.id;
     newConversation(dataDir);
     const second = handleTurn(deps, { userInput: "SECOND", submittedAt: "now" });
     await Bun.sleep(0);
-    expect(bridge.current()!.id).toBe(activeId);
+    expect(bridge.list()[0]!.id).toBe(activeId);
     stopTurn(dataDir);
     bridge.abort("cv_02");
     expect((await second).output).toEqual({ kind: "error", faultCode: "stopped" });
-    expect(bridge.current()!.id).toBe(activeId);
+    expect(bridge.list()[0]!.id).toBe(activeId);
     bridge.resolve(activeId, { ok: true });
     expect((await first).output).toEqual({ kind: "reply", text: "结果" });
     expect(loadLedger(dataDir, "cv_01").status).toBe("idle");

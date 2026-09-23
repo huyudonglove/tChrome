@@ -2,18 +2,32 @@
   "type": "function",
   "function": {
     "name": "snapshot_page",
-    "description": "列出指定页可见交互控件快照，不附带整页正文。参数：可选 text（筛选文本）、limit（默认40，最多100）、tabId。返回：ok、title、url、elements、total、truncated。elements[].id/ref 为 e_ 编号（与 page.* 同一套），可直接用于 click/type/scroll_to/wait；另含 domId（页面真实 id，若有）。不可作为 page.click 的 id 时请先用 page.list_*。导航或元素移除后需重新获取。",
+    "description": "列出指定页可见交互控件快照，不附带整页正文。参数：可选 text（筛选文本）、limit（默认40，最多100）、tabId。返回：ok、title、url、elements、total、truncated。elements[].id/ref 为 e_ 编号（与 page.* 同一套），可直接用于 click/type/scroll_to/wait；另含 domId（页面真实 id，若有）。不可作为 page.click 的 id 时请先用 page.list_*。导航或元素移除后需重新获取。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean", "const": false },
-        "tabId": { "type": "integer", "description": "目标标签编号；从 <openTabs> 或工具返回取得。" },
-        "text": { "type": "string" },
-        "limit": { "type": "integer", "minimum": 1, "maximum": 100 }
+        "reason": {
+          "type": "string"
+        },
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 <openTabs> 或工具返回取得。"
+        },
+        "text": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
       },
-      "required": ["reason", "affectsPage", "tabId"],
+      "required": [
+        "reason",
+        "tabId"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "parallel"
 }

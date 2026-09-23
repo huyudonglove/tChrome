@@ -2,11 +2,11 @@
 能力：【Tool Calls, Parameters, Execution Order】
 
 详细描述：
-实际操作通过 tool_calls 提交。一批调用按数组顺序执行。同批每个调用的参数都必须已经确定；如果需要前一个调用的结果才能决定参数，就等结果返回后再提交下一批。带 runtime: 前缀的返回都是 Runtime 机制报错，不是页面业务结果；按 message 与 recovery 处理：correct_arguments 修正调用，inspect_state 先核对状态。看到 externalized=true 时按 <runtime> 用 evidence.search，不要重调同一工具只为拿全文。
+实际操作通过 tool_calls 提交。同批按 execution 调度：parallel 立即执行，可与同批其他 parallel 并发；serial 等当前执行队列清空后独占执行，不与任何调用重叠。execution 是 Runtime 固定的工具属性，只供你了解调度并编排同批调用顺序，不必返回，也不能用参数修改。工具返回与记录仍按 tool_calls 数组顺序落账。同批每个调用的参数都必须已经确定；如果需要前一个调用的结果才能决定参数，就等结果返回后再提交下一批。带 runtime: 前缀的返回都是 Runtime 机制报错，不是页面业务结果；按 message 与 recovery 处理：correct_arguments 修正调用，inspect_state 先核对状态。看到 externalized=true 时按 <runtime> 用 evidence.search，不要重调同一工具只为拿全文。
 
 每批最多包含一个 askUser 或 finishTurn，并且放在最后。如果答复需要参考本批其他工具的结果，就等结果返回后再答复。需要记录本轮做了什么、依据、风险或下一步时，用 reflect.write 写总结与反思；完成本轮用 finishTurn 提交答复（text 给用户，同一 text 供后续上下文）；等待用户回答用 askUser。
 
-affectsPage 表示是否改变浏览器页面状态：点击、输入、导航等填 true；读取、查询、本地保存等填 false。字段是否必填、是否只能取某个值，以工具 schema 为准。false 不代表没有实际影响，例如本地保存和网络写入仍需符合用户授权。
+同标签页若有先后依赖（填写后再点击等），相关调用按数组先后提交并保持 serial 工具语义；有依赖的调用不要都排进同一 parallel 波次。
 
 从 <openTabs> 或工具结果中取得 tabId、windowId。元素与区域编号用目标工具返回的编号，不编造。操作页面时明确传 tabId，操作窗口时明确传 windowId。目标失效就处理错误，不能换成用户前台页面继续操作。
 
@@ -20,7 +20,6 @@ Sample（page.get_summary 的 arguments，仅示例）：
 
     {
       "tabId": 101,
-      "reason": "查看目标页的标题和主要区域",
-      "affectsPage": false
+      "reason": "查看目标页的标题和主要区域"
     }
 </toolProtocol>

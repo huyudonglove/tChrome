@@ -50,7 +50,7 @@ test.each([undefined, "", "  ", 42, null])("invalid closing text %j cannot end o
 test("finishTurn schema requires nonblank text", () => {
   const tool = JSON.parse(readFileSync(new URL(`./definitions/finishTurn.json`, import.meta.url), "utf8")) as ChatTool;
   const check = (args: ExecuteInput["arguments"]) => checkToolCalls([
-    { id: "closing", name: "finishTurn", arguments: { reason: "完成当前步骤", affectsPage: false, ...args } },
+    { id: "closing", name: "finishTurn", arguments: { reason: "完成当前步骤", ...args } },
   ], [tool], ["finishTurn"], []);
   expect(check({}).faultCode).toBe("missing_required");
   expect(check({ text: "有效正文" }).schemaOk).toBe(true);
@@ -62,7 +62,7 @@ test("finishTurn schema requires nonblank text", () => {
 test("askUser schema requires a nonblank user-facing message", () => {
   const tool = JSON.parse(readFileSync(new URL(`./definitions/askUser.json`, import.meta.url), "utf8")) as ChatTool;
   const check = (args: ExecuteInput["arguments"]) => checkToolCalls([
-    { id: "closing", name: "askUser", arguments: { reason: "完成当前步骤", affectsPage: false, choice: [], ...args } },
+    { id: "closing", name: "askUser", arguments: { reason: "完成当前步骤", choice: [], ...args } },
   ], [tool], ["askUser"], []);
   expect(check({}).faultCode).toBe("missing_required");
   for (const value of ["", " \n\t "]) expect(check({ question: value }).schemaOk).toBe(false);

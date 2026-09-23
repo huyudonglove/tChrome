@@ -2,23 +2,51 @@
   "type": "function",
   "function": {
     "name": "page.click_text",
-    "description": "复合：按控件可见文字定位（find_on_page）→ 点击 → 可选等待。适合没有稳定 role/name 的文字按钮。\n参数：必填 tabId、text；可选 matchIndex、waitText、waitUrlContains、ms、status、limit。\n文字多匹配须 matchIndex，不默认取第一个。返回：ok、id、clicked、wait。",
+    "description": "复合：按控件可见文字定位（find_on_page）→ 点击 → 可选等待。适合没有稳定 role/name 的文字按钮。\n参数：必填 tabId、text；可选 matchIndex、waitText、waitUrlContains、ms、status、limit。\n文字多匹配须 matchIndex，不默认取第一个。返回：ok、id、clicked、wait。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean", "const": true },
-        "tabId": { "type": "integer" },
-        "text": { "type": "string", "minLength": 1, "description": "控件可见文字 / value / aria-label" },
-        "matchIndex": { "type": "integer", "minimum": 0 },
-        "limit": { "type": "integer", "minimum": 1, "maximum": 100, "description": "find_on_page 的 limit" },
-        "waitText": { "type": "string" },
-        "waitUrlContains": { "type": "string" },
-        "status": { "type": "integer" },
-        "ms": { "type": "integer" }
+        "reason": {
+          "type": "string"
+        },
+        "tabId": {
+          "type": "integer"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "控件可见文字 / value / aria-label"
+        },
+        "matchIndex": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "find_on_page 的 limit"
+        },
+        "waitText": {
+          "type": "string"
+        },
+        "waitUrlContains": {
+          "type": "string"
+        },
+        "status": {
+          "type": "integer"
+        },
+        "ms": {
+          "type": "integer"
+        }
       },
-      "required": ["reason", "affectsPage", "tabId", "text"],
+      "required": [
+        "reason",
+        "tabId",
+        "text"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

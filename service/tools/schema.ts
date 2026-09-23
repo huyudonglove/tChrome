@@ -115,7 +115,9 @@ export function checkToolCalls(
     const schema = byName.get(call.name)?.function.parameters;
     if (!schema) continue;
     const validate = ajv.compile(schema);
-    const normalized = normalizeArguments(call.arguments, schema) as ToolCall["arguments"];
+    // Runtime owns execution scheduling; never accept a model-submitted override.
+    const { execution: _ignored, ...bare } = call.arguments ?? {};
+    const normalized = normalizeArguments(bare, schema) as ToolCall["arguments"];
     if (!validate(normalized)) {
       const { missing, detail } = validationDetails(validate.errors ?? [], schema);
       return {

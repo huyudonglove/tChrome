@@ -16,7 +16,7 @@ import { compressionTurnsFromUserMessage } from "./agents/compression/protocol.t
 import type { CompletionResult, Provider, Turn } from "./types.ts";
 const repoRoot = join(import.meta.dir, "..");
 const reply = (toolCalls: CompletionResult["toolCalls"]): CompletionResult => ({ content: "", finish: "tool_calls", toolCalls, attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] });
-const finish = () => reply([{ id: "finish", name: "finishTurn", arguments: { reason: "已核对", affectsPage: false, text: "完成"} }]);
+const finish = () => reply([{ id: "finish", name: "finishTurn", arguments: { reason: "已核对", text: "完成"} }]);
 const section = (user: string, tag: string) => {
   const m = user.match(new RegExp(`<${tag}>\\n[\\s\\S]*?\\n\\n内容：\\n([\\s\\S]*?)\\n</${tag}>`));
   return JSON.parse(m![1]!);
@@ -35,7 +35,7 @@ function fixture(dataDir: string, text = "精确证据".repeat(250)) {
   saveLedger(dataDir, ledger);
   return { cv, ledger, turns, sumId, tool };
 }
-const queryCall = (sumId: string, module = "toolIO") => reply([{ id: "query", name: "context.query", arguments: { reason: "查原文", affectsPage: false, sumId, module, intent: "读取详细证据" } }]);
+const queryCall = (sumId: string, module = "toolIO") => reply([{ id: "query", name: "context.query", arguments: { reason: "查原文", sumId, module, intent: "读取详细证据" } }]);
 
 test("query insertion triggers the 200K gate, protects current evidence, rotates and persists history", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "query-loop-"));

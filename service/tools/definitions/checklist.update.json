@@ -2,29 +2,49 @@
   "type": "function",
   "function": {
     "name": "checklist.update",
-    "description": "更新当前 turn 的执行清单条目（按 index 修改 status 或 text）。\n参数：必填 items（每项 index 必填，status/text 至少一项）。status：todo|doing|done。\n本 turn 结束后清单会被清空。返回：ok、updated。",
+    "description": "更新当前 turn 的执行清单条目（按 index 修改 status 或 text）。\n参数：必填 items（每项 index 必填，status/text 至少一项）。status：todo|doing|done。\n本 turn 结束后清单会被清空。返回：ok、updated。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean", "const": false },
+        "reason": {
+          "type": "string"
+        },
         "items": {
           "type": "array",
           "minItems": 1,
           "items": {
             "type": "object",
             "properties": {
-              "index": { "type": "integer", "minimum": 0, "description": "清单中从 0 开始的条目序号" },
-              "status": { "type": "string", "enum": ["todo", "doing", "done"] },
-              "text": { "type": "string" }
+              "index": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "清单中从 0 开始的条目序号"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "todo",
+                  "doing",
+                  "done"
+                ]
+              },
+              "text": {
+                "type": "string"
+              }
             },
-            "required": ["index"],
+            "required": [
+              "index"
+            ],
             "additionalProperties": false
           }
         }
       },
-      "required": ["reason", "affectsPage", "items"],
+      "required": [
+        "reason",
+        "items"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

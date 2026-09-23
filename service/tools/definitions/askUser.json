@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "askUser",
-    "description": "向用户提问。缺少必须由用户提供的信息或授权时调用。\n参数：必填 question：非空问题正文；choice：选项数组，无选项传 []。\n返回：问题正文与选项，暂停并等待用户下一条消息；下一条消息开启新一轮对话，不会在本次调用中返回用户答案。",
+    "description": "向用户提问。缺少必须由用户提供的信息或授权时调用。\n参数：必填 question：非空问题正文；choice：选项数组，无选项传 []。\n返回：问题正文与选项，暂停并等待用户下一条消息；下一条消息开启新一轮对话，不会在本次调用中返回用户答案。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -15,9 +15,6 @@
         "reason": {
           "type": "string"
         },
-        "affectsPage": {
-          "type": "boolean"
-        },
         "choice": {
           "type": "array",
           "items": {
@@ -27,10 +24,10 @@
       },
       "required": [
         "reason",
-        "affectsPage",
         "choice",
         "question"
       ]
     }
-  }
+  },
+  "execution": "serial"
 }

@@ -17,7 +17,7 @@ type SessionView = {
   status: string;
   activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null; completed?: number; total?: number | null } | null;
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
-  liveTool: { name: string; callId: string } | null;
+  liveTools: { name: string; callId: string }[];
   checklist: { title?: string; items: { text: string; status: string }[] } | null;
   messages: Message[];
 };
@@ -35,7 +35,7 @@ type ConversationItem = {
   preview: string;
 };
 
-const emptySession = (): SessionView => ({ conversationId: null, status: "idle", activity: null, pendingAsk: null, liveTool: null, checklist: null, messages: [] });
+const emptySession = (): SessionView => ({ conversationId: null, status: "idle", activity: null, pendingAsk: null, liveTools: [], checklist: null, messages: [] });
 
 const SUGGESTIONS = [
   { label: "看当前页", text: "当前页标题是什么" },
@@ -550,7 +550,7 @@ export function App() {
               </div>
             </article>
           ))}
-          {running && !compressing && !session.liveTool && session.messages.at(-1)?.role === "user" ? (
+          {running && !compressing && !session.liveTools?.length && session.messages.at(-1)?.role === "user" ? (
             <article className="message-row assistant muted">
               <Avatar who="assistant" />
               <div className="message-body"><div className="waiting-dots" role="status" aria-label="正在处理">

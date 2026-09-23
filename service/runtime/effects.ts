@@ -234,7 +234,7 @@ export function applyToolEffects(input: {
       case "queue.clear": ledger.toolQueue = []; break;
     }
   }
-  ledger.liveTool = null;
+  ledger.liveTools = [];
   saveTurn(dataDir, turn);
   saveLedger(dataDir, ledger);
   return output;

@@ -18,7 +18,7 @@ test("evidence.search returns default ±2000 context around keyword from cached 
     saveFullReturn(dataDir, "cv_01", "call_09", body);
     const execution = await executeTool({
       name: "evidence.search",
-      arguments: { reason: "查关键字", affectsPage: false, callId: "call_09", keyword: "NEEDLE_IN_HAYSTACK" },
+      arguments: { reason: "查关键字", callId: "call_09", keyword: "NEEDLE_IN_HAYSTACK" },
       dataDir,
       conversationId: "cv_01",
       lookup,
@@ -61,7 +61,7 @@ test("evidence.search lines mode reads from startLine within the searchContextCh
     saveFullReturn(dataDir, "cv_01", "call_lines", body);
     const execution = await executeTool({
       name: "evidence.search",
-      arguments: { reason: "按行读", affectsPage: false, callId: "call_lines", startLine: 3 },
+      arguments: { reason: "按行读", callId: "call_lines", startLine: 3 },
       dataDir,
       conversationId: "cv_01",
       lookup,
@@ -86,13 +86,13 @@ test("evidence.search rejects keyword with startLine and blank modes", async () 
     saveFullReturn(dataDir, "cv_01", "call_01", "hello world");
     const both = await executeTool({
       name: "evidence.search",
-      arguments: { reason: "x", affectsPage: false, callId: "call_01", keyword: "hello", startLine: 1 },
+      arguments: { reason: "x", callId: "call_01", keyword: "hello", startLine: 1 },
       dataDir, conversationId: "cv_01", lookup,
     });
     expect(JSON.parse(both.text)).toMatchObject({ ok: false, faultCode: "invalid_arguments" });
     const blank = await executeTool({
       name: "evidence.search",
-      arguments: { reason: "x", affectsPage: false, callId: "call_01" },
+      arguments: { reason: "x", callId: "call_01" },
       dataDir, conversationId: "cv_01", lookup,
     });
     expect(JSON.parse(blank.text)).toMatchObject({ ok: false, faultCode: "invalid_arguments" });
@@ -109,7 +109,7 @@ test("evidence.search reads page observation archive and returns file path", asy
     });
     const execution = await executeTool({
       name: "evidence.search",
-      arguments: { reason: "查元素", affectsPage: false, pageId: "page_01", keyword: "alpha-target" },
+      arguments: { reason: "查元素", pageId: "page_01", keyword: "alpha-target" },
       dataDir,
       conversationId: "cv_01",
       lookup,
@@ -171,13 +171,13 @@ test("evidence.search rejects missing sources and blank keywords", async () => {
   try {
     const missing = await executeTool({
       name: "evidence.search",
-      arguments: { reason: "x", affectsPage: false, callId: "call_missing", keyword: "abc" },
+      arguments: { reason: "x", callId: "call_missing", keyword: "abc" },
       dataDir, conversationId: "cv_01", lookup,
     });
     expect(JSON.parse(missing.text)).toMatchObject({ ok: false, faultCode: "file_not_found" });
     const blank = await executeTool({
       name: "evidence.search",
-      arguments: { reason: "x", affectsPage: false, callId: "call_01", keyword: "  " },
+      arguments: { reason: "x", callId: "call_01", keyword: "  " },
       dataDir, conversationId: "cv_01", lookup,
     });
     expect(JSON.parse(blank.text)).toMatchObject({ ok: false, faultCode: "invalid_arguments" });

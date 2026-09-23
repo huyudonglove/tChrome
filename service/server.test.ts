@@ -99,7 +99,7 @@ test("扩展构建握手阻止旧工具执行并报告重载指引", async () =>
       const pending = bridge.execute("handle_dialog", {});
       const response = await server.fetch(new Request(`${base}/tool-request${suffix}`));
       expect(response.status).toBe(409);
-      expect(await response.json()).toMatchObject({ request: null, faultCode: "executor_version_mismatch", executorVersion: version });
+      expect(await response.json()).toMatchObject({ requests: [], faultCode: "executor_version_mismatch", executorVersion: version });
       expect(await pending).toMatchObject({ ok: false, error: expect.stringContaining("chrome://extensions") });
       expect((await health()).extension.status).toBe("mismatch");
     }
@@ -107,11 +107,11 @@ test("扩展构建握手阻止旧工具执行并报告重载指引", async () =>
     const listed = await server.fetch(new Request(`${base}/tool-request?executorVersion=${version}`));
     const body = await listed.json();
     expect(body.executorVersion).toBe(version);
-    expect(body.request.name).toBe("handle_dialog");
+    expect(body.requests[0].name).toBe("handle_dialog");
     expect((await health()).extension).toMatchObject({ status: "ready", actualVersion: version });
     const posted = await server.fetch(new Request(`${base}/tool-result?executorVersion=${version}`, {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id: body.request.id, result: { ok: true } }),
+      body: JSON.stringify({ id: body.requests[0].id, result: { ok: true } }),
     }));
     expect(posted.status).toBe(200);
     expect(await pending).toEqual({ ok: true });
@@ -139,7 +139,7 @@ test("标签快照走扩展桥；未连接时文字请求可继续，停止释�
     await server.fetch(new Request(`${base}/tool-request?executorVersion=${version}`));
     const pending = post();
     await Bun.sleep(0);
-    const request = server.bridge.current()!;
+    const request = server.bridge.list()[0]!;
     expect(request.name).toBe("__openTabs");
     const snapshot = {ok: true, windows: [{windowId: 1, focused: true, tabs: [{tabId: 12, active: true, url: "https://example.com", title: "测试"}]}]};
     server.bridge.resolve(request.id, snapshot);
@@ -147,10 +147,10 @@ test("标签快照走扩展桥；未连接时文字请求可继续，停止释�
     expect(snapshots[1]).toEqual({ ...snapshot, turnId: expect.stringMatching(/^tn_/) });
     const stopped = post();
     await Bun.sleep(0);
-    expect(server.bridge.current()?.name).toBe("__openTabs");
+    expect(server.bridge.list()[0]?.name).toBe("__openTabs");
     await server.fetch(new Request(`${base}/stop`, {method: "POST"}));
     expect((await (await stopped).json()).output.faultCode).toBe("stopped");
     expect(snapshots).toHaveLength(2);
-    expect(server.bridge.current()).toBeNull();
+    expect(server.bridge.list()).toEqual([]);
   } finally {server.bridge.abort(); rmSync(dir,{recursive: true,force:true});}
 });

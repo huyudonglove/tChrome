@@ -2,30 +2,70 @@
   "type": "function",
   "function": {
     "name": "stream.pull",
-    "description": "把浏览器侧数据经二进制流管道写入宿主文件，不经 Base64 中转。\nsource.kind=http：拉取 url 响应体（可选 method/headers）。\nsource.kind=network：写入已捕获 requestId 的响应体（需 tabId）。\nsource.kind=dom：写入 DOM 快照，format=html|json，需 tabId。\n参数：必填 source、path（宿主绝对路径）。\n返回：ok、streamId、path、bytes。",
+    "description": "把浏览器侧数据经二进制流管道写入宿主文件，不经 Base64 中转。\nsource.kind=http：拉取 url 响应体（可选 method/headers）。\nsource.kind=network：写入已捕获 requestId 的响应体（需 tabId）。\nsource.kind=dom：写入 DOM 快照，format=html|json，需 tabId。\n参数：必填 source、path（宿主绝对路径）。\n返回：ok、streamId、path、bytes。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean", "const": false },
+        "reason": {
+          "type": "string"
+        },
         "source": {
           "type": "object",
           "properties": {
-            "kind": { "type": "string", "enum": ["http", "network", "dom"] },
-            "url": { "type": "string", "description": "kind=http 时必填" },
-            "method": { "type": "string", "description": "kind=http 可选，默认 GET" },
-            "headers": { "type": "object", "description": "kind=http 可选请求头" },
-            "tabId": { "type": "integer", "description": "kind=network|dom 必填" },
-            "requestId": { "type": "string", "description": "kind=network 必填" },
-            "format": { "type": "string", "enum": ["html", "json"], "description": "kind=dom 可选，默认 html" }
+            "kind": {
+              "type": "string",
+              "enum": [
+                "http",
+                "network",
+                "dom"
+              ]
+            },
+            "url": {
+              "type": "string",
+              "description": "kind=http 时必填"
+            },
+            "method": {
+              "type": "string",
+              "description": "kind=http 可选，默认 GET"
+            },
+            "headers": {
+              "type": "object",
+              "description": "kind=http 可选请求头"
+            },
+            "tabId": {
+              "type": "integer",
+              "description": "kind=network|dom 必填"
+            },
+            "requestId": {
+              "type": "string",
+              "description": "kind=network 必填"
+            },
+            "format": {
+              "type": "string",
+              "enum": [
+                "html",
+                "json"
+              ],
+              "description": "kind=dom 可选，默认 html"
+            }
           },
-          "required": ["kind"],
+          "required": [
+            "kind"
+          ],
           "additionalProperties": false
         },
-        "path": { "type": "string", "description": "宿主绝对路径" }
+        "path": {
+          "type": "string",
+          "description": "宿主绝对路径"
+        }
       },
-      "required": ["reason", "affectsPage", "source", "path"],
+      "required": [
+        "reason",
+        "source",
+        "path"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

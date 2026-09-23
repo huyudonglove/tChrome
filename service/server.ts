@@ -151,13 +151,14 @@ export function createServer(options: ServeOptions = {}) {
         const matches = actualVersion === expectedVersion;
         extension = { status: matches ? "ready" : "mismatch", expectedVersion, actualVersion, lastSeenAt: new Date().toISOString(), ...(!matches ? { error: executorMismatchMessage } : {}) };
         if (!matches) {
-          const pending = bridge.current();
-          if (pending) bridge.resolve(pending.id, { ok: false, error: `executor_version_mismatch: ${executorMismatchMessage}` });
-          return respond({ ok: false, request: null, executorVersion: expectedVersion, faultCode: "executor_version_mismatch", error: executorMismatchMessage }, 409);
+          for (const request of bridge.list()) {
+            bridge.resolve(request.id, { ok: false, error: `executor_version_mismatch: ${executorMismatchMessage}` });
+          }
+          return respond({ ok: false, requests: [], executorVersion: expectedVersion, faultCode: "executor_version_mismatch", error: executorMismatchMessage }, 409);
         }
       }
       if (request.method === "GET" && url.pathname === "/tool-request") {
-        return respond({ executorVersion: expectedVersion, request: bridge.current() });
+        return respond({ executorVersion: expectedVersion, requests: bridge.list() });
       }
       if (request.method === "POST" && url.pathname === "/tool-result") {
         const body = (await request.json()) as { id?: string; result?: BrowserResult };

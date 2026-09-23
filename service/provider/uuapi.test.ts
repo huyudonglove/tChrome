@@ -24,7 +24,7 @@ for (const finish of ["length", "content_filter", "stop", "unknown"]) {
     const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch() {
       requests++;
       return sse([
-        call("valid", "notes.write", '{"reason":"test","affectsPage":false,"key":"kept","value":"yes"}'),
+        call("valid", "notes.write", '{"reason":"test","key":"kept","value":"yes"}'),
         call("broken", "notes.write", '{"reason":"test"'),
       ], "partial", finish);
     } });
@@ -106,7 +106,7 @@ for (const status of [500, 429, 401, 400]) {
 
 for (const badIndex of [0, 1, 2]) {
   test(`坏参数位于 ${badIndex} 时保留其余工具顺序`, async () => {
-    const calls = [0, 1, 2].map((i) => call(`call_${i}`, "notes.write", i === badIndex ? "{broken" : '{"reason":"test","affectsPage":false,"key":"k","value":"v"}'));
+    const calls = [0, 1, 2].map((i) => call(`call_${i}`, "notes.write", i === badIndex ? "{broken" : '{"reason":"test","key":"k","value":"v"}'));
     const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => sse(calls) });
     try {
       const result = await providerFor(server.port!).complete(input);
@@ -124,10 +124,10 @@ test("真实 Provider 到 Runtime：多个坏调用留账，合法兄弟照跑",
     requests++;
     return requests === 1 ? sse([
       call("broken_1", "notes.write", "{broken"),
-      call("missing", "notes.write", '{"reason":"test","affectsPage":false}'),
-      call("valid", "notes.write", '{"reason":"test","affectsPage":false,"key":"kept","value":"yes"}'),
+      call("missing", "notes.write", '{"reason":"test"}'),
+      call("valid", "notes.write", '{"reason":"test","key":"kept","value":"yes"}'),
       call("broken_2", "notes.write", "{broken"),
-    ]) : sse([call("done", "finishTurn", '{"reason":"done","affectsPage":false,"text":"完成"}')]);
+    ]) : sse([call("done", "finishTurn", '{"reason":"done","text":"完成"}')]);
   } });
   try {
     const result = await handleTurn({ dataDir: dir, repoRoot: resolve(import.meta.dir, "../.."), provider: providerFor(server.port!) }, { userInput: "测试", submittedAt: "2026-09-08T00:00:00.000Z" });
@@ -156,8 +156,8 @@ for (const policy of ["unknown_tool", "missing_required", "exclusive_resident"])
   test(`runtime enforces ${policy} for normally parsed provider responses`, async () => {
     const dir = mkdtempSync(join(tmpdir(), "tchrome-runtime-policy-"));
     let requests = 0;
-    const valid = call("valid", "notes.write", JSON.stringify({ reason: "test", affectsPage: false, key: "kept", value: "yes" }));
-    const done = call("done", "finishTurn", JSON.stringify({ reason: "done", affectsPage: false, text: "完成" }));
+    const valid = call("valid", "notes.write", JSON.stringify({ reason: "test", key: "kept", value: "yes" }));
+    const done = call("done", "finishTurn", JSON.stringify({ reason: "done", text: "完成" }));
     const bad = policy === "exclusive_resident" ? done : call("invalid", policy === "unknown_tool" ? "not_registered" : "notes.write", "{}");
     const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => sse(++requests === 1 ? [bad, valid] : [done]) });
     try {

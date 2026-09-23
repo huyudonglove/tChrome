@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "skill.load",
-    "description": "按 id 加载动态技能正文到本轮 User <skill>，会话内保持。常驻技能已在 <systemSkill>，无需加载。id 与 tags 见 skill.list。\n参数：必填 id。\n返回：ok、id、tags、purpose。",
+    "description": "按 id 加载动态技能正文到本轮 User <skill>，会话内保持。常驻技能已在 <systemSkill>，无需加载。id 与 tags 见 skill.list。\n参数：必填 id。\n返回：ok、id、tags、purpose。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean", "const": false },
+        "reason": {
+          "type": "string"
+        },
         "id": {
           "type": "string",
           "minLength": 1,
@@ -15,8 +16,12 @@
           "description": "动态技能目录名，如 reply-format"
         }
       },
-      "required": ["reason", "affectsPage", "id"],
+      "required": [
+        "reason",
+        "id"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

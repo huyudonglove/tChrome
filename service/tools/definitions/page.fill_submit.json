@@ -2,27 +2,47 @@
   "type": "function",
   "function": {
     "name": "page.fill_submit",
-    "description": "复合：按 fields 逐项「A11y 定位 + 输入」，再点击提交按钮，可选等待响应/文本。一次 tool_call 完成整表填写与提交。\n参数：必填 tabId、fields（非空数组，每项 role + text，可选 name/matchIndex/clearBeforeType/pressEnter）、submit（id 或 role+name/matchIndex；可选 waitUrlContains/waitText/status/ms）。\n任一步失败即停止，返回 step 与已完成 filled。多匹配须 matchIndex。返回：ok、filled[]、submit、wait。",
+    "description": "复合：按 fields 逐项「A11y 定位 + 输入」，再点击提交按钮，可选等待响应/文本。一次 tool_call 完成整表填写与提交。\n参数：必填 tabId、fields（非空数组，每项 role + text，可选 name/matchIndex/clearBeforeType/pressEnter）、submit（id 或 role+name/matchIndex；可选 waitUrlContains/waitText/status/ms）。\n任一步失败即停止，返回 step 与已完成 filled。多匹配须 matchIndex。返回：ok、filled[]、submit、wait。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean", "const": true },
-        "tabId": { "type": "integer" },
+        "reason": {
+          "type": "string"
+        },
+        "tabId": {
+          "type": "integer"
+        },
         "fields": {
           "type": "array",
           "minItems": 1,
           "items": {
             "type": "object",
             "properties": {
-              "role": { "type": "string", "description": "textbox / combobox 等" },
-              "name": { "type": "string" },
-              "matchIndex": { "type": "integer", "minimum": 0 },
-              "text": { "type": "string" },
-              "clearBeforeType": { "type": "boolean" },
-              "pressEnter": { "type": "boolean" }
+              "role": {
+                "type": "string",
+                "description": "textbox / combobox 等"
+              },
+              "name": {
+                "type": "string"
+              },
+              "matchIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "text": {
+                "type": "string"
+              },
+              "clearBeforeType": {
+                "type": "boolean"
+              },
+              "pressEnter": {
+                "type": "boolean"
+              }
             },
-            "required": ["role", "text"],
+            "required": [
+              "role",
+              "text"
+            ],
             "additionalProperties": false
           },
           "description": "按数组顺序填写"
@@ -30,21 +50,46 @@
         "submit": {
           "type": "object",
           "properties": {
-            "id": { "type": "string", "description": "page.* e_ 编号；与 role 二选一" },
-            "role": { "type": "string", "description": "如 button；与 id 二选一" },
-            "name": { "type": "string" },
-            "matchIndex": { "type": "integer", "minimum": 0 },
-            "waitUrlContains": { "type": "string" },
-            "waitText": { "type": "string" },
-            "status": { "type": "integer" },
-            "ms": { "type": "integer" }
+            "id": {
+              "type": "string",
+              "description": "page.* e_ 编号；与 role 二选一"
+            },
+            "role": {
+              "type": "string",
+              "description": "如 button；与 id 二选一"
+            },
+            "name": {
+              "type": "string"
+            },
+            "matchIndex": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "waitUrlContains": {
+              "type": "string"
+            },
+            "waitText": {
+              "type": "string"
+            },
+            "status": {
+              "type": "integer"
+            },
+            "ms": {
+              "type": "integer"
+            }
           },
           "additionalProperties": false,
           "description": "提交目标与可选等待；必须能唯一定位"
         }
       },
-      "required": ["reason", "affectsPage", "tabId", "fields", "submit"],
+      "required": [
+        "reason",
+        "tabId",
+        "fields",
+        "submit"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

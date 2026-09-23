@@ -136,7 +136,7 @@ test("closing effects persist lifecycle changes; empty replies request another i
 
 test("browser page metadata becomes a typed effect; failed tab calls log observations without replacing the current page", async () => {
   const fixture = setup();
-  const execution = await fixture.execute("page.click", { reason: "查看详情", affectsPage: true, tabId: 7 }, {
+  const execution = await fixture.execute("page.click", { reason: "查看详情", tabId: 7 }, {
     browserNames: ["page.click"], host: { execute: async (_name, args) => {
       expect(args).toEqual({ tabId: 7 });
       return { ok: true, tabId: 7, url: "https://example.test", title: "详情" };
@@ -144,7 +144,7 @@ test("browser page metadata becomes a typed effect; failed tab calls log observa
   });
   fixture.apply(execution);
   expect(loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId).assembled.currentPage?.title).toBe("详情");
-  const failed = await fixture.execute("page.click", { reason: "再点", affectsPage: true, tabId: 7 }, {
+  const failed = await fixture.execute("page.click", { reason: "再点", tabId: 7 }, {
     browserNames: ["page.click"], host: { execute: async () => ({ ok: false, tabId: 7, error: "closed" }) },
   });
   applyToolEffects({
@@ -166,7 +166,7 @@ test("successful tab-targeted calls without url still enter page observations", 
   fixture.turn.assembled.currentPage = {
     tabId: 1, url: "https://example.test/input", title: "发话页面", description: "发送消息时的标签快照",
   };
-  const execution = await fixture.execute("capture_page", { reason: "截图", affectsPage: false, mode: "viewport", tabId: 1 }, {
+  const execution = await fixture.execute("capture_page", { reason: "截图", mode: "viewport", tabId: 1 }, {
     browserNames: ["capture_page"], host: { execute: async () => ({
       ok: true, tabId: 1, image: "data:image/jpeg;base64,xx", mime: "image/jpeg", image_size: [10, 10],
     }) },

@@ -2,17 +2,26 @@
   "type": "function",
   "function": {
     "name": "page.list_interactive_elements",
-    "description": "列视口内可交互元素（A11y 投影）。每条：id（e_，可直接 click/wait）、role（标准化）、name、states{enabled,checked,selected,expanded,invalid,…}、tag、inView、regionId。role 含 div/span 模拟控件（有 role 或可访问名时）。可按 regionId 收窄。必填 tabId。",
+    "description": "列视口内可交互元素（A11y 投影）。每条：id（e_，可直接 click/wait）、role（标准化）、name、states{enabled,checked,selected,expanded,invalid,…}、tag、inView、regionId。role 含 div/span 模拟控件（有 role 或可访问名时）。可按 regionId 收窄。必填 tabId。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean" },
-        "tabId": { "type": "integer" },
-        "regionId": { "type": "string" }
+        "reason": {
+          "type": "string"
+        },
+        "tabId": {
+          "type": "integer"
+        },
+        "regionId": {
+          "type": "string"
+        }
       },
-      "required": ["reason", "affectsPage", "tabId"],
+      "required": [
+        "reason",
+        "tabId"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "parallel"
 }

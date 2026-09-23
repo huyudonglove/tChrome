@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "job.status",
-    "description": "查询本会话 heartbeatSec 提前返回的后台任务（HTTP/搜索/execute_javascript）。返回 status、toolName、elapsedMs；completed/failed 时含完整 result。status=running 表示仍在执行。local.run 的进程用 local.process_status。",
+    "description": "查询本会话 heartbeatSec 提前返回的后台任务（HTTP/搜索/execute_javascript）。返回 status、toolName、elapsedMs；completed/failed 时含完整 result。status=running 表示仍在执行。local.run 的进程用 local.process_status。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -13,18 +13,14 @@
         "reason": {
           "type": "string",
           "description": "本次操作的目的"
-        },
-        "affectsPage": {
-          "type": "boolean",
-          "const": false
         }
       },
       "required": [
         "jobId",
-        "reason",
-        "affectsPage"
+        "reason"
       ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "parallel"
 }

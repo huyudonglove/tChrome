@@ -25,7 +25,7 @@ export type SessionView = {
   conversationId: string | null;
   status: Ledger["status"] | "idle";
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
-  liveTool: { name: string; callId: string } | null;
+  liveTools: { name: string; callId: string }[];
   activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null; completed: number; total: number | null } | null;
   checklist: Ledger["checklist"];
   messages: SessionMessage[];
@@ -50,18 +50,20 @@ const pushLiveTools = (input: {
 }) => {
   const { messages, ledger, turnId } = input;
   if (ledger.active?.turnId !== turnId) return;
-  if (ledger.liveTool && ledger.liveTool.name !== "finishTurn" && ledger.liveTool.name !== "askUser") {
-    const queued = ledger.toolQueue.find((item) => item.callId === ledger.liveTool?.callId);
+  const liveIds = new Set(ledger.liveTools.map((item) => item.callId));
+  for (const live of ledger.liveTools) {
+    if (live.name === "finishTurn" || live.name === "askUser") continue;
+    const queued = ledger.toolQueue.find((item) => item.callId === live.callId);
     messages.push({
       turnId,
       role: "tool",
       text: toolText({ arguments: queued?.arguments }, "正在执行工具"),
-      name: ledger.liveTool.name,
+      name: live.name,
       live: true,
     });
   }
   for (const item of ledger.toolQueue) {
-    if (item.callId === ledger.liveTool?.callId) continue;
+    if (liveIds.has(item.callId)) continue;
     if (item.name === "finishTurn" || item.name === "askUser") continue;
     messages.push({ turnId, role: "tool", text: toolText(item, "等待执行工具"), name: item.name });
   }
@@ -127,12 +129,12 @@ export function projectSessionView({ ledger, events, turns }: {
     const choice = Array.isArray(raw) ? raw.filter((item): item is string => typeof item === "string") : [];
     pendingAsk = { turnId: ledger.pendingAsk.turnId, question: ledger.pendingAsk.question, choice };
   }
-  return { conversationId: ledger.conversationId, status: ledger.status, pendingAsk, liveTool: ledger.liveTool,
+  return { conversationId: ledger.conversationId, status: ledger.status, pendingAsk, liveTools: ledger.liveTools,
     activity: compressionActivity(ledger, events), checklist: ledger.checklist ?? null, messages };
 }
 
 export const emptySessionView = (): SessionView => ({
-  conversationId: null, status: "idle", pendingAsk: null, liveTool: null, activity: null, checklist: null, messages: [],
+  conversationId: null, status: "idle", pendingAsk: null, liveTools: [], activity: null, checklist: null, messages: [],
 });
 
 export function projectConversationList(rows: { ledger: Ledger; lastTurn: Turn | null }[]): ConversationItem[] {

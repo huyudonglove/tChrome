@@ -185,6 +185,8 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "list_browser_tools",
     "skill.list",
     "skill.load",
+    "checkContinue",
+    "reportProgress",
     "open_url",
     "page.get_summary",
     "page.list_interactive_elements",

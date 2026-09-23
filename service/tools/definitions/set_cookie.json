@@ -2,23 +2,52 @@
   "type": "function",
   "function": {
     "name": "set_cookie",
-    "description": "设置 Cookie。\n参数：必填 name、value；可选 url、domain、path、secure、sameSite、expires（秒，相对当前）。\n返回：ok、name、value。",
+    "description": "设置 Cookie。\n参数：必填 name、value；可选 url、domain、path、secure、sameSite、expires（秒，相对当前）。\n返回：ok、name、value。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean", "const": true },
-        "name": { "type": "string" },
-        "value": { "type": "string" },
-        "url": { "type": "string", "description": "完整网址；可省略并改用 domain/path" },
-        "domain": { "type": "string" },
-        "path": { "type": "string" },
-        "secure": { "type": "boolean" },
-        "sameSite": { "type": "string", "enum": ["lax", "strict", "none"] },
-        "expires": { "type": "number", "description": "过期时间，相对当前的秒数" }
+        "reason": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "description": "完整网址；可省略并改用 domain/path"
+        },
+        "domain": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "secure": {
+          "type": "boolean"
+        },
+        "sameSite": {
+          "type": "string",
+          "enum": [
+            "lax",
+            "strict",
+            "none"
+          ]
+        },
+        "expires": {
+          "type": "number",
+          "description": "过期时间，相对当前的秒数"
+        }
       },
-      "required": ["reason", "affectsPage", "name", "value"],
+      "required": [
+        "reason",
+        "name",
+        "value"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

@@ -2,22 +2,19 @@
   "type": "function",
   "function": {
     "name": "list_downloads",
-    "description": "列出下载项。\n返回：ok、downloads（下载记录）。",
+    "description": "列出下载项。\n返回：ok、downloads（下载记录）。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         }
       },
       "required": [
-        "reason",
-        "affectsPage"
+        "reason"
       ],
       "additionalProperties": true
     }
-  }
+  },
+  "execution": "parallel"
 }

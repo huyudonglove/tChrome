@@ -2,12 +2,13 @@
   "type": "function",
   "function": {
     "name": "skill.list",
-    "description": "列出可动态加载的技能：id、tags、首句。可选按 tag 过滤。常驻技能正文在 <systemSkill>。动态正文 skill.load 后进入 User <skill>。\n返回：ok、skills[{id, tags, purpose}]。",
+    "description": "列出可动态加载的技能：id、tags、首句。可选按 tag 过滤。常驻技能正文在 <systemSkill>。动态正文 skill.load 后进入 User <skill>。\n返回：ok、skills[{id, tags, purpose}]。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean", "const": false },
+        "reason": {
+          "type": "string"
+        },
         "tag": {
           "type": "string",
           "minLength": 1,
@@ -15,8 +16,11 @@
           "description": "可选；只列出含该 tag 的技能"
         }
       },
-      "required": ["reason", "affectsPage"],
+      "required": [
+        "reason"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "parallel"
 }

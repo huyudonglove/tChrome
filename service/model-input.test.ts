@@ -38,7 +38,7 @@ test("resident and dynamic guides remain separate, persist loaded schemas across
     return { finish: "tool_calls", content: "", attempts: 1, parseOk: true, schemaOk: true,
       faultCode: null, missing: [], toolCalls: requests === 1
         ? [{ id: "load", name: "catalog.add", arguments: { names: ["send_http"], reason: "读取接口" } }]
-        : [{ id: "done", name: "finishTurn", arguments: { text: "完成", reason: "答复", affectsPage: false} }] };
+        : [{ id: "done", name: "finishTurn", arguments: { text: "完成", reason: "答复"} }] };
   } };
   try {
     const result = await handleTurn({ dataDir, repoRoot: join(import.meta.dir, ".."), provider }, { userInput: "检查接口", submittedAt: "now" });

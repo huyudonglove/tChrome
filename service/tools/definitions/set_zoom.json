@@ -2,17 +2,28 @@
   "type": "function",
   "function": {
     "name": "set_zoom",
-    "description": "设置标签页缩放。\n参数：zoom（缩放倍数，默认 1）；必填 tabId。\n返回：ok。",
+    "description": "设置标签页缩放。\n参数：zoom（缩放倍数，默认 1）；必填 tabId。\n返回：ok。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean", "const": true },
-        "tabId": { "type": "integer", "description": "目标标签编号；从 <openTabs> 或工具返回取得。" },
-        "zoom": { "type": "number", "description": "缩放倍数，例如 1 或 1.25" }
+        "reason": {
+          "type": "string"
+        },
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号；从 <openTabs> 或工具返回取得。"
+        },
+        "zoom": {
+          "type": "number",
+          "description": "缩放倍数，例如 1 或 1.25"
+        }
       },
-      "required": ["reason", "affectsPage", "tabId"],
+      "required": [
+        "reason",
+        "tabId"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

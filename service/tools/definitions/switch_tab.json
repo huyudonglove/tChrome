@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "switch_tab",
-    "description": "明确切换到指定标签并读取页面。\n参数：必填 tabId。此操作用于用户要求展示或切换页面。\n返回：ok、tabId、title、url、text。",
+    "description": "明确切换到指定标签并读取页面。\n参数：必填 tabId。此操作用于用户要求展示或切换页面。\n返回：ok、tabId、title、url、text。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -12,16 +12,13 @@
         },
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         }
       },
       "required": [
         "reason",
-        "affectsPage",
         "tabId"
       ]
     }
-  }
+  },
+  "execution": "serial"
 }

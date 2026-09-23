@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ChatTool } from "../types.ts";
+import type { ChatTool, ExecutionMode } from "../types.ts";
 
 export type ToolIndex = {
   browser: string[];
@@ -16,19 +16,25 @@ export type ToolRegistry = {
   tools: Record<string, ChatTool>;
   index: ToolIndex;
   toolGroups: ToolGroups;
+  /** Per-tool default schedule when the call omits arguments.execution. */
+  execution: Record<string, ExecutionMode>;
 };
 
 export function loadToolRegistry(root: string): ToolRegistry {
   const index = JSON.parse(readFileSync(join(root, "service", "tools", "definitions", "index.json"), "utf8")) as ToolIndex;
   const toolGroups = JSON.parse(readFileSync(join(root, "service", "tools", "definitions", "groups.json"), "utf8")) as ToolGroups;
   const tools: Record<string, ChatTool> = {};
+  const execution: Record<string, ExecutionMode> = {};
   for (const file of readdirSync(join(root, "service", "tools", "definitions"))) {
     if (!file.endsWith(".json") || ["index.json", "groups.json"].includes(file)) continue;
-    const tool = JSON.parse(readFileSync(join(root, "service", "tools", "definitions", file), "utf8")) as ChatTool;
-    const name = tool.function?.name;
-    if (name) tools[name] = tool;
+    const raw = JSON.parse(readFileSync(join(root, "service", "tools", "definitions", file), "utf8")) as ChatTool;
+    const name = raw.function?.name;
+    if (!name) continue;
+    const mode: ExecutionMode = raw.execution === "parallel" ? "parallel" : "serial";
+    tools[name] = { type: "function", function: raw.function };
+    execution[name] = mode;
   }
-  return { tools, index, toolGroups };
+  return { tools, index, toolGroups, execution };
 }
 
 export function dynamicToolIds(registry: ToolRegistry): string[] {

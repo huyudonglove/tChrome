@@ -8,7 +8,8 @@ export type ToolRequest = {
 };
 
 export type ToolBridge = BrowserHost & {
-  current(): ToolRequest | null;
+  /** All unclaimed requests; the extension may execute several at once. */
+  list(): ToolRequest[];
   resolve(id: string, result: BrowserResult): boolean;
   abort(scope?: string): void;
   abortById(id: string): boolean;
@@ -23,13 +24,6 @@ type Pending = {
 export function createToolBridge(dataDir: string): ToolBridge {
   const queue: Pending[] = [];
 
-  const finish = (id: string, result: BrowserResult): boolean => {
-    const next = queue[0];
-    if (!next || next.request.id !== id) return false;
-    queue.shift();
-    next.done(result);
-    return true;
-  };
   const enqueue = (scope: string | undefined, name: string, input: Record<string, unknown>): ToolRequest => {
     const request: ToolRequest = { id: allocateRecordId(dataDir, null, "bridge"), name, input };
     return request;
@@ -72,8 +66,14 @@ export function createToolBridge(dataDir: string): ToolBridge {
   });
   return {
     ...scopedHost(undefined),
-    current: () => queue[0]?.request ?? null,
-    resolve: finish,
+    list: () => queue.map((item) => item.request),
+    resolve: (id, result) => {
+      const index = queue.findIndex((item) => item.request.id === id);
+      if (index < 0) return false;
+      const [item] = queue.splice(index, 1);
+      item?.done(result);
+      return true;
+    },
     abort,
     abortById,
     forScope: scopedHost,

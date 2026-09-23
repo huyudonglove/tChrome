@@ -2,19 +2,36 @@
   "type": "function",
   "function": {
     "name": "wait_response",
-    "description": "等待匹配的网络响应（CDP Network.responseReceived）。在点击/提交等触发 Ajax 前调用可避免过早判定。\n参数：必填 urlContains（URL 子串）、tabId；可选 status（HTTP 状态码）、ms（超时，默认 8 秒，上限 12 秒）。\n返回：ok、requestId、url、status、mimeType；超时 ok=false。",
+    "description": "等待匹配的网络响应（CDP Network.responseReceived）。在点击/提交等触发 Ajax 前调用可避免过早判定。\n参数：必填 urlContains（URL 子串）、tabId；可选 status（HTTP 状态码）、ms（超时，默认 8 秒，上限 12 秒）。\n返回：ok、requestId、url、status、mimeType；超时 ok=false。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean", "const": false },
-        "tabId": { "type": "integer", "description": "目标标签编号" },
-        "urlContains": { "type": "string", "description": "响应 URL 需包含的子串，例如 /api/upload" },
-        "status": { "type": "integer", "description": "可选 HTTP 状态码，例如 200" },
-        "ms": { "type": "integer" }
+        "reason": {
+          "type": "string"
+        },
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号"
+        },
+        "urlContains": {
+          "type": "string",
+          "description": "响应 URL 需包含的子串，例如 /api/upload"
+        },
+        "status": {
+          "type": "integer",
+          "description": "可选 HTTP 状态码，例如 200"
+        },
+        "ms": {
+          "type": "integer"
+        }
       },
-      "required": ["reason", "affectsPage", "tabId", "urlContains"],
+      "required": [
+        "reason",
+        "tabId",
+        "urlContains"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

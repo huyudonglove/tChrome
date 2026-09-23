@@ -21,13 +21,13 @@ function filesIn(directory: string): string[] {
 test("截图按调用批次发送，历史仅保留路径，删除会话清理图片", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-images-integration-"));
   const requests: any[] = [];
-  const screenshotCall = { name: "capture_page", arguments: { tabId: 1, mode: "viewport", reason: "观察页面", affectsPage: false } };
+  const screenshotCall = { name: "capture_page", arguments: { tabId: 1, mode: "viewport", reason: "观察页面" } };
   const calls = [
     [{ name: "catalog.add", arguments: { names: ["capture_page"], reason: "加载截图" } }],
     [screenshotCall, screenshotCall],
-    [{ name: "notes.write", arguments: { key: "observation", value: "已观察两张截图", reason: "记录", affectsPage: false } }],
+    [{ name: "notes.write", arguments: { key: "observation", value: "已观察两张截图", reason: "记录" } }],
     [screenshotCall],
-    [{ name: "finishTurn", arguments: { reason: "已观察图片", affectsPage: false, text: "完成"} }],
+    [{ name: "finishTurn", arguments: { reason: "已观察图片", text: "完成"} }],
   ];
   const server = Bun.serve({
     hostname: "127.0.0.1", port: 0,

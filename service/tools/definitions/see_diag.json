@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "see_diag",
-    "description": "从浏览器层采集目标标签诊断信息，不执行页面脚本，可用于排查原生弹窗阻塞页面的情况。\n参数：必填 tabId（目标标签编号）。\n返回：ok、标签信息和 dialog。dialog.status=open 表示捕获到尚未关闭的原生对话框，并提供已知的 type、message 等信息；closed 表示已确认关闭；unknown 表示没有可确认的当前弹窗状态，不能据此判断没有弹窗。原生弹窗可用 handle_dialog 确认或取消。",
+    "description": "从浏览器层采集目标标签诊断信息，不执行页面脚本，可用于排查原生弹窗阻塞页面的情况。\n参数：必填 tabId（目标标签编号）。\n返回：ok、标签信息和 dialog。dialog.status=open 表示捕获到尚未关闭的原生对话框，并提供已知的 type、message 等信息；closed 表示已确认关闭；unknown 表示没有可确认的当前弹窗状态，不能据此判断没有弹窗。原生弹窗可用 handle_dialog 确认或取消。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -12,17 +12,14 @@
         },
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         }
       },
       "required": [
         "reason",
-        "affectsPage",
         "tabId"
       ],
       "additionalProperties": true
     }
-  }
+  },
+  "execution": "parallel"
 }

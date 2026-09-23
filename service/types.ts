@@ -95,7 +95,6 @@ export type Turn = {
 
 export type ToolArguments = {
   reason?: string;
-  affectsPage?: boolean;
   [key: string]: unknown;
 };
 
@@ -133,7 +132,7 @@ export type Ledger = {
   goals: GoalRecord[];
   currentGoalId: string | null;
   toolQueue: ToolQueueItem[];
-  liveTool: { name: string; callId: string } | null;
+  liveTools: { name: string; callId: string }[];
   toolIO: ToolIOItem[];
   lastAction: LastAction | null;
   checklist: Checklist;
@@ -210,6 +209,8 @@ export type ProviderExchange = {
   };
 };
 
+export type ExecutionMode = "parallel" | "serial";
+
 export type ChatTool = {
   type: "function";
   function: {
@@ -217,6 +218,8 @@ export type ChatTool = {
     description?: string;
     parameters: Record<string, unknown>;
   };
+  /** Runtime default schedule; stripped before the provider request. */
+  execution?: ExecutionMode;
 };
 
 export type Provider = {

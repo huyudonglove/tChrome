@@ -2,17 +2,28 @@
   "type": "function",
   "function": {
     "name": "capture_network_traffic",
-    "description": "读取页面 Performance 资源时间线（近期网络资源）。\n参数：必填 tabId；可选 urlContains 按 URL 子串过滤。\n返回：ok、count、total、truncated、items[{url,type,ms,bytes}]。",
+    "description": "读取页面 Performance 资源时间线（近期网络资源）。\n参数：必填 tabId；可选 urlContains 按 URL 子串过滤。\n返回：ok、count、total、truncated、items[{url,type,ms,bytes}]。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean", "const": false },
-        "tabId": { "type": "integer", "description": "目标标签编号" },
-        "urlContains": { "type": "string", "description": "只保留 URL 包含该子串的资源" }
+        "reason": {
+          "type": "string"
+        },
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号"
+        },
+        "urlContains": {
+          "type": "string",
+          "description": "只保留 URL 包含该子串的资源"
+        }
       },
-      "required": ["reason", "affectsPage", "tabId"],
+      "required": [
+        "reason",
+        "tabId"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.fs_copy",
-    "description": "复制文件或目录，保留符号链接。默认拒绝已存在目标，overwrite=true允许覆盖。",
+    "description": "复制文件或目录，保留符号链接。默认拒绝已存在目标，overwrite=true允许覆盖。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -19,19 +19,15 @@
         },
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean",
-          "const": false
         }
       },
       "required": [
         "source",
         "destination",
-        "reason",
-        "affectsPage"
+        "reason"
       ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

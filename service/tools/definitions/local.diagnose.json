@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.diagnose",
-    "description": "对指定工程或文件执行结构化类型诊断（typecheck）或测试诊断（test），直接解析并返回精炼结构化的错误清单（文件、行号、列号、错误码、错误信息），免除大日志往返摩擦。",
+    "description": "对指定工程或文件执行结构化类型诊断（typecheck）或测试诊断（test），直接解析并返回精炼结构化的错误清单（文件、行号、列号、错误码、错误信息），免除大日志往返摩擦。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -12,7 +12,10 @@
         },
         "kind": {
           "type": "string",
-          "enum": ["typecheck", "test"],
+          "enum": [
+            "typecheck",
+            "test"
+          ],
           "description": "诊断类型：typecheck 执行类型检查；test 执行单测"
         },
         "target": {
@@ -27,19 +30,15 @@
         },
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean",
-          "const": false
         }
       },
       "required": [
         "cwd",
         "kind",
-        "reason",
-        "affectsPage"
+        "reason"
       ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

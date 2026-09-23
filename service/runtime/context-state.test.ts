@@ -81,7 +81,7 @@ for (const fail of [false, true]) test(`sequential 200K walk archives prefix; fa
       main++;
       if (!fail) expect(input.messages[1]!.content).toContain("该轮已完成");
       expect(input.messages[1]!.content).not.toContain("#toolIOSummary");
-      return result({ toolCalls: [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", affectsPage: false, text: "完成"} }] });
+      return result({ toolCalls: [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", text: "完成"} }] });
     } };
     const reply = await handleTurn({ dataDir, repoRoot, provider }, { userInput: "继续", submittedAt: "2026-09-11" });
     expect(reply.output).toEqual({ kind: "reply", text: "完成" });
@@ -96,7 +96,7 @@ test("below 200K no compression request occurs at turn boundary", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "context-below-"));
   try {
     const session = ensureSession(dataDir), ledger = loadLedger(dataDir, session.conversationId); seed(dataDir, ledger); saveLedger(dataDir, ledger);
-    const provider: Provider = { complete: async input => { expect(input.tools[0]!.function.name).not.toBe("submitTurnSummaries"); return result({ toolCalls: [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", affectsPage: false, text: "完成"} }] }); } };
+    const provider: Provider = { complete: async input => { expect(input.tools[0]!.function.name).not.toBe("submitTurnSummaries"); return result({ toolCalls: [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", text: "完成"} }] }); } };
     await handleTurn({ dataDir, repoRoot, provider }, { userInput: "继续", submittedAt: "2026-09-11" });
     expect(loadIndex(dataDir, session.conversationId, "conversationHistory").activeIds).toEqual([]);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
@@ -185,10 +185,10 @@ test("200K during a live tool loop compresses older batches before the next main
       if (main === 4) { expect(aux).toBeGreaterThan(0); expect(input.messages[1]!.content).toContain("<conversationHistorySummary>"); }
       return result({ toolCalls: main <= 3
         ? [
-            ...(main > 1 ? [{ id: `c${main}`, name: "checkContinue", arguments: { reason: "继续", affectsPage: false, cont: true } }] : []),
-            ...Array.from({ length: main > 1 ? 19 : 20 }, (_, i) => ({ id: `p${main}_${i}`, name: "page.get_summary", arguments: { reason: "读取", affectsPage: false, tabId: 1 } })),
+            ...(main > 1 ? [{ id: `c${main}`, name: "checkContinue", arguments: { reason: "继续", cont: true } }] : []),
+            ...Array.from({ length: main > 1 ? 19 : 20 }, (_, i) => ({ id: `p${main}_${i}`, name: "page.get_summary", arguments: { reason: "读取", tabId: 1 } })),
           ]
-        : [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", affectsPage: false, text: "完成"} }] });
+        : [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", text: "完成"} }] });
     } };
     const reply = await handleTurn({ dataDir, repoRoot, provider, host: { execute: async () => ({
       ok: true, tabId: 1, url: "https://example.com/p", title: "页", description: "证".repeat(3500),

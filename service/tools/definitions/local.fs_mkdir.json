@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.fs_mkdir",
-    "description": "创建目录，recursive=true可创建缺失的父目录。",
+    "description": "创建目录，recursive=true可创建缺失的父目录。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -15,18 +15,14 @@
         },
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean",
-          "const": false
         }
       },
       "required": [
         "path",
-        "reason",
-        "affectsPage"
+        "reason"
       ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

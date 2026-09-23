@@ -2,20 +2,40 @@
   "type": "function",
   "function": {
     "name": "page.select_role",
-    "description": "复合：A11y 定位下拉（role±name）→ combo.select(value)。一次 tool_call 完成定位+选择。\n参数：必填 tabId、value；role 默认 combobox，可显式指定；可选 name、matchIndex。\nvalue 为选项 value 或 option 文字（与 combo.select 相同）。多匹配须 matchIndex。返回：ok、id、value、text。",
+    "description": "复合：A11y 定位下拉（role±name）→ combo.select(value)。一次 tool_call 完成定位+选择。\n参数：必填 tabId、value；role 默认 combobox，可显式指定；可选 name、matchIndex。\nvalue 为选项 value 或 option 文字（与 combo.select 相同）。多匹配须 matchIndex。返回：ok、id、value、text。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
-        "reason": { "type": "string" },
-        "affectsPage": { "type": "boolean", "const": true },
-        "tabId": { "type": "integer" },
-        "role": { "type": "string", "description": "可访问角色，默认 combobox" },
-        "name": { "type": "string", "description": "可访问名子串" },
-        "matchIndex": { "type": "integer", "minimum": 0 },
-        "value": { "type": "string", "description": "选项 value 或 option 文字" }
+        "reason": {
+          "type": "string"
+        },
+        "tabId": {
+          "type": "integer"
+        },
+        "role": {
+          "type": "string",
+          "description": "可访问角色，默认 combobox"
+        },
+        "name": {
+          "type": "string",
+          "description": "可访问名子串"
+        },
+        "matchIndex": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "value": {
+          "type": "string",
+          "description": "选项 value 或 option 文字"
+        }
       },
-      "required": ["reason", "affectsPage", "tabId", "value"],
+      "required": [
+        "reason",
+        "tabId",
+        "value"
+      ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

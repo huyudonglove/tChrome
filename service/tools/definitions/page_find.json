@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page_find",
-    "description": "使用 window.find 在页面内查找并选中文本，可能滚动页面；不会打开浏览器 Ctrl+F 面板，也不返回可点击元素编号。参数：query 必填，必填 tabId。返回：ok、found、text（选中文本）、rect（匹配位置，未找到为null）。",
+    "description": "使用 window.find 在页面内查找并选中文本，可能滚动页面；不会打开浏览器 Ctrl+F 面板，也不返回可点击元素编号。参数：query 必填，必填 tabId。返回：ok、found、text（选中文本）、rect（匹配位置，未找到为null）。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -13,10 +13,6 @@
         "reason": {
           "type": "string"
         },
-        "affectsPage": {
-          "type": "boolean",
-          "const": true
-        },
         "query": {
           "type": "string",
           "minLength": 1
@@ -24,11 +20,11 @@
       },
       "required": [
         "reason",
-        "affectsPage",
         "query",
         "tabId"
       ],
       "additionalProperties": true
     }
-  }
+  },
+  "execution": "parallel"
 }

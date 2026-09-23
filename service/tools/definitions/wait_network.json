@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "wait_network",
-    "description": "等到页面接口和资源安静后再读页。\n参数：可选 ms（安静多久）；必填 tabId（目标标签编号）。\n返回：ok、requests（请求数量）、sample、title（页面标题）、url（页面地址）、text（返回文本）；超时 ok=false。",
+    "description": "等到页面接口和资源安静后再读页。\n参数：可选 ms（安静多久）；必填 tabId（目标标签编号）。\n返回：ok、requests（请求数量）、sample、title（页面标题）、url（页面地址）、text（返回文本）；超时 ok=false。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -16,16 +16,13 @@
         },
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         }
       },
       "required": [
         "reason",
-        "affectsPage",
         "tabId"
       ]
     }
-  }
+  },
+  "execution": "serial"
 }

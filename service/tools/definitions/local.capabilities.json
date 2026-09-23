@@ -2,24 +2,20 @@
   "type": "function",
   "function": {
     "name": "local.capabilities",
-    "description": "Report local platform, home directory, supported script extensions, timeout and output limits. Save scripts under scripts/ (script_patch, script_write or local.fs_write) before executing by filename.",
+    "description": "Report local platform, home directory, supported script extensions, timeout and output limits. Save scripts under scripts/ (script_patch, script_write or local.fs_write) before executing by filename.\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string",
           "description": "本次操作的目的"
-        },
-        "affectsPage": {
-          "type": "boolean",
-          "const": false
         }
       },
       "required": [
-        "reason",
-        "affectsPage"
+        "reason"
       ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "parallel"
 }

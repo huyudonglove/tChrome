@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "save_pdf",
-    "description": "将指定页按打印样式保存为 PDF（含背景，优先采用页面 CSS 纸张尺寸），通过 Chrome 下载到本机。需要浏览器支持 Page.printToPDF；不支持时明确失败。必填 tabId、filename（下载目录内相对 .pdf 文件名，默认自动命名，重名自动改名）、timeoutMs（等待下载完成 1～5000ms，默认 5000）。成功返回 downloadId、path（本机最终绝对路径）及下载状态，不返回 PDF/base64；超时返回 ok=false、status=pending 和 downloadId，可调用 wait_download 继续等待，不要重复保存。",
+    "description": "将指定页按打印样式保存为 PDF（含背景，优先采用页面 CSS 纸张尺寸），通过 Chrome 下载到本机。需要浏览器支持 Page.printToPDF；不支持时明确失败。必填 tabId、filename（下载目录内相对 .pdf 文件名，默认自动命名，重名自动改名）、timeoutMs（等待下载完成 1～5000ms，默认 5000）。成功返回 downloadId、path（本机最终绝对路径）及下载状态，不返回 PDF/base64；超时返回 ok=false、status=pending 和 downloadId，可调用 wait_download 继续等待，不要重复保存。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -12,10 +12,6 @@
         },
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean",
-          "const": false
         },
         "filename": {
           "type": "string",
@@ -29,10 +25,10 @@
       },
       "required": [
         "reason",
-        "affectsPage",
         "tabId"
       ],
       "additionalProperties": true
     }
-  }
+  },
+  "execution": "serial"
 }

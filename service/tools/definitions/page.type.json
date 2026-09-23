@@ -2,15 +2,12 @@
   "type": "function",
   "function": {
     "name": "page.type",
-    "description": "向指定输入框输入文字。\n参数：id（页面工具返回的 e_01 格式元素标识），必填 tabId（目标标签编号）、text（文本）。可选 clearBeforeType：先清空再输入，避免拼接；可选 pressEnter：输入后按 Enter。\n返回：ok、value（当前值）。",
+    "description": "向指定输入框输入文字。\n参数：id（页面工具返回的 e_01 格式元素标识），必填 tabId（目标标签编号）、text（文本）。可选 clearBeforeType：先清空再输入，避免拼接；可选 pressEnter：输入后按 Enter。\n返回：ok、value（当前值）。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         },
         "tabId": {
           "type": "integer",
@@ -33,12 +30,12 @@
       },
       "required": [
         "reason",
-        "affectsPage",
         "id",
         "text",
         "tabId"
       ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

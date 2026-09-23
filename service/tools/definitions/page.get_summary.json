@@ -2,15 +2,12 @@
   "type": "function",
   "function": {
     "name": "page.get_summary",
-    "description": "读指定页摘要：标题、地址、区域数、可交互数、标题列表。\n参数：必填 tabId（目标标签编号）。\n返回：ok、title（页面标题）、url（页面地址）、regionCount、interactiveCount、headings、landmarkNames。",
+    "description": "读指定页摘要：标题、地址、区域数、可交互数、标题列表。\n参数：必填 tabId（目标标签编号）。\n返回：ok、title（页面标题）、url（页面地址）、regionCount、interactiveCount、headings、landmarkNames。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         },
         "tabId": {
           "type": "integer",
@@ -19,9 +16,9 @@
       },
       "required": [
         "reason",
-        "affectsPage",
         "tabId"
       ]
     }
-  }
+  },
+  "execution": "parallel"
 }

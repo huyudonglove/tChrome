@@ -533,7 +533,6 @@ test("wait A11y states probe uses role/name/states via page.wait_a11y", async ()
   const result = await runBrowserTool('wait', {
     tabId: 9200,
     reason: '等按钮可用',
-    affectsPage: false,
     role: 'button',
     name: '下一步',
     states: {enabled: true},
@@ -571,7 +570,6 @@ test("network.mock manages rules and handles CDP Fetch events correctly", async 
   const setResult = await runBrowserTool('network.mock', {
     tabId: 501,
     reason: 'Mock user api',
-    affectsPage: true,
     action: 'set',
     rule: {
       id: 'rule_user',
@@ -597,7 +595,6 @@ test("network.mock manages rules and handles CDP Fetch events correctly", async 
   const listResult = await runBrowserTool('network.mock', {
     tabId: 501,
     reason: 'List rules',
-    affectsPage: true,
     action: 'list',
   });
   expect(listResult).toMatchObject({
@@ -635,7 +632,6 @@ test("network.mock manages rules and handles CDP Fetch events correctly", async 
   const clearResult = await runBrowserTool('network.mock', {
     tabId: 501,
     reason: 'Clear all rules',
-    affectsPage: true,
     action: 'clear',
   });
   expect(clearResult).toMatchObject({

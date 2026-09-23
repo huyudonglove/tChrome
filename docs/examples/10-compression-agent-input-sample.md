@@ -112,7 +112,7 @@ Sample（一次请求只含一个完整轮次的骨架，仅示例）：
           "goalChanges": [],
           "toolIO": [
             { "callId": "call_02", "turnId": "tn_01", "name": "page.get_summary",
-              "arguments": { "tabId": 12, "reason": "读概况", "affectsPage": false },
+              "arguments": { "tabId": 12, "reason": "读概况" },
               "return": { "stage": "complete", "totalChars": 18, "text": "{\"ok\":true}" } }
           ],
           "pageObservations": [

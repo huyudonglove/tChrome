@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.process_start",
-    "description": "Execute a saved script by filename in absolute cwd. Save first with script_patch, script_write or local.fs_write. Extensions: .sh uses zsh, .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches. No default timeout; optional timeoutMs terminates the process group when elapsed. Complete stdout/stderr are returned and persisted in stdoutPath/stderrPath. Returns processId immediately; use local.process_status, local.process_write and local.process_stop to interact. script_patch must run in an earlier call than this execution.",
+    "description": "Execute a saved script by filename in absolute cwd. Save first with script_patch, script_write or local.fs_write. Extensions: .sh uses zsh, .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches. No default timeout; optional timeoutMs terminates the process group when elapsed. Complete stdout/stderr are returned and persisted in stdoutPath/stderrPath. Returns processId immediately; use local.process_status, local.process_write and local.process_stop to interact. script_patch must run in an earlier call than this execution.\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -19,10 +19,6 @@
           "type": "string",
           "description": "本次操作的目的"
         },
-        "affectsPage": {
-          "type": "boolean",
-          "const": false
-        },
         "filename": {
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*\\.(?:js|mjs|cjs|sh|py)$"
@@ -37,10 +33,10 @@
       "required": [
         "filename",
         "cwd",
-        "reason",
-        "affectsPage"
+        "reason"
       ],
       "additionalProperties": false
     }
-  }
+  },
+  "execution": "serial"
 }

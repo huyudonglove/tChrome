@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "calibrate_drag",
-    "description": "按最近一次 capture_page(mode=viewport) 的图像坐标拖动。\n参数：point1/point2=截图像素坐标，image_size=[宽,高]，可选 viewport（最近一次 capture_page(mode=viewport) 返回的视口尺寸，不传时读取当前视口）；必填 tabId（目标标签编号）。\n返回：ok、mapped_from、mapped_to。先截图，把滑块和缺口点在图上，再调用本工具；image_size 须取同次截图尺寸，传 viewport 时也须来自同次截图。",
+    "description": "按最近一次 capture_page(mode=viewport) 的图像坐标拖动。\n参数：point1/point2=截图像素坐标，image_size=[宽,高]，可选 viewport（最近一次 capture_page(mode=viewport) 返回的视口尺寸，不传时读取当前视口）；必填 tabId（目标标签编号）。\n返回：ok、mapped_from、mapped_to。先截图，把滑块和缺口点在图上，再调用本工具；image_size 须取同次截图尺寸，传 viewport 时也须来自同次截图。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -60,16 +60,13 @@
         },
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         }
       },
       "required": [
         "reason",
-        "affectsPage",
         "tabId"
       ]
     }
-  }
+  },
+  "execution": "serial"
 }

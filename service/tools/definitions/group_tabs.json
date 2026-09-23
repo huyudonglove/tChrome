@@ -2,15 +2,12 @@
   "type": "function",
   "function": {
     "name": "group_tabs",
-    "description": "把指定标签编成一组。\n参数：必填 tabIds（标签编号列表）。\n返回：ok、groupId（分组编号）。",
+    "description": "把指定标签编成一组。\n参数：必填 tabIds（标签编号列表）。\n返回：ok、groupId（分组编号）。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         },
         "tabIds": {
           "type": "array",
@@ -23,10 +20,10 @@
       },
       "required": [
         "reason",
-        "affectsPage",
         "tabIds"
       ],
       "additionalProperties": true
     }
-  }
+  },
+  "execution": "serial"
 }

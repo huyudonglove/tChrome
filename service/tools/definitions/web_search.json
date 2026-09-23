@@ -2,15 +2,12 @@
   "type": "function",
   "function": {
     "name": "web_search",
-    "description": "搜索公开网页。\n参数：query（搜索词）；可选 heartbeatSec（正整数秒，到点仍在执行则返回 heartbeat=true + jobId）。\n返回：ok、urls（结果网址列表）。心跳用 job.status / job.stop。",
+    "description": "搜索公开网页。\n参数：query（搜索词）；可选 heartbeatSec（正整数秒，到点仍在执行则返回 heartbeat=true + jobId）。\n返回：ok、urls（结果网址列表）。心跳用 job.status / job.stop。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean"
         },
         "query": {
           "type": "string"
@@ -26,9 +23,9 @@
       },
       "required": [
         "reason",
-        "affectsPage",
         "query"
       ]
     }
-  }
+  },
+  "execution": "parallel"
 }

@@ -25,7 +25,7 @@ test("memory.update and memory.delete operate by mm_/lm_ id", async () => {
 
     const upd = await executeTool({
       name: "memory.update",
-      arguments: { reason: "修正", affectsPage: false, memoryId: "mm_01", text: "新会话记忆" },
+      arguments: { reason: "修正", memoryId: "mm_01", text: "新会话记忆" },
       dataDir, conversationId,
       browserNames: [],
       lookup: { unusedTools: [], knownTools: ["memory.update"], enabledTools: ["memory.update"] },
@@ -41,7 +41,7 @@ test("memory.update and memory.delete operate by mm_/lm_ id", async () => {
 
     const del = await executeTool({
       name: "memory.delete",
-      arguments: { reason: "删除", affectsPage: false, memoryId: "lm_01" },
+      arguments: { reason: "删除", memoryId: "lm_01" },
       dataDir, conversationId,
       browserNames: [],
       lookup: { unusedTools: [], knownTools: ["memory.delete"], enabledTools: ["memory.delete"] },

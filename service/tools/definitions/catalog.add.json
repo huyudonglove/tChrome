@@ -2,17 +2,12 @@
   "type": "function",
   "function": {
     "name": "catalog.add",
-    "description": "为当前会话加载缺少的动态工具，names 为工具名数组。\n返回补充的工具名。新增工具须在下一次请求收到其 schema 后调用，不与加载操作放在同一批；成功加载后在本会话后续 turn、重新打开会话和服务重启后保持，新会话独立加载；后续以当前 tools[] 为准。",
+    "description": "为当前会话加载缺少的动态工具，names 为工具名数组。\n返回补充的工具名。新增工具须在下一次请求收到其 schema 后调用，不与加载操作放在同一批；成功加载后在本会话后续 turn、重新打开会话和服务重启后保持，新会话独立加载；后续以当前 tools[] 为准。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string"
-        },
-        "affectsPage": {
-          "type": "boolean",
-          "const": false,
-          "description": "可省略；加载工具不操作页面，传入时只能为false"
         },
         "names": {
           "type": "array",
@@ -26,5 +21,6 @@
         "names"
       ]
     }
-  }
+  },
+  "execution": "serial"
 }

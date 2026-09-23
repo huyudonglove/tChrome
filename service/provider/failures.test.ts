@@ -18,7 +18,7 @@ test("failure policy distinguishes transport errors, local errors, and cancellat
 });
 
 const input = { messages: [], tools: [] };
-const args = JSON.stringify({ reason: "test", affectsPage: false, key: "kept", value: "yes" });
+const args = JSON.stringify({ reason: "test", key: "kept", value: "yes" });
 const chatCall = { id: "valid", type: "function", function: { name: "notes.write", arguments: args } };
 const responseCall = { type: "function_call", status: "completed", call_id: "valid", name: "notes.write", arguments: args };
 const chat = (finish: string, message: Record<string, unknown> = { content: "partial", tool_calls: [chatCall] }) => ({

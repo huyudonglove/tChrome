@@ -10,7 +10,7 @@ test("attach_file accepts path or paths with optional selector and page id", () 
   const a = checkToolCalls([{
     id: "c1",
     name: "attach_file",
-    arguments: { reason: "上传模型", affectsPage: true, tabId: 12, path: "/tmp/model.glb" },
+    arguments: { reason: "上传模型", tabId: 12, path: "/tmp/model.glb" },
   }], tools, [], ["attach_file"]);
   expect(a.schemaOk).toBe(true);
   const b = checkToolCalls([{
@@ -18,7 +18,6 @@ test("attach_file accepts path or paths with optional selector and page id", () 
     name: "attach_file",
     arguments: {
       reason: "多文件",
-      affectsPage: true,
       tabId: 12,
       paths: ["/tmp/a.png", "/tmp/b.png"],
       selector: "input[type=file]",
@@ -28,7 +27,7 @@ test("attach_file accepts path or paths with optional selector and page id", () 
   const c = checkToolCalls([{
     id: "c3",
     name: "attach_file",
-    arguments: { reason: "按页内 id", affectsPage: true, tabId: 12, paths: ["/tmp/c.obj"], id: "e_09" },
+    arguments: { reason: "按页内 id", tabId: 12, paths: ["/tmp/c.obj"], id: "e_09" },
   }], tools, [], ["attach_file"]);
   expect(c.schemaOk).toBe(true);
 });
