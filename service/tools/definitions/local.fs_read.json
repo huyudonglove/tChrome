@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.fs_read",
-    "description": "按字节分页读取 UTF-8 文本文件，一次最多 8 个目标。items 每项含 path（绝对路径）及可选 offset（默认 0）、limit（默认 65536，范围 4..1048576）。返回 results[]，每项 content、size、nextOffset、truncated；后续页用该项 nextOffset，保持 UTF-8 字符完整；不用于二进制。逐项 ok，失败项带 faultCode/error。\n执行调度：parallel（Runtime 固定，不必返回）。",
+    "description": "按字节分页或按行切片读取 UTF-8 文本文件，一次最多 8 个目标。items 每项含 path（绝对路径）及可选字节分页 offset（默认 0）、limit（默认 65536，范围 4..1048576），或行切片 startLine（1 起，与 offset 互斥）、endLine。返回 results[]，字节分页含 content、size、nextOffset、truncated；行切片含 content、startLine、endLine、totalLines。逐项 ok，失败项带 faultCode/error。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -22,13 +22,25 @@
                 "type": "integer",
                 "minimum": 0,
                 "maximum": 9007199254740991,
-                "default": 0
+                "default": 0,
+                "description": "按字节分页读取的起始偏移量（与 startLine 互斥）"
               },
               "limit": {
                 "type": "integer",
                 "minimum": 4,
                 "maximum": 1048576,
-                "default": 65536
+                "default": 65536,
+                "description": "按字节分页读取的最大字节数"
+              },
+              "startLine": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "按行切片读取的起始行（1 起；与 offset 互斥）"
+              },
+              "endLine": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "按行切片读取的结束行（包含；缺省读至文件末尾）"
               }
             },
             "required": [

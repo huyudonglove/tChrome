@@ -164,3 +164,62 @@ test("grep finds literal text with line context and skips binaries, noisy dirs, 
   });
   expect(await run("local.fs_grep", { path: join(nested, "loop"), query: "needle" })).toMatchObject({ ok: false });
 });
+
+test("fs_read supports line slice mode with startLine and endLine", async () => {
+  const file = join(root, "lines.txt");
+  const sample = ["line 1: apple", "line 2: banana", "line 3: cherry", "line 4: date", "line 5: elderberry"].join("\n");
+  await writeFile(file, sample);
+
+  // 1. Basic slice: lines 2 to 4
+  const res1 = await run("local.fs_read", {
+    items: [{ path: file, startLine: 2, endLine: 4 }],
+  }) as { ok: boolean; results: Record<string, unknown>[] };
+  expect(res1.ok).toBe(true);
+  expect(res1.results[0]).toMatchObject({
+    ok: true,
+    path: file,
+    content: "line 2: banana\nline 3: cherry\nline 4: date",
+    startLine: 2,
+    endLine: 4,
+    totalLines: 5,
+  });
+
+  // 2. startLine only (reads to end of file)
+  const res2 = await run("local.fs_read", {
+    items: [{ path: file, startLine: 4 }],
+  }) as { ok: boolean; results: Record<string, unknown>[] };
+  expect(res2.ok).toBe(true);
+  expect(res2.results[0]).toMatchObject({
+    ok: true,
+    content: "line 4: date\nline 5: elderberry",
+    startLine: 4,
+    endLine: 5,
+    totalLines: 5,
+  });
+
+  // 3. Out of bounds startLine beyond totalLines
+  const res3 = await run("local.fs_read", {
+    items: [{ path: file, startLine: 10 }],
+  }) as { ok: boolean; results: Record<string, unknown>[] };
+  expect(res3.ok).toBe(true);
+  expect(res3.results[0]).toMatchObject({
+    ok: true,
+    content: "",
+    startLine: 10,
+    totalLines: 5,
+  });
+
+  // 4. Reject mutually exclusive startLine and offset
+  const res4 = await run("local.fs_read", {
+    items: [{ path: file, startLine: 1, offset: 10 }],
+  }) as { ok: boolean; results: Record<string, unknown>[] };
+  expect(res4.ok).toBe(false);
+  expect(res4.results[0]!.ok).toBe(false);
+
+  // 5. Reject invalid endLine < startLine
+  const res5 = await run("local.fs_read", {
+    items: [{ path: file, startLine: 3, endLine: 2 }],
+  }) as { ok: boolean; results: Record<string, unknown>[] };
+  expect(res5.ok).toBe(false);
+  expect(res5.results[0]!.ok).toBe(false);
+});

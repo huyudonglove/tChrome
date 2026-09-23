@@ -30,11 +30,35 @@ function typeOf(value: { isSymbolicLink(): boolean; isDirectory(): boolean; isFi
   return value.isSymbolicLink() ? "symlink" : value.isDirectory() ? "directory" : value.isFile() ? "file" : "other";
 }
 
-async function readOneFile(rawPath: unknown, rawOffset: unknown, rawLimit: unknown): Promise<Record<string, unknown>> {
+async function readOneFile(input: Record<string, unknown>): Promise<Record<string, unknown>> {
   try {
-    const path = pathArg({ path: rawPath });
-    const offset = integer({ offset: rawOffset }, "offset", 0, 0, Number.MAX_SAFE_INTEGER);
-    const limit = integer({ limit: rawLimit }, "limit", 65536, 4, 1048576);
+    const path = pathArg(input);
+    if (input.startLine !== undefined) {
+      if (input.offset !== undefined) {
+        throw new Error("cannot specify both offset and startLine");
+      }
+      const startLine = integer(input, "startLine", 1, 1, Number.MAX_SAFE_INTEGER);
+      const stat = await lstat(path);
+      if (!stat.isFile()) throw new Error("path must be a regular file");
+      const text = await readFile(path, "utf8");
+      const allLines = text.split("\n");
+      const totalLines = allLines.length;
+      let endLine: number | undefined;
+      if (input.endLine !== undefined) {
+        endLine = integer(input, "endLine", totalLines, 1, Number.MAX_SAFE_INTEGER);
+        if (endLine < startLine) {
+          throw new Error("endLine must be greater than or equal to startLine");
+        }
+      }
+      if (startLine > totalLines) {
+        return { ok: true, path, content: "", startLine, endLine, totalLines };
+      }
+      const effectiveEnd = endLine !== undefined ? Math.min(endLine, totalLines) : totalLines;
+      const content = allLines.slice(startLine - 1, effectiveEnd).join("\n");
+      return { ok: true, path, content, startLine, endLine: effectiveEnd, totalLines };
+    }
+    const offset = integer(input, "offset", 0, 0, Number.MAX_SAFE_INTEGER);
+    const limit = integer(input, "limit", 65536, 4, 1048576);
     const file = await open(path, constants.O_RDONLY | constants.O_NONBLOCK);
     try {
       const stat = await file.stat();
@@ -60,11 +84,11 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
     if (name === "local.fs_read") {
       const items = input.items;
       if (!Array.isArray(items) || items.length < 1 || items.length > 8) {
-        throw new Error("items must be an array of 1..8 {path, offset?, limit?}");
+        throw new Error("items must be an array of 1..8 {path, offset?, limit?, startLine?, endLine?}");
       }
       const results = await Promise.all(items.map((item) => {
         const row = (item ?? {}) as Record<string, unknown>;
-        return readOneFile(row.path, row.offset, row.limit);
+        return readOneFile(row);
       }));
       return { ok: results.every((row) => row.ok), results };
     }
