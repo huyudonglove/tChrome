@@ -184,11 +184,12 @@ test("toolChoice required 映射为 ANY，被拒后降级 AUTO", async () => {
 
 test("providerOptions registers all gateways with key env mapping", () => {
   expect(providerOptions.map((item) => item.id)).toEqual([
-    "uuapi", "shiningspace", "gemini", "deepseek", "caicai", "deepseek-official", "xcode",
+    "uuapi", "shiningspace", "gemini", "deepseek", "caicai", "deepseek-official", "xcode", "openrouter",
   ]);
   expect(providerApiKeyEnv.gemini).toBe("GEMINI_API_KEY");
   expect(providerApiKeyEnv.deepseek).toBe("DEEPSEEK_API_KEY");
   expect(providerApiKeyEnv.caicai).toBe("CAICAI_API_KEY");
   expect(providerApiKeyEnv["deepseek-official"]).toBe("DEEPSEEK_OFFICIAL_API_KEY");
   expect(providerApiKeyEnv.xcode).toBe("XCODE_API_KEY");
+  expect(providerApiKeyEnv.openrouter).toBe("OPENROUTER_API_KEY");
 });

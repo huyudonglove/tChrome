@@ -1,4 +1,4 @@
-import { errorInfo, errorMessage, errorRecovery, modelSpeech, type Recovery } from "../../shared/errors.ts";
+import { errorInfo, errorMessage, errorRecovery, type Recovery } from "../../shared/errors.ts";
 import type { ToolExecution } from "./effects.ts";
 
 /** Keep domain fields while exposing one model-facing failure contract. */
@@ -11,11 +11,8 @@ export function toolFailure(value: Record<string, unknown>, fallback = "tool_exe
   const faultCode = typeof value.faultCode === "string" && value.faultCode ? value.faultCode
     : value.status === "cancelled" ? "stopped"
     : typeof value.status === "number" && value.status >= 400 ? "http_error" : fallback;
-  const reasonRaw = typeof detail === "string" && detail ? detail : typeof error === "string" ? error : undefined;
-  const reason = reasonRaw ? modelSpeech(reasonRaw) : undefined;
-  const extra = details && typeof details === "object" && !Array.isArray(details)
-    ? Object.fromEntries(Object.entries(details).map(([key, value]) => [key, typeof value === "string" ? modelSpeech(value) : value]))
-    : {};
+  const reason = typeof detail === "string" && detail ? detail : typeof error === "string" ? error : undefined;
+  const extra = details && typeof details === "object" && !Array.isArray(details) ? details : {};
   return {
     ...fields, ok: false, faultCode,
     message: errorMessage(faultCode, "model"), recovery: errorRecovery(faultCode),

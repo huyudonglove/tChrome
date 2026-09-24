@@ -139,13 +139,14 @@ const validateCompletion = (
 const writeFault = (dataDir: string, ledger: Ledger, turnId: string, result: CompletionResult, tools: Parameters<typeof checkToolCalls>[1]) => {
   const name = result.badName || result.toolCalls.at(-1)?.name || "unknown";
   const call = result.toolCalls.find((row) => row.name === name) ?? result.toolCalls.at(-1);
+  const includeSchema = result.faultCode !== "arguments_not_json";
   const text = JSON.stringify(toolFailure({
     ok: false,
     faultCode: result.faultCode,
     missing: result.missing,
     toolName: name,
     detail: result.detail ?? "",
-    details: { parameterSchema: tools.find(tool => tool.function.name === name)?.function.parameters },
+    details: includeSchema ? { parameterSchema: tools.find(tool => tool.function.name === name)?.function.parameters } : {},
   }));
   ledger.toolIO.push({
     callId: call?.id ?? allocateRecordId(dataDir, ledger.conversationId, "call"),
