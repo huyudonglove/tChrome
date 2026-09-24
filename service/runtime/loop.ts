@@ -299,7 +299,10 @@ const runQueue = async (input: {
       }
       let output: TurnOutput | null = null;
       try {
-        output = applyToolEffects({ dataDir, ledger, turn, call: item, effects: execution.effects, execCtx: slot.execCtx });
+        output = applyToolEffects({
+          dataDir, ledger, turn, call: item, effects: execution.effects,
+          execCtx: slot.execCtx, storedText: full,
+        });
       } catch (error) {
         if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) return { kind: "error", faultCode: "stopped" };
         // Effects can fail after earlier writes succeeded. Report evidence without replaying them.

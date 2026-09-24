@@ -20,8 +20,20 @@ export function applyToolEffects(input: {
   call: ToolQueueItem;
   effects: ToolEffect[];
   execCtx?: RuntimeExecutionContext;
+  storedText?: string;
 }): TurnOutput | null {
   const { dataDir, ledger, turn, call, effects } = input;
+  const storedResult = (() => {
+    if (!input.storedText) return undefined;
+    try {
+      const value = JSON.parse(input.storedText) as unknown;
+      return value && typeof value === "object" && !Array.isArray(value)
+        ? value as Record<string, unknown>
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  })();
   const execCtx = input.execCtx ?? {
     goalId: ledger.currentGoalId,
     activePlanId: ledger.activePlanId,
@@ -125,15 +137,16 @@ export function applyToolEffects(input: {
       }
       case "page.set": {
         const id = allocateRecordId(dataDir, ledger.conversationId, "page");
-        const resultChars = JSON.stringify(effect.result).length;
+        const result = storedResult ?? effect.result;
+        const resultChars = JSON.stringify(result).length;
         const inlineLimit = runtimeConfig.results.inlineChars;
         const lineWidth = runtimeConfig.results.lineWidth;
         const totalLines = resultChars <= 0 ? 0 : Math.ceil(resultChars / lineWidth);
         const windowResult = resultChars > inlineLimit
           ? (() => {
-            const previewSource = typeof effect.result === "string"
-              ? effect.result
-              : JSON.stringify(effect.result);
+            const previewSource = typeof result === "string"
+              ? result
+              : JSON.stringify(result);
             return {
               ok: true,
               externalized: true,
@@ -148,7 +161,7 @@ export function applyToolEffects(input: {
               search: "evidence.search",
             };
           })()
-          : effect.result;
+          : result;
         const record = {
           id,
           turnId: turn.turnId,
@@ -157,8 +170,8 @@ export function applyToolEffects(input: {
           ...(call.batchId ? { batchId: call.batchId } : {}),
           tabId: effect.page.tabId,
           type: call.name,
-          // Local archive keeps the full payload; the window may see a pointer only.
-          result: effect.result,
+          // Keep the lightweight image reference in both the window projection and archive.
+          result,
           ...(execCtx.goalId ? { goalId: execCtx.goalId } : {}),
           ...(execCtx.activePlanId ? { planId: execCtx.activePlanId } : {}),
           ...(execCtx.activePlanItemId ? { planItemId: execCtx.activePlanItemId } : {}),

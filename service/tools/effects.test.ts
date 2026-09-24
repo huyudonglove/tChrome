@@ -171,17 +171,37 @@ test("successful tab-targeted calls without url still enter page observations", 
       ok: true, tabId: 1, image: "data:image/jpeg;base64,xx", mime: "image/jpeg", image_size: [10, 10],
     }) },
   });
+  const storedText = JSON.stringify({
+    ok: true,
+    tabId: 1,
+    image: {
+      imageId: "img_shot",
+      path: "/tmp/shot.jpg",
+      width: 10,
+      height: 10,
+    },
+    mime: "image/jpeg",
+    image_size: [10, 10],
+  });
   applyToolEffects({
     dataDir: fixture.dataDir, ledger: fixture.ledger, turn: fixture.turn,
     call: { callId: "call_shot", name: "capture_page", arguments: {} },
     effects: execution.effects,
+    storedText,
   });
   const turn = loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId);
   expect(turn.assembled.pageObservedHistory).toHaveLength(1);
   expect(turn.assembled.pageObservedHistory[0]).toMatchObject({
     tabId: 1, type: "capture_page", callId: "call_shot",
-    result: { ok: true, tabId: 1, image: "data:image/jpeg;base64,xx" },
+    result: {
+      ok: true,
+      tabId: 1,
+      image: { imageId: "img_shot", path: "/tmp/shot.jpg", width: 10, height: 10 },
+      mime: "image/jpeg",
+      image_size: [10, 10],
+    },
   });
+  expect(JSON.stringify(turn.assembled.pageObservedHistory[0])).not.toContain("data:image");
   // Previous page identity is kept when the call did not return url/title.
   expect(turn.assembled.currentPage).toMatchObject({
     tabId: 1, url: "https://example.test/input", title: "发话页面",
