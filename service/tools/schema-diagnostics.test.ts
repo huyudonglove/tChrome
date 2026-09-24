@@ -49,3 +49,19 @@ test("missing discriminators do not activate unrelated conditional requirements"
   expect(capture.missing).toEqual(["mode"]);
   expect(capture.detail).not.toContain("alternative");
 });
+
+test("empty optional arguments are omitted while required empties remain invalid", () => {
+  const reflection = checkToolCalls(
+    [{ id: "test", name: "reflect.write", arguments: { reason: "记录", text: "结论", focus: "", id: "" } }],
+    toolSchemas(registry, ["reflect.write"]), [], ["reflect.write"],
+  );
+  expect(reflection.schemaOk).toBe(true);
+  expect(reflection.missing).toEqual([]);
+
+  const required = checkToolCalls(
+    [{ id: "test", name: "reflect.write", arguments: { reason: "记录", text: "" } }],
+    toolSchemas(registry, ["reflect.write"]), [], ["reflect.write"],
+  );
+  expect(required.schemaOk).toBe(false);
+  expect(required.detail).toContain("data/text");
+});

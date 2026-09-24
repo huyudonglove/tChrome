@@ -17,7 +17,7 @@ const allowed = (base: string[], extra: string[]) => new Set([...base, ...extra]
 // Convert scalar encodings according to the declared schema type.
 function normalizeArguments(value: unknown, schema: unknown): unknown {
   if (!schema || typeof schema !== "object") return value;
-  const spec = schema as { type?: string; properties?: Record<string, unknown>; items?: unknown };
+  const spec = schema as { type?: string; properties?: Record<string, unknown>; items?: unknown; required?: string[] };
   if (typeof value === "string") {
     if (spec.type === "boolean" && (value === "true" || value === "false")) return value === "true";
     if ((spec.type === "number" || spec.type === "integer")
@@ -31,8 +31,12 @@ function normalizeArguments(value: unknown, schema: unknown): unknown {
     return value.map(item => normalizeArguments(item, spec.items));
   }
   if (spec.type === "object" && value && typeof value === "object" && !Array.isArray(value)) {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) =>
-      [key, normalizeArguments(item, spec.properties?.[key])]));
+    return Object.fromEntries(Object.entries(value)
+      .filter(([key, item]) => {
+        const property = spec.properties?.[key] as { type?: string } | undefined;
+        return item !== "" || property?.type !== "string" || (spec.required ?? []).includes(key);
+      })
+      .map(([key, item]) => [key, normalizeArguments(item, spec.properties?.[key])]));
   }
   return value;
 }
