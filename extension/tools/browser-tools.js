@@ -1747,6 +1747,11 @@ const executeBrowserTool = async (name, input = {}) => {
     return {ok: true};
   }
   if (name === 'capture_page') return {...await capturePage(input), mode: input.mode};
+  if (name === 'capture_viewport') return {...await capturePage({...input, mode: 'viewport'}), mode: 'viewport'};
+  if (name === 'capture_full_page') return {...await capturePage({...input, mode: 'full_page'}), mode: 'full_page'};
+  if (name === 'capture_element') return {...await capturePage({...input, mode: 'element'}), mode: 'element'};
+  if (name === 'capture_rect') return {...await capturePage({...input, mode: 'rect'}), mode: 'rect'};
+  if (name === 'capture_som') return {...await capturePage({...input, mode: 'som'}), mode: 'som'};
   if (name === 'save_pdf') {
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可导出 PDF 的普通网页标签'};

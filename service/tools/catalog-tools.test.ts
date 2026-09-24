@@ -120,6 +120,30 @@ test("capture_page validates mode-specific target parameters", () => {
   for (const args of [{}, {mode: "pdf"}, {mode: "element"}, {mode: "element", ref: "e1"}, {mode: "element", ref: "e_01", selector: "#target"}, {mode: "viewport", selector: "#target"}, {mode: "som", ref: "e_01"}]) expect(valid(args)).toBe(false);
 });
 
+test("mode-specific capture tools expose only their own parameters", () => {
+  const registry = loadToolRegistry(repoRoot);
+  const names = ["capture_viewport", "capture_full_page", "capture_element", "capture_rect", "capture_som"] as const;
+  const tools = toolSchemas(registry, [...names]);
+  const check = (name: typeof names[number], arguments_: Record<string, unknown> = {}) => checkToolCalls(
+    [{id: "capture", name, arguments: {tabId: 1, reason: "观察", ...arguments_}}], tools, [], [...names],
+  ).schemaOk;
+  expect(check("capture_viewport")).toBe(true);
+  expect(check("capture_viewport", {mode: "viewport"})).toBe(false);
+  expect(check("capture_full_page")).toBe(true);
+  expect(check("capture_full_page", {mode: "full_page"})).toBe(false);
+  expect(check("capture_element", {ref: "e_01"})).toBe(true);
+  expect(check("capture_element", {selector: "#target"})).toBe(true);
+  expect(check("capture_element", {ref: "e_01", selector: "#target"})).toBe(false);
+  expect(check("capture_element")).toBe(false);
+  expect(check("capture_rect", {x: 1, y: 2, width: 3, height: 4})).toBe(true);
+  expect(check("capture_rect", {x: 1, y: 2, width: 0, height: 4})).toBe(false);
+  expect(check("capture_rect", {x: 1, y: 2})).toBe(false);
+  expect(check("capture_som")).toBe(true);
+  expect(check("capture_som", {maxMarks: 20, roles: ["button"]})).toBe(true);
+  expect(check("capture_som", {maxMarks: 100})).toBe(false);
+  expect(check("capture_som", {mode: "som"})).toBe(false);
+});
+
 test("send_http requires an HTTP link string and documents all request fields", () => {
   const registry = loadToolRegistry(repoRoot);
   const tools = toolSchemas(registry, ["send_http"]);
