@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ChatTool, ExecutionMode } from "../types.ts";
+import { loadCapabilityCatalog } from "./capability.ts";
+import type { CapabilityRecord } from "./capability-types.ts";
 
 export type ToolIndex = {
   browser: string[];
@@ -18,6 +20,8 @@ export type ToolRegistry = {
   toolGroups: ToolGroups;
   /** Per-tool default schedule when the call omits arguments.execution. */
   execution: Record<string, ExecutionMode>;
+  /** Unified metadata for tools and skills, without changing tool execution contracts. */
+  capabilities: CapabilityRecord[];
 };
 
 export function loadToolRegistry(root: string): ToolRegistry {
@@ -34,7 +38,8 @@ export function loadToolRegistry(root: string): ToolRegistry {
     tools[name] = { type: "function", function: raw.function };
     execution[name] = mode;
   }
-  return { tools, index, toolGroups, execution };
+  const capabilities = loadCapabilityCatalog(root, { tools, index, toolGroups, execution });
+  return { tools, index, toolGroups, execution, capabilities };
 }
 
 export function dynamicToolIds(registry: ToolRegistry): string[] {
