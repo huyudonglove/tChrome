@@ -152,6 +152,8 @@
     "local.process_stop",
     "local.process_write",
     "local.run",
+    "local.git_status",
+    "local.git_diff",
     "library",
     "script_write",
     "script_patch",

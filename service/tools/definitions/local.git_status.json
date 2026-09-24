@@ -1,0 +1,26 @@
+{
+  "type": "function",
+  "function": {
+    "name": "local.git_status",
+    "description": "查看指定 Git 仓库的当前工作区与暂存区状态（分支、是否有未提交改动、暂存/未暂存/未跟踪文件列表及概要）。\n执行调度：parallel（Runtime 固定，不必返回）。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Git 仓库所在目录的绝对路径"
+        },
+        "reason": {
+          "type": "string",
+          "description": "执行该操作的原因"
+        }
+      },
+      "required": [
+        "path",
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "execution": "parallel"
+}

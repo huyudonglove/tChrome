@@ -1,0 +1,49 @@
+{
+  "type": "function",
+  "function": {
+    "name": "local.git_diff",
+    "description": "查看指定 Git 仓库的代码差异（diff）。支持工作区未暂存改动、暂存区改动（cached）、指定 commit 或单文件过滤，并可限制最大行数避免超限。\n执行调度：parallel（Runtime 固定，不必返回）。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Git 仓库所在目录的绝对路径"
+        },
+        "cached": {
+          "type": "boolean",
+          "description": "是否查看已暂存（staged/cached）的变更，默认 false"
+        },
+        "commit": {
+          "type": "string",
+          "description": "可选的 commit 散列或引用（如 HEAD~1 或 HEAD），用于对比历史版本"
+        },
+        "file": {
+          "type": "string",
+          "description": "可选的相对路径，仅查看指定文件或目录的 diff"
+        },
+        "statOnly": {
+          "type": "boolean",
+          "description": "为 true 时仅输出 --stat 概要统计，不输出完整 patch"
+        },
+        "maxLines": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2000,
+          "default": 500,
+          "description": "返回 diff 的最大行数，默认 500，上限 2000"
+        },
+        "reason": {
+          "type": "string",
+          "description": "执行该操作的原因"
+        }
+      },
+      "required": [
+        "path",
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "execution": "parallel"
+}
