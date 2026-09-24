@@ -44,7 +44,7 @@ const turnSource = (id: string, turnId: string) => ({
   },
 });
 
-test("turns that already have summaries skip re-compression until active list exceeds 30", async () => {
+test("extra sources take L1 immediately; L2 merge waits for active list to exceed 30", async () => {
   const dataDir = dir();
   const conversationId = "cv_01";
   // Seed one L1 summary for tn_01 via a prior successful compress.
@@ -62,7 +62,7 @@ test("turns that already have summaries skip re-compression until active list ex
   const firstLevel = afterFirst.entries.find(e => e.id === firstSumId)!.level;
   expect(firstLevel).toBe(1);
 
-  // New sources for the same turn would merge/re-level — blocked while active ≤ 100.
+  // Uncovered sources get extra L1 immediately (no merge yet).
   const outcome = await compressRecords({
     dataDir,
     conversationId,
@@ -72,12 +72,12 @@ test("turns that already have summaries skip re-compression until active list ex
     records: [turnSource("src_02", "tn_01")],
   });
   const index = loadIndex(dataDir, conversationId, "conversationHistory");
-  expect(index.activeIds).toEqual([firstSumId]);
-  expect(index.entries.filter(e => e.turnId === "tn_01")).toHaveLength(1);
-  expect(index.coveredSourceIds).not.toContain("src_02");
-  expect(outcome.committedTurnIds).toEqual([]);
+  expect(outcome.committedTurnIds).toEqual(["tn_01"]);
+  expect(index.entries.filter(e => e.turnId === "tn_01")).toHaveLength(2);
+  expect(index.entries.filter(e => e.turnId === "tn_01").every(e => e.level === 1)).toBe(true);
+  expect(index.coveredSourceIds).toContain("src_02");
 
-  // Pad active summaries to exceed the threshold, then re-compression is allowed.
+  // Pad active summaries past the threshold, then L2 merge is allowed.
   const padEntries = Array.from({ length: SUMMARY_RECOMPRESS_MIN_ACTIVE }, (_, i) => ({
     id: `sum_pad_${String(i + 1).padStart(2, "0")}`,
     module: "conversationHistory" as const,
@@ -94,13 +94,14 @@ test("turns that already have summaries skip re-compression until active list ex
   index.activeIds = [...index.activeIds, ...padEntries.map(e => e.id)];
   commitArchive(dataDir, conversationId, index, [], padEntries);
 
+  // L2: a further uncovered source folds prior L1 rows into one higher-level summary.
   const together = await compressRecords({
     dataDir,
     conversationId,
     repoRoot,
     provider,
     module: "conversationHistory",
-    records: [turnSource("src_02", "tn_01")],
+    records: [turnSource("src_03", "tn_01")],
   });
   const after = loadIndex(dataDir, conversationId, "conversationHistory");
   expect(together.committedTurnIds).toEqual(["tn_01"]);
@@ -108,5 +109,5 @@ test("turns that already have summaries skip re-compression until active list ex
   expect(tn01.some(e => e.level >= 2)).toBe(true);
   expect(after.activeIds).toContain(tn01.find(e => e.level >= 2)!.id);
   expect(after.activeIds).not.toContain(firstSumId);
-  expect(after.coveredSourceIds).toContain("src_02");
+  expect(after.coveredSourceIds).toContain("src_03");
 });

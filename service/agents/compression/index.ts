@@ -38,17 +38,6 @@ function turnOrder(sources: SourceRecord[]): number {
   return typeof sequence?.turn === "number" ? sequence.turn : Number.MAX_SAFE_INTEGER;
 }
 
-function isQueryOnlySource(source: SourceRecord): boolean {
-  const c = source.content as Record<string, unknown> | null;
-  if (!c || typeof c !== "object") return false;
-  if (!Array.isArray(c.queryHistory) || !c.queryHistory.length) return false;
-  for (const key of ["toolIO", "pageObservations", "memoryWrites", "goalChanges"] as const) {
-    const list = c[key];
-    if (Array.isArray(list) && list.length) return false;
-  }
-  return c.output == null;
-}
-
 /**
  * Sequential compression walk.
  * Each turn is one request. Success archives that turn immediately and drops its originals
@@ -97,12 +86,12 @@ async function compress(input: Input): Promise<CompressOutcome> {
 
   for (const [turnId, sources] of ordered) {
     check();
+    // L1: always cover uncovered sources (a turn may accumulate several L1 rows).
+    // L2: only when active summaries exceed the gate, fold prior summaries into a higher level.
     const priorSummaries = activeEntries().filter(record => record.turnId === turnId);
     const mergeAllowed = index.activeIds.length > SUMMARY_RECOMPRESS_MIN_ACTIVE;
     const mergeTurn = priorSummaries.length > 0 && mergeAllowed;
-    const sourcesForTurn = priorSummaries.length > 0 && !mergeAllowed
-      ? sources.filter(isQueryOnlySource)
-      : sources;
+    const sourcesForTurn = sources;
     const priorForTurn = mergeTurn ? priorSummaries : [];
     if (!sourcesForTurn.length) continue;
 

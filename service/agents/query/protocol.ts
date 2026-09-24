@@ -1,10 +1,10 @@
-import { AppError, modelSpeech } from "../../../shared/errors.ts";
-import Ajv from "ajv";
+import { modelSpeech } from "../../../shared/errors.ts";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ChatMessage, ChatTool, CompletionResult, Provider } from "../../types.ts";
-import { querySystemFromModules } from "./context/loader.ts";
+import type { Provider } from "../../types.ts";
 import { unwrapStringArrayField } from "../../tools/arguments.ts";
+import { querySystemFromModules } from "./context/loader.ts";
+import { requestToolResult } from "../tool-agent/index.ts";
 
 export type QueryCandidate = { turnId: string; records: Record<string, unknown>[] };
 export type QueryRequestPayload = { sumId: string; module: string; intent: string };
@@ -45,66 +45,29 @@ export async function requestMatches(input: {
   request: QueryRequestPayload;
   candidates: QueryCandidate[];
 }): Promise<string[]> {
-  const system = querySystemPrompt(input.repoRoot);
-  const tool: ChatTool = JSON.parse(readFileSync(join(input.repoRoot, "service/agents/query/tools/submit-matches.json"), "utf8"));
-  const validate = new Ajv({ allErrors: true, strict: false }).compile(tool.function.parameters);
-  const allowedIds = input.candidates.map(entry => entry.turnId);
-  const allowed = new Set(allowedIds);
-  const baseMessages: ChatMessage[] = [
-    { role: "system", content: system },
-    { role: "user", content: queryUserPrompt(input.request, input.candidates) },
-  ];
-  let lastError = "";
-  const protocolFault = (response: CompletionResult): string | null => {
-    if (response.finish === "error" && response.faultCode) return null;
-    if (response.finish !== "tool_calls" || response.toolCalls.length !== 1 || response.faultCode
-      || !response.parseOk || !response.schemaOk || response.toolCallFaults?.length || response.missing.length) {
-      return response.detail || response.faultCode || "invalid_return_tool_call";
-    }
-    const call = response.toolCalls[0]!;
-    if (call.name !== "submitMatches" || typeof call.id !== "string" || !call.id.trim()) {
-      return "查询 Agent 必须通过一次 submitMatches 工具调用返回结果。";
-    }
-    return null;
-  };
-  for (let attempt = 1; attempt <= QUERY_FORMAT_ATTEMPTS; attempt++) {
-    const messages: ChatMessage[] = attempt === 1 ? baseMessages : [
-      ...baseMessages,
-      {
-        role: "user",
-        content: JSON.stringify({
-          selfRepair: true,
-          attempt,
-          maxAttempts: QUERY_FORMAT_ATTEMPTS,
-          fault: modelSpeech(lastError),
-          instruction: modelSpeech(queryRepairInstruction(allowedIds, lastError)),
-        }),
+  const allowed = new Set(input.candidates.map(entry => entry.turnId));
+  const result = await requestToolResult({
+    provider: input.provider,
+    protocol: {
+      agentName: "Query Agent",
+      faultCode: "query_failed",
+      systemPrompt: querySystemPrompt(input.repoRoot),
+      userPrompt: queryUserPrompt(input.request, input.candidates),
+      tool: JSON.parse(readFileSync(join(input.repoRoot, "service/agents/query/tools/submit-matches.json"), "utf8")),
+      toolName: "submitMatches",
+      normalizeResult: value => {
+        unwrapStringArrayField(value, "turnIds");
+        return value;
       },
-    ];
-    const response = await input.provider.complete({ tools: [tool], messages });
-    if (response.finish === "error" && response.faultCode) {
-      throw new AppError(response.faultCode, `Query agent failed: ${response.faultCode}`);
-    }
-    const fault = protocolFault(response);
-    if (fault) {
-      lastError = fault;
-      if (attempt === QUERY_FORMAT_ATTEMPTS) throw new AppError("query_failed", `Query agent format failed after ${QUERY_FORMAT_ATTEMPTS} attempts: ${fault}`);
-      continue;
-    }
-    const call = response.toolCalls[0]!;
-    unwrapStringArrayField(call.arguments, "turnIds");
-    const value = call.arguments;
-    if (!validate(value)) {
-      lastError = "查询 Agent 返回的工具参数不符合 schema。";
-      if (attempt === QUERY_FORMAT_ATTEMPTS) throw new AppError("query_failed", lastError);
-      continue;
-    }
-    if ((value.turnIds as string[]).some(id => !allowed.has(id))) {
-      lastError = "查询 Agent 返回了无效或候选范围外的 turnId。";
-      if (attempt === QUERY_FORMAT_ATTEMPTS) throw new AppError("query_failed", lastError);
-      continue;
-    }
-    return [...new Set(value.turnIds as string[])];
-  }
-  throw new AppError("query_failed", `Query agent format failed after ${QUERY_FORMAT_ATTEMPTS} attempts: ${lastError}`);
+      repairInstruction: fault => queryRepairInstruction([...allowed], fault),
+      validateResult: value => {
+        const ids = value.turnIds;
+        if (!Array.isArray(ids) || ids.some(id => typeof id !== "string" || !allowed.has(id))) {
+          return "Query Agent 返回了无效或候选范围外的 ID。";
+        }
+        return null;
+      },
+    },
+  });
+  return [...new Set(result.turnIds as string[])];
 }
