@@ -448,7 +448,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       layer: memoryId.startsWith("lm_") ? "project" : "conversation",
     }), [{ type: "memory.delete", memoryId }]);
   }
-  if (name === "context.query") {
+  if (name === "context.query" || name === "agent.query") {
     if (!input.queryContext) return failedTool("query_agent_unavailable", "query_failed");
     const queried = await input.queryContext({ sumId: String(args.sumId), module: args.module as QueryModule,
       intent: String(args.intent) });

@@ -17,8 +17,8 @@ function fixture(text = "负责人李明，状态待处理", mismatchedTurn = fa
   commitArchive(dataDir,"cv_test",{version:1,module:"conversationHistory",entries,activeIds:["sum_03","sum_02"],coveredSourceIds:sources.map(s=>s.id)},sources,entries);
   return {dataDir,conversationId:"cv_test",repoRoot:resolve(import.meta.dir,"../../.."),sumId:"sum_03",module:"toolIO" as const,intent:"保存后的状态"};
 }
-function provider(turnIds = ["tn_01"], observe?: (input:Parameters<Provider["complete"]>[0])=>void):Provider {
-  return {async complete(input){observe?.(input); return {finish:"tool_calls",content:"",toolCalls:[{id:"call_01",name:"submitMatches",arguments:{turnIds}}],attempts:1,parseOk:true,schemaOk:true,faultCode:null,missing:[]};}};
+function provider(turnIds = ["tn_01"], observe?: (input:Parameters<Provider["complete"]>[0])=>void, recordKeys?: string[]):Provider {
+  return {async complete(input){observe?.(input); return {finish:"tool_calls",content:"",toolCalls:[{id:"call_01",name:"submitMatches",arguments:{turnIds,...(recordKeys ? {recordKeys} : {})}}],attempts:1,parseOk:true,schemaOk:true,faultCode:null,missing:[]};}};
 }
 test("query limits candidates to requested summary and module, retains native identities",async()=>{
   const input=fixture();
@@ -30,6 +30,13 @@ test("query limits candidates to requested summary and module, retains native id
   expect(result.status).toBe("complete");expect(result.records[0]).toMatchObject({callId:"call_01",turnId:"tn_01",return:{text:"负责人李明，状态待处理"}});
   expect((await queryContext({...input,provider:provider(["tn_02"])})).status).toBe("error");
   expect((await queryContext({...input,module:"summaries",provider:provider()})).records.map(r=>r.sumId)).toEqual(["sum_03","sum_01"]);
+});
+test("record keys use the visible callId for exact record retrieval",async()=>{
+  const input=fixture();
+  const result=await queryContext({...input,provider:provider(["tn_01"],undefined,["call_01"])});
+  expect(result.status).toBe("complete");
+  expect(result.records).toHaveLength(1);
+  expect(result.records[0]).toMatchObject({callId:"call_01",turnId:"tn_01"});
 });
 test("oversized records return in one shot for the unified inline gate",async()=>{
   const input=fixture('带有"转义\\字符'.repeat(1500)); let calls=0;

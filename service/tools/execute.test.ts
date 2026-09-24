@@ -89,3 +89,31 @@ test("JavaScript values with a target tabId are recorded as page observations", 
     }]);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
+
+test("agent.query reuses the Query Agent and emits query.set", async () => {
+  const records = [{ id: "call_01", turnId: "tn_01", name: "local.run" }];
+  const queryContext = async () => ({
+    ok: true as const,
+    status: "complete" as const,
+    sumId: "sum_01",
+    module: "toolIO" as const,
+    intent: "核对历史调用参数",
+    records,
+  });
+  const execution = await executeTool({
+    name: "agent.query",
+    arguments: { reason: "核对历史", sumId: "sum_01", module: "toolIO", intent: "核对历史调用参数" },
+    dataDir: "",
+    browserNames: [],
+    queryContext,
+    lookup: { unusedTools: [], knownTools: [], enabledTools: [] },
+  });
+  const payload = JSON.parse(execution.text);
+  expect(payload.ok).toBe(true);
+  expect(payload.status).toBe("complete");
+  expect(execution.effects).toEqual([{ type: "query.set", query: {
+    sumId: "sum_01", module: "toolIO", intent: "核对历史调用参数", status: "complete",
+    records, detail: undefined,
+  } }]);
+});
+

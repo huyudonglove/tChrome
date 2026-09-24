@@ -12,6 +12,13 @@
             "type": "string",
             "minLength": 1
           }
+        },
+        "recordKeys": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       },
       "required": [

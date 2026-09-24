@@ -4,6 +4,7 @@
     "finishTurn",
     "submitGoal",
     "context.query",
+    "agent.query",
     "memory.write",
     "memory.update",
     "memory.delete",

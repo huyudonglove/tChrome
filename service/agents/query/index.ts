@@ -8,7 +8,12 @@ export type { QueryRequest, QueryResult, QueryModule } from "./types.ts";
 
 type QueryInput = QueryRequest & { dataDir: string; conversationId: string; repoRoot: string; provider: Provider; isCancelled?: () => boolean };
 type RecordValue = Record<string, unknown>;
-const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+const fallbackRecordKey = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+const recordKeyFor = (record: RecordValue): string => {
+  const nativeId = ["callId", "pageId", "recordId", "memoryId", "queryId", "id"]
+    .map(key => record[key]).find(value => typeof value === "string" && value.length > 0);
+  return nativeId ?? fallbackRecordKey(record);
+};
 
 /** Only traverse the requested summary's immutable source graph; retrieval never writes archive state. */
 export async function queryContext(input: QueryInput): Promise<QueryResult> {
@@ -54,16 +59,24 @@ export async function queryContext(input: QueryInput): Promise<QueryResult> {
     const byTurn = new Map<string, QueryCandidate>();
     for (const record of records) {
       const turnId = record.turnId as string;
+      const recordKey = recordKeyFor(record);
       const candidate = byTurn.get(turnId);
-      if (candidate) candidate.records.push(record);
-      else byTurn.set(turnId, { turnId, records: [record] });
+      if (candidate) {
+        candidate.records.push(record);
+        candidate.recordKeys?.push(recordKey);
+      } else {
+        byTurn.set(turnId, { turnId, records: [record], recordKeys: [recordKey] });
+      }
     }
-    const selected = await requestMatches({ provider: input.provider, repoRoot: input.repoRoot,
+    const selection = await requestMatches({ provider: input.provider, repoRoot: input.repoRoot,
       request: { sumId: input.sumId, module: input.module, intent: input.intent }, candidates: [...byTurn.values()] });
+    const selected = selection.turnIds;
     if (input.isCancelled?.()) return cancelled();
     if (!selected.length) return { ...base, ok: true, status: "not_found", detail: "指定摘要来源中没有匹配的模块记录。" };
-    const matches = records.filter(record => selected.includes(record.turnId as string));
-    // Full records return here; Runtime applies the unified 4000 inline gate on toolIO / currentQuery.
+    const selectedRecordKeys = selection.recordKeys;
+    const matches = records.filter(record => selected.includes(record.turnId as string)
+      && (!selectedRecordKeys?.length || selectedRecordKeys.includes(recordKeyFor(record))));
+    // Runtime applies the unified inline gate; Query Agent may narrow to selected record keys.
     return { ...base, ok: true, status: "complete", records: matches };
   } catch(error) {
     if (input.isCancelled?.()) return cancelled();

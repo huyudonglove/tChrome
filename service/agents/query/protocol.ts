@@ -6,8 +6,9 @@ import { unwrapStringArrayField } from "../../tools/arguments.ts";
 import { querySystemFromModules } from "./context/loader.ts";
 import { requestToolResult } from "../tool-agent/index.ts";
 
-export type QueryCandidate = { turnId: string; records: Record<string, unknown>[] };
+export type QueryCandidate = { turnId: string; records: Record<string, unknown>[]; recordKeys?: string[] };
 export type QueryRequestPayload = { sumId: string; module: string; intent: string };
+export type QueryMatchResult = { turnIds: string[]; recordKeys?: string[] };
 
 export const QUERY_FORMAT_ATTEMPTS = 3;
 
@@ -44,7 +45,7 @@ export async function requestMatches(input: {
   provider: Provider; repoRoot: string;
   request: QueryRequestPayload;
   candidates: QueryCandidate[];
-}): Promise<string[]> {
+}): Promise<QueryMatchResult> {
   const allowed = new Set(input.candidates.map(entry => entry.turnId));
   const result = await requestToolResult({
     provider: input.provider,
@@ -65,9 +66,16 @@ export async function requestMatches(input: {
         if (!Array.isArray(ids) || ids.some(id => typeof id !== "string" || !allowed.has(id))) {
           return "Query Agent 返回了无效或候选范围外的 ID。";
         }
+        if (value.recordKeys !== undefined && (!Array.isArray(value.recordKeys)
+          || value.recordKeys.some(key => typeof key !== "string" || !input.candidates.some(candidate => candidate.recordKeys?.includes(key))))) {
+          return "Query Agent 返回了无效或候选范围外的 recordKey。";
+        }
         return null;
       },
     },
   });
-  return [...new Set(result.turnIds as string[])];
+  return {
+    turnIds: [...new Set(result.turnIds as string[])],
+    recordKeys: Array.isArray(result.recordKeys) ? [...new Set(result.recordKeys as string[])] : undefined,
+  };
 }

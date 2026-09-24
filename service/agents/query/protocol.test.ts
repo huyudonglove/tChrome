@@ -9,7 +9,7 @@ function response(overrides: Partial<CompletionResult> = {}): CompletionResult {
     attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [], ...overrides };
 }
 function run(result: CompletionResult, observe?: (input: Parameters<Provider["complete"]>[0]) => void) {
-  return requestMatches({ repoRoot, request: { sumId: "sum_01", module: "toolIO", intent: "是否可以修改状态" }, candidates: ["tn_1", "tn_2"].map(id => ({ turnId: id, records: [{ callId: "call_01", text: "状态" }] })),
+  return requestMatches({ repoRoot, request: { sumId: "sum_01", module: "toolIO", intent: "是否可以修改状态" }, candidates: ["tn_1", "tn_2"].map(id => ({ turnId: id, records: [{ callId: "call_01", text: "状态" }], recordKeys: ["record_1"] })),
     provider: { async complete(input) { observe?.(input); return result; } } });
 }
 
@@ -33,7 +33,7 @@ test("query uses dedicated system and raw {request,turns} user XML", () => {
   expect(system).not.toContain("身份只在该模块声明");
   expect(system).not.toContain("<agentPosition>");
   const request = { sumId: "sum_01", module: "toolIO", intent: "是否可以修改状态" };
-  const turns = ["tn_1", "tn_2"].map(id => ({ turnId: id, records: [{ callId: "call_01", text: "状态" }] }));
+  const turns = ["tn_1", "tn_2"].map(id => ({ turnId: id, records: [{ callId: "call_01", text: "状态" }], recordKeys: ["record_1"] }));
   const user = queryUserPrompt(request, turns);
   expect(user).toBe(`<queryTurns>\n${JSON.stringify({ request, turns })}\n</queryTurns>`);
   expect(user).not.toContain("能力：");
@@ -51,12 +51,12 @@ test("query assembles only its return tool and ignores conflicting content", asy
     expect(data.request).not.toHaveProperty("turnIds");
     expect(data.turns.map(row => row.turnId)).toEqual(["tn_1","tn_2"]);
   });
-  expect(value).toEqual(["tn_1"]);
+  expect(value).toMatchObject({ turnIds: ["tn_1"] });
 });
 
 test("query accepts empty matches and deduplicates selected IDs", async () => {
   for (const turnIds of [[], ["tn_1", "tn_1", "tn_2"]]) {
-    expect(await run(response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: { turnIds } }] }))).toEqual([...new Set(turnIds)]);
+    expect(await run(response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: { turnIds } }] }))).toMatchObject({ turnIds: [...new Set(turnIds)] });
   }
 });
 
@@ -82,7 +82,12 @@ test("query enforces return schema and module membership even if provider report
 });
 
 test("stringified turnIds array is unwrapped once and accepted", async () => {
-  expect(await run(response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: { turnIds: JSON.stringify(["tn_1"]) } }] }))).toEqual(["tn_1"]);
+  expect(await run(response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: { turnIds: JSON.stringify(["tn_1"]) } }] }))).toMatchObject({ turnIds: ["tn_1"] });
+});
+
+test("query supports optional record-level selection", async () => {
+  const result = await run(response({ toolCalls: [{ id: "call_record", name: "submitMatches", arguments: { turnIds: ["tn_1"], recordKeys: ["record_1"] } }] }));
+  expect(result).toEqual({ turnIds: ["tn_1"], recordKeys: ["record_1"] });
 });
 
 test("query format errors return to the model for self-repair up to three attempts", async () => {
@@ -122,6 +127,6 @@ test("query self-repair can recover on the third format attempt", async () => {
     } },
   });
   expect(calls).toBe(3);
-  expect(result).toEqual(["tn_1"]);
+  expect(result).toMatchObject({ turnIds: ["tn_1"] });
 });
 
