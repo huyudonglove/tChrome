@@ -220,7 +220,7 @@ const runQueue = async (input: {
           pageObservationIds: turn.assembled.pageObservedHistory.map((row) => row.id),
           defaultTabId: ledger.contextTab?.tabId ?? null,
           queryContext: args => queryContext({ dataDir, conversationId: ledger.conversationId, repoRoot: input.repoRoot, provider: input.provider, ...args, isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId) }),
-          compressContext: ({ phase }) => compressContext({ ...deps, ledger, turn, memories,
+          compressContext: ({ phase }) => compressContext({ dataDir, repoRoot: input.repoRoot, provider: input.provider, ledger, turn, memories,
             isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId),
             onStart: () => appendEvent(dataDir, ledger.conversationId, { kind: "compress-start", turnId, data: { source: "agent", phase } }),
             onProgress: (progress) => appendEvent(dataDir, ledger.conversationId, { kind: "compress-progress", turnId, data: { source: "agent", ...progress } }),
