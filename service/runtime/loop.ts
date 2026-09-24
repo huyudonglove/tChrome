@@ -223,8 +223,8 @@ const runQueue = async (input: {
           compressContext: ({ phase }) => compressContext({ dataDir, repoRoot: input.repoRoot, provider: input.provider, ledger, turn,
             memories: loadMemories(dataDir, ledger.conversationId, ledger.memoryIds),
             isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId),
-            onStart: () => appendEvent(dataDir, ledger.conversationId, { kind: "compress-start", turnId, data: { source: "agent", phase } }),
-            onProgress: (progress) => appendEvent(dataDir, ledger.conversationId, { kind: "compress-progress", turnId, data: { source: "agent", ...progress } }),
+            onStart: () => appendEvent(dataDir, ledger.conversationId, { kind: "compress-start", turnId: turn.turnId, data: { source: "agent", phase } }),
+            onProgress: (progress) => appendEvent(dataDir, ledger.conversationId, { kind: "compress-progress", turnId: turn.turnId, data: { source: "agent", ...progress } }),
           }, phase),
           lookup: {
             knownTools: Object.keys(toolRegistry.tools),
