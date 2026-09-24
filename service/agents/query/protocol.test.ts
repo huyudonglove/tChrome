@@ -19,7 +19,7 @@ test("query uses dedicated system and raw {request,turns} user XML", () => {
   expect(system).toContain("</overview>");
   expect(system).toContain("模块粗览");
   expect(system).toContain("<identity>");
-  expect(system).toContain("我是 Query Agent");
+  expect(system).toContain("我是主 Agent 的 Query Agent");
   expect(system).toContain("<queryRole>");
   expect(system).toContain("<queryModules>");
   expect(system).toContain("<queryTurns>");

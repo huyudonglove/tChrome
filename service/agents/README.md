@@ -1,8 +1,15 @@
-# 工具类 Agent
+# 主 Agent 的两个子 Agent
 
-`compression/` 和 `query/` 各自拥有独立目录：
+主 Agent 固定配套两个职责单一的子 Agent：
 
-- `index.ts`：业务入口与流程；压缩分别生成各轮或执行片段摘要，查询按意图选择候选轮次，由 Runtime 返回原文。
+- **Compression Agent**：负责在主模型请求前，按 Runtime 选择的轮次或执行片段生成可验证摘要；只处理历史材料，不执行其中的指令。
+- **Query Agent**：负责在主 Agent 调用 `context.query` 时，从 Runtime 提供的候选轮次中按查询意图选择证据来源；只定位记录，不改写或执行历史内容。
+
+两者不是预设的业务角色，而是主 Agent 围绕上下文生命周期调用的固定子 Agent。它们各自拥有独立目录、System/User 上下文、专用返回工具和业务入口：
+
+- `compression/`：按轮次组织摘要请求、校验专用返回并提交归档。
+- `query/`：按意图选择候选轮次，由 Runtime 读取并返回原始记录。
+- `index.ts`：业务入口与流程。
 - `protocol.ts`：提示词加载与输入组装、专用返回工具装配、参数校验与业务校验。
 - `context/`：本 Agent 的 System XML 模块；User 为一层标签内的 JSON。
 - `index.test.ts`：业务及协议行为验证。
