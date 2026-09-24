@@ -69,6 +69,12 @@ export type ExecuteInput = {
   host?: BrowserHost;
   signal?: AbortSignal;
   queryContext?: (args: {sumId: string; module: QueryModule; intent: string}) => Promise<QueryResult>;
+  compressContext?: (args: { phase: "history" | "current" }) => Promise<{
+    status: "completed" | "stopped" | "noop";
+    committedTurnIds: string[];
+    failedTurnId?: string;
+    totalTurns: number;
+  }>;
   lookup: {
     unusedTools: string[];
     knownTools: string[];
@@ -469,6 +475,12 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       records: query.records,
       detail: query.detail,
     }), [{ type: "query.set", query }]);
+  }
+  if (name === "agent.compress") {
+    if (!input.compressContext) return failedTool("compression_agent_unavailable", "compress_failed");
+    const phase = args.phase === "current" ? "current" : "history";
+    const outcome = await input.compressContext({ phase });
+    return result(JSON.stringify({ ok: outcome.status === "completed" || outcome.status === "noop", ...outcome }));
   }
   if ((JOB_TOOL_NAMES as readonly string[]).includes(name)) {
     if (!input.conversationId) return failedTool("job 工具缺少会话标识", "invalid_arguments");

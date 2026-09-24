@@ -5,6 +5,7 @@
     "submitGoal",
     "context.query",
     "agent.query",
+    "agent.compress",
     "memory.write",
     "memory.update",
     "memory.delete",

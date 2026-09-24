@@ -117,3 +117,39 @@ test("agent.query reuses the Query Agent and emits query.set", async () => {
   } }]);
 });
 
+
+
+test("agent.compress invokes the Compression Agent with the selected phase", async () => {
+  const calls: Array<{ phase: "history" | "current" }> = [];
+  const execution = await executeTool({
+    name: "agent.compress",
+    arguments: { reason: "长任务主动降低历史上下文", phase: "current" },
+    dataDir: "",
+    browserNames: [],
+    compressContext: async args => {
+      calls.push(args);
+      return { status: "completed", committedTurnIds: ["tn_01"], totalTurns: 1 };
+    },
+    lookup: { unusedTools: [], knownTools: [], enabledTools: [] },
+  });
+  expect(calls).toEqual([{ phase: "current" }]);
+  expect(JSON.parse(execution.text)).toEqual({
+    ok: true,
+    status: "completed",
+    committedTurnIds: ["tn_01"],
+    totalTurns: 1,
+  });
+});
+
+test("agent.compress reports unavailable runtime support", async () => {
+  const execution = await executeTool({
+    name: "agent.compress",
+    arguments: { reason: "验证降级" },
+    dataDir: "",
+    browserNames: [],
+    lookup: { unusedTools: [], knownTools: [], enabledTools: [] },
+  });
+  const payload = JSON.parse(execution.text);
+  expect(payload.ok).toBe(false);
+  expect(payload.faultCode).toBe("compress_failed");
+});
