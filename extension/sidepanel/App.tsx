@@ -18,7 +18,18 @@ type SessionView = {
   activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null; completed?: number; total?: number | null } | null;
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
   liveTools: { name: string; callId: string; reason?: string }[];
-  checklist: { title?: string; items: { text: string; status: string }[] } | null;
+  plan: {
+    currentGoalId: string | null;
+    activePlanId: string | null;
+    activePlanItemId: string | null;
+    plan: {
+      id: string;
+      goalId: string;
+      title?: string;
+      status: string;
+      items: { id: string; text: string; status: string; blockedReason?: string }[];
+    } | null;
+  } | null;
   messages: Message[];
 };
 
@@ -35,7 +46,11 @@ type ConversationItem = {
   preview: string;
 };
 
-const emptySession = (): SessionView => ({ conversationId: null, status: "idle", activity: null, pendingAsk: null, liveTools: [], checklist: null, messages: [] });
+const emptySession = (): SessionView => ({
+  conversationId: null, status: "idle", activity: null, pendingAsk: null, liveTools: [],
+  plan: { currentGoalId: null, activePlanId: null, activePlanItemId: null, plan: null },
+  messages: [],
+});
 
 const SUGGESTIONS = [
   { label: "看当前页", text: "当前页标题是什么" },
@@ -598,22 +613,26 @@ export function App() {
           <span>按轮顺序压缩，完成后自动继续，可随时停止。</span>
         </div>
       ) : null}
-      {session.checklist && session.checklist.items.length ? (
-        <section className="checklist-panel" aria-label="执行清单">
-          <div className="checklist-header">
-            <strong>{session.checklist.title || "执行清单"}</strong>
-            <span className="checklist-meta">
-              {session.checklist.items.filter((item) => item.status === "done").length}/{session.checklist.items.length}
+      {session.plan?.plan && session.plan.plan.items.length ? (
+        <section className="plan-panel" aria-label="执行计划">
+          <div className="plan-header">
+            <strong>{session.plan.plan.title || "执行计划"}</strong>
+            <span className="plan-meta">
+              {session.plan.plan.items.filter((item) => item.status === "done").length}/{session.plan.plan.items.length}
+              {session.plan.plan.status === "completed" ? " · 已完成" : ""}
             </span>
           </div>
-          <ul className="checklist-items">
-            {session.checklist.items.map((item, index) => (
-              <li key={`${item.text}-${index}`} className={`checklist-item status-${item.status}`}>
-                <span className="checklist-mark" aria-hidden="true">
+          <ul className="plan-items">
+            {session.plan.plan.items.map((item) => (
+              <li key={item.id} className={`plan-item status-${item.status}`}>
+                <span className="plan-mark" aria-hidden="true">
                   {item.status === "done" ? "✓" : item.status === "doing" ? "…" : "·"}
                 </span>
-                <span className="checklist-text">{item.text}</span>
-                <span className="checklist-status">{item.status}</span>
+                <span className="plan-text">
+                  {item.text}
+                  {item.blockedReason ? ` · ${item.blockedReason}` : ""}
+                </span>
+                <span className="plan-status">{item.status}</span>
               </li>
             ))}
           </ul>

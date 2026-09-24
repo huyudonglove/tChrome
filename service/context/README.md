@@ -56,7 +56,7 @@
 | 12 | reflection | 是 | reflection | turn | main + compression |
 | 13 | toolIO | 是 | toolIO | batch | main + compression |
 | 14 | lastAction | 否 | — | — | main |
-| 15 | checklist | 否 | — | — | main |
+| 15 | plan | 否 | — | — | main |
 | 16 | queryHistory | 是 | queryHistory | queryId | main + compression |
 | 17 | currentQuery | 否 | — | — | main |
 | 18 | tools | 否 | — | — | main |

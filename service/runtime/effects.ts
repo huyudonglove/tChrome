@@ -1,9 +1,10 @@
 import { saveContextRecord } from "./records.ts";
 import { wrapCachedText } from "./cache-lines.ts";
 import { deleteMemory, saveMemory, updateMemory } from "../memory/store.ts";
-import type { Ledger, MemoryRecord, ToolQueueItem, Turn, TurnOutput } from "../types.ts";
+import type { Ledger, MemoryRecord, RuntimeExecutionContext, ToolQueueItem, Turn, TurnOutput } from "../types.ts";
 import type { ToolEffect } from "../tools/effects.ts";
 import { allocateRecordId, nowIso } from "./ids.ts";
+import { afterGoalSwitch, onGoalStatusChange, preparePlanComplete, preparePlanSet, preparePlanUpdate } from "./plans.ts";
 import { join } from "node:path";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { appendEvent, paths, saveLedger, saveTurn } from "./store.ts";
@@ -18,8 +19,14 @@ export function applyToolEffects(input: {
   turn: Turn;
   call: ToolQueueItem;
   effects: ToolEffect[];
+  execCtx?: RuntimeExecutionContext;
 }): TurnOutput | null {
   const { dataDir, ledger, turn, call, effects } = input;
+  const execCtx = input.execCtx ?? {
+    goalId: ledger.currentGoalId,
+    activePlanId: ledger.activePlanId,
+    activePlanItemId: ledger.activePlanItemId,
+  };
   let output: TurnOutput | null = null;
   for (const effect of effects) {
     switch (effect.type) {
@@ -31,15 +38,40 @@ export function applyToolEffects(input: {
         break;
       }
       case "goal.upsert": {
+        const previous = ledger.goals.find(record => record.id === effect.record.id);
+        const previousGoalId = ledger.currentGoalId;
         const index = ledger.goals.findIndex(record => record.id === effect.record.id);
         if (index === -1) ledger.goals.push(effect.record);
         else ledger.goals[index] = effect.record;
         ledger.currentGoalId = effect.currentGoalId;
         turn.goalChanges.push(structuredClone(effect.record));
+        onGoalStatusChange(dataDir, ledger, previous, effect.record);
+        afterGoalSwitch(dataDir, ledger, previousGoalId, effect.currentGoalId);
         break;
       }
       case "note.write": ledger.notes[effect.key] = effect.value; break;
       case "note.delete": delete ledger.notes[effect.key]; break;
+      case "plan.set": {
+        preparePlanSet(dataDir, { ledger, turnId: turn.turnId, sourceCallId: call.callId }, {
+          title: effect.title,
+          items: effect.items,
+        });
+        break;
+      }
+      case "plan.update": {
+        preparePlanUpdate(dataDir, { ledger, turnId: turn.turnId, sourceCallId: call.callId }, {
+          planId: effect.planId,
+          items: effect.items,
+        });
+        break;
+      }
+      case "plan.complete": {
+        preparePlanComplete(dataDir, { ledger, turnId: turn.turnId, sourceCallId: call.callId }, {
+          planId: effect.planId,
+          reason: effect.reason,
+        });
+        break;
+      }
       case "memory.append":
         for (const { layer, text } of effect.entries) {
           const memoryId = allocateRecordId(dataDir, ledger.conversationId, layer === "project" ? "projectMemory" : "conversationMemory");
@@ -127,6 +159,9 @@ export function applyToolEffects(input: {
           type: call.name,
           // Local archive keeps the full payload; the window may see a pointer only.
           result: effect.result,
+          ...(execCtx.goalId ? { goalId: execCtx.goalId } : {}),
+          ...(execCtx.activePlanId ? { planId: execCtx.activePlanId } : {}),
+          ...(execCtx.activePlanItemId ? { planItemId: execCtx.activePlanItemId } : {}),
         };
         saveContextRecord(dataDir, ledger.conversationId, "pageObservation", record);
         // A1: retrieval copy is line-wrapped on disk; structured JSON archive stays intact.
@@ -162,30 +197,31 @@ export function applyToolEffects(input: {
         };
         break;
       }
-      case "checklist.set": {
-        ledger.checklist = {
-          ...(effect.title ? { title: effect.title } : {}),
-          items: effect.items.map((item) => ({ text: item.text, status: item.status })),
-          updatedAt: nowIso(),
-        };
+      case "tab.context.set": {
+        ledger.contextTab = { tabId: effect.tabId, setAt: nowIso() };
         break;
       }
-      case "checklist.update": {
-        const current = ledger.checklist ?? { items: [], updatedAt: nowIso() };
-        const items = current.items.map((item) => ({ ...item }));
-        for (const patch of effect.items) {
-          const item = items[patch.index];
-          if (!item) continue;
-          if (patch.text !== undefined) item.text = patch.text;
-          if (patch.status !== undefined) item.status = patch.status;
-        }
-        ledger.checklist = {
-          ...(current.title !== undefined ? { title: current.title } : {}),
-          items,
-          updatedAt: nowIso(),
-        };
+      case "tab.context.clear": {
+        ledger.contextTab = null;
         break;
       }
+      case "turn.ask":
+        turn.status = "waiting_human";
+        turn.completedAt = nowIso();
+        output = turn.output = { kind: "ask", question: effect.question };
+        ledger.status = "waiting_human";
+        ledger.pendingAsk = { turnId: turn.turnId, question: effect.question };
+        ledger.active = { turnId: turn.turnId };
+        break;
+      case "turn.reply":
+        turn.status = "completed";
+        turn.completedAt = nowIso();
+        output = turn.output = { kind: "reply", text: effect.text };
+        ledger.status = "idle";
+        ledger.active = null;
+        ledger.pendingAsk = null;
+        ledger.toolQueue = [];
+        break;
       case "reflect.write": {
         const list = turn.reflect ?? [];
         const record = { id: effect.id, text: effect.text, ...(effect.focus ? { focus: effect.focus } : {}) };
@@ -204,33 +240,6 @@ export function applyToolEffects(input: {
         turn.reflect = next;
         break;
       }
-      case "tab.context.set": {
-        ledger.contextTab = { tabId: effect.tabId, setAt: nowIso() };
-        break;
-      }
-      case "tab.context.clear": {
-        ledger.contextTab = null;
-        break;
-      }
-      case "turn.ask":
-        turn.status = "waiting_human";
-        turn.completedAt = nowIso();
-        output = turn.output = { kind: "ask", question: effect.question };
-        ledger.status = "waiting_human";
-        ledger.pendingAsk = { turnId: turn.turnId, question: effect.question };
-        ledger.active = { turnId: turn.turnId };
-        ledger.checklist = null;
-        break;
-      case "turn.reply":
-        turn.status = "completed";
-        turn.completedAt = nowIso();
-        output = turn.output = { kind: "reply", text: effect.text };
-        ledger.status = "idle";
-        ledger.active = null;
-        ledger.pendingAsk = null;
-        ledger.toolQueue = [];
-        ledger.checklist = null;
-        break;
       case "queue.clear": ledger.toolQueue = []; break;
     }
   }

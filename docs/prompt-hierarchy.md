@@ -41,7 +41,7 @@ User
 | 带 tabId 的结果进观察数组 | `<pageObservedHistory>` |
 | 调用骨架、指针、faultCode | `<toolIO>` |
 | 上一批摘要 | `<lastAction>` |
-| 清单 set/update、本轮清空 | `<checklist>` |
+| 计划 set/update/complete、自动关联 | `<plan>` |
 | 查询字段与 status | `<currentQuery>` |
 | 网页观察等常驻技能 | `<systemSkill>` |
 | 动态技能正文 | `<skill>` |
@@ -93,7 +93,7 @@ User
 - <reflection>：本轮反思列表（reflect.write / reflect.delete，rf_ 编号）。
 - <toolIO>：工具调用骨架与返回。
 - <lastAction>：上一批工具摘要。
-- <checklist>：本轮执行清单（含 turnId）。
+- <plan>：当前 Goal 的持久化执行计划（含 activePlanId / activePlanItemId）。
 - <queryHistory>：历史查询。
 - <currentQuery>：最近一次查询原文（含 turnId）。
 - <tools>：本会话已加载的动态工具。
@@ -287,29 +287,18 @@ Sample（文本格式，仅示例）：
 
 压缩与裁剪规则在 `<runtime>`。图片附件在 `<runtime>`。网页观察等常驻技能在 `service/skills/<id>/SKILL.md`，按 `residentSkillIds` 装配进 `<systemSkill>`；动态技能由 Runtime 注入 `<skill>`。
 
-### checklist
+### plan
 
 ```xml
-<checklist>
-能力：【Execution Checklist】
+<plan>
+能力：【Persistent Execution Plan】
 
 详细描述：
-当前 turn 的执行清单。用 checklist.set 提交或替换条目，用 checklist.update 更新 index 对应项的 status（todo|doing|done）或 text。同一 turn 内可反复更新。本 turn 结束后 Runtime 清空清单，下一次新 turn 从空开始。清单是执行进度提示，不是目标本身；目标仍看 <goal>。
-
-Sample（仅示例，不是当前记录）：
-
-    {
-      "title": "上传页检查",
-      "items": [
-        { "text": "打开上传页", "status": "done" },
-        { "text": "定位上传控件", "status": "doing" },
-        { "text": "提交并核验", "status": "todo" }
-      ]
-    }
+当前 Goal 的持久化执行计划。跨 turn 保留。用 plan.set 创建或替换，plan.update 按稳定 itemId 更新，plan.complete 在全部 done 后收口。同一 Plan 至多一个 doing。工具成功不等于 done。Runtime 自动关联 goalId/planId/activePlanItemId。Plan 完成不等于 Goal 完成。
 
 内容：
 {{data}}
-</checklist>
+</plan>
 ```
 
 ### currentQuery
@@ -437,7 +426,7 @@ Sample（一批两个 turn 时，我应提交的 tool_calls 参数形态，仅�
 
 {{archiveFields}}
 
-不参与压缩、也不会出现在 turns 材料里的主 Agent 窗口模块：skill、当前这一轮的 <userInput>、conversationHistorySummary、goal（active 视图）、openTabs、projectMemory、notes、lastAction、checklist、currentQuery、tools。
+不参与压缩、也不会出现在 turns 材料里的主 Agent 窗口模块：skill、当前这一轮的 <userInput>、conversationHistorySummary、goal（active 视图）、openTabs、projectMemory、notes、lastAction、plan、currentQuery、tools。
 
 Sample（一批材料含两个完整轮次的骨架，仅示例；真实批次可能更多轮，也可能是 segments/summaries）：
 

@@ -46,6 +46,7 @@ import {
   appendEvent,
   appendProviderExchange,
 } from "./store.ts";
+import { executionContext } from "./plans.ts";
 
 // stopTurn already persists cancellation. A superseded worker must never write
 // its stale ledger back over a newer turn (or recreate a deleted conversation).
@@ -178,12 +179,13 @@ const runQueue = async (input: {
   const { dataDir, ledger, turn, toolRegistry, host, browserNames } = input;
   // Microtask/macrotask schedule over the batch: parallel joins the current wave;
   // serial drains the wave first, then runs alone with no overlap.
-  type Slot = { item: ToolQueueItem; index: number; mode: "parallel" | "serial" };
+  type Slot = { item: ToolQueueItem; index: number; mode: "parallel" | "serial"; execCtx: RuntimeExecutionContext };
   const batch = ledger.toolQueue.splice(0, ledger.toolQueue.length);
   const slots: Slot[] = batch.map((item, index) => ({
     item,
     index,
     mode: resolveExecutionMode(item, toolRegistry.execution),
+    execCtx: executionContext(ledger),
   }));
   const done = new Map<number, ToolExecution>();
   const inflight = new Set<Promise<void>>();
@@ -282,6 +284,9 @@ const runQueue = async (input: {
         turnId: turn.turnId,
         ...(stored.images.length ? { images: stored.images } : {}),
         return: { stage: "complete", totalChars: full.length, text: viewText },
+        ...(slot.execCtx.goalId ? { goalId: slot.execCtx.goalId } : {}),
+        ...(slot.execCtx.activePlanId ? { planId: slot.execCtx.activePlanId } : {}),
+        ...(slot.execCtx.activePlanItemId ? { planItemId: slot.execCtx.activePlanItemId } : {}),
       };
       ledger.toolIO.push(row);
       const escalation = escalate(ledger.toolIO.filter((r) => r.turnId === turn.turnId), item.name);
@@ -294,7 +299,7 @@ const runQueue = async (input: {
       }
       let output: TurnOutput | null = null;
       try {
-        output = applyToolEffects({ dataDir, ledger, turn, call: item, effects: execution.effects });
+        output = applyToolEffects({ dataDir, ledger, turn, call: item, effects: execution.effects, execCtx: slot.execCtx });
       } catch (error) {
         if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) return { kind: "error", faultCode: "stopped" };
         // Effects can fail after earlier writes succeeded. Report evidence without replaying them.
@@ -407,7 +412,6 @@ export async function handleTurn(
   ledger.active = { turnId };
   ledger.pendingAsk = null;
   ledger.toolQueue = [];
-  ledger.checklist = null;
   turn.status = "inferring";
   saveTurn(deps.dataDir, turn);
   saveLedger(deps.dataDir, ledger);
@@ -428,7 +432,6 @@ export async function handleTurn(
     let imageBatchId: string | undefined;
     while (true) {
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
-          ledger.checklist = null;
           return stoppedReply(ledger, turn);
         }
       try {
@@ -438,7 +441,6 @@ export async function handleTurn(
         turn.assembled.openTabs = { ok: false, error: error instanceof Error ? error.message : String(error) };
       }
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
-          ledger.checklist = null;
           return stoppedReply(ledger, turn);
         }
       saveTurn(deps.dataDir, turn);
@@ -474,7 +476,6 @@ export async function handleTurn(
               appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-progress", turnId, data: { completed: progress.completed, total: progress.total, failedTurnId: progress.failedTurnId } });
             } }, phase);
             if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
-          ledger.checklist = null;
           return stoppedReply(ledger, turn);
         }
             state = contextState(deps.dataDir, ledger, turn, memories);
@@ -486,7 +487,6 @@ export async function handleTurn(
           if (compressionStarted) appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress", turnId, data: { beforeChars: initialChars, afterChars: windowChars(messages[0]!.content, messages[1]!.content) } });
         } catch (error) {
           if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
-          ledger.checklist = null;
           return stoppedReply(ledger, turn);
         }
           turn.status = "failed";
@@ -496,7 +496,6 @@ export async function handleTurn(
             ...(cause.faultCode !== "compression_failed" ? { causeCode: cause.faultCode } : {}),
             ...(cause.detail ? { detail: cause.detail } : {}) };
           ledger.status = "failed";
-        ledger.checklist = null;
           ledger.active = null;
           saveTurn(deps.dataDir, turn);
           saveLedger(deps.dataDir, ledger);
@@ -514,9 +513,7 @@ export async function handleTurn(
         turn.completedAt = nowIso();
         turn.output = { kind: "error", faultCode: error instanceof ContextBudgetError ? "context_limit" : "context_storage_failed",
           detail: error instanceof Error ? error.message : String(error) };
-        ledger.checklist = null;
         ledger.status = "failed";
-        ledger.checklist = null;
         ledger.active = null;
         saveTurn(deps.dataDir, turn);
         saveLedger(deps.dataDir, ledger);
@@ -540,7 +537,6 @@ export async function handleTurn(
         ...(submitFails > 0 ? { toolChoice: "required" as const } : {}),
       });
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
-          ledger.checklist = null;
           return stoppedReply(ledger, turn);
         }
       const providerCallIds: Record<string, string> = {};
@@ -604,9 +600,7 @@ export async function handleTurn(
         turn.completedAt = nowIso();
         turn.output = { kind: "error", faultCode: result.faultCode ?? "provider_error",
           ...(result.detail ? { detail: result.detail } : {}) };
-        ledger.checklist = null;
         ledger.status = "failed";
-        ledger.checklist = null;
         ledger.active = null;
         ledger.liveTools = [];
         saveTurn(deps.dataDir, turn);
@@ -670,7 +664,6 @@ export async function handleTurn(
             host,
           });
           if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId, ledger.status)) {
-          ledger.checklist = null;
           return stoppedReply(ledger, turn);
         }
           if (batchId) {
@@ -706,7 +699,6 @@ export async function handleTurn(
           turn.output = { kind: "error", faultCode: result.faultCode ?? "missing_required",
             toolName: result.badName, detail: result.detail };
           ledger.status = "failed";
-        ledger.checklist = null;
           ledger.active = null;
           ledger.liveTools = [];
           saveTurn(deps.dataDir, turn);
@@ -767,7 +759,6 @@ export async function handleTurn(
           turn.completedAt = nowIso();
           turn.output = { kind: "error", faultCode: "need_finish_turn" };
           ledger.status = "failed";
-        ledger.checklist = null;
           ledger.active = null;
           ledger.liveTools = [];
           saveTurn(deps.dataDir, turn);
@@ -799,7 +790,6 @@ export async function handleTurn(
         host,
       });
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId, ledger.status)) {
-          ledger.checklist = null;
           return stoppedReply(ledger, turn);
         }
       if (batchId) {
@@ -841,7 +831,6 @@ export async function handleTurn(
     turn.completedAt = nowIso();
     turn.output = { kind: "error", faultCode: "empty_finish_turn" };
     ledger.status = "failed";
-        ledger.checklist = null;
     ledger.active = null;
     ledger.liveTools = [];
     ledger.toolQueue = [];
@@ -855,7 +844,6 @@ export async function handleTurn(
     return { conversationId: ledger.conversationId, turnId, output: turn.output };
   } catch (error) {
     if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
-          ledger.checklist = null;
           return stoppedReply(ledger, turn);
         }
     const cause = errorInfo(error);
@@ -866,7 +854,6 @@ export async function handleTurn(
       ...(cause.faultCode !== "tool_execution_failed" ? { causeCode: cause.faultCode } : {}),
       ...(liveTool ? { toolName: liveTool.name } : {}) };
     ledger.status = "failed";
-        ledger.checklist = null;
     ledger.active = null;
     ledger.liveTools = [];
     ledger.toolQueue = [];

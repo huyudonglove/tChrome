@@ -34,6 +34,27 @@
     "allocation": "counter",
     "description": "子目标（parentId 关联总目标）"
   },
+  "plan": {
+    "field": "id",
+    "prefix": "plan",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "执行计划"
+  },
+  "planItem": {
+    "field": "id",
+    "prefix": "item",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "计划步骤"
+  },
+  "planHistory": {
+    "field": "id",
+    "prefix": "ph",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "计划事件历史"
+  },
   "page": {
     "field": "id",
     "prefix": "page",

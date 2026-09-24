@@ -25,6 +25,8 @@ export type GoalRecord = {
   sourceCallId: string;
   createdAt: string;
   updatedAt: string;
+  planId: string | null;
+  activePlanItemId: string | null;
 };
 
 export type PageObservation = {
@@ -38,6 +40,9 @@ export type PageObservation = {
   type: string;
   /** Full tool return for this observation call. */
   result: unknown;
+  goalId?: string | null;
+  planId?: string | null;
+  planItemId?: string | null;
 };
 
 /** Most recent model-returned tool batch; replaced before the next model request. */
@@ -47,13 +52,60 @@ export type LastAction = {
   calls: { callId: string; name: string; pageObservationId?: string }[];
 };
 
-export type ChecklistStatus = "todo" | "doing" | "done";
-export type ChecklistItem = { text: string; status: ChecklistStatus };
-export type Checklist = {
+export type PlanItemStatus = "todo" | "doing" | "done";
+export type PlanStatus = "active" | "completed" | "cancelled";
+
+export type PlanItem = {
+  id: string;
+  index: number;
+  text: string;
+  status: PlanItemStatus;
+  expectedEffect?: string;
+  verification?: string;
+  blockedReason?: string;
+  createdAt: string;
+  startedAt?: string;
+  completedAt?: string;
+};
+
+export type Plan = {
+  id: string;
+  goalId: string;
   title?: string;
-  items: ChecklistItem[];
+  status: PlanStatus;
+  items: PlanItem[];
+  createdAt: string;
   updatedAt: string;
-} | null;
+  completedAt?: string;
+};
+
+export type PlanHistoryType =
+  | "plan_created"
+  | "item_started"
+  | "item_updated"
+  | "item_completed"
+  | "plan_completed"
+  | "plan_cancelled"
+  | "goal_completed"
+  | "goal_cancelled";
+
+export type PlanHistoryRecord = {
+  id: string;
+  planId: string;
+  goalId: string;
+  planItemId?: string;
+  type: PlanHistoryType;
+  before?: unknown;
+  after?: unknown;
+  reason?: string;
+  at: string;
+};
+
+export type RuntimeExecutionContext = {
+  goalId: string | null;
+  activePlanId: string | null;
+  activePlanItemId: string | null;
+};
 
 export type TabContext = { tabId: number; setAt: string } | null;
 
@@ -115,10 +167,13 @@ export type ToolIOItem = ToolQueueItem & {
   turnId: string;
   return: ToolReturn;
   images?: ImageReference[];
+  goalId?: string | null;
+  planId?: string | null;
+  planItemId?: string | null;
 };
 
 export type Ledger = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   conversationId: string;
   createdAt: string;
   updatedAt: string;
@@ -131,11 +186,14 @@ export type Ledger = {
   userInputHistory: UserInputRecord[];
   goals: GoalRecord[];
   currentGoalId: string | null;
+  plans: Plan[];
+  planHistory: PlanHistoryRecord[];
+  activePlanId: string | null;
+  activePlanItemId: string | null;
   toolQueue: ToolQueueItem[];
   liveTools: { name: string; callId: string; reason?: string }[];
   toolIO: ToolIOItem[];
   lastAction: LastAction | null;
-  checklist: Checklist;
   contextTab: TabContext;
   notes: Record<string, string>;
   currentQuery: QueryEvidence | null;

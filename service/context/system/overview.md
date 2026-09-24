@@ -32,7 +32,7 @@
 - <reflection>：本轮反思列表（reflect.write / reflect.delete，rf_ 编号）。
 - <toolIO>：工具调用骨架与返回。
 - <lastAction>：上一批工具摘要。
-- <checklist>：本轮执行清单（含 turnId）。
+- <plan>：当前 Goal 的持久化执行计划（含 activePlanId / activePlanItemId）。
 - <queryHistory>：历史查询。
 - <currentQuery>：最近一次查询原文（含 turnId）。
 - <tools>：本会话已加载的动态工具。

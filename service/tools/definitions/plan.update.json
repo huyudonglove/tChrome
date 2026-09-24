@@ -1,0 +1,54 @@
+{
+  "type": "function",
+  "function": {
+    "name": "plan.update",
+    "description": "按稳定 itemId 更新当前 Plan 步骤。\n参数：必填 items（每项 id 必填，status/text/expectedEffect/verification/blockedReason 至少一项）；可选 planId（默认活动 Plan）。\nstatus：todo|doing|done。同一 Plan 至多一个 doing；多 doing 拒绝。done 不可回退。验证失败时保持 doing 并写 blockedReason。\n工具成功不等于 done，须验证通过后再标 done。不传 goalId/planId 关联 ID 由 Runtime 注入；传入且不一致会拒绝。\n返回：ok、updated。Plan 全部 done 后才可 plan.complete；Plan 完成不等于 Goal 完成。\n执行调度：serial（Runtime 固定，不必返回）。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "planId": {
+          "type": "string",
+          "description": "默认当前活动 Plan"
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "稳定 planItemId"
+              },
+              "status": {
+                "type": "string",
+                "enum": ["todo", "doing", "done"]
+              },
+              "text": {
+                "type": "string"
+              },
+              "expectedEffect": {
+                "type": "string"
+              },
+              "verification": {
+                "type": "string"
+              },
+              "blockedReason": {
+                "type": "string",
+                "description": "doing 时记录失败证据或阻塞原因"
+              }
+            },
+            "required": ["id"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["reason", "items"],
+      "additionalProperties": false
+    }
+  },
+  "execution": "serial"
+}

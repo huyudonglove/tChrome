@@ -35,7 +35,7 @@ test("module registry owns consumers, compress flags and archive fields", () => 
   expect(mainSystem).not.toContain("compressionModules");
   const mainUser = registryModules(registry, { role: "user", consumer: "main" }).map(row => row.id);
   expect(mainUser).toContain("toolIO");
-  expect(mainUser).toContain("checklist");
+  expect(mainUser).toContain("plan");
   const md = compressionArchiveFieldsMarkdown(root);
   expect(md).toContain("- toolIO:");
   expect(md).toContain("- pageObservations:");

@@ -2,7 +2,9 @@ import type { GoalRecord, LastAction, PageObservation, UserInputRecord } from ".
 
 // Select model-facing fields without changing archival records.
 export const inputHistoryView = (records: UserInputRecord[]) => records.map(({ id, turnId, userInput }) => ({ id, turnId, userInput }));
-export const goalRecordView = ({ id, parentId, status, turnId, sourceCallId, goal }: GoalRecord) => ({ id, parentId, status, turnId, sourceCallId, goal });
+export const goalRecordView = ({ id, parentId, status, turnId, sourceCallId, goal, planId, activePlanItemId }: GoalRecord) => ({
+  id, parentId, status, turnId, sourceCallId, goal, planId, activePlanItemId,
+});
 export const activeGoalIds = (records: GoalRecord[]) => new Set(records.filter(row => row.status === "active").flatMap(row => row.parentId ? [row.id, row.parentId] : [row.id]));
 export const goalView = (records: GoalRecord[], currentGoalId: string | null) => {
   const ids = activeGoalIds(records);
@@ -17,6 +19,9 @@ export const pageView = (page: PageObservation) => ({
   tabId: page.tabId,
   type: page.type,
   result: page.result,
+  ...(page.goalId !== undefined ? { goalId: page.goalId } : {}),
+  ...(page.planId !== undefined ? { planId: page.planId } : {}),
+  ...(page.planItemId !== undefined ? { planItemId: page.planItemId } : {}),
 });
 
 /** Replace-only pointer to the latest model-returned tool batch. */

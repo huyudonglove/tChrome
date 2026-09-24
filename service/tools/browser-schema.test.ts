@@ -17,9 +17,11 @@ test("browser creation tools accept optional link strings and reject malformed a
     for (const url of ["https://example.com/path", "about:blank", "chrome://extensions/"]) {
       expect(check(name, { ...base, url }).schemaOk).toBe(true);
     }
-    for (const url of [true, false, { url: "https://example.com" }, ["https://example.com"], 42, null, ""]) {
+    for (const url of [true, false, { url: "https://example.com" }, ["https://example.com"], 42, null]) {
       expect(check(name, { ...base, url }).schemaOk).toBe(false);
     }
+    // Optional empty strings are stripped as omitted before AJV (normalizeArguments).
+    expect(check(name, { ...base, url: "" }).schemaOk).toBe(true);
     expect(check(name, { tabId: 123 }).schemaOk).toBe(false);
     expect(check(name, { urls: ["https://example.com"] }).schemaOk).toBe(false);
   }

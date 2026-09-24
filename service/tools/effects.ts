@@ -14,8 +14,9 @@ export type ToolEffect =
   | { type: "skill.load"; id: string }
   | { type: "page.set"; page: CurrentPage; result: Record<string, unknown> }
   | { type: "page.clear_result"; pageId: string }
-  | { type: "checklist.set"; title?: string; items: { text: string; status: "todo" | "doing" | "done" }[] }
-  | { type: "checklist.update"; items: { index: number; status?: "todo" | "doing" | "done"; text?: string }[] }
+  | { type: "plan.set"; title?: string; items: { text: string; status?: "todo" | "doing" | "done"; expectedEffect?: string; verification?: string }[] }
+  | { type: "plan.update"; planId?: string; items: { id: string; status?: "todo" | "doing" | "done"; text?: string; expectedEffect?: string; verification?: string; blockedReason?: string }[] }
+  | { type: "plan.complete"; planId?: string; reason?: string }
   | { type: "reflect.write"; id: string; text: string; focus?: string; replace?: boolean }
   | { type: "reflect.delete"; id: string }
   | { type: "tab.context.set"; tabId: number }

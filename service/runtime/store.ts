@@ -62,7 +62,7 @@ export function listConversationIds(dataDir: string): string[] {
 export function emptyLedger(conversationId: string): Ledger {
   const t = nowIso();
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     conversationId,
     createdAt: t,
     updatedAt: t,
@@ -72,15 +72,17 @@ export function emptyLedger(conversationId: string): Ledger {
     turnIds: [],
     loadedToolIds: [],
     loadedSkillIds: [],
-    loadedSkillIds: [],
     userInputHistory: [],
     goals: [],
     currentGoalId: null,
+    plans: [],
+    planHistory: [],
+    activePlanId: null,
+    activePlanItemId: null,
     toolQueue: [],
     liveTools: [],
     toolIO: [],
     lastAction: null,
-    checklist: null,
     contextTab: null,
     notes: {},
     currentQuery: null,
@@ -91,9 +93,31 @@ export function emptyLedger(conversationId: string): Ledger {
   };
 }
 
+/** Additive v2 load: keep prior goals/history; default Plan pointers. */
+function normalizeLedger(raw: Partial<Ledger> & { conversationId?: string }, conversationId: string): Ledger {
+  const base = emptyLedger(conversationId);
+  const goals = (raw.goals ?? []).map((goal) => ({
+    ...goal,
+    planId: goal.planId ?? null,
+    activePlanItemId: goal.activePlanItemId ?? null,
+  }));
+  return {
+    ...base,
+    ...raw,
+    schemaVersion: 2,
+    conversationId,
+    goals,
+    plans: raw.plans ?? [],
+    planHistory: raw.planHistory ?? [],
+    activePlanId: raw.activePlanId ?? null,
+    activePlanItemId: raw.activePlanItemId ?? null,
+    loadedSkillIds: raw.loadedSkillIds ?? [],
+  };
+}
+
 export function loadLedger(dataDir: string, cvId: string): Ledger {
-  const ledger = readJson(paths(dataDir, cvId).ledger, emptyLedger(cvId));
-  return ledger;
+  const raw = readJson<Partial<Ledger>>(paths(dataDir, cvId).ledger, emptyLedger(cvId));
+  return normalizeLedger(raw, cvId);
 }
 
 export function saveLedger(dataDir: string, ledger: Ledger): void {

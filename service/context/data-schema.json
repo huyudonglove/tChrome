@@ -335,52 +335,6 @@
         }
       ]
     },
-    "reflection": {
-      "anyOf": [
-        {
-          "type": "null"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "turnId": {
-              "$ref": "#/$defs/turnId"
-            },
-            "items": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^rf_[0-9]{2,}$"
-                  },
-                  "text": {
-                    "type": "string"
-                  },
-                  "focus": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "id",
-                  "text"
-                ],
-                "additionalProperties": false
-              }
-            }
-          },
-          "required": [
-            "turnId",
-            "items"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "$ref": "#/$defs/contextFileReference"
-        }
-      ]
-    },
     "toolIO": {
       "anyOf": [
         {
@@ -414,53 +368,10 @@
         }
       ]
     },
-    "checklist": {
+    "plan": {
       "anyOf": [
         {
-          "type": "null"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "turnId": {
-              "$ref": "#/$defs/turnId"
-            },
-            "title": {
-              "type": "string"
-            },
-            "items": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "text": {
-                    "type": "string"
-                  },
-                  "status": {
-                    "type": "string",
-                    "enum": [
-                      "todo",
-                      "doing",
-                      "done"
-                    ]
-                  }
-                },
-                "required": [
-                  "text",
-                  "status"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "updatedAt": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "turnId",
-            "items"
-          ],
-          "additionalProperties": false
+          "$ref": "#/$defs/planContext"
         },
         {
           "$ref": "#/$defs/contextFileReference"
@@ -523,7 +434,7 @@
     "reflection",
     "toolIO",
     "lastAction",
-    "checklist",
+    "plan",
     "queryHistory",
     "currentQuery",
     "tools"
@@ -628,6 +539,26 @@
             "cancelled"
           ]
         },
+        "planId": {
+          "anyOf": [
+            {
+              "$ref": "tchrome:identity#/$defs/plan"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "activePlanItemId": {
+          "anyOf": [
+            {
+              "$ref": "tchrome:identity#/$defs/planItem"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "updatedAt": {
           "type": "string"
         }
@@ -665,6 +596,39 @@
         "result": {},
         "observedAt": {
           "type": "string"
+        },
+        "goalId": {
+          "anyOf": [
+            {
+              "$ref": "tchrome:identity#/$defs/goal"
+            },
+            {
+              "$ref": "tchrome:identity#/$defs/subgoal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "planId": {
+          "anyOf": [
+            {
+              "$ref": "tchrome:identity#/$defs/plan"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "planItemId": {
+          "anyOf": [
+            {
+              "$ref": "tchrome:identity#/$defs/planItem"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -1156,6 +1120,131 @@
       },
       "required": [
         "contextFile"
+      ],
+      "additionalProperties": false
+    },
+    "planContext": {
+      "type": "object",
+      "properties": {
+        "currentGoalId": {
+          "anyOf": [
+            {
+              "$ref": "tchrome:identity#/$defs/goal"
+            },
+            {
+              "$ref": "tchrome:identity#/$defs/subgoal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "activePlanId": {
+          "anyOf": [
+            {
+              "$ref": "tchrome:identity#/$defs/plan"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "activePlanItemId": {
+          "anyOf": [
+            {
+              "$ref": "tchrome:identity#/$defs/planItem"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "plan": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "tchrome:identity#/$defs/plan"
+                },
+                "goalId": {
+                  "anyOf": [
+                    {
+                      "$ref": "tchrome:identity#/$defs/goal"
+                    },
+                    {
+                      "$ref": "tchrome:identity#/$defs/subgoal"
+                    }
+                  ]
+                },
+                "title": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "completed",
+                    "cancelled"
+                  ]
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "tchrome:identity#/$defs/planItem"
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "todo",
+                          "doing",
+                          "done"
+                        ]
+                      },
+                      "expectedEffect": {
+                        "type": "string"
+                      },
+                      "verification": {
+                        "type": "string"
+                      },
+                      "blockedReason": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "text",
+                      "status"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "goalId",
+                "status",
+                "items"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "currentGoalId",
+        "activePlanId",
+        "activePlanItemId",
+        "plan"
       ],
       "additionalProperties": false
     }

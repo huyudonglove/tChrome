@@ -34,6 +34,8 @@ export function prepareGoalUpdate(dataDir: string, conversationId: string, conte
     sourceCallId: context.sourceCallId,
     createdAt: existing?.createdAt ?? timestamp,
     updatedAt: timestamp,
+    planId: existing?.planId ?? null,
+    activePlanItemId: existing?.activePlanItemId ?? null,
   };
   const currentGoalId = record.status === "active" ? record.id
     : context.currentGoalId === record.id ? (parent?.status === "active" ? parent.id : null)

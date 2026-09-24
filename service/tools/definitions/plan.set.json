@@ -1,0 +1,48 @@
+{
+  "type": "function",
+  "function": {
+    "name": "plan.set",
+    "description": "为当前 Goal 创建或替换持久化执行计划（Plan）。\n前置：必须已有 currentGoal（submitGoal）。\n参数：必填 items（非空）；可选 title。每项 text 必填，status 可选 todo|doing|done（默认 todo），可带 expectedEffect、verification。\n同一 Plan 至多一个 doing。替换活动 Plan 时旧 Plan 记为 cancelled(reason=replaced)。Plan 跨 turn 持久，不随本轮结束清空。\n返回：ok、count、planId。Runtime 自动关联 goalId/planId/itemId，模型不必传这些 ID。\n执行调度：serial（Runtime 固定，不必返回）。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string",
+          "description": "计划标题，可选"
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": ["todo", "doing", "done"]
+              },
+              "expectedEffect": {
+                "type": "string",
+                "description": "预期环境变化"
+              },
+              "verification": {
+                "type": "string",
+                "description": "完成判据"
+              }
+            },
+            "required": ["text"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["reason", "items"],
+      "additionalProperties": false
+    }
+  },
+  "execution": "serial"
+}

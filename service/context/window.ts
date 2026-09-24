@@ -62,7 +62,31 @@ export function userText(input: {
     "#pageObservedHistory": jsonBody(pageHistory.map(pageView)),
     "#toolIO": jsonBody(toolHistoryView(ledger.toolIO, pages)),
     "#lastAction": jsonBody(lastActionView(ledger.lastAction ?? null)),
-    "#checklist": jsonBody(ledger.checklist ? { turnId: turn.turnId, ...ledger.checklist } : null),
+    "#plan": jsonBody({
+      currentGoalId: ledger.currentGoalId,
+      activePlanId: ledger.activePlanId,
+      activePlanItemId: ledger.activePlanItemId,
+      plan: ledger.activePlanId
+        ? (() => {
+          const plan = ledger.plans.find((row) => row.id === ledger.activePlanId);
+          if (!plan) return null;
+          return {
+            id: plan.id,
+            goalId: plan.goalId,
+            ...(plan.title ? { title: plan.title } : {}),
+            status: plan.status,
+            items: plan.items.map((item) => ({
+              id: item.id,
+              text: item.text,
+              status: item.status,
+              ...(item.expectedEffect ? { expectedEffect: item.expectedEffect } : {}),
+              ...(item.verification ? { verification: item.verification } : {}),
+              ...(item.blockedReason ? { blockedReason: item.blockedReason } : {}),
+            })),
+          };
+        })()
+        : null,
+    }),
     "#queryHistory": jsonBody((input.queryHistory ?? []).map((query) => queryView(query, { ...gate, path: queryPath(query) }))),
     "#currentQuery": jsonBody(input.currentQuery ? queryView(input.currentQuery, { ...gate, path: queryPath(input.currentQuery) }) : null),
     "#tools": input.toolGuide ?? "",

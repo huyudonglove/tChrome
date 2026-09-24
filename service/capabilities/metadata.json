@@ -95,7 +95,7 @@
         "直接向用户说明"
       ],
       "composesWith": [
-        "checklist.set",
+        "plan.set",
         "reportProgress",
         "finishTurn"
       ]
@@ -484,7 +484,7 @@
         "直接向用户说明"
       ],
       "composesWith": [
-        "checklist.set",
+        "plan.set",
         "reportProgress",
         "finishTurn"
       ]
@@ -516,48 +516,6 @@
         "page.recheck",
         "capture_viewport"
       ]
-    },
-    "checklist.set": {
-      "purpose": "提交或替换当前 turn 的执行清单",
-      "triggers": [
-        "checklist.set",
-        "开始、切换、跟踪或收口任务目标"
-      ],
-      "outputs": [
-        "目标或清单状态"
-      ],
-      "preconditions": [
-        "目标范围已获得用户授权"
-      ],
-      "risk": "medium",
-      "verification": [
-        "目标或清单状态与实际执行进度一致"
-      ],
-      "alternatives": [
-        "通过会话记忆记录进度"
-      ],
-      "composesWith": []
-    },
-    "checklist.update": {
-      "purpose": "更新当前 turn 的执行清单条目（按 index 修改 status 或 text）",
-      "triggers": [
-        "checklist.update",
-        "开始、切换、跟踪或收口任务目标"
-      ],
-      "outputs": [
-        "目标或清单状态"
-      ],
-      "preconditions": [
-        "目标范围已获得用户授权"
-      ],
-      "risk": "medium",
-      "verification": [
-        "目标或清单状态与实际执行进度一致"
-      ],
-      "alternatives": [
-        "通过会话记忆记录进度"
-      ],
-      "composesWith": []
     },
     "clear_cookies": {
       "purpose": "清空 Cookie",
@@ -1392,7 +1350,7 @@
         "直接向用户说明"
       ],
       "composesWith": [
-        "checklist.set",
+        "plan.set",
         "reportProgress"
       ]
     },
@@ -3632,7 +3590,7 @@
         "直接向用户说明"
       ],
       "composesWith": [
-        "checklist.set",
+        "plan.set",
         "finishTurn"
       ]
     },
@@ -4876,6 +4834,78 @@
         "page.recheck",
         "capture_viewport"
       ]
+    },
+    "plan.set": {
+      "purpose": "为当前 Goal 创建或替换持久化执行计划",
+      "triggers": [
+        "plan.set",
+        "复杂多步任务需要跨轮跟踪执行进度"
+      ],
+      "outputs": [
+        "目标或计划状态"
+      ],
+      "preconditions": [
+        "当前已有 active Goal"
+      ],
+      "risk": "medium",
+      "verification": [
+        "计划状态与实际执行进度一致"
+      ],
+      "alternatives": [
+        "通过会话记忆记录进度"
+      ],
+      "composesWith": [
+        "submitGoal",
+        "finishTurn"
+      ]
+    },
+    "plan.update": {
+      "purpose": "按稳定 itemId 更新当前 Plan 步骤",
+      "triggers": [
+        "plan.update",
+        "复杂多步任务需要跨轮跟踪执行进度"
+      ],
+      "outputs": [
+        "目标或计划状态"
+      ],
+      "preconditions": [
+        "当前已有 active Goal"
+      ],
+      "risk": "medium",
+      "verification": [
+        "计划状态与实际执行进度一致"
+      ],
+      "alternatives": [
+        "通过会话记忆记录进度"
+      ],
+      "composesWith": [
+        "submitGoal",
+        "finishTurn"
+      ]
+    },
+    "plan.complete": {
+      "purpose": "在全部步骤 done 后完成当前 Plan",
+      "triggers": [
+        "plan.complete",
+        "复杂多步任务需要跨轮跟踪执行进度"
+      ],
+      "outputs": [
+        "目标或计划状态"
+      ],
+      "preconditions": [
+        "当前已有 active Goal"
+      ],
+      "risk": "medium",
+      "verification": [
+        "计划状态与实际执行进度一致"
+      ],
+      "alternatives": [
+        "通过会话记忆记录进度"
+      ],
+      "composesWith": [
+        "submitGoal",
+        "finishTurn"
+      ]
     }
   },
   "skills": {
@@ -5141,7 +5171,7 @@
         "修复后原失败断言转绿"
       ],
       "composesWith": [
-        "checklist_set",
+        "plan.set",
         "local_fs_grep",
         "local_run",
         "page_recheck"

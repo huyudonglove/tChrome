@@ -216,31 +216,49 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     return result(JSON.stringify({ ok: true, pageId, cleared: true }),
       [{ type: "page.clear_result", pageId }]);
   }
-  if (name === "checklist.set") {
+  if (name === "plan.set") {
+    if (!input.goalContext?.currentGoalId) {
+      return failedTool("需要先用 submitGoal 创建或切换当前 Goal，再创建 Plan", "invalid_arguments");
+    }
     const rawItems = Array.isArray(args.items) ? args.items : [];
     const items = rawItems.map((item: unknown) => {
       const row = (item ?? {}) as Record<string, unknown>;
-      const status = row.status === "doing" || row.status === "done" || row.status === "todo" ? row.status : "todo";
-      return { text: String(row.text ?? ""), status: status as "todo" | "doing" | "done" };
+      const status = row.status === "doing" || row.status === "done" || row.status === "todo" ? row.status : undefined;
+      return {
+        text: String(row.text ?? ""),
+        ...(status ? { status } : {}),
+        ...(typeof row.expectedEffect === "string" && row.expectedEffect.trim() ? { expectedEffect: row.expectedEffect.trim() } : {}),
+        ...(typeof row.verification === "string" && row.verification.trim() ? { verification: row.verification.trim() } : {}),
+      };
     }).filter((row) => row.text.trim());
-    if (!items.length) return failedTool("checklist.set 需要非空 items", "invalid_arguments");
+    if (!items.length) return failedTool("plan.set 需要非空 items", "invalid_arguments");
     const title = typeof args.title === "string" && args.title.trim() ? args.title.trim() : undefined;
     return result(JSON.stringify({ ok: true, count: items.length, ...(title ? { title } : {}) }),
-      [{ type: "checklist.set", ...(title ? { title } : {}), items }]);
+      [{ type: "plan.set", ...(title ? { title } : {}), items }]);
   }
-  if (name === "checklist.update") {
+  if (name === "plan.update") {
     const rawItems = Array.isArray(args.items) ? args.items : [];
     const updates = rawItems.map((item: unknown) => {
       const row = (item ?? {}) as Record<string, unknown>;
-      const index = Number(row.index);
-      const patch: { index: number; status?: "todo" | "doing" | "done"; text?: string } = { index };
+      const id = typeof row.id === "string" ? row.id.trim() : "";
+      const patch: { id: string; status?: "todo" | "doing" | "done"; text?: string; expectedEffect?: string; verification?: string; blockedReason?: string } = { id };
       if (row.status === "todo" || row.status === "doing" || row.status === "done") patch.status = row.status;
       if (typeof row.text === "string" && row.text.trim()) patch.text = row.text.trim();
+      if (typeof row.expectedEffect === "string" && row.expectedEffect.trim()) patch.expectedEffect = row.expectedEffect.trim();
+      if (typeof row.verification === "string" && row.verification.trim()) patch.verification = row.verification.trim();
+      if (typeof row.blockedReason === "string" && row.blockedReason.trim()) patch.blockedReason = row.blockedReason.trim();
       return patch;
-    }).filter((row) => Number.isInteger(row.index) && row.index >= 0 && (row.status !== undefined || row.text !== undefined));
-    if (!updates.length) return failedTool("checklist.update 需要 index 以及 status 或 text", "invalid_arguments");
-    return result(JSON.stringify({ ok: true, updated: updates.length }),
-      [{ type: "checklist.update", items: updates }]);
+    }).filter((row) => row.id && (row.status !== undefined || row.text !== undefined || row.expectedEffect !== undefined || row.verification !== undefined || row.blockedReason !== undefined));
+    if (!updates.length) return failedTool("plan.update 需要 item id 以及 status 或 text 等字段", "invalid_arguments");
+    const planId = typeof args.planId === "string" && args.planId.trim() ? args.planId.trim() : undefined;
+    return result(JSON.stringify({ ok: true, updated: updates.length, ...(planId ? { planId } : {}) }),
+      [{ type: "plan.update", ...(planId ? { planId } : {}), items: updates }]);
+  }
+  if (name === "plan.complete") {
+    const planId = typeof args.planId === "string" && args.planId.trim() ? args.planId.trim() : undefined;
+    const reason = typeof args.reason === "string" && args.reason.trim() ? args.reason.trim() : undefined;
+    return result(JSON.stringify({ ok: true, ...(planId ? { planId } : {}) }),
+      [{ type: "plan.complete", ...(planId ? { planId } : {}), ...(reason ? { reason } : {}) }]);
   }
   if (name === "tab.context") {
     const action = String(args.action ?? "get");

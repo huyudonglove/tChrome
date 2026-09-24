@@ -27,7 +27,18 @@ export type SessionView = {
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
   liveTools: { name: string; callId: string; reason?: string }[];
   activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null; completed: number; total: number | null } | null;
-  checklist: Ledger["checklist"];
+  plan: {
+    currentGoalId: string | null;
+    activePlanId: string | null;
+    activePlanItemId: string | null;
+    plan: {
+      id: string;
+      goalId: string;
+      title?: string;
+      status: string;
+      items: { id: string; text: string; status: string; blockedReason?: string }[];
+    } | null;
+  };
   messages: SessionMessage[];
 };
 
@@ -130,11 +141,36 @@ export function projectSessionView({ ledger, events, turns }: {
     pendingAsk = { turnId: ledger.pendingAsk.turnId, question: ledger.pendingAsk.question, choice };
   }
   return { conversationId: ledger.conversationId, status: ledger.status, pendingAsk, liveTools: ledger.liveTools,
-    activity: compressionActivity(ledger, events), checklist: ledger.checklist ?? null, messages };
+    activity: compressionActivity(ledger, events), plan: planView(ledger), messages };
 }
 
+const planView = (ledger: Ledger): SessionView["plan"] => {
+  const plan = ledger.activePlanId ? ledger.plans.find((row) => row.id === ledger.activePlanId) ?? null : null;
+  return {
+    currentGoalId: ledger.currentGoalId,
+    activePlanId: ledger.activePlanId,
+    activePlanItemId: ledger.activePlanItemId,
+    plan: plan
+      ? {
+        id: plan.id,
+        goalId: plan.goalId,
+        ...(plan.title ? { title: plan.title } : {}),
+        status: plan.status,
+        items: plan.items.map((item) => ({
+          id: item.id,
+          text: item.text,
+          status: item.status,
+          ...(item.blockedReason ? { blockedReason: item.blockedReason } : {}),
+        })),
+      }
+      : null,
+  };
+};
+
 export const emptySessionView = (): SessionView => ({
-  conversationId: null, status: "idle", pendingAsk: null, liveTools: [], activity: null, checklist: null, messages: [],
+  conversationId: null, status: "idle", pendingAsk: null, liveTools: [], activity: null,
+  plan: { currentGoalId: null, activePlanId: null, activePlanItemId: null, plan: null },
+  messages: [],
 });
 
 export function projectConversationList(rows: { ledger: Ledger; lastTurn: Turn | null }[]): ConversationItem[] {

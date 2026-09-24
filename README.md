@@ -102,7 +102,7 @@ Raw interaction logs and tool arguments remain intact on disk. When deep verific
 ### 9. Tiered Cognitive Architecture & Structured Library
 | Tier | Purpose | Scope |
 | --- | --- | --- |
-| **Execution Checklist (`<checklist>`)** | Step breakdown and real-time execution tracking for the current turn | Current turn only; cleared upon completion |
+| **Persistent Plan (`<plan>`)** | Cross-turn step plan bound to the active Goal; Runtime auto-links tool calls | Survives turn ends; Plan complete ≠ Goal complete |
 | **Work Notes (`<notes>`)** | Ephemeral drafts, candidates, and working scratchpad | Preserved across turns in current session |
 | **Conversation Memory (`<conversationMemory>`)** | Confirmed facts, user preferences, and key architectural decisions | Preserved across turns in current session |
 | **Long-Term Memory (`<projectMemory>`)** | Shared domain conventions, environmental preferences, and persistent facts | Globally shared across all sessions |
