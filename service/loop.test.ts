@@ -9,7 +9,7 @@ import { createServer } from "./server.ts";
 import { executorVersion } from "./executor-version.ts";
 import { createProvider } from "./provider/uuapi.ts";
 import { createToolBridge } from "./runtime/bridge.ts";
-import { stopTurn, emptyLedger, loadEvents, loadLedger, loadProviderLog, loadSession, loadTurn, saveLedger, saveTurn, sessionView } from "./runtime/store.ts";
+import { stopTurn, emptyLedger, loadEvents, loadLedger, loadProviderLog, loadSession, loadTurn, primeActiveTask, saveLedger, saveTurn, sessionView } from "./runtime/store.ts";
 import { compressRecords } from "./agents/compression/index.ts";
 import { loadIndex } from "./context-archive/store.ts";
 import type { CompletionResult, Provider } from "./types.ts";
@@ -41,6 +41,7 @@ const mock = (results: CompletionResult[]): Provider => {
 
 test("每次主模型请求刷新 openTabs，焦点变化不覆盖页面观察，读取失败不冒充空列表", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-tabs-"));
+    primeActiveTask(dir);
   try {
     let snapshots = 0, requests = 0;
     const host = {
@@ -83,6 +84,7 @@ test("每次主模型请求刷新 openTabs，焦点变化不覆盖页面观察�
 
 test("缺钥分得出网失败", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-key-"));
+    primeActiveTask(dir);
   const provider = createProvider({ apiKey: "" });
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "hi", submittedAt: "2026-09-06T00:00:00.000Z" });
   expect(reply.output).toEqual({ kind: "error", faultCode: "provider_key_missing" });
@@ -92,6 +94,7 @@ test("缺钥分得出网失败", async () => {
 
 test("finishTurn 收口回复", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-finish-"));
+    primeActiveTask(dir);
   const provider = mock([
     ok({
       finish: "tool_calls",
@@ -144,6 +147,7 @@ test("finishTurn 收口回复", async () => {
 
 test("finishTurn 正文为空时要求修正参数后再调用", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-empty-"));
+    primeActiveTask(dir);
   const provider = mock([
     ok({
       finish: "tool_calls",
@@ -163,6 +167,7 @@ test("finishTurn 正文为空时要求修正参数后再调用", async () => {
 
 test("askUser 冻在追问", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-ask-"));
+    primeActiveTask(dir);
   const provider = mock([
     ok({
       finish: "tool_calls",
@@ -186,6 +191,7 @@ test.each([
   { name: "askUser", args: { question: 42, choice: [] }, faultCode: "wrong_type" },
 ])("$name 的无效正文不能由模型 content 补齐", async ({ name, args, faultCode }) => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-explicit-message-"));
+    primeActiveTask(dir);
   try {
     const provider = mock([ok({
       finish: "tool_calls", content: "reason\n这是旧协议内容\naction\n不应展示的正文",
@@ -201,6 +207,7 @@ test.each([
 
 test("下一句开新 Turn 并追加 userInputHistory", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-hist-"));
+    primeActiveTask(dir);
   const provider = mock([
     ok({
       finish: "tool_calls",
@@ -230,6 +237,7 @@ test("下一句开新 Turn 并追加 userInputHistory", async () => {
 
 test("POST /turn 走完 mock 收口", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-http-"));
+    primeActiveTask(dir);
   const server = createServer({
     dataDir: dir,
     repoRoot,
@@ -256,6 +264,7 @@ test("POST /turn 走完 mock 收口", async () => {
 
 test("开 Turn 不读页，模型 page.get_summary 后才填 currentPage", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-page-"));
+    primeActiveTask(dir);
   const provider = mock([
     ok({
       finish: "tool_calls",
@@ -302,6 +311,7 @@ test("开 Turn 不读页，模型 page.get_summary 后才填 currentPage", async
 
 test("web_search 走服务端执行", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-search-"));
+    primeActiveTask(dir);
   const provider = mock([
     ok({
       finish: "tool_calls",
@@ -340,6 +350,7 @@ test("web_search 走服务端执行", async () => {
 
 test("Gemini grounding 写入 toolIO 但不进入执行队列或 usage.toolCalls", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-grounding-"));
+    primeActiveTask(dir);
   const provider = mock([
     ok({
       finish: "stop",
@@ -386,6 +397,7 @@ test("Gemini grounding 写入 toolIO 但不进入执行队列或 usage.toolCalls
 
 test("GET /tool-request 和 POST /tool-result 对上", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-bridge-"));
+    primeActiveTask(dir);
   const bridge = createToolBridge(dir);
   const server = createServer({ dataDir: dir, repoRoot, provider: mock([]), bridge });
   const empty = await server.fetch(new Request(`http://127.0.0.1:18788/tool-request?executorVersion=${executorVersion(repoRoot)}`));
@@ -406,6 +418,7 @@ test("GET /tool-request 和 POST /tool-result 对上", async () => {
 
 test("GET /session 还原消息，切会话改 session.json", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-session-"));
+    primeActiveTask(dir);
   const provider = mock([
     ok({
       finish: "tool_calls",
@@ -455,6 +468,7 @@ test("GET /session 还原消息，切会话改 session.json", async () => {
 
 test("归档历史工具结果保留工具能力、记忆索引和原始记忆", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-compress-"));
+    primeActiveTask(dir);
   const provider = mock([
     ok({
       finish: "tool_calls",
@@ -499,6 +513,7 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
 
 test("记忆效果失败进入 toolIO，同批工具继续，模型收到错误后决定收口", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-memory-effect-failure-"));
+    primeActiveTask(dir);
   try {
     saveMemory(dir, "cv_01", { memoryId: "lm_01", turnId: "tn_old", layer: "project", text: "已有记忆", createdAt: "now", sourceCallId: "call_old" });
     let requests = 0;
@@ -528,6 +543,7 @@ test("记忆效果失败进入 toolIO，同批工具继续，模型收到错误�
 
 test("同批 parallel 并发、serial 清空后独占，模型提交的 execution 被忽略", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-schedule-"));
+    primeActiveTask(dir);
   const order: string[] = [];
   let running = 0;
   let maxRunning = 0;
@@ -567,6 +583,7 @@ test("同批 parallel 并发、serial 清空后独占，模型提交的 executio
 
 test("队列和正在跑的工具出现在 /session", () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-live-"));
+    primeActiveTask(dir);
   const ledger = emptyLedger("cv_01");
   ledger.status = "running";
   ledger.active = { turnId: "tn_01" };
@@ -614,6 +631,7 @@ test("队列和正在跑的工具出现在 /session", () => {
 
 test("POST /stop 把 running 标成 paused", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-stop-"));
+    primeActiveTask(dir);
   let release!: (result: { ok: boolean }) => void;
   const host = {
     execute: () => new Promise<{ ok: boolean }>((resolve) => {
@@ -647,6 +665,7 @@ test("POST /stop 把 running 标成 paused", async () => {
 
 test("arguments 不是 JSON 时好的工具照跑，坏的退回再出网", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-badjson-"));
+    primeActiveTask(dir);
   const provider = mock([
     ok({
       finish: "tool_calls",
@@ -681,6 +700,7 @@ test("arguments 不是 JSON 时好的工具照跑，坏的退回再出网", asyn
 
 test("缺字段写进 toolIO 再出网，不补齐", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-missing-"));
+    primeActiveTask(dir);
   const provider = mock([
     ok({
       finish: "tool_calls",
@@ -716,6 +736,7 @@ test("缺字段写进 toolIO 再出网，不补齐", async () => {
 
 test("stop 没有 tool_calls 就写 needFinishTurn 再出网", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-need-finish-"));
+    primeActiveTask(dir);
   const seen: (string | undefined)[] = [];
   const results = [
     ok({ finish: "stop", content: "", toolCalls: [] }),
@@ -739,6 +760,7 @@ test("stop 没有 tool_calls 就写 needFinishTurn 再出网", async () => {
 
 test("submitGoal 创建父子目标并在后续轮次按稳定 ID 更新", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-goal-"));
+    primeActiveTask(dir);
   const provider = mock([
     ok({
       finish: "tool_calls",
@@ -780,6 +802,7 @@ test("submitGoal 创建父子目标并在后续轮次按稳定 ID 更新", async
 
 test("notes.write 按 key 写入，notes.delete 删除", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-notes-"));
+    primeActiveTask(dir);
   const provider = mock([
     ok({
       finish: "tool_calls",
@@ -812,6 +835,7 @@ test("notes.write 按 key 写入，notes.delete 删除", async () => {
 
 test.each(["provider", "provider-reject", "browser", "browser-reject"])("停止后启动新轮，旧 %s 返回不会覆盖新轮", async (waitingOn) => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-stop-restart-"));
+    primeActiveTask(dir);
   const finish = ok({ finish: "tool_calls", content: "", toolCalls: [
     { id: "finish", name: "finishTurn", arguments: { text: "完成", reason: "完成"} },
   ] });
@@ -856,6 +880,7 @@ test.each([
   { name: "page.get_summary", arguments: { tabId: 12,}, faultCode: "missing_required" },
 ])("坏 JSON 前缀也校验 $faultCode", async (invalid) => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-prefix-schema-"));
+    primeActiveTask(dir);
   const executed: string[] = [];
   try {
     const provider = mock([
@@ -879,6 +904,7 @@ test.each([
 
 test("第20次出网 content 为空但 finishTurn.text 有正文时正常结束", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-last-finish-"));
+    primeActiveTask(dir);
   try {
     const steps = Array.from({ length: 19 }, (_, i) => ok({
       finish: "tool_calls", content: "", toolCalls: [{
@@ -897,6 +923,7 @@ test("第20次出网 content 为空但 finishTurn.text 有正文时正常结束"
 
 test("content 为空时 askUser.question 仍能展示问题和选项", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-question-"));
+    primeActiveTask(dir);
   try {
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider: mock([ok({ finish: "tool_calls", content: "", toolCalls: [{
       id: "ask", name: "askUser", arguments: { reason: "需要确定检查范围", question: "先检查哪个页面？", choice: ["首页", "搜索页"] },
@@ -908,6 +935,7 @@ test("content 为空时 askUser.question 仍能展示问题和选项", async () 
 
 test("工具抛错写入记录，清空执行状态并允许下一次模型请求正常收口", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-tool-throw-"));
+    primeActiveTask(dir);
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async () => { throw new Error("connection reset"); }) as unknown as typeof fetch;
   let requests = 0;
@@ -947,6 +975,7 @@ test("工具抛错写入记录，清空执行状态并允许下一次模型请�
 
 test("纯文本 content 自动包装为 finishTurn 成功收口", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-auto-finish-"));
+    primeActiveTask(dir);
   const provider = mock([
     ok({
       finish: "stop",

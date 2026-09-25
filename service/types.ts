@@ -25,8 +25,8 @@ export type GoalRecord = {
   sourceCallId: string;
   createdAt: string;
   updatedAt: string;
-  planId: string | null;
-  activePlanItemId: string | null;
+  taskId: string | null;
+  activeTaskItemId: string | null;
 };
 
 export type ReflectHistoryItem = { id: string; text: string; focus?: string };
@@ -48,8 +48,8 @@ export type PageObservation = {
   /** Full tool return for this observation call. */
   result: unknown;
   goalId?: string | null;
-  planId?: string | null;
-  planItemId?: string | null;
+  taskId?: string | null;
+  taskItemId?: string | null;
 };
 
 /** Most recent model-returned tool batch; replaced before the next model request. */
@@ -59,14 +59,14 @@ export type LastAction = {
   calls: { callId: string; name: string; pageObservationId?: string }[];
 };
 
-export type PlanItemStatus = "todo" | "doing" | "done";
-export type PlanStatus = "active" | "completed" | "cancelled";
+export type TaskItemStatus = "todo" | "doing" | "done";
+export type TaskStatus = "active" | "completed" | "cancelled";
 
-export type PlanItem = {
+export type TaskItem = {
   id: string;
   index: number;
   text: string;
-  status: PlanItemStatus;
+  status: TaskItemStatus;
   expectedEffect?: string;
   verification?: string;
   blockedReason?: string;
@@ -75,33 +75,35 @@ export type PlanItem = {
   completedAt?: string;
 };
 
-export type Plan = {
+export type Task = {
   id: string;
-  goalId: string;
+  /** Weak link: null = standalone task not bound to any Goal. */
+  goalId: string | null;
   title?: string;
-  status: PlanStatus;
-  items: PlanItem[];
+  status: TaskStatus;
+  items: TaskItem[];
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
 };
 
-export type PlanHistoryType =
-  | "plan_created"
+export type TaskHistoryType =
+  | "task_created"
   | "item_started"
   | "item_updated"
   | "item_completed"
-  | "plan_completed"
-  | "plan_cancelled"
+  | "task_completed"
+  | "task_cancelled"
   | "goal_completed"
   | "goal_cancelled";
 
-export type PlanHistoryRecord = {
+export type TaskHistoryRecord = {
   id: string;
-  planId: string;
+  taskId: string;
+  /** Empty string when the Task was standalone (no Goal). */
   goalId: string;
-  planItemId?: string;
-  type: PlanHistoryType;
+  taskItemId?: string;
+  type: TaskHistoryType;
   before?: unknown;
   after?: unknown;
   reason?: string;
@@ -112,8 +114,8 @@ export type PlanHistoryRecord = {
 
 export type RuntimeExecutionContext = {
   goalId: string | null;
-  activePlanId: string | null;
-  activePlanItemId: string | null;
+  activeTaskId: string | null;
+  activeTaskItemId: string | null;
 };
 
 export type TabContext = { tabId: number; setAt: string } | null;
@@ -177,8 +179,8 @@ export type ToolIOItem = ToolQueueItem & {
   return: ToolReturn;
   images?: ImageReference[];
   goalId?: string | null;
-  planId?: string | null;
-  planItemId?: string | null;
+  taskId?: string | null;
+  taskItemId?: string | null;
 };
 
 export type Ledger = {
@@ -196,10 +198,10 @@ export type Ledger = {
   reflectHistory: ReflectHistoryRecord[];
   goals: GoalRecord[];
   currentGoalId: string | null;
-  plans: Plan[];
-  planHistory: PlanHistoryRecord[];
-  activePlanId: string | null;
-  activePlanItemId: string | null;
+  tasks: Task[];
+  taskHistory: TaskHistoryRecord[];
+  activeTaskId: string | null;
+  activeTaskItemId: string | null;
   toolQueue: ToolQueueItem[];
   liveTools: { name: string; callId: string; reason?: string }[];
   toolIO: ToolIOItem[];

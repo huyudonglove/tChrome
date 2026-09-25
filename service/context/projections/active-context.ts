@@ -1,8 +1,8 @@
-import type { Ledger, OpenTabs, PageObservation, PlanItem, ToolIOItem, Turn } from "../../types.ts";
+import type { Ledger, OpenTabs, PageObservation, TaskItem, ToolIOItem, Turn } from "../../types.ts";
 
 export type ActiveContextView = {
   goalId: string | null;
-  activePlanItem: {
+  activeTaskItem: {
     id: string;
     text: string;
     expectedEffect?: string;
@@ -18,7 +18,7 @@ export type ActiveContextView = {
   handoverIntent: string | null;
 };
 
-const planItemView = (item: PlanItem): ActiveContextView["activePlanItem"] => ({
+const planItemView = (item: TaskItem): ActiveContextView["activeTaskItem"] => ({
   id: item.id,
   text: item.text,
   ...(item.expectedEffect ? { expectedEffect: item.expectedEffect } : {}),
@@ -26,9 +26,9 @@ const planItemView = (item: PlanItem): ActiveContextView["activePlanItem"] => ({
   ...(item.blockedReason ? { blockedReason: item.blockedReason } : {}),
 });
 
-const pickPlanItem = (ledger: Ledger): PlanItem | null => {
-  if (!ledger.activePlanId) return null;
-  const plan = ledger.plans.find((row) => row.id === ledger.activePlanId);
+const pickTaskItem = (ledger: Ledger): TaskItem | null => {
+  if (!ledger.activeTaskId) return null;
+  const plan = ledger.tasks.find((row) => row.id === ledger.activeTaskId);
   if (!plan || plan.status !== "active") return null;
   const doing = plan.items.find((item) => item.status === "doing");
   if (doing) return doing;
@@ -170,7 +170,7 @@ const collectEntities = (notes: Record<string, string>): Record<string, string> 
   return into;
 };
 
-const handoverIntent = (ledger: Ledger, item: ActiveContextView["activePlanItem"]): string | null => {
+const handoverIntent = (ledger: Ledger, item: ActiveContextView["activeTaskItem"]): string | null => {
   const lastTurn = ledger.reflectHistory.at(-1);
   const last = lastTurn?.items.at(-1);
   if (last?.text.trim()) return last.text.trim();
@@ -183,11 +183,11 @@ export function projectActiveContext(input: {
   turn: Turn;
 }): ActiveContextView {
   const { ledger, turn } = input;
-  const item = pickPlanItem(ledger);
+  const item = pickTaskItem(ledger);
   const planItem = item ? planItemView(item) : null;
   return {
     goalId: ledger.currentGoalId,
-    activePlanItem: planItem,
+    activeTaskItem: planItem,
     focus: findPrimaryTab(ledger, turn),
     activeEntities: collectEntities(ledger.notes),
     handoverIntent: handoverIntent(ledger, planItem),

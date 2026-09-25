@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import type { QueryEvidence } from "../context/projections/queries.ts";
 import type { Memories, MemoryRecord } from "../memory/types.ts";
-import type { GoalRecord, Ledger, PageObservation, PlanHistoryRecord, ToolIOItem, Turn, TurnOutput, UserInputRecord } from "../types.ts";
+import type { GoalRecord, Ledger, PageObservation, TaskHistoryRecord, ToolIOItem, Turn, TurnOutput, UserInputRecord } from "../types.ts";
 import { compressedArchiveFields, loadModuleRegistry } from "../context/modules.ts";
 import { inputRecord } from "./ids.ts";
 import { loadTurn } from "./store.ts";
@@ -20,7 +20,7 @@ export type TurnHistoryRecord = {
   memoryWrites: MemoryRecord[];
   queryHistory: QueryEvidence[];
   reflection: { turnId: string; items: { id: string; text: string; focus?: string }[] } | null;
-  planHistory: PlanHistoryRecord[];
+  taskHistory: TaskHistoryRecord[];
   output: TurnOutput | null;
 };
 
@@ -35,7 +35,7 @@ const projectors: Record<string, (ctx: ProjectContext) => unknown> = {
   memoryWrites: ({ turn, memories }) => memories.conversation.filter(item => item.turnId === turn.turnId),
   queryHistory: ({ ledger, turn }) => ledger.queryHistory.filter(item => item.turnId === turn.turnId),
   reflection: ({ turn }) => (turn.reflect?.length ? { turnId: turn.turnId, items: turn.reflect } : null),
-  planHistory: ({ ledger, turn }) => ledger.planHistory.filter(item => item.turnId === turn.turnId),
+  taskHistory: ({ ledger, turn }) => ledger.taskHistory.filter(item => item.turnId === turn.turnId),
   output: ({ turn }) => {
     const out = turn.output;
     if (out && out.kind === "reply") return { kind: "reply", text: out.text };

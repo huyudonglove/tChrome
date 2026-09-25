@@ -119,7 +119,7 @@
         "直接向用户说明"
       ],
       "composesWith": [
-        "plan.set",
+        "task.set",
         "reportProgress",
         "finishTurn"
       ]
@@ -508,7 +508,7 @@
         "直接向用户说明"
       ],
       "composesWith": [
-        "plan.set",
+        "task.set",
         "reportProgress",
         "finishTurn"
       ]
@@ -1374,7 +1374,7 @@
         "直接向用户说明"
       ],
       "composesWith": [
-        "plan.set",
+        "task.set",
         "reportProgress"
       ]
     },
@@ -3614,7 +3614,7 @@
         "直接向用户说明"
       ],
       "composesWith": [
-        "plan.set",
+        "task.set",
         "finishTurn"
       ]
     },
@@ -4859,10 +4859,10 @@
         "capture_viewport"
       ]
     },
-    "plan.set": {
-      "purpose": "为当前 Goal 创建或替换持久化执行计划",
+    "task.set": {
+      "purpose": "为当前 Goal 创建或替换持久化执行任务",
       "triggers": [
-        "plan.set",
+        "task.set",
         "复杂多步任务需要跨轮跟踪执行进度"
       ],
       "outputs": [
@@ -4883,10 +4883,10 @@
         "finishTurn"
       ]
     },
-    "plan.update": {
-      "purpose": "按稳定 itemId 更新当前 Plan 步骤",
+    "task.update": {
+      "purpose": "按稳定 itemId 更新当前 Task 步骤",
       "triggers": [
-        "plan.update",
+        "task.update",
         "复杂多步任务需要跨轮跟踪执行进度"
       ],
       "outputs": [
@@ -4907,10 +4907,10 @@
         "finishTurn"
       ]
     },
-    "plan.complete": {
-      "purpose": "在全部步骤 done 后完成当前 Plan",
+    "task.complete": {
+      "purpose": "在全部步骤 done 后完成当前 Task",
       "triggers": [
-        "plan.complete",
+        "task.complete",
         "复杂多步任务需要跨轮跟踪执行进度"
       ],
       "outputs": [
@@ -5195,7 +5195,7 @@
         "修复后原失败断言转绿"
       ],
       "composesWith": [
-        "plan.set",
+        "task.set",
         "local_fs_grep",
         "local_run",
         "page_recheck"

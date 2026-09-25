@@ -12,7 +12,7 @@ const propsOf = (name: string) => {
 };
 
 test("tools with reason gain optional expected and fallback at registry load", () => {
-  for (const name of ["page.type", "page.eval_expr", "plan.set", "finishTurn", "drag"]) {
+  for (const name of ["page.type", "page.eval_expr", "task.set", "finishTurn", "drag"]) {
     const props = propsOf(name);
     expect(props.expected, name).toMatchObject({ type: "string" });
     expect(props.fallback, name).toMatchObject({ type: "string" });

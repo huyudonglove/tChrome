@@ -15,10 +15,10 @@ const fixture = () => {
     id: "goal_01", parentId: null, goal: "注册账号", status: "active",
     turnId: "tn_02", sourceCallId: "call_01",
     createdAt: "2026-09-25", updatedAt: "2026-09-25",
-    planId: "plan_01", activePlanItemId: "item_02",
+    taskId: "task_01", activeTaskItemId: "item_02",
   }];
-  ledger.plans = [{
-    id: "plan_01", goalId: "goal_01", title: "注册", status: "active",
+  ledger.tasks = [{
+    id: "task_01", goalId: "goal_01", title: "注册", status: "active",
     createdAt: "2026-09-25", updatedAt: "2026-09-25",
     items: [
       { id: "item_01", index: 0, text: "打开注册页", status: "done", createdAt: "2026-09-25" },
@@ -26,8 +26,8 @@ const fixture = () => {
       { id: "item_03", index: 2, text: "提交表单", status: "todo", createdAt: "2026-09-25" },
     ],
   }];
-  ledger.activePlanId = "plan_01";
-  ledger.activePlanItemId = "item_02";
+  ledger.activeTaskId = "task_01";
+  ledger.activeTaskItemId = "item_02";
   ledger.notes = {
     temp_email: "a@b.com",
     blob: JSON.stringify({ account_id: "acc_9", password: "pw" }),
@@ -66,7 +66,7 @@ test("projectActiveContext binds doing item, primary tab, entities and handover 
   const { ledger, turn } = fixture();
   const view = projectActiveContext({ ledger, turn });
   expect(view.goalId).toBe("goal_01");
-  expect(view.activePlanItem).toMatchObject({ id: "item_02", text: "填写邮箱" });
+  expect(view.activeTaskItem).toMatchObject({ id: "item_02", text: "填写邮箱" });
   expect(view.focus).toEqual({
     primaryTabId: 11,
     primaryTabTitle: "Create Account",
@@ -97,17 +97,17 @@ test("projectActiveContext binds doing item, primary tab, entities and handover 
   });
   expect(projectActiveContext({ ledger, turn }).handoverIntent).toBe("下一步绕过风控滑块");
 
-  ledger.activePlanItemId = "item_03";
-  ledger.plans[0]!.items[1]!.status = "done";
-  ledger.plans[0]!.items[2]!.status = "todo";
-  expect(projectActiveContext({ ledger, turn }).activePlanItem?.id).toBe("item_03");
+  ledger.activeTaskItemId = "item_03";
+  ledger.tasks[0]!.items[1]!.status = "done";
+  ledger.tasks[0]!.items[2]!.status = "todo";
+  expect(projectActiveContext({ ledger, turn }).activeTaskItem?.id).toBe("item_03");
 });
 
 test("activeContext registers in window, README, overview and schema contract", () => {
   const registry = loadModuleRegistry(root);
   const mainUser = registryModules(registry, { role: "user", consumer: "main" }).map((row) => row.id);
   expect(mainUser.indexOf("activeContext")).toBe(mainUser.indexOf("lastAction") + 1);
-  expect(mainUser.indexOf("plan")).toBe(mainUser.indexOf("activeContext") + 1);
+  expect(mainUser.indexOf("task")).toBe(mainUser.indexOf("activeContext") + 1);
   expect(mainUser.indexOf("reflectHistory")).toBe(mainUser.indexOf("reflection") + 1);
 
   const modules = loadContextModules(root);
@@ -119,6 +119,6 @@ test("activeContext registers in window, README, overview and schema contract", 
   });
   expect(output).toContain("<activeContext>");
   expect(output).toContain('"goalId": "goal_01"');
-  expect(output.indexOf("<activeContext>")).toBeLessThan(output.indexOf("<plan>"));
+  expect(output.indexOf("<activeContext>")).toBeLessThan(output.indexOf("<task>"));
   expect(output.indexOf("<lastAction>")).toBeLessThan(output.indexOf("<activeContext>"));
 });

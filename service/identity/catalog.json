@@ -34,26 +34,12 @@
     "allocation": "counter",
     "description": "子目标（parentId 关联总目标）"
   },
-  "plan": {
+  "taskHistory": {
     "field": "id",
-    "prefix": "plan",
+    "prefix": "th",
     "scope": "conversation",
     "allocation": "counter",
-    "description": "执行计划"
-  },
-  "planItem": {
-    "field": "id",
-    "prefix": "item",
-    "scope": "conversation",
-    "allocation": "counter",
-    "description": "计划步骤"
-  },
-  "planHistory": {
-    "field": "id",
-    "prefix": "ph",
-    "scope": "conversation",
-    "allocation": "counter",
-    "description": "计划事件历史"
+    "description": "任务事件历史"
   },
   "page": {
     "field": "id",
@@ -180,5 +166,19 @@
     "scope": "browser",
     "allocation": "browser-counter",
     "description": "页面区域"
+  },
+  "task": {
+    "field": "id",
+    "prefix": "task",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "执行任务"
+  },
+  "taskItem": {
+    "field": "id",
+    "prefix": "item",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "任务步骤"
   }
 }

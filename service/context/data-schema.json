@@ -391,22 +391,22 @@
         }
       ]
     },
-    "plan": {
+    "task": {
       "anyOf": [
         {
-          "$ref": "#/$defs/planContext"
+          "$ref": "#/$defs/taskContext"
         },
         {
           "$ref": "#/$defs/contextFileReference"
         }
       ]
     },
-    "planHistory": {
+    "taskHistory": {
       "anyOf": [
         {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/planHistoryRecord"
+            "$ref": "#/$defs/taskHistoryRecord"
           }
         },
         {
@@ -472,8 +472,8 @@
     "toolIO",
     "lastAction",
     "activeContext",
-    "plan",
-    "planHistory",
+    "task",
+    "taskHistory",
     "queryHistory",
     "currentQuery",
     "tools"
@@ -578,20 +578,20 @@
             "cancelled"
           ]
         },
-        "planId": {
+        "taskId": {
           "anyOf": [
             {
-              "$ref": "tchrome:identity#/$defs/plan"
+              "$ref": "tchrome:identity#/$defs/task"
             },
             {
               "type": "null"
             }
           ]
         },
-        "activePlanItemId": {
+        "activeTaskItemId": {
           "anyOf": [
             {
-              "$ref": "tchrome:identity#/$defs/planItem"
+              "$ref": "tchrome:identity#/$defs/taskItem"
             },
             {
               "type": "null"
@@ -649,20 +649,20 @@
             }
           ]
         },
-        "planId": {
+        "taskId": {
           "anyOf": [
             {
-              "$ref": "tchrome:identity#/$defs/plan"
+              "$ref": "tchrome:identity#/$defs/task"
             },
             {
               "type": "null"
             }
           ]
         },
-        "planItemId": {
+        "taskItemId": {
           "anyOf": [
             {
-              "$ref": "tchrome:identity#/$defs/planItem"
+              "$ref": "tchrome:identity#/$defs/taskItem"
             },
             {
               "type": "null"
@@ -1162,131 +1162,6 @@
       ],
       "additionalProperties": false
     },
-    "planContext": {
-      "type": "object",
-      "properties": {
-        "currentGoalId": {
-          "anyOf": [
-            {
-              "$ref": "tchrome:identity#/$defs/goal"
-            },
-            {
-              "$ref": "tchrome:identity#/$defs/subgoal"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "activePlanId": {
-          "anyOf": [
-            {
-              "$ref": "tchrome:identity#/$defs/plan"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "activePlanItemId": {
-          "anyOf": [
-            {
-              "$ref": "tchrome:identity#/$defs/planItem"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "plan": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "$ref": "tchrome:identity#/$defs/plan"
-                },
-                "goalId": {
-                  "anyOf": [
-                    {
-                      "$ref": "tchrome:identity#/$defs/goal"
-                    },
-                    {
-                      "$ref": "tchrome:identity#/$defs/subgoal"
-                    }
-                  ]
-                },
-                "title": {
-                  "type": "string"
-                },
-                "status": {
-                  "type": "string",
-                  "enum": [
-                    "active",
-                    "completed",
-                    "cancelled"
-                  ]
-                },
-                "items": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "$ref": "tchrome:identity#/$defs/planItem"
-                      },
-                      "text": {
-                        "type": "string"
-                      },
-                      "status": {
-                        "type": "string",
-                        "enum": [
-                          "todo",
-                          "doing",
-                          "done"
-                        ]
-                      },
-                      "expectedEffect": {
-                        "type": "string"
-                      },
-                      "verification": {
-                        "type": "string"
-                      },
-                      "blockedReason": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "text",
-                      "status"
-                    ],
-                    "additionalProperties": false
-                  }
-                }
-              },
-              "required": [
-                "id",
-                "goalId",
-                "status",
-                "items"
-              ],
-              "additionalProperties": false
-            }
-          ]
-        }
-      },
-      "required": [
-        "currentGoalId",
-        "activePlanId",
-        "activePlanItemId",
-        "plan"
-      ],
-      "additionalProperties": false
-    },
     "activeContext": {
       "type": "object",
       "properties": {
@@ -1303,7 +1178,7 @@
             }
           ]
         },
-        "activePlanItem": {
+        "activeTaskItem": {
           "anyOf": [
             {
               "type": "null"
@@ -1312,7 +1187,7 @@
               "type": "object",
               "properties": {
                 "id": {
-                  "$ref": "tchrome:identity#/$defs/planItem"
+                  "$ref": "tchrome:identity#/$defs/taskItem"
                 },
                 "text": {
                   "type": "string"
@@ -1395,7 +1270,7 @@
       },
       "required": [
         "goalId",
-        "activePlanItem",
+        "activeTaskItem",
         "focus",
         "activeEntities",
         "handoverIntent"
@@ -1442,14 +1317,14 @@
       ],
       "additionalProperties": false
     },
-    "planHistoryRecord": {
+    "taskHistoryRecord": {
       "type": "object",
       "properties": {
         "id": {
-          "$ref": "tchrome:identity#/$defs/planHistory"
+          "$ref": "tchrome:identity#/$defs/taskHistory"
         },
-        "planId": {
-          "$ref": "tchrome:identity#/$defs/plan"
+        "taskId": {
+          "$ref": "tchrome:identity#/$defs/task"
         },
         "goalId": {
           "anyOf": [
@@ -1461,18 +1336,18 @@
             }
           ]
         },
-        "planItemId": {
-          "$ref": "tchrome:identity#/$defs/planItem"
+        "taskItemId": {
+          "$ref": "tchrome:identity#/$defs/taskItem"
         },
         "type": {
           "type": "string",
           "enum": [
-            "plan_created",
+            "task_created",
             "item_started",
             "item_updated",
             "item_completed",
-            "plan_completed",
-            "plan_cancelled",
+            "task_completed",
+            "task_cancelled",
             "goal_completed",
             "goal_cancelled"
           ]
@@ -1491,10 +1366,138 @@
       },
       "required": [
         "id",
-        "planId",
+        "taskId",
         "goalId",
         "type",
         "at"
+      ],
+      "additionalProperties": false
+    },
+    "taskContext": {
+      "type": "object",
+      "properties": {
+        "currentGoalId": {
+          "anyOf": [
+            {
+              "$ref": "tchrome:identity#/$defs/goal"
+            },
+            {
+              "$ref": "tchrome:identity#/$defs/subgoal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "activeTaskId": {
+          "anyOf": [
+            {
+              "$ref": "tchrome:identity#/$defs/task"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "activeTaskItemId": {
+          "anyOf": [
+            {
+              "$ref": "tchrome:identity#/$defs/taskItem"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "task": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "tchrome:identity#/$defs/task"
+                },
+                "goalId": {
+                  "anyOf": [
+                    {
+                      "$ref": "tchrome:identity#/$defs/goal"
+                    },
+                    {
+                      "$ref": "tchrome:identity#/$defs/subgoal"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "title": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "completed",
+                    "cancelled"
+                  ]
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "tchrome:identity#/$defs/taskItem"
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "todo",
+                          "doing",
+                          "done"
+                        ]
+                      },
+                      "expectedEffect": {
+                        "type": "string"
+                      },
+                      "verification": {
+                        "type": "string"
+                      },
+                      "blockedReason": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "text",
+                      "status"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "goalId",
+                "status",
+                "items"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "currentGoalId",
+        "activeTaskId",
+        "activeTaskItemId",
+        "task"
       ],
       "additionalProperties": false
     }

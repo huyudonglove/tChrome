@@ -4,6 +4,7 @@ import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
 import { admitImages, admitText, deferredImageNote } from "../admission.ts";
 import { escalate } from "./escalation.ts";
+import { requiresActiveTask } from "./task-gate.ts";
 import { ensureThumb, loadThumbRef } from "../images/thumb.ts";
 import { projectMemories } from "../memory/window.ts";
 import { errorInfo, errorMessage } from "../../shared/errors.ts";
@@ -47,7 +48,7 @@ import {
   appendEvent,
   appendProviderExchange,
 } from "./store.ts";
-import { executionContext } from "./plans.ts";
+import { executionContext } from "./tasks.ts";
 
 // stopTurn already persists cancellation. A superseded worker must never write
 // its stale ledger back over a newer turn (or recreate a deleted conversation).
@@ -217,30 +218,36 @@ const runQueue = async (input: {
     const running = (async () => {
       let execution: ToolExecution;
       try {
-        execution = await executeTool({
-          name: slot.item.name,
-          arguments: slot.item.arguments,
-          dataDir,
-          conversationId: ledger.conversationId,
-          browserNames,
-          goalContext: { goals: ledger.goals, currentGoalId: ledger.currentGoalId, turnId: turn.turnId, sourceCallId: slot.item.callId },
-          host,
-          signal: input.signal,
-          pageObservationIds: turn.assembled.pageObservedHistory.map((row) => row.id),
-          defaultTabId: ledger.contextTab?.tabId ?? null,
-          queryContext: args => queryContext({ dataDir, conversationId: ledger.conversationId, repoRoot: input.repoRoot, provider: input.provider, ...args, isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId) }),
-          compressContext: ({ phase }) => compressContext({ dataDir, repoRoot: input.repoRoot, provider: input.provider, ledger, turn,
-            memories: loadMemories(dataDir, ledger.conversationId, ledger.memoryIds),
-            isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId),
-            onStart: () => appendEvent(dataDir, ledger.conversationId, { kind: "compress-start", turnId: turn.turnId, data: { source: "agent", phase } }),
-            onProgress: (progress) => appendEvent(dataDir, ledger.conversationId, { kind: "compress-progress", turnId: turn.turnId, data: { source: "agent", ...progress } }),
-          }, phase),
-          lookup: {
-            knownTools: Object.keys(toolRegistry.tools),
-            enabledTools: [...turn.assembled.toolIds, ...toolRegistry.toolGroups.baseToolsIds],
-            unusedTools: dynamicToolIds(toolRegistry).filter((id) => !turn.assembled.toolIds.includes(id)),
-          },
-        });
+        if (requiresActiveTask(slot.item.name) && !ledger.activeTaskId) {
+          execution = failedTool(errorDetail("task_gate_required"), "invalid_arguments", {
+            toolName: slot.item.name,
+          });
+        } else {
+          execution = await executeTool({
+            name: slot.item.name,
+            arguments: slot.item.arguments,
+            dataDir,
+            conversationId: ledger.conversationId,
+            browserNames,
+            goalContext: { goals: ledger.goals, currentGoalId: ledger.currentGoalId, turnId: turn.turnId, sourceCallId: slot.item.callId },
+            host,
+            signal: input.signal,
+            pageObservationIds: turn.assembled.pageObservedHistory.map((row) => row.id),
+            defaultTabId: ledger.contextTab?.tabId ?? null,
+            queryContext: args => queryContext({ dataDir, conversationId: ledger.conversationId, repoRoot: input.repoRoot, provider: input.provider, ...args, isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId) }),
+            compressContext: ({ phase }) => compressContext({ dataDir, repoRoot: input.repoRoot, provider: input.provider, ledger, turn,
+              memories: loadMemories(dataDir, ledger.conversationId, ledger.memoryIds),
+              isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId),
+              onStart: () => appendEvent(dataDir, ledger.conversationId, { kind: "compress-start", turnId: turn.turnId, data: { source: "agent", phase } }),
+              onProgress: (progress) => appendEvent(dataDir, ledger.conversationId, { kind: "compress-progress", turnId: turn.turnId, data: { source: "agent", ...progress } }),
+            }, phase),
+            lookup: {
+              knownTools: Object.keys(toolRegistry.tools),
+              enabledTools: [...turn.assembled.toolIds, ...toolRegistry.toolGroups.baseToolsIds],
+              unusedTools: dynamicToolIds(toolRegistry).filter((id) => !turn.assembled.toolIds.includes(id)),
+            },
+          });
+        }
       } catch (error) {
         // A failed tool is evidence for the model to correct its next call. It must
         // pass through the same recording/effect boundary as any normal result.
@@ -292,8 +299,8 @@ const runQueue = async (input: {
         ...(stored.images.length ? { images: stored.images } : {}),
         return: { stage: "complete", totalChars: full.length, text: viewText },
         ...(slot.execCtx.goalId ? { goalId: slot.execCtx.goalId } : {}),
-        ...(slot.execCtx.activePlanId ? { planId: slot.execCtx.activePlanId } : {}),
-        ...(slot.execCtx.activePlanItemId ? { planItemId: slot.execCtx.activePlanItemId } : {}),
+        ...(slot.execCtx.activeTaskId ? { taskId: slot.execCtx.activeTaskId } : {}),
+        ...(slot.execCtx.activeTaskItemId ? { taskItemId: slot.execCtx.activeTaskItemId } : {}),
       };
       ledger.toolIO.push(row);
       const escalation = escalate(ledger.toolIO.filter((r) => r.turnId === turn.turnId), item.name);

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { emptyLedger, saveTurn, ensureSession, saveLedger, loadLedger, stopTurn } from "./store.ts";
+import { emptyLedger, ensureSession, loadLedger, primeActiveTask, saveLedger, saveTurn, stopTurn } from "./store.ts";
 import { allocateRecordId, inputRecord } from "./ids.ts";
 import { contextState, compressContext } from "./context-state.ts";
 import { compressionTurnsFromUserMessage } from "../agents/compression/protocol.ts";
@@ -30,6 +30,7 @@ function seed(dataDir: string, ledger: Ledger, count = 5, big = false) {
 
 test("whole-turn grouping removes covered module increments, retaining current state without protecting recent settled turns", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "context-turns-"));
+    primeActiveTask(dataDir);
   try {
     const ledger = emptyLedger("cv_test"), turns = seed(dataDir, ledger);
     ledger.userInputHistory = turns.map(inputRecord);
@@ -68,8 +69,9 @@ test("whole-turn grouping removes covered module increments, retaining current s
 
 for (const fail of [false, true]) test(`sequential 200K walk archives prefix; failure=${fail} keeps later originals and continues main`, async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "context-boundary-"));
+    primeActiveTask(dataDir);
   try {
-    const session = ensureSession(dataDir), ledger = loadLedger(dataDir, session.conversationId); seed(dataDir, ledger, 5, true); saveLedger(dataDir, ledger);
+    const session = ensureSession(dataDir), ledger = loadLedger(dataDir, session.conversationId); seed(dataDir, ledger, 5, true); saveLedger(dataDir, ledger); primeActiveTask(dataDir);
     let main = 0, aux = 0;
     const provider: Provider = { complete: async input => {
       if (input.tools[0]?.function.name === "submitTurnSummaries") {
@@ -94,8 +96,9 @@ for (const fail of [false, true]) test(`sequential 200K walk archives prefix; fa
 
 test("below 200K no compression request occurs at turn boundary", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "context-below-"));
+    primeActiveTask(dataDir);
   try {
-    const session = ensureSession(dataDir), ledger = loadLedger(dataDir, session.conversationId); seed(dataDir, ledger); saveLedger(dataDir, ledger);
+    const session = ensureSession(dataDir), ledger = loadLedger(dataDir, session.conversationId); seed(dataDir, ledger); saveLedger(dataDir, ledger); primeActiveTask(dataDir);
     const provider: Provider = { complete: async input => { expect(input.tools[0]!.function.name).not.toBe("submitTurnSummaries"); return result({ toolCalls: [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", text: "完成"} }] }); } };
     await handleTurn({ dataDir, repoRoot, provider }, { userInput: "继续", submittedAt: "2026-09-11" });
     expect(loadIndex(dataDir, session.conversationId, "conversationHistory").activeIds).toEqual([]);
@@ -104,8 +107,9 @@ test("below 200K no compression request occurs at turn boundary", async () => {
 
 test("stop during batched compression cannot commit coverage or overwrite paused session", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "context-stop-"));
+    primeActiveTask(dataDir);
   try {
-    const session = ensureSession(dataDir), ledger = loadLedger(dataDir, session.conversationId); seed(dataDir, ledger, 5, true); saveLedger(dataDir, ledger);
+    const session = ensureSession(dataDir), ledger = loadLedger(dataDir, session.conversationId); seed(dataDir, ledger, 5, true); saveLedger(dataDir, ledger); primeActiveTask(dataDir);
     let release!: () => void, started!: () => void;
     const pending = new Promise<void>(resolve => { release = resolve; }), entered = new Promise<void>(resolve => { started = resolve; });
     const provider: Provider = { complete: async input => { started(); await pending; return summaryResponse(input.messages); } };
@@ -119,6 +123,7 @@ test("stop during batched compression cannot commit coverage or overwrite paused
 
 test("long current turn archives older complete batches and keeps input, current goal/page and last two batches", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "context-segment-"));
+    primeActiveTask(dataDir);
   try {
     const ledger = emptyLedger("cv_test"), current = makeTurn(ledger.conversationId, "tn_01");
     current.status = "inferring"; current.output = null; current.completedAt = null; ledger.turnIds = [current.turnId]; ledger.active = { turnId: current.turnId };
@@ -140,6 +145,7 @@ test("long current turn archives older complete batches and keeps input, current
 
 test("segmented turn later closes into one active summary without rearchiving covered module increments", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "context-close-segment-"));
+    primeActiveTask(dataDir);
   try {
     const ledger = emptyLedger("cv_test"), first = makeTurn(ledger.conversationId, "tn_01");
     ledger.turnIds = [first.turnId]; ledger.active = { turnId: first.turnId };
@@ -176,6 +182,7 @@ test("segmented turn later closes into one active summary without rearchiving co
 
 test("200K during a live tool loop compresses older batches before the next main request", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "context-live-boundary-"));
+    primeActiveTask(dataDir);
   try {
     let main = 0, aux = 0;
     // Stay under the 4000 inline gate so accumulation, not a single huge return, fills the window.
@@ -202,6 +209,7 @@ test("200K during a live tool loop compresses older batches before the next main
 
 test("retired query evidence is archived independently of an already-covered tool batch", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "context-retired-query-"));
+    primeActiveTask(dataDir);
   try {
     const ledger = emptyLedger("cv_test"), current = makeTurn(ledger.conversationId, "tn_01");
     ledger.turnIds = [current.turnId]; ledger.active = { turnId: current.turnId };
@@ -237,6 +245,7 @@ test("retired query evidence is archived independently of an already-covered too
 
 test("a later retired query remains archivable after its entire turn is covered", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "context-covered-query-"));
+    primeActiveTask(dataDir);
   try {
     const ledger = emptyLedger("cv_test"); seed(dataDir, ledger);
     const current = makeTurn(ledger.conversationId, "tn_06");

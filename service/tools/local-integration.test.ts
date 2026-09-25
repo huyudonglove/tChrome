@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { handleTurn } from "../runtime/loop.ts";
-import { deleteConversation, loadLedger, newConversation, stopTurn } from "../runtime/store.ts";
+import { deleteConversation, loadLedger, newConversation, primeActiveTask, stopTurn } from "../runtime/store.ts";
 import { LOCAL_TOOL_NAMES, localScope, runLocalTool } from "./local-tools.ts";
 import { abortLocalProcesses } from "./local-process.ts";
 import { dynamicToolIds, loadToolRegistry } from "./registry.ts";
@@ -18,6 +18,7 @@ const response = (name: string, args: Record<string, unknown>): CompletionResult
 
 test("filesystem tools read and write the scripts directory", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-script-fs-"));
+    primeActiveTask(dataDir);
   try {
     expect(await patchScript(dataDir, { filename: "saved.sh", patch: "--- /dev/null\n+++ b/saved.sh\n@@ -0,0 +1 @@\n+printf saved\n" })).toMatchObject({ ok: true });
     const scripts = join(dataDir, "scripts"), saved = join(scripts, "saved.sh");
@@ -33,6 +34,7 @@ test("filesystem tools read and write the scripts directory", async () => {
 
 test("local tools are discoverable and load through the existing catalog before executing in the loop", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-local-loop-"));
+    primeActiveTask(dataDir);
   let step = 0;
   const registry = loadToolRegistry(repoRoot);
   for (const name of LOCAL_TOOL_NAMES) {
@@ -54,7 +56,9 @@ test("local tools are discoverable and load through the existing catalog before 
 
 test("stop and delete terminate only their conversation's local processes even when the turn is idle", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-local-stop-"));
+    primeActiveTask(dataDir);
   const first = newConversation(dataDir).conversationId!;
+    primeActiveTask(dataDir);
   let second = "";
   try {
     expect(await patchScript(dataDir, { filename: "sleep.sh", patch: "--- /dev/null\n+++ b/sleep.sh\n@@ -0,0 +1 @@\n+sleep 30\n" })).toMatchObject({ ok: true });

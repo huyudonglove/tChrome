@@ -58,8 +58,8 @@
 | 14 | toolIO | 是 | toolIO | batch | main + compression |
 | 15 | lastAction | 否 | — | — | main |
 | 16 | activeContext | 否 | — | — | main |
-| 17 | plan | 否 | — | — | main |
-| 18 | planHistory | 是 | planHistory | turn | main + compression |
+| 17 | task | 否 | — | — | main |
+| 18 | taskHistory | 是 | taskHistory | turn | main + compression |
 | 19 | queryHistory | 是 | queryHistory | queryId | main + compression |
 | 20 | currentQuery | 否 | — | — | main |
 | 21 | tools | 否 | — | — | main |

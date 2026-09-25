@@ -1,26 +1,26 @@
-import type { GoalRecord, Ledger, Plan, PlanHistoryRecord, PlanItem, PlanItemStatus, ToolArguments } from "../types.ts";
+import type { GoalRecord, Ledger, Task, TaskHistoryRecord, TaskItem, TaskItemStatus, ToolArguments } from "../types.ts";
 import { allocateRecordId, nowIso } from "./ids.ts";
 import { errorDetail } from "../../shared/error-details.ts";
 
-export type PlanContext = {
+export type TaskContext = {
   ledger: Ledger;
   turnId: string;
   sourceCallId: string;
 };
 
 const historyId = (dataDir: string, conversationId: string) =>
-  allocateRecordId(dataDir, conversationId, "planHistory");
+  allocateRecordId(dataDir, conversationId, "taskHistory");
 
-const planItemId = (dataDir: string, conversationId: string) =>
-  allocateRecordId(dataDir, conversationId, "planItem");
+const taskItemId = (dataDir: string, conversationId: string) =>
+  allocateRecordId(dataDir, conversationId, "taskItem");
 
 const pushHistory = (
   dataDir: string,
   ledger: Ledger,
-  row: Omit<PlanHistoryRecord, "id" | "at"> & { at?: string; turnId?: string },
+  row: Omit<TaskHistoryRecord, "id" | "at"> & { at?: string; turnId?: string },
   turnId: string,
 ): void => {
-  ledger.planHistory.push({
+  ledger.taskHistory.push({
     id: historyId(dataDir, ledger.conversationId),
     at: row.at ?? nowIso(),
     turnId,
@@ -28,71 +28,70 @@ const pushHistory = (
   });
 };
 
-const activeDoing = (plan: Plan): PlanItem | null =>
+const activeDoing = (plan: Task): TaskItem | null =>
   plan.items.find((item) => item.status === "doing") ?? null;
 
-const syncGoalPlanPointers = (ledger: Ledger, goalId: string | null, plan: Plan | null): void => {
+const syncGoalPlanPointers = (ledger: Ledger, goalId: string | null, plan: Task | null): void => {
   if (!goalId) return;
   const goal = ledger.goals.find((row) => row.id === goalId);
   if (!goal) return;
-  goal.planId = plan?.id ?? null;
-  goal.activePlanItemId = plan ? (activeDoing(plan)?.id ?? null) : null;
+  goal.taskId = plan?.id ?? null;
+  goal.activeTaskItemId = plan ? (activeDoing(plan)?.id ?? null) : null;
 };
 
-const ensureSingleDoing = (plan: Plan): void => {
+const ensureSingleDoing = (plan: Task): void => {
   const doing = plan.items.filter((item) => item.status === "doing");
   if (doing.length > 1) {
-    throw new Error(errorDetail("plan_single_doing_conflict", { ids: doing.map((item) => item.id).join(", ") }));
+    throw new Error(errorDetail("task_single_doing_conflict", { ids: doing.map((item) => item.id).join(", ") }));
   }
 };
 
-const setLedgerActive = (ledger: Ledger, plan: Plan | null): void => {
-  ledger.activePlanId = plan && plan.status === "active" ? plan.id : null;
-  ledger.activePlanItemId = plan && plan.status === "active" ? (activeDoing(plan)?.id ?? null) : null;
+const setLedgerActive = (ledger: Ledger, plan: Task | null): void => {
+  ledger.activeTaskId = plan && plan.status === "active" ? plan.id : null;
+  ledger.activeTaskItemId = plan && plan.status === "active" ? (activeDoing(plan)?.id ?? null) : null;
   if (plan) syncGoalPlanPointers(ledger, plan.goalId, plan.status === "active" ? plan : null);
   else if (ledger.currentGoalId) syncGoalPlanPointers(ledger, ledger.currentGoalId, null);
 };
 
-const findPlan = (ledger: Ledger, planId: string): Plan => {
-  const plan = ledger.plans.find((row) => row.id === planId);
-  if (!plan) throw new Error(errorDetail("plan_not_found", { id: planId }));
+const findPlan = (ledger: Ledger, taskId: string): Task => {
+  const plan = ledger.tasks.find((row) => row.id === taskId);
+  if (!plan) throw new Error(errorDetail("task_not_found", { id: taskId }));
   return plan;
 };
 
-const requireGoal = (ledger: Ledger): GoalRecord => {
-  if (!ledger.currentGoalId) throw new Error(errorDetail("plan_need_goal"));
+/** Weak Goal↔Task: Task may stand alone; currentGoalId is only attached when active. */
+const optionalActiveGoalId = (ledger: Ledger): string | null => {
+  if (!ledger.currentGoalId) return null;
   const goal = ledger.goals.find((row) => row.id === ledger.currentGoalId);
-  if (!goal) throw new Error(errorDetail("goal_not_found", { id: ledger.currentGoalId }));
-  if (goal.status !== "active") throw new Error(errorDetail("goal_not_active", { id: goal.id }));
-  return goal;
+  return goal && goal.status === "active" ? goal.id : null;
 };
 
-const touchPlan = (plan: Plan): void => {
+const touchPlan = (plan: Task): void => {
   plan.updatedAt = nowIso();
 };
 
-export function preparePlanSet(dataDir: string, context: PlanContext, args: ToolArguments): {
-  plan: Plan;
+export function prepareTaskSet(dataDir: string, context: TaskContext, args: ToolArguments): {
+  plan: Task;
   replacedPlanId?: string;
-  history: PlanHistoryRecord[];
+  history: TaskHistoryRecord[];
 } {
   const { ledger } = context;
-  const goal = requireGoal(ledger);
+  const linkedGoalId = optionalActiveGoalId(ledger);
   const rawItems = Array.isArray(args.items) ? args.items : [];
-  const items: PlanItem[] = [];
+  const items: TaskItem[] = [];
   const seenDoing: string[] = [];
   rawItems.forEach((raw, index) => {
     const row = (raw ?? {}) as Record<string, unknown>;
     const text = String(row.text ?? "").trim();
-    if (!text) throw new Error(errorDetail("plan_item_text_empty", { index }));
+    if (!text) throw new Error(errorDetail("task_item_text_empty", { index }));
     const status = row.status === "doing" || row.status === "done" ? row.status : "todo";
     if (status === "doing") seenDoing.push(text);
-    const id = planItemId(dataDir, ledger.conversationId);
-    const item: PlanItem = {
+    const id = taskItemId(dataDir, ledger.conversationId);
+    const item: TaskItem = {
       id,
       index,
       text,
-      status: status as PlanItemStatus,
+      status: status as TaskItemStatus,
       createdAt: nowIso(),
     };
     if (typeof row.expectedEffect === "string" && row.expectedEffect.trim()) item.expectedEffect = row.expectedEffect.trim();
@@ -101,93 +100,96 @@ export function preparePlanSet(dataDir: string, context: PlanContext, args: Tool
     if (status === "done") item.completedAt = item.createdAt;
     items.push(item);
   });
-  if (!items.length) throw new Error(errorDetail("plan_set_empty_items"));
+  if (!items.length) throw new Error(errorDetail("task_set_empty_items"));
   if (seenDoing.length > 1) {
-    throw new Error(errorDetail("plan_set_multi_doing_submit", { count: seenDoing.length, texts: seenDoing.join(", ") }));
+    throw new Error(errorDetail("task_set_multi_doing_submit", { count: seenDoing.length, texts: seenDoing.join(", ") }));
   }
 
-  const previous = goal.planId ? ledger.plans.find((row) => row.id === goal.planId && row.status === "active") : undefined;
+  // Replace whatever active task exists (goal-bound or standalone), not only goal.taskId.
+  const previous = ledger.activeTaskId
+    ? ledger.tasks.find((row) => row.id === ledger.activeTaskId && row.status === "active")
+    : undefined;
   let replacedPlanId: string | undefined;
-  const history: PlanHistoryRecord[] = [];
+  const history: TaskHistoryRecord[] = [];
   if (previous) {
     replacedPlanId = previous.id;
     previous.status = "cancelled";
     previous.updatedAt = nowIso();
     touchPlan(previous);
     const record = {
-      planId: previous.id,
-      goalId: previous.goalId,
-      type: "plan_cancelled" as const,
+      taskId: previous.id,
+      goalId: previous.goalId ?? "",
+      type: "task_cancelled" as const,
       reason: "replaced",
       before: { status: "active" },
       after: { status: "cancelled" },
     };
     pushHistory(dataDir, ledger, record, context.turnId);
-    history.push(ledger.planHistory.at(-1)!);
+    history.push(ledger.taskHistory.at(-1)!);
   }
 
-  const planId = allocateRecordId(dataDir, ledger.conversationId, "plan");
+  const taskId = allocateRecordId(dataDir, ledger.conversationId, "task");
   const now = nowIso();
-  const plan: Plan = {
-    id: planId,
-    goalId: goal.id,
+  const plan: Task = {
+    id: taskId,
+    goalId: linkedGoalId,
     status: "active",
     items,
     createdAt: now,
     updatedAt: now,
     ...(typeof args.title === "string" && args.title.trim() ? { title: args.title.trim() } : {}),
   };
-  ledger.plans.push(plan);
+  ledger.tasks.push(plan);
   pushHistory(dataDir, ledger, {
-    planId: plan.id,
-    goalId: plan.goalId,
-    type: "plan_created",
+    taskId: plan.id,
+    goalId: plan.goalId ?? "",
+    type: "task_created",
     after: { title: plan.title ?? null, itemCount: plan.items.length },
     ...(replacedPlanId ? { reason: `replaced:${replacedPlanId}` } : {}),
   }, context.turnId);
-  history.push(ledger.planHistory.at(-1)!);
+  history.push(ledger.taskHistory.at(-1)!);
   const doing = activeDoing(plan);
   if (doing) {
     pushHistory(dataDir, ledger, {
-      planId: plan.id,
-      goalId: plan.goalId,
-      planItemId: doing.id,
+      taskId: plan.id,
+      goalId: plan.goalId ?? "",
+      taskItemId: doing.id,
       type: "item_started",
       after: { status: "doing" },
     }, context.turnId);
-    history.push(ledger.planHistory.at(-1)!);
+    history.push(ledger.taskHistory.at(-1)!);
   }
   setLedgerActive(ledger, plan);
   return { plan, ...(replacedPlanId ? { replacedPlanId } : {}), history };
 }
 
-export function preparePlanUpdate(dataDir: string, context: PlanContext, args: ToolArguments): {
-  plan: Plan;
-  history: PlanHistoryRecord[];
+export function prepareTaskUpdate(dataDir: string, context: TaskContext, args: ToolArguments): {
+  plan: Task;
+  history: TaskHistoryRecord[];
 } {
   const { ledger } = context;
-  const planId = typeof args.planId === "string" && args.planId.trim() ? args.planId.trim() : ledger.activePlanId;
-  if (!planId) throw new Error(errorDetail("plan_update_need_active"));
-  const plan = findPlan(ledger, planId);
-  if (plan.status !== "active") throw new Error(errorDetail("plan_update_terminal", { id: plan.id }));
+  const taskId = typeof args.taskId === "string" && args.taskId.trim() ? args.taskId.trim() : ledger.activeTaskId;
+  if (!taskId) throw new Error(errorDetail("task_update_need_active"));
+  const plan = findPlan(ledger, taskId);
+  if (plan.status !== "active") throw new Error(errorDetail("task_update_terminal", { id: plan.id }));
   if (args.goalId !== undefined && args.goalId !== plan.goalId) {
-    throw new Error(errorDetail("plan_update_goal_mismatch"));
+    throw new Error(errorDetail("task_update_goal_mismatch"));
   }
 
   const raw = Array.isArray(args.items) ? args.items : [];
-  if (!raw.length) throw new Error(errorDetail("plan_update_empty_items"));
+  if (!raw.length) throw new Error(errorDetail("task_update_empty_items"));
   const patches = raw.map((entry, i) => {
     const row = (entry ?? {}) as Record<string, unknown>;
     const itemId = typeof row.id === "string" && row.id.trim() ? row.id.trim() : "";
-    if (!itemId) throw new Error(errorDetail("plan_update_need_item_id", { index: i }));
-    if (row.planId !== undefined && row.planId !== plan.id) {
-      throw new Error(errorDetail("plan_update_plan_mismatch"));
+    if (!itemId) throw new Error(errorDetail("task_update_need_item_id", { index: i }));
+    if (row.taskId !== undefined && row.taskId !== plan.id) {
+      throw new Error(errorDetail("task_update_plan_mismatch"));
     }
     if (row.goalId !== undefined && row.goalId !== plan.goalId) {
-      throw new Error(errorDetail("plan_update_goal_id_mismatch"));
+      throw new Error(errorDetail("task_update_goal_id_mismatch"));
     }
     const status = row.status === "todo" || row.status === "doing" || row.status === "done"
-      ? row.status as PlanItemStatus
+      ? row.status as TaskItemStatus
       : undefined;
     const text = typeof row.text === "string" && row.text.trim() ? row.text.trim() : undefined;
     const expectedEffect = typeof row.expectedEffect === "string" && row.expectedEffect.trim()
@@ -200,16 +202,16 @@ export function preparePlanUpdate(dataDir: string, context: PlanContext, args: T
       ? row.blockedReason.trim()
       : undefined;
     if (!status && text === undefined && expectedEffect === undefined && verification === undefined && blockedReason === undefined) {
-      throw new Error(errorDetail("plan_update_patch_empty", { index: i }));
+      throw new Error(errorDetail("task_update_patch_empty", { index: i }));
     }
     return { itemId, status, text, expectedEffect, verification, blockedReason };
   });
 
-  const working = structuredClone(plan) as Plan;
-  const history: PlanHistoryRecord[] = [];
+  const working = structuredClone(plan) as Task;
+  const history: TaskHistoryRecord[] = [];
   for (const patch of patches) {
     const item = working.items.find((row) => row.id === patch.itemId);
-    if (!item) throw new Error(errorDetail("plan_item_missing", { id: patch.itemId, planId: plan.id }));
+    if (!item) throw new Error(errorDetail("task_item_missing", { id: patch.itemId, taskId: plan.id }));
     const before = structuredClone(item);
     const now = nowIso();
     if (patch.text !== undefined) item.text = patch.text;
@@ -219,12 +221,12 @@ export function preparePlanUpdate(dataDir: string, context: PlanContext, args: T
     if (patch.blockedReason !== undefined) item.blockedReason = patch.blockedReason;
     if (patch.status !== undefined && patch.status !== item.status) {
       if (item.status === "done" && patch.status !== "done") {
-        throw new Error(errorDetail("plan_item_done_no_rollback", { id: item.id }));
+        throw new Error(errorDetail("task_item_done_no_rollback", { id: item.id }));
       }
       if (patch.status === "doing") {
         const other = working.items.find((row) => row.status === "doing" && row.id !== item.id);
         if (other) {
-          throw new Error(errorDetail("plan_multi_doing_update", { a: other.id, b: item.id }));
+          throw new Error(errorDetail("task_multi_doing_update", { a: other.id, b: item.id }));
         }
         item.status = "doing";
         item.startedAt ??= now;
@@ -250,92 +252,92 @@ export function preparePlanUpdate(dataDir: string, context: PlanContext, args: T
         ? "item_completed" as const
         : "item_updated" as const;
     pushHistory(dataDir, ledger, {
-      planId: working.id,
-      goalId: working.goalId,
-      planItemId: item.id,
+      taskId: working.id,
+      goalId: working.goalId ?? "",
+      taskItemId: item.id,
       type,
       before,
       after: structuredClone(item),
       ...(item.blockedReason ? { reason: item.blockedReason } : {}),
     }, context.turnId);
-    history.push(ledger.planHistory.at(-1)!);
+    history.push(ledger.taskHistory.at(-1)!);
   }
   ensureSingleDoing(working);
-  const index = ledger.plans.findIndex((row) => row.id === working.id);
-  ledger.plans[index] = working;
+  const index = ledger.tasks.findIndex((row) => row.id === working.id);
+  ledger.tasks[index] = working;
   setLedgerActive(ledger, working);
   return { plan: working, history };
 }
 
-export function preparePlanComplete(dataDir: string, context: PlanContext, args: ToolArguments): {
-  plan: Plan;
-  history: PlanHistoryRecord[];
+export function prepareTaskComplete(dataDir: string, context: TaskContext, args: ToolArguments): {
+  plan: Task;
+  history: TaskHistoryRecord[];
 } {
   const { ledger } = context;
-  const planId = typeof args.planId === "string" && args.planId.trim() ? args.planId.trim() : ledger.activePlanId;
-  if (!planId) throw new Error(errorDetail("plan_complete_need_active"));
-  const plan = findPlan(ledger, planId);
+  const taskId = typeof args.taskId === "string" && args.taskId.trim() ? args.taskId.trim() : ledger.activeTaskId;
+  if (!taskId) throw new Error(errorDetail("task_complete_need_active"));
+  const plan = findPlan(ledger, taskId);
   if (plan.status === "completed") return { plan, history: [] };
-  if (plan.status === "cancelled") throw new Error(errorDetail("plan_complete_cancelled", { id: plan.id }));
+  if (plan.status === "cancelled") throw new Error(errorDetail("task_complete_cancelled", { id: plan.id }));
   const unfinished = plan.items.filter((item) => item.status !== "done");
   if (unfinished.length) {
-    throw new Error(errorDetail("plan_complete_unfinished", { ids: unfinished.map((item) => item.id).join(", ") }));
+    throw new Error(errorDetail("task_complete_unfinished", { ids: unfinished.map((item) => item.id).join(", ") }));
   }
   const before = { status: plan.status };
   plan.status = "completed";
   plan.completedAt = nowIso();
   touchPlan(plan);
   pushHistory(dataDir, ledger, {
-    planId: plan.id,
-    goalId: plan.goalId,
-    type: "plan_completed",
+    taskId: plan.id,
+    goalId: plan.goalId ?? "",
+    type: "task_completed",
     before,
     after: { status: "completed" },
     ...(typeof args.reason === "string" && args.reason.trim() ? { reason: args.reason.trim() } : {}),
   }, context.turnId);
   setLedgerActive(ledger, plan);
-  if (ledger.activePlanId === plan.id) {
-    ledger.activePlanId = null;
-    ledger.activePlanItemId = null;
+  if (ledger.activeTaskId === plan.id) {
+    ledger.activeTaskId = null;
+    ledger.activeTaskItemId = null;
     syncGoalPlanPointers(ledger, plan.goalId, null);
   }
-  return { plan, history: [ledger.planHistory.at(-1)!] };
+  return { plan, history: [ledger.taskHistory.at(-1)!] };
 }
 
-export function endPlansForGoal(dataDir: string, ledger: Ledger, goal: GoalRecord, reason: "goal_ended" | "replaced", turnId: string): void {
-  const open = ledger.plans.filter((row) => row.goalId === goal.id && row.status === "active");
+export function endTasksForGoal(dataDir: string, ledger: Ledger, goal: GoalRecord, reason: "goal_ended" | "replaced", turnId: string): void {
+  const open = ledger.tasks.filter((row) => row.goalId === goal.id && row.status === "active");
   for (const plan of open) {
     plan.status = "cancelled";
     plan.updatedAt = nowIso();
     pushHistory(dataDir, ledger, {
-      planId: plan.id,
-      goalId: plan.goalId,
-      type: "plan_cancelled",
+      taskId: plan.id,
+      goalId: plan.goalId ?? "",
+      type: "task_cancelled",
       reason,
       before: { status: "active" },
       after: { status: "cancelled" },
     }, turnId);
   }
-  goal.planId = null;
-  goal.activePlanItemId = null;
-  if (ledger.activePlanId && open.some((row) => row.id === ledger.activePlanId)) {
-    ledger.activePlanId = null;
-    ledger.activePlanItemId = null;
+  goal.taskId = null;
+  goal.activeTaskItemId = null;
+  if (ledger.activeTaskId && open.some((row) => row.id === ledger.activeTaskId)) {
+    ledger.activeTaskId = null;
+    ledger.activeTaskItemId = null;
   }
 }
 
 function appendGoalTerminalHistory(dataDir: string, ledger: Ledger, goal: GoalRecord, turnId: string): void {
   if (goal.status === "active") return;
-  const planId = goal.planId
-    ?? [...ledger.plans].reverse().find((row) => row.goalId === goal.id)?.id;
-  if (!planId) return;
+  const taskId = goal.taskId
+    ?? [...ledger.tasks].reverse().find((row) => row.goalId === goal.id)?.id;
+  if (!taskId) return;
   const type = goal.status === "completed" ? "goal_completed" : "goal_cancelled";
-  const exists = ledger.planHistory.some((row) =>
+  const exists = ledger.taskHistory.some((row) =>
     row.goalId === goal.id && row.type === type && row.after !== undefined &&
     (row.after as { status?: string } | undefined)?.status === goal.status);
   if (exists) return;
   pushHistory(dataDir, ledger, {
-    planId,
+    taskId,
     goalId: goal.id,
     type,
     after: { status: goal.status },
@@ -346,29 +348,23 @@ export function afterGoalSwitch(dataDir: string, ledger: Ledger, previousGoalId:
   if (previousGoalId && previousGoalId !== nextGoalId) {
     const previous = ledger.goals.find((row) => row.id === previousGoalId);
     if (previous && previous.status !== "active") {
-      endPlansForGoal(dataDir, ledger, previous, "goal_ended", turnId);
+      endTasksForGoal(dataDir, ledger, previous, "goal_ended", turnId);
       appendGoalTerminalHistory(dataDir, ledger, previous, turnId);
     }
   }
-  if (!nextGoalId) {
-    ledger.activePlanId = null;
-    ledger.activePlanItemId = null;
-    return;
-  }
+  // Weak link: goal switches never clear a standalone (goalId=null) active task.
+  // Only retarget when the next active goal has its own bound task.
+  if (!nextGoalId) return;
   const next = ledger.goals.find((row) => row.id === nextGoalId);
-  if (!next || next.status !== "active") {
-    ledger.activePlanId = null;
-    ledger.activePlanItemId = null;
-    return;
-  }
-  const plan = next.planId ? ledger.plans.find((row) => row.id === next.planId && row.status === "active") : undefined;
-  setLedgerActive(ledger, plan ?? null);
+  if (!next || next.status !== "active") return;
+  const plan = next.taskId ? ledger.tasks.find((row) => row.id === next.taskId && row.status === "active") : undefined;
+  if (plan) setLedgerActive(ledger, plan);
 }
 
-/** Goal terminal transition: cancel open plans then append goal history. */
+/** Goal terminal transition: cancel open tasks then append goal history. */
 export function onGoalStatusChange(dataDir: string, ledger: Ledger, previous: GoalRecord | undefined, record: GoalRecord, turnId: string): void {
   if (previous && previous.status === "active" && record.status !== "active") {
-    endPlansForGoal(dataDir, ledger, record, "goal_ended", turnId);
+    endTasksForGoal(dataDir, ledger, record, "goal_ended", turnId);
     appendGoalTerminalHistory(dataDir, ledger, record, turnId);
   } else if (!previous && record.status !== "active") {
     appendGoalTerminalHistory(dataDir, ledger, record, turnId);
@@ -378,7 +374,7 @@ export function onGoalStatusChange(dataDir: string, ledger: Ledger, previous: Go
 export function executionContext(ledger: Ledger): RuntimeExecutionContext {
   return {
     goalId: ledger.currentGoalId,
-    activePlanId: ledger.activePlanId,
-    activePlanItemId: ledger.activePlanItemId,
+    activeTaskId: ledger.activeTaskId,
+    activeTaskItemId: ledger.activeTaskItemId,
   };
 }

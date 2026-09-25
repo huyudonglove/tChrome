@@ -44,7 +44,7 @@ User
 | 已结束轮反思历史、handover 来源 | `<reflectHistory>` |
 | 上一批摘要 | `<lastAction>` |
 | 当前因果脊椎（Goal / 步骤 / 主标签 / 实体 / 承接） | `<activeContext>` |
-| 计划 set/update/complete、自动关联 | `<plan>` |
+| 计划 set/update/complete、自动关联 | `<task>` |
 | 查询字段与 status | `<currentQuery>` |
 | 网页观察等常驻技能 | `<systemSkill>` |
 | 动态技能正文 | `<skill>` |
@@ -98,8 +98,8 @@ User
 - <toolIO>：工具调用骨架与返回。
 - <lastAction>：上一批工具摘要。
 - <activeContext>：目标 / 步骤 / 主标签 / 实体 / 承接意图的单屏脊椎。
-- <plan>：当前 Goal 的持久化执行计划（含 activePlanId / activePlanItemId）。
-- <planHistory>：计划事件历史（只读追加，随 turn 压缩）。
+- <task>：当前 Goal 的持久化执行任务（含 activeTaskId / activeTaskItemId）。
+- <taskHistory>：任务事件历史（只读追加，随 turn 压缩）。
 - <queryHistory>：历史查询。
 - <currentQuery>：最近一次查询原文（含 turnId）。
 - <tools>：本会话已加载的动态工具。
@@ -314,7 +314,7 @@ Sample（文本格式，仅示例）：
 能力：【Active Context Spine】
 
 详细描述：
-单屏因果脊椎：把当前 Goal、正在做的 PlanItem、主操作标签、关键实体与承接意图合成一份紧凑视图。Runtime 装配期纯计算生成。activePlanItem 取 doing 否则第一个 todo；focus 优先最近两批工具/观察的高频 tabId；activeEntities 来自 notes；handoverIntent 取本轮 reflect 否则步骤 text。
+单屏因果脊椎：把当前 Goal、正在做的 TaskItem、主操作标签、关键实体与承接意图合成一份紧凑视图。Runtime 装配期纯计算生成。activeTaskItem 取 doing 否则第一个 todo；focus 优先最近两批工具/观察的高频 tabId；activeEntities 来自 notes；handoverIntent 取本轮 reflect 否则步骤 text。
 
 内容：
 {{data}}
@@ -324,15 +324,15 @@ Sample（文本格式，仅示例）：
 ### plan
 
 ```xml
-<plan>
-能力：【Persistent Execution Plan】
+<task>
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留。用 plan.set 创建或替换，plan.update 按稳定 itemId 更新，plan.complete 在全部 done 后收口。同一 Plan 至多一个 doing。工具成功不等于 done。Runtime 自动关联 goalId/planId/activePlanItemId。Plan 完成不等于 Goal 完成。
+当前 Goal 的持久化执行任务。跨 turn 保留。用 task.set 创建或替换，task.update 按稳定 itemId 更新，task.complete 在全部 done 后收口。同一 Task 至多一个 doing。工具成功不等于 done。Runtime 自动关联 goalId/taskId/activeTaskItemId。Task 完成不等于 Goal 完成。
 
 内容：
 {{data}}
-</plan>
+</task>
 ```
 
 ### currentQuery

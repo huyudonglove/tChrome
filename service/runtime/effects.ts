@@ -4,7 +4,7 @@ import { deleteMemory, saveMemory, updateMemory } from "../memory/store.ts";
 import type { Ledger, MemoryRecord, RuntimeExecutionContext, ToolQueueItem, Turn, TurnOutput } from "../types.ts";
 import type { ToolEffect } from "../tools/effects.ts";
 import { allocateRecordId, nowIso } from "./ids.ts";
-import { afterGoalSwitch, onGoalStatusChange, preparePlanComplete, preparePlanSet, preparePlanUpdate } from "./plans.ts";
+import { afterGoalSwitch, onGoalStatusChange, prepareTaskComplete, prepareTaskSet, prepareTaskUpdate } from "./tasks.ts";
 import { join } from "node:path";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { appendEvent, paths, saveLedger, saveTurn } from "./store.ts";
@@ -50,8 +50,8 @@ export function applyToolEffects(input: {
   })();
   const execCtx = input.execCtx ?? {
     goalId: ledger.currentGoalId,
-    activePlanId: ledger.activePlanId,
-    activePlanItemId: ledger.activePlanItemId,
+    activeTaskId: ledger.activeTaskId,
+    activeTaskItemId: ledger.activeTaskItemId,
   };
   let output: TurnOutput | null = null;
   for (const effect of effects) {
@@ -77,23 +77,23 @@ export function applyToolEffects(input: {
       }
       case "note.write": ledger.notes[effect.key] = effect.value; break;
       case "note.delete": delete ledger.notes[effect.key]; break;
-      case "plan.set": {
-        preparePlanSet(dataDir, { ledger, turnId: turn.turnId, sourceCallId: call.callId }, {
+      case "task.set": {
+        prepareTaskSet(dataDir, { ledger, turnId: turn.turnId, sourceCallId: call.callId }, {
           title: effect.title,
           items: effect.items,
         });
         break;
       }
-      case "plan.update": {
-        preparePlanUpdate(dataDir, { ledger, turnId: turn.turnId, sourceCallId: call.callId }, {
-          planId: effect.planId,
+      case "task.update": {
+        prepareTaskUpdate(dataDir, { ledger, turnId: turn.turnId, sourceCallId: call.callId }, {
+          taskId: effect.taskId,
           items: effect.items,
         });
         break;
       }
-      case "plan.complete": {
-        preparePlanComplete(dataDir, { ledger, turnId: turn.turnId, sourceCallId: call.callId }, {
-          planId: effect.planId,
+      case "task.complete": {
+        prepareTaskComplete(dataDir, { ledger, turnId: turn.turnId, sourceCallId: call.callId }, {
+          taskId: effect.taskId,
           reason: effect.reason,
         });
         break;
@@ -187,8 +187,8 @@ export function applyToolEffects(input: {
           // Keep the lightweight image reference in both the window projection and archive.
           result,
           ...(execCtx.goalId ? { goalId: execCtx.goalId } : {}),
-          ...(execCtx.activePlanId ? { planId: execCtx.activePlanId } : {}),
-          ...(execCtx.activePlanItemId ? { planItemId: execCtx.activePlanItemId } : {}),
+          ...(execCtx.activeTaskId ? { taskId: execCtx.activeTaskId } : {}),
+          ...(execCtx.activeTaskItemId ? { taskItemId: execCtx.activeTaskItemId } : {}),
         };
         saveContextRecord(dataDir, ledger.conversationId, "pageObservation", record);
         // A1: retrieval copy is line-wrapped on disk; structured JSON archive stays intact.

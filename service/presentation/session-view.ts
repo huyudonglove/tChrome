@@ -27,11 +27,11 @@ export type SessionView = {
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
   liveTools: { name: string; callId: string; reason?: string }[];
   activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null; completed: number; total: number | null } | null;
-  plan: {
+  task: {
     currentGoalId: string | null;
-    activePlanId: string | null;
-    activePlanItemId: string | null;
-    plan: {
+    activeTaskId: string | null;
+    activeTaskItemId: string | null;
+    task: {
       id: string;
       goalId: string;
       title?: string;
@@ -141,19 +141,19 @@ export function projectSessionView({ ledger, events, turns }: {
     pendingAsk = { turnId: ledger.pendingAsk.turnId, question: ledger.pendingAsk.question, choice };
   }
   return { conversationId: ledger.conversationId, status: ledger.status, pendingAsk, liveTools: ledger.liveTools,
-    activity: compressionActivity(ledger, events), plan: planView(ledger), messages };
+    activity: compressionActivity(ledger, events), task: taskView(ledger), messages };
 }
 
-const planView = (ledger: Ledger): SessionView["plan"] => {
-  const plan = ledger.activePlanId ? ledger.plans.find((row) => row.id === ledger.activePlanId) ?? null : null;
+const taskView = (ledger: Ledger): SessionView["task"] => {
+  const plan = ledger.activeTaskId ? ledger.tasks.find((row) => row.id === ledger.activeTaskId) ?? null : null;
   return {
     currentGoalId: ledger.currentGoalId,
-    activePlanId: ledger.activePlanId,
-    activePlanItemId: ledger.activePlanItemId,
-    plan: plan
+    activeTaskId: ledger.activeTaskId,
+    activeTaskItemId: ledger.activeTaskItemId,
+    task: plan
       ? {
         id: plan.id,
-        goalId: plan.goalId,
+        goalId: plan.goalId ?? "",
         ...(plan.title ? { title: plan.title } : {}),
         status: plan.status,
         items: plan.items.map((item) => ({
@@ -169,7 +169,7 @@ const planView = (ledger: Ledger): SessionView["plan"] => {
 
 export const emptySessionView = (): SessionView => ({
   conversationId: null, status: "idle", pendingAsk: null, liveTools: [], activity: null,
-  plan: { currentGoalId: null, activePlanId: null, activePlanItemId: null, plan: null },
+  task: { currentGoalId: null, activeTaskId: null, activeTaskItemId: null, task: null },
   messages: [],
 });
 

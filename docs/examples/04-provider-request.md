@@ -53,9 +53,9 @@
     "page.select_role",
     "page.click_text",
     "page.fill_submit",
-    "plan.set",
-    "plan.update",
-    "plan.complete",
+    "task.set",
+    "task.update",
+    "task.complete",
     "page.recheck",
     "page.assert",
     "tab.context",
@@ -217,7 +217,7 @@ SDK 写法：`client.chat.completions.create({ model, messages, tools, stream: f
 - <reflection>：本轮反思列表（reflect.write / reflect.delete，rf_ 编号）。
 - <toolIO>：工具调用骨架与返回。
 - <lastAction>：上一批工具摘要。
-- <plan>：当前 Goal 的持久化执行计划（含 activePlanId / activePlanItemId）。
+- <plan>：当前 Goal 的持久化执行任务（含 activeTaskId / activeTaskItemId）。
 - <queryHistory>：历史查询。
 - <currentQuery>：最近一次查询原文（含 turnId）。
 - <tools>：本会话已加载的动态工具。
@@ -296,9 +296,9 @@ Runtime 在每次请求我之前装配上下文，并管理发送预算。System
 | 用户输入记录 | input_01 | 会话 |
 | 总目标（稳定 ID） | goal_01 | 会话 |
 | 子目标（parentId 关联总目标） | subgoal_01 | 会话 |
-| 执行计划 | plan_01 | 会话 |
-| 计划步骤 | item_01 | 会话 |
-| 计划事件历史 | ph_01 | 会话 |
+| 执行任务 | plan_01 | 会话 |
+| 任务步骤 | item_01 | 会话 |
+| 任务事件历史 | ph_01 | 会话 |
 | 页面观察 | page_01 | 会话 |
 | 工具调用；sourceCallId 引用此 ID | call_01 | 会话 |
 | 一次模型返回的调用批次 | batch_01 | 会话 |
@@ -413,7 +413,7 @@ Sample（仅示例）：
 能力：【Resident Tools, Task Management】
 
 详细描述：
-这些工具一直可用，用于管理目标、笔记、记忆、页面观察、上下文检索、执行计划，以及浏览器主链路（打开、概况、列元素、点击、输入）、动态工具发现与加载，以及向用户提问、提交最终答复。动态能力的大类导航见 <environment>。下面列出用途，具体参数和返回格式见 tools[]。
+这些工具一直可用，用于管理目标、笔记、记忆、页面观察、上下文检索、执行任务，以及浏览器主链路（打开、概况、列元素、点击、输入）、动态工具发现与加载，以及向用户提问、提交最终答复。动态能力的大类导航见 <environment>。下面列出用途，具体参数和返回格式见 tools[]。
 
 - askUser：向用户提问。
 - finishTurn：结束本轮对话。
@@ -445,9 +445,9 @@ Sample（仅示例）：
 - page.select_role：复合：A11y 定位下拉（role±name）→ combo.select(value)。
 - page.click_text：复合：按控件可见文字定位（find_on_page）→ 点击 → 可选等待。
 - page.fill_submit：复合：按 fields 逐项「A11y 定位 + 输入」，再点击提交按钮，可选等待响应/文本。
-- plan.set：为当前 Goal 创建或替换持久化执行计划（Plan）。
-- plan.update：按稳定 itemId 更新当前 Plan 步骤。
-- plan.complete：将当前 Plan 标为 completed。
+- task.set：为当前 Goal 创建或替换持久化执行任务（Task）。
+- task.update：按稳定 itemId 更新当前 Task 步骤。
+- task.complete：将当前 Task 标为 completed。
 - page.recheck：轻量只读复验（不作为断言）。
 - page.assert：断言页面条件（只读）。
 - tab.context：设置/读取/清除默认 tabId（唯一「记住标签」的工具）。
@@ -1651,20 +1651,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -2218,20 +2218,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -2833,20 +2833,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -3448,20 +3448,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -3953,20 +3953,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -4458,20 +4458,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -4963,20 +4963,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -5644,20 +5644,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -6336,20 +6336,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -7028,20 +7028,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -7780,20 +7780,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -8508,20 +8508,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -9236,20 +9236,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -9958,20 +9958,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -10680,20 +10680,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -11402,20 +11402,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -12124,20 +12124,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -12846,20 +12846,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -13568,20 +13568,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -14290,20 +14290,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -15012,20 +15012,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -15734,20 +15734,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -16456,20 +16456,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -17178,20 +17178,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -17900,20 +17900,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -18622,20 +18622,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -19339,20 +19339,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -20034,20 +20034,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -20729,20 +20729,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -21424,20 +21424,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -22119,20 +22119,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -22814,20 +22814,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -23500,20 +23500,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -24186,20 +24186,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -24872,20 +24872,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -25558,20 +25558,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -26244,20 +26244,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -26930,20 +26930,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -27487,20 +27487,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -28044,20 +28044,20 @@ null
 </lastAction>
 
 <plan>
-能力：【Persistent Execution Plan】
+能力：【Persistent Execution Task】
 
 详细描述：
-当前 Goal 的持久化执行计划。跨 turn 保留，不随本轮结束清空。无活动 Plan 时为 null。
-用 plan.set 在当前 Goal 下创建或替换 Plan；plan.update 按稳定 itemId 更新步骤；plan.complete 在全部 done 后收口 Plan。
-同一 Plan 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
-Runtime 自动把工具与观察关联到 goalId/planId/activePlanItemId，不要伪造这些 ID。
-Plan 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activePlanId / activePlanItemId。
+当前 Goal 的持久化执行任务。跨 turn 保留，不随本轮结束清空。无活动 Task 时为 null。
+用 task.set 在当前 Goal 下创建或替换 Task；task.update 按稳定 itemId 更新步骤；task.complete 在全部 done 后收口 Task。
+同一 Task 至多一个 doing。工具成功不等于 done，须验证通过后再标 done；验证失败保持 doing 并写 blockedReason。
+Runtime 自动把工具与观察关联到 goalId/taskId/activeTaskItemId，不要伪造这些 ID。
+Task 全部完成不等于 Goal 完成；Goal 仍须最终验收后再 submitGoal。当前指针见 currentGoalId / activeTaskId / activeTaskItemId。
 
 内容：
 {
   "currentGoalId": null,
-  "activePlanId": null,
-  "activePlanItemId": null,
+  "activeTaskId": null,
+  "activeTaskItemId": null,
   "plan": null
 }
 </plan>
@@ -28500,9 +28500,9 @@ Sample（文本格式，仅示例）：
     "page.select_role",
     "page.click_text",
     "page.fill_submit",
-    "plan.set",
-    "plan.update",
-    "plan.complete",
+    "task.set",
+    "task.update",
+    "task.complete",
     "page.recheck",
     "page.assert",
     "tab.context",

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createToolBridge } from "./bridge.ts";
 import { handleTurn } from "./loop.ts";
-import { deleteConversation, emptyLedger, loadLedger, loadTurn, newConversation, saveLedger, saveSession, stopTurn } from "./store.ts";
+import { deleteConversation, emptyLedger, loadLedger, loadTurn, newConversation, primeActiveTask, saveLedger, saveSession, stopTurn } from "./store.ts";
 import type { CompletionResult, Provider } from "../types.ts";
 
 const repoRoot = join(import.meta.dir, "../..");
@@ -14,6 +14,7 @@ const completed: CompletionResult = { finish: "tool_calls", content: "", attempt
 
 test("deleting a running conversation cannot reuse its identity or overwrite its replacement", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-lifecycle-"));
+    primeActiveTask(dataDir);
   const releases: ((result: CompletionResult) => void)[] = [];
   const provider: Provider = { complete: () => new Promise((resolve) => { releases.push(resolve); }) };
   const deps = { dataDir, repoRoot, provider };
@@ -29,6 +30,7 @@ test("deleting a running conversation cannot reuse its identity or overwrite its
     releases[1]!(completed);
     expect((await next).output).toEqual({ kind: "reply", text: "结果" });
     expect(newConversation(dataDir).conversationId).toBe("cv_03");
+    primeActiveTask(dataDir);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
@@ -52,10 +54,12 @@ test("loop scopes bridge requests so stopping a queued conversation leaves the a
     : completed };
   const deps = { dataDir, repoRoot, provider, host: { ...bridge, forScope: (scope: string) => ({ ...bridge.forScope!(scope), readOpenTabs: async () => ({ ok: true as const, windows: [] }) }) } };
   try {
+    primeActiveTask(dataDir);
     const first = handleTurn(deps, { userInput: "FIRST", submittedAt: "now" });
     await Bun.sleep(0);
     const activeId = bridge.list()[0]!.id;
     newConversation(dataDir);
+    primeActiveTask(dataDir);
     const second = handleTurn(deps, { userInput: "SECOND", submittedAt: "now" });
     await Bun.sleep(0);
     expect(bridge.list()[0]!.id).toBe(activeId);

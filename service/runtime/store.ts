@@ -76,10 +76,10 @@ export function emptyLedger(conversationId: string): Ledger {
     reflectHistory: [],
     goals: [],
     currentGoalId: null,
-    plans: [],
-    planHistory: [],
-    activePlanId: null,
-    activePlanItemId: null,
+    tasks: [],
+    taskHistory: [],
+    activeTaskId: null,
+    activeTaskItemId: null,
     toolQueue: [],
     liveTools: [],
     toolIO: [],
@@ -94,13 +94,13 @@ export function emptyLedger(conversationId: string): Ledger {
   };
 }
 
-/** Additive v2 load: keep prior goals/history; default Plan pointers. */
+/** Additive v2 load: keep prior goals/history; default Task pointers. */
 function normalizeLedger(raw: Partial<Ledger> & { conversationId?: string }, conversationId: string): Ledger {
   const base = emptyLedger(conversationId);
   const goals = (raw.goals ?? []).map((goal) => ({
     ...goal,
-    planId: goal.planId ?? null,
-    activePlanItemId: goal.activePlanItemId ?? null,
+    taskId: goal.taskId ?? null,
+    activeTaskItemId: goal.activeTaskItemId ?? null,
   }));
   return {
     ...base,
@@ -110,10 +110,10 @@ function normalizeLedger(raw: Partial<Ledger> & { conversationId?: string }, con
     goals,
     userInputHistory: raw.userInputHistory ?? [],
     reflectHistory: raw.reflectHistory ?? [],
-    plans: raw.plans ?? [],
-    planHistory: raw.planHistory ?? [],
-    activePlanId: raw.activePlanId ?? null,
-    activePlanItemId: raw.activePlanItemId ?? null,
+    tasks: raw.tasks ?? [],
+    taskHistory: raw.taskHistory ?? [],
+    activeTaskId: raw.activeTaskId ?? null,
+    activeTaskItemId: raw.activeTaskItemId ?? null,
     loadedSkillIds: raw.loadedSkillIds ?? [],
   };
 }
@@ -126,6 +126,28 @@ export function loadLedger(dataDir: string, cvId: string): Ledger {
 export function saveLedger(dataDir: string, ledger: Ledger): void {
   ledger.updatedAt = nowIso();
   writeJson(paths(dataDir, ledger.conversationId).ledger, ledger);
+}
+
+/** Ensure a conversation has an active standalone Task so non-exempt tools can run (tests / fixtures). */
+export function primeActiveTask(dataDir: string): void {
+  const session = ensureSession(dataDir);
+  const ledger = loadLedger(dataDir, session.conversationId);
+  if (ledger.activeTaskId) return;
+  const now = nowIso();
+  const id = "task_01";
+  if (!ledger.tasks.some((row) => row.id === id)) {
+    ledger.tasks.push({
+      id,
+      goalId: null,
+      status: "active",
+      items: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+  ledger.activeTaskId = id;
+  ledger.activeTaskItemId = null;
+  saveLedger(dataDir, ledger);
 }
 
 export function loadTurn(dataDir: string, cvId: string, turnId: string): Turn {

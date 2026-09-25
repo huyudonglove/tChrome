@@ -21,16 +21,16 @@
 | `reflectHistory` | `[{turnId, items:[{id,text,focus?}], at}]`；turn 收口追加，覆盖后滤出窗口 | turnId / rf_ |
 | `toolIO` | 窗口投影 `[{callId, turnId, batchId?, name, arguments, return:{stage, result}}]`；查询指针含 `currentQuery` / `recordCount` | `callId` |
 | `lastAction` | `{batchId, turnId, calls}` 或 `null` | `batchId` |
-| `activeContext` | `{goalId, activePlanItem, focus, activeEntities, handoverIntent}` 纯计算脊椎 | items `id` |
-| `plan` | `{currentGoalId, activePlanId, activePlanItemId, plan}`；plan 为活动计划或 null | `activePlanId`、items `id` |
-| `planHistory` | `[{id, turnId, planId, goalId, planItemId?, type, before?, after?, reason?, at}]` 只追加；turn 覆盖后滤出窗口 | `id`（ph_） |
+| `activeContext` | `{goalId, activeTaskItem, focus, activeEntities, handoverIntent}` 纯计算脊椎 | items `id` |
+| `task` | `{currentGoalId, activeTaskId, activeTaskItemId, task}`；task 为活动任务或 null | `activeTaskId`、items `id` |
+| `taskHistory` | `[{id, turnId, taskId, goalId, taskItemId?, type, before?, after?, reason?, at}]` 只追加；turn 覆盖后滤出窗口 | `id`（th_） |
 | `queryHistory` | 查询记录数组（可含 externalized 形状） | `queryId` |
 | `currentQuery` | 查询记录（含 turnId）或 `null` | `queryId` |
 | `tools` | 本轮已加载动态工具的能力导航文本，每项为工具名和说明首句 | 工具名 |
 
-目标记录统一为 `{id, parentId, status, turnId, sourceCallId?, goal, planId?, activePlanItemId?}`。总目标 `goal_01` 的 parentId 为 null；子目标 `subgoal_01` 的 parentId 指向总目标。两类编号在会话内分别持久自增，更新保留原 ID。currentGoalId 可为 null；新会话 goal 为 `{currentGoalId:null,goals:[]}`，goalHistory 为 `[]`。磁盘以 Ledger.goals 保存全部最新记录、currentGoalId 保存选择，Turn.goalChanges 保存调用时的变更快照。
+目标记录统一为 `{id, parentId, status, turnId, sourceCallId?, goal, taskId?, activeTaskItemId?}`。总目标 `goal_01` 的 parentId 为 null；子目标 `subgoal_01` 的 parentId 指向总目标。两类编号在会话内分别持久自增，更新保留原 ID。currentGoalId 可为 null；新会话 goal 为 `{currentGoalId:null,goals:[]}`，goalHistory 为 `[]`。磁盘以 Ledger.goals 保存全部最新记录、currentGoalId 保存选择，Turn.goalChanges 保存调用时的变更快照。
 
-计划记录：`Plan` 绑定 goalId，items 用稳定 `item_` 编号；`planHistory` 只追加。Ledger 保存 `plans`、`planHistory`、`activePlanId`、`activePlanItemId`，schemaVersion=2。同一 Plan 至多一个 doing；Runtime 在调用开始快照执行上下文写入 toolIO / pageObservation（goalId/planId/planItemId），不接受模型伪造关联 ID。
+任务记录：`Task` 可独立存在（goalId 弱关联，可为 null），items 用稳定 `item_` 编号；`taskHistory` 只追加。Ledger 保存 `tasks`、`taskHistory`、`activeTaskId`、`activeTaskItemId`，schemaVersion=2。同一 Task 至多一个 doing；Runtime 在调用开始快照执行上下文写入 toolIO / pageObservation（goalId/taskId/taskItemId），不接受模型伪造关联 ID。
 
 查询记录统一为 `{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}`。`records` 直接保存原模块记录，不新增通用 `id`，不加 `content` 包装；身份字段沿用原记录。查询自身的 `turnId` 与结果记录的 `turnId` 分别表示发起轮次和来源轮次。`status` 为 `complete / not_found / error`。
 

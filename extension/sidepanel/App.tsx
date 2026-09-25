@@ -18,11 +18,11 @@ type SessionView = {
   activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null; completed?: number; total?: number | null } | null;
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
   liveTools: { name: string; callId: string; reason?: string }[];
-  plan: {
+  task: {
     currentGoalId: string | null;
-    activePlanId: string | null;
-    activePlanItemId: string | null;
-    plan: {
+    activeTaskId: string | null;
+    activeTaskItemId: string | null;
+    task: {
       id: string;
       goalId: string;
       title?: string;
@@ -48,7 +48,7 @@ type ConversationItem = {
 
 const emptySession = (): SessionView => ({
   conversationId: null, status: "idle", activity: null, pendingAsk: null, liveTools: [],
-  plan: { currentGoalId: null, activePlanId: null, activePlanItemId: null, plan: null },
+  task: { currentGoalId: null, activeTaskId: null, activeTaskItemId: null, task: null },
   messages: [],
 });
 
@@ -613,17 +613,17 @@ export function App() {
           <span>按轮顺序压缩，完成后自动继续，可随时停止。</span>
         </div>
       ) : null}
-      {session.plan?.plan && session.plan.plan.items.length ? (
-        <section className="plan-panel" aria-label="执行计划">
+      {session.task?.task && session.task.task.items.length ? (
+        <section className="plan-panel" aria-label="执行任务">
           <div className="plan-header">
-            <strong>{session.plan.plan.title || "执行计划"}</strong>
+            <strong>{session.task.task.title || "执行任务"}</strong>
             <span className="plan-meta">
-              {session.plan.plan.items.filter((item) => item.status === "done").length}/{session.plan.plan.items.length}
-              {session.plan.plan.status === "completed" ? " · 已完成" : ""}
+              {session.task.task.items.filter((item) => item.status === "done").length}/{session.task.task.items.length}
+              {session.task.task.status === "completed" ? " · 已完成" : ""}
             </span>
           </div>
           <ul className="plan-items">
-            {session.plan.plan.items.map((item) => (
+            {session.task.task.items.map((item) => (
               <li key={item.id} className={`plan-item status-${item.status}`}>
                 <span className="plan-mark" aria-hidden="true">
                   {item.status === "done" ? "✓" : item.status === "doing" ? "…" : "·"}

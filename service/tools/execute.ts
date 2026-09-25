@@ -218,10 +218,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     return result(JSON.stringify({ ok: true, pageId, cleared: true }),
       [{ type: "page.clear_result", pageId }]);
   }
-  if (name === "plan.set") {
-    if (!input.goalContext?.currentGoalId) {
-      return failedTool(errorDetail("plan_set_need_goal"), "invalid_arguments");
-    }
+  if (name === "task.set") {
     const rawItems = Array.isArray(args.items) ? args.items : [];
     const items = rawItems.map((item: unknown) => {
       const row = (item ?? {}) as Record<string, unknown>;
@@ -233,12 +230,12 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
         ...(typeof row.verification === "string" && row.verification.trim() ? { verification: row.verification.trim() } : {}),
       };
     }).filter((row) => row.text.trim());
-    if (!items.length) return failedTool(errorDetail("plan_set_empty_items"), "invalid_arguments");
+    if (!items.length) return failedTool(errorDetail("task_set_empty_items"), "invalid_arguments");
     const title = typeof args.title === "string" && args.title.trim() ? args.title.trim() : undefined;
     return result(JSON.stringify({ ok: true, count: items.length, ...(title ? { title } : {}) }),
-      [{ type: "plan.set", ...(title ? { title } : {}), items }]);
+      [{ type: "task.set", ...(title ? { title } : {}), items }]);
   }
-  if (name === "plan.update") {
+  if (name === "task.update") {
     const rawItems = Array.isArray(args.items) ? args.items : [];
     const updates = rawItems.map((item: unknown) => {
       const row = (item ?? {}) as Record<string, unknown>;
@@ -251,16 +248,16 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       if (typeof row.blockedReason === "string" && row.blockedReason.trim()) patch.blockedReason = row.blockedReason.trim();
       return patch;
     }).filter((row) => row.id && (row.status !== undefined || row.text !== undefined || row.expectedEffect !== undefined || row.verification !== undefined || row.blockedReason !== undefined));
-    if (!updates.length) return failedTool(errorDetail("plan_update_patch"), "invalid_arguments");
-    const planId = typeof args.planId === "string" && args.planId.trim() ? args.planId.trim() : undefined;
-    return result(JSON.stringify({ ok: true, updated: updates.length, ...(planId ? { planId } : {}) }),
-      [{ type: "plan.update", ...(planId ? { planId } : {}), items: updates }]);
+    if (!updates.length) return failedTool(errorDetail("task_update_patch"), "invalid_arguments");
+    const taskId = typeof args.taskId === "string" && args.taskId.trim() ? args.taskId.trim() : undefined;
+    return result(JSON.stringify({ ok: true, updated: updates.length, ...(taskId ? { taskId } : {}) }),
+      [{ type: "task.update", ...(taskId ? { taskId } : {}), items: updates }]);
   }
-  if (name === "plan.complete") {
-    const planId = typeof args.planId === "string" && args.planId.trim() ? args.planId.trim() : undefined;
+  if (name === "task.complete") {
+    const taskId = typeof args.taskId === "string" && args.taskId.trim() ? args.taskId.trim() : undefined;
     const reason = typeof args.reason === "string" && args.reason.trim() ? args.reason.trim() : undefined;
-    return result(JSON.stringify({ ok: true, ...(planId ? { planId } : {}) }),
-      [{ type: "plan.complete", ...(planId ? { planId } : {}), ...(reason ? { reason } : {}) }]);
+    return result(JSON.stringify({ ok: true, ...(taskId ? { taskId } : {}) }),
+      [{ type: "task.complete", ...(taskId ? { taskId } : {}), ...(reason ? { reason } : {}) }]);
   }
   if (name === "tab.context") {
     const action = String(args.action ?? "get");

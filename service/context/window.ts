@@ -65,13 +65,13 @@ export function userText(input: {
     "#toolIO": jsonBody(toolHistoryView(ledger.toolIO, pages)),
     "#lastAction": jsonBody(lastActionView(ledger.lastAction ?? null)),
     "#activeContext": jsonBody(projectActiveContext({ ledger, turn })),
-    "#plan": jsonBody({
+    "#task": jsonBody({
       currentGoalId: ledger.currentGoalId,
-      activePlanId: ledger.activePlanId,
-      activePlanItemId: ledger.activePlanItemId,
-      plan: ledger.activePlanId
+      activeTaskId: ledger.activeTaskId,
+      activeTaskItemId: ledger.activeTaskItemId,
+      task: ledger.activeTaskId
         ? (() => {
-          const plan = ledger.plans.find((row) => row.id === ledger.activePlanId);
+          const plan = ledger.tasks.find((row) => row.id === ledger.activeTaskId);
           if (!plan) return null;
           return {
             id: plan.id,
@@ -90,7 +90,7 @@ export function userText(input: {
         })()
         : null,
     }),
-    "#planHistory": jsonBody(ledger.planHistory),
+    "#taskHistory": jsonBody(ledger.taskHistory),
     "#queryHistory": jsonBody((input.queryHistory ?? []).map((query) => queryView(query, { ...gate, path: queryPath(query) }))),
     "#currentQuery": jsonBody(input.currentQuery ? queryView(input.currentQuery, { ...gate, path: queryPath(input.currentQuery) }) : null),
     "#tools": input.toolGuide ?? "",

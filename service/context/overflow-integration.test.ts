@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { handleTurn } from "../runtime/loop.ts";
-import { loadLedger, newConversation, saveLedger, saveTurn } from "../runtime/store.ts";
+import { loadLedger, newConversation, primeActiveTask, saveLedger, saveTurn } from "../runtime/store.ts";
 import { loadMemories } from "../memory/store.ts";
 import type { CompletionResult, Provider, ToolCall, Turn } from "../types.ts";
 import { inputRecord } from "../runtime/ids.ts";
@@ -45,12 +45,14 @@ const provider = (run: (user: string) => CompletionResult): Provider => ({ compl
 const host = { execute: async () => ({ ok: true }) };
 async function withDir(run: (dataDir: string) => Promise<void>) {
   const dataDir = mkdtempSync(join(tmpdir(), "context-overflow-integration-"));
+    primeActiveTask(dataDir);
   try { await run(dataDir); } finally { rmSync(dataDir, { recursive: true, force: true }); }
 }
 
 test("oversized notes stay durable, can be deleted by the model, and do not block the next turn", () => withDir(async dataDir => {
   const value = "N".repeat(305_000);
   const conversationId = newConversation(dataDir).conversationId!;
+    primeActiveTask(dataDir);
   let step = 0;
   const reply = await handleTurn({ dataDir, repoRoot, host, provider: provider(user => {
     if (++step === 1) return response(call("notes.write", { key: "large", value }));
@@ -81,6 +83,7 @@ test("oversized project memory is referenced in a new conversation without losin
     ? response(call("memory.write", { projectMemory: [text] })) : finish()) }, { userInput: "保存长期记忆", submittedAt: "now" });
   expect(original.output.kind).toBe("reply");
   const fresh = newConversation(dataDir).conversationId!;
+    primeActiveTask(dataDir);
   let calls = 0;
   const reply = await handleTurn({ dataDir, repoRoot, host, provider: provider(user => {
     calls++;
@@ -130,6 +133,7 @@ test("large script results use evidence.search while small follow-up pages stay 
 
 test("individually small notes are externalized when their combined context exceeds 250K", () => withDir(async dataDir => {
   const conversationId = newConversation(dataDir).conversationId!;
+    primeActiveTask(dataDir);
   const ledger = loadLedger(dataDir, conversationId);
   ledger.notes = Object.fromEntries(Array.from({ length: 4 }, (_, index) => [`note${index}`, String(index).repeat(70_000)]));
   saveLedger(dataDir, ledger);
@@ -147,6 +151,7 @@ test("individually small notes are externalized when their combined context exce
 
 test("context storage failure stops before sending a broken reference to the model", () => withDir(async dataDir => {
   const conversationId = newConversation(dataDir).conversationId!;
+    primeActiveTask(dataDir);
   const ledger = loadLedger(dataDir, conversationId);
   ledger.notes.large = "X".repeat(260_000);
   saveLedger(dataDir, ledger);
@@ -162,6 +167,7 @@ test("context storage failure stops before sending a broken reference to the mod
 
 test("uncompressible notes between 200K and 250K remain inline and allow the main model to run", () => withDir(async dataDir => {
   const conversationId = newConversation(dataDir).conversationId!;
+    primeActiveTask(dataDir);
   const ledger = loadLedger(dataDir, conversationId);
   ledger.notes.draft = "N".repeat(210_000);
   saveLedger(dataDir, ledger);
@@ -186,6 +192,7 @@ test("uncompressible notes between 200K and 250K remain inline and allow the mai
 
 test("history above 250K is compressed before any content is externalized", () => withDir(async dataDir => {
   const conversationId = newConversation(dataDir).conversationId!;
+    primeActiveTask(dataDir);
   const ledger = loadLedger(dataDir, conversationId);
   const turns: Turn[] = Array.from({length: 9}, (_, i) => ({
     goalChanges: [], conversationId, turnId: `tn_${String(i + 1).padStart(2, "0")}`, status: "completed",
