@@ -16,11 +16,13 @@ const planItemId = (dataDir: string, conversationId: string) =>
 const pushHistory = (
   dataDir: string,
   ledger: Ledger,
-  row: Omit<PlanHistoryRecord, "id" | "at"> & { at?: string },
+  row: Omit<PlanHistoryRecord, "id" | "at"> & { at?: string; turnId?: string },
+  turnId: string,
 ): void => {
   ledger.planHistory.push({
     id: historyId(dataDir, ledger.conversationId),
     at: row.at ?? nowIso(),
+    turnId,
     ...row,
   });
 };
@@ -119,7 +121,7 @@ export function preparePlanSet(dataDir: string, context: PlanContext, args: Tool
       before: { status: "active" },
       after: { status: "cancelled" },
     };
-    pushHistory(dataDir, ledger, record);
+    pushHistory(dataDir, ledger, record, context.turnId);
     history.push(ledger.planHistory.at(-1)!);
   }
 
@@ -141,7 +143,7 @@ export function preparePlanSet(dataDir: string, context: PlanContext, args: Tool
     type: "plan_created",
     after: { title: plan.title ?? null, itemCount: plan.items.length },
     ...(replacedPlanId ? { reason: `replaced:${replacedPlanId}` } : {}),
-  });
+  }, context.turnId);
   history.push(ledger.planHistory.at(-1)!);
   const doing = activeDoing(plan);
   if (doing) {
@@ -151,7 +153,7 @@ export function preparePlanSet(dataDir: string, context: PlanContext, args: Tool
       planItemId: doing.id,
       type: "item_started",
       after: { status: "doing" },
-    });
+    }, context.turnId);
     history.push(ledger.planHistory.at(-1)!);
   }
   setLedgerActive(ledger, plan);
@@ -254,7 +256,7 @@ export function preparePlanUpdate(dataDir: string, context: PlanContext, args: T
       before,
       after: structuredClone(item),
       ...(item.blockedReason ? { reason: item.blockedReason } : {}),
-    });
+    }, context.turnId);
     history.push(ledger.planHistory.at(-1)!);
   }
   ensureSingleDoing(working);
@@ -289,7 +291,7 @@ export function preparePlanComplete(dataDir: string, context: PlanContext, args:
     before,
     after: { status: "completed" },
     ...(typeof args.reason === "string" && args.reason.trim() ? { reason: args.reason.trim() } : {}),
-  });
+  }, context.turnId);
   setLedgerActive(ledger, plan);
   if (ledger.activePlanId === plan.id) {
     ledger.activePlanId = null;
@@ -299,7 +301,7 @@ export function preparePlanComplete(dataDir: string, context: PlanContext, args:
   return { plan, history: [ledger.planHistory.at(-1)!] };
 }
 
-export function endPlansForGoal(dataDir: string, ledger: Ledger, goal: GoalRecord, reason: "goal_ended" | "replaced"): void {
+export function endPlansForGoal(dataDir: string, ledger: Ledger, goal: GoalRecord, reason: "goal_ended" | "replaced", turnId: string): void {
   const open = ledger.plans.filter((row) => row.goalId === goal.id && row.status === "active");
   for (const plan of open) {
     plan.status = "cancelled";
@@ -311,7 +313,7 @@ export function endPlansForGoal(dataDir: string, ledger: Ledger, goal: GoalRecor
       reason,
       before: { status: "active" },
       after: { status: "cancelled" },
-    });
+    }, turnId);
   }
   goal.planId = null;
   goal.activePlanItemId = null;
@@ -321,7 +323,7 @@ export function endPlansForGoal(dataDir: string, ledger: Ledger, goal: GoalRecor
   }
 }
 
-function appendGoalTerminalHistory(dataDir: string, ledger: Ledger, goal: GoalRecord): void {
+function appendGoalTerminalHistory(dataDir: string, ledger: Ledger, goal: GoalRecord, turnId: string): void {
   if (goal.status === "active") return;
   const planId = goal.planId
     ?? [...ledger.plans].reverse().find((row) => row.goalId === goal.id)?.id;
@@ -336,15 +338,15 @@ function appendGoalTerminalHistory(dataDir: string, ledger: Ledger, goal: GoalRe
     goalId: goal.id,
     type,
     after: { status: goal.status },
-  });
+  }, turnId);
 }
 
-export function afterGoalSwitch(dataDir: string, ledger: Ledger, previousGoalId: string | null, nextGoalId: string | null): void {
+export function afterGoalSwitch(dataDir: string, ledger: Ledger, previousGoalId: string | null, nextGoalId: string | null, turnId: string): void {
   if (previousGoalId && previousGoalId !== nextGoalId) {
     const previous = ledger.goals.find((row) => row.id === previousGoalId);
     if (previous && previous.status !== "active") {
-      endPlansForGoal(dataDir, ledger, previous, "goal_ended");
-      appendGoalTerminalHistory(dataDir, ledger, previous);
+      endPlansForGoal(dataDir, ledger, previous, "goal_ended", turnId);
+      appendGoalTerminalHistory(dataDir, ledger, previous, turnId);
     }
   }
   if (!nextGoalId) {
@@ -363,12 +365,12 @@ export function afterGoalSwitch(dataDir: string, ledger: Ledger, previousGoalId:
 }
 
 /** Goal terminal transition: cancel open plans then append goal history. */
-export function onGoalStatusChange(dataDir: string, ledger: Ledger, previous: GoalRecord | undefined, record: GoalRecord): void {
+export function onGoalStatusChange(dataDir: string, ledger: Ledger, previous: GoalRecord | undefined, record: GoalRecord, turnId: string): void {
   if (previous && previous.status === "active" && record.status !== "active") {
-    endPlansForGoal(dataDir, ledger, record, "goal_ended");
-    appendGoalTerminalHistory(dataDir, ledger, record);
+    endPlansForGoal(dataDir, ledger, record, "goal_ended", turnId);
+    appendGoalTerminalHistory(dataDir, ledger, record, turnId);
   } else if (!previous && record.status !== "active") {
-    appendGoalTerminalHistory(dataDir, ledger, record);
+    appendGoalTerminalHistory(dataDir, ledger, record, turnId);
   }
 }
 

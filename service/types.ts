@@ -106,6 +106,8 @@ export type PlanHistoryRecord = {
   after?: unknown;
   reason?: string;
   at: string;
+  /** Turn that caused this event; used for turn-scoped window filter and compression. */
+  turnId?: string;
 };
 
 export type RuntimeExecutionContext = {

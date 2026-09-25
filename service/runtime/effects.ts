@@ -71,8 +71,8 @@ export function applyToolEffects(input: {
         else ledger.goals[index] = effect.record;
         ledger.currentGoalId = effect.currentGoalId;
         turn.goalChanges.push(structuredClone(effect.record));
-        onGoalStatusChange(dataDir, ledger, previous, effect.record);
-        afterGoalSwitch(dataDir, ledger, previousGoalId, effect.currentGoalId);
+        onGoalStatusChange(dataDir, ledger, previous, effect.record, turn.turnId);
+        afterGoalSwitch(dataDir, ledger, previousGoalId, effect.currentGoalId, turn.turnId);
         break;
       }
       case "note.write": ledger.notes[effect.key] = effect.value; break;

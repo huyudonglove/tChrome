@@ -90,6 +90,7 @@ export function userText(input: {
         })()
         : null,
     }),
+    "#planHistory": jsonBody(ledger.planHistory),
     "#queryHistory": jsonBody((input.queryHistory ?? []).map((query) => queryView(query, { ...gate, path: queryPath(query) }))),
     "#currentQuery": jsonBody(input.currentQuery ? queryView(input.currentQuery, { ...gate, path: queryPath(input.currentQuery) }) : null),
     "#tools": input.toolGuide ?? "",

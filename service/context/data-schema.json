@@ -401,6 +401,19 @@
         }
       ]
     },
+    "planHistory": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/planHistoryRecord"
+          }
+        },
+        {
+          "$ref": "#/$defs/contextFileReference"
+        }
+      ]
+    },
     "queryHistory": {
       "anyOf": [
         {
@@ -460,6 +473,7 @@
     "lastAction",
     "activeContext",
     "plan",
+    "planHistory",
     "queryHistory",
     "currentQuery",
     "tools"
@@ -1424,6 +1438,62 @@
       "required": [
         "turnId",
         "items",
+        "at"
+      ],
+      "additionalProperties": false
+    },
+    "planHistoryRecord": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "tchrome:identity#/$defs/planHistory"
+        },
+        "planId": {
+          "$ref": "tchrome:identity#/$defs/plan"
+        },
+        "goalId": {
+          "anyOf": [
+            {
+              "$ref": "tchrome:identity#/$defs/goal"
+            },
+            {
+              "$ref": "tchrome:identity#/$defs/subgoal"
+            }
+          ]
+        },
+        "planItemId": {
+          "$ref": "tchrome:identity#/$defs/planItem"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "plan_created",
+            "item_started",
+            "item_updated",
+            "item_completed",
+            "plan_completed",
+            "plan_cancelled",
+            "goal_completed",
+            "goal_cancelled"
+          ]
+        },
+        "before": {},
+        "after": {},
+        "reason": {
+          "type": "string"
+        },
+        "at": {
+          "type": "string"
+        },
+        "turnId": {
+          "$ref": "#/$defs/turnId"
+        }
+      },
+      "required": [
+        "id",
+        "planId",
+        "goalId",
+        "type",
         "at"
       ],
       "additionalProperties": false

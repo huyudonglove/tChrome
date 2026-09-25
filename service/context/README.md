@@ -59,9 +59,10 @@
 | 15 | lastAction | 否 | — | — | main |
 | 16 | activeContext | 否 | — | — | main |
 | 17 | plan | 否 | — | — | main |
-| 18 | queryHistory | 是 | queryHistory | queryId | main + compression |
-| 19 | currentQuery | 否 | — | — | main |
-| 20 | tools | 否 | — | — | main |
+| 18 | planHistory | 是 | planHistory | turn | main + compression |
+| 19 | queryHistory | 是 | queryHistory | queryId | main + compression |
+| 20 | currentQuery | 否 | — | — | main |
+| 21 | tools | 否 | — | — | main |
 
 ### Archive · 仅压缩
 

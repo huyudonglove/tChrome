@@ -99,6 +99,7 @@ User
 - <lastAction>：上一批工具摘要。
 - <activeContext>：目标 / 步骤 / 主标签 / 实体 / 承接意图的单屏脊椎。
 - <plan>：当前 Goal 的持久化执行计划（含 activePlanId / activePlanItemId）。
+- <planHistory>：计划事件历史（只读追加，随 turn 压缩）。
 - <queryHistory>：历史查询。
 - <currentQuery>：最近一次查询原文（含 turnId）。
 - <tools>：本会话已加载的动态工具。

@@ -98,7 +98,11 @@ test("plan persists across turn ends, enforces single doing, history append-only
     expect(fx.ledger.plans[0]).toMatchObject({ id: "plan_01", goalId: "goal_01", status: "active" });
     expect(fx.ledger.goals[0]).toMatchObject({ planId: "plan_01", activePlanItemId: "item_01" });
     expect(fx.ledger.planHistory.length).toBeGreaterThan(historyAfterSet);
-    expect(fx.ledger.planHistory.at(-1)).toMatchObject({ type: "item_started", planItemId: "item_01" });
+    expect(fx.ledger.planHistory.at(-1)).toMatchObject({
+      type: "item_started",
+      planItemId: "item_01",
+      turnId: fx.turn.turnId,
+    });
 
     // history is append-only snapshot count
     const historyIds = fx.ledger.planHistory.map(row => row.id);
