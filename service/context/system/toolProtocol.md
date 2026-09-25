@@ -8,6 +8,8 @@
 
 多数工具带可选回填字段（与 reason 同风格，非必填）：reason=做什么/为什么；expected=扣动扳机前固化的成功判据（预期环境/数据事实）；fallback=未达 expected 时的熔断与撤退（退向何处、绝不做什么）。有副作用、黑盒交互或试错路径时优先三件套一起写；纯观察且成败自明时可省略 expected/fallback。
 
+动作类工具返回可能带可选 effects（观察器稀疏注入，无异常则整段不出现）：network=动作后新出现的 4xx/断网；console=JS 未捕获异常或 console.error；nav=URL 变化；delta=拖拽回弹、表单 aria-invalid/validationMessage 等；mutations.newAlerts=白名单提示条新增文案；domChange=剥离样式后的结构 HTML 前后 diff 摘要（"-旧 +新"）。effects 只是证据，不自动改写 ok：对照你写的 expected 判断是否达成，未达则按 fallback 收敛；不要把 effects 当成新的必填参数，也不要为不存在的键编造内容。effects 缺失只表示未观察到这些异常，不等于业务一定成功，仍须用可见结果验收。
+
 每批最多包含一个 askUser 或 finishTurn，并且放在最后。如果答复需要参考本批其他工具的结果，就等结果返回后再答复。需要记录本轮做了什么、依据、风险或下一步时，用 reflect.write 写总结与反思；完成本轮用 finishTurn 提交答复（text 给用户，同一 text 供后续上下文）；等待用户回答用 askUser。
 
 同标签页若有先后依赖（填写后再点击等），相关调用按数组先后提交并保持 serial 工具语义；有依赖的调用不要都排进同一 parallel 波次。

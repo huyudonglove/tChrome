@@ -5,6 +5,7 @@ import { elementTool } from './element-tools.js';
 import { waitForDownload } from './downloads.js';
 import { withDebugger, monitorDialogs, dialogState, watchDialog, handleDialog, detachDebugger } from './dialogs.js';
 import { streamCapture, streamReceive, imageShrink } from './stream-pipe.js';
+import { observeAction, initActionObserver } from './action-observer.js';
 export const BROWSER_TOOL_NAMES = [
   'page.eval_expr',
   'page.get_summary', 'page.list_regions', 'page.list_interactive_elements',
@@ -391,7 +392,7 @@ const cdpDrag = async (tabId, fromX, fromY, toX, toY, options = {}) => {
   await cdpMouse(tabId, 'mouseReleased', jitterX, jitterY, {button: 'left', clickCount: 1, buttons: 0});
 };
 
-const waitNetworkIdle = async (tabId, quietMs = 500, maxMs = 8000) => {
+const waitNetworkIdle = async (tabId, quietMs = 500, maxMs = 4000) => {
   const tab = await getTab(tabId);
   if (!tab?.id) return {ok: false, error: '没有标签', requests: 0};
   const started = Date.now();
@@ -487,6 +488,8 @@ const runPageTool = async (name, input = {}) => {
   const tabId = input.tabId;
   const tab = await inspectTab(tabId);
   if (!tab.ok) return tab;
+  const isAction = ['page.click', 'page.type', 'page.press', 'page.scroll_to'].includes(name);
+  const exec = async () => {
   try {
     const [{result}] = await chrome.scripting.executeScript({
       target: {tabId: tab.tabId},
@@ -794,8 +797,13 @@ const runPageTool = async (name, input = {}) => {
             node.dispatchEvent(new KeyboardEvent('keypress', {key, keyCode: 13, bubbles: true}));
             node.dispatchEvent(new KeyboardEvent('keyup', {key, keyCode: 13, bubbles: true}));
           }
+          const ariaInvalid = node.getAttribute('aria-invalid') === 'true';
+          const validationMessage = 'validationMessage' in node ? String(node.validationMessage || '') : '';
           return {ok: true, id, value: 'value' in node ? node.value : node.textContent,
-            clearBeforeType: payload.clearBeforeType, pressEnter: payload.pressEnter};
+            clearBeforeType: payload.clearBeforeType, pressEnter: payload.pressEnter,
+            ...(ariaInvalid || validationMessage
+              ? { delta: { ariaInvalid, validationMessage: validationMessage.slice(0, 150) } }
+              : {})};
         }
         if (toolName === 'page.scroll_to') {
           const el = findElement(id) || findRegion(id);
@@ -947,6 +955,9 @@ const runPageTool = async (name, input = {}) => {
   } catch (error) {
     return {ok: false, tabId: tab.tabId, error: error instanceof Error ? error.message : String(error)};
   }
+  };
+  if (!isAction) return exec();
+  return observeAction(tab.tabId, exec);
 };
 
 const runOnTab = async (tabId, args, func) => {
@@ -1075,9 +1086,14 @@ const executeBrowserTool = async (name, input = {}) => {
   if (['snapshot_page', 'find_on_page', 'click', 'double_click', 'focus', 'hover', 'type', 'select'].includes(name)) {
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可操作的普通网页标签'};
-    const [{result}] = await chrome.scripting.executeScript({target: {tabId: tab.id}, func: elementTool, args: [name, input]});
-    if (result?.ok && ['click', 'double_click', 'type', 'select'].includes(name)) await afterPageAction(tab.id);
-    return {tabId: tab.id, ...result};
+    const run = async () => {
+      const [{result}] = await chrome.scripting.executeScript({target: {tabId: tab.id}, func: elementTool, args: [name, input]});
+      const out = {tabId: tab.id, ...result};
+      if (out.ok && ['click', 'double_click', 'type', 'select'].includes(name)) await afterPageAction(tab.id);
+      return out;
+    };
+    if (!['click', 'double_click', 'type', 'select'].includes(name)) return run();
+    return observeAction(tab.id, run);
   }
   if (name === 'see_page_info') {
     return runOnTab(tabId, [], () => ({
@@ -1104,40 +1120,49 @@ const executeBrowserTool = async (name, input = {}) => {
     return {ok: !needle || hit.includes(needle), tabId: page.tabId, title: page.title, url: page.url, matched: needle};
   }
   if (name === 'tick') {
-    const result = await runOnTab(tabId, [input.text || '', input.checked !== false], (q, checked) => {
-      const nodes = [...document.querySelectorAll('input[type=checkbox],input[type=radio]')];
-      const el = q
-        ? nodes.find((node) => (node.innerText || node.value || node.name || node.getAttribute('aria-label') || '').includes(q))
-        : null;
-      if (!el) return {ok: false, error: q ? '没找到匹配选项' : 'tick 需要 text'};
-      el.checked = checked;
-      el.dispatchEvent(new Event('change', {bubbles: true}));
-      return {ok: true};
-    });
-    if (result.ok) await afterPageAction(tabId);
-    return result;
+    const run = async () => {
+      const result = await runOnTab(tabId, [input.text || '', input.checked !== false], (q, checked) => {
+        const nodes = [...document.querySelectorAll('input[type=checkbox],input[type=radio]')];
+        const el = q
+          ? nodes.find((node) => (node.innerText || node.value || node.name || node.getAttribute('aria-label') || '').includes(q))
+          : null;
+        if (!el) return {ok: false, error: q ? '没找到匹配选项' : 'tick 需要 text'};
+        el.checked = checked;
+        el.dispatchEvent(new Event('change', {bubbles: true}));
+        return {ok: true};
+      });
+      if (result.ok) await afterPageAction(tabId);
+      return result;
+    };
+    return observeAction(tabId, run);
   }
   if (name === 'submit') {
-    const result = await runOnTab(tabId, [], () => {
-      const form = document.querySelector('form');
-      if (!form) return {ok: false, error: '没找到表单'};
-      if (form.requestSubmit) form.requestSubmit();
-      else form.submit();
-      return {ok: true};
-    });
-    if (result.ok) await afterPageAction(tabId);
-    return result;
+    const run = async () => {
+      const result = await runOnTab(tabId, [], () => {
+        const form = document.querySelector('form');
+        if (!form) return {ok: false, error: '没找到表单'};
+        if (form.requestSubmit) form.requestSubmit();
+        else form.submit();
+        return {ok: true};
+      });
+      if (result.ok) await afterPageAction(tabId);
+      return result;
+    };
+    return observeAction(tabId, run);
   }
   if (name === 'press') {
     if (input.id) return runPageTool('page.press', input);
-    const result = await runOnTab(tabId, [input.key || 'Enter'], (key) => {
-      const el = document.activeElement;
-      if (!el || el === document.body) return {ok: false, error: '没有焦点元素'};
-      el.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true}));
-      return {ok: true, key};
-    });
-    if (result.ok) await afterPageAction(tabId);
-    return result;
+    const run = async () => {
+      const result = await runOnTab(tabId, [input.key || 'Enter'], (key) => {
+        const el = document.activeElement;
+        if (!el || el === document.body) return {ok: false, error: '没有焦点元素'};
+        el.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true}));
+        return {ok: true, key};
+      });
+      if (result.ok) await afterPageAction(tabId);
+      return result;
+    };
+    return observeAction(tabId, run);
   }
   if (name === 'scroll') {
     return runOnTab(tabId, [input.amount || 600], (amount) => {
@@ -1573,9 +1598,11 @@ const executeBrowserTool = async (name, input = {}) => {
     const tab = await getTab(tabId);
     if (!tab?.id) return {ok: false, error: '没有标签'};
     try {
-      await cdpClick(tab.id, x, y);
-      await afterPageAction(tab.id);
-      return {ok: true, point: [x, y], trusted: true};
+      return await observeAction(tab.id, async () => {
+        await cdpClick(tab.id, x, y);
+        await afterPageAction(tab.id);
+        return {ok: true, point: [x, y], trusted: true};
+      });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       return {ok: false, error: `CDP click 失败：${message}`};
@@ -1590,9 +1617,46 @@ const executeBrowserTool = async (name, input = {}) => {
     const tab = await getTab(tabId);
     if (!tab?.id) return {ok: false, error: '没有标签'};
     try {
-      await cdpDrag(tab.id, x1, y1, x2, y2);
-      await afterPageAction(tab.id);
-      return {ok: true, from: [x1, y1], to: [x2, y2], trusted: true};
+      const probe = async (x, y) => {
+        try {
+          const [{result}] = await chrome.scripting.executeScript({
+            target: {tabId: tab.id},
+            func: (px, py) => {
+              const el = document.elementFromPoint(px, py);
+              if (!el) return null;
+              const r = el.getBoundingClientRect();
+              return {
+                tag: el.tagName,
+                id: el.id || '',
+                cls: String(el.className || '').slice(0, 80),
+                x: Math.round(r.x),
+                y: Math.round(r.y),
+              };
+            },
+            args: [x, y],
+          });
+          return result ?? null;
+        } catch {
+          return null;
+        }
+      };
+      const sameNode = (a, b) => Boolean(a && b && a.tag === b.tag && a.id === b.id && a.cls === b.cls);
+      const start = await probe(x1, y1);
+      return await observeAction(tab.id, async () => {
+        await cdpDrag(tab.id, x1, y1, x2, y2);
+        await afterPageAction(tab.id);
+        return {ok: true, from: [x1, y1], to: [x2, y2], trusted: true};
+      }, async () => {
+        const atTo = await probe(x2, y2);
+        const atFrom = await probe(x1, y1);
+        const reverted = Boolean(start && sameNode(start, atFrom) && !sameNode(start, atTo)
+          && Math.hypot((atFrom?.x ?? 0) - start.x, (atFrom?.y ?? 0) - start.y) < 5);
+        if (!reverted) return {};
+        return {
+          reverted: true,
+          message: '元素在松手后弹回了原点，请检查滑动轨迹或验证码机制',
+        };
+      });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       return {ok: false, error: `CDP drag 失败：${message}`};
