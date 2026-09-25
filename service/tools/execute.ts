@@ -1,5 +1,6 @@
 import { prepareGoalUpdate, type GoalContext } from "../runtime/goals.ts";
 import { errorMessage } from "../../shared/errors.ts";
+import { errorDetail } from "../../shared/error-details.ts";
 import type { QueryModule, QueryResult } from "../agents/query/types.ts";
 import type { QueryRecord, QueryEvidence } from "../context/projections/queries.ts";
 import type { ToolEffect, ToolExecution } from "./effects.ts";
@@ -23,6 +24,7 @@ import { loadContextRecord } from "../runtime/records.ts";
 import { lineNumberAt, linesOf, wrapCachedText } from "../runtime/cache-lines.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { runtimeConfig } from "../config/runtime.ts";
+import { errorDetail } from "../../shared/error-details.ts";
 
 const questionWithChoices = (question: string, choice: string[]): string =>
   choice.length === 0 ? question : `${question}\n选项：${choice.join(" / ")}`;
@@ -101,13 +103,13 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   if (name === "execute_javascript") {
     try {
       if ("code" in args || typeof args.filename !== "string" || !/\.(?:js|mjs|cjs)$/.test(args.filename)) {
-        return failedTool("请先保存 JavaScript 文件到 scripts/，再传 filename 执行。", "invalid_arguments");
+        return failedTool(errorDetail("exec_js_need_script"), "invalid_arguments");
       }
-      if (!host) return failedTool("浏览器未连接", "browser_unavailable");
+      if (!host) return failedTool(errorDetail("browser_not_connected"), "browser_unavailable");
       const script = await readScript(dataDir, args.filename);
       const payload = { code: script.code, ...(args.tabId !== undefined ? { tabId: args.tabId } : {}) };
       if (args.heartbeatSec !== undefined) {
-        if (!input.conversationId) return failedTool("execute_javascript 心跳缺少会话标识", "invalid_arguments");
+        if (!input.conversationId) return failedTool(errorDetail("exec_js_missing_session"), "invalid_arguments");
         const executed = await withJobHeartbeat({
           dataDir,
           scope: jobScope(dataDir, input.conversationId),
@@ -136,7 +138,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       if (args.action === "list") return result(JSON.stringify({ ok: true, items: listItems(dataDir, typeof args.query === "string" ? args.query : undefined) }));
       if (args.action === "get") {
         const item = listItems(dataDir).find(item => item.id === args.id);
-        return item ? result(JSON.stringify({ ok: true, item })) : failedTool("资料不存在", "file_not_found");
+        return item ? result(JSON.stringify({ ok: true, item })) : failedTool(errorDetail("library_missing"), "file_not_found");
       }
       if (args.action === "save") {
         const fields = hostArgs(args);
@@ -148,7 +150,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
         deleteItem(dataDir, String(args.id ?? ""));
         return result(JSON.stringify({ ok: true }));
       }
-      return failedTool("未知资料操作", "invalid_arguments");
+      return failedTool(errorDetail("library_unknown_action"), "invalid_arguments");
     } catch (error) {
       return failedTool(error);
     }
@@ -159,7 +161,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   }
   if (name === "reportProgress") {
     const text = String(args.text ?? "").trim();
-    if (!text) return failedTool("reportProgress 需要非空 text", "invalid_arguments");
+    if (!text) return failedTool(errorDetail("report_progress_empty"), "invalid_arguments");
     return result(JSON.stringify({ ok: true, text }));
   }
   if (name === "finishTurn") {
@@ -174,7 +176,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     return result(question, [{ type: "turn.ask", question }]);
   }
   if (name === "submitGoal") {
-    if (!input.conversationId || !input.goalContext) return failedTool("目标工具缺少会话上下文。", "invalid_arguments");
+    if (!input.conversationId || !input.goalContext) return failedTool(errorDetail("goal_missing_context"), "invalid_arguments");
     try {
       const update = prepareGoalUpdate(dataDir, input.conversationId, input.goalContext, args);
       return result(JSON.stringify({ ok: true, record: update.record, currentGoalId: update.currentGoalId }),
@@ -185,8 +187,8 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   }
   if (name === "reflect.write") {
     const text = typeof args.text === "string" ? args.text.trim() : "";
-    if (!text) return failedTool("reflect.write 的 text 为空", "invalid_arguments", { toolName: name });
-    if (!input.conversationId) return failedTool("reflect.write 缺少会话标识", "invalid_arguments", { toolName: name });
+    if (!text) return failedTool(errorDetail("reflect_empty_text"), "invalid_arguments", { toolName: name });
+    if (!input.conversationId) return failedTool(errorDetail("reflect_missing_session"), "invalid_arguments", { toolName: name });
     const focus = typeof args.focus === "string" && args.focus.trim() ? args.focus.trim() : undefined;
     const replaceId = typeof args.id === "string" && args.id.trim() ? args.id.trim() : undefined;
     const id = replaceId ?? allocateRecordId(dataDir, input.conversationId, "reflect");
@@ -195,30 +197,30 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   }
   if (name === "reflect.delete") {
     const id = typeof args.id === "string" ? args.id.trim() : "";
-    if (!/^rf_[0-9]{2,}$/.test(id)) return failedTool("id 必须是 rf_ 编号", "invalid_arguments", { toolName: name });
+    if (!/^rf_[0-9]{2,}$/.test(id)) return failedTool(errorDetail("reflect_bad_id"), "invalid_arguments", { toolName: name });
     return result(JSON.stringify({ ok: true, id, deleted: true }), [{ type: "reflect.delete", id }]);
   }
   if (name === "notes.write") {
     const key = String(args.key ?? "").trim();
     const value = String(args.value ?? "");
-    return key ? result(`notes[${key}]=${value}`, [{ type: "note.write", key, value }]) : failedTool("key 空着", "invalid_arguments");
+    return key ? result(`notes[${key}]=${value}`, [{ type: "note.write", key, value }]) : failedTool(errorDetail("notes_key_empty"), "invalid_arguments");
   }
   if (name === "notes.delete") {
     const key = String(args.key ?? "").trim();
-    return key ? result(`deleted notes[${key}]`, [{ type: "note.delete", key }]) : failedTool("key 空着", "invalid_arguments");
+    return key ? result(`deleted notes[${key}]`, [{ type: "note.delete", key }]) : failedTool(errorDetail("notes_key_empty"), "invalid_arguments");
   }
   if (name === "page.clear_result") {
     const pageId = String(args.pageId ?? "").trim();
     if (!pageId) return failedTool("pageId 空着", "invalid_arguments");
     if (input.pageObservationIds && !input.pageObservationIds.includes(pageId)) {
-      return failedTool(`没有观察 ${pageId}`, "invalid_arguments");
+      return failedTool(errorDetail("page_clear_missing_obs", { pageId }), "invalid_arguments");
     }
     return result(JSON.stringify({ ok: true, pageId, cleared: true }),
       [{ type: "page.clear_result", pageId }]);
   }
   if (name === "plan.set") {
     if (!input.goalContext?.currentGoalId) {
-      return failedTool("需要先用 submitGoal 创建或切换当前 Goal，再创建 Plan", "invalid_arguments");
+      return failedTool(errorDetail("plan_set_need_goal"), "invalid_arguments");
     }
     const rawItems = Array.isArray(args.items) ? args.items : [];
     const items = rawItems.map((item: unknown) => {
@@ -231,7 +233,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
         ...(typeof row.verification === "string" && row.verification.trim() ? { verification: row.verification.trim() } : {}),
       };
     }).filter((row) => row.text.trim());
-    if (!items.length) return failedTool("plan.set 需要非空 items", "invalid_arguments");
+    if (!items.length) return failedTool(errorDetail("plan_set_empty_items"), "invalid_arguments");
     const title = typeof args.title === "string" && args.title.trim() ? args.title.trim() : undefined;
     return result(JSON.stringify({ ok: true, count: items.length, ...(title ? { title } : {}) }),
       [{ type: "plan.set", ...(title ? { title } : {}), items }]);
@@ -249,7 +251,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       if (typeof row.blockedReason === "string" && row.blockedReason.trim()) patch.blockedReason = row.blockedReason.trim();
       return patch;
     }).filter((row) => row.id && (row.status !== undefined || row.text !== undefined || row.expectedEffect !== undefined || row.verification !== undefined || row.blockedReason !== undefined));
-    if (!updates.length) return failedTool("plan.update 需要 item id 以及 status 或 text 等字段", "invalid_arguments");
+    if (!updates.length) return failedTool(errorDetail("plan_update_patch"), "invalid_arguments");
     const planId = typeof args.planId === "string" && args.planId.trim() ? args.planId.trim() : undefined;
     return result(JSON.stringify({ ok: true, updated: updates.length, ...(planId ? { planId } : {}) }),
       [{ type: "plan.update", ...(planId ? { planId } : {}), items: updates }]);
@@ -264,7 +266,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     const action = String(args.action ?? "get");
     if (action === "set") {
       const tabId = Number(args.tabId);
-      if (!Number.isInteger(tabId) || tabId < 0) return failedTool("tab.context set 需要 tabId", "invalid_arguments");
+      if (!Number.isInteger(tabId) || tabId < 0) return failedTool(errorDetail("tab_context_set_tab"), "invalid_arguments");
       return result(JSON.stringify({ ok: true, action, tabId }), [{ type: "tab.context.set", tabId }]);
     }
     if (action === "clear") {
@@ -277,26 +279,26 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     }));
   }
   if (name === "evidence.search") {
-    if (!input.conversationId) return failedTool("evidence.search 缺少会话标识", "invalid_arguments");
+    if (!input.conversationId) return failedTool(errorDetail("evidence_missing_session"), "invalid_arguments");
     const windows = Array.isArray(args.windows) ? args.windows as Record<string, unknown>[] : [];
-    if (windows.length < 1 || windows.length > 8) return failedTool("windows 必须是 1..8 个窗口", "invalid_arguments");
+    if (windows.length < 1 || windows.length > 8) return failedTool(errorDetail("evidence_windows_range"), "invalid_arguments");
     const searchOne = (win: Record<string, unknown>): Record<string, unknown> => {
       const keyword = typeof win.keyword === "string" ? win.keyword : "";
       const callId = typeof win.callId === "string" ? win.callId.trim() : "";
       const pageId = typeof win.pageId === "string" ? win.pageId.trim() : "";
-      if (!callId && !pageId) return { ok: false, faultCode: "invalid_arguments", detail: "callId 或 pageId 必须提供一个" };
-      if (callId && pageId) return { ok: false, faultCode: "invalid_arguments", detail: "callId 与 pageId 只能提供一个" };
+      if (!callId && !pageId) return { ok: false, faultCode: "invalid_arguments", detail: errorDetail("evidence_source_exclusive") };
+      if (callId && pageId) return { ok: false, faultCode: "invalid_arguments", detail: errorDetail("evidence_source_both") };
       const rawStart = win.startLine;
       const startLine = rawStart == null || rawStart === "" ? null : Number(rawStart);
       const hasLineMode = startLine !== null;
       const hasKeyword = Boolean(keyword.trim());
       // keyword alone → search; startLine alone → lines; both → hybrid (region-anchored search).
-      if (!hasLineMode && !hasKeyword) return { ok: false, faultCode: "invalid_arguments", detail: "必须提供 keyword 或 startLine" };
-      if (startLine !== null && (!Number.isInteger(startLine) || startLine < 1)) return { ok: false, faultCode: "invalid_arguments", detail: "startLine 必须是 ≥1 的整数" };
+      if (!hasLineMode && !hasKeyword) return { ok: false, faultCode: "invalid_arguments", detail: errorDetail("evidence_need_mode") };
+      if (startLine !== null && (!Number.isInteger(startLine) || startLine < 1)) return { ok: false, faultCode: "invalid_arguments", detail: errorDetail("evidence_start_line_int") };
       const rawPad = win.paddingLines;
       const paddingLines = rawPad == null || rawPad === "" ? 0 : Number(rawPad);
       if (!Number.isInteger(paddingLines) || paddingLines < 0 || paddingLines > 50) {
-        return { ok: false, faultCode: "invalid_arguments", detail: "paddingLines 必须是 0..50 的整数" };
+        return { ok: false, faultCode: "invalid_arguments", detail: errorDetail("evidence_padding_range") };
       }
       const limits = runtimeConfig.results;
       const rawWindow = Number(win.contextChars ?? limits.searchContextChars);
@@ -343,7 +345,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
           path,
           keyword,
           lineWidth,
-          detail: "未找到已缓存的原文，确认 callId/pageId 是否来自本会话超量结果",
+          detail: errorDetail("evidence_file_missing"),
         };
       }
 
@@ -429,7 +431,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
           contextChars, lineWidth, totalLines, totalChars,
           matchCount: matches.length,
           matches,
-          ...(matches.length ? {} : { faultCode: "not_found", detail: "锚点窗口内未命中 keyword" }),
+          ...(matches.length ? {} : { faultCode: "not_found", detail: errorDetail("evidence_hybrid_miss") }),
         };
       }
 
@@ -502,7 +504,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
         totalChars,
         matchCount: matches.length,
         matches,
-        ...(matches.length ? {} : { faultCode: "not_found", detail: "关键字未命中缓存原文" }),
+        ...(matches.length ? {} : { faultCode: "not_found", detail: errorDetail("evidence_keyword_miss") }),
       };
     };
     const results = windows.map(searchOne);
@@ -514,12 +516,12 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   }
   if (name === "skill.load") {
     const id = typeof args.id === "string" ? args.id.trim() : "";
-    if (!id) return failedTool("skill.load 的 id 为空", "invalid_arguments", { toolName: name });
+    if (!id) return failedTool(errorDetail("skill_load_empty_id"), "invalid_arguments", { toolName: name });
     if (loadSkillManifest(repoRoot).residentSkillIds.includes(id)) {
-      return failedTool(`技能 ${id} 为常驻技能，正文已在 <systemSkill>`, "invalid_arguments", { toolName: name });
+      return failedTool(errorDetail("skill_resident", { id }), "invalid_arguments", { toolName: name });
     }
     const hit = skillCatalog(repoRoot).find(item => item.id === id);
-    if (!hit) return failedTool(`未知技能 ${id}`, "invalid_arguments", { toolName: name });
+    if (!hit) return failedTool(errorDetail("skill_unknown", { id }), "invalid_arguments", { toolName: name });
     return result(JSON.stringify({ ok: true, id: hit.id, tags: hit.tags, purpose: hit.purpose }), [{ type: "skill.load", id }]);
   }
   if (name === "catalog.add") {
@@ -544,10 +546,10 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     const memoryId = String(args.memoryId ?? "").trim();
     const text = String(args.text ?? "").trim();
     if (!/^(?:mm|lm)_[0-9]{2,}$/.test(memoryId)) {
-      return failedTool("memoryId 必须是 mm_ 或 lm_ 记忆编号", "invalid_arguments", { toolName: name });
+      return failedTool(errorDetail("memory_id_pattern"), "invalid_arguments", { toolName: name });
     }
-    if (!text) return failedTool("text 不能为空", "invalid_arguments", { toolName: name });
-    if (!input.conversationId) return failedTool("memory.update 缺少会话标识", "invalid_arguments");
+    if (!text) return failedTool(errorDetail("memory_text_empty"), "invalid_arguments", { toolName: name });
+    if (!input.conversationId) return failedTool(errorDetail("memory_update_missing_session"), "invalid_arguments");
     return result(JSON.stringify({
       ok: true,
       memoryId,
@@ -558,7 +560,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   if (name === "memory.delete") {
     const memoryId = String(args.memoryId ?? "").trim();
     if (!/^(?:mm|lm)_[0-9]{2,}$/.test(memoryId)) {
-      return failedTool("memoryId 必须是 mm_ 或 lm_ 记忆编号", "invalid_arguments", { toolName: name });
+      return failedTool(errorDetail("memory_id_pattern"), "invalid_arguments", { toolName: name });
     }
     return result(JSON.stringify({
       ok: true,
@@ -595,7 +597,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     return result(JSON.stringify({ ok: outcome.status === "completed" || outcome.status === "noop", ...outcome }));
   }
   if ((JOB_TOOL_NAMES as readonly string[]).includes(name)) {
-    if (!input.conversationId) return failedTool("job 工具缺少会话标识", "invalid_arguments");
+    if (!input.conversationId) return failedTool(errorDetail("job_missing_session"), "invalid_arguments");
     return externalResult(await runJobTool(name, hostArgs(args), jobScope(dataDir, input.conversationId)));
   }
   if ((STREAM_TOOL_NAMES as readonly string[]).includes(name)) {
@@ -605,7 +607,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     return externalResult(await runImageTool(name, hostArgs(args), host, dataDir, input.conversationId));
   }
   if (name === "asset.list") {
-    if (!input.conversationId) return failedTool("asset.list 缺少会话标识", "invalid_arguments");
+    if (!input.conversationId) return failedTool(errorDetail("asset_list_missing_session"), "invalid_arguments");
     const assets = loadAssets(dataDir, input.conversationId).filter((item) => {
       if (typeof args.kind === "string" && args.kind && item.kind !== args.kind) return false;
       if (typeof args.name === "string" && args.name.trim() && !item.name.includes(args.name.trim())) return false;
@@ -614,10 +616,10 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     return result(JSON.stringify({ ok: true, assets }));
   }
   if (name === "asset.read") {
-    if (!input.conversationId) return failedTool("asset.read 缺少会话标识", "invalid_arguments");
+    if (!input.conversationId) return failedTool(errorDetail("asset_read_missing_session"), "invalid_arguments");
     const assetId = String(args.assetId ?? "").trim();
     const asset = loadAssets(dataDir, input.conversationId).find((item) => item.assetId === assetId);
-    if (!asset) return failedTool(`找不到资产 ${assetId}`, "file_not_found");
+    if (!asset) return failedTool(errorDetail("asset_not_found", { assetId }), "file_not_found");
     if (asset.kind === "image") {
       const imageId = asset.name.replace(/\.[^.]+$/, "");
       const rect = { x: args.x, y: args.y, width: args.width, height: args.height };
@@ -652,14 +654,14 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     });
   }
   if ((LOCAL_TOOL_NAMES as readonly string[]).includes(name)) {
-    if (!input.conversationId) return failedTool("本地工具缺少会话标识", "invalid_arguments");
+    if (!input.conversationId) return failedTool(errorDetail("local_missing_session"), "invalid_arguments");
     return externalResult(await runLocalTool(name, hostArgs(args), dataDir, input.conversationId));
   }
   if ((SERVICE_TOOL_NAMES as readonly string[]).includes(name)) {
     return externalResult(await runServiceTool(dataDir, name, hostArgs(args), input.signal, input.conversationId));
   }
   if ((COMPOUND_TOOL_NAMES as readonly string[]).includes(name)) {
-    if (!host) return failedTool(`${name} 没有浏览器桥`, "browser_unavailable");
+    if (!host) return failedTool(errorDetail("browser_bridge_missing", { name }), "browser_unavailable");
     const compoundArgs = hostArgs(input.arguments);
     if ((compoundArgs.tabId === undefined || compoundArgs.tabId === null) && Number.isInteger(input.defaultTabId) && input.defaultTabId! >= 0) {
       compoundArgs.tabId = input.defaultTabId;
@@ -667,12 +669,12 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     return externalResult(await runCompoundTool(name, compoundArgs, host));
   }
   if (browserNames.includes(name)) {
-    if (!host) return failedTool(`${name} 没有浏览器桥`, "browser_unavailable");
+    if (!host) return failedTool(errorDetail("browser_bridge_missing", { name }), "browser_unavailable");
     const args = hostArgs(input.arguments);
     if ((args.tabId === undefined || args.tabId === null) && Number.isInteger(input.defaultTabId) && input.defaultTabId! >= 0) {
       args.tabId = input.defaultTabId;
     }
     return externalResult(await host.execute(name, args));
   }
-  return failedTool(`${name} 未接`, "unknown_tool");
+  return failedTool(errorDetail("tool_unwired", { name }), "unknown_tool");
 }

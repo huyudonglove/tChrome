@@ -1,4 +1,5 @@
 import type { ToolArguments } from "../types.ts";
+import { errorDetail } from "../../shared/error-details.ts";
 
 const asObject = (value: unknown): Record<string, unknown> | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -32,7 +33,7 @@ export const parseToolArguments = (raw: unknown): { ok: true; value: ToolArgumen
   }
   if (typeof raw === "object") {
     const object = asObject(raw);
-    if (!object) return { ok: false, detail: "arguments is array" };
+    if (!object) return { ok: false, detail: errorDetail("arguments_is_array") };
     return { ok: true, value: object as ToolArguments };
   }
   if (typeof raw !== "string") {
@@ -48,10 +49,10 @@ export const parseToolArguments = (raw: unknown): { ok: true; value: ToolArgumen
   if (/}\s*\{/.test(text)) {
     return {
       ok: false,
-      detail: "检测到多个连写的 JSON 根对象（形如 }{）。每个 tool_call 的 arguments 必须是单独一个 JSON 对象，请将多个调用拆分为独立的 tool_calls。",
+      detail: errorDetail("arguments_json_concat"),
     };
   }
-  let syntaxDetail = "Unable to parse JSON string";
+  let syntaxDetail = errorDetail("arguments_unable_parse");
   try {
     JSON.parse(text);
   } catch (err: unknown) {

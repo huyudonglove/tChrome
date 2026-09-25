@@ -1,5 +1,6 @@
 import type { GoalRecord, Ledger, Plan, PlanHistoryRecord, PlanItem, PlanItemStatus, ToolArguments } from "../types.ts";
 import { allocateRecordId, nowIso } from "./ids.ts";
+import { errorDetail } from "../../shared/error-details.ts";
 
 export type PlanContext = {
   ledger: Ledger;
@@ -41,7 +42,7 @@ const syncGoalPlanPointers = (ledger: Ledger, goalId: string | null, plan: Plan 
 const ensureSingleDoing = (plan: Plan): void => {
   const doing = plan.items.filter((item) => item.status === "doing");
   if (doing.length > 1) {
-    throw new Error(`同一 Plan 最多一个 doing 项，当前冲突：${doing.map((item) => item.id).join(", ")}`);
+    throw new Error(errorDetail("plan_single_doing_conflict", { ids: doing.map((item) => item.id).join(", ") }));
   }
 };
 
@@ -54,15 +55,15 @@ const setLedgerActive = (ledger: Ledger, plan: Plan | null): void => {
 
 const findPlan = (ledger: Ledger, planId: string): Plan => {
   const plan = ledger.plans.find((row) => row.id === planId);
-  if (!plan) throw new Error(`Plan ${planId} 不存在`);
+  if (!plan) throw new Error(errorDetail("plan_not_found", { id: planId }));
   return plan;
 };
 
 const requireGoal = (ledger: Ledger): GoalRecord => {
-  if (!ledger.currentGoalId) throw new Error("需要先用 submitGoal 创建或切换当前 Goal，再创建 Plan");
+  if (!ledger.currentGoalId) throw new Error(errorDetail("plan_need_goal"));
   const goal = ledger.goals.find((row) => row.id === ledger.currentGoalId);
-  if (!goal) throw new Error(`当前 Goal ${ledger.currentGoalId} 不存在`);
-  if (goal.status !== "active") throw new Error(`Goal ${goal.id} 已结束，不能挂接 Plan`);
+  if (!goal) throw new Error(errorDetail("goal_not_found", { id: ledger.currentGoalId }));
+  if (goal.status !== "active") throw new Error(errorDetail("goal_not_active", { id: goal.id }));
   return goal;
 };
 
@@ -83,7 +84,7 @@ export function preparePlanSet(dataDir: string, context: PlanContext, args: Tool
   rawItems.forEach((raw, index) => {
     const row = (raw ?? {}) as Record<string, unknown>;
     const text = String(row.text ?? "").trim();
-    if (!text) throw new Error(`items[${index}].text 不能为空`);
+    if (!text) throw new Error(errorDetail("plan_item_text_empty", { index }));
     const status = row.status === "doing" || row.status === "done" ? row.status : "todo";
     if (status === "doing") seenDoing.push(text);
     const id = planItemId(dataDir, ledger.conversationId);
@@ -100,9 +101,9 @@ export function preparePlanSet(dataDir: string, context: PlanContext, args: Tool
     if (status === "done") item.completedAt = item.createdAt;
     items.push(item);
   });
-  if (!items.length) throw new Error("plan.set 需要非空 items");
+  if (!items.length) throw new Error(errorDetail("plan_set_empty_items"));
   if (seenDoing.length > 1) {
-    throw new Error(`同一 Plan 最多一个 doing 项，提交中出现 ${seenDoing.length} 项：${seenDoing.join(", ")}`);
+    throw new Error(errorDetail("plan_set_multi_doing_submit", { count: seenDoing.length, texts: seenDoing.join(", ") }));
   }
 
   const previous = goal.planId ? ledger.plans.find((row) => row.id === goal.planId && row.status === "active") : undefined;
@@ -166,24 +167,24 @@ export function preparePlanUpdate(dataDir: string, context: PlanContext, args: T
 } {
   const { ledger } = context;
   const planId = typeof args.planId === "string" && args.planId.trim() ? args.planId.trim() : ledger.activePlanId;
-  if (!planId) throw new Error("plan.update 需要活动 Plan；先用 plan.set 创建");
+  if (!planId) throw new Error(errorDetail("plan_update_need_active"));
   const plan = findPlan(ledger, planId);
-  if (plan.status !== "active") throw new Error(`Plan ${plan.id} 已是终态，不能更新`);
+  if (plan.status !== "active") throw new Error(errorDetail("plan_update_terminal", { id: plan.id }));
   if (args.goalId !== undefined && args.goalId !== plan.goalId) {
-    throw new Error("plan.update 不能改写 goalId；Runtime 已自动关联");
+    throw new Error(errorDetail("plan_update_goal_mismatch"));
   }
 
   const raw = Array.isArray(args.items) ? args.items : [];
-  if (!raw.length) throw new Error("plan.update 需要非空 items");
+  if (!raw.length) throw new Error(errorDetail("plan_update_empty_items"));
   const patches = raw.map((entry, i) => {
     const row = (entry ?? {}) as Record<string, unknown>;
     const itemId = typeof row.id === "string" && row.id.trim() ? row.id.trim() : "";
-    if (!itemId) throw new Error(`items[${i}].id 必须是稳定 planItemId`);
+    if (!itemId) throw new Error(errorDetail("plan_update_need_item_id", { index: i }));
     if (row.planId !== undefined && row.planId !== plan.id) {
-      throw new Error("items[].planId 与当前 Plan 不一致；Runtime 已自动关联");
+      throw new Error(errorDetail("plan_update_plan_mismatch"));
     }
     if (row.goalId !== undefined && row.goalId !== plan.goalId) {
-      throw new Error("items[].goalId 与当前 Plan 不一致；Runtime 已自动关联");
+      throw new Error(errorDetail("plan_update_goal_id_mismatch"));
     }
     const status = row.status === "todo" || row.status === "doing" || row.status === "done"
       ? row.status as PlanItemStatus
@@ -199,7 +200,7 @@ export function preparePlanUpdate(dataDir: string, context: PlanContext, args: T
       ? row.blockedReason.trim()
       : undefined;
     if (!status && text === undefined && expectedEffect === undefined && verification === undefined && blockedReason === undefined) {
-      throw new Error(`items[${i}] 至少需要 status 或 text/expectedEffect/verification/blockedReason 之一`);
+      throw new Error(errorDetail("plan_update_patch_empty", { index: i }));
     }
     return { itemId, status, text, expectedEffect, verification, blockedReason };
   });
@@ -208,7 +209,7 @@ export function preparePlanUpdate(dataDir: string, context: PlanContext, args: T
   const history: PlanHistoryRecord[] = [];
   for (const patch of patches) {
     const item = working.items.find((row) => row.id === patch.itemId);
-    if (!item) throw new Error(`PlanItem ${patch.itemId} 不存在于 ${plan.id}`);
+    if (!item) throw new Error(errorDetail("plan_item_missing", { id: patch.itemId, planId: plan.id }));
     const before = structuredClone(item);
     const now = nowIso();
     if (patch.text !== undefined) item.text = patch.text;
@@ -218,12 +219,12 @@ export function preparePlanUpdate(dataDir: string, context: PlanContext, args: T
     if (patch.blockedReason !== undefined) item.blockedReason = patch.blockedReason;
     if (patch.status !== undefined && patch.status !== item.status) {
       if (item.status === "done" && patch.status !== "done") {
-        throw new Error(`PlanItem ${item.id} 已 done，不能回退`);
+        throw new Error(errorDetail("plan_item_done_no_rollback", { id: item.id }));
       }
       if (patch.status === "doing") {
         const other = working.items.find((row) => row.status === "doing" && row.id !== item.id);
         if (other) {
-          throw new Error(`同一 Plan 最多一个 doing 项，冲突：${other.id} 与 ${item.id}`);
+          throw new Error(errorDetail("plan_multi_doing_update", { a: other.id, b: item.id }));
         }
         item.status = "doing";
         item.startedAt ??= now;
@@ -272,13 +273,13 @@ export function preparePlanComplete(dataDir: string, context: PlanContext, args:
 } {
   const { ledger } = context;
   const planId = typeof args.planId === "string" && args.planId.trim() ? args.planId.trim() : ledger.activePlanId;
-  if (!planId) throw new Error("plan.complete 需要活动 Plan");
+  if (!planId) throw new Error(errorDetail("plan_complete_need_active"));
   const plan = findPlan(ledger, planId);
   if (plan.status === "completed") return { plan, history: [] };
-  if (plan.status === "cancelled") throw new Error(`Plan ${plan.id} 已 cancelled，不能 complete`);
+  if (plan.status === "cancelled") throw new Error(errorDetail("plan_complete_cancelled", { id: plan.id }));
   const unfinished = plan.items.filter((item) => item.status !== "done");
   if (unfinished.length) {
-    throw new Error(`Plan 还有未完成步骤：${unfinished.map((item) => item.id).join(", ")}`);
+    throw new Error(errorDetail("plan_complete_unfinished", { ids: unfinished.map((item) => item.id).join(", ") }));
   }
   const before = { status: plan.status };
   plan.status = "completed";

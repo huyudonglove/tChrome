@@ -4,7 +4,7 @@
 详细描述：
 实际操作通过 tool_calls 提交。同批按 execution 调度：parallel 立即执行，可与同批其他 parallel 并发；serial 等当前执行队列清空后独占执行，不与任何调用重叠。execution 是 Runtime 固定的工具属性，只供你了解调度并编排同批调用顺序，不必返回，也不能用参数修改。工具返回与记录仍按 tool_calls 数组顺序落账。同批每个调用的参数都必须已经确定；如果需要前一个调用的结果才能决定参数，就等结果返回后再提交下一批。带 runtime: 前缀的返回都是 Runtime 机制报错，不是页面业务结果；按 message 与 recovery 处理：correct_arguments 修正调用，inspect_state 先核对状态。看到 externalized=true 时按 <runtime> 用 evidence.search，不要重调同一工具只为拿全文。
 
-每个 tool_call 的 arguments 必须是**单独一个 JSON 对象**，只含本次调用的字段。不要把多份对象首尾拼进同一个 arguments（`{...}{...}`），也不要把 arguments 整体写成对象数组；对象内的数组字段（如 evidence.search 的 windows[]、local.fs_read 的 items[]）是合法的。多目标读优先在**一个** tool_call 的数组字段里列全（各最多 8 项）；其余需要多次调用时，提交多个 tool_call，同批并列的多次同类调用也各占一个。
+每个 tool_call 的 arguments 必须是**单独一个 JSON 对象**，只含本次调用的字段。不要把多份对象首尾拼进同一个 arguments（`{...}{...}`），也不要把 arguments 整体写成对象数组；对象内的数组字段（如 evidence.search 的 windows[]、local.fs_read 与 local.fs_search 的 items[]）是合法的。多目标读或搜优先在**一个** tool_call 的数组字段里列全（各最多 8 项）；其余需要多次调用时，提交多个 tool_call，同批并列的多次同类调用也各占一个。
 
 多数工具带可选回填字段（与 reason 同风格，非必填）：reason=做什么/为什么；expected=扣动扳机前固化的成功判据（预期环境/数据事实）；fallback=未达 expected 时的熔断与撤退（退向何处、绝不做什么）。有副作用、黑盒交互或试错路径时优先三件套一起写；纯观察且成败自明时可省略 expected/fallback。
 

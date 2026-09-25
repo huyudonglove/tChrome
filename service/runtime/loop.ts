@@ -7,6 +7,7 @@ import { escalate } from "./escalation.ts";
 import { ensureThumb, loadThumbRef } from "../images/thumb.ts";
 import { projectMemories } from "../memory/window.ts";
 import { errorInfo, errorMessage } from "../../shared/errors.ts";
+import { errorDetail } from "../../shared/error-details.ts";
 import { failedTool, toolFailure } from "../tools/result.ts";
 import { systemText, userText, windowChars } from "../context/window.ts";
 import { ContextBudgetError } from "../context/overflow.ts";
@@ -140,20 +141,26 @@ const validateCompletion = (
 const writeFault = (dataDir: string, ledger: Ledger, turnId: string, result: CompletionResult, tools: Parameters<typeof checkToolCalls>[1]) => {
   const name = result.badName || result.toolCalls.at(-1)?.name || "unknown";
   const call = result.toolCalls.find((row) => row.name === name) ?? result.toolCalls.at(-1);
-  const includeSchema = result.faultCode !== "arguments_not_json";
+  const isFormatFault = result.faultCode === "arguments_not_json";
+  // Format faults: do not persist broken payload; return a correct usage example instead of the raw error.
+  const detail = isFormatFault
+    ? errorDetail(/}\s*\{/.test(result.detail ?? "") ? "arguments_json_concat" : "arguments_json_invalid")
+    : (result.detail ?? "");
   const text = JSON.stringify(toolFailure({
     ok: false,
     faultCode: result.faultCode,
     missing: result.missing,
     toolName: name,
-    detail: result.detail ?? "",
-    details: includeSchema ? { parameterSchema: tools.find(tool => tool.function.name === name)?.function.parameters } : {},
+    detail,
+    details: isFormatFault
+      ? {}
+      : { parameterSchema: tools.find(tool => tool.function.name === name)?.function.parameters },
   }));
   ledger.toolIO.push({
     callId: call?.id ?? allocateRecordId(dataDir, ledger.conversationId, "call"),
     name,
     turnId,
-    arguments: call?.arguments ?? {},
+    arguments: isFormatFault ? {} : (call?.arguments ?? {}),
     return: { stage: "complete", totalChars: text.length, text },
   });
 };
@@ -639,7 +646,7 @@ export async function handleTurn(
         for (const fault of result.toolCallFaults ?? []) {
           writeFault(deps.dataDir, ledger, turnId, {
             ...result, badName: fault.name, faultCode: "arguments_not_json", detail: fault.detail, missing: [],
-            toolCalls: [{ id: fault.callId, name: fault.name, arguments: { rawArguments: fault.rawArguments } }],
+            toolCalls: [{ id: fault.callId, name: fault.name, arguments: {} }],
           }, tools);
         }
         if (!result.parseOk && !result.toolCallFaults?.length) writeFault(deps.dataDir, ledger, turnId, result, tools);

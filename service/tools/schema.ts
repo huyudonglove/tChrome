@@ -1,5 +1,6 @@
 import Ajv, { type ErrorObject } from "ajv";
 import type { ChatTool, ToolCall } from "../types.ts";
+import { errorDetail } from "../../shared/error-details.ts";
 
 const ajv = new Ajv({ allErrors: true, strict: false });
 
@@ -89,7 +90,7 @@ export function checkToolCalls(
   if (toolCalls.some(call => call.name === "script_patch")
     && toolCalls.some(call => ["execute_javascript", "local.run", "local.process_start"].includes(call.name))) {
     return { parseOk: true, schemaOk: false, faultCode: "script_steps_separate", missing: [],
-      badName: "script_patch", detail: "先单独提交 script_patch，查看写入结果后在下一次调用中执行脚本。" };
+      badName: "script_patch", detail: errorDetail("script_steps_separate") };
   }
   const closers = toolCalls.filter((call) => call.name === "finishTurn" || call.name === "askUser");
   if (closers.length > 1 || (closers[0] && toolCalls.at(-1)?.name !== closers[0].name)) {

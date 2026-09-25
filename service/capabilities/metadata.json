@@ -2030,7 +2030,7 @@
       ]
     },
     "local.fs_search": {
-      "purpose": "在目录内递归按名称子串query搜索，不跟随符号链接，不搜索文件内容",
+      "purpose": "在目录内递归按名称子串 query 搜索文件名；支持 items 批处理（1..8 个 {path, query}），与 fs_read 同一哲学",
       "triggers": [
         "local.fs_search",
         "任务需要访问本机文件、Git、脚本或系统能力"

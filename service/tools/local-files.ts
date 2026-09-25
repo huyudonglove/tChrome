@@ -30,6 +30,41 @@ function typeOf(value: { isSymbolicLink(): boolean; isDirectory(): boolean; isFi
   return value.isSymbolicLink() ? "symlink" : value.isDirectory() ? "directory" : value.isFile() ? "file" : "other";
 }
 
+async function searchOneDir(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+  try {
+    const path = pathArg(input);
+    if (typeof input.query !== "string" || !input.query.length) throw new Error("query must be a non-empty filename substring");
+    const limit = integer(input, "limit", 100, 1, 1000);
+    const maxEntries = integer(input, "maxEntries", 10000, 1, 100000);
+    if (!(await lstat(path)).isDirectory()) throw new Error("path must be a directory, not a symlink");
+    const pending = [path];
+    const matches: Record<string, unknown>[] = [];
+    let scanned = 0;
+    let truncated = false;
+    const errors: { path: string; error: string }[] = [];
+    outer: while (pending.length) {
+      const directory = pending.pop()!;
+      try {
+        for await (const entry of await opendir(directory)) {
+          if (scanned >= maxEntries || matches.length >= limit) { truncated = true; break outer; }
+          scanned++;
+          const entryPath = join(directory, entry.name);
+          if (entry.name.includes(input.query)) matches.push({ path: entryPath, name: entry.name, type: typeOf(entry) });
+          if (entry.isDirectory() && !entry.isSymbolicLink()) pending.push(entryPath);
+        }
+      } catch (error) {
+        if (directory === path) throw error;
+        if (errors.length < 100) errors.push({ path: directory, error: error instanceof Error ? error.message : String(error) });
+        truncated = true;
+      }
+    }
+    return { ok: true, path, matches, scanned, truncated, errors };
+  } catch (error) {
+    const { faultCode, detail, message } = errorInfo(error, "tool_execution_failed");
+    return { ok: false, path: typeof input.path === "string" ? input.path : undefined, faultCode, error: detail || message };
+  }
+}
+
 async function readOneFile(input: Record<string, unknown>): Promise<Record<string, unknown>> {
   try {
     const path = pathArg(input);
@@ -89,6 +124,17 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
       const results = await Promise.all(items.map((item) => {
         const row = (item ?? {}) as Record<string, unknown>;
         return readOneFile(row);
+      }));
+      return { ok: results.every((row) => row.ok), results };
+    }
+    if (name === "local.fs_search") {
+      const items = input.items;
+      if (!Array.isArray(items) || items.length < 1 || items.length > 8) {
+        throw new Error("items must be an array of 1..8 {path, query, limit?, maxEntries?}");
+      }
+      const results = await Promise.all(items.map((item) => {
+        const row = (item ?? {}) as Record<string, unknown>;
+        return searchOneDir(row);
       }));
       return { ok: results.every((row) => row.ok), results };
     }
@@ -168,34 +214,6 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
         if (path === resolve(path, "..")) throw new Error("cannot delete filesystem root");
         await rm(path, { recursive: flag(input, "recursive"), force: false });
         return { ok: true, path };
-      case "local.fs_search": {
-        if (typeof input.query !== "string" || !input.query.length) throw new Error("query must be a non-empty filename substring");
-        const limit = integer(input, "limit", 100, 1, 1000);
-        const maxEntries = integer(input, "maxEntries", 10000, 1, 100000);
-        if (!(await lstat(path)).isDirectory()) throw new Error("path must be a directory, not a symlink");
-        const pending = [path];
-        const matches: Record<string, unknown>[] = [];
-        let scanned = 0;
-        let truncated = false;
-        const errors: { path: string; error: string }[] = [];
-        outer: while (pending.length) {
-          const directory = pending.pop()!;
-          try {
-            for await (const entry of await opendir(directory)) {
-              if (scanned >= maxEntries || matches.length >= limit) { truncated = true; break outer; }
-              scanned++;
-              const entryPath = join(directory, entry.name);
-              if (entry.name.includes(input.query)) matches.push({ path: entryPath, name: entry.name, type: typeOf(entry) });
-              if (entry.isDirectory() && !entry.isSymbolicLink()) pending.push(entryPath);
-            }
-          } catch (error) {
-            if (directory === path) throw error;
-            if (errors.length < 100) errors.push({ path: directory, error: error instanceof Error ? error.message : String(error) });
-            truncated = true;
-          }
-        }
-        return { ok: true, path, matches, scanned, truncated, errors };
-      }
       case "local.fs_grep": {
         if (typeof input.query !== "string" || !input.query.length || input.query.length > 500) {
           throw new Error("query must be a literal substring of 1 to 500 characters");

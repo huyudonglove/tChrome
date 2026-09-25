@@ -66,11 +66,40 @@ test("search traverses nested directories with bounds, never follows directory s
   await mkdir(join(root, "nested"));
   await writeFile(join(root, "nested", "match.txt"), "yes");
   await symlink(root, join(root, "nested", "loop"));
-  const result = await run("local.fs_search", { path: root, query: "match" });
-  expect(result).toMatchObject({ ok: true, scanned: 3, truncated: false, matches: [{ name: "match.txt", path: join(root, "nested", "match.txt"), type: "file" }] });
-  expect(await run("local.fs_search", { path: root, query: "match", maxEntries: 1 })).toMatchObject({ ok: true, scanned: 1, truncated: true });
-  expect(await run("local.fs_search", { path: join(root, "nested", "loop"), query: "match" })).toMatchObject({ ok: false });
+  const result = await run("local.fs_search", { items: [{ path: root, query: "match" }] });
+  expect(result.ok).toBe(true);
+  const row = (result.results as Record<string, unknown>[])[0]!;
+  expect(row).toMatchObject({ ok: true, scanned: 3, truncated: false, matches: [{ name: "match.txt", path: join(root, "nested", "match.txt"), type: "file" }] });
+  const capped = await run("local.fs_search", { items: [{ path: root, query: "match", maxEntries: 1 }] });
+  expect((capped.results as Record<string, unknown>[])[0]).toMatchObject({ ok: true, scanned: 1, truncated: true });
+  const bad = await run("local.fs_search", { items: [{ path: join(root, "nested", "loop"), query: "match" }] });
+  expect(bad.ok).toBe(false);
+  expect((bad.results as Record<string, unknown>[])[0]).toMatchObject({ ok: false });
   expect(await run("local.fs_list", { path: join(root, "nested"), limit: 1 })).toMatchObject({ ok: true, truncated: true });
+});
+
+test("fs_search items batch several roots with per-item ok", async () => {
+  const dirA = join(root, "a");
+  const dirB = join(root, "b");
+  await mkdir(dirA);
+  await mkdir(dirB);
+  await writeFile(join(dirA, "alpha.txt"), "a");
+  await writeFile(join(dirB, "beta.txt"), "b");
+  const result = await run("local.fs_search", {
+    items: [
+      { path: dirA, query: "alpha" },
+      { path: dirB, query: "beta" },
+      { path: join(root, "missing-dir"), query: "x" },
+    ],
+  }) as { ok: boolean; results: { ok: boolean; matches?: { name: string }[]; faultCode?: string }[] };
+  expect(result.ok).toBe(false);
+  expect(result.results[0]).toMatchObject({ ok: true });
+  expect(result.results[0]!.matches?.[0]?.name).toBe("alpha.txt");
+  expect(result.results[1]).toMatchObject({ ok: true });
+  expect(result.results[1]!.matches?.[0]?.name).toBe("beta.txt");
+  expect(result.results[2]).toMatchObject({ ok: false });
+  expect(await run("local.fs_search", { items: [] })).toMatchObject({ ok: false });
+  expect(await run("local.fs_search", { path: root, query: "match" })).toMatchObject({ ok: false });
 });
 
 test("directories require explicit recursive deletion and absolute paths are enforced", async () => {
