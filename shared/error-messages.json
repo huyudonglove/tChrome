@@ -75,7 +75,7 @@
     "recovery": "correct_arguments"
   },
   "missing_required": {
-    "model": "缺少必填参数。按工具定义和详细错误补齐共同必填字段，并满足适用的参数分支；互为替代的分支不要求同时满足。",
+    "model": "缺少必填参数。按工具定义与详细错误补齐共同必填字段，并满足适用的参数分支；互为替代的分支满足其一即可。",
     "user": "工具调用缺少必填参数。",
     "recovery": "correct_arguments"
   },
@@ -120,7 +120,7 @@
     "recovery": "inspect_state"
   },
   "tool_timeout": {
-    "model": "工具等待超时，操作可能仍在执行或已经生效。先检查当前状态，避免重复执行。",
+    "model": "工具等待超时，操作可能仍在执行或已经生效。先检查当前状态，再决定是否重试。",
     "user": "工具等待超时，操作可能仍在执行或已经生效。",
     "recovery": "inspect_state"
   },
@@ -210,7 +210,7 @@
     "recovery": "correct_arguments"
   },
   "result_externalized": {
-    "model": "单次结果超过内联门禁，全文已缓存本地。用 evidence.search 按 callId 或 pageId 与 keyword 取关键字附近上下文，不要假设全文仍在窗口内。",
+    "model": "单次结果超过内联门禁，全文已缓存本地。用 evidence.search 按 callId 或 pageId 与 keyword 取关键字附近上下文；窗口内只有摘要与 path。",
     "user": "工具结果过大，已保存在本地，模型将改为检索关键片段。",
     "recovery": "correct_arguments"
   },
