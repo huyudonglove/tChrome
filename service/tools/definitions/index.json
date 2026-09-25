@@ -1,5 +1,6 @@
 {
   "browser": [
+    "page.eval_expr",
     "page.get_summary",
     "page.list_regions",
     "page.list_interactive_elements",

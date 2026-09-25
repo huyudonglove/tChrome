@@ -15,7 +15,13 @@ export type Escalation =
   | { action: "force_end"; text: string }
   | { action: "interrupt"; text: string };
 
-/** 每 turn 计数升级链：同工具 20 提示 checkContinue，60 强制收口；check×3→进度；进度×3→askUser 1 次；其后 3 轮建议 finishTurn，再 3 次强制结束。 */
+/**
+ * 每 turn 计数升级链：门槛数字不变（20/60/3）。
+ * 计数改为本轮业务工具总次数（不含 checkContinue / reportProgress），
+ * 避免轮换工具名绕过单工具 20/60 门禁。
+ * 链：总次数 20 提示 checkContinue，60 强制收口；
+ * check×3→进度；进度×3→askUser 1 次；其后 3 轮建议 finishTurn，再 3 次强制结束。
+ */
 export function escalate(rows: ToolIOItem[], lastName: string): Escalation {
   const turnRows = rows;
   const checks = turnRows.filter((row) => row.name === CHECK_TOOL);
@@ -26,15 +32,14 @@ export function escalate(rows: ToolIOItem[], lastName: string): Escalation {
   const reports = turnRows.filter((row) => row.name === PROGRESS_TOOL).length;
   const asks = turnRows.filter((row) => row.name === "askUser").length;
   const finishes = turnRows.filter((row) => row.name === "finishTurn").length;
-  const same = lastName === CHECK_TOOL || lastName === PROGRESS_TOOL
-    ? 0
-    : turnRows.filter((row) => row.name === lastName).length;
+  // 本轮业务工具总次数（升级工具本身不计入），不再按单工具名分别统计。
+  const total = turnRows.filter((row) => row.name !== CHECK_TOOL && row.name !== PROGRESS_TOOL).length;
 
-  if (same >= SAME_TOOL_HARD && !checks.length) {
-    return { action: "force_end", text: `runtime: ${lastName} 已执行 ${same} 次仍未调用 checkContinue，本 turn 结束。` };
+  if (total >= SAME_TOOL_HARD && !checks.length) {
+    return { action: "force_end", text: `runtime: 本轮工具调用已达 ${total} 次仍未调用 checkContinue，本 turn 结束。` };
   }
-  if (same >= SAME_TOOL_PROMPT && !checks.length) {
-    return { action: "hint", text: `runtime: ${lastName} 本轮已 ${same} 次。请调用 checkContinue(cont=true) 继续或 cont=false 中断；${SAME_TOOL_HARD} 次仍未调用将结束本 turn。` };
+  if (total >= SAME_TOOL_PROMPT && !checks.length) {
+    return { action: "hint", text: `runtime: 本轮工具调用已达 ${total} 次。请调用 checkContinue(cont=true) 继续或 cont=false 中断；${SAME_TOOL_HARD} 次仍未调用将结束本 turn。` };
   }
   if (checksTrue >= CHECK_PROMPTS && !reports) {
     return { action: "hint", text: "runtime: checkContinue 已确认 3 次仍继续。请调用 reportProgress 汇报当前进度（做了什么、卡点、下一步）。" };

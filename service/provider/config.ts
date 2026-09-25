@@ -24,6 +24,7 @@ export const providers: readonly ProviderRow[] = [
   { id: "deepseek-official", label: "DeepSeek Official", model: "deepseek-flash", baseURL: "https://api.deepseek.com/v1", apiKeyEnv: "DEEPSEEK_OFFICIAL_API_KEY", modelEnv: "DEEPSEEK_OFFICIAL_MODEL", baseUrlEnv: "DEEPSEEK_OFFICIAL_BASE_URL", effortEnv: "DEEPSEEK_OFFICIAL_REASONING_EFFORT", kind: "openai", sanitizeToolNames: true },
   { id: "xcode", label: "Xcode.best", model: "grok-4.7", baseURL: "https://xcode.best/v1", apiKeyEnv: "XCODE_API_KEY", modelEnv: "XCODE_MODEL", baseUrlEnv: "XCODE_BASE_URL", effortEnv: "XCODE_REASONING_EFFORT", kind: "openai", sanitizeToolNames: true },
   { id: "openrouter", label: "OpenRouter", model: "stealth/space-bunny-alpha", baseURL: "https://openrouter.ai/api/v1", apiKeyEnv: "OPENROUTER_API_KEY", modelEnv: "OPENROUTER_MODEL", baseUrlEnv: "OPENROUTER_BASE_URL", effortEnv: "OPENROUTER_REASONING_EFFORT", kind: "openai", sanitizeToolNames: true },
+  { id: "a6api", label: "A6API", model: "gemini-3.8-flash", baseURL: "https://a6api.com/v1", apiKeyEnv: "A6API_API_KEY", modelEnv: "A6API_MODEL", baseUrlEnv: "A6API_BASE_URL", effortEnv: "A6API_REASONING_EFFORT", kind: "openai", sanitizeToolNames: true },
 ] as const;
 
 export const providerOptions = providers.map(({ id, label, model }) => ({ id, label, model }));

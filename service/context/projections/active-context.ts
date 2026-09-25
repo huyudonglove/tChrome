@@ -101,7 +101,14 @@ const findPrimaryTab = (ledger: Ledger, turn: Turn): ActiveContextView["focus"] 
   let urlPrefix: string | null = null;
   if (tab?.url) {
     try {
-      urlPrefix = new URL(tab.url).origin;
+      const parsed = new URL(tab.url);
+      if (parsed.origin && parsed.origin !== "null") {
+        urlPrefix = parsed.origin;
+      } else if (parsed.protocol) {
+        urlPrefix = parsed.host ? `${parsed.protocol}//${parsed.host}` : parsed.protocol;
+      } else {
+        urlPrefix = tab.url;
+      }
     } catch {
       urlPrefix = tab.url;
     }
@@ -114,7 +121,7 @@ const findPrimaryTab = (ledger: Ledger, turn: Turn): ActiveContextView["focus"] 
 };
 
 /** Design: keep entity-sized fields only; bulk draft logs stay in <notes>. */
-const MAX_ENTITY_CHARS = 200;
+const MAX_ENTITY_CHARS = 80;
 
 const flattenEntityValue = (key: string, value: unknown, into: Record<string, string>): void => {
   if (value === null || value === undefined) return;

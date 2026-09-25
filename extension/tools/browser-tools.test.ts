@@ -127,6 +127,24 @@ test("execute_javascript evaluates in the page through CDP and awaits structured
   expect(attachments).toHaveLength(1);
 });
 
+test("page.eval_expr routes through CDP before page.* dispatch and evaluates inline expr", async () => {
+  let request: any[] = [];
+  const tab = mockJavascript(async (...args) => {
+    request = args;
+    return { result: { type: "string", value: "中文标题" } };
+  });
+  expect(await runBrowserTool("page.eval_expr", { tabId: tab, expr: "document.title" })).toEqual({
+    ok: true, tabId: tab, type: "string", value: "中文标题",
+  });
+  expect(request[1]).toBe("Runtime.evaluate");
+  expect(request[2]).toMatchObject({
+    expression: "document.title", awaitPromise: true, returnByValue: true, allowUnsafeEvalBlockedByCSP: true,
+  });
+  expect(await runBrowserTool("page.eval_expr", { tabId: tab, expr: "  " })).toMatchObject({
+    ok: false, error: expect.stringContaining("缺 expr"),
+  });
+});
+
 for (const remote of [{ type: "undefined" }, { type: "number", unserializableValue: "NaN" },
   { type: "number", unserializableValue: "-0" }, { type: "bigint", unserializableValue: "42n" },
   { type: "object", subtype: "null", value: null }]) {

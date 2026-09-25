@@ -6,6 +6,7 @@ import { waitForDownload } from './downloads.js';
 import { withDebugger, monitorDialogs, dialogState, watchDialog, handleDialog, detachDebugger } from './dialogs.js';
 import { streamCapture, streamReceive, imageShrink } from './stream-pipe.js';
 export const BROWSER_TOOL_NAMES = [
+  'page.eval_expr',
   'page.get_summary', 'page.list_regions', 'page.list_interactive_elements',
   'page.inspect_region', 'page.inspect_element', 'page.get_dom',
   'page.get_accessibility_tree', 'page.get_element_state',
@@ -322,17 +323,72 @@ const cdpClick = async (tabId, x, y, options = {}) => {
   await cdpMouse(tabId, 'mouseReleased', x, y, {button: 'left', clickCount: 1});
 };
 
-// CDP 辅助函数：拖动序列（按下→多步移动→释放）
+// CDP 辅助函数：深度拟人化拖动（按下 → 三次贝塞尔加速 → 过冲回拉 Overshoot & Callback → 停顿对齐 → 松手微震颤 Release Jitter）
 const cdpDrag = async (tabId, fromX, fromY, toX, toY, options = {}) => {
-  const {steps = 12, stepDelay = 20} = options;
+  const {
+    overshoot = true,
+    maxNoiseY = 2.5,
+  } = options;
+
   await cdpMouse(tabId, 'mousePressed', fromX, fromY, {button: 'left', clickCount: 1, buttons: 1});
-  for (let i = 1; i <= steps; i++) {
-    const x = fromX + ((toX - fromX) * i / steps);
-    const y = fromY + ((toY - fromY) * i / steps);
-    await cdpMouse(tabId, 'mouseMoved', x, y, {button: 'left', buttons: 1});
-    await new Promise((r) => setTimeout(r, stepDelay));
+  await new Promise((r) => setTimeout(r, 30 + Math.floor(Math.random() * 20)));
+
+  const totalDx = toX - fromX;
+  const totalDy = toY - fromY;
+  const distance = Math.hypot(totalDx, totalDy);
+
+  // 1. 计算过冲目标点（当位移 > 40px 时产生 4~8px 的过冲）
+  const doOvershoot = overshoot && distance > 40;
+  const overshootDistance = doOvershoot ? (4 + Math.random() * 4) : 0;
+  const overshootAngle = Math.atan2(totalDy, totalDx);
+  const overshootX = Math.round(toX + Math.cos(overshootAngle) * overshootDistance);
+  const overshootY = Math.round(toY + Math.sin(overshootAngle) * overshootDistance);
+
+  // 阶段一：主段滑行推至过冲点（24~32步，慢-快-慢，伴随自然微抖动）
+  const stage1Steps = 24 + Math.floor(Math.random() * 8);
+  const dx1 = overshootX - fromX;
+  const dy1 = overshootY - fromY;
+  for (let i = 1; i <= stage1Steps; i++) {
+    const t = i / stage1Steps;
+    // Ease-out / S 型缓动
+    const easeT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    const noiseY = (Math.random() - 0.5) * maxNoiseY * Math.sin(t * Math.PI);
+    const noiseX = (Math.random() - 0.5) * 0.8;
+    const curX = Math.round(fromX + dx1 * easeT + noiseX);
+    const curY = Math.round(fromY + dy1 * easeT + noiseY);
+    await cdpMouse(tabId, 'mouseMoved', curX, curY, {button: 'left', buttons: 1});
+    const curDelay = Math.floor(10 + 12 * (0.8 + 0.4 * t * Math.random()));
+    await new Promise((r) => setTimeout(r, curDelay));
   }
-  await cdpMouse(tabId, 'mouseReleased', toX, toY, {button: 'left', clickCount: 1, buttons: 0});
+
+  // 阶段二：神经反射停顿（发现滑过头，视觉神经认知延迟 60~110ms）
+  if (doOvershoot) {
+    await new Promise((r) => setTimeout(r, 60 + Math.floor(Math.random() * 50)));
+
+    // 阶段三：回拉修正微调（慢速回退到目标释放点，6~10步）
+    const stage2Steps = 6 + Math.floor(Math.random() * 4);
+    // 稍微带 0.5px 的微小随机错位
+    const finalTargetX = toX + (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 1.2);
+    const finalTargetY = toY + (Math.random() - 0.5) * 0.8;
+    const dx2 = finalTargetX - overshootX;
+    const dy2 = finalTargetY - overshootY;
+    for (let j = 1; j <= stage2Steps; j++) {
+      const t = j / stage2Steps;
+      const easeT = 1 - Math.pow(1 - t, 2);
+      const curX = Math.round(overshootX + dx2 * easeT);
+      const curY = Math.round(overshootY + dy2 * easeT);
+      await cdpMouse(tabId, 'mouseMoved', curX, curY, {button: 'left', buttons: 1});
+      await new Promise((r) => setTimeout(r, 14 + Math.floor(Math.random() * 8)));
+    }
+  }
+
+  // 阶段四：对齐静止与松手微抖（Release Jitter 0.5~1.5px）
+  await new Promise((r) => setTimeout(r, 35 + Math.floor(Math.random() * 25)));
+  const jitterX = Math.round(toX + (Math.random() - 0.5) * 1.5);
+  const jitterY = Math.round(toY + (Math.random() - 0.5) * 1.5);
+  await cdpMouse(tabId, 'mouseMoved', jitterX, jitterY, {button: 'left', buttons: 1});
+  await new Promise((r) => setTimeout(r, 15));
+  await cdpMouse(tabId, 'mouseReleased', jitterX, jitterY, {button: 'left', clickCount: 1, buttons: 0});
 };
 
 const waitNetworkIdle = async (tabId, quietMs = 500, maxMs = 8000) => {
@@ -980,6 +1036,40 @@ const capturePage = async (input) => {
 
 const executeBrowserTool = async (name, input = {}) => {
   const tabId = input.tabId;
+  // page.eval_expr must run before the generic page.* → runPageTool routing.
+  if (name === 'page.eval_expr') {
+    const expr = typeof input.expr === 'string' ? input.expr.trim() : '';
+    if (!expr) return {ok: false, tabId, error: '缺 expr（表达式字符串）'};
+    const tab = await getTab(tabId);
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, tabId, error: '没有普通网页标签'};
+    try {
+      return await withDebugger(tab.id, async () => {
+        const evaluate = chrome.debugger.sendCommand({tabId: tab.id}, 'Runtime.evaluate', {
+          expression: expr,
+          returnByValue: true,
+          awaitPromise: true,
+          allowUnsafeEvalBlockedByCSP: true,
+        });
+        const timeout = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('表达式执行超时（4s）')), 4000);
+        });
+        const res = await Promise.race([evaluate, timeout]);
+        if (res.exceptionDetails) {
+          const desc = res.exceptionDetails.exception?.description || res.exceptionDetails.text || '执行抛出异常';
+          return {ok: false, tabId: tab.id, error: desc};
+        }
+        const remote = res.result;
+        if (!remote?.type) return {ok: false, tabId: tab.id, error: '执行器未返回 JavaScript 结果'};
+        const result = {ok: true, tabId: tab.id, type: remote.type};
+        if (Object.hasOwn(remote, 'value')) return {...result, value: remote.value};
+        if (remote.unserializableValue != null) return {...result, unserializableValue: String(remote.unserializableValue)};
+        if (remote.type === 'undefined') return result;
+        return {...result, serializable: false, description: String(remote.description || remote.subtype || remote.type)};
+      });
+    } catch (e) {
+      return {ok: false, tabId: tab.id, error: `执行表达式失败：${e instanceof Error ? e.message : String(e)}`};
+    }
+  }
   if (name.startsWith('page.')) return runPageTool(name, input);
   if (name === 'see_page' || name === 'watch_page') return inspectTab(tabId);
   if (['snapshot_page', 'find_on_page', 'click', 'double_click', 'focus', 'hover', 'type', 'select'].includes(name)) {

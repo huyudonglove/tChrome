@@ -74,6 +74,30 @@
         "evidence.search"
       ]
     },
+    "page.eval_expr": {
+      "purpose": "在页面主上下文中快速执行轻量表达式并读回值（免脚本落盘）",
+      "triggers": [
+        "page.eval_expr",
+        "需要快速探查页面变量、DOM 属性或 Canvas 状态"
+      ],
+      "outputs": [
+        "表达式执行的返回值或报错信息"
+      ],
+      "preconditions": [
+        "目标标签已打开且属于普通网页"
+      ],
+      "risk": "low",
+      "verification": [
+        "返回 ok=true 且携带 value 字段"
+      ],
+      "alternatives": [
+        "script_write + execute_javascript"
+      ],
+      "composesWith": [
+        "page.get_summary",
+        "drag"
+      ]
+    },
     "askUser": {
       "purpose": "向用户提问",
       "triggers": [

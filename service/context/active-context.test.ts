@@ -80,6 +80,13 @@ test("projectActiveContext binds doing item, primary tab, entities and handover 
   expect(view.activeEntities.draft).toBeUndefined();
   expect(view.handoverIntent).toBe("填写邮箱");
 
+  // Non-HTTP protocol urlPrefix fallback
+  turn.assembled.openTabs.windows[0]!.tabs[1]!.url = "chrome://extensions/";
+  expect(projectActiveContext({ ledger, turn }).focus.urlPrefix).toBe("chrome://extensions");
+
+  ledger.notes.long_draft = "A".repeat(81);
+  expect(projectActiveContext({ ledger, turn }).activeEntities.long_draft).toBeUndefined();
+
   ledger.notes.draft = "N".repeat(210_000);
   expect(projectActiveContext({ ledger, turn }).activeEntities.draft).toBeUndefined();
 

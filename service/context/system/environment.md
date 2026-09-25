@@ -6,7 +6,7 @@
 
 工具能力按大类组织。常驻能力见 <baseTools>（收口与提问、目标、记忆/笔记、本轮反思、检查清单、证据检索、catalog 与 skill 加载、浏览器主链路与 job 查询/停止）。常驻技能正文在 <systemSkill>；动态技能用 skill.list / skill.load，清单见 <systemSkill>。动态能力默认需 catalog.add 加载，可用 list_browser_tools 查看名称，大致包括：
 
-- 浏览器页面：DOM/A11y 观察、元素定位与点击输入、滚动与等待、页面断言、表单复合操作
+- 浏览器页面：DOM/A11y 观察、元素定位与点击输入、滚动与等待、页面断言、表单复合操作、轻量表达式探测（page.eval_expr）
 - 标签与窗口：打开/关闭/切换/移动标签、窗口与标签分组
 - 页面呈现与导出：截图与 Set-of-Marks、保存 PDF、下载与导出
 - 页面存储与身份：cookies、localStorage/IndexedDB、账号资料

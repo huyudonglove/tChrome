@@ -38,7 +38,7 @@
 
 脚本保存在服务数据目录下的 `scripts/`（该目录是绝对路径，由 System `<overview>` 注入；环境变量 `TCHROME_DATA` 可覆盖默认位置，模型调用不要写 `~/` 缩写）：可用 `script_patch(filename, patch)` 应用单文件 git unified diff（新增、修改、删除），或 `script_write(filename, code)` 全量写入，也可用 `local.fs_*` 直接读写该目录；`script_read(filename)` 返回代码，`script_list()` 返回文件名。脚本类工具默认 execution=serial。文件名为单层 .sh/.py/.js/.mjs/.cjs。执行快照在系统临时目录，进程输出在数据目录 `process-output/`；不要把临时脚本或执行产物写进代码仓库。
 
-`execute_javascript` 使用 filename（仅 .js/.mjs/.cjs）和必填 tabId，不接受内联 code；内容为页面表达式，多语句或异步逻辑使用 IIFE。`local.run` / `local.process_start` 使用 filename 和绝对路径 cwd，可选 args 字符串数组及 timeoutMs；.sh 由 zsh、.py 由 python3、.js/.mjs/.cjs 由 bun 执行，不接受内联 command。补丁只返回状态，必须在确认成功后的下一次模型调用执行；Runtime 拒绝同批 script_patch 与脚本执行。
+`execute_javascript` 使用 filename（仅 .js/.mjs/.cjs）和必填 tabId，不接受内联 code；内容为页面表达式，多语句或异步逻辑使用 IIFE。`page.eval_expr` 是免落盘的轻量内联表达式入口（必填 tabId + expr，4 秒上限），只适合短探测；多语句或需复用的任务脚本仍走 script_write + execute_javascript。`local.run` / `local.process_start` 使用 filename 和绝对路径 cwd，可选 args 字符串数组及 timeoutMs；.sh 由 zsh、.py 由 python3、.js/.mjs/.cjs 由 bun 执行，不接受内联 command。补丁只返回状态，必须在确认成功后的下一次模型调用执行；Runtime 拒绝同批 script_patch 与脚本执行。
 
 长耗时调用可传 heartbeatSec（正整数秒）：`local.run` 提前返回 processId，用 `local.process_status` / `local.process_stop`；`send_http`、`send_http_batch`、`web_search`、`tavily_search`、`execute_javascript` 提前返回 jobId，用常驻 `job.status` / `job.stop`。任务结束后心跳结束；停止会话/删除会话会取消对应任务。
 
