@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "drag",
-    "description": "按视口坐标拖动。\n参数：point1=[起点x,y]、point2=[终点x,y]，必填 tabId（目标标签编号）。\n返回：ok、from、to。坐标来自截图时先 capture_page(mode=viewport) 再 calibrate_drag。\n执行调度：serial（Runtime 固定，不必返回）。",
+    "description": "按视口坐标拖动。\n参数：point1=[起点x,y]、point2=[终点x,y]，必填 tabId。可选 humanize 对象控制拟人化轨迹，缺省=原子精确落点（无过冲/噪声/松手抖）。\n返回：ok、from、to。坐标来自截图时先 capture_page(mode=viewport) 再 calibrate_drag。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -40,12 +40,32 @@
         },
         "reason": {
           "type": "string"
+        },
+        "humanize": {
+          "type": "object",
+          "description": "拟人化拖动参数；省略或全 false=原子精确落点（终点绝对归位）。仅在需要对抗拟人检测时显式打开。",
+          "properties": {
+            "overshoot": {
+              "type": "boolean",
+              "description": "过冲回拉，默认 false；回拉终点仍精确落在 point2"
+            },
+            "noise": {
+              "type": "boolean",
+              "description": "路径正弦噪声，默认 false"
+            },
+            "releaseJitter": {
+              "type": "boolean",
+              "description": "松手前微抖，默认 false；true 时松手点可能偏离终点 1px 内"
+            }
+          },
+          "additionalProperties": false
         }
       },
       "required": [
         "reason",
         "tabId"
-      ]
+      ],
+      "additionalProperties": false
     }
   },
   "execution": "serial"

@@ -324,37 +324,69 @@ const cdpClick = async (tabId, x, y, options = {}) => {
   await cdpMouse(tabId, 'mouseReleased', x, y, {button: 'left', clickCount: 1});
 };
 
-// CDP 辅助函数：深度拟人化拖动（按下 → 三次贝塞尔加速 → 过冲回拉 Overshoot & Callback → 停顿对齐 → 松手微震颤 Release Jitter）
+/** Parse optional humanize controls from tool args; all flags default off (atomic precise). */
+const humanizeFromInput = (input) => {
+  const h = input?.humanize;
+  if (!h || typeof h !== 'object') {
+    return { overshoot: false, noise: false, releaseJitter: false };
+  }
+  return {
+    overshoot: h.overshoot === true,
+    noise: h.noise === true,
+    releaseJitter: h.releaseJitter === true,
+  };
+};
+
+// CDP 辅助函数：拖动（默认原子精确落点；humanize 各开关显式开启才拟人化）
 const cdpDrag = async (tabId, fromX, fromY, toX, toY, options = {}) => {
   const {
-    overshoot = true,
-    maxNoiseY = 2.5,
+    overshoot = false,
+    noise = false,
+    releaseJitter = false,
   } = options;
+  const humanize = overshoot || noise || releaseJitter;
 
   await cdpMouse(tabId, 'mousePressed', fromX, fromY, {button: 'left', clickCount: 1, buttons: 1});
+
+  // Atomic precise path: linear steps, exact landing, no jitter/drift.
+  if (!humanize) {
+    const steps = 8;
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const x = Math.round(fromX + (toX - fromX) * t);
+      const y = Math.round(fromY + (toY - fromY) * t);
+      await cdpMouse(tabId, 'mouseMoved', x, y, {button: 'left', buttons: 1});
+      await new Promise((r) => setTimeout(r, 8));
+    }
+    await cdpMouse(tabId, 'mouseMoved', toX, toY, {button: 'left', buttons: 1});
+    await cdpMouse(tabId, 'mouseReleased', toX, toY, {button: 'left', clickCount: 1, buttons: 0});
+    return;
+  }
+
   await new Promise((r) => setTimeout(r, 30 + Math.floor(Math.random() * 20)));
 
   const totalDx = toX - fromX;
   const totalDy = toY - fromY;
   const distance = Math.hypot(totalDx, totalDy);
 
-  // 1. 计算过冲目标点（当位移 > 40px 时产生 4~8px 的过冲）
   const doOvershoot = overshoot && distance > 40;
   const overshootDistance = doOvershoot ? (4 + Math.random() * 4) : 0;
   const overshootAngle = Math.atan2(totalDy, totalDx);
-  const overshootX = Math.round(toX + Math.cos(overshootAngle) * overshootDistance);
-  const overshootY = Math.round(toY + Math.sin(overshootAngle) * overshootDistance);
+  const overshootX = doOvershoot
+    ? Math.round(toX + Math.cos(overshootAngle) * overshootDistance)
+    : toX;
+  const overshootY = doOvershoot
+    ? Math.round(toY + Math.sin(overshootAngle) * overshootDistance)
+    : toY;
 
-  // 阶段一：主段滑行推至过冲点（24~32步，慢-快-慢，伴随自然微抖动）
   const stage1Steps = 24 + Math.floor(Math.random() * 8);
   const dx1 = overshootX - fromX;
   const dy1 = overshootY - fromY;
   for (let i = 1; i <= stage1Steps; i++) {
     const t = i / stage1Steps;
-    // Ease-out / S 型缓动
     const easeT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-    const noiseY = (Math.random() - 0.5) * maxNoiseY * Math.sin(t * Math.PI);
-    const noiseX = (Math.random() - 0.5) * 0.8;
+    const noiseY = noise ? (Math.random() - 0.5) * 2.5 * Math.sin(t * Math.PI) : 0;
+    const noiseX = noise ? (Math.random() - 0.5) * 0.8 : 0;
     const curX = Math.round(fromX + dx1 * easeT + noiseX);
     const curY = Math.round(fromY + dy1 * easeT + noiseY);
     await cdpMouse(tabId, 'mouseMoved', curX, curY, {button: 'left', buttons: 1});
@@ -362,17 +394,12 @@ const cdpDrag = async (tabId, fromX, fromY, toX, toY, options = {}) => {
     await new Promise((r) => setTimeout(r, curDelay));
   }
 
-  // 阶段二：神经反射停顿（发现滑过头，视觉神经认知延迟 60~110ms）
   if (doOvershoot) {
     await new Promise((r) => setTimeout(r, 60 + Math.floor(Math.random() * 50)));
-
-    // 阶段三：回拉修正微调（慢速回退到目标释放点，6~10步）
     const stage2Steps = 6 + Math.floor(Math.random() * 4);
-    // 稍微带 0.5px 的微小随机错位
-    const finalTargetX = toX + (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 1.2);
-    const finalTargetY = toY + (Math.random() - 0.5) * 0.8;
-    const dx2 = finalTargetX - overshootX;
-    const dy2 = finalTargetY - overshootY;
+    // Pull back to the exact target (no random drift).
+    const dx2 = toX - overshootX;
+    const dy2 = toY - overshootY;
     for (let j = 1; j <= stage2Steps; j++) {
       const t = j / stage2Steps;
       const easeT = 1 - Math.pow(1 - t, 2);
@@ -383,13 +410,19 @@ const cdpDrag = async (tabId, fromX, fromY, toX, toY, options = {}) => {
     }
   }
 
-  // 阶段四：对齐静止与松手微抖（Release Jitter 0.5~1.5px）
-  await new Promise((r) => setTimeout(r, 35 + Math.floor(Math.random() * 25)));
-  const jitterX = Math.round(toX + (Math.random() - 0.5) * 1.5);
-  const jitterY = Math.round(toY + (Math.random() - 0.5) * 1.5);
-  await cdpMouse(tabId, 'mouseMoved', jitterX, jitterY, {button: 'left', buttons: 1});
-  await new Promise((r) => setTimeout(r, 15));
-  await cdpMouse(tabId, 'mouseReleased', jitterX, jitterY, {button: 'left', clickCount: 1, buttons: 0});
+  // Always land on the exact target before optional release jitter.
+  await cdpMouse(tabId, 'mouseMoved', toX, toY, {button: 'left', buttons: 1});
+
+  if (releaseJitter) {
+    await new Promise((r) => setTimeout(r, 35 + Math.floor(Math.random() * 25)));
+    const jitterX = Math.round(toX + (Math.random() - 0.5) * 1.5);
+    const jitterY = Math.round(toY + (Math.random() - 0.5) * 1.5);
+    await cdpMouse(tabId, 'mouseMoved', jitterX, jitterY, {button: 'left', buttons: 1});
+    await new Promise((r) => setTimeout(r, 15));
+    await cdpMouse(tabId, 'mouseReleased', jitterX, jitterY, {button: 'left', clickCount: 1, buttons: 0});
+    return;
+  }
+  await cdpMouse(tabId, 'mouseReleased', toX, toY, {button: 'left', clickCount: 1, buttons: 0});
 };
 
 const waitNetworkIdle = async (tabId, quietMs = 500, maxMs = 4000) => {
@@ -1643,7 +1676,7 @@ const executeBrowserTool = async (name, input = {}) => {
       const sameNode = (a, b) => Boolean(a && b && a.tag === b.tag && a.id === b.id && a.cls === b.cls);
       const start = await probe(x1, y1);
       return await observeAction(tab.id, async () => {
-        await cdpDrag(tab.id, x1, y1, x2, y2);
+        await cdpDrag(tab.id, x1, y1, x2, y2, humanizeFromInput(input));
         await afterPageAction(tab.id);
         return {ok: true, from: [x1, y1], to: [x2, y2], trusted: true};
       }, async () => {
@@ -1677,7 +1710,12 @@ const executeBrowserTool = async (name, input = {}) => {
     const from = mapImagePointToViewport(point1, imageSize, viewport);
     const to = mapImagePointToViewport(point2, imageSize, viewport);
     if (!from || !to) return {ok: false, error: '截图坐标无法映射到视口'};
-    const dragged = await runBrowserTool('drag', {point1: from, point2: to, tabId});
+    const dragged = await runBrowserTool('drag', {
+      point1: from,
+      point2: to,
+      tabId,
+      ...(input.humanize !== undefined ? { humanize: input.humanize } : {}),
+    });
     return {
       ...dragged,
       image_point1: input.point1,
