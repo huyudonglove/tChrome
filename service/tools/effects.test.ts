@@ -134,6 +134,24 @@ test("closing effects persist lifecycle changes; empty replies request another i
   expect(empty.text).toContain("finishTurn 的回复为空");
 });
 
+test("turn close archives non-empty reflect into reflectHistory once per turn", async () => {
+  const fixture = setup();
+  expect(fixture.ledger.reflectHistory).toEqual([]);
+  fixture.apply(await fixture.execute("reflect.write", { reason: "记依据", text: "下一步绕过滑块", focus: "意图" }));
+  expect(fixture.turn.reflect).toEqual([{ id: "rf_01", text: "下一步绕过滑块", focus: "意图" }]);
+  expect(fixture.ledger.reflectHistory).toEqual([]);
+  fixture.apply(await fixture.execute("finishTurn", { text: "收口" }));
+  expect(loadLedger(fixture.dataDir, fixture.ledger.conversationId).reflectHistory).toEqual([
+    { turnId: fixture.turn.turnId, items: [{ id: "rf_01", text: "下一步绕过滑块", focus: "意图" }], at: expect.any(String) },
+  ]);
+  // second close of same turn overwrites, does not duplicate
+  fixture.turn.reflect = [{ id: "rf_02", text: "更新后的承接" }];
+  fixture.apply(await fixture.execute("finishTurn", { text: "再收口" }), "call_close2");
+  const history = loadLedger(fixture.dataDir, fixture.ledger.conversationId).reflectHistory;
+  expect(history).toHaveLength(1);
+  expect(history[0]!.items).toEqual([{ id: "rf_02", text: "更新后的承接" }]);
+});
+
 test("browser page metadata becomes a typed effect; failed tab calls log observations without replacing the current page", async () => {
   const fixture = setup();
   const execution = await fixture.execute("page.click", { reason: "查看详情", tabId: 7 }, {

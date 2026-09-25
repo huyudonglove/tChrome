@@ -13,6 +13,20 @@ import { runtimeConfig } from "../config/runtime.ts";
 const recordDirectory = (dataDir: string, conversationId: string, kind: string) =>
   join(dataDir, "conversations", conversationId, "context-records", kind);
 
+/** On turn close, persist non-empty reflect into ledger history (turn-scoped; compresses with the turn). */
+function archiveTurnReflection(ledger: Ledger, turn: Turn): void {
+  if (!turn.reflect?.length) return;
+  const items = turn.reflect.map(item => ({ ...item }));
+  const at = turn.completedAt ?? nowIso();
+  const existing = ledger.reflectHistory.find(row => row.turnId === turn.turnId);
+  if (existing) {
+    existing.items = items;
+    existing.at = at;
+    return;
+  }
+  ledger.reflectHistory.push({ turnId: turn.turnId, items, at });
+}
+
 export function applyToolEffects(input: {
   dataDir: string;
   ledger: Ledger;
@@ -218,15 +232,17 @@ export function applyToolEffects(input: {
         ledger.contextTab = null;
         break;
       }
-      case "turn.ask":
+      case "turn.ask": {
         turn.status = "waiting_human";
         turn.completedAt = nowIso();
         output = turn.output = { kind: "ask", question: effect.question };
         ledger.status = "waiting_human";
         ledger.pendingAsk = { turnId: turn.turnId, question: effect.question };
         ledger.active = { turnId: turn.turnId };
+        archiveTurnReflection(ledger, turn);
         break;
-      case "turn.reply":
+      }
+      case "turn.reply": {
         turn.status = "completed";
         turn.completedAt = nowIso();
         output = turn.output = { kind: "reply", text: effect.text };
@@ -234,7 +250,9 @@ export function applyToolEffects(input: {
         ledger.active = null;
         ledger.pendingAsk = null;
         ledger.toolQueue = [];
+        archiveTurnReflection(ledger, turn);
         break;
+      }
       case "reflect.write": {
         const list = turn.reflect ?? [];
         const record = { id: effect.id, text: effect.text, ...(effect.focus ? { focus: effect.focus } : {}) };

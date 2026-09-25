@@ -18,8 +18,10 @@
 | `conversationMemory` | 同上 | `memoryId`（`mm_`） |
 | `notes` | `{turnId, notes:{key:text}}`，空值为 `{turnId, notes:{}}` | turnId + key |
 | `reflection` | `{turnId, items:[{id,text,focus?}]}` 或 `null` | rf_ |
+| `reflectHistory` | `[{turnId, items:[{id,text,focus?}], at}]`；turn 收口追加，覆盖后滤出窗口 | turnId / rf_ |
 | `toolIO` | 窗口投影 `[{callId, turnId, batchId?, name, arguments, return:{stage, result}}]`；查询指针含 `currentQuery` / `recordCount` | `callId` |
 | `lastAction` | `{batchId, turnId, calls}` 或 `null` | `batchId` |
+| `activeContext` | `{goalId, activePlanItem, focus, activeEntities, handoverIntent}` 纯计算脊椎 | items `id` |
 | `plan` | `{currentGoalId, activePlanId, activePlanItemId, plan}`；plan 为活动计划或 null | `activePlanId`、items `id` |
 | `queryHistory` | 查询记录数组（可含 externalized 形状） | `queryId` |
 | `currentQuery` | 查询记录（含 turnId）或 `null` | `queryId` |

@@ -54,12 +54,14 @@
 | 10 | conversationMemory | 是 | memoryWrites | sourceCallId | main + compression |
 | 11 | notes | 否 | — | — | main |
 | 12 | reflection | 是 | reflection | turn | main + compression |
-| 13 | toolIO | 是 | toolIO | batch | main + compression |
-| 14 | lastAction | 否 | — | — | main |
-| 15 | plan | 否 | — | — | main |
-| 16 | queryHistory | 是 | queryHistory | queryId | main + compression |
-| 17 | currentQuery | 否 | — | — | main |
-| 18 | tools | 否 | — | — | main |
+| 13 | reflectHistory | 是 | — | turn | main |
+| 14 | toolIO | 是 | toolIO | batch | main + compression |
+| 15 | lastAction | 否 | — | — | main |
+| 16 | activeContext | 否 | — | — | main |
+| 17 | plan | 否 | — | — | main |
+| 18 | queryHistory | 是 | queryHistory | queryId | main + compression |
+| 19 | currentQuery | 否 | — | — | main |
+| 20 | tools | 否 | — | — | main |
 
 ### Archive · 仅压缩
 

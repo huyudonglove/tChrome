@@ -6,7 +6,7 @@
 
 {{archiveFields}}
 
-材料对象外层还包含 conversationId、turnId、status、createdAt、completedAt、sequence、segment。不参与压缩、也不会出现在 turns 材料里的主 Agent 窗口模块：skill、conversationHistorySummary、goal（active 视图）、openTabs、projectMemory、notes、lastAction、plan、currentQuery、tools。
+材料对象外层还包含 conversationId、turnId、status、createdAt、completedAt、sequence、segment。不参与压缩、也不会出现在 turns 材料里的主 Agent 窗口模块：skill、conversationHistorySummary、goal（active 视图）、openTabs、projectMemory、notes、lastAction、activeContext、plan、currentQuery、tools。
 
 Sample（一次请求只含一个完整轮次的骨架，仅示例）：
 

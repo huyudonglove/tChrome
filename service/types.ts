@@ -29,6 +29,13 @@ export type GoalRecord = {
   activePlanItemId: string | null;
 };
 
+export type ReflectHistoryItem = { id: string; text: string; focus?: string };
+export type ReflectHistoryRecord = {
+  turnId: string;
+  items: ReflectHistoryItem[];
+  at: string;
+};
+
 export type PageObservation = {
   id: string;
   turnId: string;
@@ -184,6 +191,7 @@ export type Ledger = {
   loadedToolIds: string[];
   loadedSkillIds?: string[];
   userInputHistory: UserInputRecord[];
+  reflectHistory: ReflectHistoryRecord[];
   goals: GoalRecord[];
   currentGoalId: string | null;
   plans: Plan[];

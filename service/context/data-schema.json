@@ -335,6 +335,19 @@
         }
       ]
     },
+    "reflectHistory": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reflectHistoryRecord"
+          }
+        },
+        {
+          "$ref": "#/$defs/contextFileReference"
+        }
+      ]
+    },
     "toolIO": {
       "anyOf": [
         {
@@ -362,6 +375,16 @@
         },
         {
           "type": "null"
+        },
+        {
+          "$ref": "#/$defs/contextFileReference"
+        }
+      ]
+    },
+    "activeContext": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/activeContext"
         },
         {
           "$ref": "#/$defs/contextFileReference"
@@ -432,8 +455,10 @@
     "conversationMemory",
     "notes",
     "reflection",
+    "reflectHistory",
     "toolIO",
     "lastAction",
+    "activeContext",
     "plan",
     "queryHistory",
     "currentQuery",
@@ -1245,6 +1270,161 @@
         "activePlanId",
         "activePlanItemId",
         "plan"
+      ],
+      "additionalProperties": false
+    },
+    "activeContext": {
+      "type": "object",
+      "properties": {
+        "goalId": {
+          "anyOf": [
+            {
+              "$ref": "tchrome:identity#/$defs/goal"
+            },
+            {
+              "$ref": "tchrome:identity#/$defs/subgoal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "activePlanItem": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "tchrome:identity#/$defs/planItem"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "expectedEffect": {
+                  "type": "string"
+                },
+                "verification": {
+                  "type": "string"
+                },
+                "blockedReason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "focus": {
+          "type": "object",
+          "properties": {
+            "primaryTabId": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "primaryTabTitle": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "urlPrefix": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "primaryTabId",
+            "primaryTabTitle",
+            "urlPrefix"
+          ],
+          "additionalProperties": false
+        },
+        "activeEntities": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "handoverIntent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "goalId",
+        "activePlanItem",
+        "focus",
+        "activeEntities",
+        "handoverIntent"
+      ],
+      "additionalProperties": false
+    },
+    "reflectHistoryRecord": {
+      "type": "object",
+      "properties": {
+        "turnId": {
+          "$ref": "#/$defs/turnId"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^rf_[0-9]{2,}$"
+              },
+              "text": {
+                "type": "string"
+              },
+              "focus": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "text"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "at": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "turnId",
+        "items",
+        "at"
       ],
       "additionalProperties": false
     }

@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { interpolate, renderSlots, systemTextFromModules, type ContextModules } from "./modules.ts";
 
 import { goalHistoryView, goalView, inputHistoryView, lastActionView, pageView, turnSummaryView, type TurnSummary } from "./projections/records.ts";
+import { projectActiveContext } from "./projections/active-context.ts";
 import { toolHistoryView } from "./projections/tools.ts";
 import { queryView, type QueryEvidence } from "./projections/queries.ts";
 import { externalizeContext } from "./overflow.ts";
@@ -53,6 +54,7 @@ export function userText(input: {
     // Turn-scoped info package: workspace snapshots also carry the active turnId.
     "#notes": jsonBody({ turnId: turn.turnId, notes: ledger.notes }),
     "#reflection": jsonBody(turn.reflect?.length ? { turnId: turn.turnId, items: turn.reflect } : null),
+    "#reflectHistory": jsonBody(ledger.reflectHistory),
     "#userInputHistory": jsonBody(inputHistoryView(ledger.userInputHistory)),
     "#userInput": jsonBody({ id: turn.input.id, turnId: turn.turnId, userInput: turn.input.text }),
     "#conversationHistorySummary": jsonBody(turnSummaryView(input.conversationSummaries)),
@@ -62,6 +64,7 @@ export function userText(input: {
     "#pageObservedHistory": jsonBody(pageHistory.map(pageView)),
     "#toolIO": jsonBody(toolHistoryView(ledger.toolIO, pages)),
     "#lastAction": jsonBody(lastActionView(ledger.lastAction ?? null)),
+    "#activeContext": jsonBody(projectActiveContext({ ledger, turn })),
     "#plan": jsonBody({
       currentGoalId: ledger.currentGoalId,
       activePlanId: ledger.activePlanId,

@@ -40,7 +40,10 @@ User
 | tool_calls 顺序、askUser/finishTurn 位置、affectsPage、script_patch 同批限制 | `<toolProtocol>` |
 | 带 tabId 的结果进观察数组 | `<pageObservedHistory>` |
 | 调用骨架、指针、faultCode | `<toolIO>` |
+| 当前轮反思 | `<reflection>` |
+| 已结束轮反思历史、handover 来源 | `<reflectHistory>` |
 | 上一批摘要 | `<lastAction>` |
+| 当前因果脊椎（Goal / 步骤 / 主标签 / 实体 / 承接） | `<activeContext>` |
 | 计划 set/update/complete、自动关联 | `<plan>` |
 | 查询字段与 status | `<currentQuery>` |
 | 网页观察等常驻技能 | `<systemSkill>` |
@@ -91,8 +94,10 @@ User
 - <conversationMemory>：本会话已确认事实。
 - <notes>：草稿与中间材料（含 turnId）。
 - <reflection>：本轮反思列表（reflect.write / reflect.delete，rf_ 编号）。
+- <reflectHistory>：已结束轮次的反思历史（随 turn 压缩覆盖）。
 - <toolIO>：工具调用骨架与返回。
 - <lastAction>：上一批工具摘要。
+- <activeContext>：目标 / 步骤 / 主标签 / 实体 / 承接意图的单屏脊椎。
 - <plan>：当前 Goal 的持久化执行计划（含 activePlanId / activePlanItemId）。
 - <queryHistory>：历史查询。
 - <currentQuery>：最近一次查询原文（含 turnId）。
@@ -287,6 +292,34 @@ Sample（文本格式，仅示例）：
 
 压缩与裁剪规则在 `<runtime>`。图片附件在 `<runtime>`。网页观察等常驻技能在 `service/skills/<id>/SKILL.md`，按 `residentSkillIds` 装配进 `<systemSkill>`；动态技能由 Runtime 注入 `<skill>`。
 
+### reflectHistory
+
+```xml
+<reflectHistory>
+能力：【Ended Turn Reflections】
+
+详细描述：
+已结束 turn 的反思历史（按 turnId 追加）。turn 收口时把该轮 reflection 原文写入；当前轮反思看 <reflection>。该轮压缩覆盖后本栏对应行滤掉。activeContext.handoverIntent 取最近一条末项 text，否则回退当前步骤。
+
+内容：
+{{data}}
+</reflectHistory>
+```
+
+### activeContext
+
+```xml
+<activeContext>
+能力：【Active Context Spine】
+
+详细描述：
+单屏因果脊椎：把当前 Goal、正在做的 PlanItem、主操作标签、关键实体与承接意图合成一份紧凑视图。Runtime 装配期纯计算生成。activePlanItem 取 doing 否则第一个 todo；focus 优先最近两批工具/观察的高频 tabId；activeEntities 来自 notes；handoverIntent 取本轮 reflect 否则步骤 text。
+
+内容：
+{{data}}
+</activeContext>
+```
+
 ### plan
 
 ```xml
@@ -330,7 +363,7 @@ Sample（仅示例，不是当前记录）：
 
 ### 其余 User 栏目
 
-`<userInput>`、`<userInputHistory>`、`<conversationHistorySummary>`、`<goal>`、`<goalHistory>`、`<openTabs>`、`<pageObservedHistory>`、`<projectMemory>`、`<conversationMemory>`、`<notes>`、`<toolIO>`、`<lastAction>`、`<queryHistory>`、`<tools>` 的字段契约保持现状。不把压缩门槛、侧栏展示、岗名写进这些栏。
+`<userInput>`、`<userInputHistory>`、`<conversationHistorySummary>`、`<goal>`、`<goalHistory>`、`<openTabs>`、`<pageObservedHistory>`、`<projectMemory>`、`<conversationMemory>`、`<notes>`、`<reflection>`、`<reflectHistory>`、`<toolIO>`、`<lastAction>`、`<activeContext>`、`<queryHistory>`、`<tools>` 的字段契约保持现状。不把压缩门槛、侧栏展示、岗名写进这些栏。
 
 `<pageObservedHistory>` 继续写：带 tabId 的调用追加观察，`<toolIO>` 只留 pageObservationId，可用 page.clear_result。  
 `<toolIO>` 继续写：调用骨架、指针、faultCode / recovery。  
@@ -426,7 +459,7 @@ Sample（一批两个 turn 时，我应提交的 tool_calls 参数形态，仅�
 
 {{archiveFields}}
 
-不参与压缩、也不会出现在 turns 材料里的主 Agent 窗口模块：skill、当前这一轮的 <userInput>、conversationHistorySummary、goal（active 视图）、openTabs、projectMemory、notes、lastAction、plan、currentQuery、tools。
+不参与压缩、也不会出现在 turns 材料里的主 Agent 窗口模块：skill、当前这一轮的 <userInput>、conversationHistorySummary、goal（active 视图）、openTabs、projectMemory、notes、lastAction、activeContext、plan、currentQuery、tools。
 
 Sample（一批材料含两个完整轮次的骨架，仅示例；真实批次可能更多轮，也可能是 segments/summaries）：
 

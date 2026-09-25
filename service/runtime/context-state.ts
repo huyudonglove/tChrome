@@ -71,6 +71,7 @@ export function contextState(dataDir: string, ledger: Ledger, turn: Turn, memori
   return {
     ledger: { ...ledger,
       userInputHistory: ledger.userInputHistory.filter(row => !turnCovered(row.turnId)),
+      reflectHistory: ledger.reflectHistory.filter(row => !turnCovered(row.turnId)),
       goals: ledger.goals.filter(row => retainedGoals.has(row.id) || !originCovered(row.turnId, row.sourceCallId)),
       toolIO: ledger.toolIO.filter(row => !toolCovered(row)),
       queryHistory: ledger.queryHistory.filter(row => !isCovered(querySourceKey(row.queryId))),
