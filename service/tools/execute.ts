@@ -289,9 +289,15 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       const rawStart = win.startLine;
       const startLine = rawStart == null || rawStart === "" ? null : Number(rawStart);
       const hasLineMode = startLine !== null;
-      if (hasLineMode && keyword.trim()) return { ok: false, faultCode: "invalid_arguments", detail: "keyword 与 startLine 互斥：检索或按行读取二选一" };
-      if (!hasLineMode && !keyword.trim()) return { ok: false, faultCode: "invalid_arguments", detail: "必须提供 keyword 或 startLine" };
+      const hasKeyword = Boolean(keyword.trim());
+      // keyword alone → search; startLine alone → lines; both → hybrid (region-anchored search).
+      if (!hasLineMode && !hasKeyword) return { ok: false, faultCode: "invalid_arguments", detail: "必须提供 keyword 或 startLine" };
       if (startLine !== null && (!Number.isInteger(startLine) || startLine < 1)) return { ok: false, faultCode: "invalid_arguments", detail: "startLine 必须是 ≥1 的整数" };
+      const rawPad = win.paddingLines;
+      const paddingLines = rawPad == null || rawPad === "" ? 0 : Number(rawPad);
+      if (!Number.isInteger(paddingLines) || paddingLines < 0 || paddingLines > 50) {
+        return { ok: false, faultCode: "invalid_arguments", detail: "paddingLines 必须是 0..50 的整数" };
+      }
       const limits = runtimeConfig.results;
       const rawWindow = Number(win.contextChars ?? limits.searchContextChars);
       const contextChars = Number.isFinite(rawWindow)
@@ -340,47 +346,114 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
           detail: "未找到已缓存的原文，确认 callId/pageId 是否来自本会话超量结果",
         };
       }
-      if (hasLineMode) {
-        const from = startLine!;
-        if (from > totalLines) {
-          return {
-            ok: false,
-            faultCode: "not_found",
-            source,
-            path,
-            mode: "lines",
-            lineWidth,
-            totalLines,
-            totalChars,
-            startLine: from,
-            detail: `startLine 超出总行数 ${totalLines}`,
-          };
-        }
+
+      /** Slice lines mode window starting at actualFrom (after padding), contextChars budget. */
+      const sliceLinesWindow = (targetLine: number, pad: number) => {
+        const actualFrom = Math.max(1, targetLine - pad);
+        if (targetLine > totalLines) return null;
         let used = 0;
-        let to = from - 1;
+        let to = actualFrom - 1;
         while (to < totalLines) {
           const next = lines[to]!.length;
-          if (to >= from && used + next > contextChars) break;
+          if (to >= actualFrom && used + next > contextChars) break;
           used += next;
           to += 1;
           if (used >= contextChars) break;
         }
-        if (to < from) to = from;
-        const slice = lines.slice(from - 1, to).map((text, index) => ({ line: from + index, text }));
+        if (to < actualFrom) to = actualFrom;
+        const slice = lines.slice(actualFrom - 1, to).map((text, index) => ({
+          line: actualFrom + index,
+          text,
+          isTarget: (actualFrom + index) === targetLine,
+        }));
+        return { actualFrom, to, slice };
+      };
+
+      const keywordMatchesIn = (region: string, regionBaseLine: number) => {
+        const matches: { offset: number; lineStart: number; lineEnd: number; before: string; hit: string; after: string }[] = [];
+        const lower = region.toLowerCase();
+        const needle = keyword.toLowerCase();
+        let from = 0;
+        while (matches.length < limits.searchMaxMatches) {
+          const at = lower.indexOf(needle, from);
+          if (at === -1) break;
+          const before = region.slice(Math.max(0, at - contextChars), at);
+          const hit = region.slice(at, at + keyword.length);
+          const after = region.slice(at + keyword.length, at + keyword.length + contextChars);
+          const prefix = region.slice(0, at);
+          const lineInRegion = regionBaseLine + (prefix.match(/\n/g)?.length ?? 0);
+          matches.push({ offset: at, lineStart: lineInRegion, lineEnd: lineInRegion, before, hit, after });
+          from = at + Math.max(1, keyword.length);
+        }
+        // If plain indexOf missed because wrap inserted newlines inside the keyword.
+        if (!matches.length && !region.includes("\n")) return matches;
+        if (!matches.length) {
+          const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const pattern = escaped.split("").join("[\\r\\n]?");
+          try {
+            const re = new RegExp(pattern, "gi");
+            let m: RegExpExecArray | null;
+            while ((m = re.exec(region)) !== null && matches.length < limits.searchMaxMatches) {
+              const at = m.index;
+              const hitRaw = m[0];
+              const before = region.slice(Math.max(0, at - contextChars), at);
+              const after = region.slice(at + hitRaw.length, at + hitRaw.length + contextChars);
+              const prefix = region.slice(0, at);
+              const lineInRegion = regionBaseLine + (prefix.match(/\n/g)?.length ?? 0);
+              matches.push({ offset: at, lineStart: lineInRegion, lineEnd: lineInRegion, before, hit: hitRaw, after });
+              re.lastIndex = at + Math.max(1, keyword.length);
+            }
+          } catch {
+            // ignore pathological patterns
+          }
+        }
+        return matches;
+      };
+
+      if (hasLineMode && hasKeyword) {
+        // Hybrid: keyword search anchored to startLine window.
+        const window = sliceLinesWindow(startLine!, paddingLines);
+        if (!window) {
+          return {
+            ok: false, faultCode: "not_found", source, path, mode: "hybrid",
+            lineWidth, totalLines, totalChars, startLine, detail: `startLine 超出总行数 ${totalLines}`,
+          };
+        }
+        const region = window.slice.map((row) => row.text).join("\n");
+        const matches = keywordMatchesIn(region, window.actualFrom);
         return {
-          ok: true,
-          source,
-          path,
-          mode: "lines",
-          lineWidth,
-          totalLines,
-          totalChars,
-          startLine: from,
-          endLine: to,
-          contextChars,
-          lines: slice,
+          ok: matches.length > 0,
+          source, path, mode: "hybrid",
+          keyword, startLine, targetLine: startLine, paddingLines,
+          anchorFrom: window.actualFrom, anchorTo: window.to,
+          contextChars, lineWidth, totalLines, totalChars,
+          matchCount: matches.length,
+          matches,
+          ...(matches.length ? {} : { faultCode: "not_found", detail: "锚点窗口内未命中 keyword" }),
         };
       }
+
+      if (hasLineMode) {
+        const window = sliceLinesWindow(startLine!, paddingLines);
+        if (!window) {
+          return {
+            ok: false, faultCode: "not_found", source, path, mode: "lines",
+            lineWidth, totalLines, totalChars, startLine, detail: `startLine 超出总行数 ${totalLines}`,
+          };
+        }
+        return {
+          ok: true, source, path, mode: "lines",
+          lineWidth, totalLines, totalChars,
+          startLine: window.actualFrom,
+          targetLine: startLine,
+          paddingLines,
+          endLine: window.to,
+          contextChars,
+          lines: window.slice,
+        };
+      }
+
+      // keyword-only search
       const matches: { offset: number; lineStart: number; lineEnd: number; before: string; hit: string; after: string }[] = [];
       const lowerHay = haystack.toLowerCase();
       const needle = keyword.toLowerCase();
@@ -395,6 +468,27 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
         const lineEnd = lineNumberAt(haystack, at + hit.length - 1);
         matches.push({ offset: at, lineStart, lineEnd, before, hit, after });
         from = at + Math.max(1, keyword.length);
+      }
+      // Cross-wrap fallback: wrapCachedText inserts \\n inside what was one continuous keyword.
+      if (!matches.length && keyword.length > 1) {
+        const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const pattern = escaped.split("").join("[\\r\\n]?");
+        try {
+          const re = new RegExp(pattern, "gi");
+          let m: RegExpExecArray | null;
+          while ((m = re.exec(haystack)) !== null && matches.length < limits.searchMaxMatches) {
+            const at = m.index;
+            const hitRaw = m[0];
+            const before = haystack.slice(Math.max(0, at - contextChars), at);
+            const after = haystack.slice(at + hitRaw.length, at + hitRaw.length + contextChars);
+            const lineStart = lineNumberAt(haystack, at);
+            const lineEnd = lineNumberAt(haystack, at + hitRaw.length - 1);
+            matches.push({ offset: at, lineStart, lineEnd, before, hit: hitRaw, after });
+            re.lastIndex = at + Math.max(1, keyword.length);
+          }
+        } catch {
+          // ignore
+        }
       }
       return {
         ok: matches.length > 0,

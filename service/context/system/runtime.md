@@ -6,7 +6,7 @@ Runtime 在每次请求我之前装配上下文，并管理发送预算。System
 
 超量结果有两种读法，按窗口里实际出现的形状选用：
 
-- 单次工具返回或页面观察 result 超过内联门禁（{{inlineChars}} 字符）时，窗口只保留 externalized 摘要（含 totalChars、totalLines、lineWidth、preview 为原文前 {{previewChars}} 字符、本地 path）。全文按固定行宽拆行（{{lineWidth}} 字/行）。读这类结果用 evidence.search(windows=[{callId|pageId, keyword|startLine, contextChars?}])：每项 keyword 按关键字取片段，或 startLine 从该行起约 {{searchContextChars}} 字；一次最多 8 项，返回 results[] 逐项。所有工具返回共用这一套门禁。
+- 单次工具返回或页面观察 result 超过内联门禁（{{inlineChars}} 字符）时，窗口只保留 externalized 摘要（含 totalChars、totalLines、lineWidth、preview 为原文前 {{previewChars}} 字符、本地 path）。全文按固定行宽拆行（{{lineWidth}} 字/行）。读这类结果用 evidence.search(windows=[{callId|pageId, keyword?, startLine?, paddingLines?, contextChars?}])：仅 keyword=全文检索（允许关键字跨折行）；仅 startLine=按行读（paddingLines 可向前回溯并标 isTarget）；二者同传=以 startLine 为锚的区域检索。一次最多 8 项，返回 results[] 逐项。所有工具返回共用这一套门禁。
 - 整块模块或单条记录因发送预算被外置时，窗口变成 contextFile：path 是绝对路径，chars 是原文字符数，format 是 json 或 text。读这类引用先用 catalog.add 加载 local.fs_read，再用 items=[{path, offset?, limit?}] 按字节读取（一次最多 8 项），根据各项 nextOffset 继续。
 
 不要对 contextFile 用 evidence.search，也不要对 externalized 摘要用 local.fs_read。

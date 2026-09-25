@@ -82,16 +82,17 @@ test("evidence.search lines mode reads from startLine within the searchContextCh
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
-test("evidence.search rejects keyword with startLine and blank modes", async () => {
+test("evidence.search allows keyword with startLine as hybrid and rejects blank modes", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-mode-"));
   try {
     saveFullReturn(dataDir, "cv_01", "call_01", "hello world");
-    const both = await executeTool({
+    const hybrid = await executeTool({
       name: "evidence.search",
       arguments: { reason: "x", windows: [{ callId: "call_01", keyword: "hello", startLine: 1 }] },
       dataDir, conversationId: "cv_01", lookup,
     });
-    expect(JSON.parse(both.text)).toMatchObject({ ok: false, results: [{ ok: false, faultCode: "invalid_arguments" }] });
+    const hybridParsed = JSON.parse(hybrid.text) as { ok: boolean; results: Record<string, unknown>[] };
+    expect(hybridParsed.results[0]).toMatchObject({ ok: true, mode: "hybrid", matchCount: 1 });
     const blank = await executeTool({
       name: "evidence.search",
       arguments: { reason: "x", windows: [{ callId: "call_01" }] },
@@ -212,5 +213,78 @@ test("evidence.search rejects missing sources and blank keywords", async () => {
       dataDir, conversationId: "cv_01", lookup,
     });
     expect(JSON.parse(blank.text)).toMatchObject({ ok: false, results: [{ ok: false, faultCode: "invalid_arguments" }] });
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+});
+
+test("evidence.search finds keyword split across wrap newlines", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-wrap-kw-"));
+  try {
+    const width = runtimeConfig.results.lineWidth;
+    // Force NEEDLE to straddle the fixed-width wrap boundary.
+    const pad = "A".repeat(width - 3);
+    const body = `${pad}NEEDLE${"B".repeat(50)}`;
+    saveFullReturn(dataDir, "cv_01", "call_kw", body);
+    const execution = await executeTool({
+      name: "evidence.search",
+      arguments: { reason: "跨行检索", windows: [{ callId: "call_kw", keyword: "NEEDLE" }] },
+      dataDir, conversationId: "cv_01", lookup,
+    });
+    const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[] };
+    const row = parsed.results[0]! as Record<string, unknown>;
+    expect(row.ok).toBe(true);
+    expect(row.matchCount).toBe(1);
+    const hit = (row.matches as { hit: string }[])[0]!.hit;
+    expect(hit.replace(/[\r\n]+/g, "")).toBe("NEEDLE");
+    expect((row.matches as { lineStart: number }[])[0]!.lineStart).toBeGreaterThan(0);
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+});
+
+test("evidence.search paddingLines expands upward and marks isTarget", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-pad-"));
+  try {
+    const width = runtimeConfig.results.lineWidth;
+    const body = Array.from({ length: 30 }, (_, i) => String(i + 1).padStart(width, `${(i + 1) % 10}`)).join("");
+    saveFullReturn(dataDir, "cv_01", "call_pad", body);
+    const execution = await executeTool({
+      name: "evidence.search",
+      arguments: { reason: "向前回溯", windows: [{ callId: "call_pad", startLine: 10, paddingLines: 3 }] },
+      dataDir, conversationId: "cv_01", lookup,
+    });
+    const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[] };
+    const row = parsed.results[0]! as Record<string, unknown>;
+    expect(row).toMatchObject({ ok: true, mode: "lines", startLine: 7, targetLine: 10, paddingLines: 3 });
+    const slice = row.lines as { line: number; isTarget: boolean }[];
+    expect(slice[0]!.line).toBe(7);
+    expect(slice.find((item) => item.line === 10)!.isTarget).toBe(true);
+    expect(slice.find((item) => item.line === 7)!.isTarget).toBe(false);
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+});
+
+test("evidence.search hybrid only matches keyword inside startLine window", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-hybrid-"));
+  try {
+    const width = runtimeConfig.results.lineWidth;
+    const line1 = `keep ${"x".repeat(width - 5)}`; // no TARGET
+    const line2 = `anchor ${"y".repeat(width - 7)}`.slice(0, width); // window start
+    const line3 = `has TARGET_WORD inside ${"z".repeat(width)}`.slice(0, width);
+    const body = [line1, line2, line3].join("\n");
+    saveFullReturn(dataDir, "cv_01", "call_h", body);
+    // Without anchor: would match
+    const full = await executeTool({
+      name: "evidence.search",
+      arguments: { reason: "全文", windows: [{ callId: "call_h", keyword: "TARGET_WORD" }] },
+      dataDir, conversationId: "cv_01", lookup,
+    });
+    expect(JSON.parse(full.text).results[0]).toMatchObject({ ok: true, matchCount: 1 });
+    // Anchored at line 2, small context: line 3 may be out of a tiny window
+    const anchored = await executeTool({
+      name: "evidence.search",
+      arguments: { reason: "锚点", windows: [{ callId: "call_h", keyword: "TARGET_WORD", startLine: 1, contextChars: 20 }] },
+      dataDir, conversationId: "cv_01", lookup,
+    });
+    const row = JSON.parse(anchored.text).results[0];
+    expect(row.mode).toBe("hybrid");
+    expect(row.ok).toBe(false);
+    expect(row.faultCode).toBe("not_found");
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
