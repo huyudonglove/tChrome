@@ -24,6 +24,35 @@ export type ToolRegistry = {
   capabilities: CapabilityRecord[];
 };
 
+/** Optional causal backfill shared by every tool schema; models may omit them. */
+const CAUSAL_BACKFILL = {
+  expected: {
+    type: "string",
+    description: "扣动扳机前固化的成功判据：预期的环境/数据变化（看到什么才算成功）。可选。",
+  },
+  fallback: {
+    type: "string",
+    description: "未达 expected 时的熔断策略：立刻退向何处、绝不做什么。可选。",
+  },
+} as const;
+
+function injectCausalBackfill(tool: ChatTool): ChatTool {
+  const params = tool.function.parameters as { properties?: Record<string, unknown> } | undefined;
+  if (!params || typeof params !== "object" || !params.properties || typeof params.properties !== "object") return tool;
+  if (!("reason" in params.properties)) return tool;
+  const properties: Record<string, unknown> = { ...params.properties };
+  for (const [key, schema] of Object.entries(CAUSAL_BACKFILL)) {
+    if (!(key in properties)) properties[key] = schema;
+  }
+  return {
+    ...tool,
+    function: {
+      ...tool.function,
+      parameters: { ...(params as object), properties } as ChatTool["function"]["parameters"],
+    },
+  };
+}
+
 export function loadToolRegistry(root: string): ToolRegistry {
   const index = JSON.parse(readFileSync(join(root, "service", "tools", "definitions", "index.json"), "utf8")) as ToolIndex;
   const toolGroups = JSON.parse(readFileSync(join(root, "service", "tools", "definitions", "groups.json"), "utf8")) as ToolGroups;
@@ -35,7 +64,7 @@ export function loadToolRegistry(root: string): ToolRegistry {
     const name = raw.function?.name;
     if (!name) continue;
     const mode: ExecutionMode = raw.execution === "parallel" ? "parallel" : "serial";
-    tools[name] = { type: "function", function: raw.function };
+    tools[name] = injectCausalBackfill({ type: "function", function: raw.function });
     execution[name] = mode;
   }
   const capabilities = loadCapabilityCatalog(root, { tools, index, toolGroups, execution });

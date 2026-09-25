@@ -6,6 +6,8 @@
 
 每个 tool_call 的 arguments 必须是**单独一个 JSON 对象**，只含本次调用的字段。不要把多份对象首尾拼进同一个 arguments（`{...}{...}`），也不要把 arguments 整体写成对象数组；对象内的数组字段（如 evidence.search 的 windows[]、local.fs_read 的 items[]）是合法的。多目标读优先在**一个** tool_call 的数组字段里列全（各最多 8 项）；其余需要多次调用时，提交多个 tool_call，同批并列的多次同类调用也各占一个。
 
+多数工具带可选回填字段（与 reason 同风格，非必填）：reason=做什么/为什么；expected=扣动扳机前固化的成功判据（预期环境/数据事实）；fallback=未达 expected 时的熔断与撤退（退向何处、绝不做什么）。有副作用、黑盒交互或试错路径时优先三件套一起写；纯观察且成败自明时可省略 expected/fallback。
+
 每批最多包含一个 askUser 或 finishTurn，并且放在最后。如果答复需要参考本批其他工具的结果，就等结果返回后再答复。需要记录本轮做了什么、依据、风险或下一步时，用 reflect.write 写总结与反思；完成本轮用 finishTurn 提交答复（text 给用户，同一 text 供后续上下文）；等待用户回答用 askUser。
 
 同标签页若有先后依赖（填写后再点击等），相关调用按数组先后提交并保持 serial 工具语义；有依赖的调用不要都排进同一 parallel 波次。
@@ -22,6 +24,8 @@ Sample（page.get_summary 的 arguments，仅示例）：
 
     {
       "tabId": 101,
-      "reason": "查看目标页的标题和主要区域"
+      "reason": "提交注册前确认表单校验状态",
+      "expected": "邮箱输入框 invalid=false 且提交按钮 enabled=true",
+      "fallback": "若仍 invalid，不重复提交，先读错误文案再改输入"
     }
 </toolProtocol>
