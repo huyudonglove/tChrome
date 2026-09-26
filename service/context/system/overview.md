@@ -20,7 +20,6 @@
 - <skill>：本会话已加载的动态技能正文。
 - <systemSkill>：常驻技能正文与动态技能清单。
 - <projectMemory>：跨会话记忆。
-- ：窗口和标签快照（本轮信息，含 turnId）。
 - <conversation>：会话时间线。会话级 <conversationMemory>、<conversationHistorySummary> 与按 turnId 嵌套的 <tn_xx> 轮次切片（userInput / goal / task / toolIO / observations / notes / reflection / query / output）。
 - <tools>：本会话已加载的动态工具。
 

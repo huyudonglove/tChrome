@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "task.set",
-    "description": "创建或替换持久化执行任务（Task）。Goal 与 Task 弱关联：有 currentGoal 时自动挂接，无 Goal 也可独立创建 Task。\n参数：必填 items（非空）；可选 title。每项 text 必填，status 可选 todo|doing|done（默认 todo），可带 expectedEffect、verification。\n同一 Task 至多一个 doing。替换当前活动 Task 时旧 Task 记为 cancelled(reason=replaced)。Task 跨 turn 持久。多数工具需先有活动 Task；本工具本身与收口/提问类工具除外。\n返回：ok、count、taskId。执行调度：serial（Runtime 固定，不必返回）。",
+    "description": "创建或替换持久化执行任务（Task）。Goal 与 Task 弱关联：有 currentGoal 时自动挂接，无 Goal 也可独立创建 Task。\n参数：必填 items（非空）；可选 title。每项 text 必填，status 可选 todo|doing|done（默认 todo），可带 expectedEffect、verification。\n同一 Task 至多一个 doing。替换当前活动 Task 时旧 Task 记为 cancelled(reason=replaced)。Task 跨 turn 持久。工具按风险分级调度：仅 high 风险操作须先有活动 Task（task.set），low 与 medium 可直接调。\n返回：ok、count、taskId。执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
