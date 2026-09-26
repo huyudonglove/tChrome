@@ -122,19 +122,22 @@ test("扩展构建握手阻止旧工具执行并报告重载指引", async () =>
 });
 
 
-test("标签快照走扩展桥；未连接时文字请求可继续，停止释放快照等待", async () => {
+test("tabs.current 走扩展桥；停止释放桥接等待", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-open-tabs-bridge-"));
   const repoRoot = join(import.meta.dir, "..");
-  let snapshots: any[] = [];
-  const server = createServer({dataDir: dir, repoRoot, provider: {complete: async input => {
-    const tabs = input.messages[1]!.content.match(/<currentOpen>\n[\s\S]*?\n\n内容：\n([\s\S]*?)\n<\/currentOpen>/);
-    snapshots.push(JSON.parse(tabs![1]!));
+  let calls = 0;
+  let wantTabs = true;
+  const server = createServer({dataDir: dir, repoRoot, provider: {complete: async () => {
+    calls++;
+    if (wantTabs) {
+      wantTabs = false;
+      return {finish: "tool_calls", content: "", toolCalls: [{id: "tabs", name: "tabs.current", arguments: {reason: "查标签"}}], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: []};
+    }
+    wantTabs = true;
     return {finish: "tool_calls", content: "", toolCalls: [{id: "reply", name: "finishTurn", arguments: {text: "完成"}}], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: []};
   }}});
   const post = () => server.fetch(new Request(`${base}/turn`, {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({userInput: "你好", submittedAt: "now"})}));
   try {
-    expect((await (await post()).json()).output.kind).toBe("reply");
-    expect(snapshots[0]).toMatchObject({ok: false});
     const version = executorVersion(repoRoot);
     await server.fetch(new Request(`${base}/tool-request?executorVersion=${version}`));
     const pending = post();
@@ -144,13 +147,12 @@ test("标签快照走扩展桥；未连接时文字请求可继续，停止释�
     const snapshot = {ok: true, windows: [{windowId: 1, focused: true, tabs: [{tabId: 12, active: true, url: "https://example.com", title: "测试"}]}]};
     server.bridge.resolve(request.id, snapshot);
     expect((await (await pending).json()).output.kind).toBe("reply");
-    expect(snapshots[1]).toMatchObject({ ok: true, tabId: 12, url: "https://example.com", title: "测试", turnId: expect.stringMatching(/^tn_/) });
     const stopped = post();
     await Bun.sleep(0);
     expect(server.bridge.list()[0]?.name).toBe("__currentTabs");
     await server.fetch(new Request(`${base}/stop`, {method: "POST"}));
     expect((await (await stopped).json()).output.faultCode).toBe("stopped");
-    expect(snapshots).toHaveLength(2);
     expect(server.bridge.list()).toEqual([]);
+    expect(calls).toBeGreaterThan(0);
   } finally {server.bridge.abort(); rmSync(dir,{recursive: true,force:true});}
 });

@@ -16,9 +16,8 @@
 
     { "id": "skill", "role": "user", "order": 1, "file": "user/skill.md", "consumers": ["main"], "compress": false, "description": "Skills" },
     { "id": "projectMemory", "role": "user", "order": 2, "file": "user/projectMemory.md", "consumers": ["main"], "compress": false, "description": "Long-Term Memory" },
-    { "id": "currentOpen", "role": "user", "order": 3, "file": "user/currentOpen.md", "consumers": ["main"], "compress": false, "description": "Current Open" },
+    { "id": "tools", "role": "user", "order": 3, "file": "user/tools.md", "consumers": ["main"], "compress": false, "description": "Loaded Tools" },
     { "id": "conversation", "role": "user", "order": 4, "file": "user/conversation.md", "consumers": ["main"], "compress": false, "description": "Conversation Timeline By Turn" },
-    { "id": "tools", "role": "user", "order": 5, "file": "user/tools.md", "consumers": ["main"], "compress": false, "description": "Loaded Tools" },
 
     { "id": "userInput", "role": "archive", "order": 1, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "userInput", "coverage": "turn", "description": "Turn user input" },
     { "id": "goalChanges", "role": "archive", "order": 2, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "goalChanges", "coverage": "sourceCallId", "description": "Goal changes in the turn" },

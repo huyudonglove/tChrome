@@ -55,11 +55,9 @@ export function userText(input: {
   const slots = {
     "#skill": input.skillText,
     "#projectMemory": memories.project,
-    // Only the active page is in-window; use tabs.current for the full list.
-    "#currentOpen": jsonBody({ turnId: turn.turnId, ...currentOpenPage(turn) }),
+    "#tools": input.toolGuide ?? "",
     // JSON while externalizing so turn slices can be referenced individually; XML after.
     "#conversation": jsonBody(conversationData),
-    "#tools": input.toolGuide ?? "",
   };
   const render = (values: Record<string, string>) => renderSlots(contextModules.userOrder, contextModules.userSlots, values);
   const settled = input.inlineBudget ? externalizeContext({
@@ -80,17 +78,4 @@ function conversationXmlSlots(values: Record<string, string>): Record<string, st
 
 export function windowChars(system: string, user: string): number {
   return system.length + user.length;
-}
-
-/** Single open page for the window slot; full tab list comes from tabs.current. */
-function currentOpenPage(turn: Turn): Record<string, unknown> {
-  const snapshot = turn.assembled.currentTabs;
-  if (snapshot.ok) {
-    const focused = snapshot.windows.find((window) => window.focused) ?? snapshot.windows[0];
-    const active = focused?.tabs.find((tab) => tab.active) ?? focused?.tabs[0];
-    if (active) return { ok: true, tabId: active.tabId, url: active.url, title: active.title, description: "当前打开页" };
-    return { ok: false, error: "没有打开中的标签" };
-  }
-  // Failed reads stay explicit; never pretend the last known page is still current.
-  return { ok: false, error: snapshot.error };
 }

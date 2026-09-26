@@ -134,7 +134,7 @@
 - <conversationHistorySummary>：已归档轮次摘要。
 - <goal>：当前目标。
 - <goalHistory>：已结束目标。
-- <currentOpen>：窗口和标签快照（本轮信息，含 turnId）。
+- ：窗口和标签快照（本轮信息，含 turnId）。
 - <observations>：页面观察结果。
 - <projectMemory>：跨会话记忆。
 - <conversationMemory>：本会话已确认事实。
@@ -288,7 +288,7 @@ turnId 用来关联一轮用户请求、工具操作和结果。查询结果最�
 
 同标签页若有先后依赖（填写后再点击等），相关调用按数组先后提交并保持 serial 工具语义；有依赖的调用不要都排进同一 parallel 波次。
 
-从 <currentOpen> 或工具结果中取得 tabId、windowId。元素与区域编号用目标工具返回的编号，不编造。操作页面时明确传 tabId，操作窗口时明确传 windowId。目标失效就处理错误，不能换成用户前台页面继续操作。
+从工具结果中取得 tabId、windowId。元素与区域编号用目标工具返回的编号，不编造。操作页面时明确传 tabId，操作窗口时明确传 windowId。目标失效就处理错误，不能换成用户前台页面继续操作。
 
 新标签在指定窗口后台打开，新窗口默认不获取焦点，截图在指定标签后台完成。duplicate_tab 会激活复制出的标签。其他需要切到前台的操作，明确调用切换工具。
 
@@ -1464,7 +1464,7 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -2031,7 +2031,7 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -2646,7 +2646,7 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -3261,7 +3261,7 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -3766,7 +3766,7 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -4271,7 +4271,7 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -4776,7 +4776,7 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -5283,7 +5283,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -5975,7 +5975,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -6667,7 +6667,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -7419,7 +7419,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -8147,7 +8147,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -8875,7 +8875,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -9597,7 +9597,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -10319,7 +10319,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -11041,7 +11041,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -11763,7 +11763,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -12485,7 +12485,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -13207,7 +13207,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -13929,7 +13929,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -14651,7 +14651,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -15373,7 +15373,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -16095,7 +16095,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -16817,7 +16817,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -17539,7 +17539,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -18261,7 +18261,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -18983,7 +18983,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -19700,7 +19700,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -20395,7 +20395,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -21090,7 +21090,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -21785,7 +21785,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -22480,7 +22480,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -23175,7 +23175,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -23861,7 +23861,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -24547,7 +24547,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -25233,7 +25233,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -25919,7 +25919,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -26605,7 +26605,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -27162,7 +27162,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：
@@ -27719,7 +27719,7 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<currentOpen>
+
 能力：【Current Tabs】
 
 详细描述：

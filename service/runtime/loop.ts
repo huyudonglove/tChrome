@@ -453,15 +453,6 @@ export async function handleTurn(
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
           return stoppedReply(ledger, turn);
         }
-      try {
-        const tabs = host?.readCurrentTabs ? await host.readCurrentTabs() : { ok: false as const, error: "浏览器宿主不可用，无法读取标签列表" };
-        turn.assembled.currentTabs = tabs.ok ? tabs : { ok: false, error: tabs.error || "标签列表读取失败" };
-      } catch (error) {
-        turn.assembled.currentTabs = { ok: false, error: error instanceof Error ? error.message : String(error) };
-      }
-      if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
-          return stoppedReply(ledger, turn);
-        }
       saveTurn(deps.dataDir, turn);
       const memories = loadMemories(deps.dataDir, ledger.conversationId, ledger.memoryIds);
       turn.assembled.projectMemoryIds = memories.project.map(item => item.memoryId);

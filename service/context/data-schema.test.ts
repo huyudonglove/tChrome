@@ -41,7 +41,6 @@ test("assembled User slots follow the shared data contract", () => {
     values[name] = name === "skill" || name === "tools" || name === "conversation" ? body : JSON.parse(body);
   }
   expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
-  expect(values.currentOpen.turnId).toBe("tn_02");
   expect(values.conversation).toContain("<conversationMemory>");
   expect(values.conversation).toContain("<conversationHistorySummary>");
   expect(values.conversation).toContain("<tn_01>");

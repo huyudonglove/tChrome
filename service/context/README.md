@@ -44,9 +44,8 @@
 |---:|---|---|---|---|---|
 | 1 | skill | 否 | — | — | main |
 | 2 | projectMemory | 否 | — | — | main |
-| 3 | currentOpen | 否 | — | — | main |
+| 3 | tools | 否 | — | — | main |
 | 4 | conversation | 否 | — | — | main |
-| 5 | tools | 否 | — | — | main |
 
 `<conversation>` 内为会话级 `<conversationMemory>`、`<conversationHistorySummary>` 与按 turnId 嵌套的 `<tn_xx>` 轮次切片（userInput / goal / task / toolIO / observations / notes / reflection / query / output）；被压缩覆盖的轮次整块删除。
 

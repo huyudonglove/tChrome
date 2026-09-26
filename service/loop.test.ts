@@ -39,7 +39,7 @@ const mock = (results: CompletionResult[]): Provider => {
   };
 };
 
-test("每次主模型请求刷新 currentOpen，焦点变化不覆盖页面观察，读取失败不冒充空列表", async () => {
+test("需要标签时用 tabs.current 查询，观察不被焦点变化覆盖", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-tabs-"));
     primeActiveTask(dir);
   try {
@@ -47,10 +47,9 @@ test("每次主模型请求刷新 currentOpen，焦点变化不覆盖页面观�
     const host = {
       readCurrentTabs: async () => {
         snapshots++;
-        if (snapshots === 3) throw new Error("读取窗口失败");
         return { ok: true as const, windows: [{windowId: 1, focused: true, tabs: [
-          {tabId: 12, url: "https://example.com/work", title: "工作页面", active: snapshots === 1},
-          {tabId: 13, url: "https://example.com/other", title: "其他页面", active: snapshots !== 1},
+          {tabId: 12, url: "https://example.com/work", title: "工作页面", active: true},
+          {tabId: 13, url: "https://example.com/other", title: "其他页面", active: false},
         ]}] };
       },
       execute: async (_name: string, args: Record<string, unknown>) => {
@@ -61,19 +60,14 @@ test("每次主模型请求刷新 currentOpen，焦点变化不覆盖页面观�
     const provider: Provider = {complete: async input => {
       requests++;
       const body = input.messages[1]!.content;
-      const tabs = body.match(/<currentOpen>\n[\s\S]*?\n\n内容：\n([\s\S]*?)\n<\/currentOpen>/);
-      const open = JSON.parse(tabs![1]!);
-      expect(snapshots).toBe(requests);
-      if (requests === 1) expect(open).toMatchObject({ ok: true, tabId: 12, title: "工作页面" });
-      if (requests === 2) {
-        expect(open).toMatchObject({ ok: true, tabId: 13, title: "其他页面" });
-        expect(body).toContain("已观察原页面");
-      }
-      if (requests === 3) expect(open).toEqual({ok: false, error: "读取窗口失败", turnId: expect.stringMatching(/^tn_/)});
-      return ok({finish: "tool_calls", toolCalls: requests < 3
+      expect(body).not.toContain("<currentOpen>");
+      if (requests >= 3) expect(body).toContain("已观察原页面");
+      return ok({finish: "tool_calls", toolCalls: requests === 1
+        ? [{id: "tabs", name: "tabs.current", arguments: {reason: "查标签"}}]
+        : requests === 2
         ? [
-          {id: `read_${requests}`, name: "page.get_summary", arguments: {tabId: 12, reason: "查看原页面"}},
-          {id: `obs_${requests}`, name: "observation.write", arguments: {reason: "记录观察", type: "page.get_summary", result: {ok: true, note: "已观察原页面"}, tabId: 12}},
+          {id: "read_2", name: "page.get_summary", arguments: {tabId: 12, reason: "查看原页面"}},
+          {id: "obs_2", name: "observation.write", arguments: {reason: "记录观察", type: "page.get_summary", result: {ok: true, note: "已观察原页面"}, tabId: 12}},
         ]
         : [{id: "finish", name: "finishTurn", arguments: {text: "完成"}}]});
     }};
@@ -81,7 +75,8 @@ test("每次主模型请求刷新 currentOpen，焦点变化不覆盖页面观�
     expect(reply.output).toEqual({kind: "reply", text: "完成" });
     const turn = loadTurn(dir, "cv_01", reply.turnId);
     expect(turn.assembled.currentPage?.tabId).toBe(12);
-    expect(turn.assembled.observations).toHaveLength(2);
+    expect(turn.assembled.observations).toHaveLength(1);
+    expect(snapshots).toBe(1);
   } finally {rmSync(dir, {recursive: true, force: true});}
 });
 

@@ -38,7 +38,7 @@ Load unpacked：在仓库根执行 `bun run scripts/build-extension.ts`，产物
 | 方法 | 路径 | 体 | 回 |
 |---|---|---|---|
 | GET | `/health` | 无 | `{ok:true}` |
-| POST | `/turn` | `{userInput, submittedAt}` | `{conversationId, turnId, output}`。Runtime 每次请求主模型前读取所有普通窗口及标签，刷新 `<currentOpen>` |
+| POST | `/turn` | `{userInput, submittedAt}` | `{conversationId, turnId, output}`。Runtime 每次请求主模型前读取所有普通窗口及标签，刷新 `` |
 | POST | `/stop` | 无 | 停当前 Turn。账本 `paused`，投影回 `{conversationId, status, pendingAsk, liveTool, messages}`。下一句可再开 Turn |
 | GET | `/session` | 无 | 当前 `session.json` 指向的会话投影：`{conversationId, status, pendingAsk, liveTool, messages}`。`messages` 按流水展示用户输入、工具 arguments.reason、最终 output，以及正在执行（`live:true`）和排队工具的状态；原始 content 和工具 return 不作为助手回复 |
 | GET | `/conversations` | 无 | `{items:[{conversationId, updatedAt, status, preview}]}`。当前 `session.json` 指向的排第一，其余按 `updatedAt` 新到旧。空会话 preview 是「新会话」 |
@@ -181,7 +181,7 @@ Runtime 独占维护。当前会话指针。
 | `conversationMemoryIds` | string[] | 这一次会话记忆；没有就 `[]` |
 | `projectMemoryIds` | string[] | 项目记忆；没有就 `[]` |
 | `mcpIds` | string[] | 本轮 MCP；没有就 `[]` |
-| `currentTabs` | object | 每次请求主模型前刷新；成功为 `{ok:true, windows:[{windowId, focused, tabs:[{tabId, url, title, active}]}]}`，失败为 `{ok:false, error}`；注入 `<currentOpen>` |
+| `currentTabs` | object | 每次请求主模型前刷新；成功为 `{ok:true, windows:[{windowId, focused, tabs:[{tabId, url, title, active}]}]}`，失败为 `{ok:false, error}`；注入 `` |
 | `currentPage` | object \| null | 最近实际页面观察，初始 null，由有效页面工具返回更新；窗口无独立插槽 |
 | `observations` | object[] | 页面观察统一数组，初始 `[]`，按旧到新追加。每条：id、turnId、callId、batchId?、tabId、type（工具名）、result（完整返回）；存储另含 observedAt。注入 `<observations>` 时保留完整 result |
 

@@ -27,39 +27,18 @@
         }
       ]
     },
-    "currentOpen": {
-      "anyOf": [
-        {
-          "type": "object",
-          "properties": {
-            "turnId": {
-              "$ref": "#/$defs/turnId"
-            },
-            "ok": {
-              "type": "boolean"
-            }
-          },
-          "required": ["turnId", "ok"],
-          "additionalProperties": true
-        },
-        {
-          "$ref": "#/$defs/contextFileReference"
-        }
-      ]
-    },
-    "conversation": {
+    "tools": {
       "type": "string"
     },
-    "tools": {
+    "conversation": {
       "type": "string"
     }
   },
   "required": [
     "skill",
     "projectMemory",
-    "currentOpen",
-    "conversation",
-    "tools"
+    "tools",
+    "conversation"
   ],
   "additionalProperties": false,
   "$defs": {

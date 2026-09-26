@@ -11,7 +11,7 @@
         },
         "tabId": {
           "type": "integer",
-          "description": "目标标签编号；从 <currentOpen> 或 tabs.current、list_tabs、open_url、page.* 等返回里的 tabId 取得。"
+          "description": "目标标签编号；从 tabs.current、list_tabs、open_url、page.* 等返回里的 tabId 取得。"
         },
         "url": {
           "type": "string"

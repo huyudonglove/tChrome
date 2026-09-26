@@ -51,7 +51,7 @@ Chat 与 Responses 的失败分类和重试决策统一由 `provider/failures.ts
 
 conversationHistorySummary 展示历史轮次或执行片段的 {tag, userRequest, actions, result}，与近期原文配合阅读。描述进入 System，摘要数据放在当前输入之后。常驻 `context.query(sumId, module, intent)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、observations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将完整 records 放入 currentQuery；`<toolIO>` 只投影 currentQuery 指针。查询结果与其它工具返回共用统一内联门禁（默认 4000 字符），超出时注入 externalized 摘要（preview+path+totalLines/lineWidth）；本地全文按默认 100 字/行拆行，可用 evidence.search(windows=[{callId|pageId, keyword|startLine}]) 一次多窗口检索。查询不会刷新页面。
 
-输入和页面观察以稳定 ID 写入 context-records；目标最新状态按原 ID 更新至 Ledger.goals，历史变更快照保存在 Turn.goalChanges；记忆保留本地 memoryId。模型投影保留记录 ID、轮次与来源关联以及内容和操作字段，不修改本地记录。记忆投影保留完整文本；归档覆盖由 runtime 管理。currentOpen 在每次请求主模型前刷新全部普通窗口及其标签、激活和焦点状态，读取失败显式报告；observations 是本轮观察统一数组（id、type、result，页面/代码/截图等，旧→新）；toolIO 中产生观察的调用只投影 observationId 引用，完整观察结果只出现在 `<observations>`。
+输入和页面观察以稳定 ID 写入 context-records；目标最新状态按原 ID 更新至 Ledger.goals，历史变更快照保存在 Turn.goalChanges；记忆保留本地 memoryId。模型投影保留记录 ID、轮次与来源关联以及内容和操作字段，不修改本地记录。记忆投影保留完整文本；归档覆盖由 runtime 管理。窗口不注入标签快照；需要当前窗口/标签时调用 tabs.current。observations 是本轮观察统一数组（id、type、result，页面/代码/截图等，旧→新）；toolIO 中产生观察的调用只投影 observationId 引用，完整观察结果只出现在 `<observations>`。
 
 Compression Agent 的每次模型请求独立写入 `conversations/<cvId>/agent-logs/compression/<时间戳>-<唯一标识>.jsonl`。请求发送前记录完整 messages 与 tools；收到后记录 Provider 返回的完整 CompletionResult（正文、工具调用、解析错误等），并记录成功摘要或异常。schema 校验失败包含字段路径、规则和预期类型，轮次覆盖错误包含预期与实际 turnId；会话的 compress-error 附日志路径。日志不包含模型密钥或请求认证头，也不进入主模型上下文。
 
