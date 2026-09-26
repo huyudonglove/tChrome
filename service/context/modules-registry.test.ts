@@ -39,7 +39,8 @@ test("module registry owns consumers, compress flags and archive fields", () => 
   const md = compressionArchiveFieldsMarkdown(root);
   expect(md).toContain("- toolIO:");
   expect(md).toContain("- observations:");
-  expect(md).toContain("return:{stage,totalChars,text}");
+  expect(md).toContain("return:{stage,result}");
+  expect(md).toContain("只存指针");
   expect(md).not.toContain("modules.json");
   expect(md).not.toContain("compress=true");
 });
