@@ -8,7 +8,7 @@
       "properties": {
         "path": {
           "type": "string",
-          "description": "要检索的目录绝对路径"
+          "description": "要检索的目录绝对路径；必须是真实目录，传文件路径或符号链接会被拒（path must be a directory, not a symlink）"
         },
         "query": {
           "type": "string",

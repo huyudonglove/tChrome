@@ -18,7 +18,7 @@
         },
         "reason": {
           "type": "string",
-          "description": "本次调用的行动说明，一两句话说明要做什么、为什么；low 档工具可省略，不用于定位控件。"
+          "description": "本次调用的行动说明，一两句话说明要做什么、为什么；本工具为 low 档，可省略，不用于定位控件。"
         },
         "targetText": {
           "type": "string",

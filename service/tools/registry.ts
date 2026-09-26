@@ -72,6 +72,22 @@ function relaxReasonRequirement(tool: ChatTool): ChatTool {
   };
 }
 
+/** Medium and high risk calls carry intent, so reason is required even if a legacy definition omitted it. */
+function enforceReasonRequirement(tool: ChatTool): ChatTool {
+  const params = (tool.function.parameters ?? {}) as { required?: unknown; properties?: Record<string, unknown> };
+  if (!params.properties?.reason) return tool;
+  const required = Array.isArray(params.required) ? [...(params.required as string[])] : [];
+  if (required.includes("reason")) return tool;
+  required.push("reason");
+  return {
+    ...tool,
+    function: {
+      ...tool.function,
+      parameters: { ...params, required } as ChatTool["function"]["parameters"],
+    },
+  };
+}
+
 export function loadToolRegistry(root: string): ToolRegistry {
   const index = JSON.parse(readFileSync(join(root, "service", "tools", "definitions", "index.json"), "utf8")) as ToolIndex;
   const toolGroups = JSON.parse(readFileSync(join(root, "service", "tools", "definitions", "groups.json"), "utf8")) as ToolGroups;
@@ -90,6 +106,7 @@ export function loadToolRegistry(root: string): ToolRegistry {
   for (const [name, tool] of Object.entries(tools)) {
     const risk = capabilities.find((row) => row.kind === "tool" && row.id === name)?.risk;
     if (risk === "low") tools[name] = relaxReasonRequirement(tool);
+    else if (risk === "medium" || risk === "high") tools[name] = enforceReasonRequirement(tool);
   }
   return { tools, index, toolGroups, execution, capabilities };
 }
