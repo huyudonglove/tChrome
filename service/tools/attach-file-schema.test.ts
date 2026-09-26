@@ -32,12 +32,18 @@ test("attach_file accepts path or paths with optional selector and page id", () 
   expect(c.schemaOk).toBe(true);
 });
 
-test("attach_file still requires reason and tabId", () => {
+test("attach_file still requires tabId, reason stays optional on low risk", () => {
   const tools = toolSchemas(registry, ["attach_file"]);
+  expect(checkToolCalls([{
+    id: "c0",
+    name: "attach_file",
+    arguments: { tabId: 1, path: "/tmp/x" },
+  }], tools, [], ["attach_file"]).schemaOk).toBe(true);
   const missing = checkToolCalls([{
     id: "c1",
     name: "attach_file",
-    arguments: { tabId: 1, path: "/tmp/x" },
+    arguments: { path: "/tmp/x" },
   }], tools, [], ["attach_file"]);
   expect(missing.schemaOk).toBe(false);
+  expect(missing.missing).toContain("tabId");
 });

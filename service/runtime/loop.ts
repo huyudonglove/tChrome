@@ -197,6 +197,8 @@ const runQueue = async (input: {
     execCtx: executionContext(ledger),
   }));
   const done = new Map<number, ToolExecution>();
+  /** Effective risk per call: the model's own value, otherwise the tool's fixed level. */
+  const riskAudit = new Map<string, { risk: string; riskSource: "model" | "fixed" }>();
   const inflight = new Set<Promise<void>>();
   const live = new Map<number, { name: string; callId: string; reason?: string }>();
   let appliedUpTo = -1;
@@ -220,12 +222,11 @@ const runQueue = async (input: {
       let execution: ToolExecution;
       try {
         const toolRisk = toolRegistry.capabilities.find((row) => row.kind === "tool" && row.id === slot.item.name)?.risk;
-        // Fixed risk fills the slot when the model omits it, so every call carries an auditable level.
-        if (slot.item.arguments.risk === undefined && toolRisk && toolRisk !== "unknown") {
-          slot.item.arguments = { ...slot.item.arguments, risk: toolRisk };
-          slot.item.riskSource = "fixed";
-        } else if (slot.item.arguments.risk !== undefined) {
-          slot.item.riskSource = "model";
+        // Model arguments stay untouched; the effective level is only recorded so every call is auditable.
+        if (slot.item.arguments.risk !== undefined) {
+          riskAudit.set(slot.item.callId, { risk: slot.item.arguments.risk, riskSource: "model" });
+        } else if (toolRisk && toolRisk !== "unknown") {
+          riskAudit.set(slot.item.callId, { risk: toolRisk, riskSource: "fixed" });
         }
         if (requiresActiveTask(toolRisk, slot.item.arguments.risk) && !ledger.activeTaskId) {
           execution = failedTool(errorDetail("task_gate_required"), "invalid_arguments", {
@@ -307,6 +308,7 @@ const runQueue = async (input: {
         turnId: turn.turnId,
         ...(stored.images.length ? { images: stored.images } : {}),
         return: { stage: "complete", totalChars: full.length, text: viewText },
+        ...(riskAudit.get(item.callId) ?? {}),
         ...(slot.execCtx.goalId ? { goalId: slot.execCtx.goalId } : {}),
         ...(slot.execCtx.activeTaskId ? { taskId: slot.execCtx.activeTaskId } : {}),
         ...(slot.execCtx.activeTaskItemId ? { taskItemId: slot.execCtx.activeTaskItemId } : {}),

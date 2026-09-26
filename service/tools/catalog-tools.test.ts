@@ -7,6 +7,9 @@ import type { ToolCall } from "../types.ts";
 
 const repoRoot = join(import.meta.dir, "../..");
 
+/** 定义中本就没有 reason 必填的历史例外工具。 */
+const legacyOptionalReason = new Set(["click", "page.click", "finishTurn"]);
+
 test("每个工具有 schema 和 reason，execution 可选且不进 required", () => {
   const registry = loadToolRegistry(repoRoot);
   const listed = [...registry.index.browser, ...registry.index.service, ...registry.toolGroups.baseToolsIds];
@@ -24,7 +27,13 @@ test("每个工具有 schema 和 reason，execution 可选且不进 required", (
     expect(params.properties?.execution, `${name} execution not a model param`).toBeUndefined();
     expect(registry.execution[name] === "parallel" || registry.execution[name] === "serial", `${name} default`).toBe(true);
     expect(String(tool.function.description), `${name} schedule note`).toContain("执行调度");
-    if (!["click", "page.click", "finishTurn"].includes(name)) expect(params.required ?? [], `${name} required`).toContain("reason");
+    const risk = registry.capabilities.find((row) => row.kind === "tool" && row.id === name)?.risk;
+    // reason 必填性按 risk 分档：low 档免填，medium/high 必填。
+    // click / page.click / finishTurn 是历史例外，定义里本就没有 reason 必填，保持可选。
+    if (!legacyOptionalReason.has(name)) {
+      if (risk === "low") expect(params.required ?? [], `${name} low requires no reason`).not.toContain("reason");
+      else if (risk && risk !== "unknown") expect(params.required ?? [], `${name} required`).toContain("reason");
+    }
     expect(params.required ?? [], `${name} required`).not.toContain("execution");
     if (name === "finishTurn") {
       expect(params.required ?? [], "finishTurn required").toEqual(expect.arrayContaining(["text"]));
@@ -84,7 +93,7 @@ test("catalog.add drops model-submitted execution; schedule stays Runtime-owned"
   const call = { id: "load-script", name: "catalog.add", arguments: { names: ["execute_javascript"], reason: "加载脚本工具", execution: "parallel" } as Record<string, unknown> };
   expect(checkToolCalls([call], tools, [], ["catalog.add"]).schemaOk).toBe(true);
   expect(call.arguments.execution).toBeUndefined();
-  expect(checkToolCalls([{ id: "x", name: "catalog.add", arguments: { names: ["execute_javascript"] } }], tools, [], ["catalog.add"]).schemaOk).toBe(false);
+  expect(checkToolCalls([{ id: "x", name: "catalog.add", arguments: {} }], tools, [], ["catalog.add"]).schemaOk).toBe(false);
 });
 
 test("tool calls normalize explicit boolean and numeric strings before execution", () => {

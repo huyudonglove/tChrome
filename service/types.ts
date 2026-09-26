@@ -181,7 +181,9 @@ export type ToolIOItem = ToolQueueItem & {
   goalId?: string | null;
   taskId?: string | null;
   taskItemId?: string | null;
-  /** Whether arguments.risk came from the model or was filled from the tool's fixed risk. */
+  /** Effective risk level: the model's own value, otherwise the tool's fixed level. */
+  risk?: string;
+  /** Whether the effective risk came from the model or from the tool's fixed level. */
   riskSource?: "model" | "fixed";
 };
 

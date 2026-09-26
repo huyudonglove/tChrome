@@ -16,7 +16,7 @@ test('Tavily requires a nonblank bounded query and validates result limits', () 
   for (const maxResults of [1, 5, 10]) expect(check({...valid, maxResults}).schemaOk).toBe(true);
   for (const maxResults of [0, 11, 1.5, null]) expect(check({...valid, maxResults}).schemaOk).toBe(false);
   expect(check(valid).schemaOk).toBe(true);
-  for (const key of ['query', 'reason']) {
+  for (const key of ['query']) {
     const args: Record<string, unknown> = {...valid}; delete args[key];
     expect(check(args).schemaOk).toBe(false);
   }
