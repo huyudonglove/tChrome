@@ -895,7 +895,7 @@ test.each(["provider", "provider-reject", "browser", "browser-reject"])("停止�
 
 test.each([
   { name: "page.get_dom", arguments: {}, faultCode: "unknown_tool" },
-  { name: "page.get_summary", arguments: { tabId: 12,}, faultCode: "missing_required" },
+  { name: "page.select_role", arguments: { tabId: 12,}, faultCode: "missing_required" },
 ])("坏 JSON 前缀也校验 $faultCode", async (invalid) => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-prefix-schema-"));
     primeActiveTask(dir);

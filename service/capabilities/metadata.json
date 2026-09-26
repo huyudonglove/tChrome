@@ -66,7 +66,7 @@
       "preconditions": [
         "已知 sumId、模块与查询意图"
       ],
-      "risk": "medium",
+      "risk": "low",
       "verification": [
         "status=complete 且记录与意图和记录键一致"
       ],
@@ -2915,7 +2915,7 @@
         "目标 tabId 有效",
         "操作已获当前范围授权"
       ],
-      "risk": "medium",
+      "risk": "low",
       "verification": [
         "使用页面断言、重新观察或截图确认目标状态"
       ],
@@ -3165,7 +3165,7 @@
         "目标 tabId 有效",
         "操作已获当前范围授权"
       ],
-      "risk": "medium",
+      "risk": "low",
       "verification": [
         "使用页面断言、重新观察或截图确认目标状态"
       ],
@@ -3193,7 +3193,7 @@
         "目标 tabId 有效",
         "操作已获当前范围授权"
       ],
-      "risk": "medium",
+      "risk": "low",
       "verification": [
         "使用页面断言、重新观察或截图确认目标状态"
       ],
@@ -3221,7 +3221,7 @@
         "目标 tabId 有效",
         "操作已获当前范围授权"
       ],
-      "risk": "medium",
+      "risk": "low",
       "verification": [
         "使用页面断言、重新观察或截图确认目标状态"
       ],
@@ -3257,7 +3257,7 @@
         "目标 tabId 有效",
         "操作已获当前范围授权"
       ],
-      "risk": "medium",
+      "risk": "low",
       "verification": [
         "使用页面断言、重新观察或截图确认目标状态"
       ],
@@ -3293,7 +3293,7 @@
         "目标 tabId 有效",
         "操作已获当前范围授权"
       ],
-      "risk": "medium",
+      "risk": "low",
       "verification": [
         "使用页面断言、重新观察或截图确认目标状态"
       ],
@@ -3330,7 +3330,7 @@
         "目标 tabId 有效",
         "操作已获当前范围授权"
       ],
-      "risk": "medium",
+      "risk": "low",
       "verification": [
         "使用页面断言、重新观察或截图确认目标状态"
       ],
@@ -3366,7 +3366,7 @@
         "目标 tabId 有效",
         "操作已获当前范围授权"
       ],
-      "risk": "medium",
+      "risk": "low",
       "verification": [
         "使用页面断言、重新观察或截图确认目标状态"
       ],
@@ -3402,7 +3402,7 @@
         "目标 tabId 有效",
         "操作已获当前范围授权"
       ],
-      "risk": "medium",
+      "risk": "low",
       "verification": [
         "使用页面断言、重新观察或截图确认目标状态"
       ],
@@ -3440,7 +3440,7 @@
         "目标 tabId 有效",
         "操作已获当前范围授权"
       ],
-      "risk": "medium",
+      "risk": "low",
       "verification": [
         "使用页面断言、重新观察或截图确认目标状态"
       ],
@@ -3476,7 +3476,7 @@
         "目标 tabId 有效",
         "操作已获当前范围授权"
       ],
-      "risk": "medium",
+      "risk": "low",
       "verification": [
         "使用页面断言、重新观察或截图确认目标状态"
       ],
@@ -4541,7 +4541,7 @@
       "preconditions": [
         "技能 id 来自当前技能目录"
       ],
-      "risk": "medium",
+      "risk": "low",
       "verification": [
         "skill.load 返回 ok=true 且技能正文进入当前上下文"
       ],
@@ -4951,7 +4951,7 @@
         "目标标签稳定",
         "录制范围已确定"
       ],
-      "risk": "medium",
+      "risk": "low",
       "verification": [
         "检查帧数量、时间间隔与关键画面变化"
       ],
@@ -4974,7 +4974,7 @@
         "目标标签稳定",
         "录制范围已确定"
       ],
-      "risk": "medium",
+      "risk": "low",
       "verification": [
         "检查帧数量、时间间隔与关键画面变化"
       ],
