@@ -1,8 +1,8 @@
 {
   "arguments_is_array": "arguments is array",
   "arguments_wrong_type": "arguments is {type}",
-  "arguments_json_concat": "正确写法示例：每个 tool_call 单独一个 JSON 对象，多个调用拆成数组多项。\n[{\"name\":\"local.fs_search\",\"arguments\":{\"items\":[{\"path\":\"/abs/dir\",\"query\":\"foo\"}],\"reason\":\"查找\"}},{\"name\":\"finishTurn\",\"arguments\":{\"text\":\"完成\",\"reason\":\"收口\"}}]\narguments 必须是上述单对象。",
-  "arguments_json_invalid": "正确写法示例：arguments 只含一个合法 JSON 对象，字段以该工具 schema 为准。\n{\"name\":\"local.fs_search\",\"arguments\":{\"items\":[{\"path\":\"/abs/dir\",\"query\":\"foo\"}],\"reason\":\"查找\"}}",
+  "arguments_json_concat": "正确写法示例：arguments 必须是单个合法 JSON 对象字符串，直接包含该工具 schema 字段，严禁多包一层 \"arguments\"。如需调用多个工具请在 tool_calls 数组中分立。单调用示例：tool=local.fs_search，其 arguments 内容为 {\"items\":[{\"path\":\"/abs/dir\",\"query\":\"foo\"}],\"reason\":\"查找\"}。",
+  "arguments_json_invalid": "正确写法示例：arguments 必须是可被 JSON.parse 解析的单个合法 JSON 对象字符串，直接填写工具 schema 字段，切勿在外层多套 \"arguments\" 或工具外壳。合法 arguments 示例：{\"path\":\"/abs/file.txt\",\"search\":\"old\",\"replace\":\"new\",\"reason\":\"说明\"}",
   "arguments_unable_parse": "Unable to parse JSON string",
   "script_steps_separate": "先单独提交 script_patch，查看写入结果后在下一次调用中执行脚本。",
   "exec_js_need_script": "请先保存 JavaScript 文件到 scripts/，再传 filename 执行。",

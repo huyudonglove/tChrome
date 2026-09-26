@@ -19,20 +19,19 @@ finishTurn.text 的侧栏渲染约定。同一 text 进入侧栏、后续上下�
 |---|---|
 | 打开链接 | `[文字](https://…)` 或 `<button data-open-url="https://…">` |
 | 复制 | `<button data-copy="文本">复制</button>` |
-| 随机抽一条 | `<button data-action="pick" data-items="内容A\|内容B\|内容C" data-target="outId">抽取灵感</button>` 且页面有 `<div id="outId">…</div>` |
-| 计数 +1 | `<button data-action="count" data-target="cntId">功德 +1</button>` 且有 `<span id="cntId">0</span>` |
+| 随机选一项 | `<button data-action="pick" data-items="方案A\|方案B\|方案C" data-target="outId">切换备选方案</button>` 且页面有 `<div id="outId">…</div>` |
+| 计数 +1 | `<button data-action="count" data-target="cntId">重试 +1</button>` 且有 `<span id="cntId">0</span>` |
 | 置为固定文案 | `<button data-action="set" data-value="你好" data-target="outId">` |
 
 `data-target` 是同一条回复内的元素 id。不要写 `onclick`、`onerror` 或依赖 `document.getElementById` 的脚本。
 
-### 示例：灵感胶囊
+### 示例：快捷操作面板
 
 ```html
 <div>
-  <div id="capsule-out">点击下方按钮抽取</div>
-  <button data-action="pick" data-target="capsule-out" data-items="🎯 突破：打破常规|🪐 火星日落是蓝色的|🎲 灵感指数 99.8%">抽取灵感</button>
-  <span id="merit">0</span>
-  <button data-action="count" data-target="merit">功德 +1</button>
+  <div id="env-select">当前环境：生产</div>
+  <button data-action="pick" data-target="env-select" data-items="当前环境：开发|当前环境：预发|当前环境：生产">切换环境</button>
+  <button data-copy="bun test extension/sidepanel/">复制单测命令</button>
 </div>
 ```
 
