@@ -1,104 +1,13 @@
-/** Tools that may run without an active Task (closers, goal/meta, memory, skills). */
-export const TASK_EXEMPT = new Set<string>([
-  // Closers / progress
-  "askUser",
-  "finishTurn",
-  "checkContinue",
-  "reportProgress",
-  // Goal & task management
-  "submitGoal",
-  "task.set",
-  "task.update",
-  "task.complete",
-  // Discovery / skills / catalog
-  "skill.list",
-  "skill.load",
-  "catalog.add",
-  "list_browser_tools",
-  // Notes / memory / reflection
-  "notes.write",
-  "notes.delete",
-  "observation.write",
-  "tabs.current",
-  "memory.write",
-  "memory.update",
-  "memory.delete",
-  "reflect.write",
-  "reflect.delete",
-  // Query / compress / jobs / config
-  "context.query",
-  "agent.query",
-  "agent.compress",
-  "job.status",
-  "job.stop",
-  "tab.context",
-  // Pure page observation (read-only)
-  "page.get_summary",
-  "page.list_regions",
-  "page.list_interactive_elements",
-  "page.inspect_region",
-  "page.inspect_element",
-  "page.get_dom",
-  "page.get_accessibility_tree",
-  "page.get_element_state",
-  "page.get_by_role",
-  "page.recheck",
-  "page.assert",
-  "page_find",
-  "see_page",
-  "find_on_page",
-  "extract_table",
-  "check_page",
-  "snapshot_page",
-  "watch_page",
-  "see_page_info",
-  "frame.list",
-  "network.grep",
-  "har",
-  "list_tabs",
-  "list_windows",
-  "see_env",
-  "see_diag",
-  "see_console",
-  "see_zoom",
-  "list_downloads",
-  "measure_timing",
-  "measure_paint",
-  "measure_files",
-  "fingerprint.read",
-  "clipboard.page_read",
-  "asset.list",
-  "asset.read",
-  "wait",
-  "wait_network",
-  "wait_response",
-  "dialog.wait",
-  "wait_new_tab",
-  "wait_download",
-  // Pure local / evidence reads
-  "evidence.search",
-  "local.fs_read",
-  "local.fs_list",
-  "local.fs_stat",
-  "local.fs_search",
-  "local.fs_grep",
-  "local.tsx_outline",
-  "local.git_status",
-  "local.git_diff",
-  "local.capabilities",
-  "local.diagnose",
-  "script_read",
-  "script_list",
-  // Local write / script exec / process (explicitly exempted)
-  "local.fs_write",
-  "local.replace_block",
-  "script_write",
-  "script_patch",
-  "local.run",
-  "local.process_start",
-  "execute_javascript",
-]);
+/**
+ * Task gate is risk-driven: only high-risk calls need an active Task.
+ * Tools may carry a fixed risk in capability metadata; uncertain calls declare `risk`.
+ */
+export type ToolRisk = "low" | "medium" | "high";
 
-export function requiresActiveTask(name: string): boolean {
-  return !TASK_EXEMPT.has(name);
+const asRisk = (value: unknown): ToolRisk | undefined =>
+  value === "low" || value === "medium" || value === "high" ? value : undefined;
+
+/** Fixed high always requires a Task; model may escalate any call to high via `risk`. */
+export function requiresActiveTask(fixedRisk?: string, modelRisk?: unknown): boolean {
+  return fixedRisk === "high" || asRisk(modelRisk) === "high";
 }

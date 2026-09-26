@@ -34,6 +34,11 @@ const CAUSAL_BACKFILL = {
     type: "string",
     description: "未达 expected 时的熔断策略：立刻退向何处、绝不做什么。可选。",
   },
+  risk: {
+    type: "string",
+    enum: ["low", "medium", "high"],
+    description: "本次调用的风险等级。工具风险未固定或本次比平时高危时填写；high 需要活动 Task（task.set）。可选。",
+  },
 } as const;
 
 function injectCausalBackfill(tool: ChatTool): ChatTool {

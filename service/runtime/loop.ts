@@ -218,7 +218,8 @@ const runQueue = async (input: {
     const running = (async () => {
       let execution: ToolExecution;
       try {
-        if (requiresActiveTask(slot.item.name) && !ledger.activeTaskId) {
+        const toolRisk = toolRegistry.capabilities.find((row) => row.kind === "tool" && row.id === slot.item.name)?.risk;
+        if (requiresActiveTask(toolRisk, slot.item.arguments.risk) && !ledger.activeTaskId) {
           execution = failedTool(errorDetail("task_gate_required"), "invalid_arguments", {
             toolName: slot.item.name,
           });

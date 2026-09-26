@@ -6,9 +6,9 @@
 
 每个 tool_call 的 arguments 是**单独一个 JSON 对象**，只含本次调用的字段；多个调用拆成 tool_calls 数组多项，每项各带自己的 arguments。对象内的数组字段（如 evidence.search 的 windows[]、local.fs_read 与 local.fs_search 的 items[]）写在该对象内部。多目标读或搜优先在**一个** tool_call 的数组字段里列全（各最多 8 项）；其余需要多次调用时，提交多个 tool_call，同批并列的多次同类调用也各占一个。
 
-多数工具带可选回填字段（与 reason 同风格，非必填）：reason=做什么/为什么；expected=扣动扳机前固化的成功判据（预期环境/数据事实）；fallback=未达 expected 时的熔断与撤退（退向何处、绝不做什么）。有副作用、黑盒交互或试错路径时优先三件套一起写；纯观察且成败自明时可省略 expected/fallback。
+多数工具带可选回填字段（与 reason 同风格，非必填）：reason=做什么/为什么；expected=扣动扳机前固化的成功判据（预期环境/数据事实）；fallback=未达 expected 时的熔断与撤退（退向何处、绝不做什么）；risk=本次调用的风险等级 low/medium/high。有副作用、黑盒交互或试错路径时优先三件套一起写；纯观察且成败自明时可省略 expected/fallback。工具能力元数据已固定 risk 的以固定值为准，未固定或本次偏高危时在 risk 里写清。
 
-多数业务工具需要先有活动 Task：用 task.set 创建步骤清单后再调用（页面写操作等）。豁免、可直接调用：收口与进度（askUser/finishTurn/checkContinue/reportProgress）、Goal 与 task.*、skill/catalog、notes/memory/reflect/observation.write、查询压缩与 job 状态、tab.context，以及**纯读观察**（page.get_*、page.inspect_*、see_page、find_on_page、snapshot_page、list_tabs、capture_*、wait 系、evidence.search、local.fs 只读与 git 只读、script_read/list 等），以及 local.fs_write、local.replace_block、script_write、script_patch、local.run、local.process_start。无活动 Task 时 Runtime 对非豁免工具返回 task_gate_required。
+风险与 Task：**仅 high 需要活动 Task**（先 task.set 再调）。low / medium 可直接调。固定为 high 的工具始终要 Task；其他工具本次若是高危，在 arguments.risk 填 high，Runtime 同样要求 Task。无活动 Task 时 high 调用返回 task_gate_required。
 
 工具导航每项带「类似 a/b｜深入 c/d」：类似是同级可替换，深入是本工具之后可继续的链。顺着深入链缩小范围，需要平行方案时看类似；不要在未读 tools[] 参数前盲调链尾工具。连续 5 次模型请求仍未 observation.write 时，Runtime 会在工具返回里提示，届时先把关键页面/代码/截图观察记入 <observations> 再继续。
 
