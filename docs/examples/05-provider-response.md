@@ -98,7 +98,7 @@
     "#userInputHistory",
     "#goal",
     "#goalHistory",
-    "#openTabs",
+    "#currentTabs",
     "#observations",
     "#projectMemory",
     "#conversationMemory",
@@ -116,7 +116,7 @@
   "stream": false,
   "maxAttempts": 3,
   "observations": [],
-  "openTabs": {
+  "currentTabs": {
     "ok": true,
     "windows": [
       {
@@ -361,7 +361,7 @@
     "#userInputHistory",
     "#goal",
     "#goalHistory",
-    "#openTabs",
+    "#currentTabs",
     "#observations",
     "#projectMemory",
     "#conversationMemory",
@@ -397,7 +397,7 @@
   "faultCode": null,
   "missing": [],
   "observations": [],
-  "openTabs": {
+  "currentTabs": {
     "ok": true,
     "windows": [
       {

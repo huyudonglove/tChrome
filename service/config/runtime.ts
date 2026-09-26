@@ -1,7 +1,8 @@
 import config from "./runtime.json";
 
 const envInt = (name: string): number | undefined => {
-  const raw = process.env[name];
+  // Extension bundles import this module via idle-fetch; `process` only exists in Node.
+  const raw = typeof process !== "undefined" ? process.env?.[name] : undefined;
   if (raw === undefined || raw === "") return undefined;
   const value = Number(raw);
   return Number.isSafeInteger(value) && value > 0 ? value : undefined;

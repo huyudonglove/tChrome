@@ -44,7 +44,7 @@
 |---:|---|---|---|---|---|
 | 1 | skill | 否 | — | — | main |
 | 2 | projectMemory | 否 | — | — | main |
-| 3 | openTabs | 否 | — | — | main |
+| 3 | currentOpen | 否 | — | — | main |
 | 4 | conversation | 否 | — | — | main |
 | 5 | tools | 否 | — | — | main |
 

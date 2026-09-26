@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `skill` | 字符串 | 无 |
 | `projectMemory` | `[{memoryId, turnId, sourceCallId?, sourceConversationId?, text}]` | `memoryId`（`lm_`） |
-| `openTabs` | `{turnId, ok:true, windows:[...]}` 或 `{turnId, ok:false, error}` | 浏览器原始 windowId / tabId |
+| `currentOpen` | `{turnId, ok:true, tabId, url, title, description}` 或 `{turnId, ok:false, error}`；仅当前打开页 | 浏览器 tabId |
 | `conversation` | 嵌套 XML 时间线正文（见下） | 二级标签为 `tn_` turnId |
 | `tools` | 本轮已加载动态工具的能力导航文本 | 工具名 |
 

@@ -23,7 +23,7 @@ function setup() {
     createdAt: new Date().toISOString(), completedAt: null, input: { id: "input_fixture", text: "检查", submittedAt: "now" },
     output: null, goalChanges: [], assembled: {
       baseToolsIds: ["finishTurn"], toolIds: ["page.click"],
-      conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, openTabs: { ok: true, windows: [] },
+      conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, currentTabs: { ok: true, windows: [] },
       observations: [],
     },
   };

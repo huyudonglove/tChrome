@@ -14,7 +14,7 @@ test("image.crop validates rect and requires a stored image", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-image-crop-"));
   try {
     const host: BrowserHost = {
-      readOpenTabs: async () => ({ ok: true, windows: [] }),
+      readCurrentTabs: async () => ({ ok: true, windows: [] }),
       execute: async (name, input) => {
         if (name === "image.crop_pixels") return { ok: true, dataUrl: String(input.dataUrl) };
         return { ok: false, error: "unexpected" };

@@ -122,7 +122,7 @@ export type TabContext = { tabId: number; setAt: string } | null;
 
 export type TabItem = { tabId: number; url: string; title: string; active: boolean };
 export type OpenWindow = { windowId: number; focused: boolean; tabs: TabItem[] };
-export type OpenTabs = { ok: true; windows: OpenWindow[] } | { ok: false; error: string };
+export type CurrentTabs = { ok: true; windows: OpenWindow[] } | { ok: false; error: string };
 
 export type Assembled = {
   baseToolsIds: string[];
@@ -132,7 +132,7 @@ export type Assembled = {
   mcpIds: string[];
   currentPage: (CurrentPage & Partial<Observation>) | null;
   observations: Observation[];
-  openTabs: OpenTabs;
+  currentTabs: CurrentTabs;
 };
 
 export type TurnOutput =
@@ -314,7 +314,7 @@ export type BrowserResult = {
 };
 
 export type BrowserHost = {
-  readOpenTabs?(): Promise<OpenTabs>;
+  readCurrentTabs?(): Promise<CurrentTabs>;
   execute(name: string, input: Record<string, unknown>): Promise<BrowserResult>;
   /** Optional tracked dispatch for heartbeat: exposes the bridge request id so job.stop can abort it. */
   executeTracked?(name: string, input: Record<string, unknown>): { id: string; result: Promise<BrowserResult> };

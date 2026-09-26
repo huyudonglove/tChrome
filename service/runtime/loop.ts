@@ -87,7 +87,7 @@ const assemble = (toolRegistry: ToolRegistry, loadedToolIds: string[]): Assemble
   mcpIds: [],
   currentPage: null,
   observations: [],
-  openTabs: { ok: false, error: "尚未读取标签列表" },
+  currentTabs: { ok: false, error: "尚未读取标签列表" },
 });
 
 const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, images: ChatMessage["images"], summaries: Parameters<typeof userText>[0]["conversationSummaries"] = [], dataDir?: string, skillNav = ""): ChatMessage[] => {
@@ -454,10 +454,10 @@ export async function handleTurn(
           return stoppedReply(ledger, turn);
         }
       try {
-        const tabs = host?.readOpenTabs ? await host.readOpenTabs() : { ok: false as const, error: "浏览器宿主不可用，无法读取标签列表" };
-        turn.assembled.openTabs = tabs.ok ? tabs : { ok: false, error: tabs.error || "标签列表读取失败" };
+        const tabs = host?.readCurrentTabs ? await host.readCurrentTabs() : { ok: false as const, error: "浏览器宿主不可用，无法读取标签列表" };
+        turn.assembled.currentTabs = tabs.ok ? tabs : { ok: false, error: tabs.error || "标签列表读取失败" };
       } catch (error) {
-        turn.assembled.openTabs = { ok: false, error: error instanceof Error ? error.message : String(error) };
+        turn.assembled.currentTabs = { ok: false, error: error instanceof Error ? error.message : String(error) };
       }
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
           return stoppedReply(ledger, turn);

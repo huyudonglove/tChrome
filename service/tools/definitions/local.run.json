@@ -2,13 +2,13 @@
   "type": "function",
   "function": {
     "name": "local.run",
-    "description": "Execute a saved script by filename in absolute cwd. Save first with script_patch, script_write or local.fs_write. Extensions: .sh uses zsh, .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches.\ncwd: absolute path; use the service data directory from System overview unless the user names another directory.\nheartbeatSec: optional positive seconds (e.g. 30). If the process is still running when that time elapses, return heartbeat=true, status=running, processId, stdoutPreview/stderrPreview. Then use local.process_status or local.process_stop. If the process exits before heartbeatSec, the call returns the complete result. Without heartbeatSec, the call waits for completion (timeoutMs still applies).\nComplete stdout/stderr persist in stdoutPath/stderrPath. Nonzero exit means failure. script_patch must run in an earlier call than this execution.\n执行调度：serial（Runtime 固定，不必返回）。",
+    "description": "Execute a saved script by filename. Scripts live under the service data directory scripts/; cwd is only the process working directory and does not change where the script file is loaded from. Save first with script_patch, script_write or local.fs_write. Extensions: .sh uses zsh, .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches.\ncwd: absolute path for the process working directory; use the service data directory from System overview unless the user names another directory.\nheartbeatSec: optional positive seconds (e.g. 30). If the process is still running when that time elapses, return heartbeat=true, status=running, processId, stdoutPreview/stderrPreview. Then use local.process_status or local.process_stop. If the process exits before heartbeatSec, the call returns the complete result. Without heartbeatSec, the call waits for completion (timeoutMs still applies).\nComplete stdout/stderr persist in stdoutPath/stderrPath. Nonzero exit means failure. script_patch must run in an earlier call than this execution.\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
         "cwd": {
           "type": "string",
-          "description": "运行目录的绝对路径；默认取 <overview> 中的服务数据目录。"
+          "description": "进程工作目录的绝对路径；不影响从数据目录 scripts/ 读取脚本。默认取 <overview> 中的服务数据目录。"
         },
         "timeoutMs": {
           "type": "integer",

@@ -25,7 +25,7 @@ test("assembled User slots follow the shared data contract", () => {
   const turn: Turn = { goalChanges: [],
     turnId: "tn_02", conversationId: "cv_01", status: "inferring", createdAt: "2026-09-12", completedAt: null, output: null,
     input: { id: "input_02", text: "当时状态是什么？", submittedAt: "2026-09-12" },
-    assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: { tabId: 42, url: "https://example.com", title: "任务", description: "待处理" }, openTabs: { ok: true, windows: [] }, observations: [page] },
+    assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: { tabId: 42, url: "https://example.com", title: "任务", description: "待处理" }, currentTabs: { ok: true, windows: [] }, observations: [page] },
   };
   const query: QueryEvidence = { queryId: "query_02", turnId: "tn_02", sumId: "sum_01", module: "toolIO", intent: "核对历史状态", status: "complete", records: [{ ...tool }] };
   const memories = projectMemories({
@@ -41,7 +41,7 @@ test("assembled User slots follow the shared data contract", () => {
     values[name] = name === "skill" || name === "tools" || name === "conversation" ? body : JSON.parse(body);
   }
   expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
-  expect(values.openTabs.turnId).toBe("tn_02");
+  expect(values.currentOpen.turnId).toBe("tn_02");
   expect(values.conversation).toContain("<conversationMemory>");
   expect(values.conversation).toContain("<conversationHistorySummary>");
   expect(values.conversation).toContain("<tn_01>");

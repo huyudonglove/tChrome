@@ -168,7 +168,7 @@ test("oversized observation.write result is externalized with path and totalLine
       assembled: {
         baseToolsIds: [], toolIds: [],
         conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [],
-        currentPage: null, openTabs: { ok: true, windows: [] }, observations: [],
+        currentPage: null, currentTabs: { ok: true, windows: [] }, observations: [],
       },
     };
     const bigResult = { ok: true, tabId: 7, url: "https://example.com", title: "T", blob: "b".repeat(runtimeConfig.results.inlineChars + 50) };

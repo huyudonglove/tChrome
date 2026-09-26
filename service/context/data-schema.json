@@ -27,7 +27,7 @@
         }
       ]
     },
-    "openTabs": {
+    "currentOpen": {
       "anyOf": [
         {
           "type": "object",
@@ -57,7 +57,7 @@
   "required": [
     "skill",
     "projectMemory",
-    "openTabs",
+    "currentOpen",
     "conversation",
     "tools"
   ],

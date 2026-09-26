@@ -190,6 +190,16 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   useEffect(() => { if (!listOpen) setSettingsOpen(false); }, [listOpen]);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (libraryOpen) { setLibraryOpen(false); return; }
+      if (listOpen) { setListOpen(false); return; }
+      if (settingsOpen) setSettingsOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [libraryOpen, listOpen, settingsOpen]);
   const [query, setQuery] = useState("");
   const [pendingDelete, setPendingDelete] = useState<{ conversationId: string; preview: string } | null>(null);
   const [showJump, setShowJump] = useState(false);
@@ -717,6 +727,9 @@ export function App() {
                 <strong>会话</strong>
                 <span>history</span>
               </div>
+              <button type="button" className="icon-button" aria-label="关闭会话列表" title="关闭会话列表（Esc）" onClick={() => setListOpen(false)}>
+                <Icon path="M6 6l12 12M18 6L6 18" />
+              </button>
             </div>
             <div className="session-search">
               <Icon path="M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16zM21 21l-4.3-4.3" />

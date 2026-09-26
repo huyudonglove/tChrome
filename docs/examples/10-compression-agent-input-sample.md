@@ -96,7 +96,7 @@ Sample（本轮 submitTurnSummaries 的 arguments，仅示例）：
 - queryHistory: 数组 `[{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}]`。status 为 complete / not_found / error；records 保留原模块记录。结论写入 result。
 - output: 对象或 null。`{kind:"reply", text}` 为最终回复正文；`{kind:"ask", question}` / `{kind:"error", faultCode, causeCode?, toolName?, detail?}` / `{kind:"tool", name, callId}`。null 表示暂无收尾。
 
-材料对象外层还包含 conversationId、turnId、status、createdAt、completedAt、sequence、segment。不参与压缩、也不会出现在 turns 材料里的主 Agent 窗口模块：skill、conversationHistorySummary、goal（active 视图）、openTabs、projectMemory、notes、lastAction、plan、currentQuery、tools。
+材料对象外层还包含 conversationId、turnId、status、createdAt、completedAt、sequence、segment。不参与压缩、也不会出现在 turns 材料里的主 Agent 窗口模块：skill、conversationHistorySummary、goal（active 视图）、currentTabs、projectMemory、notes、lastAction、plan、currentQuery、tools。
 
 Sample（一次请求只含一个完整轮次的骨架，仅示例）：
 

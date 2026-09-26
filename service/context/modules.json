@@ -16,7 +16,7 @@
 
     { "id": "skill", "role": "user", "order": 1, "file": "user/skill.md", "consumers": ["main"], "compress": false, "description": "Skills" },
     { "id": "projectMemory", "role": "user", "order": 2, "file": "user/projectMemory.md", "consumers": ["main"], "compress": false, "description": "Long-Term Memory" },
-    { "id": "openTabs", "role": "user", "order": 3, "file": "user/openTabs.md", "consumers": ["main"], "compress": false, "description": "Open Tabs" },
+    { "id": "currentOpen", "role": "user", "order": 3, "file": "user/currentOpen.md", "consumers": ["main"], "compress": false, "description": "Current Open" },
     { "id": "conversation", "role": "user", "order": 4, "file": "user/conversation.md", "consumers": ["main"], "compress": false, "description": "Conversation Timeline By Turn" },
     { "id": "tools", "role": "user", "order": 5, "file": "user/tools.md", "consumers": ["main"], "compress": false, "description": "Loaded Tools" },
 

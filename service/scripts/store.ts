@@ -24,7 +24,7 @@ const regular = async (path: string) => {
 };
 export async function readScript(dataDir: string, filename: unknown): Promise<{filename: string; path: string; code: string}> {
   if (!validName(filename)) throw new AppError('invalid_arguments', '脚本文件名无效');
-  const path = join(await directory(dataDir, false), filename);
+  const path = join(await directory(dataDir), filename);
   const info = await regular(path);
   if (!info) throw new AppError('file_not_found', '脚本不存在', {path});
   return {filename, path, code: await readFile(path, 'utf8')};

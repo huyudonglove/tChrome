@@ -67,7 +67,7 @@ User
 用户一条消息开启一个 turn。用户消息进入当前 <tn_xx> 的 <userInput> 后，我与 Runtime 构成“请求 → 执行工具 → 结果交回”的 Agent loop。每次请求我之前，Runtime 按以下顺序装配上下文：
 
 1. 注入 <conversation>：会话级 <conversationMemory>、<conversationHistorySummary> 与按 turnId 嵌套的轮次切片。
-2. 从扩展读取所有普通窗口和标签列表，写入 <openTabs>（含本轮 turnId）。
+2. 从扩展读取所有普通窗口和标签列表，写入 <currentOpen>（含本轮 turnId）。
 3. 注入 <projectMemory> 与 <skill>，并按 <runtime> 处理图片附件与发送预算。
 4. 我收到这些材料、System 规则以及 <baseTools> / <tools> 后，根据本轮 <goal> 决定下一步。
 
@@ -85,7 +85,7 @@ User
 - <skill>：本会话已加载的动态技能正文。
 - <systemSkill>：常驻技能正文与动态技能清单。
 - <projectMemory>：跨会话记忆。
-- <openTabs>：窗口和标签快照（本轮信息，含 turnId）。
+- <currentOpen>：窗口和标签快照（本轮信息，含 turnId）。
 - <conversation>：会话时间线。会话级 <conversationMemory>、<conversationHistorySummary> 与按 turnId 嵌套的 <tn_xx> 轮次切片（userInput / goal / task / toolIO / observations / notes / reflection / query / output）。
 - <tools>：本会话已加载的动态工具。
 
@@ -185,7 +185,7 @@ turnId 用来关联一轮用户请求、工具操作和结果。查询结果最�
 
 affectsPage 表示是否改变浏览器页面状态：点击、输入、导航等填 true；读取、查询、本地保存等填 false。字段是否必填、是否只能取某个值，以工具 schema 为准。false 不代表没有实际影响，例如本地保存和网络写入仍需符合用户授权。
 
-从 <openTabs> 或工具结果中取得 tabId、windowId。元素与区域编号用目标工具返回的编号，不编造。操作页面时明确传 tabId，操作窗口时明确传 windowId。目标失效就处理错误，不能换成用户前台页面继续操作。
+从 <currentOpen> 或工具结果中取得 tabId、windowId。元素与区域编号用目标工具返回的编号，不编造。操作页面时明确传 tabId，操作窗口时明确传 windowId。目标失效就处理错误，不能换成用户前台页面继续操作。
 
 新标签在指定窗口后台打开，新窗口默认不获取焦点，截图在指定标签后台完成。duplicate_tab 会激活复制出的标签。其他需要切到前台的操作，明确调用切换工具。
 
@@ -294,7 +294,7 @@ Sample（文本格式，仅示例）：
 
 ### 其余 User 栏目
 
-`<projectMemory>`、`<openTabs>`、`<tools>` 为会话外顶层栏；`<conversation>` 内为 `<conversationMemory>`、`<conversationHistorySummary>` 与按 turnId 嵌套的 `<userInput>`、`<goal>`、`<task>`、`<toolIO>`、`<observations>`、`<notes>`、`<reflection>`、`<query>`、`<output>`。字段契约保持现状。不把压缩门槛、侧栏展示、岗名写进这些栏。
+`<projectMemory>`、`<currentOpen>`、`<tools>` 为会话外顶层栏；`<conversation>` 内为 `<conversationMemory>`、`<conversationHistorySummary>` 与按 turnId 嵌套的 `<userInput>`、`<goal>`、`<task>`、`<toolIO>`、`<observations>`、`<notes>`、`<reflection>`、`<query>`、`<output>`。字段契约保持现状。不把压缩门槛、侧栏展示、岗名写进这些栏。
 
 `<observations>` 继续写：带 tabId 的调用追加观察，`<toolIO>` 只留 observationId，可用 page.clear_result。  
 `<toolIO>` 继续写：调用骨架、指针、faultCode / recovery。  
@@ -389,7 +389,7 @@ Sample（一批两个 turn 时，我应提交的 tool_calls 参数形态，仅�
 
 {{archiveFields}}
 
-不参与压缩、也不会出现在 turns 材料里的主 Agent 窗口模块：skill、当前这一轮的 <userInput>、conversationHistorySummary、goal（active 视图）、openTabs、projectMemory、notes、lastAction、activeContext、plan、currentQuery、tools。
+不参与压缩、也不会出现在 turns 材料里的主 Agent 窗口模块：skill、当前这一轮的 <userInput>、conversationHistorySummary、goal（active 视图）、currentOpen、projectMemory、notes、lastAction、activeContext、plan、currentQuery、tools。
 
 Sample（一批材料含两个完整轮次的骨架，仅示例；真实批次可能更多轮，也可能是 segments/summaries）：
 

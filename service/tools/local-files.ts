@@ -199,6 +199,7 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
       case "local.fs_write": {
         if (typeof input.content !== "string") throw new Error("content must be a string");
         const append = flag(input, "append");
+        await mkdir(resolve(path, ".."), { recursive: true });
         const file = await open(path, constants.O_WRONLY | constants.O_CREAT | constants.O_NONBLOCK | (append ? constants.O_APPEND : 0));
         try {
           if (!(await file.stat()).isFile()) throw new Error("path must be a regular file");

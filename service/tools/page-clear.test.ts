@@ -21,7 +21,7 @@ const setup = () => {
       baseToolsIds: ["page.clear_result"], toolIds: [],
       conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [],
       currentPage: { tabId: 12, url: "https://example.com", title: "示例", description: "d" },
-      openTabs: { ok: true, windows: [] },
+      currentTabs: { ok: true, windows: [] },
       observations: [{
         id: "page_01", turnId: "tn_01", callId: "call_01", batchId: "batch_01",
         observedAt: "now", tabId: 12, type: "page.inspect_element",

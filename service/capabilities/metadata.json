@@ -1836,6 +1836,14 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "tabs.current",
+        "list_windows"
+      ],
+      "deeper": [
+        "page.get_summary",
+        "switch_tab"
       ]
     },
     "list_windows": {
@@ -5286,6 +5294,36 @@
       "composesWith": [
         "submitGoal",
         "finishTurn"
+      ]
+    },
+    "tabs.current": {
+      "purpose": "查询当前浏览器窗口与标签列表",
+      "triggers": [
+        "tabs.current",
+        "需要确认 tabId、焦点窗口或标签是否仍打开"
+      ],
+      "outputs": [
+        "窗口与标签快照"
+      ],
+      "preconditions": [
+        "浏览器宿主可用"
+      ],
+      "risk": "low",
+      "verification": [
+        "返回 windows[].tabs[].tabId 可用于后续工具"
+      ],
+      "alternatives": [
+        "使用 <currentTabs> 中的快照"
+      ],
+      "composesWith": [],
+      "similar": [
+        "list_tabs",
+        "list_windows"
+      ],
+      "deeper": [
+        "page.get_summary",
+        "open_url",
+        "switch_tab"
       ]
     }
   },

@@ -127,7 +127,7 @@ test("标签快照走扩展桥；未连接时文字请求可继续，停止释�
   const repoRoot = join(import.meta.dir, "..");
   let snapshots: any[] = [];
   const server = createServer({dataDir: dir, repoRoot, provider: {complete: async input => {
-    const tabs = input.messages[1]!.content.match(/<openTabs>\n[\s\S]*?\n\n内容：\n([\s\S]*?)\n<\/openTabs>/);
+    const tabs = input.messages[1]!.content.match(/<currentOpen>\n[\s\S]*?\n\n内容：\n([\s\S]*?)\n<\/currentOpen>/);
     snapshots.push(JSON.parse(tabs![1]!));
     return {finish: "tool_calls", content: "", toolCalls: [{id: "reply", name: "finishTurn", arguments: {text: "完成"}}], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: []};
   }}});
@@ -140,14 +140,14 @@ test("标签快照走扩展桥；未连接时文字请求可继续，停止释�
     const pending = post();
     await Bun.sleep(0);
     const request = server.bridge.list()[0]!;
-    expect(request.name).toBe("__openTabs");
+    expect(request.name).toBe("__currentTabs");
     const snapshot = {ok: true, windows: [{windowId: 1, focused: true, tabs: [{tabId: 12, active: true, url: "https://example.com", title: "测试"}]}]};
     server.bridge.resolve(request.id, snapshot);
     expect((await (await pending).json()).output.kind).toBe("reply");
-    expect(snapshots[1]).toEqual({ ...snapshot, turnId: expect.stringMatching(/^tn_/) });
+    expect(snapshots[1]).toMatchObject({ ok: true, tabId: 12, url: "https://example.com", title: "测试", turnId: expect.stringMatching(/^tn_/) });
     const stopped = post();
     await Bun.sleep(0);
-    expect(server.bridge.list()[0]?.name).toBe("__openTabs");
+    expect(server.bridge.list()[0]?.name).toBe("__currentTabs");
     await server.fetch(new Request(`${base}/stop`, {method: "POST"}));
     expect((await (await stopped).json()).output.faultCode).toBe("stopped");
     expect(snapshots).toHaveLength(2);

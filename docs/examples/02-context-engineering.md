@@ -110,7 +110,7 @@
     "description": "用户发话时的标签信息，尚未读取页面内容"
   },
   "observations": [],
-  "openTabs": {
+  "currentTabs": {
     "ok": true,
     "windows": [
       {

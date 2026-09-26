@@ -19,6 +19,7 @@ export const TASK_EXEMPT = new Set<string>([
   "notes.write",
   "notes.delete",
   "observation.write",
+  "tabs.current",
   "memory.write",
   "memory.update",
   "memory.delete",

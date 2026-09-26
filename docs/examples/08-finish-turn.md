@@ -173,7 +173,7 @@ Provider 用同一套 messages，user `<toolIO>` 写成上面数组。模型交�
     "#userInputHistory",
     "#goal",
     "#goalHistory",
-    "#openTabs",
+    "#currentTabs",
     "#observations",
     "#projectMemory",
     "#conversationMemory",
@@ -243,7 +243,7 @@ Provider 用同一套 messages，user `<toolIO>` 写成上面数组。模型交�
   "windowChars": 0,
   "compressAt": 200000,
   "observations": [],
-  "openTabs": {
+  "currentTabs": {
     "ok": true,
     "windows": [
       {

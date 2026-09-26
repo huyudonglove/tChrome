@@ -55,7 +55,7 @@ test("tab.context sets default tab and fills later browser calls", async () => {
     input: { id: "input_01", text: "ctx", submittedAt: "now" }, output: null, goalChanges: [],
     assembled: {
       baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [],
-      currentPage: null, openTabs: { ok: true, windows: [] }, observations: [],
+      currentPage: null, currentTabs: { ok: true, windows: [] }, observations: [],
     },
   };
   const exec = executeTool;

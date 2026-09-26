@@ -35,8 +35,10 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     mounted.current = true;
     const timer = setInterval(() => { if (!lock.current) void refresh(); }, 3000);
-    return () => { mounted.current = false; sequence.current++; clearInterval(timer); };
-  }, []);
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") { event.preventDefault(); onClose(); } };
+    window.addEventListener("keydown", onKey);
+    return () => { mounted.current = false; sequence.current++; clearInterval(timer); window.removeEventListener("keydown", onKey); };
+  }, [onClose]);
   useEffect(() => { const timer = setTimeout(() => void refresh(), 180); return () => { clearTimeout(timer); sequence.current++; }; }, [query]);
   useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(""), 2500); return () => clearTimeout(timer); }, [notice]);
 
@@ -60,7 +62,7 @@ export function LibraryPanel({ onClose }: { onClose: () => void }) {
   const visible = items.filter(item => filter === "all" || item.type === filter);
   const field = (label: string, value: string) => value ? <div className="library-field"><span>{label}</span><div><span>{value}</span><button type="button" className="library-icon" title={`复制${label}`} aria-label={`复制${label}`} onClick={() => void copy(value)}><Icon name="copy" /></button></div></div> : null;
   return <section className="library-panel" aria-label="本地资料库">
-    <header className="library-header"><div><strong>资料库</strong><small>本机保存 · 跨会话使用</small></div><button type="button" className="library-icon" aria-label="关闭资料库" title="关闭资料库" disabled={busy} onClick={onClose}><Icon name="close" /></button></header>
+    <header className="library-header"><div><strong>资料库</strong><small>本机保存 · 跨会话使用</small></div><button type="button" className="library-icon library-close" aria-label="关闭资料库" title="关闭资料库（Esc）" onClick={onClose}><Icon name="close" /></button></header>
     <div className="library-toolbar"><input aria-label="搜索资料" placeholder="搜索名称、内容或标签" value={query} onChange={e => setQuery(e.target.value)} /><button type="button" className="library-primary" disabled={busy || !!draft} onClick={() => { setDraft(emptyDraft()); setError(""); }}>新增</button></div>
     <div className="library-filters" aria-label="资料类型">{(["all", "website", "account", "note"] as const).map(kind => <button key={kind} type="button" aria-pressed={filter === kind} onClick={() => setFilter(kind)}>{kind === "all" ? "全部" : labels[kind]}</button>)}</div>
     {error && <div className="library-error" role="alert">{error}<button type="button" onClick={() => setError("")}>关闭</button></div>}

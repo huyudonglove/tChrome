@@ -11,7 +11,7 @@
         },
         "windowId": {
           "type": "integer",
-          "description": "目标窗口编号，从 <openTabs> 或 list_windows 返回取得。"
+          "description": "目标窗口编号，从 tabs.current / list_windows 返回里的 windowId 取得。"
         }
       },
       "required": [

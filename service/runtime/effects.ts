@@ -164,7 +164,8 @@ export function applyToolEffects(input: {
       }
       case "observation.write": {
         const id = allocateRecordId(dataDir, ledger.conversationId, "page");
-        const result = storedResult ?? effect.result;
+        // Observation body is the effect payload; storedText is only the tool ack.
+        const result = effect.result ?? storedResult;
         const resultChars = JSON.stringify(result).length;
         const inlineLimit = runtimeConfig.results.inlineChars;
         const lineWidth = runtimeConfig.results.lineWidth;

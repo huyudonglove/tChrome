@@ -5,7 +5,7 @@ import { resolveProxy } from "./provider/uuapi.ts";
 import { configuredProvider, isProviderName, providerApiKeyEnv, providerOptions } from "./provider/config.ts";
 import { ensureSession, loadSession, defaultDataDir, currentSessionView, listConversations, openConversation, newConversation, deleteConversation, stopTurn } from "./runtime/store.ts";
 import { createToolBridge, type ToolBridge } from "./runtime/bridge.ts";
-import type { BrowserResult, BrowserHost, OpenTabs } from "./types.ts";
+import type { BrowserResult, BrowserHost, CurrentTabs } from "./types.ts";
 import { executorVersion, executorMismatchMessage } from "./executor-version.ts";
 import { abortAllLocalProcesses } from "./tools/local-process.ts";
 import { cancelAllExecutions } from "./runtime/execution.ts";
@@ -69,8 +69,8 @@ export function createServer(options: ServeOptions = {}) {
   const extensionView = () => ({ ...extension, status: extension.lastSeenAt && Date.now() - Date.parse(extension.lastSeenAt) >= extensionStaleMs ? "disconnected" : extension.status });
   const snapshotHost = (scope?: string): BrowserHost => {
     const scoped = scope === undefined ? bridge : bridge.forScope!(scope);
-    return { ...scoped, forScope: snapshotHost, readOpenTabs: async (): Promise<OpenTabs> => {
-      const unavailable = (): OpenTabs => ({ok: false, error: extensionView().error || "浏览器扩展未连接，无法读取标签列表"});
+    return { ...scoped, forScope: snapshotHost, readCurrentTabs: async (): Promise<CurrentTabs> => {
+      const unavailable = (): CurrentTabs => ({ok: false, error: extensionView().error || "浏览器扩展未连接，无法读取标签列表"});
       if (extensionView().status !== "ready") return unavailable();
       let timer: ReturnType<typeof setTimeout>;
       let disconnected = false;
@@ -82,7 +82,7 @@ export function createServer(options: ServeOptions = {}) {
           timer = setTimeout(checkConnection, Math.max(1, extensionStaleMs - (Date.now() - Date.parse(extension.lastSeenAt!))));
         }
       };
-      const pendingSnapshot = scoped.readOpenTabs!();
+      const pendingSnapshot = scoped.readCurrentTabs!();
       checkConnection();
       try {
         const result = await pendingSnapshot;

@@ -217,6 +217,11 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     return result(JSON.stringify({ ok: true, type: observationType, ...(tabId !== undefined ? { tabId } : {}) }),
       [{ type: "observation.write", observationType, result: args.result, ...(tabId !== undefined ? { tabId } : {}) }]);
   }
+  if (name === "tabs.current") {
+    if (!host?.readCurrentTabs) return failedTool(errorDetail("browser_not_connected"), "browser_unavailable");
+    const tabs = await host.readCurrentTabs();
+    return result(JSON.stringify(tabs));
+  }
   if (name === "page.clear_result") {
     const pageId = String(args.pageId ?? "").trim();
     if (!pageId) return failedTool("pageId 空着", "invalid_arguments");

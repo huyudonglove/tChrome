@@ -98,7 +98,7 @@
     "#userInputHistory",
     "#goal",
     "#goalHistory",
-    "#openTabs",
+    "#currentTabs",
     "#observations",
     "#projectMemory",
     "#conversationMemory",
@@ -112,7 +112,7 @@
     "#tools"
   ],
   "observations": [],
-  "openTabs": {
+  "currentTabs": {
     "ok": true,
     "windows": [
       {
@@ -209,7 +209,7 @@ SDK 写法：`client.chat.completions.create({ model, messages, tools, stream: f
 - <conversationHistorySummary>：已归档轮次摘要。
 - <goal>：当前目标。
 - <goalHistory>：已结束目标。
-- <openTabs>：窗口和标签快照（本轮信息，含 turnId）。
+- <currentOpen>：窗口和标签快照（本轮信息，含 turnId）。
 - <observations>：页面观察结果。
 - <projectMemory>：跨会话记忆。
 - <conversationMemory>：本会话已确认事实。
@@ -363,7 +363,7 @@ turnId 用来关联一轮用户请求、工具操作和结果。查询结果最�
 
 同标签页若有先后依赖（填写后再点击等），相关调用按数组先后提交并保持 serial 工具语义；有依赖的调用不要都排进同一 parallel 波次。
 
-从 <openTabs> 或工具结果中取得 tabId、windowId。元素与区域编号用目标工具返回的编号，不编造。操作页面时明确传 tabId，操作窗口时明确传 windowId。目标失效就处理错误，不能换成用户前台页面继续操作。
+从 <currentOpen> 或工具结果中取得 tabId、windowId。元素与区域编号用目标工具返回的编号，不编造。操作页面时明确传 tabId，操作窗口时明确传 windowId。目标失效就处理错误，不能换成用户前台页面继续操作。
 
 新标签在指定窗口后台打开，新窗口默认不获取焦点，截图在指定标签后台完成。duplicate_tab 会激活复制出的标签。其他需要切到前台的操作，明确调用切换工具。
 
@@ -1541,8 +1541,8 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -1566,7 +1566,7 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -2108,8 +2108,8 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -2133,7 +2133,7 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -2723,8 +2723,8 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -2748,7 +2748,7 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -3338,8 +3338,8 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -3363,7 +3363,7 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -3843,8 +3843,8 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -3868,7 +3868,7 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -4348,8 +4348,8 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -4373,7 +4373,7 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -4853,8 +4853,8 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -4878,7 +4878,7 @@ completed 或 cancelled 的目标记录，保留原 id、parentId、status、goa
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -5360,8 +5360,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -5420,7 +5420,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -6052,8 +6052,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -6112,7 +6112,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -6744,8 +6744,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -6804,7 +6804,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -7496,8 +7496,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -7556,7 +7556,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -8224,8 +8224,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -8284,7 +8284,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -8952,8 +8952,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -9012,7 +9012,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -9674,8 +9674,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -9734,7 +9734,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -10396,8 +10396,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -10456,7 +10456,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -11118,8 +11118,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -11178,7 +11178,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -11840,8 +11840,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -11900,7 +11900,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -12562,8 +12562,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -12622,7 +12622,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -13284,8 +13284,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -13344,7 +13344,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -14006,8 +14006,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -14066,7 +14066,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -14728,8 +14728,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -14788,7 +14788,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -15450,8 +15450,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -15510,7 +15510,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -16172,8 +16172,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -16232,7 +16232,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -16894,8 +16894,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -16954,7 +16954,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -17616,8 +17616,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -17676,7 +17676,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -18338,8 +18338,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -18398,7 +18398,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -19060,8 +19060,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -19120,7 +19120,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -19777,8 +19777,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -19837,7 +19837,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -20472,8 +20472,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -20532,7 +20532,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -21167,8 +21167,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -21227,7 +21227,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -21862,8 +21862,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -21922,7 +21922,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -22557,8 +22557,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 当前 turn 的浏览器窗口/标签信息快照。顶层 turnId 表示本快照属于哪一轮；ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -22617,7 +22617,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -23252,8 +23252,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 每次请求我之前获取的所有普通浏览器窗口及标签快照。ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -23309,7 +23309,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -23938,8 +23938,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 每次请求我之前获取的所有普通浏览器窗口及标签快照。ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -23995,7 +23995,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -24624,8 +24624,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 每次请求我之前获取的所有普通浏览器窗口及标签快照。ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -24681,7 +24681,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -25310,8 +25310,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 每次请求我之前获取的所有普通浏览器窗口及标签快照。ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -25367,7 +25367,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -25996,8 +25996,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 每次请求我之前获取的所有普通浏览器窗口及标签快照。ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -26053,7 +26053,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -26682,8 +26682,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 每次请求我之前获取的所有普通浏览器窗口及标签快照。ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -26739,7 +26739,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -27239,8 +27239,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 每次请求我之前获取的所有普通浏览器窗口及标签快照。ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -27296,7 +27296,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -27796,8 +27796,8 @@ Sample（仅示例，不是当前记录）：
 []
 </goalHistory>
 
-<openTabs>
-能力：【Open Tabs】
+<currentOpen>
+能力：【Current Tabs】
 
 详细描述：
 每次请求我之前获取的所有普通浏览器窗口及标签快照。ok 为 true 时，windows 按 windowId 列出窗口；focused 表示窗口获得输入焦点，tabs 中的 tabId、url、title、active 分别表示标签 ID、地址、标题及该窗口选中的标签。每个窗口可各有一个 active 标签，只有 focused 窗口的 active 标签是浏览器当前获得操作焦点的页面；浏览器不在前台时可没有 focused 窗口。ok 为 false 时 error 表示本次读取失败，不能据此认定标签已关闭。此列表不是页面内容或实时状态；前台切换不改变任务目标，继续原任务时显式使用原 tabId，指定窗口时使用 windowId。实际观察结果见 <observations>。
@@ -27853,7 +27853,7 @@ Failure Sample（仅示例）：
     }
   ]
 }
-</openTabs>
+</currentTabs>
 
 <observations>
 能力：【Page Observation History】
@@ -28385,7 +28385,7 @@ Sample（文本格式，仅示例）：
           },
           "tabId": {
             "type": "integer",
-            "description": "目标标签编号；从 <openTabs> 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
+            "description": "目标标签编号；从 <currentOpen> 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
           }
         },
         "required": [
@@ -28411,7 +28411,7 @@ Sample（文本格式，仅示例）：
           },
           "tabId": {
             "type": "integer",
-            "description": "目标标签编号；从 <openTabs> 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
+            "description": "目标标签编号；从 <currentOpen> 或工具返回取得。必须显式指定，不随前台切换；目标失效时返回错误。"
           }
         },
         "required": [
@@ -28545,7 +28545,7 @@ Sample（文本格式，仅示例）：
     "#userInputHistory",
     "#goal",
     "#goalHistory",
-    "#openTabs",
+    "#currentTabs",
     "#observations",
     "#projectMemory",
     "#conversationMemory",
@@ -28563,7 +28563,7 @@ Sample（文本格式，仅示例）：
   "stream": false,
   "maxAttempts": 3,
   "observations": [],
-  "openTabs": {
+  "currentTabs": {
     "ok": true,
     "windows": [
       {

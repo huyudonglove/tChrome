@@ -39,13 +39,13 @@ const mock = (results: CompletionResult[]): Provider => {
   };
 };
 
-test("每次主模型请求刷新 openTabs，焦点变化不覆盖页面观察，读取失败不冒充空列表", async () => {
+test("每次主模型请求刷新 currentOpen，焦点变化不覆盖页面观察，读取失败不冒充空列表", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-tabs-"));
     primeActiveTask(dir);
   try {
     let snapshots = 0, requests = 0;
     const host = {
-      readOpenTabs: async () => {
+      readCurrentTabs: async () => {
         snapshots++;
         if (snapshots === 3) throw new Error("读取窗口失败");
         return { ok: true as const, windows: [{windowId: 1, focused: true, tabs: [
@@ -61,15 +61,15 @@ test("每次主模型请求刷新 openTabs，焦点变化不覆盖页面观察�
     const provider: Provider = {complete: async input => {
       requests++;
       const body = input.messages[1]!.content;
-      const tabs = body.match(/<openTabs>\n[\s\S]*?\n\n内容：\n([\s\S]*?)\n<\/openTabs>/);
-      const snapshot = JSON.parse(tabs![1]!);
+      const tabs = body.match(/<currentOpen>\n[\s\S]*?\n\n内容：\n([\s\S]*?)\n<\/currentOpen>/);
+      const open = JSON.parse(tabs![1]!);
       expect(snapshots).toBe(requests);
-      if (requests === 1) expect(snapshot.windows[0].tabs[0].active).toBe(true);
+      if (requests === 1) expect(open).toMatchObject({ ok: true, tabId: 12, title: "工作页面" });
       if (requests === 2) {
-        expect(snapshot.windows[0].tabs[1].active).toBe(true);
+        expect(open).toMatchObject({ ok: true, tabId: 13, title: "其他页面" });
         expect(body).toContain("已观察原页面");
       }
-      if (requests === 3) expect(snapshot).toEqual({ok: false, error: "读取窗口失败", turnId: expect.stringMatching(/^tn_/)});
+      if (requests === 3) expect(open).toEqual({ok: false, error: "读取窗口失败", turnId: expect.stringMatching(/^tn_/)});
       return ok({finish: "tool_calls", toolCalls: requests < 3
         ? [
           {id: `read_${requests}`, name: "page.get_summary", arguments: {tabId: 12, reason: "查看原页面"}},
@@ -114,7 +114,7 @@ test("finishTurn 收口回复", async () => {
   expect(ledger.userInputHistory).toEqual([]);
   const turn = loadTurn(dir, "cv_01", reply.turnId);
   expect(turn.assembled.currentPage).toBeNull();
-  expect(turn.assembled.openTabs.ok).toBe(false);
+  expect(turn.assembled.currentTabs.ok).toBe(false);
   const events = loadEvents(dir, "cv_01");
   expect(events.map((row) => row.kind)).toEqual([
     "session",
@@ -617,7 +617,7 @@ test("队列和正在跑的工具出现在 /session", () => {
       projectMemoryIds: [],
       mcpIds: [],
       currentPage: null, observations: [],
-      openTabs: { ok: true, windows: [] },
+      currentTabs: { ok: true, windows: [] },
     },
     output: null,
   });

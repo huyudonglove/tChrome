@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { emptyLedger, saveTurn } from "./store.ts";
 import { assembleTurnHistory, loadSettledTurnHistory } from "./turn-history.ts";
 import type { Turn } from "../types.ts";
-const turn = (turnId:string):Turn => ({goalChanges:[],conversationId:"cv_test",turnId,status:"completed",createdAt:"2026-09-11",completedAt:"2026-09-11",input:{id:`input_${turnId}`,text:"只改负责人",submittedAt:"2026-09-11"},assembled:{baseToolsIds:[],toolIds:[],conversationMemoryIds:[],projectMemoryIds:[],mcpIds:[],openTabs: { ok: true, windows: [] },currentPage:null,observations:[]},output:{kind:"reply",text:"已修改并核对" }});
+const turn = (turnId:string):Turn => ({goalChanges:[],conversationId:"cv_test",turnId,status:"completed",createdAt:"2026-09-11",completedAt:"2026-09-11",input:{id:`input_${turnId}`,text:"只改负责人",submittedAt:"2026-09-11"},assembled:{baseToolsIds:[],toolIds:[],conversationMemoryIds:[],projectMemoryIds:[],mcpIds:[],currentTabs: { ok: true, windows: [] },currentPage:null,observations:[]},output:{kind:"reply",text:"已修改并核对" }});
 test("turn process joins existing records without mixing turns or mutable memory/notes",()=>{
  const ledger=emptyLedger("cv_test");ledger.turnIds=["tn_01","tn_02"];
  ledger.notes={draft:"当前草稿"};
