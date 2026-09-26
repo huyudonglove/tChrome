@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadContextModules } from "../service/context/modules.ts";
+import { fence, replaceFencedBlock, replaceFencedSection } from "../service/context/doc-blocks.ts";
 import { loadToolRegistry, toolSchemas, toolGuideFor } from "../service/tools/registry.ts";
 import { systemText, userText } from "../service/context/window.ts";
 import { emptyLedger } from "../service/runtime/store.ts";
@@ -30,9 +31,6 @@ function xmlBlock(source: string, tag: string, fromIndex = 0) {
   if (start < 0 || end < 0) throw new Error("missing <" + tag + ">");
   return { text: source.slice(start, end + close.length), next: end + close.length };
 }
-function fence(lang: string, body: string) {
-  return "```" + lang + "\n" + body + "\n```";
-}
 for (const file of readdirSync(join(root, "docs/examples")).filter(f => /^0[1-8]-.*\.md$/.test(f))) {
   const path = join(root, "docs/examples", file);
   let text = readFileSync(path, "utf8");
@@ -42,8 +40,8 @@ for (const file of readdirSync(join(root, "docs/examples")).filter(f => /^0[1-8]
     const ledger = emptyLedger(snapshot.conversationId);
     ledger.userInputHistory = snapshot.userInputHistory;
     const user = userText({ contextModules: c, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: loadSkills(root), toolGuide: toolGuideFor(registry, snapshot.toolIds) });
-    text = text.replace(/^```\n<overview>\n[\s\S]*?^```/m, () => fence("", systemText(c, "2026-09-06", toolGuideFor(registry, registry.toolGroups.baseToolsIds), {}, skillGuide(root))));
-    text = text.replace(/^```\n<skill>\n[\s\S]*?^```/m, () => fence("", user));
+    text = replaceFencedBlock(text, "<overview>", systemText(c, "2026-09-06", toolGuideFor(registry, registry.toolGroups.baseToolsIds), {}, skillGuide(root)));
+    text = replaceFencedBlock(text, "<skill>", user);
   }
   text = text.replace(/^```json\n([\s\S]*?)^```/gm, (_, body) => fence("json", JSON.stringify(update(JSON.parse(body)), null, 2)));
   writeFileSync(path, text);
@@ -57,8 +55,8 @@ const xml09 = join(root, "docs/examples/09-main-model-xml-sample.md");
   const system = systemText(c, "2026-09-18", toolGuideFor(registry, registry.toolGroups.baseToolsIds), {}, skillGuide(root));
   const user = userText({ contextModules: c, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: loadSkills(root), toolGuide: toolGuideFor(registry, snapshot.toolIds) });
   let text = readFileSync(xml09, "utf8");
-  text = text.replace(/^## System（\d+ 字符）\n\n```text\n[\s\S]*?^```/m, `## System（${system.length} 字符）\n\n` + fence("text", system));
-  text = text.replace(/^## User（\d+ 字符）\n\n```text\n[\s\S]*?^```/m, `## User（${user.length} 字符）\n\n` + fence("text", user));
+  text = replaceFencedSection(text, "## System（", `## System（${system.length} 字符）\n\n` + fence("text", system), "## User（");
+  text = replaceFencedSection(text, "## User（", `## User（${user.length} 字符）\n\n` + fence("text", user));
   writeFileSync(xml09, text);
 }
 const xml10 = join(root, "docs/examples/10-compression-agent-input-sample.md");
