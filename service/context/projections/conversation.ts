@@ -3,6 +3,7 @@ import type { MemoryRecord } from "../../memory/types.ts";
 import { goalRecordView, pageView, turnSummaryView, type TurnSummary } from "./records.ts";
 import { toolHistoryView } from "./tools.ts";
 import { queryView, type QueryEvidence, type QueryViewOptions } from "./queries.ts";
+import { loadTurn } from "../../runtime/store.ts";
 
 export type ConversationTurnSlice = {
   turnId: string;
@@ -60,6 +61,8 @@ export function conversationPayload(input: {
   gate: QueryViewOptions & { path?: (query: QueryEvidence) => string | undefined };
   /** Per-turn notes snapshots; live notes always land on the active turn. */
   notesByTurn?: Record<string, Record<string, string>>;
+  /** Needed to restore settled turns' <output> from disk. */
+  dataDir?: string;
 }): ConversationPayload {
   const { ledger, turn, gate } = input;
   const inputs: UserInputRecord[] = [
@@ -84,7 +87,7 @@ export function conversationPayload(input: {
     rows.push(goal);
     goalChangesByTurn.set(goal.turnId, rows);
   }
-  for (const goal of turn.goalChanges) {
+  for (const goal of turn.goalChanges ?? []) {
     const rows = goalChangesByTurn.get(goal.turnId) ?? [];
     if (!rows.some((row) => row.id === goal.id && row.updatedAt === goal.updatedAt)) rows.push(goal);
     goalChangesByTurn.set(goal.turnId, rows);
@@ -130,7 +133,14 @@ export function conversationPayload(input: {
         ...queryView(query, { ...gate, path: gate.path?.(query) }),
         ...(input.currentQuery && query.queryId === input.currentQuery.queryId ? { currentQuery: true } : {}),
       })),
-      output: isLive ? turn.output : null,
+      output: isLive
+        ? turn.output
+        : (input.dataDir
+          ? (() => {
+            try { return loadTurn(input.dataDir!, ledger.conversationId, row.turnId).output; }
+            catch { return null; }
+          })()
+          : null),
     });
   }
   return {

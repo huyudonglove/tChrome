@@ -90,7 +90,7 @@ const assemble = (toolRegistry: ToolRegistry, loadedToolIds: string[]): Assemble
   currentTabs: { ok: false, error: "尚未读取标签列表" },
 });
 
-const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, images: ChatMessage["images"], summaries: Parameters<typeof userText>[0]["conversationSummaries"] = [], dataDir?: string, skillNav = ""): ChatMessage[] => {
+const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, images: ChatMessage["images"], summaries: Parameters<typeof userText>[0]["conversationSummaries"] = [], dataDir?: string, skillNav = "", historyDataDir?: string): ChatMessage[] => {
   const system = systemText(contextModules, pacificDate(), toolGuideFor(toolRegistry, turn.assembled.baseToolsIds), {
     cwd: process.cwd(),
     ...(dataDir ? { dataDir } : {}),
@@ -110,6 +110,7 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
       contextModules, ledger, turn, memories: projectMemories(memories), skillText, conversationSummaries: summaries,
       currentQuery: ledger.currentQuery, queryHistory: ledger.queryHistory,
       toolGuide: toolGuideFor(toolRegistry, turn.assembled.toolIds),
+      dataDir: historyDataDir ?? dataDir,
       ...(dataDir ? { inlineBudget: { dataDir, system } } : {}),
     }) + (imageNote ? `\n\n${imageNote}` : ""), images: [...inline, ...thumbs] },
   ];
@@ -219,6 +220,13 @@ const runQueue = async (input: {
       let execution: ToolExecution;
       try {
         const toolRisk = toolRegistry.capabilities.find((row) => row.kind === "tool" && row.id === slot.item.name)?.risk;
+        // Fixed risk fills the slot when the model omits it, so every call carries an auditable level.
+        if (slot.item.arguments.risk === undefined && toolRisk && toolRisk !== "unknown") {
+          slot.item.arguments = { ...slot.item.arguments, risk: toolRisk };
+          slot.item.riskSource = "fixed";
+        } else if (slot.item.arguments.risk !== undefined) {
+          slot.item.riskSource = "model";
+        }
         if (requiresActiveTask(toolRisk, slot.item.arguments.risk) && !ledger.activeTaskId) {
           execution = failedTool(errorDetail("task_gate_required"), "invalid_arguments", {
             toolName: slot.item.name,
@@ -480,7 +488,7 @@ export async function handleTurn(
         }
       }
       let state = contextState(deps.dataDir, ledger, turn, memories);
-      let messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav);
+      let messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir);
       const initialChars = windowChars(messages[0]!.content, messages[1]!.content);
       if (initialChars >= ledger.compressAt) {
         let compressionStarted = false;
@@ -508,7 +516,7 @@ export async function handleTurn(
         }
             state = contextState(deps.dataDir, ledger, turn, memories);
             skillText = skillTextOf();
-            messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav);
+            messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir);
             // Sequential compression: a failed turn keeps originals; this boundary stops compressing and still sends the main model.
             if (outcome?.status === "stopped") break;
           }

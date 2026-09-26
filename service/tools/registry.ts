@@ -58,6 +58,20 @@ function injectCausalBackfill(tool: ChatTool): ChatTool {
   };
 }
 
+/** Low-risk calls are read-only and self-evident, so the model does not have to restate a reason for them. */
+function relaxReasonRequirement(tool: ChatTool): ChatTool {
+  const params = tool.function.parameters as { required?: unknown } | undefined;
+  const required = params?.required;
+  if (!Array.isArray(required) || !required.includes("reason")) return tool;
+  return {
+    ...tool,
+    function: {
+      ...tool.function,
+      parameters: { ...(params as object), required: required.filter(key => key !== "reason") } as ChatTool["function"]["parameters"],
+    },
+  };
+}
+
 export function loadToolRegistry(root: string): ToolRegistry {
   const index = JSON.parse(readFileSync(join(root, "service", "tools", "definitions", "index.json"), "utf8")) as ToolIndex;
   const toolGroups = JSON.parse(readFileSync(join(root, "service", "tools", "definitions", "groups.json"), "utf8")) as ToolGroups;
@@ -73,6 +87,10 @@ export function loadToolRegistry(root: string): ToolRegistry {
     execution[name] = mode;
   }
   const capabilities = loadCapabilityCatalog(root, { tools, index, toolGroups, execution });
+  for (const [name, tool] of Object.entries(tools)) {
+    const risk = capabilities.find((row) => row.kind === "tool" && row.id === name)?.risk;
+    if (risk === "low") tools[name] = relaxReasonRequirement(tool);
+  }
   return { tools, index, toolGroups, execution, capabilities };
 }
 

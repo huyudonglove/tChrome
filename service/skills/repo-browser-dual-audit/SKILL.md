@@ -61,6 +61,16 @@ TAGS:
 - **等加载再断言**：`wait_network` 超时返回 `ok:false` 但仍带页面文本，文本可用；抓文本常停在 `Loading models...`，最终可能是 `No models here.`。
 - **死链判定看 href 实际值**：指向外站的入口不是死链；grep 不到路由不等于不可达（政策页可能另有注册机制，要查清）。
 - **未跑的门禁要说明**：缺 chromium 的 e2e、因缺后端而未验的登录态流程，都属于未覆盖项，不能算通过。
+- **不要凭 <toolIO> 里显示的 arguments 判断调用是否成形**。会话时间线展示的 `arguments` 是缩写投影（如 `{"task": true}`、`{"notes": "x"}`、`{"output": "ask"}`），不是实际 payload；据此得出的「参数没传、ok:true 但没落库」结论是错的。验证写法是否落库，正确做法是用一个唯一标记（如 `PROBE-2-EXACT-STRING`）写入后去 `ledger.json` grep 读回。实测：完整参数的 notes.write/observation.write/reflect.write 全部正常落库，漏必填会如实返回 `missing_required`/`wrong_type`。
+
+## 调用纪律（自身失误的固化）
+
+- **写脚本前先对一遍 schema 的 pattern**：`script_write` 的 filename 必须匹配 `^[A-Za-z0-9][A-Za-z0-9._-]*\.(sh|py|js|mjs|cjs)$`，写成 `>diff-look.sh` 会被拒。名字起好再写，别试错。
+- **每个页面工具都带 reason**：`open_url`、`page.*`、`tabs.current` 等都要求 reason，漏了直接 `missing_required`。
+- **`local.fs_grep` / `local.fs_read` 的 path 要分清**：grep 只接受目录；传文件路径（含符号链接）报 `path must be a directory, not a symlink`。
+- **`local.run` 的 args 是字符串数组**，不是对象；`contextChars ≤ 200`、`contextLines ≤ 20`（工具描述没写上限，靠试错踩出来的）。
+- **脚本名不存在会报 file_not_found**：先 `script_write` 再 `local.run`，不要凭空直传文件名。
+- **断言失败先判环境同源**：无头结论只当线索；涉及登录态/渲染的判断一律真实标签复核（见硬规则第一条）。
 
 ## 收口
 

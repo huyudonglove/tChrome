@@ -31,6 +31,8 @@ export function userText(input: {
   currentQuery?: QueryEvidence | null;
   queryHistory?: QueryEvidence[];
   inlineBudget?: { dataDir: string; system: string };
+  /** Restores settled turns' <output> from disk when not in inlineBudget. */
+  dataDir?: string;
 }): string {
   const { contextModules, ledger, turn, memories } = input;
   const gate = {
@@ -51,6 +53,7 @@ export function userText(input: {
     currentQuery: input.currentQuery,
     queryHistory: input.queryHistory,
     gate: { ...gate, path: queryPath },
+    dataDir: input.dataDir ?? input.inlineBudget?.dataDir,
   });
   const slots = {
     "#skill": input.skillText,

@@ -65,6 +65,8 @@
     "memory.delete",
     "notes.write",
     "notes.delete",
+    "observation.write",
+    "tabs.current",
     "page.clear_result",
     "evidence.search",
     "catalog.add",
