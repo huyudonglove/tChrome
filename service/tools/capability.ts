@@ -24,7 +24,7 @@ type SkillMetadataFile = {
   skills?: Record<string, CapabilityMetadata>;
 };
 
-const ARRAY_FIELDS = ["triggers", "outputs", "preconditions", "verification", "alternatives", "composesWith"] as const;
+const ARRAY_FIELDS = ["triggers", "outputs", "preconditions", "verification", "alternatives", "composesWith", "similar", "deeper"] as const;
 
 function stringList(value: unknown, field: string): string[] {
   if (!Array.isArray(value) || value.some(item => typeof item !== "string" || !item.trim())) {
@@ -114,6 +114,8 @@ export function loadCapabilityCatalog(repoRoot: string, source: ToolSource): Cap
       verification: override.verification ?? [],
       alternatives: override.alternatives ?? [],
       composesWith: override.composesWith ?? [],
+      similar: override.similar ?? [],
+      deeper: override.deeper ?? [],
       availability: toolAvailability(source, id),
       source: `service/tools/definitions`,
       metadataComplete: Boolean(override.purpose && override.risk && override.triggers?.length && override.verification?.length),
@@ -139,6 +141,8 @@ export function loadCapabilityCatalog(repoRoot: string, source: ToolSource): Cap
         verification: override.verification ?? [],
         alternatives: override.alternatives ?? [],
         composesWith: override.composesWith ?? [],
+        similar: override.similar ?? [],
+        deeper: override.deeper ?? [],
         availability: ids === manifest.residentSkillIds ? "resident" : "dynamic",
         source: `service/skills/${id}/SKILL.md`,
         metadataComplete: Boolean(override.purpose && override.risk && override.triggers?.length && override.verification?.length),

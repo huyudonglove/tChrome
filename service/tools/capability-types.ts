@@ -28,6 +28,10 @@ export type CapabilityRecord = {
   verification: string[];
   alternatives: string[];
   composesWith: string[];
+  /** 同级类似/可替换工具，引导平行探索。 */
+  similar: string[];
+  /** 本工具之后可继续深入的工具，串成调用链。 */
+  deeper: string[];
   availability: CapabilityAvailability;
   source: string;
   metadataComplete: boolean;
@@ -42,4 +46,6 @@ export type CapabilityMetadata = {
   verification?: string[];
   alternatives?: string[];
   composesWith?: string[];
+  similar?: string[];
+  deeper?: string[];
 };

@@ -36,5 +36,5 @@ test('Tavily is discoverable but unavailable until dynamically loaded', () => {
   expect(checkToolCalls([{id: 'call_tavily', name: 'tavily_search', arguments: valid}],
     toolSchemas(registry, initialIds), registry.toolGroups.baseToolsIds, coreToolIds(registry)).schemaOk).toBe(false);
   expect(check(valid).schemaOk).toBe(true);
-  expect(toolGuideFor(registry, ['tavily_search'])).toBe('- tavily_search：通过 Tavily 高级搜索获取公开网页及相关内容。');
+  expect(toolGuideFor(registry, ['tavily_search'])).toBe('- tavily_search：通过 Tavily 高级搜索获取公开网页及相关内容。类似 web_search｜深入 send_http/open_url');
 });

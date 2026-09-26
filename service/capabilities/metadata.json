@@ -48,6 +48,10 @@
       "composesWith": [
         "agent.query",
         "evidence.search"
+      ],
+      "similar": [],
+      "deeper": [
+        "agent.query"
       ]
     },
     "agent.query": {
@@ -71,6 +75,12 @@
         "重新执行只读检查"
       ],
       "composesWith": [
+        "evidence.search"
+      ],
+      "similar": [
+        "context.query"
+      ],
+      "deeper": [
         "evidence.search"
       ]
     },
@@ -96,6 +106,12 @@
       "composesWith": [
         "page.get_summary",
         "drag"
+      ],
+      "similar": [
+        "execute_javascript"
+      ],
+      "deeper": [
+        "observation.write"
       ]
     },
     "askUser": {
@@ -302,6 +318,14 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "capture_rect",
+        "capture_page"
+      ],
+      "deeper": [
+        "image.crop",
+        "observation.write"
       ]
     },
     "capture_full_page": {
@@ -380,6 +404,15 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "capture_viewport",
+        "capture_full_page",
+        "capture_element"
+      ],
+      "deeper": [
+        "image.crop",
+        "observation.write"
       ]
     },
     "capture_rect": {
@@ -406,6 +439,14 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "capture_element",
+        "capture_viewport"
+      ],
+      "deeper": [
+        "image.crop",
+        "observation.write"
       ]
     },
     "capture_som": {
@@ -835,6 +876,12 @@
       "composesWith": [
         "agent.query",
         "evidence.search"
+      ],
+      "similar": [
+        "agent.query"
+      ],
+      "deeper": [
+        "evidence.search"
       ]
     },
     "context_menu": {
@@ -1200,6 +1247,14 @@
       ],
       "composesWith": [
         "agent.query"
+      ],
+      "similar": [
+        "local.fs_search",
+        "local.fs_grep"
+      ],
+      "deeper": [
+        "local.fs_read",
+        "agent.query"
       ]
     },
     "execute_javascript": {
@@ -1226,6 +1281,13 @@
       "composesWith": [
         "local.git_status",
         "local.run"
+      ],
+      "similar": [
+        "page.eval_expr"
+      ],
+      "deeper": [
+        "observation.write",
+        "evidence.search"
       ]
     },
     "export_data": {
@@ -1305,6 +1367,15 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "page.list_interactive_elements",
+        "snapshot_page"
+      ],
+      "deeper": [
+        "page.click",
+        "page.type",
+        "page.click_text"
       ]
     },
     "fingerprint.apply": {
@@ -1923,6 +1994,14 @@
       "composesWith": [
         "local.git_status",
         "local.run"
+      ],
+      "similar": [
+        "local.fs_search",
+        "evidence.search"
+      ],
+      "deeper": [
+        "local.fs_read",
+        "local.replace_block"
       ]
     },
     "local.fs_list": {
@@ -2027,6 +2106,15 @@
       "composesWith": [
         "local.git_status",
         "local.run"
+      ],
+      "similar": [
+        "local.fs_search",
+        "script_read"
+      ],
+      "deeper": [
+        "local.fs_write",
+        "local.replace_block",
+        "evidence.search"
       ]
     },
     "local.fs_search": {
@@ -2053,6 +2141,13 @@
       "composesWith": [
         "local.git_status",
         "local.run"
+      ],
+      "similar": [
+        "local.fs_grep",
+        "evidence.search"
+      ],
+      "deeper": [
+        "local.fs_read"
       ]
     },
     "local.fs_stat": {
@@ -2208,6 +2303,13 @@
       "composesWith": [
         "local.git_status",
         "local.run"
+      ],
+      "similar": [
+        "local.run"
+      ],
+      "deeper": [
+        "local.process_status",
+        "local.process_stop"
       ]
     },
     "local.process_status": {
@@ -2337,6 +2439,13 @@
       ],
       "composesWith": [
         "local.git_status"
+      ],
+      "similar": [
+        "local.process_start"
+      ],
+      "deeper": [
+        "local.process_status",
+        "observation.write"
       ]
     },
     "local.tsx_outline": {
@@ -2537,7 +2646,14 @@
       "alternatives": [
         "使用当前 notes 临时保存"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "similar": [
+        "notes.write",
+        "observation.write"
+      ],
+      "deeper": [
+        "memory.update"
+      ]
     },
     "move_tab": {
       "purpose": "移动指定标签的位置",
@@ -2677,7 +2793,14 @@
       "alternatives": [
         "使用当前 notes 临时保存"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "similar": [
+        "observation.write",
+        "memory.write"
+      ],
+      "deeper": [
+        "reflect.write"
+      ]
     },
     "observation.write": {
       "purpose": "把页面/代码/截图等观察结果记入本轮 observations",
@@ -2698,7 +2821,14 @@
       "alternatives": [
         "需要取片段时用 evidence.search"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "similar": [
+        "notes.write"
+      ],
+      "deeper": [
+        "evidence.search",
+        "reflect.write"
+      ]
     },
     "open_tab": {
       "purpose": "在指定 windowId 窗口后台新开标签，不激活新页",
@@ -2754,6 +2884,14 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "reload",
+        "go_history"
+      ],
+      "deeper": [
+        "page.get_summary",
+        "see_page"
       ]
     },
     "page.assert": {
@@ -2838,6 +2976,16 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "click",
+        "page.click_role",
+        "page.click_text"
+      ],
+      "deeper": [
+        "page.get_summary",
+        "observation.write",
+        "page.recheck"
       ]
     },
     "page.click_role": {
@@ -2866,6 +3014,14 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "page.click",
+        "click"
+      ],
+      "deeper": [
+        "page.get_summary",
+        "observation.write"
       ]
     },
     "page.click_text": {
@@ -2950,6 +3106,14 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "page.type",
+        "type"
+      ],
+      "deeper": [
+        "page.get_summary",
+        "observation.write"
       ]
     },
     "page.fill_submit": {
@@ -3062,6 +3226,14 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "page.get_accessibility_tree",
+        "page.list_regions"
+      ],
+      "deeper": [
+        "page.inspect_element",
+        "evidence.search"
       ]
     },
     "page.get_element_state": {
@@ -3090,6 +3262,14 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "page.inspect_element"
+      ],
+      "deeper": [
+        "page.click",
+        "page.type",
+        "page.assert"
       ]
     },
     "page.get_summary": {
@@ -3118,6 +3298,15 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "see_page",
+        "snapshot_page"
+      ],
+      "deeper": [
+        "page.list_interactive_elements",
+        "page.list_regions",
+        "page.inspect_element"
       ]
     },
     "page.inspect_element": {
@@ -3146,6 +3335,14 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "page.inspect_region",
+        "page.get_element_state"
+      ],
+      "deeper": [
+        "page.click",
+        "page.type"
       ]
     },
     "page.inspect_region": {
@@ -3174,6 +3371,14 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "page.inspect_element",
+        "capture_rect"
+      ],
+      "deeper": [
+        "page.click",
+        "page.type"
       ]
     },
     "page.list_interactive_elements": {
@@ -3202,6 +3407,16 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "snapshot_page",
+        "find_on_page"
+      ],
+      "deeper": [
+        "page.click",
+        "page.type",
+        "page.click_role",
+        "page.fill_role"
       ]
     },
     "page.list_regions": {
@@ -3230,6 +3445,14 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "page.get_dom",
+        "page.get_summary"
+      ],
+      "deeper": [
+        "page.inspect_region",
+        "capture_rect"
       ]
     },
     "page.recheck": {
@@ -3341,6 +3564,16 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "type",
+        "page.fill_role",
+        "page.fill_submit"
+      ],
+      "deeper": [
+        "page.get_summary",
+        "observation.write",
+        "page.recheck"
       ]
     },
     "page_find": {
@@ -3477,6 +3710,12 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "send_http"
+      ],
+      "deeper": [
+        "send_http"
       ]
     },
     "probe_ssl": {
@@ -3609,6 +3848,12 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "notes.write"
+      ],
+      "deeper": [
+        "finishTurn"
       ]
     },
     "reload": {
@@ -3741,6 +3986,15 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "script_write",
+        "local.fs_write"
+      ],
+      "deeper": [
+        "script_read",
+        "execute_javascript",
+        "local.run"
       ]
     },
     "script_read": {
@@ -3769,6 +4023,13 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "local.fs_read"
+      ],
+      "deeper": [
+        "script_patch",
+        "execute_javascript"
       ]
     },
     "script_write": {
@@ -3797,6 +4058,15 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "script_patch",
+        "local.fs_write"
+      ],
+      "deeper": [
+        "script_read",
+        "execute_javascript",
+        "local.run"
       ]
     },
     "scroll": {
@@ -3978,6 +4248,14 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "page.get_summary",
+        "snapshot_page"
+      ],
+      "deeper": [
+        "find_on_page",
+        "page.list_interactive_elements"
       ]
     },
     "see_page_info": {
@@ -4080,7 +4358,15 @@
         "浏览器网络监听",
         "页面内请求观察"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "similar": [
+        "probe_http",
+        "send_http_batch"
+      ],
+      "deeper": [
+        "local.fs_write",
+        "evidence.search"
+      ]
     },
     "send_http_batch": {
       "purpose": "依次向 1 至 5 个完整 HTTP/HTTPS URL 发送 GET 请求",
@@ -4283,6 +4569,16 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "page.list_interactive_elements",
+        "find_on_page"
+      ],
+      "deeper": [
+        "page.click",
+        "page.type",
+        "click",
+        "type"
       ]
     },
     "solve_captcha": {
@@ -4485,6 +4781,13 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "web_search"
+      ],
+      "deeper": [
+        "send_http",
+        "open_url"
       ]
     },
     "tick": {
@@ -4875,6 +5178,14 @@
         "page_assert",
         "page.recheck",
         "capture_viewport"
+      ],
+      "similar": [
+        "tavily_search"
+      ],
+      "deeper": [
+        "send_http",
+        "probe_http",
+        "open_url"
       ]
     },
     "websocket_monitor": {

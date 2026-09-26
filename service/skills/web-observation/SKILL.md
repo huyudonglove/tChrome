@@ -13,9 +13,9 @@ TAGS:
 
 1. `open_url` 打开或跳转后，用 `page.get_summary` 读标题、地址、区域与可交互规模。
 2. 需要定位控件时用 `page.list_interactive_elements`；需要区域结构时再加载 `page.list_regions` / `page.inspect_region`。
-3. 取元素 id、regionId 时看观察数组中对应项的 result，不要凭空猜测编号。
+3. 取元素 id、regionId 时看本轮 `<toolIO>` / `<observations>` 中对应项的 result，不要凭空猜测编号。
 
-带 tabId 的操作（`page.*`、`open_url`、截图、标签内脚本等）成功或失败都会追加到 `<observations>`，type 为工具名、result 为完整返回；`<toolIO>` 里同一次调用只有 observationId。
+带 tabId 的操作（`page.*`、`open_url`、截图、标签内脚本等）返回完整落在本轮 `<toolIO>`。需要固化的页面状态、脚本结论或截图发现，用 `observation.write(type, result, tabId?)` 记入本轮 `<observations>`；Runtime 不自动摘录。连续 5 次模型请求未记录时会提示。工具导航里的「类似 / 深入」给出同级替换与后续链路，如 `page.get_summary` 深入 `page.list_interactive_elements`。
 
 ## 元素编号与标签
 

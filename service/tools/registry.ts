@@ -93,6 +93,11 @@ export function toolGuideFor(registry: ToolRegistry, ids: string[]): string {
     const description = tool.function.description?.trim();
     if (!description) throw new Error(`missing tool description ${tool.function.name}`);
     const purpose = description.split(/[。\n]/, 1)[0]!.trim();
-    return `- ${tool.function.name}：${purpose}。`;
+    const cap = registry.capabilities.find((row) => row.kind === "tool" && row.id === tool.function.name);
+    const chain = [
+      cap?.similar?.length ? `类似 ${cap.similar.join("/")}` : "",
+      cap?.deeper?.length ? `深入 ${cap.deeper.join("/")}` : "",
+    ].filter(Boolean).join("｜");
+    return `- ${tool.function.name}：${purpose}。${chain || ""}`;
   }).join("\n");
 }
