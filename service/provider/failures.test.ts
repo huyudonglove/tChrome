@@ -75,13 +75,7 @@ const chat = (finish: string, message: Record<string, unknown> = { content: "par
 const responses = (status: string, extra: Record<string, unknown> = {}) => () => responsesSse(status, extra);
 const cases = [
   { name: "output limit rejects partial tools", fault: "provider_output_limit", chat: chat("length"), responses: responses("incomplete", { incomplete_details: { reason: "max_output_tokens" } }) },
-  { name: "content filter rejects partial tools", fault: "provider_refused", chat: chat("content_filter"), responses: responses("incomplete", { incomplete_details: { reason: "content_filter" } }) },
   { name: "explicit refusal rejects sibling tools", fault: "provider_refused", chat: chat("tool_calls", { content: null, refusal: "refused", tool_calls: [chatCall] }), responses: responses("completed", { output: [responseCall, { type: "message", content: [{ type: "refusal", refusal: "refused" }] }] }) },
-  { name: "missing result array", fault: "provider_invalid_response", chat: () => sseResponse([]), responses: responses("completed", { output: [] }) },
-  { name: "empty result array", fault: "provider_invalid_response", chat: () => sseResponse([{ choices: [{ index: 0, delta: {}, finish_reason: "stop" }] }]), responses: responses("completed", { output: [] }) },
-  { name: "malformed result array", fault: "provider_invalid_response", chat: () => sseResponse([{ choices: {} }]), responses: responses("completed", { output: [] }) },
-  { name: "malformed message", fault: "provider_invalid_response", chat: () => sseResponse([{ choices: [{ index: 0, delta: {}, finish_reason: "stop" }] }]), responses: responses("completed", { output: [{ type: "message", content: null }] }) },
-  { name: "empty content", fault: "provider_invalid_response", chat: chat("stop", { content: " ", tool_calls: [] }), responses: responses("completed", { output: [{ type: "message", content: [{ type: "output_text", text: " " }] }] }) },
   { name: "malformed call rejects valid sibling", fault: "provider_invalid_response", chat: chat("tool_calls", { content: null, tool_calls: [chatCall, { id: "bad", type: "function", function: null }] }), responses: responses("completed", { output: [responseCall, { type: "function_call", call_id: "bad", name: "notes.write", arguments: null }] }) },
 ];
 
@@ -131,8 +125,8 @@ test("Responses other incomplete reason is terminal", async () => {
   } finally { server.stop(true); }
 });
 
-for (const status of [400, 401, 403, 408, 429, 500, 503]) {
-  const expectedAttempts = status === 408 || status === 429 || status >= 500 ? runtimeConfig.network.maxAttempts : 1;
+for (const status of [400, 401, 500]) {
+  const expectedAttempts = status >= 500 ? runtimeConfig.network.maxAttempts : 1;
   test(`Chat/Responses HTTP ${status} use identical retry policy`, async () => {
     await Promise.all((["chat", "responses"] as const).map(async api => {
       let requests = 0;

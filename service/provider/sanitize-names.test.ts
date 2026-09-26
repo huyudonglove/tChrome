@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { createProvider } from "./uuapi.ts";
+import { sseResponse } from "./sse.ts";
 
 const dottedTools = [{
   type: "function" as const,
@@ -10,6 +11,10 @@ const dottedTools = [{
   },
 }];
 
+const toolCallEvent = (name: string, args: string) => ({
+  choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: "call_1", function: { name, arguments: args } }] } }],
+});
+
 test("sanitizeToolNames sends underscore names and restores dots on return", async () => {
   let sent: any;
   const server = Bun.serve({
@@ -17,20 +22,10 @@ test("sanitizeToolNames sends underscore names and restores dots on return", asy
     port: 0,
     async fetch(request) {
       sent = await request.json();
-      return Response.json({
-        choices: [{
-          finish_reason: "tool_calls",
-          message: {
-            role: "assistant",
-            content: "",
-            tool_calls: [{
-              id: "call_1",
-              type: "function",
-              function: { name: "context_query", arguments: JSON.stringify({ sumId: "sum_01", module: "toolIO", intent: "查" }) },
-            }],
-          },
-        }],
-      });
+      return sseResponse([
+        toolCallEvent("context_query", JSON.stringify({ sumId: "sum_01", module: "toolIO", intent: "查" })),
+        { choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] },
+      ]);
     },
   });
   try {
@@ -55,12 +50,10 @@ test("without sanitizeToolNames original dotted names are sent", async () => {
     port: 0,
     async fetch(request) {
       sent = await request.json();
-      return Response.json({
-        choices: [{
-          finish_reason: "stop",
-          message: { role: "assistant", content: "ok" },
-        }],
-      });
+      return sseResponse([
+        { choices: [{ index: 0, delta: { content: "ok" } }] },
+        { choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+      ]);
     },
   });
   try {

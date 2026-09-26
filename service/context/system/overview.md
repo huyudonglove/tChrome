@@ -19,25 +19,9 @@
 - <baseTools>：常驻工具导航。
 - <skill>：本会话已加载的动态技能正文。
 - <systemSkill>：常驻技能正文与动态技能清单。
-- <userInput>：当前用户原话。
-- <userInputHistory>：更早的用户原话。
-- <conversationHistorySummary>：已归档轮次摘要。
-- <goal>：当前目标。
-- <goalHistory>：已结束目标。
-- <openTabs>：窗口和标签快照（本轮信息，含 turnId）。
-- <pageObservedHistory>：页面观察结果。
 - <projectMemory>：跨会话记忆。
-- <conversationMemory>：本会话已确认事实。
-- <notes>：草稿与中间材料（含 turnId）。
-- <reflection>：本轮反思列表（reflect.write / reflect.delete，rf_ 编号）。
-- <reflectHistory>：已结束轮次的反思历史（随 turn 压缩覆盖）。
-- <toolIO>：工具调用骨架与返回。
-- <lastAction>：上一批工具摘要。
-- <activeContext>：目标 / 步骤 / 主标签 / 实体 / 承接意图的单屏脊椎。
-- <task>：当前 Goal 的持久化执行任务（含 activeTaskId / activeTaskItemId）。
-- <taskHistory>：任务事件历史（只读追加，随 turn 压缩）。
-- <queryHistory>：历史查询。
-- <currentQuery>：最近一次查询原文（含 turnId）。
+- <openTabs>：窗口和标签快照（本轮信息，含 turnId）。
+- <conversation>：会话时间线。会话级 <conversationMemory>、<conversationHistorySummary> 与按 turnId 嵌套的 <tn_xx> 轮次切片（userInput / goal / task / toolIO / pageObservations / notes / reflection / query / output）。
 - <tools>：本会话已加载的动态工具。
 
 当前日期：{{currentDate}}。

@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "./server.ts";
+import { sseResponse } from "./provider/sse.ts";
 
 for (const variable of ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY"]) {
   test(`server starts direct despite ${variable} and uses it only after enabling proxy`, async () => {
@@ -12,11 +13,10 @@ for (const variable of ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY"]) {
     const actual: unknown[] = [];
     const mock = spyOn(globalThis, "fetch").mockImplementation((async (_url: RequestInfo | URL, init?: RequestInit) => {
       actual.push((init as RequestInit & { proxy?: string })?.proxy);
-      return Response.json({ id: "local-test", choices: [{ index: 0, finish_reason: "tool_calls", message: {
-        role: "assistant", content: "", tool_calls: [{ id: "finish", type: "function", function: {
-          name: "finishTurn", arguments: JSON.stringify({ reason: "已完成", text: "完成" }),
-        } }],
-      } }] });
+      return sseResponse([
+        { choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: "finish", function: { name: "finishTurn", arguments: JSON.stringify({ reason: "已完成", text: "完成" }) } }] } }] },
+        { choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] },
+      ]);
     }) as typeof fetch);
     try {
       for (const key of keys) delete Bun.env[key];

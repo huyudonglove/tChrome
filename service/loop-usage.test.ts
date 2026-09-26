@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { handleTurn } from "./runtime/loop.ts";
-import { loadLedger, loadTurn } from "./runtime/store.ts";
+import { loadLedger, loadTurn, primeActiveTask } from "./runtime/store.ts";
 import type { CompletionResult, Provider, ToolCall } from "./types.ts";
 
 const repoRoot = join(import.meta.dir, "..");
@@ -28,6 +28,7 @@ async function run(results: CompletionResult[], verify: (context: {
   browserCalls: string[];
 }) => void) {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-loop-usage-"));
+  primeActiveTask(dataDir);
   let modelRequests = 0;
   const browserCalls: string[] = [];
   const provider: Provider = { complete: async () => {

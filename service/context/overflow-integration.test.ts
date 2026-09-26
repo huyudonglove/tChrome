@@ -17,20 +17,39 @@ const response = (...toolCalls: ToolCall[]): CompletionResult => ({ finish: "too
 const finish = () => response(call("finishTurn", { text: "完成"}));
 const xmlSlots = (user: string): Record<string, unknown> => {
   const values: Record<string, unknown> = {};
-  const re = /<([A-Za-z][A-Za-z0-9]*)>\n[\s\S]*?\n\n内容：\n([\s\S]*?)\n<\/\1>/g;
+  const re = /<([A-Za-z][A-Za-z0-9]*)>\n能力：[\s\S]*?\n\n内容：\n([\s\S]*?)\n<\/\1>/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(user))) {
     const name = m[1]!, body = m[2]!;
-    values[name] = name === "skill" || name === "tools" ? body : JSON.parse(body);
+    values[name] = name === "skill" || name === "tools" || name === "conversation" ? body : JSON.parse(body);
   }
   return values;
 };
-const slot = (user: string, name: string): any => xmlSlots(user)[name.replace(/^#/, "")];
+const nestedTag = (user: string, name: string): any => {
+  const conversation = String(xmlSlots(user).conversation ?? "");
+  const m = conversation.match(new RegExp(`<${name}>\\n([\\s\\S]*?)\\n</${name}>`));
+  return m ? JSON.parse(m[1]!) : undefined;
+};
+const slot = (user: string, name: string): any => {
+  const key = name.replace(/^#/, "");
+  if (key === "notes" || key === "toolIO" || key === "userInput" || key === "goal" || key === "task") {
+    const conversation = String(xmlSlots(user).conversation ?? "");
+    const turn = conversation.match(/<tn_[^>]+>\n([\s\S]*?)\n<\/tn_[^>]+>/);
+    const body = turn?.[1] ?? conversation;
+    const m = body.match(new RegExp(`<${key}>\\n([\\s\\S]*?)\\n</${key}>`));
+    return m ? JSON.parse(m[1]!) : key === "notes" ? {} : [];
+  }
+  return xmlSlots(user)[key];
+};
 const references = (value: unknown): { path: string; chars: number; format: string }[] => {
   if (!value || typeof value !== "object") return [];
   const object = value as Record<string, any>;
   if (object.contextFile) return [object.contextFile];
   return Object.values(object).flatMap(references);
+};
+const conversationReferences = (user: string): { path: string; chars: number; format: string }[] => {
+  const conversation = String(xmlSlots(user).conversation ?? "");
+  return [...conversation.matchAll(/"contextFile"\s*:\s*(\{[^}]+\})/g)].map(m => JSON.parse(m[1]!));
 };
 const provider = (run: (user: string) => CompletionResult): Provider => ({ complete: async ({ messages, tools }) => {
   if (tools.some(tool => tool.function.name === "submitTurnSummaries")) {
@@ -57,14 +76,14 @@ test("oversized notes stay durable, can be deleted by the model, and do not bloc
   const reply = await handleTurn({ dataDir, repoRoot, host, provider: provider(user => {
     if (++step === 1) return response(call("notes.write", { key: "large", value }));
     if (step === 2) {
-      const refs = references(slot(user, "#notes"));
+      const refs = conversationReferences(user);
       expect(refs.length).toBeGreaterThan(0);
       expect(readFileSync(refs[0]!.path, "utf8")).toContain(value);
       const ledger = loadLedger(dataDir, conversationId);
       expect(ledger.notes.large).toBe(value);
       return response(call("notes.delete", { key: "large" }));
     }
-    expect(slot(user, "#notes")).toMatchObject({ turnId: expect.stringMatching(/^tn_/), notes: {} });
+    expect(slot(user, "#notes")).toEqual({});
     return finish();
   }) }, { userInput: "保存后删除大笔记", submittedAt: "now" });
   expect(reply.output).toEqual({ kind: "reply", text: "完成" });
@@ -140,7 +159,7 @@ test("individually small notes are externalized when their combined context exce
   let calls = 0;
   const reply = await handleTurn({ dataDir, repoRoot, host, provider: provider(user => {
     calls++;
-    expect(references(slot(user, "#notes")).length).toBeGreaterThan(0);
+    expect(conversationReferences(user).length).toBeGreaterThan(0);
     return finish();
   }) }, { userInput: "继续使用这些笔记", submittedAt: "now" });
   expect(reply.output.kind).toBe("reply");
@@ -174,9 +193,8 @@ test("uncompressible notes between 200K and 250K remain inline and allow the mai
   let calls = 0;
   const base = provider(user => {
     calls++;
-    const notesView = slot(user, "#notes") as { turnId?: string; notes?: Record<string, string> };
-    expect(notesView.turnId).toMatch(/^tn_/);
-    expect(notesView.notes).toEqual(ledger.notes);
+    const notesView = slot(user, "#notes") as Record<string, string>;
+    expect(notesView).toEqual(ledger.notes);
     expect(existsSync(join(dataDir, "context-files"))).toBe(false);
     return finish();
   });
@@ -210,9 +228,8 @@ test("history above 250K is compressed before any content is externalized", () =
   const base = provider(user => {
     main++;
     expect(summaries).toBeGreaterThan(0);
-    const notesView = slot(user, "#notes") as { turnId?: string; notes?: Record<string, string> };
-    expect(notesView.turnId).toMatch(/^tn_/);
-    expect(notesView.notes).toEqual(ledger.notes);
+    const notesView = slot(user, "#notes") as Record<string, string>;
+    expect(notesView).toEqual(ledger.notes);
     expect(existsSync(join(dataDir, "context-files"))).toBe(false);
     return finish();
   });

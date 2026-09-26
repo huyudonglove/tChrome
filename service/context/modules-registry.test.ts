@@ -23,10 +23,10 @@ test("module registry owns consumers, compress flags and archive fields", () => 
   expect(compressedArchiveFields(registry)).toEqual([
     "userInput",
     "goalChanges",
+    "toolIO",
     "pageObservations",
     "memoryWrites",
     "reflection",
-    "toolIO",
     "taskHistory",
     "queryHistory",
     "output",
@@ -35,13 +35,10 @@ test("module registry owns consumers, compress flags and archive fields", () => 
   expect(mainSystem).toContain("runtime");
   expect(mainSystem).not.toContain("compressionModules");
   const mainUser = registryModules(registry, { role: "user", consumer: "main" }).map(row => row.id);
-  expect(mainUser).toContain("toolIO");
-  expect(mainUser).toContain("task");
-  expect(mainUser).toContain("taskHistory");
+  expect(mainUser).toEqual(["skill", "projectMemory", "openTabs", "conversation", "tools"]);
   const md = compressionArchiveFieldsMarkdown(root);
   expect(md).toContain("- toolIO:");
   expect(md).toContain("- pageObservations:");
-  expect(md).toContain("`{id, turnId, userInput, submittedAt}`");
   expect(md).toContain("return:{stage,totalChars,text}");
   expect(md).not.toContain("modules.json");
   expect(md).not.toContain("compress=true");
@@ -74,7 +71,8 @@ test("overview skims and README tables match registries; hierarchy tags stay in 
     ...[...hierarchy.matchAll(/^- <([A-Za-z][A-Za-z0-9]*)>/gm)].map(m => m[1]!),
     ...[...hierarchy.matchAll(/`<([A-Za-z][A-Za-z0-9]*)>`/g)].map(m => m[1]!),
   ]);
-  const known = new Set([...mainModules, ...compressionIds, ...queryIds, "turnOutput"]);
+  const nestedTurnTags = ["conversationMemory", "conversationHistorySummary", "userInput", "goal", "task", "toolIO", "pageObservations", "notes", "reflection", "query", "output"];
+  const known = new Set([...mainModules, ...compressionIds, ...queryIds, "turnOutput", ...nestedTurnTags]);
   for (const tag of hierarchyTags) expect(known.has(tag)).toBe(true);
   const hierarchyOverview = hierarchy.split("### overview")[1]?.split("### identity")[0] ?? "";
   expect(new Set(skimTags(hierarchyOverview))).toEqual(new Set(mainSkim));

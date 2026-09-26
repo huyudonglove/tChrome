@@ -15,7 +15,7 @@ test("registry loads XML modules and system text uses angle-bracket tags", () =>
   const modules = loadContextModules(root);
   expect(modules.systemOrder[0]).toBe("#overview");
   expect(modules.systemOrder).toContain("#identity");
-  expect(modules.userOrder).toContain("#toolIO");
+  expect(modules.userOrder).toContain("#conversation");
   const system = systemTextFromModules(modules, "2026-09-06", "GUIDE", { cwd: "/tmp/tchrome-test", dataDir: "/tmp/tchrome-data", os: "macOS (darwin/arm64)" }, "- web-observation：观察页面。");
   expect(system.startsWith("<overview>")).toBe(true);
   expect(system).toContain("</overview>");
@@ -53,7 +53,11 @@ test("user window renders B-style XML modules with data under 内容", () => {
   expect(output).toContain("能力：");
   expect(output).toContain("内容：\n技能正文");
   expect(output).toContain("用户输入");
-  expect(xmlTags(output)).toEqual(modules.userOrder.map(tag => tag.slice(1)));
+  expect(output).toContain("<conversation>");
+  expect(output).toContain("<tn_01>");
+  expect(output).toContain("</tn_01>");
+  const topTags = Array.from(output.matchAll(/^<([A-Za-z][A-Za-z0-9]*)>\n能力：/gm), m => m[1]);
+  expect(topTags).toEqual(modules.userOrder.map(tag => tag.slice(1)));
 });
 
 test("parseModule accepts B XML and rejects malformed shells", () => {

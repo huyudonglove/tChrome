@@ -94,6 +94,7 @@ export const TASK_EXEMPT = new Set<string>([
   "script_patch",
   "local.run",
   "local.process_start",
+  "execute_javascript",
 ]);
 
 export function requiresActiveTask(name: string): boolean {

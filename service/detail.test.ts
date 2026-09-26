@@ -19,7 +19,21 @@ const reply = (toolCalls: CompletionResult["toolCalls"]): CompletionResult => ({
 const finish = () => reply([{ id: "finish", name: "finishTurn", arguments: { reason: "已核对", text: "完成"} }]);
 const section = (user: string, tag: string) => {
   const m = user.match(new RegExp(`<${tag}>\\n[\\s\\S]*?\\n\\n内容：\\n([\\s\\S]*?)\\n</${tag}>`));
-  return JSON.parse(m![1]!);
+  if (m) return JSON.parse(m[1]!);
+  const all = collectNested(user, tag === "currentQuery" || tag === "queryHistory" ? "query" : tag);
+  if (tag === "currentQuery") return all.find((row: any) => row.currentQuery) ?? null;
+  if (tag === "queryHistory") return all.filter((row: any) => !row.currentQuery);
+  if (tag === "toolIO" || tag === "query") return all;
+  return all.length ? all.at(-1) : tag === "notes" ? {} : null;
+};
+const collectNested = (user: string, tag: string): any[] => {
+  const rows: any[] = [];
+  for (const m of user.matchAll(new RegExp(`<${tag}>\\n([\\s\\S]*?)\\n</${tag}>`, "g"))) {
+    const parsed = JSON.parse(m[1]!);
+    if (Array.isArray(parsed)) rows.push(...parsed);
+    else rows.push(parsed);
+  }
+  return rows;
 };
 function fixture(dataDir: string, text = "精确证据".repeat(250)) {
   const { conversationId: cv } = ensureSession(dataDir), ledger = loadLedger(dataDir, cv);
@@ -66,7 +80,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
           const id = tag.slice(1);
           const m = input.messages[1]!.content.match(new RegExp(`<${id}>\\n[\\s\\S]*?\\n\\n内容：\\n([\\s\\S]*?)\\n</${id}>`));
           const body = m![1]!;
-          return [id, id === "skill" || id === "tools" ? body : JSON.parse(body)];
+          return [id, id === "skill" || id === "tools" || id === "conversation" ? body : JSON.parse(body)];
         }));
         expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
         const current = section(input.messages[1]!.content, "currentQuery");

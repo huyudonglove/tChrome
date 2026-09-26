@@ -2,7 +2,7 @@
 能力：【Context Assembly, Compression, Images】
 
 详细描述：
-Runtime 在每次请求我之前装配上下文，并管理发送预算。System 与 User 合计达到 {{compressAt}} 字符时，将选中的已结束轮次或当前轮较早工具批次整理到 <conversationHistorySummary>（同一 turnId 可有多条摘要），原文保存在本地；当前轮保留最近 {{keepBatches}} 个完整工具批次。未覆盖原文会 L1 首压；<conversationHistorySummary> 超过 {{summaryRecompressMin}} 条时才对已有摘要做 L2 合并/升档。摘要不足以支持当前判断、关键工具返回被外置、操作失败或需要核对历史约定时，主动用 agent.query 按 sumId、module 和 intent 回查原文，再继续执行或答复；context.query 保留为兼容入口。长任务中若可预判当前轮还会产生大量工具返回，且历史工具记录明显占据主要预算，可主动调用 agent.compress 压缩已结束轮次（phase=history）；只有当前工具结果已确认不再需要原文时才使用 phase=current。压缩阈值由 Runtime 把握，自动压缩作为兜底。压缩后仍超过 {{externalizeAt}} 字符时，优先把 <notes> 正文写入本地文件，用引用替换内联正文，再处理其他可裁剪的大块内容。<skill> 始终保留全文，不参与压缩或裁剪；<baseTools>、<tools> 和编号规则保持内联。
+Runtime 在每次请求我之前装配上下文，并管理发送预算。System 与 User 合计达到 {{compressAt}} 字符时，将选中的已结束轮次或当前轮较早工具批次整理到 <conversationHistorySummary>（同一 turnId 可有多条摘要），原文保存在本地；被覆盖的 <tn_xx> 轮次整块删除，只留摘要。当前轮保留最近 {{keepBatches}} 个完整工具批次。未覆盖原文会 L1 首压；<conversationHistorySummary> 超过 {{summaryRecompressMin}} 条时才对已有摘要做 L2 合并/升档。摘要不足以支持当前判断、关键工具返回被外置、操作失败或需要核对历史约定时，主动用 agent.query 按 sumId、module 和 intent 回查原文，再继续执行或答复；context.query 保留为兼容入口。长任务中若可预判当前轮还会产生大量工具返回，且历史工具记录明显占据主要预算，可主动调用 agent.compress 压缩已结束轮次（phase=history）；只有当前工具结果已确认不再需要原文时才使用 phase=current。压缩阈值由 Runtime 把握，自动压缩作为兜底。压缩后仍超过 {{externalizeAt}} 字符时，优先把 <conversation> 内大块正文写入本地文件，用引用替换内联正文。<skill> 始终保留全文，不参与压缩或裁剪；<baseTools>、<tools> 和编号规则保持内联。
 
 超量结果有两种读法，按窗口里实际出现的形状选用：
 

@@ -1,10 +1,8 @@
 import type { Ledger, Turn } from "../types.ts";
 import { join } from "node:path";
-import { interpolate, renderSlots, systemTextFromModules, type ContextModules } from "./modules.ts";
+import { renderSlots, systemTextFromModules, type ContextModules } from "./modules.ts";
 
-import { goalHistoryView, goalView, inputHistoryView, lastActionView, pageView, turnSummaryView, type TurnSummary } from "./projections/records.ts";
-import { projectActiveContext } from "./projections/active-context.ts";
-import { toolHistoryView } from "./projections/tools.ts";
+import { conversationPayload, conversationXml } from "./projections/conversation.ts";
 import { queryView, type QueryEvidence } from "./projections/queries.ts";
 import { externalizeContext } from "./overflow.ts";
 import { runtimeConfig } from "../config/runtime.ts";
@@ -29,14 +27,12 @@ export function userText(input: {
   memories: { project: string; conversation: string };
   skillText: string;
   toolGuide?: string;
-  conversationSummaries?: TurnSummary[];
+  conversationSummaries?: Parameters<typeof conversationPayload>[0]["conversationSummaries"];
   currentQuery?: QueryEvidence | null;
   queryHistory?: QueryEvidence[];
   inlineBudget?: { dataDir: string; system: string };
 }): string {
   const { contextModules, ledger, turn, memories } = input;
-  const pageHistory = turn.assembled.pageObservedHistory;
-  const pages = pageHistory;
   const gate = {
     inlineChars: runtimeConfig.results.inlineChars,
     previewChars: runtimeConfig.results.previewChars,
@@ -47,59 +43,38 @@ export function userText(input: {
     input.inlineBudget?.dataDir && query.sourceCallId
       ? join(paths(input.inlineBudget.dataDir, ledger.conversationId).returns, `${query.sourceCallId}.txt`)
       : undefined;
+  const conversationData = conversationPayload({
+    ledger,
+    turn,
+    memories: { conversation: memories.conversation },
+    conversationSummaries: input.conversationSummaries,
+    currentQuery: input.currentQuery,
+    queryHistory: input.queryHistory,
+    gate: { ...gate, path: queryPath },
+  });
   const slots = {
     "#skill": input.skillText,
     "#projectMemory": memories.project,
-    "#conversationMemory": memories.conversation,
-    // Turn-scoped info package: workspace snapshots also carry the active turnId.
-    "#notes": jsonBody({ turnId: turn.turnId, notes: ledger.notes }),
-    "#reflection": jsonBody(turn.reflect?.length ? { turnId: turn.turnId, items: turn.reflect } : null),
-    "#reflectHistory": jsonBody(ledger.reflectHistory),
-    "#userInputHistory": jsonBody(inputHistoryView(ledger.userInputHistory)),
-    "#userInput": jsonBody({ id: turn.input.id, turnId: turn.turnId, userInput: turn.input.text }),
-    "#conversationHistorySummary": jsonBody(turnSummaryView(input.conversationSummaries)),
-    "#goal": jsonBody(goalView(ledger.goals, ledger.currentGoalId)),
-    "#goalHistory": jsonBody(goalHistoryView(ledger.goals)),
     "#openTabs": jsonBody({ turnId: turn.turnId, ...turn.assembled.openTabs }),
-    "#pageObservedHistory": jsonBody(pageHistory.map(pageView)),
-    "#toolIO": jsonBody(toolHistoryView(ledger.toolIO, pages)),
-    "#lastAction": jsonBody(lastActionView(ledger.lastAction ?? null)),
-    "#activeContext": jsonBody(projectActiveContext({ ledger, turn })),
-    "#task": jsonBody({
-      currentGoalId: ledger.currentGoalId,
-      activeTaskId: ledger.activeTaskId,
-      activeTaskItemId: ledger.activeTaskItemId,
-      task: ledger.activeTaskId
-        ? (() => {
-          const plan = ledger.tasks.find((row) => row.id === ledger.activeTaskId);
-          if (!plan) return null;
-          return {
-            id: plan.id,
-            goalId: plan.goalId,
-            ...(plan.title ? { title: plan.title } : {}),
-            status: plan.status,
-            items: plan.items.map((item) => ({
-              id: item.id,
-              text: item.text,
-              status: item.status,
-              ...(item.expectedEffect ? { expectedEffect: item.expectedEffect } : {}),
-              ...(item.verification ? { verification: item.verification } : {}),
-              ...(item.blockedReason ? { blockedReason: item.blockedReason } : {}),
-            })),
-          };
-        })()
-        : null,
-    }),
-    "#taskHistory": jsonBody(ledger.taskHistory),
-    "#queryHistory": jsonBody((input.queryHistory ?? []).map((query) => queryView(query, { ...gate, path: queryPath(query) }))),
-    "#currentQuery": jsonBody(input.currentQuery ? queryView(input.currentQuery, { ...gate, path: queryPath(input.currentQuery) }) : null),
+    // JSON while externalizing so turn slices can be referenced individually; XML after.
+    "#conversation": jsonBody(conversationData),
     "#tools": input.toolGuide ?? "",
   };
   const render = (values: Record<string, string>) => renderSlots(contextModules.userOrder, contextModules.userSlots, values);
-  return render(input.inlineBudget ? externalizeContext({
+  const settled = input.inlineBudget ? externalizeContext({
     dataDir: input.inlineBudget.dataDir, slots,
-    measure: values => windowChars(input.inlineBudget!.system, render(values)),
-  }) : slots);
+    measure: values => windowChars(input.inlineBudget!.system, render(conversationXmlSlots(values))),
+  }) : slots;
+  return render(conversationXmlSlots(settled));
+}
+
+/** conversation slot stays JSON during externalize; render nested XML unless already a file reference. */
+function conversationXmlSlots(values: Record<string, string>): Record<string, string> {
+  const body = values["#conversation"] ?? "";
+  let parsed: unknown;
+  try { parsed = JSON.parse(body); } catch { return values; }
+  if (parsed && typeof parsed === "object" && "contextFile" in (parsed as object)) return values;
+  return { ...values, "#conversation": conversationXml(parsed as Parameters<typeof conversationXml>[0]) };
 }
 
 export function windowChars(system: string, user: string): number {

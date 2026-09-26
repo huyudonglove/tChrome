@@ -1,0 +1,2 @@
+[test]
+preload = ["./service/test-preload.ts"]

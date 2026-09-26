@@ -3,8 +3,9 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createProvider } from "../provider/uuapi.ts";
+import { sseResponse } from "../provider/sse.ts";
 import { handleTurn } from "../runtime/loop.ts";
-import { deleteConversation, loadLedger, paths } from "../runtime/store.ts";
+import { deleteConversation, loadLedger, paths, primeActiveTask } from "../runtime/store.ts";
 
 const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=";
 const dataUrl = `data:image/png;base64,${png}`;
@@ -20,6 +21,7 @@ function filesIn(directory: string): string[] {
 
 test("截图按调用批次发送，历史仅保留路径，删除会话清理图片", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-images-integration-"));
+  primeActiveTask(dataDir);
   const requests: any[] = [];
   const screenshotCall = { name: "capture_page", arguments: { tabId: 1, mode: "viewport", reason: "观察页面" } };
   const calls = [
@@ -35,15 +37,12 @@ test("截图按调用批次发送，历史仅保留路径，删除会话清理�
       requests.push(await request.json());
       const call = calls[requests.length - 1];
       if (!call) return Response.json({ error: { message: "unexpected extra request" } }, { status: 400 });
-      return Response.json({
-        id: `response-${requests.length}`, object: "chat.completion", created: 0, model: "test",
-        choices: [{ index: 0, finish_reason: "tool_calls", message: {
-          role: "assistant", content: "", tool_calls: call.map((item, index) => ({
-            id: `call-${requests.length}-${index}`, type: "function",
-            function: { name: item.name, arguments: JSON.stringify(item.arguments) },
-          })),
-        } }],
-      });
+      return sseResponse([
+        ...call.map((item, index) => ({
+          choices: [{ index: 0, delta: { tool_calls: [{ index, id: `call-${requests.length}-${index}`, function: { name: item.name, arguments: JSON.stringify(item.arguments) } }] } }],
+        })),
+        { choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] },
+      ]);
     },
   });
   try {

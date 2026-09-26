@@ -8,8 +8,9 @@
     "service:proxy": "TCHROME_PROXY_MODE=proxy bun run service/server.ts",
     "service:direct": "TCHROME_PROXY_MODE=direct bun run service/server.ts",
     "build": "bun run scripts/build-extension.ts",
-    "test": "bun test",
-    "check": "bun test && bun run scripts/build-extension.ts"
+    "test": "bun test service shared",
+    "test:extension": "bun test extension",
+    "check": "bun test service shared && bun run scripts/build-extension.ts"
   },
   "dependencies": {
     "@tavily/core": "^0.7.11",

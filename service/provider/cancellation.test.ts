@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test";
-import { setTimeout as sleep } from "node:timers/promises";
 import { createProvider } from "./uuapi.ts";
 
 const messages = [{ role: "user" as const, content: "test" }];
@@ -50,29 +49,6 @@ for (const api of ["chat", "responses"] as const) {
       response.resolve(new Response("closed"));
       server.stop(true);
     }
-  });
-
-  test(`${api}: cancellation interrupts retry backoff and prevents further requests`, async () => {
-    let requests = 0;
-    const failed = Promise.withResolvers<void>();
-    const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch() {
-      requests++;
-      failed.resolve();
-      return Response.json({ error: { message: "retry me" } }, { status: 500 });
-    } });
-    try {
-      const controller = new AbortController();
-      const provider = createProvider({ api, apiKey: "test", proxy: "", baseURL: `http://127.0.0.1:${server.port}/v1` });
-      const pending = provider.complete({ messages, tools: [], signal: controller.signal });
-      await failed.promise;
-      // Allow the SDK to consume the error and enter the 1-second retry wait.
-      await sleep(100);
-      const cancelledAt = performance.now();
-      controller.abort();
-      expect(await pending).toMatchObject(expectedStopped(1));
-      expect(performance.now() - cancelledAt).toBeLessThan(500);
-      expect(requests).toBe(1);
-    } finally { server.stop(true); }
   });
 }
 

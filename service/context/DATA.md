@@ -2,38 +2,54 @@
 
 `data-schema.json` 汇总模型可见的 User 插槽结构（与 [modules.json](modules.json) 中 `role=user` 且 `consumers∋main` 的模块一致）；修改投影时同步更新它。`../identity/catalog.json` 统一维护 ID 字段、前缀及编号范围。Schema 的 ID 定义引用由此生成的 `tchrome:identity`；使用 `data-schema.ts` 的 validateUserData 校验，不重复维护前缀正则。模块提示词解释含义，本清单约束数据结构，不注入提示词。
 
-验证对象使用**不带尖括号**的模块名（如 `toolIO`）。模型侧正文为 XML（`<toolIO>…</toolIO>`）；`skill`、`tools` 保留文本，其余插槽取 JSON 解析后的值；全部模块必须存在，空数组用 `[]`，空对象槽按下表处理。它不是完整 User XML 文本，也不是磁盘存储格式。
+验证对象使用**不带尖括号**的模块名（如 `conversation`）。模型侧正文为 XML；`skill`、`conversation`、`tools` 保留文本，其余插槽取 JSON 解析后的值；全部模块必须存在。它不是磁盘存储格式。
 
 | 模块 | 数据结构 | 身份字段 |
 | --- | --- | --- |
 | `skill` | 字符串 | 无 |
-| `userInput` | `{id, turnId, userInput}` | `id` |
-| `conversationHistorySummary` | `[{sumId, turnId, tag, userRequest, actions, result}]`；同一 `turnId` 可多条（大轮拆段） | `sumId` |
-| `userInputHistory` | 用户输入记录数组 | `id` |
-| `goal` | `{currentGoalId, goals}`；goals 为全部 active 目标及其父级记录 | `currentGoalId`、记录 `id` / `parentId` |
-| `goalHistory` | completed / cancelled 的目标记录数组 | `id` / `parentId` |
-| `openTabs` | `{turnId, ok:true, windows:[...]}` 或 `{turnId, ok:false, error}` | 浏览器原始 windowId / tabId |
-| `pageObservedHistory` | 页面观察数组（旧→新）：`id / turnId / callId / batchId? / tabId / type / result` | `id` |
 | `projectMemory` | `[{memoryId, turnId, sourceCallId?, sourceConversationId?, text}]` | `memoryId`（`lm_`） |
-| `conversationMemory` | 同上 | `memoryId`（`mm_`） |
-| `notes` | `{turnId, notes:{key:text}}`，空值为 `{turnId, notes:{}}` | turnId + key |
-| `reflection` | `{turnId, items:[{id,text,focus?}]}` 或 `null` | rf_ |
-| `reflectHistory` | `[{turnId, items:[{id,text,focus?}], at}]`；turn 收口追加，覆盖后滤出窗口 | turnId / rf_ |
-| `toolIO` | 窗口投影 `[{callId, turnId, batchId?, name, arguments, return:{stage, result}}]`；查询指针含 `currentQuery` / `recordCount` | `callId` |
-| `lastAction` | `{batchId, turnId, calls}` 或 `null` | `batchId` |
-| `activeContext` | `{goalId, activeTaskItem, focus, activeEntities, handoverIntent}` 纯计算脊椎 | items `id` |
-| `task` | `{currentGoalId, activeTaskId, activeTaskItemId, task}`；task 为活动任务或 null | `activeTaskId`、items `id` |
-| `taskHistory` | `[{id, turnId, taskId, goalId, taskItemId?, type, before?, after?, reason?, at}]` 只追加；turn 覆盖后滤出窗口 | `id`（th_） |
-| `queryHistory` | 查询记录数组（可含 externalized 形状） | `queryId` |
-| `currentQuery` | 查询记录（含 turnId）或 `null` | `queryId` |
-| `tools` | 本轮已加载动态工具的能力导航文本，每项为工具名和说明首句 | 工具名 |
+| `openTabs` | `{turnId, ok:true, windows:[...]}` 或 `{turnId, ok:false, error}` | 浏览器原始 windowId / tabId |
+| `conversation` | 嵌套 XML 时间线正文（见下） | 二级标签为 `tn_` turnId |
+| `tools` | 本轮已加载动态工具的能力导航文本 | 工具名 |
 
-目标记录统一为 `{id, parentId, status, turnId, sourceCallId?, goal, taskId?, activeTaskItemId?}`。总目标 `goal_01` 的 parentId 为 null；子目标 `subgoal_01` 的 parentId 指向总目标。两类编号在会话内分别持久自增，更新保留原 ID。currentGoalId 可为 null；新会话 goal 为 `{currentGoalId:null,goals:[]}`，goalHistory 为 `[]`。磁盘以 Ledger.goals 保存全部最新记录、currentGoalId 保存选择，Turn.goalChanges 保存调用时的变更快照。
+## conversation 嵌套结构
 
-任务记录：`Task` 可独立存在（goalId 弱关联，可为 null），items 用稳定 `item_` 编号；`taskHistory` 只追加。Ledger 保存 `tasks`、`taskHistory`、`activeTaskId`、`activeTaskItemId`，schemaVersion=2。同一 Task 至多一个 doing；Runtime 在调用开始快照执行上下文写入 toolIO / pageObservation（goalId/taskId/taskItemId），不接受模型伪造关联 ID。
+```xml
+<conversation>
+  <conversationMemory>…</conversationMemory>
+  <conversationHistorySummary>…</conversationHistorySummary>
+  <tn_01>
+    <userInput>…</userInput>
+    <goal>…</goal>
+    <task>…</task>
+    <toolIO>…</toolIO>
+    <pageObservations>…</pageObservations>
+    <notes>…</notes>
+    <reflection>…</reflection>
+    <query>…</query>
+    <output>…</output>
+  </tn_01>
+</conversation>
+```
 
-查询记录统一为 `{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}`。`records` 直接保存原模块记录，不新增通用 `id`，不加 `content` 包装；身份字段沿用原记录。查询自身的 `turnId` 与结果记录的 `turnId` 分别表示发起轮次和来源轮次。`status` 为 `complete / not_found / error`。
+会话级（与 turn 平级）：`conversationMemory` 为 `[{memoryId, turnId, sourceCallId?, text}]`（`mm_`）；`conversationHistorySummary` 为 `[{sumId, turnId, tag, userRequest, actions, result}]`。
 
-工具投影的 `return` 为 `{stage, result}`；result 与 pageObservedHistory 中同一 callId 的观察对应时，只保留 `{ok, pageObservationId}`，完整观察结果在 `<pageObservedHistory>`。context.query 的 result 为 `{ok, status, sumId, module, intent, currentQuery:true, recordCount}`。归档原文使用 `{stage, totalChars, text}`，只出现在压缩/查询候选里，不进主模型窗口。窗口中 finishTurn 的 arguments 仅含 text。
+轮次级（`<tn_xx>` 内，有则写、无则省略）：
 
-Schema 检查字段类型、必填项、ID 格式及已知记录结构，拒绝未声明的顶层模块和记录字段。编号至少两位，前缀来自 ID 清单。Schema 不检查编号唯一性、自增状态、引用是否存在或查询是否命中，也不实现查询链路；统一内联门禁由 Runtime 验证。
+| 标签 | 数据结构 | 身份字段 |
+| --- | --- | --- |
+| `userInput` | `{id, turnId, userInput}` | `id` |
+| `goal` | `{currentGoalId, goals}`；goals 为该轮涉及目标（当前轮为活跃目标及父级） | `id` / `parentId` |
+| `task` | `{currentGoalId, activeTaskId, activeTaskItemId, task, events}` | `activeTaskId`、items `id`、events `id` |
+| `toolIO` | `[{callId, turnId, batchId?, name, arguments, return:{stage, result}}]` | `callId` |
+| `pageObservations` | `[{id, turnId, callId, batchId?, tabId, type, result}]` | `id` |
+| `notes` | `{key:text}` 本轮草稿 | turnId + key |
+| `reflection` | `{turnId, items:[{id,text,focus?}]}` 或 null | rf_ |
+| `query` | 查询记录数组；`currentQuery:true` 标记当前查询 | `queryId` |
+| `output` | 轮次收口对象或 null | — |
+
+被压缩覆盖的 `<tn_xx>` 整块删除，只在 `conversationHistorySummary` 留摘要。目标记录统一为 `{id, parentId, status, turnId, sourceCallId?, goal, taskId?, activeTaskItemId?}`。任务记录 `Task` 可独立存在，items 用 `item_` 编号；events 只追加。查询记录为 `{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}`。
+
+工具投影的 `return` 为 `{stage, result}`；result 与 pageObservations 中同一 callId 的观察对应时，只保留 `{ok, pageObservationId}`。context.query 的 result 为 `{ok, status, sumId, module, intent, currentQuery:true, recordCount}`。归档原文使用 `{stage, totalChars, text}`，只出现在压缩/查询候选里，不进主模型窗口。窗口中 finishTurn 的 arguments 仅含 text。
+
+Schema 检查字段类型、必填项、ID 格式及已知记录结构，拒绝未声明的顶层模块。编号至少两位，前缀来自 ID 清单。Schema 不检查编号唯一性、自增状态、引用是否存在或查询是否命中；统一内联门禁由 Runtime 验证。

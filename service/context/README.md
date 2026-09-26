@@ -43,32 +43,26 @@
 | order | id | compress | 压缩归档字段 | coverage | consumers |
 |---:|---|---|---|---|---|
 | 1 | skill | 否 | — | — | main |
-| 2 | userInput | 否 | — | — | main |
-| 3 | conversationHistorySummary | 否（已是摘要） | — | — | main |
-| 4 | userInputHistory | 是 | userInput | turn | main + compression |
-| 5 | goal | 否 | — | — | main |
-| 6 | goalHistory | 是 | goalChanges | sourceCallId | main + compression |
-| 7 | openTabs | 否 | — | — | main |
-| 8 | pageObservedHistory | 是 | pageObservations | callId | main + compression |
-| 9 | projectMemory | 否 | — | — | main |
-| 10 | conversationMemory | 是 | memoryWrites | sourceCallId | main + compression |
-| 11 | notes | 否 | — | — | main |
-| 12 | reflection | 是 | reflection | turn | main + compression |
-| 13 | reflectHistory | 是 | — | turn | main |
-| 14 | toolIO | 是 | toolIO | batch | main + compression |
-| 15 | lastAction | 否 | — | — | main |
-| 16 | activeContext | 否 | — | — | main |
-| 17 | task | 否 | — | — | main |
-| 18 | taskHistory | 是 | taskHistory | turn | main + compression |
-| 19 | queryHistory | 是 | queryHistory | queryId | main + compression |
-| 20 | currentQuery | 否 | — | — | main |
-| 21 | tools | 否 | — | — | main |
+| 2 | projectMemory | 否 | — | — | main |
+| 3 | openTabs | 否 | — | — | main |
+| 4 | conversation | 否 | — | — | main |
+| 5 | tools | 否 | — | — | main |
+
+`<conversation>` 内为会话级 `<conversationMemory>`、`<conversationHistorySummary>` 与按 turnId 嵌套的 `<tn_xx>` 轮次切片（userInput / goal / task / toolIO / pageObservations / notes / reflection / query / output）；被压缩覆盖的轮次整块删除。
 
 ### Archive · 仅压缩
 
 | id | compress | 归档字段 | 说明 |
 |---|---|---|---|
-| turnOutput | 是 | output | 仅 `consumers: compression`，无 User 窗口文件 |
+| userInput | 是 | userInput | 轮次用户输入 |
+| goalChanges | 是 | goalChanges | 轮次目标变更 |
+| toolIO | 是 | toolIO | 工具调用与返回 |
+| pageObservations | 是 | pageObservations | 页面观察 |
+| memoryWrites | 是 | memoryWrites | 会话记忆写入 |
+| reflection | 是 | reflection | 轮次反思 |
+| taskHistory | 是 | taskHistory | 任务事件 |
+| queryHistory | 是 | queryHistory | 查询记录 |
+| turnOutput | 是 | output | 轮次收口 |
 
 压缩 Agent 提示词在 `service/agents/compression/context/`，字段列表由注册表 `compress=true` 生成注入，**不**把主 Agent 全套模块塞给压缩模型。
 
@@ -88,15 +82,19 @@ System 模块：
 User 模块（含数据）：
 
 ```xml
-<toolIO>
-能力：【Execution Evidence, Error Details】
+<conversation>
+能力：【Conversation Timeline By Turn】
 
 详细描述：
-按旧到新排列的工具调用和返回。…
+本会话过程记录。…
 
 内容：
-{{data}}
-</toolIO>
+<conversationMemory>…</conversationMemory>
+<tn_01>
+<userInput>…</userInput>
+<toolIO>…</toolIO>
+</tn_01>
+</conversation>
 ```
 
 ## 加模块时改哪里
@@ -114,4 +112,4 @@ User 模块（含数据）：
 
 ## 数据结构
 
-User 槽位的数据契约仍见 [DATA.md](DATA.md) 与 `data-schema.json`（校验用不带 `#` 的模块名）。`skill` / `tools` 为文本，其余为 JSON。DATA.md 约束数据形状，不注入提示词。
+User 槽位的数据契约仍见 [DATA.md](DATA.md) 与 `data-schema.json`（校验用不带 `#` 的模块名）。`skill` / `conversation` / `tools` 为文本，其余为 JSON。DATA.md 约束数据形状，不注入提示词。
