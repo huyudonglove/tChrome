@@ -151,6 +151,7 @@
     "local.fs_stat",
     "local.fs_write",
     "local.replace_block",
+    "local.tsx_outline",
     "local.diagnose",
     "local.open",
     "local.process_start",

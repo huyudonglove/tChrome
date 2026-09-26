@@ -2339,6 +2339,31 @@
         "local.git_status"
       ]
     },
+    "local.tsx_outline": {
+      "purpose": "用 TS AST 提取 .tsx/.jsx 的 DOM 标签骨架与 className 清单",
+      "triggers": [
+        "local.tsx_outline",
+        "任务需要访问本机文件、Git、脚本或系统能力"
+      ],
+      "outputs": [
+        "本机文件、日志、状态或命令结果"
+      ],
+      "preconditions": [
+        "用户已授权当前宿主操作范围",
+        "路径为允许的绝对路径"
+      ],
+      "risk": "low",
+      "verification": [
+        "检查 ok=true；文件修改复核内容；命令检查退出码与输出"
+      ],
+      "alternatives": [
+        "使用浏览器能力",
+        "通过现有技能组合宿主工具"
+      ],
+      "composesWith": [
+        "local.fs_read"
+      ]
+    },
     "long_press": {
       "purpose": "长按页面元素",
       "triggers": [

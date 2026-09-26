@@ -1,0 +1,38 @@
+{
+  "type": "function",
+  "function": {
+    "name": "local.tsx_outline",
+    "description": "用 TS 编译器 AST 解析 .tsx/.jsx 文件，提取纯净的 DOM 标签骨架树与 className 清单。不执行代码，不依赖运行时。skeleton 为缩进树（每行 tag.class1.class2，动态 className 标 …，组件按名显示不展开），classes 为去重清单含出现次数。maxDepth 默认 0（不限）最大 50；maxFileBytes 默认 1048576。适用于大文件快速掌握结构，输出远小于 4000 字符门禁。\n执行调度：parallel（Runtime 固定，不必返回）。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": ".tsx 或 .jsx 文件绝对路径"
+        },
+        "maxDepth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 50,
+          "default": 0,
+          "description": "骨架最大深度，0 表示不限"
+        },
+        "maxFileBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1048576,
+          "default": 1048576
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "execution": "parallel"
+}

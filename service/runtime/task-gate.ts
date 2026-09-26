@@ -80,6 +80,7 @@ export const TASK_EXEMPT = new Set<string>([
   "local.fs_stat",
   "local.fs_search",
   "local.fs_grep",
+  "local.tsx_outline",
   "local.git_status",
   "local.git_diff",
   "local.capabilities",
