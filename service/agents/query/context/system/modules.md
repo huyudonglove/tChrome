@@ -11,7 +11,7 @@ request：
   - userInput：用户原话
   - goalChanges：目标历史变更快照（保留固定 id、parentId 和当时 status）
   - toolIO：工具参数与结果（归档形态，含 return.text）
-  - pageObservations：页面观察
+  - observations：观察结果（页面、代码、截图等）
   - memoryWrites：会话记忆写入
   - output：当轮收尾。kind=reply 时字段为 text（最终回复正文）；ask/error/tool 同前；kind=tool 表示停在该调用、还没收口
   - queryHistory：当轮历史查询

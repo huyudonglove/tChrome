@@ -23,7 +23,7 @@
     <goal>…</goal>
     <task>…</task>
     <toolIO>…</toolIO>
-    <pageObservations>…</pageObservations>
+    <observations>…</observations>
     <notes>…</notes>
     <reflection>…</reflection>
     <query>…</query>
@@ -42,7 +42,7 @@
 | `goal` | `{currentGoalId, goals}`；goals 为该轮涉及目标（当前轮为活跃目标及父级） | `id` / `parentId` |
 | `task` | `{currentGoalId, activeTaskId, activeTaskItemId, task, events}` | `activeTaskId`、items `id`、events `id` |
 | `toolIO` | `[{callId, turnId, batchId?, name, arguments, return:{stage, result}}]` | `callId` |
-| `pageObservations` | `[{id, turnId, callId, batchId?, tabId, type, result}]` | `id` |
+| `observations` | `[{id, turnId, callId, batchId?, tabId, type, result}]` | `id` |
 | `notes` | `{key:text}` 本轮草稿 | turnId + key |
 | `reflection` | `{turnId, items:[{id,text,focus?}]}` 或 null | rf_ |
 | `query` | 查询记录数组；`currentQuery:true` 标记当前查询 | `queryId` |
@@ -50,6 +50,6 @@
 
 被压缩覆盖的 `<tn_xx>` 整块删除，只在 `conversationHistorySummary` 留摘要。目标记录统一为 `{id, parentId, status, turnId, sourceCallId?, goal, taskId?, activeTaskItemId?}`。任务记录 `Task` 可独立存在，items 用 `item_` 编号；events 只追加。查询记录为 `{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}`。
 
-工具投影的 `return` 为 `{stage, result}`；result 与 pageObservations 中同一 callId 的观察对应时，只保留 `{ok, pageObservationId}`。context.query 的 result 为 `{ok, status, sumId, module, intent, currentQuery:true, recordCount}`。归档原文使用 `{stage, totalChars, text}`，只出现在压缩/查询候选里，不进主模型窗口。窗口中 finishTurn 的 arguments 仅含 text。
+工具投影的 `return` 为 `{stage, result}`；result 与 observations 中同一 callId 的观察对应时，只保留 `{ok, observationId}`。context.query 的 result 为 `{ok, status, sumId, module, intent, currentQuery:true, recordCount}`。归档原文使用 `{stage, totalChars, text}`，只出现在压缩/查询候选里，不进主模型窗口。窗口中 finishTurn 的 arguments 仅含 text。
 
 Schema 检查字段类型、必填项、ID 格式及已知记录结构，拒绝未声明的顶层模块。编号至少两位，前缀来自 ID 清单。Schema 不检查编号唯一性、自增状态、引用是否存在或查询是否命中；统一内联门禁由 Runtime 验证。

@@ -2679,6 +2679,27 @@
       ],
       "composesWith": []
     },
+    "observation.write": {
+      "purpose": "把页面/代码/截图等观察结果记入本轮 observations",
+      "triggers": [
+        "observation.write",
+        "需要记录页面结构、脚本结果、截图结论或阶段观察"
+      ],
+      "outputs": [
+        "观察记录"
+      ],
+      "preconditions": [
+        "已有明确观察正文可写入"
+      ],
+      "risk": "low",
+      "verification": [
+        "返回成功且 <observations> 出现对应记录"
+      ],
+      "alternatives": [
+        "需要取片段时用 evidence.search"
+      ],
+      "composesWith": []
+    },
     "open_tab": {
       "purpose": "在指定 windowId 窗口后台新开标签，不激活新页",
       "triggers": [
@@ -2764,7 +2785,7 @@
       ]
     },
     "page.clear_result": {
-      "purpose": "清空 <pageObservedHistory> 中指定观察的 result 正文，保留 id、callId、batchId、tabId、type 身份字段，减轻上下文占用",
+      "purpose": "清空 <observations> 中指定观察的 result 正文，保留 id、callId、batchId、tabId、type 身份字段，减轻上下文占用",
       "triggers": [
         "page.clear_result",
         "需要打开、观察、定位、填写或操作网页"

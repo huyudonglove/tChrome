@@ -22,7 +22,7 @@ const setup = () => {
       conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [],
       currentPage: { tabId: 12, url: "https://example.com", title: "示例", description: "d" },
       openTabs: { ok: true, windows: [] },
-      pageObservedHistory: [{
+      observations: [{
         id: "page_01", turnId: "tn_01", callId: "call_01", batchId: "batch_01",
         observedAt: "now", tabId: 12, type: "page.inspect_element",
         result: { ok: true, tabId: 12, element: { id: "e_01", rect: { x: 1, y: 2, w: 3, h: 4 } } },
@@ -39,7 +39,7 @@ test("page.clear_result keeps identity and marks result cleared", async () => {
       name: "page.clear_result",
       arguments: { reason: "元素详情不再需要", pageId: "page_01" },
       dataDir,
-      pageObservationIds: ["page_01"],
+      observationIds: ["page_01"],
       lookup: { knownTools: ["page.clear_result"], enabledTools: ["page.clear_result"], unusedTools: [] },
     });
     expect(JSON.parse(execution.text)).toEqual({ ok: true, pageId: "page_01", cleared: true });
@@ -49,7 +49,7 @@ test("page.clear_result keeps identity and marks result cleared", async () => {
       effects: execution.effects,
     });
     const saved = loadTurn(dataDir, ledger.conversationId, turn.turnId);
-    expect(saved.assembled.pageObservedHistory[0]).toMatchObject({
+    expect(saved.assembled.observations[0]).toMatchObject({
       id: "page_01", callId: "call_01", batchId: "batch_01", tabId: 12, type: "page.inspect_element",
       result: { ok: true, cleared: true },
     });
@@ -63,7 +63,7 @@ test("unknown pageId is rejected before effects", async () => {
       name: "page.clear_result",
       arguments: { reason: "清理", pageId: "page_99" },
       dataDir,
-      pageObservationIds: ["page_01"],
+      observationIds: ["page_01"],
       lookup: { knownTools: ["page.clear_result"], enabledTools: ["page.clear_result"], unusedTools: [] },
     });
     expect(execution.effects).toEqual([]);

@@ -106,7 +106,7 @@ test("evidence.search reads page observation archive and returns file path", asy
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-search-page-"));
   try {
     const huge = { ok: true, tabId: 1, elements: [{ name: "alpha-target-omega" }], blob: "z".repeat(8000) };
-    saveContextRecord(dataDir, "cv_01", "pageObservation", {
+    saveContextRecord(dataDir, "cv_01", "observation", {
       id: "page_01", turnId: "tn_01", callId: "call_01", tabId: 1,
       type: "page.list_interactive_elements", result: huge, observedAt: new Date().toISOString(),
     });
@@ -121,7 +121,7 @@ test("evidence.search reads page observation archive and returns file path", asy
     const row = parsed.results[0]! as Record<string, unknown>;
     expect(row.ok).toBe(true);
     expect(row.source).toBe("page:page_01");
-    expect(row.path).toContain("context-records/pageObservation/page_01.json");
+    expect(row.path).toContain("context-records/observation/page_01.json");
     expect((row.matches as { hit: string }[])[0]!.hit).toBe("alpha-target");
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
@@ -154,7 +154,7 @@ test("evidence.search returns one result per window and keeps per-item ok", asyn
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
-test("oversized page.set result is externalized with path and totalLines; full archive remains", async () => {
+test("oversized observation.write result is externalized with path and totalLines; full archive remains", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-ext-page-"));
   try {
     const ledger = emptyLedger("cv_ext");
@@ -168,31 +168,32 @@ test("oversized page.set result is externalized with path and totalLines; full a
       assembled: {
         baseToolsIds: [], toolIds: [],
         conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [],
-        currentPage: null, openTabs: { ok: true, windows: [] }, pageObservedHistory: [],
+        currentPage: null, openTabs: { ok: true, windows: [] }, observations: [],
       },
     };
     const bigResult = { ok: true, tabId: 7, url: "https://example.com", title: "T", blob: "b".repeat(runtimeConfig.results.inlineChars + 50) };
     applyToolEffects({
       dataDir, ledger, turn,
-      call: { callId: "call_big", name: "page.list_interactive_elements", batchId: "batch_01", arguments: {} },
+      call: { callId: "call_big", name: "observation.write", batchId: "batch_01", arguments: {} },
       effects: [{
-        type: "page.set",
-        page: { tabId: 7, url: "https://example.com", title: "T", description: "d" },
+        type: "observation.write",
+        observationType: "page.list_interactive_elements",
         result: bigResult,
+        tabId: 7,
       }],
     });
-    const windowRow = turn.assembled.pageObservedHistory[0]!;
+    const windowRow = turn.assembled.observations[0]!;
     expect(windowRow.result).toMatchObject({ ok: true, externalized: true, type: "page.list_interactive_elements" });
     const stub = windowRow.result as any;
     expect(stub.message).toContain("evidence.search");
-    expect(stub.path).toContain("pageObservation");
+    expect(stub.path).toContain("observation");
     expect(stub.lineWidth).toBe(runtimeConfig.results.lineWidth);
     expect(stub.totalLines).toBe(Math.ceil(stub.totalChars / runtimeConfig.results.lineWidth));
     expect(stub.preview.length).toBe(runtimeConfig.results.previewChars);
     expect(stub.preview.startsWith('{"ok":true')).toBe(true);
-    const archived = JSON.parse(loadContextRecord(dataDir, "cv_ext", "pageObservation", windowRow.id)!);
+    const archived = JSON.parse(loadContextRecord(dataDir, "cv_ext", "observation", windowRow.id)!);
     expect(archived.result.blob.length).toBe(runtimeConfig.results.inlineChars + 50);
-    const textPath = join(dataDir, "conversations", "cv_ext", "context-records", "pageObservation", `${windowRow.id}.txt`);
+    const textPath = join(dataDir, "conversations", "cv_ext", "context-records", "observation", `${windowRow.id}.txt`);
     const wrapped = readFileSync(textPath, "utf8");
     expect(wrapped.split("\n").length).toBe(stub.totalLines);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }

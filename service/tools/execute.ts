@@ -82,7 +82,7 @@ export type ExecuteInput = {
     knownTools: string[];
     enabledTools: string[];
   };
-  pageObservationIds?: string[];
+  observationIds?: string[];
   defaultTabId?: number | null;
 };
 
@@ -209,10 +209,18 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     const key = String(args.key ?? "").trim();
     return key ? result(`deleted notes[${key}]`, [{ type: "note.delete", key }]) : failedTool(errorDetail("notes_key_empty"), "invalid_arguments");
   }
+  if (name === "observation.write") {
+    const observationType = String(args.type ?? "").trim();
+    if (!observationType) return failedTool(errorDetail("observation_type_empty"), "invalid_arguments");
+    if (args.result === undefined || args.result === null) return failedTool(errorDetail("observation_result_empty"), "invalid_arguments");
+    const tabId = typeof args.tabId === "number" && Number.isFinite(args.tabId) && args.tabId > 0 ? args.tabId : undefined;
+    return result(JSON.stringify({ ok: true, type: observationType, ...(tabId !== undefined ? { tabId } : {}) }),
+      [{ type: "observation.write", observationType, result: args.result, ...(tabId !== undefined ? { tabId } : {}) }]);
+  }
   if (name === "page.clear_result") {
     const pageId = String(args.pageId ?? "").trim();
     if (!pageId) return failedTool("pageId 空着", "invalid_arguments");
-    if (input.pageObservationIds && !input.pageObservationIds.includes(pageId)) {
+    if (input.observationIds && !input.observationIds.includes(pageId)) {
       return failedTool(errorDetail("page_clear_missing_obs", { pageId }), "invalid_arguments");
     }
     return result(JSON.stringify({ ok: true, pageId, cleared: true }),
@@ -311,14 +319,14 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
         haystack = loadFullReturn(dataDir, input.conversationId!, callId) ?? "";
         source = `call:${callId}`;
       } else {
-        const textPath = join(dataDir, "conversations", input.conversationId!, "context-records", "pageObservation", `${pageId}.txt`);
-        const jsonPath = join(dataDir, "conversations", input.conversationId!, "context-records", "pageObservation", `${pageId}.json`);
+        const textPath = join(dataDir, "conversations", input.conversationId!, "context-records", "observation", `${pageId}.txt`);
+        const jsonPath = join(dataDir, "conversations", input.conversationId!, "context-records", "observation", `${pageId}.json`);
         path = textPath;
         if (existsSync(textPath)) {
           haystack = readFileSync(textPath, "utf8");
         } else {
           path = jsonPath;
-          const raw = loadContextRecord(dataDir, input.conversationId!, "pageObservation", pageId);
+          const raw = loadContextRecord(dataDir, input.conversationId!, "observation", pageId);
           if (raw) {
             try {
               const record = JSON.parse(raw) as { result?: unknown };

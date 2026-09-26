@@ -25,7 +25,7 @@ test("source records persist independently of windows and cannot be replaced", (
 
 test("source store retrieves archived input, page and both memory layers", async () => {
   const dir = temporary();
-  for (const kind of ["userInput", "pageObservation"] as const) {
+  for (const kind of ["userInput", "observation"] as const) {
     saveContextRecord(dir, "cv_01", kind, { id: `${kind}_01`, text: `完整${kind}原文` });
   }
   for (const layer of ["conversation", "project"] as const) {
@@ -33,10 +33,10 @@ test("source store retrieves archived input, page and both memory layers", async
       createdAt: "2026-09-11T00:00:00.000Z", sourceCallId: "call_01" });
   }
   const query = async (kind: string, id: string, conversationId = "cv_01") => {
-    const text = loadContextRecord(dir, conversationId, kind as "userInput" | "goal" | "pageObservation" | "memory", id);
+    const text = loadContextRecord(dir, conversationId, kind as "userInput" | "goal" | "observation" | "memory", id);
     return { ok: text !== null, text: text ?? "", source: { kind, id, historical: true } };
   };
-  for (const kind of ["userInput", "pageObservation"]) {
+  for (const kind of ["userInput", "observation"]) {
     const result = await query(kind, `${kind}_01`);
     expect(result.ok).toBe(true);
     expect(JSON.parse(result.text).text).toBe(`完整${kind}原文`);

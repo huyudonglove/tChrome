@@ -109,7 +109,7 @@
     "title": "罗技 MX Master 3S 无线鼠标",
     "description": "用户发话时的标签信息，尚未读取页面内容"
   },
-  "pageObservedHistory": [],
+  "observations": [],
   "openTabs": {
     "ok": true,
     "windows": [

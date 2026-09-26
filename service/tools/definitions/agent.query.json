@@ -15,7 +15,7 @@
             "userInput",
             "goalChanges",
             "toolIO",
-            "pageObservations",
+            "observations",
             "memoryWrites",
             "output",
             "queryHistory",

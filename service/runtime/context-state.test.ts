@@ -12,7 +12,7 @@ import type { Ledger, Turn, Provider, CompletionResult } from "../types.ts";
 import type { Memories } from "../memory/types.ts";
 import { handleTurn } from "./loop.ts";
 const repoRoot = join(import.meta.dir, "../..");
-const makeTurn = (cv: string, id: string, text = id): Turn => ({ goalChanges: [], conversationId: cv, turnId: id, status: "completed", createdAt: "2026-09-11", completedAt: "2026-09-11", input: { id: `input_${id}`, text, submittedAt: "2026-09-11" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], openTabs: { ok: true, windows: [] }, currentPage: null, pageObservedHistory: [] }, output: { kind: "reply", text: `完成${id}` } });
+const makeTurn = (cv: string, id: string, text = id): Turn => ({ goalChanges: [], conversationId: cv, turnId: id, status: "completed", createdAt: "2026-09-11", completedAt: "2026-09-11", input: { id: `input_${id}`, text, submittedAt: "2026-09-11" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], openTabs: { ok: true, windows: [] }, currentPage: null, observations: [] }, output: { kind: "reply", text: `完成${id}` } });
 const result = (partial: Partial<CompletionResult>): CompletionResult => ({ finish: "tool_calls", content: "", toolCalls: [], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [], ...partial });
 const summaryResponse = (_messages: Parameters<Provider["complete"]>[0]["messages"]) => result({ toolCalls: [{ id: "submit", name: "submitTurnSummaries", arguments: { tag: "历史事项", actions: "已检查", result: "该轮已完成" } }] });
 const oneTurnOf = (messages: Parameters<Provider["complete"]>[0]["messages"]) => {
@@ -128,14 +128,14 @@ test("long current turn archives older complete batches and keeps input, current
     const ledger = emptyLedger("cv_test"), current = makeTurn(ledger.conversationId, "tn_01");
     current.status = "inferring"; current.output = null; current.completedAt = null; ledger.turnIds = [current.turnId]; ledger.active = { turnId: current.turnId };
     ledger.toolIO = Array.from({ length: 6 }, (_, i) => ({ callId: `call_${i}`, turnId: current.turnId, batchId: `b_${Math.floor(i / 2)}`, name: "page.get_summary", arguments: {}, return: { stage: "complete" as const, text: "结果", totalChars: 2 } }));
-    current.assembled.pageObservedHistory = ledger.toolIO.map((row, i) => ({ id: `p_${i}`, turnId: current.turnId, callId: row.callId, toolName: row.name, tabId: 1, url: "https://example.com", title: "页面", description: `状态${i}`, observedAt: "2026-09-11" }));
-    current.assembled.currentPage = current.assembled.pageObservedHistory[5]!;
+    current.assembled.observations = ledger.toolIO.map((row, i) => ({ id: `p_${i}`, turnId: current.turnId, callId: row.callId, toolName: row.name, tabId: 1, url: "https://example.com", title: "页面", description: `状态${i}`, observedAt: "2026-09-11" }));
+    current.assembled.currentPage = current.assembled.observations[5]!;
     ledger.goals = [{ parentId: null, status: "active", updatedAt: "2026-09-11", ...{ id: "goal_1", turnId: current.turnId, sourceCallId: "call_0", goal: "当前目标", createdAt: "2026-09-11" } }]; ledger.currentGoalId = ledger.goals[0]!.id;
     current.goalChanges = structuredClone(ledger.goals);
     const memories: Memories = { project: [], conversation: [] }, provider: Provider = { complete: async input => summaryResponse(input.messages) };
     await compressContext({ dataDir, repoRoot, ledger, turn: current, memories, provider, isCancelled: () => false }, "current");
     const view = contextState(dataDir, ledger, current, memories);
-    expect(view.ledger.toolIO).toEqual(ledger.toolIO.slice(2)); expect(view.turn.assembled.pageObservedHistory).toEqual(current.assembled.pageObservedHistory.slice(2));
+    expect(view.ledger.toolIO).toEqual(ledger.toolIO.slice(2)); expect(view.turn.assembled.observations).toEqual(current.assembled.observations.slice(2));
     expect(view.turn.input).toEqual(current.input); expect(view.turn.assembled.currentPage).toEqual(current.assembled.currentPage); expect(view.ledger.goals.filter(row => row.status === "active")).toEqual(ledger.goals.filter(row => row.status === "active"));
     const index = loadIndex(dataDir, ledger.conversationId, "conversationHistory"), sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
     expect((sources[0]!.content as { toolIO: unknown[] }).toolIO).toHaveLength(2);

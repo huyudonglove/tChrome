@@ -46,7 +46,7 @@ test("user window renders B-style XML modules with data under 内容", () => {
     createdAt: "", completedAt: null,
     input: { id: "input_01", text: "用户输入", submittedAt: "" },
     output: null,
-    assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], openTabs: { ok: true, windows: [] }, currentPage: null, pageObservedHistory: [] },
+    assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], openTabs: { ok: true, windows: [] }, currentPage: null, observations: [] },
   };
   const output = userText({ contextModules: modules, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: "技能正文" });
   expect(output).toContain("<skill>");

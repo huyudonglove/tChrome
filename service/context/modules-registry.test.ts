@@ -24,7 +24,7 @@ test("module registry owns consumers, compress flags and archive fields", () => 
     "userInput",
     "goalChanges",
     "toolIO",
-    "pageObservations",
+    "observations",
     "memoryWrites",
     "reflection",
     "taskHistory",
@@ -38,7 +38,7 @@ test("module registry owns consumers, compress flags and archive fields", () => 
   expect(mainUser).toEqual(["skill", "projectMemory", "openTabs", "conversation", "tools"]);
   const md = compressionArchiveFieldsMarkdown(root);
   expect(md).toContain("- toolIO:");
-  expect(md).toContain("- pageObservations:");
+  expect(md).toContain("- observations:");
   expect(md).toContain("return:{stage,totalChars,text}");
   expect(md).not.toContain("modules.json");
   expect(md).not.toContain("compress=true");
@@ -71,7 +71,7 @@ test("overview skims and README tables match registries; hierarchy tags stay in 
     ...[...hierarchy.matchAll(/^- <([A-Za-z][A-Za-z0-9]*)>/gm)].map(m => m[1]!),
     ...[...hierarchy.matchAll(/`<([A-Za-z][A-Za-z0-9]*)>`/g)].map(m => m[1]!),
   ]);
-  const nestedTurnTags = ["conversationMemory", "conversationHistorySummary", "userInput", "goal", "task", "toolIO", "pageObservations", "notes", "reflection", "query", "output"];
+  const nestedTurnTags = ["conversationMemory", "conversationHistorySummary", "userInput", "goal", "task", "toolIO", "observations", "notes", "reflection", "query", "output"];
   const known = new Set([...mainModules, ...compressionIds, ...queryIds, "turnOutput", ...nestedTurnTags]);
   for (const tag of hierarchyTags) expect(known.has(tag)).toBe(true);
   const hierarchyOverview = hierarchy.split("### overview")[1]?.split("### identity")[0] ?? "";

@@ -23,7 +23,7 @@
     { "id": "userInput", "role": "archive", "order": 1, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "userInput", "coverage": "turn", "description": "Turn user input" },
     { "id": "goalChanges", "role": "archive", "order": 2, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "goalChanges", "coverage": "sourceCallId", "description": "Goal changes in the turn" },
     { "id": "toolIO", "role": "archive", "order": 3, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "toolIO", "coverage": "batch", "description": "Tool IO" },
-    { "id": "pageObservations", "role": "archive", "order": 4, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "pageObservations", "coverage": "callId", "description": "Page Observations" },
+    { "id": "observations", "role": "archive", "order": 4, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "observations", "coverage": "callId", "description": "Observations" },
     { "id": "memoryWrites", "role": "archive", "order": 5, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "memoryWrites", "coverage": "sourceCallId", "description": "Conversation memory writes" },
     { "id": "reflection", "role": "archive", "order": 6, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "reflection", "coverage": "turn", "description": "Turn reflection" },
     { "id": "taskHistory", "role": "archive", "order": 7, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "taskHistory", "coverage": "turn", "description": "Task Event History" },

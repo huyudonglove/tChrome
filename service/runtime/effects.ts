@@ -150,6 +150,19 @@ export function applyToolEffects(input: {
         break;
       }
       case "page.set": {
+        // Identity only: observations are written explicitly via observation.write.
+        if (effect.result.ok) {
+          const previous = turn.assembled.currentPage;
+          turn.assembled.currentPage = {
+            tabId: effect.page.tabId,
+            url: effect.page.url || previous?.url || "",
+            title: effect.page.title || previous?.title || "",
+            description: effect.page.description || previous?.description || "当前页面信息",
+          };
+        }
+        break;
+      }
+      case "observation.write": {
         const id = allocateRecordId(dataDir, ledger.conversationId, "page");
         const result = storedResult ?? effect.result;
         const resultChars = JSON.stringify(result).length;
@@ -165,12 +178,12 @@ export function applyToolEffects(input: {
               ok: true,
               externalized: true,
               callId: call.callId,
-              type: call.name,
+              type: effect.observationType,
               totalChars: resultChars,
               totalLines,
               lineWidth,
               preview: previewSource.slice(0, runtimeConfig.results.previewChars),
-              path: join(paths(dataDir, ledger.conversationId).conv, "context-records", "pageObservation", `${id}.json`),
+              path: join(paths(dataDir, ledger.conversationId).conv, "context-records", "observation", `${id}.json`),
               message: `runtime: 观察结果超过 ${inlineLimit} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；preview 为原文前 ${runtimeConfig.results.previewChars} 字符。用 evidence.search(windows=[{pageId:"${id}",keyword|startLine}]) 取片段，可一次带多个窗口。`,
               search: "evidence.search",
             };
@@ -182,44 +195,32 @@ export function applyToolEffects(input: {
           observedAt: nowIso(),
           callId: call.callId,
           ...(call.batchId ? { batchId: call.batchId } : {}),
-          tabId: effect.page.tabId,
-          type: call.name,
-          // Keep the lightweight image reference in both the window projection and archive.
+          ...(effect.tabId !== undefined ? { tabId: effect.tabId } : {}),
+          type: effect.observationType,
           result,
           ...(execCtx.goalId ? { goalId: execCtx.goalId } : {}),
           ...(execCtx.activeTaskId ? { taskId: execCtx.activeTaskId } : {}),
           ...(execCtx.activeTaskItemId ? { taskItemId: execCtx.activeTaskItemId } : {}),
         };
-        saveContextRecord(dataDir, ledger.conversationId, "pageObservation", record);
-        // A1: retrieval copy is line-wrapped on disk; structured JSON archive stays intact.
+        saveContextRecord(dataDir, ledger.conversationId, "observation", record);
         const searchable = typeof effect.result === "string"
           ? effect.result
           : JSON.stringify(effect.result ?? null);
-        const pageDir = recordDirectory(dataDir, ledger.conversationId, "pageObservation");
-        mkdirSync(pageDir, { recursive: true });
-        writeFileSync(join(pageDir, `${id}.txt`), wrapCachedText(searchable));
-        // Failures stay in the observation log but do not replace the current page identity.
-        if (effect.result.ok) {
-          const previous = turn.assembled.currentPage;
-          turn.assembled.currentPage = {
-            tabId: effect.page.tabId,
-            url: effect.page.url || previous?.url || "",
-            title: effect.page.title || previous?.title || "",
-            description: effect.page.description || previous?.description || "当前页面信息",
-          };
-        }
-        turn.assembled.pageObservedHistory.push({
+        const obsDir = recordDirectory(dataDir, ledger.conversationId, "observation");
+        mkdirSync(obsDir, { recursive: true });
+        writeFileSync(join(obsDir, `${id}.txt`), wrapCachedText(searchable));
+        turn.assembled.observations.push({
           ...record,
           result: windowResult,
         });
         break;
       }
       case "page.clear_result": {
-        const index = turn.assembled.pageObservedHistory.findIndex((item) => item.id === effect.pageId);
+        const index = turn.assembled.observations.findIndex((item) => item.id === effect.pageId);
         if (index === -1) throw new Error(`没有观察 ${effect.pageId}`);
         // Window-only: keep identity fields, mark cleared; local context-records stay intact.
-        turn.assembled.pageObservedHistory[index] = {
-          ...turn.assembled.pageObservedHistory[index]!,
+        turn.assembled.observations[index] = {
+          ...turn.assembled.observations[index]!,
           result: { ok: true, cleared: true },
         };
         break;

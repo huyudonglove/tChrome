@@ -35,7 +35,7 @@ const turnSource = (id: string, turnId: string) => ({
     userInput: { id: `input_${turnId}`, turnId, userInput: turnId, submittedAt: "2026-09-20" },
     goalChanges: [],
     toolIO: [],
-    pageObservations: [],
+    observations: [],
     memoryWrites: [],
     queryHistory: [],
     output: { kind: "reply", text: turnId },

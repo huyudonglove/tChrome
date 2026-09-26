@@ -99,7 +99,7 @@
     "#goal",
     "#goalHistory",
     "#openTabs",
-    "#pageObservedHistory",
+    "#observations",
     "#projectMemory",
     "#conversationMemory",
     "#notes",
@@ -115,7 +115,7 @@
   "model": "gemini-3.7-flash",
   "stream": false,
   "maxAttempts": 3,
-  "pageObservedHistory": [],
+  "observations": [],
   "openTabs": {
     "ok": true,
     "windows": [
@@ -362,7 +362,7 @@
     "#goal",
     "#goalHistory",
     "#openTabs",
-    "#pageObservedHistory",
+    "#observations",
     "#projectMemory",
     "#conversationMemory",
     "#notes",
@@ -396,7 +396,7 @@
   "schemaOk": true,
   "faultCode": null,
   "missing": [],
-  "pageObservedHistory": [],
+  "observations": [],
   "openTabs": {
     "ok": true,
     "windows": [

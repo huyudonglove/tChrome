@@ -46,7 +46,7 @@
     "prefix": "page",
     "scope": "conversation",
     "allocation": "counter",
-    "description": "页面观察"
+    "description": "观察记录"
   },
   "call": {
     "field": "callId",

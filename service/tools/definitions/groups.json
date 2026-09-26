@@ -11,6 +11,7 @@
     "memory.delete",
     "notes.write",
     "notes.delete",
+    "observation.write",
     "page.clear_result",
     "evidence.search",
     "catalog.add",

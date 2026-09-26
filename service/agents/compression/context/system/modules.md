@@ -25,7 +25,7 @@ Sample（一次请求只含一个完整轮次的骨架，仅示例）：
               "arguments": { "tabId": 12, "reason": "读概况" },
               "return": { "stage": "complete", "totalChars": 18, "text": "{\"ok\":true}" } }
           ],
-          "pageObservations": [
+          "observations": [
             { "id": "page_01", "turnId": "tn_01", "callId": "call_02", "tabId": 12, "type": "page.get_summary",
               "result": { "ok": true, "description": "支持 CSV" } }
           ],

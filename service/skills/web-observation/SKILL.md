@@ -15,7 +15,7 @@ TAGS:
 2. 需要定位控件时用 `page.list_interactive_elements`；需要区域结构时再加载 `page.list_regions` / `page.inspect_region`。
 3. 取元素 id、regionId 时看观察数组中对应项的 result，不要凭空猜测编号。
 
-带 tabId 的操作（`page.*`、`open_url`、截图、标签内脚本等）成功或失败都会追加到 `<pageObservedHistory>`，type 为工具名、result 为完整返回；`<toolIO>` 里同一次调用只有 pageObservationId。
+带 tabId 的操作（`page.*`、`open_url`、截图、标签内脚本等）成功或失败都会追加到 `<observations>`，type 为工具名、result 为完整返回；`<toolIO>` 里同一次调用只有 observationId。
 
 ## 元素编号与标签
 

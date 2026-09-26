@@ -86,7 +86,7 @@ const assemble = (toolRegistry: ToolRegistry, loadedToolIds: string[]): Assemble
   projectMemoryIds: [],
   mcpIds: [],
   currentPage: null,
-  pageObservedHistory: [],
+  observations: [],
   openTabs: { ok: false, error: "尚未读取标签列表" },
 });
 
@@ -232,7 +232,7 @@ const runQueue = async (input: {
             goalContext: { goals: ledger.goals, currentGoalId: ledger.currentGoalId, turnId: turn.turnId, sourceCallId: slot.item.callId },
             host,
             signal: input.signal,
-            pageObservationIds: turn.assembled.pageObservedHistory.map((row) => row.id),
+            observationIds: turn.assembled.observations.map((row) => row.id),
             defaultTabId: ledger.contextTab?.tabId ?? null,
             queryContext: args => queryContext({ dataDir, conversationId: ledger.conversationId, repoRoot: input.repoRoot, provider: input.provider, ...args, isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId) }),
             compressContext: ({ phase }) => compressContext({ dataDir, repoRoot: input.repoRoot, provider: input.provider, ledger, turn,
@@ -271,7 +271,7 @@ const runQueue = async (input: {
       const execution = done.get(index)!;
       appliedUpTo = index;
       const item = slot.item;
-      const observed = (([...turn.assembled.pageObservedHistory].reverse().find((row) => row.callId === item.callId)?.result ?? {}) as { url?: string; title?: string });
+      const observed = (([...turn.assembled.observations].reverse().find((row) => row.callId === item.callId)?.result ?? {}) as { url?: string; title?: string });
       const stored = storeToolImages(dataDir, ledger.conversationId, execution.text, {
         tool: item.name, callId: item.callId,
         ...(typeof item.arguments.tabId === "number" ? { tabId: item.arguments.tabId } : {}),
@@ -446,6 +446,8 @@ export async function handleTurn(
   deps = { ...deps, provider: execution.provider, signal: execution.signal };
   try {
     let submitFails = 0;
+    let sendsSinceObservation = 0;
+    let observationWrites = 0;
     let imageBatchId: string | undefined;
     while (true) {
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
@@ -468,6 +470,23 @@ export async function handleTurn(
       const images: ChatMessage["images"] = imageBatchId === undefined ? [] : ledger.toolIO
         .filter(item => item.turnId === turn.turnId && item.batchId === imageBatchId)
         .flatMap(item => (item.images ?? []).map(image => ({ ...image, callId: item.callId })));
+      // Nudge on model-send cadence: every 5 consecutive sends without observation.write.
+      const writeCount = ledger.toolIO.filter((r) => r.turnId === turn.turnId && r.name === "observation.write").length;
+      if (writeCount > observationWrites) {
+        observationWrites = writeCount;
+        sendsSinceObservation = 0;
+      }
+      sendsSinceObservation += 1;
+      if (sendsSinceObservation > 0 && sendsSinceObservation % 5 === 0) {
+        const rows = ledger.toolIO.filter((r) => r.turnId === turn.turnId);
+        const last = rows.at(-1);
+        if (last && !last.return.text.includes("建议用 observation.write")) {
+          last.return = {
+            ...last.return,
+            text: `${last.return.text}\n\nruntime: 本回合已连续 ${sendsSinceObservation} 次模型请求未记录观察，建议用 observation.write 记录当前页面/代码/截图等观察后再继续。`,
+          };
+        }
+      }
       let state = contextState(deps.dataDir, ledger, turn, memories);
       let messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav);
       const initialChars = windowChars(messages[0]!.content, messages[1]!.content);
@@ -685,7 +704,7 @@ export async function handleTurn(
         }
           if (batchId) {
             const observationByCall = new Map(
-              turn.assembled.pageObservedHistory
+              turn.assembled.observations
                 .filter((item) => item.turnId === turn.turnId)
                 .map((item) => [item.callId, item.id] as const),
             );
@@ -695,7 +714,7 @@ export async function handleTurn(
               calls: result.toolCalls.map((call) => ({
                 callId: call.id,
                 name: call.name,
-                ...(observationByCall.has(call.id) ? { pageObservationId: observationByCall.get(call.id)! } : {}),
+                ...(observationByCall.has(call.id) ? { observationId: observationByCall.get(call.id)! } : {}),
               })),
             };
           }
@@ -811,7 +830,7 @@ export async function handleTurn(
         }
       if (batchId) {
         const observationByCall = new Map(
-          turn.assembled.pageObservedHistory
+          turn.assembled.observations
             .filter((item) => item.turnId === turn.turnId)
             .map((item) => [item.callId, item.id] as const),
         );
@@ -821,7 +840,7 @@ export async function handleTurn(
           calls: result.toolCalls.map((call) => ({
             callId: call.id,
             name: call.name,
-            ...(observationByCall.has(call.id) ? { pageObservationId: observationByCall.get(call.id)! } : {}),
+            ...(observationByCall.has(call.id) ? { observationId: observationByCall.get(call.id)! } : {}),
           })),
         };
       }

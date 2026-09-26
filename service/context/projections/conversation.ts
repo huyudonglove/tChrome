@@ -1,6 +1,6 @@
-import type { GoalRecord, Ledger, PageObservation, Task, TaskHistoryRecord, Turn, TurnOutput, UserInputRecord } from "../../types.ts";
+import type { GoalRecord, Ledger, Observation, Task, TaskHistoryRecord, Turn, TurnOutput, UserInputRecord } from "../../types.ts";
 import type { MemoryRecord } from "../../memory/types.ts";
-import { goalRecordView, pageView, type TurnSummary } from "./records.ts";
+import { goalRecordView, pageView, turnSummaryView, type TurnSummary } from "./records.ts";
 import { toolHistoryView } from "./tools.ts";
 import { queryView, type QueryEvidence, type QueryViewOptions } from "./queries.ts";
 
@@ -16,7 +16,7 @@ export type ConversationTurnSlice = {
     events: TaskHistoryRecord[];
   };
   toolIO: ReturnType<typeof toolHistoryView>;
-  pageObservations: ReturnType<typeof pageView>[];
+  observations: ReturnType<typeof pageView>[];
   notes: Record<string, string>;
   reflection: { turnId: string; items: { id: string; text: string; focus?: string }[] } | null;
   query: ReturnType<typeof queryView>[];
@@ -69,8 +69,8 @@ export function conversationPayload(input: {
   const reflectByTurn = new Map<string, { id: string; text: string; focus?: string }[]>();
   for (const row of ledger.reflectHistory) reflectByTurn.set(row.turnId, row.items);
   if (turn.reflect?.length) reflectByTurn.set(turn.turnId, turn.reflect);
-  const pagesByTurn = new Map<string, PageObservation[]>();
-  for (const page of turn.assembled.pageObservedHistory) {
+  const pagesByTurn = new Map<string, Observation[]>();
+  for (const page of turn.assembled.observations) {
     const rows = pagesByTurn.get(page.turnId) ?? [];
     rows.push(page);
     pagesByTurn.set(page.turnId, rows);
@@ -121,7 +121,7 @@ export function conversationPayload(input: {
         events: taskEvents,
       },
       toolIO: toolHistoryView(toolRows, pages),
-      pageObservations: pages.map(pageView),
+      observations: pages.map(pageView),
       notes: (isLive ? ledger.notes : notesByTurn[row.turnId]) ?? {},
       reflection: reflectByTurn.get(row.turnId)?.length
         ? { turnId: row.turnId, items: reflectByTurn.get(row.turnId)! }
@@ -135,7 +135,9 @@ export function conversationPayload(input: {
   }
   return {
     conversationMemory: input.memories.conversation,
-    conversationHistorySummary: input.conversationSummaries ?? [],
+    conversationHistorySummary: Array.isArray(input.conversationSummaries)
+      ? turnSummaryView(input.conversationSummaries)
+      : input.conversationSummaries ?? [],
     turns,
   };
 }
@@ -160,7 +162,7 @@ export function conversationXml(payload: ConversationPayload): string {
       tag("goal", slice.goal),
       tag("task", slice.task),
       tag("toolIO", slice.toolIO),
-      tag("pageObservations", slice.pageObservations),
+      tag("observations", slice.observations),
       tag("notes", slice.notes),
       tag("reflection", slice.reflection),
       tag("query", slice.query),

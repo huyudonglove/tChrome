@@ -18,7 +18,7 @@ const turn = (): Turn => ({
   createdAt: "now",
   completedAt: null,
   input: { id: "input_01", text: "任务", submittedAt: "now" },
-  assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], openTabs: { ok: true, windows: [] }, currentPage: null, pageObservedHistory: [] },
+  assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], openTabs: { ok: true, windows: [] }, currentPage: null, observations: [] },
   output: null,
 });
 

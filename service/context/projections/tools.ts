@@ -1,11 +1,11 @@
-import type { PageObservation, ToolIOItem } from "../../types.ts";
+import type { Observation, ToolIOItem } from "../../types.ts";
 
 function resultView(text: string): unknown {
   try { return JSON.parse(text); } catch { return text; }
 }
 
-/** Page observation payloads live in <pageObservedHistory>; toolIO keeps a pointer only. */
-export function toolHistoryView(records: ToolIOItem[], observations: PageObservation[] = []) {
+/** Page observation payloads live in <observations>; toolIO keeps a pointer only. */
+export function toolHistoryView(records: ToolIOItem[], observations: Observation[] = []) {
   const byCall = new Map(observations.map((item) => [`${item.turnId}:${item.callId}`, item]));
   return records.map(record => {
     let result = resultView(record.return.text);
@@ -20,14 +20,14 @@ export function toolHistoryView(records: ToolIOItem[], observations: PageObserva
       if (!observedOk && obsRes) {
         result = {
           ok: false,
-          pageObservationId: observation.id,
+          observationId: observation.id,
           ...(obsRes.faultCode ? { faultCode: obsRes.faultCode } : {}),
           ...(obsRes.message ? { message: obsRes.message } : {}),
           ...(obsRes.recovery ? { recovery: obsRes.recovery } : {}),
           ...(obsRes.details ? { details: obsRes.details } : {}),
         };
       } else {
-        result = { ok: true, pageObservationId: observation.id };
+        result = { ok: true, observationId: observation.id };
       }
     } else if (record.name === "context.query" && record.return.stage === "complete"
       && result && typeof result === "object" && !Array.isArray(result)) {

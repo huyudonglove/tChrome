@@ -1,0 +1,32 @@
+{
+  "type": "function",
+  "function": {
+    "name": "observation.write",
+    "description": "把当前观察结果记入本轮 <observations>。页面结构、代码执行结果、截图结论、网络现象等都用本工具落盘，供后续核对与 evidence.search 检索。\n参数：必填 type（观察来源，如 page.get_summary / execute_javascript / screenshot / code）、result（观察正文，对象或字符串）；可选 tabId。\n返回：{ok, type}；观察编号由 Runtime 分配，下一轮 <observations> 可见。\n连续工具调用满 5 次未记录时 Runtime 会提示；建议在关键页面状态、脚本结果或阶段结论出现后主动记录。\n执行调度：serial（Runtime 固定，不必返回）。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "description": "观察来源类型，如 page.get_summary、execute_javascript、screenshot、code、network"
+        },
+        "result": {
+          "description": "观察正文：对象或字符串"
+        },
+        "tabId": {
+          "type": "integer",
+          "description": "相关标签编号；非页面观察可省略"
+        }
+      },
+      "required": [
+        "reason",
+        "type",
+        "result"
+      ]
+    }
+  },
+  "execution": "serial"
+}

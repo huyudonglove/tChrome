@@ -5,8 +5,8 @@ import { isDeepStrictEqual } from "node:util";
 import { loadLedger } from "./store.ts";
 import { loadMemory } from "../memory/store.ts";
 
-export type ContextRecordKind = "userInput" | "pageObservation";
-const kinds = new Set<string>(["userInput", "pageObservation"]);
+export type ContextRecordKind = "userInput" | "observation";
+const kinds = new Set<string>(["userInput", "observation"]);
 const safeId = (id: string) => /^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(id);
 const recordDirectory = (dataDir: string, conversationId: string, kind: ContextRecordKind) =>
   join(dataDir, "conversations", conversationId, "context-records", kind);

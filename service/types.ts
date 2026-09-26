@@ -36,14 +36,14 @@ export type ReflectHistoryRecord = {
   at: string;
 };
 
-export type PageObservation = {
+export type Observation = {
   id: string;
   turnId: string;
   observedAt: string;
   callId: string;
   batchId?: string;
-  tabId: number;
-  /** Tool name that produced this observation, e.g. page.get_summary. */
+  tabId?: number;
+  /** Tool name that produced this observation, e.g. page.get_summary or execute_javascript. */
   type: string;
   /** Full tool return for this observation call. */
   result: unknown;
@@ -56,7 +56,7 @@ export type PageObservation = {
 export type LastAction = {
   batchId: string;
   turnId: string;
-  calls: { callId: string; name: string; pageObservationId?: string }[];
+  calls: { callId: string; name: string; observationId?: string }[];
 };
 
 export type TaskItemStatus = "todo" | "doing" | "done";
@@ -130,8 +130,8 @@ export type Assembled = {
   conversationMemoryIds: string[];
   projectMemoryIds: string[];
   mcpIds: string[];
-  currentPage: (CurrentPage & Partial<PageObservation>) | null;
-  pageObservedHistory: PageObservation[];
+  currentPage: (CurrentPage & Partial<Observation>) | null;
+  observations: Observation[];
   openTabs: OpenTabs;
 };
 

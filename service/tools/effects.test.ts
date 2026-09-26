@@ -24,7 +24,7 @@ function setup() {
     output: null, goalChanges: [], assembled: {
       baseToolsIds: ["finishTurn"], toolIds: ["page.click"],
       conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, openTabs: { ok: true, windows: [] },
-      pageObservedHistory: [],
+      observations: [],
     },
   };
   const execute = (name: string, args: ToolArguments, options: Partial<ExecuteInput> = {}) => executeTool({
@@ -152,7 +152,7 @@ test("turn close archives non-empty reflect into reflectHistory once per turn", 
   expect(history[0]!.items).toEqual([{ id: "rf_02", text: "更新后的承接" }]);
 });
 
-test("browser page metadata becomes a typed effect; failed tab calls log observations without replacing the current page", async () => {
+test("page.set only tracks current page; observations require observation.write", async () => {
   const fixture = setup();
   const execution = await fixture.execute("page.click", { reason: "查看详情", tabId: 7 }, {
     browserNames: ["page.click"], host: { execute: async (_name, args) => {
@@ -171,67 +171,53 @@ test("browser page metadata becomes a typed effect; failed tab calls log observa
     effects: failed.effects,
   });
   const after = loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId);
-  expect(after.assembled.pageObservedHistory).toHaveLength(2);
-  expect(after.assembled.pageObservedHistory[1]).toMatchObject({
-    callId: "call_fail", type: "page.click",
+  expect(after.assembled.observations).toHaveLength(0);
+  expect(after.assembled.currentPage?.title).toBe("详情");
+  const recorded = await fixture.execute("observation.write", { reason: "记下失败", type: "page.click", result: { ok: false, tabId: 7, error: "closed" }, tabId: 7 });
+  applyToolEffects({
+    dataDir: fixture.dataDir, ledger: fixture.ledger, turn: fixture.turn,
+    call: { callId: "call_obs", name: "observation.write", arguments: {} },
+    effects: recorded.effects,
+  });
+  const logged = loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId);
+  expect(logged.assembled.observations).toHaveLength(1);
+  expect(logged.assembled.observations[0]).toMatchObject({
+    callId: "call_obs", type: "page.click",
     result: { ok: false, tabId: 7, error: "closed" },
   });
-  expect(after.assembled.currentPage?.title).toBe("详情");
 });
 
-test("successful tab-targeted calls without url still enter page observations", async () => {
+test("observation.write records screenshot without leaking pixels and keeps prior page identity", async () => {
   const fixture = setup();
   fixture.turn.assembled.currentPage = {
     tabId: 1, url: "https://example.test/input", title: "发话页面", description: "发送消息时的标签快照",
   };
-  const execution = await fixture.execute("capture_page", { reason: "截图", mode: "viewport", tabId: 1 }, {
-    browserNames: ["capture_page"], host: { execute: async () => ({
-      ok: true, tabId: 1, image: "data:image/jpeg;base64,xx", mime: "image/jpeg", image_size: [10, 10],
-    }) },
-  });
-  const storedText = JSON.stringify({
-    ok: true,
-    tabId: 1,
-    image: {
-      imageId: "img_shot",
-      path: "/tmp/shot.jpg",
-      width: 10,
-      height: 10,
-    },
-    mime: "image/jpeg",
-    image_size: [10, 10],
+  const execution = await fixture.execute("observation.write", {
+    reason: "截图结论", type: "capture_page", tabId: 1,
+    result: { ok: true, tabId: 1, image: { imageId: "img_shot", path: "/tmp/shot.jpg", width: 10, height: 10 }, mime: "image/jpeg", image_size: [10, 10] },
   });
   applyToolEffects({
     dataDir: fixture.dataDir, ledger: fixture.ledger, turn: fixture.turn,
-    call: { callId: "call_shot", name: "capture_page", arguments: {} },
+    call: { callId: "call_shot", name: "observation.write", arguments: {} },
     effects: execution.effects,
-    storedText,
   });
   const turn = loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId);
-  expect(turn.assembled.pageObservedHistory).toHaveLength(1);
-  expect(turn.assembled.pageObservedHistory[0]).toMatchObject({
+  expect(turn.assembled.observations).toHaveLength(1);
+  expect(turn.assembled.observations[0]).toMatchObject({
     tabId: 1, type: "capture_page", callId: "call_shot",
-    result: {
-      ok: true,
-      tabId: 1,
-      image: { imageId: "img_shot", path: "/tmp/shot.jpg", width: 10, height: 10 },
-      mime: "image/jpeg",
-      image_size: [10, 10],
-    },
   });
-  expect(JSON.stringify(turn.assembled.pageObservedHistory[0])).not.toContain("data:image");
-  // Previous page identity is kept when the call did not return url/title.
+  expect(JSON.stringify(turn.assembled.observations[0])).not.toContain("data:image");
   expect(turn.assembled.currentPage).toMatchObject({
     tabId: 1, url: "https://example.test/input", title: "发话页面",
   });
 });
 
-test("page effects update the current page and persist observations in chronological order", () => {
+test("observation.write persists observations in chronological order", () => {
   const fixture = setup();
   fixture.turn.assembled.currentPage = {
     tabId: 1, url: "https://example.test/input", title: "发话页面", description: "发送消息时的标签快照",
   };
-  expect(fixture.turn.assembled.pageObservedHistory).toEqual([]);
+  expect(fixture.turn.assembled.observations).toEqual([]);
 
   const pages = [
     { tabId: 2, url: "https://example.test/results", title: "搜索结果", description: "找到两个结果" },
@@ -242,11 +228,16 @@ test("page effects update the current page and persist observations in chronolog
     { ok: true, tabId: 3, url: "https://example.test/detail", title: "详情", description: "已打开结果详情", clicked: "打开" },
   ];
   const calls = [
-    { callId: "call_results", name: "page.get_summary", arguments: {} },
-    { callId: "call_detail", name: "page.click", arguments: {} },
+    { callId: "call_results", name: "observation.write", arguments: {} },
+    { callId: "call_detail", name: "observation.write", arguments: {} },
   ];
   const startedAt = Date.now();
   for (let index = 0; index < pages.length; index++) {
+    applyToolEffects({
+      dataDir: fixture.dataDir, ledger: fixture.ledger, turn: fixture.turn,
+      call: calls[index]!,
+      effects: [{ type: "observation.write", observationType: index === 0 ? "page.get_summary" : "page.click", result: results[index]!, tabId: pages[index]!.tabId }],
+    });
     applyToolEffects({
       dataDir: fixture.dataDir, ledger: fixture.ledger, turn: fixture.turn,
       call: calls[index]!, effects: [{ type: "page.set", page: pages[index]!, result: results[index]! }],
@@ -254,11 +245,11 @@ test("page effects update the current page and persist observations in chronolog
   }
 
   expect(fixture.turn.assembled.currentPage).toMatchObject(pages[1]!);
-  const history = fixture.turn.assembled.pageObservedHistory;
+  const history = fixture.turn.assembled.observations;
   expect(history).toHaveLength(2);
   expect(history[0]!.id).not.toBe(history[1]!.id);
   for (const record of history) {
-    expect(JSON.parse(loadContextRecord(fixture.dataDir, fixture.ledger.conversationId, "pageObservation", record.id)!)).toEqual(record);
+    expect(JSON.parse(loadContextRecord(fixture.dataDir, fixture.ledger.conversationId, "observation", record.id)!)).toEqual(record);
   }
   expect(history).toEqual(results.map((result, index) => ({
     id: expect.any(String),
@@ -266,7 +257,7 @@ test("page effects update the current page and persist observations in chronolog
     observedAt: expect.any(String),
     callId: calls[index]!.callId,
     tabId: pages[index]!.tabId,
-    type: calls[index]!.name,
+    type: index === 0 ? "page.get_summary" : "page.click",
     result,
   })));
   const observedTimes = history.map((page) => Date.parse(page.observedAt));

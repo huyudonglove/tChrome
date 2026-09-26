@@ -78,7 +78,7 @@ export function contextState(dataDir: string, ledger: Ledger, turn: Turn, memori
       queryHistory: ledger.queryHistory.filter(row => !isCovered(querySourceKey(row.queryId))),
     },
     turn: { ...turn, assembled: { ...turn.assembled,
-      pageObservedHistory: turn.assembled.pageObservedHistory.filter(row => !originCovered(row.turnId, row.callId)),
+      observations: turn.assembled.observations.filter(row => !originCovered(row.turnId, row.callId)),
     } },
     memories: { ...memories, conversation: memories.conversation.filter(row => !originCovered(row.turnId, row.sourceCallId)) },
     summaries,
@@ -127,7 +127,7 @@ function archiveContentFromInventory(
       continue;
     }
     if (!Array.isArray(raw)) {
-      content[field] = raw ?? (field === "goalChanges" || field === "toolIO" || field === "pageObservations" || field === "memoryWrites" ? [] : null);
+      content[field] = raw ?? (field === "goalChanges" || field === "toolIO" || field === "observations" || field === "memoryWrites" ? [] : null);
       continue;
     }
     if (options.keepCallIds) {
@@ -146,7 +146,7 @@ function archiveContentFromInventory(
       content[field] = raw.filter((row: ToolIOItem) => !coverage.toolCovered(row));
     } else if (field === "goalChanges" || field === "memoryWrites") {
       content[field] = raw.filter((row: { turnId: string; sourceCallId: string }) => !coverage.originCovered(row.turnId, row.sourceCallId));
-    } else if (field === "pageObservations") {
+    } else if (field === "observations") {
       content[field] = raw.filter((row: { turnId: string; callId: string }) => !coverage.originCovered(row.turnId, row.callId));
     } else {
       content[field] = raw;
@@ -177,7 +177,7 @@ export async function compressContext(input: CompressionInput, phase: "history" 
       records.push({ id, content: {
         conversationId: history.conversationId, turnId: history.turnId,
         status: history.status, createdAt: history.createdAt, completedAt: null,
-        goalChanges: [], toolIO: [], pageObservations: [], memoryWrites: [],
+        goalChanges: [], toolIO: [], observations: [], memoryWrites: [],
         queryHistory: [query], output: null,
         sequence: { turn: ledger.turnIds.indexOf(history.turnId), batch: tool ? batches.indexOf(batchKey(tool)) : batches.length },
         segment: { complete: false },

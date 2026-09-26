@@ -246,7 +246,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "#goal",
     "#goalHistory",
     "#openTabs",
-    "#pageObservedHistory",
+    "#observations",
     "#projectMemory",
     "#conversationMemory",
     "#notes",
@@ -300,7 +300,7 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
   "observation": [],
   "windowChars": 0,
   "compressAt": 200000,
-  "pageObservedHistory": [],
+  "observations": [],
   "openTabs": {
     "ok": true,
     "windows": [

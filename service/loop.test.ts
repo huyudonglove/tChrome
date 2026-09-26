@@ -70,15 +70,18 @@ test("每次主模型请求刷新 openTabs，焦点变化不覆盖页面观察�
         expect(body).toContain("已观察原页面");
       }
       if (requests === 3) expect(snapshot).toEqual({ok: false, error: "读取窗口失败", turnId: expect.stringMatching(/^tn_/)});
-      return ok({finish: "tool_calls", toolCalls: [requests < 3
-        ? {id: `read_${requests}`, name: "page.get_summary", arguments: {tabId: 12, reason: "查看原页面"}}
-        : {id: "finish", name: "finishTurn", arguments: {text: "完成"}}]});
+      return ok({finish: "tool_calls", toolCalls: requests < 3
+        ? [
+          {id: `read_${requests}`, name: "page.get_summary", arguments: {tabId: 12, reason: "查看原页面"}},
+          {id: `obs_${requests}`, name: "observation.write", arguments: {reason: "记录观察", type: "page.get_summary", result: {ok: true, note: "已观察原页面"}, tabId: 12}},
+        ]
+        : [{id: "finish", name: "finishTurn", arguments: {text: "完成"}}]});
     }};
     const reply = await handleTurn({dataDir: dir, repoRoot, provider, host}, {userInput: "继续原页面", submittedAt: "now"});
     expect(reply.output).toEqual({kind: "reply", text: "完成" });
     const turn = loadTurn(dir, "cv_01", reply.turnId);
     expect(turn.assembled.currentPage?.tabId).toBe(12);
-    expect(turn.assembled.pageObservedHistory).toHaveLength(2);
+    expect(turn.assembled.observations).toHaveLength(2);
   } finally {rmSync(dir, {recursive: true, force: true});}
 });
 
@@ -613,7 +616,7 @@ test("队列和正在跑的工具出现在 /session", () => {
       conversationMemoryIds: [],
       projectMemoryIds: [],
       mcpIds: [],
-      currentPage: null, pageObservedHistory: [],
+      currentPage: null, observations: [],
       openTabs: { ok: true, windows: [] },
     },
     output: null,
@@ -756,6 +759,26 @@ test("stop 没有 tool_calls 就写 needFinishTurn 再出网", async () => {
   expect(ledger.toolIO[0]!.name).toBe("finishTurn");
   expect(ledger.toolIO[0]!.return.text).toContain("没有 tool_calls");
   rmSync(dir, { recursive: true, force: true });
+});
+
+test("连续 5 次模型请求未写观察时提示 observation.write", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-obs-nudge-"));
+  primeActiveTask(dir);
+  try {
+    let step = 0;
+    const provider: Provider = { complete: async input => {
+      step++;
+      const body = input.messages[1]!.content;
+      if (step < 5) {
+        expect(body).not.toContain("建议用 observation.write");
+        return ok({ finish: "tool_calls", toolCalls: [{ id: `n_${step}`, name: "notes.write", arguments: { reason: "草稿", key: `k${step}`, value: "v" } }] });
+      }
+      expect(body).toContain("建议用 observation.write");
+      return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
+    } };
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "连续请求", submittedAt: "now" });
+    expect(reply.output).toEqual({ kind: "reply", text: "完成" });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test("submitGoal 创建父子目标并在后续轮次按稳定 ID 更新", async () => {

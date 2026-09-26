@@ -44,7 +44,7 @@ export type ModuleRegistry = {
 const DEFAULT_SEMANTICS: Record<string, string> = {
   userInput: "对象 `{id, turnId, userInput, submittedAt}`。片段可缺省，不表示用户没输入。",
   goalChanges: "数组 `[{id, parentId, status, goal, turnId, sourceCallId, createdAt, updatedAt}]`。status 为 active / completed / cancelled。",
-  pageObservations: "数组 `[{id, turnId, observedAt, callId, batchId?, tabId, type, result}]`。type 为工具名；result 是该次观察的完整返回。与 toolIO 同 callId 时两份都读。",
+  observations: "数组 `[{id, turnId, observedAt, callId, batchId?, tabId?, type, result}]`。type 为产生观察的工具名；result 是该次观察的完整返回（页面、代码、截图等）。与 toolIO 同 callId 时两份都读。",
   memoryWrites: "数组 `[{memoryId, turnId, layer, text, createdAt, sourceCallId}]`。此处只含本轮写入的会话记忆。",
   toolIO: "数组 `[{callId, batchId?, turnId, name, arguments, return:{stage,totalChars,text}, images?}]`。stage 为 complete / truncated；超量时 text 可能是 externalized 摘要。",
   queryHistory: "数组 `[{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}]`。status 为 complete / not_found / error；records 保留原模块记录。结论写入 result。",

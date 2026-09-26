@@ -13,7 +13,7 @@ function setup(provider: Provider) {
   const dataDir = mkdtempSync(`${tmpdir()}/tchrome-compression-`); dirs.push(dataDir);
   return { dataDir, conversationId: "cv_test", repoRoot: resolve(import.meta.dir, "../../.."), provider, module: "conversationHistory" as const };
 }
-const source = (turnId: string, id = turnId, text = "保持状态，只改负责人") => ({ id, content: { turnId, userInput: { userInput: text }, goalChanges: [], toolIO: [], pageObservations: [], memoryWrites: [], output: null } });
+const source = (turnId: string, id = turnId, text = "保持状态，只改负责人") => ({ id, content: { turnId, userInput: { userInput: text }, goalChanges: [], toolIO: [], observations: [], memoryWrites: [], output: null } });
 function model(observe?: (turns: CompressionTurn[]) => void, body = "核对成功", batches = 1): Provider {
   return { async complete(input) {
     const turns = compressionTurnsFromUserMessage(input.messages[1]!.content);
