@@ -181,6 +181,8 @@ export type ToolIOItem = ToolQueueItem & {
   goalId?: string | null;
   taskId?: string | null;
   taskItemId?: string | null;
+  /** Whether arguments.risk came from the model or was filled from the tool's fixed risk. */
+  riskSource?: "model" | "fixed";
 };
 
 export type Ledger = {
