@@ -1,6 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <rect x="4" y="4" width="120" height="120" rx="30" fill="#152A32"/>
-  <path d="M95 77a35 35 0 1 1-6-39" fill="none" stroke="#64E6C0" stroke-width="10" stroke-linecap="round"/>
-  <path d="M83 25l16 20-25 1z" fill="#64E6C0" stroke="#64E6C0" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M60 45v29q0 10 12 10h3M48 57h28" fill="none" stroke="#F3FCF9" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0B1422"/>
+      <stop offset="1" stop-color="#102433"/>
+    </linearGradient>
+    <linearGradient id="helm" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8BF0D8"/>
+      <stop offset="1" stop-color="#5AC8E8"/>
+    </linearGradient>
+  </defs>
+  <rect x="5.76" y="5.76" width="116.48" height="116.48" rx="30.08" fill="url(#bg)"/>
+  <g fill="none" stroke="url(#helm)" stroke-width="9.216" stroke-linecap="round">
+    <circle cx="64" cy="64" r="36.48"/>
+    <line x1="78.72" y1="64.00" x2="115.20" y2="64.00"/>
+    <line x1="71.36" y1="76.75" x2="89.60" y2="108.34"/>
+    <line x1="56.64" y1="76.75" x2="38.40" y2="108.34"/>
+    <line x1="49.28" y1="64.00" x2="12.80" y2="64.00"/>
+    <line x1="56.64" y1="51.25" x2="38.40" y2="19.66"/>
+    <line x1="71.36" y1="51.25" x2="89.60" y2="19.66"/>
+  </g>
+  <g fill="url(#helm)">
+    <circle cx="115.20" cy="64.00" r="6.66"/>
+    <circle cx="89.60" cy="108.34" r="6.66"/>
+    <circle cx="38.40" cy="108.34" r="6.66"/>
+    <circle cx="12.80" cy="64.00" r="6.66"/>
+    <circle cx="38.40" cy="19.66" r="6.66"/>
+    <circle cx="89.60" cy="19.66" r="6.66"/>
+  </g>
 </svg>

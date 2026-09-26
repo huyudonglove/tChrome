@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "tChrome",
-  "description": "Chrome extension.",
+  "name": "Helm",
+  "description": "Helm（驭舟）：宿主与浏览器双轮驱动的智能代理。",
   "version": "0.1.0",
   "minimum_chrome_version": "135",
   "permissions": [
@@ -26,7 +26,7 @@
     "type": "module"
   },
   "action": {
-    "default_title": "Open tChrome",
+    "default_title": "Open Helm",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png",

@@ -8,7 +8,7 @@
 
 多数工具带可选回填字段（与 reason 同风格，非必填）：reason=做什么/为什么；expected=扣动扳机前固化的成功判据（预期环境/数据事实）；fallback=未达 expected 时的熔断与撤退（退向何处、绝不做什么）。有副作用、黑盒交互或试错路径时优先三件套一起写；纯观察且成败自明时可省略 expected/fallback。
 
-多数业务工具需要先有活动 Task：用 task.set 创建步骤清单后再调用（页面写操作、脚本执行、本地写入与进程等）。豁免、可直接调用：收口与进度（askUser/finishTurn/checkContinue/reportProgress）、Goal 与 task.*、skill/catalog、notes/memory/reflect、查询压缩与 job 状态、tab.context，以及**纯读观察**（page.get_*、page.inspect_*、see_page、find_on_page、snapshot_page、list_tabs、capture_*、wait 系、evidence.search、local.fs 只读与 git 只读、script_read/list 等）。无活动 Task 时 Runtime 对非豁免工具返回 task_gate_required。
+多数业务工具需要先有活动 Task：用 task.set 创建步骤清单后再调用（页面写操作等）。豁免、可直接调用：收口与进度（askUser/finishTurn/checkContinue/reportProgress）、Goal 与 task.*、skill/catalog、notes/memory/reflect、查询压缩与 job 状态、tab.context，以及**纯读观察**（page.get_*、page.inspect_*、see_page、find_on_page、snapshot_page、list_tabs、capture_*、wait 系、evidence.search、local.fs 只读与 git 只读、script_read/list 等），以及 local.fs_write、local.replace_block、script_write、script_patch、local.run、local.process_start。无活动 Task 时 Runtime 对非豁免工具返回 task_gate_required。
 
 动作类工具返回可能带可选 effects（观察器稀疏注入，无异常则整段不出现）：network=动作后新出现的 4xx/断网；console=JS 未捕获异常或 console.error；nav=URL 变化；delta=拖拽回弹、表单 aria-invalid/validationMessage 等；mutations.newAlerts=白名单提示条新增文案；domChange=剥离样式后的结构 HTML 前后 diff 摘要（"-旧 +新"）。effects 是证据，不自动改写 ok：对照 expected 判断是否达成，未达则按 fallback 收敛。effects 是可选附加信息，不是必填字段；键不存在表示未观察到该类异常，仍须用可见结果验收。
 

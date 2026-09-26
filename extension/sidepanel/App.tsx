@@ -77,7 +77,7 @@ const Avatar = ({ who }: { who: "user" | "assistant" }) => (
         </svg>
       </div>
     )
-    : <div className="message-avatar"><img className="brand-logo" src="./icons/icon-48.png" alt="tChrome" /></div>
+    : <div className="message-avatar"><img className="brand-logo" src="./icons/icon-48.png" alt="Helm" /></div>
 );
 
 const MdContent = ({ text }: { text: string }) => {
@@ -502,9 +502,9 @@ export function App() {
     <div className={`workspace-shell${listOpen ? " sessions-open" : ""}`}>
       <div className="chrome-top">
         <header className="app-bar">
-          <div className="brand-mark"><img className="brand-logo" src="./icons/icon-48.png" alt="tChrome" /></div>
+          <div className="brand-mark"><img className="brand-logo" src="./icons/icon-48.png" alt="Helm" /></div>
           <div className="app-identity">
-            <strong>{session.conversationId ?? "tChrome"}</strong>
+            <strong>Helm · 驭舟</strong>
             <small>{running ? "正在处理" : statusText(session.status)}</small>
           </div>
           <div className="app-actions">
@@ -518,8 +518,43 @@ export function App() {
             <button className="icon-button accent" type="button" title="新会话" onClick={() => void startNew()}>
               <Icon path="M12 5v14M5 12h14" />
             </button>
+            <button className={`icon-button${settingsOpen ? " accent" : ""}`} type="button"
+              title="设置" aria-label="设置" aria-expanded={settingsOpen} aria-controls="connection-settings"
+              onClick={() => setSettingsOpen((open) => !open)}>
+              <Icon path="M9.5 3h5l.6 2.4 2.1 1.2 2.4-.7 2.5 4.2-1.8 1.7v2.4l1.8 1.7-2.5 4.2-2.4-.7-2.1 1.2-.6 2.4h-5l-.6-2.4-2.1-1.2-2.4.7-2.5-4.2 1.8-1.7v-2.4L1.9 10l2.5-4.2 2.4.7 2.1-1.2L9.5 3zM16 13a4 4 0 1 1-8 0 4 4 0 0 1 8 0" />
+            </button>
           </div>
         </header>
+        {settingsOpen ? (
+          <section className="settings-popover" id="connection-settings" aria-label="设置">
+            <strong>设置</strong>
+            <div className="connection-settings" aria-busy={connectionBusy}>
+              <label className="provider-picker">
+                <span>模型</span>
+                <select aria-label="模型服务商" value={connection?.provider ?? ""}
+                  disabled={connectionBusy || !connection || serviceDown}
+                  title="切换后从下一次模型请求生效，并自动保存"
+                  onChange={(event) => void updateConnection({ provider: event.target.value })}>
+                  {!connection && <option value="">连接中…</option>}
+                  {connection?.providers?.map((provider) => (
+                    <option key={provider.id} value={provider.id}>{provider.label} · {provider.model}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="connection-setting-row">
+                <span>连接方式</span>
+                <button className="connection-switch" type="button" role="switch" aria-label="使用代理"
+                  disabled={connectionBusy || !connection || serviceDown} aria-checked={connection?.enabled === true}
+                  title={connection?.enabled ? "代理已开启，关闭后使用直连" : "当前使用直连，开启后使用代理"}
+                  onClick={() => void updateConnection({ enabled: !connection?.enabled })}>
+                  <span>{connection?.enabled ? "代理" : "直连"}</span>
+                  <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
+                </button>
+              </div>
+            </div>
+            {connectionError && !serviceDown ? <div className="status down" role="alert">{connectionError}</div> : null}
+          </section>
+        ) : null}
         {extensionIssue && !serviceDown ? <div className="status down" role="alert">{extensionIssue}</div> : null}
         {serviceDown || status ? <div className={`status ${serviceDown || status === DOWN ? "down" : ""}`}>{serviceDown ? healthError : status}</div> : null}
         {syncError && !serviceDown ? <div className="status down" role="alert">会话状态同步失败，正在重试。{syncError}</div> : null}
@@ -658,14 +693,19 @@ export function App() {
             aria-label="输入消息"
             placeholder="说一句"
           />
-          <button
-            type={running ? "button" : "submit"}
-            className={running ? "stop" : ""}
-            title={running ? "停止" : "发送"}
-            onClick={running ? () => void stopRun() : undefined}
-          >
-            {running ? <Icon path="M7 7h10v10H7z" /> : <Icon path="M5 12h14M13 6l6 6-6 6" />}
-          </button>
+          <div className="composer-toolbar">
+            <div className="composer-right">
+              <button
+                type={running ? "button" : "submit"}
+                className={`send-button${running ? " stop" : ""}`}
+                title={running ? "停止" : "发送"}
+                aria-label={running ? "停止" : "发送"}
+                onClick={running ? () => void stopRun() : undefined}
+              >
+                {running ? <Icon path="M7 7h10v10H7z" /> : <Icon path="M5 12h14M13 6l6 6-6 6" />}
+              </button>
+            </div>
+          </div>
       </form>
 
       {listOpen ? (
@@ -703,42 +743,6 @@ export function App() {
                 </li>
               ))}
             </ul>
-            <div className="history-footer">
-              {settingsOpen ? (
-                <section className="settings-panel" id="connection-settings" aria-label="设置">
-                  <strong>设置</strong>
-        <div className="connection-settings" aria-busy={connectionBusy}>
-          <label className="provider-picker">
-            <span>模型</span>
-            <select aria-label="模型服务商" value={connection?.provider ?? ""}
-              disabled={connectionBusy || !connection || serviceDown}
-              title="切换后从下一次模型请求生效，并自动保存"
-              onChange={(event) => void updateConnection({ provider: event.target.value })}>
-              {!connection && <option value="">连接中…</option>}
-              {connection?.providers?.map((provider) => (
-                <option key={provider.id} value={provider.id}>{provider.label} · {provider.model}</option>
-              ))}
-            </select>
-          </label>
-          <div className="connection-setting-row"><span>连接方式</span>
-          <button className="connection-switch" type="button" role="switch" aria-label="使用代理"
-            disabled={connectionBusy || !connection || serviceDown} aria-checked={connection?.enabled === true}
-            title={connection?.enabled ? "代理已开启，关闭后使用直连" : "当前使用直连，开启后使用代理"}
-            onClick={() => void updateConnection({ enabled: !connection?.enabled })}>
-            <span>{connection?.enabled ? "代理" : "直连"}</span>
-            <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
-          </button>
-          </div>
-        </div>
-        {connectionError && !serviceDown ? <div className="status down" role="alert">{connectionError}</div> : null}
-                </section>
-              ) : null}
-              <button className={`icon-button${settingsOpen ? " accent" : ""}`} type="button"
-                title="设置" aria-label="设置" aria-expanded={settingsOpen} aria-controls="connection-settings"
-                onClick={() => setSettingsOpen((open) => !open)}>
-                <Icon path="M9.5 3h5l.6 2.4 2.1 1.2 2.4-.7 2.5 4.2-1.8 1.7v2.4l1.8 1.7-2.5 4.2-2.4-.7-2.1 1.2-.6 2.4h-5l-.6-2.4-2.1-1.2-2.4.7-2.5-4.2 1.8-1.7v-2.4L1.9 10l2.5-4.2 2.4.7 2.1-1.2L9.5 3zM16 13a4 4 0 1 1-8 0 4 4 0 0 1 8 0" />
-              </button>
-            </div>
           </aside>
         </>
       ) : null}

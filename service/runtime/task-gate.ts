@@ -87,6 +87,13 @@ export const TASK_EXEMPT = new Set<string>([
   "local.diagnose",
   "script_read",
   "script_list",
+  // Local write / script exec / process (explicitly exempted)
+  "local.fs_write",
+  "local.replace_block",
+  "script_write",
+  "script_patch",
+  "local.run",
+  "local.process_start",
 ]);
 
 export function requiresActiveTask(name: string): boolean {

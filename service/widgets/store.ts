@@ -21,7 +21,7 @@ export function saveWidgetHtml(dataDir: string, html: string): { id: string; url
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>tChrome widget</title>
+<title>Helm widget</title>
 <style>
   html, body { margin: 0; padding: 12px; min-height: 100%; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #141422; color: #eee; box-sizing: border-box; }

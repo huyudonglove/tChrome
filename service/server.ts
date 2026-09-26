@@ -310,7 +310,7 @@ if (isMain) {
       process.exit(0);
     });
   }
-  console.log(`tChrome service http://${hostname}:${port}`);
+  console.log(`Helm service http://${hostname}:${port}`);
   console.log(`Model connection: ${server.proxyEnabled ? "proxy" : "direct"}`);
   console.log(`Provider: ${server.providerName}`);
 }
