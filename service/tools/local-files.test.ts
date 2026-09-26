@@ -194,6 +194,34 @@ test("grep finds literal text with line context and skips binaries, noisy dirs, 
   expect(await run("local.fs_grep", { path: join(nested, "loop"), query: "needle" })).toMatchObject({ ok: false });
 });
 
+test("grep supports regex mode and multi-line context extraction", async () => {
+  const dir = join(root, "grepx");
+  await mkdir(dir);
+  const file = join(dir, "code.txt");
+  await writeFile(file, ["L10 start", "L11 end_token = 1", "L12 middle", "L13 end_token = 2", "L14 tail"].join("\n"));
+
+  const regex = await run("local.fs_grep", { path: dir, query: "end_\\w+", regex: true, contextLines: 2 });
+  expect(regex).toMatchObject({ ok: true, truncated: false });
+  expect(regex.matches).toEqual([
+    {
+      path: file, line: 2, column: 5, before: "L11 ", hit: "end_token", after: " = 1",
+      beforeLines: ["L10 start"], afterLines: ["L12 middle", "L13 end_token = 2"],
+    },
+    {
+      path: file, line: 4, column: 5, before: "L13 ", hit: "end_token", after: " = 2",
+      beforeLines: ["L11 end_token = 1", "L12 middle"], afterLines: ["L14 tail"],
+    },
+  ]);
+
+  const invalid = await run("local.fs_grep", { path: dir, query: "(", regex: true });
+  expect(invalid).toMatchObject({ ok: false });
+  expect(String(invalid.error)).toContain("Invalid regular expression");
+
+  const literal = await run("local.fs_grep", { path: dir, query: "end_\\w+", contextLines: 0 });
+  expect(literal).toMatchObject({ ok: true, matches: [] });
+  expect((literal.matches as unknown[]).length).toBe(0);
+});
+
 test("fs_read supports line slice mode with startLine and endLine", async () => {
   const file = join(root, "lines.txt");
   const sample = ["line 1: apple", "line 2: banana", "line 3: cherry", "line 4: date", "line 5: elderberry"].join("\n");

@@ -8,14 +8,14 @@ export const LOCAL_FILE_TOOL_NAMES = [
   "local.fs_copy", "local.fs_move", "local.fs_delete", "local.fs_search", "local.fs_grep", "local.replace_block",
 ] as const;
 
-function pathArg(input: Record<string, unknown>, key = "path") {
+export function pathArg(input: Record<string, unknown>, key = "path") {
   const value = input[key];
   if (typeof value !== "string" || !isAbsolute(value) || value.includes("\0")) {
     throw new Error(`${key} must be an absolute path`);
   }
   return resolve(value);
 }
-function integer(input: Record<string, unknown>, key: string, fallback: number, min: number, max: number) {
+export function integer(input: Record<string, unknown>, key: string, fallback: number, min: number, max: number) {
   const value = input[key] ?? fallback;
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < min || value > max) {
     throw new Error(`${key} must be an integer between ${min} and ${max}`);
@@ -216,14 +216,17 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
         return { ok: true, path };
       case "local.fs_grep": {
         if (typeof input.query !== "string" || !input.query.length || input.query.length > 500) {
-          throw new Error("query must be a literal substring of 1 to 500 characters");
+          throw new Error("query must be a literal substring or regex of 1 to 500 characters");
         }
         const query = input.query;
+        const useRegex = flag(input, "regex");
+        const pattern = useRegex ? new RegExp(query, "g") : null;
         const limit = integer(input, "limit", 50, 1, 200);
         const maxFiles = integer(input, "maxFiles", 400, 1, 5000);
         const maxFileBytes = integer(input, "maxFileBytes", 1048576, 1, 1048576);
         const maxEntries = integer(input, "maxEntries", 10000, 1, 100000);
         const contextChars = integer(input, "contextChars", 80, 0, 200);
+        const contextLines = integer(input, "contextLines", 0, 0, 20);
         if (!(await lstat(path)).isDirectory()) throw new Error("path must be a directory, not a symlink");
         const pending = [path];
         const matches: Record<string, unknown>[] = [];
@@ -264,25 +267,47 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
                 continue;
               }
               const text = bytes.toString("utf8");
-              let from = 0;
-              while (matches.length < limit) {
-                const at = text.indexOf(query, from);
-                if (at === -1) break;
+              let lines: string[] | null = null;
+              const linesOf = () => (lines ??= text.split("\n"));
+              const pushMatch = (at: number, hit: string) => {
                 const lineStart = text.lastIndexOf("\n", at - 1) + 1;
                 const lineEnd = text.indexOf("\n", at);
                 const lineText = text.slice(lineStart, lineEnd === -1 ? text.length : lineEnd);
                 const column = at - lineStart + 1;
                 const line = text.slice(0, at).split("\n").length;
-                matches.push({
+                const row: Record<string, unknown> = {
                   path: entryPath,
                   line,
                   column,
                   before: lineText.slice(Math.max(0, column - 1 - contextChars), column - 1),
-                  hit: query,
-                  after: lineText.slice(column - 1 + query.length, column - 1 + query.length + contextChars),
-                });
-                from = at + Math.max(query.length, 1);
-                if (matches.length >= limit) { truncated = true; break outer; }
+                  hit,
+                  after: lineText.slice(column - 1 + hit.length, column - 1 + hit.length + contextChars),
+                };
+                if (contextLines > 0) {
+                  const all = linesOf();
+                  row.beforeLines = all.slice(Math.max(0, line - 1 - contextLines), line - 1);
+                  row.afterLines = all.slice(line, line + contextLines);
+                }
+                matches.push(row);
+              };
+              if (pattern) {
+                pattern.lastIndex = 0;
+                while (matches.length < limit) {
+                  const m = pattern.exec(text);
+                  if (!m) break;
+                  pushMatch(m.index, m[0]);
+                  pattern.lastIndex = m.index + Math.max(m[0].length, 1);
+                  if (matches.length >= limit) { truncated = true; break outer; }
+                }
+              } else {
+                let from = 0;
+                while (matches.length < limit) {
+                  const at = text.indexOf(query, from);
+                  if (at === -1) break;
+                  pushMatch(at, query);
+                  from = at + Math.max(query.length, 1);
+                  if (matches.length >= limit) { truncated = true; break outer; }
+                }
               }
             }
           } catch (error) {
