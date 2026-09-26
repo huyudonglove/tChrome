@@ -11,6 +11,7 @@
     "api-causality-flow",
     "canvas-webgl-probing",
     "network-state-troubleshooting",
+    "repo-browser-dual-audit",
     "hypothesis-testing"
   ]
 }

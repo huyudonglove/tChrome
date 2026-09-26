@@ -26,7 +26,7 @@ test("real registry has complete metadata for every tool", () => {
   const toolCapabilities = registry.capabilities.filter((item) => item.kind === "tool");
   const skillCapabilities = registry.capabilities.filter((item) => item.kind === "skill");
   expect(toolCapabilities).toHaveLength(toolIds.length);
-  expect(skillCapabilities).toHaveLength(10);
+  expect(skillCapabilities).toHaveLength(11);
   expect(toolCapabilities.every((item) => item.metadataComplete)).toBe(true);
   expect(skillCapabilities.every((item) => item.metadataComplete)).toBe(true);
   expect(toolCapabilities.find((item) => item.id === "account_vault")?.risk).toBe("high");
