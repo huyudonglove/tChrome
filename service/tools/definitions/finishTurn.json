@@ -14,7 +14,7 @@
         },
         "reason": {
           "type": "string",
-          "description": "可选的行动说明；最终回复只读取 text。"
+          "description": "本次调用的行动说明，一两句话说明要做什么、为什么；最终回复只读取 text。"
         }
       },
       "required": [
