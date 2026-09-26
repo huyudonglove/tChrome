@@ -17,7 +17,7 @@ type ProviderRow = {
 
 export const providers: readonly ProviderRow[] = [
   { id: "uuapi", label: "UUAPI", model: "gemini-3.8-flash", apiKeyEnv: "UUAPI_API_KEY", modelEnv: "UUAPI_MODEL", kind: "uuapi" },
-  { id: "shiningspace", label: "ShiningSpace", model: "grok-4.6", baseURL: "https://ai.shiningspace.com:8090/v1", apiKeyEnv: "SHININGSPACE_API_KEY", modelEnv: "SHININGSPACE_MODEL", effortEnv: "SHININGSPACE_REASONING_EFFORT", kind: "responses" },
+  { id: "shiningspace", label: "ShiningSpace", model: "grok-4.7", baseURL: "https://ai.shiningspace.com:8090/v1", apiKeyEnv: "SHININGSPACE_API_KEY", modelEnv: "SHININGSPACE_MODEL", effortEnv: "SHININGSPACE_REASONING_EFFORT", kind: "responses" },
   { id: "gemini", label: "Google Gemini", model: "gemini-3.8-flash", apiKeyEnv: "GEMINI_API_KEY", modelEnv: "GEMINI_MODEL", kind: "gemini" },
   { id: "deepseek", label: "DeepSeek", model: "deepseek-v4.1-flash", baseURL: "https://api.a6api.com/v1", apiKeyEnv: "DEEPSEEK_API_KEY", modelEnv: "DEEPSEEK_MODEL", baseUrlEnv: "DEEPSEEK_BASE_URL", effortEnv: "DEEPSEEK_REASONING_EFFORT", kind: "openai" },
   { id: "caicai", label: "CaicAI", model: "DeepSeek-V4.1-Flash", baseURL: "https://www.caicaicome888.top/v1", apiKeyEnv: "CAICAI_API_KEY", modelEnv: "CAICAI_MODEL", baseUrlEnv: "CAICAI_BASE_URL", effortEnv: "CAICAI_REASONING_EFFORT", kind: "openai", sanitizeToolNames: true },

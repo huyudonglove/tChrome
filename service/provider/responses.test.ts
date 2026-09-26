@@ -30,11 +30,11 @@ test("Responses sends flat tools and high reasoning and normalizes message plus 
     ]);
   } });
   try {
-    const result = await createProvider({ api: "responses", apiKey: "test", baseURL: `http://127.0.0.1:${server.port}/v1`, model: "grok-4.6", proxy: "" }).complete({
+    const result = await createProvider({ api: "responses", apiKey: "test", baseURL: `http://127.0.0.1:${server.port}/v1`, model: "grok-4.7", proxy: "" }).complete({
       messages: [{ role: "system", content: "规则" }, { role: "user", content: "请求" }],
       tools: [{ type: "function", function: { name: "finishTurn", parameters: { type: "object", properties: { text: { type: "string" } } } } }],
     });
-    expect(body).toMatchObject({ model: "grok-4.6", store: false, stream: true, reasoning: { effort: "high" } });
+    expect(body).toMatchObject({ model: "grok-4.7", store: false, stream: true, reasoning: { effort: "high" } });
     expect(body.tools[0]).toMatchObject({ type: "function", name: "finishTurn", strict: false });
     expect(body.tool_choice).toBeUndefined();
     expect(body.previous_response_id).toBeUndefined();
@@ -57,7 +57,7 @@ test("toolChoice required 发送 tool_choice，被拒后降级 auto", async () =
     ]);
   } });
   try {
-    const result = await createProvider({ api: "responses", apiKey: "test", baseURL: `http://127.0.0.1:${server.port}/v1`, model: "grok-4.6", proxy: "" }).complete({
+    const result = await createProvider({ api: "responses", apiKey: "test", baseURL: `http://127.0.0.1:${server.port}/v1`, model: "grok-4.7", proxy: "" }).complete({
       messages: [{ role: "user", content: "请求" }],
       tools: [{ type: "function", function: { name: "finishTurn", parameters: { type: "object", properties: { text: { type: "string" } } } } }],
       toolChoice: "required",
