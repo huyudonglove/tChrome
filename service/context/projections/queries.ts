@@ -1,5 +1,6 @@
 // Query storage and execution are owned by runtime; these are model-facing views.
 import { runtimeConfig } from "../../config/runtime.ts";
+import { summarizePayload } from "../../admission.ts";
 
 export type QueryRecord = Record<string, unknown> & { turnId: string };
 
@@ -43,6 +44,7 @@ export const queryView = (query: QueryEvidence, options: QueryViewOptions = {}) 
   const serialized = JSON.stringify(view);
   if (serialized.length <= inlineChars) return view;
   const totalLines = serialized.length <= 0 ? 0 : Math.ceil(serialized.length / lineWidth);
+  const summary = summarizePayload(serialized);
   return {
     ok: true,
     externalized: true,
@@ -56,9 +58,12 @@ export const queryView = (query: QueryEvidence, options: QueryViewOptions = {}) 
     totalChars: serialized.length,
     totalLines,
     lineWidth,
-    preview: serialized.slice(0, previewChars),
+    ...(summary ? { summary } : {}),
+    preview: summary || serialized.slice(0, previewChars),
     ...(options.path ? { path: options.path } : {}),
-    message: `runtime: 查询结果超过 ${inlineChars} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；preview 为原文前 ${previewChars} 字符。用 evidence.search(windows=[{callId,keyword|startLine}])，可一次带多个窗口。`,
+    message: summary
+      ? `runtime: 查询结果超过 ${inlineChars} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；preview 为结构化摘要。用 evidence.search(windows=[{callId,keyword|startLine}])，可一次带多个窗口。`
+      : `runtime: 查询结果超过 ${inlineChars} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；preview 为原文前 ${previewChars} 字符。用 evidence.search(windows=[{callId,keyword|startLine}])，可一次带多个窗口。`,
     search: "evidence.search",
     records: [] as QueryRecord[],
   };

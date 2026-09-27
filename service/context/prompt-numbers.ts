@@ -10,6 +10,7 @@ export function promptNumberSlots(): Record<string, string> {
     keepBatches: String(ctx.keepToolBatches),
     inlineChars: String(runtimeConfig.results.inlineChars),
     previewChars: String(runtimeConfig.results.previewChars),
+    summaryChars: String(runtimeConfig.results.summaryChars),
     lineWidth: String(runtimeConfig.results.lineWidth),
     searchContextChars: String(runtimeConfig.results.searchContextChars),
     imageInlineBytes: String(runtimeConfig.results.imageInlineBytes),

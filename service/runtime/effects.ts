@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { appendEvent, paths, saveLedger, saveTurn } from "./store.ts";
 import { runtimeConfig } from "../config/runtime.ts";
+import { summarizePayload } from "../admission.ts";
 
 const recordDirectory = (dataDir: string, conversationId: string, kind: string) =>
   join(dataDir, "conversations", conversationId, "context-records", kind);
@@ -175,6 +176,7 @@ export function applyToolEffects(input: {
             const previewSource = typeof result === "string"
               ? result
               : JSON.stringify(result);
+            const summary = summarizePayload(previewSource);
             return {
               ok: true,
               externalized: true,
@@ -183,9 +185,12 @@ export function applyToolEffects(input: {
               totalChars: resultChars,
               totalLines,
               lineWidth,
-              preview: previewSource.slice(0, runtimeConfig.results.previewChars),
+              ...(summary ? { summary } : {}),
+              preview: summary || previewSource.slice(0, runtimeConfig.results.previewChars),
               path: join(paths(dataDir, ledger.conversationId).conv, "context-records", "observation", `${id}.json`),
-              message: `runtime: 观察结果超过 ${inlineLimit} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；preview 为原文前 ${runtimeConfig.results.previewChars} 字符。用 evidence.search(windows=[{pageId:"${id}",keyword|startLine}]) 取片段，可一次带多个窗口。`,
+              message: summary
+                ? `runtime: 观察结果超过 ${inlineLimit} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；preview 为结构化摘要。用 evidence.search(windows=[{pageId:"${id}",keyword|startLine}]) 取片段，可一次带多个窗口。`
+                : `runtime: 观察结果超过 ${inlineLimit} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；preview 为原文前 ${runtimeConfig.results.previewChars} 字符。用 evidence.search(windows=[{pageId:"${id}",keyword|startLine}]) 取片段，可一次带多个窗口。`,
               search: "evidence.search",
             };
           })()
