@@ -60,6 +60,45 @@ const inBranch = (error: ErrorObject, union: ErrorObject) =>
   withinInstance(error.instancePath, union.instancePath)
   && error.schemaPath.startsWith(`${union.schemaPath}/`);
 
+// Machine-readable ajv params never say what a field accepts. Spell out the declared
+// boundary (type, pattern, length, range, enum) and the field's own description so a
+// rejected call can be corrected from the error alone.
+const clipped = (text: string, limit = 200) => text.length > limit ? `${text.slice(0, limit)}…` : text;
+
+// ajv points schemaPath at the failing keyword (#/properties/filename/pattern, #/additionalProperties),
+// while the declared boundary lives one level up. Drop the keyword segment before reading the spec.
+const ownerPointer = (error: ErrorObject) => error.schemaPath.replace(/\/[^/]*$/, "");
+
+function fieldSpec(schema: unknown, error: ErrorObject): string | null {
+  const spec = schemaAt(schema, ownerPointer(error));
+  if (!spec || typeof spec !== "object" || Array.isArray(spec)) return null;
+  const field = spec as {
+    type?: unknown; pattern?: unknown; enum?: unknown; description?: unknown;
+    minimum?: unknown; maximum?: unknown; minLength?: unknown; maxLength?: unknown;
+  };
+  const bounds: string[] = [];
+  if (typeof field.type === "string") bounds.push(`type=${field.type}`);
+  if (typeof field.minimum === "number") bounds.push(`min=${field.minimum}`);
+  if (typeof field.maximum === "number") bounds.push(`max=${field.maximum}`);
+  if (typeof field.minLength === "number") bounds.push(`minLength=${field.minLength}`);
+  if (typeof field.maxLength === "number") bounds.push(`maxLength=${field.maxLength}`);
+  if (Array.isArray(field.enum)) bounds.push(`enum=${JSON.stringify(field.enum)}`);
+  if (typeof field.pattern === "string") bounds.push(`pattern=${field.pattern}`);
+  const tail = typeof field.description === "string" ? clipped(field.description) : "";
+  if (!bounds.length && !tail) return null;
+  return `${bounds.join(", ") || "no extra constraint"}${tail ? `; ${tail}` : ""}`;
+}
+
+function unknownFieldHint(schema: unknown, error: ErrorObject): string | null {
+  const parent = schemaAt(schema, ownerPointer(error)) as { properties?: Record<string, unknown> } | undefined;
+  const name = error.params.additionalProperty;
+  if (typeof name !== "string") return null;
+  const known = Object.keys(parent?.properties ?? {});
+  return known.length
+    ? `unknown field "${name}"; valid fields: ${known.join(", ")}`
+    : `unknown field "${name}"; this object declares no fields`;
+}
+
 function validationDetails(errors: ErrorObject[], schema: unknown): { missing: string[]; detail: string } {
   const unions = errors.filter(isUnion);
   const missing = [...new Set(errors.filter(error => error.keyword === "required"
@@ -70,7 +109,11 @@ function validationDetails(errors: ErrorObject[], schema: unknown): { missing: s
   const parts = missing.length ? [`missing required: ${missing.join(", ")}`] : [];
   for (const error of ordinary) {
     const constraint = error.keyword === "not" ? schemaAt(schema, error.schemaPath) : error.params;
-    parts.push(`${ajv.errorsText([error])}${Object.keys(constraint ?? {}).length ? `: ${JSON.stringify(constraint)}` : ""}`);
+    const head = `${ajv.errorsText([error])}${Object.keys(constraint ?? {}).length ? `: ${JSON.stringify(constraint)}` : ""}`;
+    const boundary = error.keyword === "additionalProperties"
+      ? unknownFieldHint(schema, error)
+      : fieldSpec(schema, error);
+    parts.push(boundary ? `${head} | accepted: ${boundary}` : head);
   }
   for (const union of roots) {
     // The original schema already describes nested alternatives; do not build a second schema renderer.

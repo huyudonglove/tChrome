@@ -65,3 +65,38 @@ test("empty optional arguments are omitted while required empties remain invalid
   expect(required.schemaOk).toBe(false);
   expect(required.detail).toContain("data/text");
 });
+
+const checkRaw = (name: string, args: Record<string, unknown>) => checkToolCalls(
+  [{ id: "test", name, arguments: args }], toolSchemas(registry, [name]), [], [name],
+);
+
+test("rejected pattern spells out the accepted pattern and the field description", () => {
+  const result = checkRaw("script_write", { filename: ">probe.mjs", code: "x", reason: "写入" });
+  expect(result.schemaOk).toBe(false);
+  expect(result.faultCode).toBe("wrong_type");
+  expect(result.detail).toContain("accepted:");
+  expect(result.detail).toContain("pattern=^[A-Za-z0-9][A-Za-z0-9._-]*");
+  expect(result.detail).toContain("以 .sh / .py / .js / .mjs / .cjs 结尾");
+});
+
+test("unknown fields list the fields the object actually declares", () => {
+  const result = checkRaw("script_write", { filename: "probe.mjs", code: "x", reason: "写入", invoke: "x" });
+  expect(result.schemaOk).toBe(false);
+  expect(result.detail).toContain('unknown field "invoke"');
+  expect(result.detail).toContain("valid fields: filename, code, reason");
+});
+
+test("range violations report the declared minimum and maximum", () => {
+  const result = checkRaw("local.fs_list", { path: "/tmp", limit: 5000 });
+  expect(result.schemaOk).toBe(false);
+  expect(result.detail).toContain("accepted:");
+  expect(result.detail).toContain("max=1000");
+  expect(result.detail).toContain("type=integer");
+});
+
+test("missing required fields still name every absent argument", () => {
+  const result = checkRaw("local.fs_read", {});
+  expect(result.faultCode).toBe("missing_required");
+  expect(result.missing).toEqual(["items"]);
+  expect(result.detail).toContain("missing required: items");
+});
