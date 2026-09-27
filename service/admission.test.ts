@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { admitImages, admitText, deferredImageNote, payloadIndex, summarizePayload } from "./admission.ts";
+import { admitImages, admitText, buildLevels, deferredImageNote, indexTree, payloadIndex, retrievalWindowChars, summarizePayload } from "./admission.ts";
 import { runtimeConfig } from "./config/runtime.ts";
 
 test("admitText inlines small text and degrades large text with a precise-fetch hint", () => {
@@ -35,7 +35,8 @@ test("admitText turns an oversized JSON payload into a structured summary instea
   expect(String(admitted.payload.message)).toContain("分层目录");
   expect(String(admitted.payload.message)).toContain("preview 为首行");
   // 指针带实际存在的层级，便于判断该继续翻上层还是在明细里直接定位。
-  expect(admitted.payload.levels).toEqual(["L1"]);
+  // 两个大文本各切出多行标签，L1 装得下但需要分块 → 折出 L2 块目录，levels 按实际存在的层给出。
+  expect(admitted.payload.levels).toEqual(["L1", "L2"]);
 });
 
 test("summarizePayload reports failures and keeps non-JSON payloads on the raw head slice", () => {
@@ -98,8 +99,11 @@ test("summarizePayload groups repeated grep hits by file and keeps the hit keywo
   const summary = summarizePayload(JSON.stringify({ ok: true, toolName: "local.fs_grep", matches, scannedFiles: 120 }));
   expect(summary).toContain("tool=local.fs_grep");
   expect(summary).toContain("matches×8");
-  expect(summary).toContain("admission.ts×8(");
-  expect(summary).toContain('"wrapCache"');
+  // 分层索引树里 L1 是全量明细，不再按文件折叠成一条，聚类只喂落盘清单。
+  expect(summary).toContain("L1明细(共8条");
+  expect(summary).toContain("L1.1");
+  expect(summary).toContain('admission.ts:1 "wrapCache"');
+  expect(summary).toContain('admission.ts:71 "wrapCache"');
 });
 
 test("summarizePayload scales index lines with payload size and keeps every line readable", () => {
@@ -117,25 +121,26 @@ test("summarizePayload scales index lines with payload size and keeps every line
   const lines = summary.split("\n");
   // 分层目录：L1 明细装预算，装不下的标签由 L2 块目录接手，模型看到的都不是腰斩字串。
   expect(lines[0]).toContain("counts: matches×200");
-  const indexHeader = lines.find((line) => line.startsWith("index("));
-  expect(indexHeader).toBeTruthy();
-  const detailCount = Number(/index\((\d+)行\)/.exec(indexHeader ?? "")?.[1] ?? 0);
-  expect(detailCount).toBeGreaterThan(0);
-  // 明细从第 4 行起：第 1 行 counts、第 2 行层级行、第 3 行 index(N行)。
-  const detail = lines.slice(3, 3 + detailCount);
+  // 分层索引树：第 1 行 counts，之后是层级标题「L1明细(共N条，M块可寻址)」，再往后每块以块 id 起头。
+  const title = lines.find((line) => line.startsWith("L1明细(")) ?? "";
+  expect(title).toBeTruthy();
+  const chunkCount = Number(/，(\d+)块可寻址/.exec(title)?.[1] ?? 0);
+  expect(chunkCount).toBeGreaterThan(0);
+  const detail = lines.filter((line) => line.startsWith("mod"));
+  expect(detail.length).toBeGreaterThan(0);
   for (const line of detail) {
-    expect(line.length).toBeGreaterThanOrEqual(100);
     // 明细行里只能是完整标签，不允许出现半句话
     for (const label of line.split(", ")) expect(label).toMatch(/^mod\d+\.ts:\d+ "kw\d+"$/);
   }
-  const blockHeader = lines.find((line) => /^L2块目录\(\d+块\)/.test(line));
+  const blockHeader = lines.find((line) => /^L2块目录\(共\d+块/.test(line));
   expect(blockHeader).toBeTruthy();
-  // 块目录行会被装配器按每行字数拼成多块，逐块校验：每块都是「首标签 … 尾标签」的完整形态。
-  for (const line of lines) {
-    for (const token of line.split(", ")) {
-      if (!token.startsWith("block")) continue;
-      expect(token).toMatch(/^block\d+ mod\d+\.ts:\d+ "kw\d+"( … mod\d+\.ts:\d+ "kw\d+")?$/);
-    }
+  // L2 是 L1 的上层封装：块标签自带下层 id 区间与首尾标签，可单独寻址。
+  const blockTokens = lines
+    .flatMap((line) => line.split(", "))
+    .filter((token) => token.startsWith("L1.") && token.includes(" "));
+  expect(blockTokens.length).toBeGreaterThan(0);
+  for (const token of blockTokens) {
+    expect(token).toMatch(/^L1\.\d+(-L1\.\d+)? mod\d+\.ts:\d+ "kw\d+"( … mod\d+\.ts:\d+ "kw\d+")?$/);
   }
   expect(summary.length).toBeLessThan(gate);
 });
@@ -150,12 +155,11 @@ test("summarizePayload caps index lines for huge payloads instead of growing wit
   });
   const summary = summarizePayload(full);
   const lines = summary.split("\n");
-  const indexHeader = lines.find((line) => line.startsWith("index(")) ?? "";
-  const detailCount = Number(/index\((\d+)行\)/.exec(indexHeader)?.[1] ?? 0);
-  expect(detailCount).toBeGreaterThan(0);
-  expect(detailCount).toBeLessThanOrEqual(Math.floor((gate - 300) / 100));
-  // L1 明细行仍要每行可读；L2 块目录行本身就是短摘要，不适用这条。
-  for (const line of lines.slice(3, 3 + detailCount)) expect(line.length).toBeGreaterThanOrEqual(100);
+  const title = lines.find((line) => line.startsWith("L1明细(")) ?? "";
+  const chunkCount = Number(/，(\d+)块可寻址/.exec(title)?.[1] ?? 0);
+  // 每层各自独立寻址：1MB 载荷下 L1 也只出有限块，完整清单交给上层块目录与落盘文件。
+  expect(chunkCount).toBeGreaterThan(0);
+  expect(chunkCount).toBeLessThanOrEqual(10);
   expect(summary.length).toBeLessThan(gate);
 });
 
@@ -232,4 +236,90 @@ test("payloadIndex keeps every hit in fullLabels while L1 clusters them", () => 
   expect(fullLabels[0]).toBe('mod.ts:1 "kw"');
   expect(fullLabels[199]).toBe('mod.ts:200 "kw"');
   for (let i = 0; i < 200; i += 1) expect(fullLabels[i]).toBe(`mod.ts:${i + 1} "kw"`);
+});
+
+test("buildLevels keeps every label addressable: L1 is the full detail, L2 wraps L1", () => {
+  const labels = Array.from({ length: 200 }, (_, i) => `mod.ts:${i + 1} "${"x".repeat(30)}"`);
+  const tree = buildLevels("counts: matches×200", labels);
+  expect(tree.head).toContain("matches×200");
+  const l1 = tree.levels[0]!;
+  expect(l1.id).toBe("L1");
+  expect(l1.name).toBe("L1明细");
+  expect(l1.total).toBe(200);
+  // 载荷大于门禁，L1 必然切成多块，每块一个可寻址 id
+  expect(l1.chunks.length).toBeGreaterThan(1);
+  expect(l1.chunks[0]!.id).toBe("L1.1");
+  // 每块都在门禁内，层内不腰斩、不出 …(+n)
+  for (const chunk of l1.chunks) {
+    expect(chunk.chars).toBeLessThanOrEqual(runtimeConfig.results.inlineChars);
+    expect(chunk.text).not.toContain("…(+");
+  }
+  // L1 全量条目都在（首尾各抽查）
+  const l1Text = l1.chunks.map((chunk) => chunk.text).join("\n");
+  expect(l1Text).toContain('mod.ts:1 "');
+  expect(l1Text).toContain('mod.ts:200 "');
+  // L2 是 L1 的上层封装：total 等于 L1 块数，标签带下层 id 区间
+  const l2 = tree.levels.find((level) => level.id === "L2")!;
+  expect(l2).toBeDefined();
+  expect(l2.name).toBe("L2块目录");
+  expect(l2.total).toBe(l1.chunks.length);
+  expect(l2.chunks[0]!.text).toContain("L1.1");
+  for (const level of tree.levels) {
+    for (const chunk of level.chunks) expect(chunk.chars).toBeLessThanOrEqual(runtimeConfig.results.inlineChars);
+  }
+});
+
+test("indexTree builds a tree for oversized payloads and returns null when no facts can be extracted", () => {
+  const payload = JSON.stringify({
+    ok: true,
+    toolName: "local.fs_grep",
+    filler: "x".repeat(50_000),
+    matches: Array.from({ length: 200 }, (_, i) => ({ path: "/repo/src/mod.ts", line: i + 1, column: 1, before: "", hit: "kw", after: "y".repeat(30) })),
+  });
+  const tree = indexTree(payload);
+  expect(tree).not.toBeNull();
+  expect(tree!.head).toContain("matches×200");
+  expect(tree!.levels[0]!.chunks.length).toBeGreaterThan(1);
+  // 纯文本没有可抽事实 → null，调用方回退原文切片
+  expect(indexTree("just a plain sentence without any structured facts")).toBeNull();
+});
+
+test("admitText puts per-layer addressable chunk ids into the pointer payload", () => {
+  const payload = JSON.stringify({
+    ok: true,
+    toolName: "local.fs_grep",
+    filler: "x".repeat(50_000),
+    matches: Array.from({ length: 200 }, (_, i) => ({ path: "/repo/src/mod.ts", line: i + 1, column: 1, before: "", hit: "kw", after: "y".repeat(30) })),
+  });
+  const admitted = admitText(payload, { callId: "call_01", path: "/tmp/a.txt", name: "local.fs_grep", indexPath: "/tmp/a.index.json" });
+  expect(admitted.mode).toBe("preview");
+  if (admitted.mode !== "preview") throw new Error("mode");
+  const layers = admitted.payload.layers as { id: string; name: string; total: number; chunks: { id: string; from: number; to: number; chars: number }[] }[];
+  expect(Array.isArray(layers)).toBe(true);
+  const l1 = layers.find((level) => level.id === "L1")!;
+  expect(l1).toBeDefined();
+  expect(l1.name).toBe("L1明细");
+  expect(l1.total).toBe(200);
+  expect(l1.chunks.length).toBeGreaterThan(1);
+  // 块 id 可直接喂给 evidence.search 的 levelId，且每块在门禁内
+  for (const chunk of l1.chunks) {
+    expect(chunk.id).toMatch(/^L1\.\d+$/);
+    expect(chunk.to).toBeGreaterThanOrEqual(chunk.from);
+    expect(chunk.chars).toBeLessThanOrEqual(runtimeConfig.results.inlineChars);
+  }
+  // 块正文不进指针，只带元数据
+  expect(JSON.stringify(layers)).not.toContain("mod.ts:1 ");
+  // 纯文本载荷抽不出层级 → 不带 layers
+  const plain = admitText("z".repeat(5000), { callId: "call_02", path: "/tmp/b.txt" });
+  if (plain.mode !== "preview") throw new Error("mode");
+  expect(plain.payload.layers).toBeUndefined();
+});
+
+test("retrieval window shares the inline gate instead of a separate retrieval limit", () => {
+  const gate = runtimeConfig.results.inlineChars;
+  const window = retrievalWindowChars();
+  // 唯一门禁：取回窗口 = 入窗门禁 - 指针壳，加回壳后必须仍小于门禁，结构上不可能套指针。
+  expect(window).toBe(gate - 400);
+  expect(window).toBeLessThan(gate);
+  expect(window).toBeGreaterThanOrEqual(100);
 });

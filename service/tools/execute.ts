@@ -9,7 +9,7 @@ import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
 import { STREAM_TOOL_NAMES, runStreamTool } from "./stream-tools.ts";
 import { IMAGE_TOOL_NAMES, runImageTool } from "./image-crop.ts";
 import { loadAssets, textFlavor } from "../assets/catalog.ts";
-import { admitText } from "../admission.ts";
+import { admitReturn, retrievalWindowChars } from "../admission.ts";
 import { LOCAL_TOOL_NAMES, runLocalTool } from "./local-tools.ts";
 import { COMPOUND_TOOL_NAMES, runCompoundTool } from "./compound-tools.ts";
 import { JOB_TOOL_NAMES, runJobTool, withJobHeartbeat, jobScope } from "./job-registry.ts";
@@ -298,6 +298,31 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       const pageId = typeof win.pageId === "string" ? win.pageId.trim() : "";
       if (!callId && !pageId) return { ok: false, faultCode: "invalid_arguments", detail: errorDetail("evidence_source_exclusive") };
       if (callId && pageId) return { ok: false, faultCode: "invalid_arguments", detail: errorDetail("evidence_source_both") };
+      // levelId: 分层索引树按块寻址（L1.2 / L2.1…），只回该 chunk 正文，不走原文行窗。
+      const levelId = typeof win.levelId === "string" ? win.levelId.trim() : "";
+      if (levelId) {
+        if (!callId) return { ok: false, faultCode: "invalid_arguments", detail: errorDetail("evidence_level_needs_call") };
+        const dir = paths(dataDir, input.conversationId!).returns;
+        const manifestPath = join(dir, `${callId}.index.json`);
+        if (!existsSync(manifestPath)) {
+          return { ok: false, faultCode: "not_found", source: `call:${callId}`, path: manifestPath, mode: "level", levelId, detail: errorDetail("evidence_level_missing_tree") };
+        }
+        const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+          levels?: { id: string; name: string; chunks: { id: string; from: number; to: number; chars: number; path: string }[] }[];
+        };
+        const level = (manifest.levels ?? []).find((l) => l.chunks.some((c) => c.id === levelId));
+        const chunk = level?.chunks.find((c) => c.id === levelId);
+        if (!level || !chunk) {
+          return { ok: false, faultCode: "not_found", source: `call:${callId}`, path: manifestPath, mode: "level", levelId, detail: errorDetail("evidence_level_unknown") };
+        }
+        const chunkPath = join(dir, chunk.path);
+        const content = readFileSync(chunkPath, "utf8");
+        return {
+          ok: true, source: `call:${callId}`, path: chunkPath, mode: "level",
+          levelId, levelName: level.name, from: chunk.from, to: chunk.to,
+          chars: content.length, content,
+        };
+      }
       const rawStart = win.startLine;
       const startLine = rawStart == null || rawStart === "" ? null : Number(rawStart);
       const hasLineMode = startLine !== null;
@@ -313,8 +338,12 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       const limits = runtimeConfig.results;
       const rawWindow = Number(win.contextChars ?? limits.searchContextChars);
       const contextChars = Number.isFinite(rawWindow)
-        ? Math.min(limits.searchMaxContextChars, Math.max(20, Math.floor(rawWindow)))
+        ? Math.min(retrievalWindowChars(), Math.max(20, Math.floor(rawWindow)))
         : limits.searchContextChars;
+      // contextChars 是「本次取回总额」而非单侧上限：先按命中数摊分，再摊到 before/after 两侧，
+      // 这样无论命中几条、每侧多长，单次取回都不会超过入窗门禁。
+      const sideChars = (hitCount: number, hitLen: number): number =>
+        Math.max(20, Math.floor((contextChars / Math.max(1, hitCount) - hitLen) / 2));
       const lineWidth = limits.lineWidth;
       let haystack = "";
       let source = "";
@@ -389,9 +418,10 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
         while (matches.length < limits.searchMaxMatches) {
           const at = lower.indexOf(needle, from);
           if (at === -1) break;
-          const before = region.slice(Math.max(0, at - contextChars), at);
+          const side = sideChars(matches.length + 1, keyword.length);
+          const before = region.slice(Math.max(0, at - side), at);
           const hit = region.slice(at, at + keyword.length);
-          const after = region.slice(at + keyword.length, at + keyword.length + contextChars);
+          const after = region.slice(at + keyword.length, at + keyword.length + side);
           const prefix = region.slice(0, at);
           const lineInRegion = regionBaseLine + (prefix.match(/\n/g)?.length ?? 0);
           matches.push({ offset: at, lineStart: lineInRegion, lineEnd: lineInRegion, before, hit, after });
@@ -408,8 +438,9 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
             while ((m = re.exec(region)) !== null && matches.length < limits.searchMaxMatches) {
               const at = m.index;
               const hitRaw = m[0];
-              const before = region.slice(Math.max(0, at - contextChars), at);
-              const after = region.slice(at + hitRaw.length, at + hitRaw.length + contextChars);
+              const side = sideChars(matches.length + 1, hitRaw.length);
+              const before = region.slice(Math.max(0, at - side), at);
+              const after = region.slice(at + hitRaw.length, at + hitRaw.length + side);
               const prefix = region.slice(0, at);
               const lineInRegion = regionBaseLine + (prefix.match(/\n/g)?.length ?? 0);
               matches.push({ offset: at, lineStart: lineInRegion, lineEnd: lineInRegion, before, hit: hitRaw, after });
@@ -473,9 +504,10 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       while (matches.length < limits.searchMaxMatches) {
         const at = lowerHay.indexOf(needle, from);
         if (at === -1) break;
-        const before = haystack.slice(Math.max(0, at - contextChars), at);
+        const side = sideChars(matches.length + 1, keyword.length);
+        const before = haystack.slice(Math.max(0, at - side), at);
         const hit = haystack.slice(at, at + keyword.length);
-        const after = haystack.slice(at + keyword.length, at + keyword.length + contextChars);
+        const after = haystack.slice(at + keyword.length, at + keyword.length + side);
         const lineStart = lineNumberAt(haystack, at);
         const lineEnd = lineNumberAt(haystack, at + hit.length - 1);
         matches.push({ offset: at, lineStart, lineEnd, before, hit, after });
@@ -491,8 +523,9 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
           while ((m = re.exec(haystack)) !== null && matches.length < limits.searchMaxMatches) {
             const at = m.index;
             const hitRaw = m[0];
-            const before = haystack.slice(Math.max(0, at - contextChars), at);
-            const after = haystack.slice(at + hitRaw.length, at + hitRaw.length + contextChars);
+            const side = sideChars(matches.length + 1, hitRaw.length);
+            const before = haystack.slice(Math.max(0, at - side), at);
+            const after = haystack.slice(at + hitRaw.length, at + hitRaw.length + side);
             const lineStart = lineNumberAt(haystack, at);
             const lineEnd = lineNumberAt(haystack, at + hitRaw.length - 1);
             matches.push({ offset: at, lineStart, lineEnd, before, hit: hitRaw, after });
@@ -645,7 +678,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
         : typeof args.keyword === "string" && args.keyword
           ? full.slice(Math.max(0, full.indexOf(args.keyword) - 200), Math.max(0, full.indexOf(args.keyword) - 200) + 400)
           : full.slice(0, runtimeConfig.results.inlineChars);
-      const admitted = admitText(window, { path: asset.path, name: asset.name });
+      const admitted = admitReturn(window, { path: asset.path, name: asset.name });
       return admitted.mode === "inline"
         ? result(JSON.stringify({ ok: true, asset, window: admitted.text, flavor: textFlavor(window) }))
         : result(JSON.stringify({ ok: true, asset, ...((admitted as { payload?: Record<string, unknown> }).payload ?? {}), flavor: textFlavor(window) }));

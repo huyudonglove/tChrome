@@ -21,6 +21,16 @@ const INDEX_LEVEL_CAP = 3;
 /** 块目录里每行目标字数：决定一块收多少条标签。 */
 const BLOCK_LABEL_CHARS = 200;
 
+/** 指针里 layers 最多列多少个可寻址块 id：够定位即可，再多就该去读 index.json。 */
+const LAYER_CHUNK_CAP = 40;
+
+/** 指针壳的固定开销（totalChars/totalLines/path/message 等）：取回窗口要给它留位。 */
+const POINTER_SHELL_RESERVE = 400;
+
+/** 检索取回的窗口上限：不另设门禁，统一按入窗门禁扣掉指针壳计算。 */
+export const retrievalWindowChars = (): number =>
+  Math.max(MIN_INDEX_LINE_CHARS, runtimeConfig.results.inlineChars - POINTER_SHELL_RESERVE);
+
 /** 命中关键词片段：grep 类结果带上 hit，目录里能直接看出「哪一行有我要的字」。 */
 function hitSnippet(rec: Record<string, unknown>, max = 20): string {
   return typeof rec.hit === "string" ? ` "${rec.hit.slice(0, max)}"` : "";
@@ -181,8 +191,10 @@ export function payloadIndex(full: string): { head: string; labels: string[]; fu
     fullLabels.push(...(expanded.length ? expanded : unique));
     indexLabels.push(...(expanded.length ? expanded : clusterLabels(unique)));
   }
-  // 疑似失败（4xx/5xx）前置：摘要预算有限时先看到有问题的条目。
-  indexLabels.sort((a, b) => Number(isProblemLabel(b)) - Number(isProblemLabel(a)));
+  // 疑似失败（4xx/5xx）前置：摘要预算有限时先看到有问题的条目。L1 走全量标签，同样要前置。
+  const byProblemFirst = (a: string, b: string) => Number(isProblemLabel(b)) - Number(isProblemLabel(a));
+  indexLabels.sort(byProblemFirst);
+  fullLabels.sort(byProblemFirst);
   if (typeof rec.message === "string") parts.push(`message=${rec.message.slice(0, 80)}`);
   if (!parts.length && !counts.length) return { head: "", labels: [], fullLabels: [] };
   // 计数段恒占头部，索引段用剩余预算逐条装填：摘要短时也能看到可定位事实。
@@ -252,66 +264,175 @@ function fitSection(head: string, indexLabels: string[], budget: number, lines: 
   return { text: `${pieces.join("\n")}\nindex(${body.length}行):\n${body.join("\n")}`, included, dropped };
 }
 
-/** 块目录：把没装下的标签按连续区间再折一层，每行只给首尾标签，中间按需检索。 */
-function blockDirectory(labels: string[]): string[] {
-  if (!labels.length) return [];
-  const avg = Math.max(1, Math.floor(labels.reduce((sum, label) => sum + label.length, 0) / labels.length));
-  const size = Math.max(1, Math.floor(BLOCK_LABEL_CHARS / avg));
-  const out: string[] = [];
-  for (let start = 0; start < labels.length; start += size) {
-    const chunk = labels.slice(start, start + size);
-    const first = chunk[0]!;
-    const last = chunk[chunk.length - 1]!;
-    out.push(first === last ? `block${start / size} ${first}` : `block${start / size} ${first} … ${last}`);
-  }
-  return out;
-}
-
-/** 分层目录：L1 装全量明细；装不下就往上封装一级——L2 是 L1 全量标签的块目录，
- * L3 又是 L2 全量块的块目录，每层都覆盖下一层的全体而不是只收装不下的剩余。
- * 某一层一旦能整层装下，就用它实际占的额度反推 L1 能拿多少，两层始终同时在窗口里。 */
-export function summarizePayload(full: string): string {
-  const { head, labels } = payloadIndex(full);
-  if (!head) return "";
-  const gate = runtimeConfig.results.inlineChars;
-  const total = Math.max(MIN_INDEX_LINE_CHARS, gate - INDEX_OVERHEAD_RESERVE);
-  const lineCount = Math.max(1, Math.ceil(full.length / gate));
-  const first = fitSection(head, labels, total, lineCount, "L1明细");
-  if (!first.dropped.length) return first.text;
-  let base = labels;
-  for (let depth = 1; depth < INDEX_LEVEL_CAP; depth += 1) {
-    const blocks = blockDirectory(base);
-    // 折层后行数不降说明这层没信息增益，停下别做死循环。
-    if (blocks.length >= base.length) break;
-    const section = fitSection(`L${depth + 1}块目录(${blocks.length}块)`, blocks, total, blocks.length, `L${depth + 1}块目录`);
-    if (section.dropped.length) {
-      // 这一层也装不下：把它整体再往上一层封装，继续往上试。
-      base = blocks;
+/** 一级目录行：标签原子保留（不腰斩），短行并入相邻行到可读长度。 */
+function packRows(labels: string[]): string[] {
+  const rows: string[] = [];
+  let current = "";
+  for (const label of labels) {
+    if (!current) {
+      current = label;
       continue;
     }
-    const l1 = fitSection(head, labels, total - section.text.length - 24, lineCount, "L1明细");
-    return `${l1.text}\n${section.text}`;
+    if (current.length + 2 + label.length <= BLOCK_LABEL_CHARS) {
+      current = `${current}, ${label}`;
+      continue;
+    }
+    rows.push(current);
+    current = label;
   }
-  return `${first.text}\n…(+${first.dropped.length})`;
+  if (current) rows.push(current);
+  const merged: string[] = [];
+  for (const row of rows) {
+    const prev = merged[merged.length - 1];
+    if (prev !== undefined && prev.length < MIN_INDEX_LINE_CHARS) {
+      merged[merged.length - 1] = `${prev}, ${row}`;
+      continue;
+    }
+    merged.push(row);
+  }
+  return merged;
+}
+
+/** 分层索引的一块：独立可寻址单元，正文自身不超门禁，from/to 指向下一层的行区间。 */
+export type LevelChunk = { id: string; from: number; to: number; chars: number; text: string };
+export type IndexLevel = { id: string; name: string; total: number; chunks: LevelChunk[] };
+export type IndexTree = { head: string; levels: IndexLevel[] };
+
+/** 把若干行切成若干块：每块 ≤ budget，id 形如 L1.1，可单独寻址。 */
+function chunkRows(rows: string[], prefix: string, budget: number): LevelChunk[] {
+  const chunks: LevelChunk[] = [];
+  let buffer: string[] = [];
+  let start = 0;
+  let used = 0;
+  const flush = (end: number) => {
+    if (!buffer.length) return;
+    chunks.push({ id: `${prefix}.${chunks.length + 1}`, from: start + 1, to: end + 1, chars: used, text: buffer.join("\n") });
+    buffer = [];
+    used = 0;
+  };
+  for (let i = 0; i < rows.length; i += 1) {
+    const add = buffer.length ? 1 + rows[i]!.length : rows[i]!.length;
+    if (buffer.length && used + add > budget) {
+      flush(i - 1);
+      start = i;
+    }
+    buffer.push(rows[i]!);
+    used += add;
+  }
+  flush(rows.length - 1);
+  return chunks;
+}
+
+/** 每层的块预算：L1 是明细占大头，上层封装按目录体量给小份额，两层才能同处一窗。 */
+function levelBudget(id: string, budget: number): number {
+  return Math.max(MIN_INDEX_LINE_CHARS, id === "L1" ? Math.floor(budget * 0.6) : Math.floor(budget * 0.3));
+}
+
+/** 分层索引树：L1 是全量标签明细，L2 是 L1 全部块的上层封装，L3 又是 L2 的封装。
+ * 每层都是完整的一份，不是「上一层没装下的剩余」，因此每层都能独立寻址。 */
+export function buildLevels(head: string, labels: string[]): IndexTree {
+  const budget = Math.max(MIN_INDEX_LINE_CHARS, runtimeConfig.results.inlineChars - INDEX_OVERHEAD_RESERVE);
+  const levels: IndexLevel[] = [];
+  const l1Chunks = chunkRows(packRows(labels), "L1", levelBudget("L1", budget));
+  levels.push({ id: "L1", name: "L1明细", total: labels.length, chunks: l1Chunks });
+  let base = l1Chunks;
+  for (let depth = 2; depth <= INDEX_LEVEL_CAP; depth += 1) {
+    const id = `L${depth}`;
+    const blockLabels = base.map((chunk) => {
+      const firstId = base[chunk.from - 1]?.id ?? chunk.id;
+      const lastId = base[chunk.to - 1]?.id ?? chunk.id;
+      const range = firstId === lastId ? firstId : `${firstId}-${lastId}`;
+      const rowsOf = chunk.text.split("\n");
+      const first = rowsOf[0]!;
+      const last = rowsOf[rowsOf.length - 1]!;
+      return first === last ? `${range} ${first}` : `${range} ${first} … ${last}`;
+    });
+    const chunks = chunkRows(packRows(blockLabels), id, levelBudget(id, budget));
+    // 折层后块数不降说明这层没有信息增益，停下别做死循环。
+    if (chunks.length >= base.length) break;
+    levels.push({ id, name: `${id}块目录`, total: base.length, chunks });
+    base = chunks;
+  }
+  return { head, levels };
+}
+
+/** 从超限载荷生成分层索引树；连头部事实（faultCode/扫描计数等）都抽不出时返回 null，调用方回退原文切片。 */
+export function indexTree(full: string): IndexTree | null {
+  const { head, fullLabels } = payloadIndex(full);
+  if (!head) return null;
+  return buildLevels(head, fullLabels);
+}
+
+/** 渲染分层索引树：每层给层级标题（L1明细 / L2块目录）+ 块正文，装不下的块按 id 提示取回。 */
+function renderTree(tree: IndexTree, budget: number): string {
+  const lines: string[] = [tree.head];
+  let used = tree.head.length;
+  for (const level of tree.levels) {
+    const unit = level.id === "L1" ? "条" : "块";
+    const title = `${level.name}(共${level.total}${unit}，${level.chunks.length}块可寻址)`;
+    lines.push(title);
+    used += title.length + 1;
+    for (let i = 0; i < level.chunks.length; i += 1) {
+      const chunk = level.chunks[i]!;
+      const body = `${chunk.id}\n${chunk.text}`;
+      if (used + body.length + 1 > budget) {
+        const rest = level.chunks.length - i;
+        lines.push(`…其余${rest}块按 id 取回（从 ${chunk.id} 起，evidence.search windows=[{callId,levelId}]）`);
+        used += 60;
+        break;
+      }
+      lines.push(body);
+      used += body.length + 1;
+    }
+  }
+  return lines.join("\n");
+}
+
+/** 分层目录：L1 是全量标签明细，L2 是 L1 全部块的上层封装，L3 又是 L2 的封装。
+ * 每层都是完整的一份、可独立按 id 寻址，不是上一层装不下的剩余。 */
+export function summarizePayload(full: string, tree?: IndexTree | null): string {
+  const resolved = tree === undefined ? indexTree(full) : tree;
+  if (!resolved) return "";
+  const budget = Math.max(MIN_INDEX_LINE_CHARS, runtimeConfig.results.inlineChars - INDEX_OVERHEAD_RESERVE);
+  return renderTree(resolved, budget);
 }
 
 /** 入窗门禁：超限载荷降级为摘要/指针，并带回告——要细节请更精准，取回再过同一门禁。 */
 export function admitText(
   full: string,
-  meta: { callId?: string; pageId?: string; path: string; name?: string; indexPath?: string },
+  meta: { callId?: string; pageId?: string; path: string; name?: string; indexPath?: string; tree?: IndexTree | null },
 ): { mode: "inline"; text: string } | { mode: "preview"; payload: Record<string, unknown> } {
   const { inlineChars, previewChars, lineWidth, searchContextChars } = runtimeConfig.results;
   if (full.length <= inlineChars) return { mode: "inline", text: full };
   const totalLines = Math.ceil(full.length / lineWidth);
-  const summary = summarizePayload(full);
+  const summary = summarizePayload(full, meta.tree);
   const structured = summary.length > 0;
   // 目录里实际存在的层：从 summary 里把 L1明细/L2块目录 这类层级行摘出来，模型一眼看到有哪些层可用。
   const levels = structured
-    ? summary
-        .split("\n")
-        .filter((line) => /^L\d+(明细|块目录)/.test(line))
-        .map((line) => line.replace(/^L(\d+).*/, "L$1"))
+    ? [
+        ...new Set(
+          summary
+            .split("\n")
+            .filter((line) => /^L\d+(明细|块目录)/.test(line))
+            .map((line) => line.replace(/^L(\d+).*/, "L$1")),
+        ),
+      ]
     : [];
+  // 层级块清单：把每层可寻址的 id/区间/字数直接放进指针，模型不读 index.json 就能按 id 取回。
+  const tree = meta.tree === undefined ? indexTree(full) : meta.tree;
+  const layers = tree
+    ? tree.levels.map((level) => ({
+        id: level.id,
+        name: level.name,
+        total: level.total,
+        chunks: level.chunks.slice(0, LAYER_CHUNK_CAP).map((chunk) => ({
+          id: chunk.id,
+          from: chunk.from,
+          to: chunk.to,
+          chars: chunk.chars,
+        })),
+      }))
+    : undefined;
   const locate = meta.pageId ? `pageId=${meta.pageId}` : `callId=${meta.callId ?? ""}`;
   return {
     mode: "preview",
@@ -326,6 +447,7 @@ export function admitText(
       lineWidth,
       ...(structured ? { summary } : {}),
       ...(levels.length ? { levels } : {}),
+      ...(layers ? { layers } : {}),
       // 目录可能接近门禁预算，preview 只放头部（counts 段），避免同一份字符串入窗两遍。
       preview: structured ? summary.split("\n")[0].slice(0, previewChars) : full.slice(0, previewChars),
       path: meta.path,
@@ -336,6 +458,22 @@ export function admitText(
       search: "evidence.search",
     },
   };
+}
+
+/** 门禁编排唯一入口：目录只算一次、落盘与指针渲染在同一处成型。
+ * 落盘由调用方以回调注入（admission.ts 不碰文件系统），因此 loop.ts 与 execute.ts
+ * 不再各自判断「要不要落盘」再手工传 indexPath——那正是漏传会让文案撒谎的地方。 */
+export function admitReturn(
+  full: string,
+  meta: { callId?: string; pageId?: string; path: string; name?: string },
+  options: { tree?: IndexTree | null; persistTree?: (tree: IndexTree) => string } = {},
+): { mode: "inline"; text: string } | { mode: "preview"; payload: Record<string, unknown> } {
+  if (full.length <= runtimeConfig.results.inlineChars) {
+    return admitText(full, { ...meta, tree: options.tree ?? null });
+  }
+  const tree = options.tree === undefined ? indexTree(full) : options.tree;
+  const indexPath = tree && options.persistTree ? options.persistTree(tree) : undefined;
+  return admitText(full, { ...meta, tree, ...(indexPath ? { indexPath } : {}) });
 }
 
 /** 图片门禁：小图随批附带像素；过大只保留元数据。 */

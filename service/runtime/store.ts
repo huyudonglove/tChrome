@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { createHash } from "node:crypto";
 import type { Ledger, LogEvent, ChatMessage, ProviderExchange, Session, Turn } from "../types.ts";
+import type { IndexTree } from "../admission.ts";
 import { runtimeConfig } from "../config/runtime.ts";
 import { idPrefix, nextId, nowIso } from "./ids.ts";
 import { wrapCachedText } from "./cache-lines.ts";
@@ -176,12 +177,29 @@ export function saveFullReturn(dataDir: string, cvId: string, callId: string, fu
   });
 }
 
-/** 完整索引落盘：内联目录装不下的标签写这里，模型按需 precision 检索，不再看到腰斩或 …(+n)。 */
-export function saveReturnIndex(dataDir: string, cvId: string, callId: string, index: string): string {
+/**
+ * 分层索引树落盘：像内存分页一样，每层（L1明细 / L2块目录 / L3）都是完整的一份，
+ * 层内按门禁切成若干 chunk、每 chunk 一个可寻址 id（L1.1/L1.2…）。
+ * 树里只留元数据与各 chunk 的相对路径，chunk 正文单独成文件，取回时按 id 精确读一个。
+ */
+export function saveReturnIndexTree(dataDir: string, cvId: string, callId: string, tree: IndexTree): string {
   const dir = paths(dataDir, cvId).returns;
   mkdirSync(dir, { recursive: true });
-  const path = join(dir, `${callId}.index.txt`);
-  writeFileSync(path, wrapCachedText(index));
+  const manifest = {
+    head: tree.head,
+    levels: tree.levels.map((level) => ({
+      id: level.id,
+      name: level.name,
+      total: level.total,
+      chunks: level.chunks.map((chunk) => {
+        const path = `${callId}.index.${chunk.id}.txt`;
+        writeFileSync(join(dir, path), chunk.text);
+        return { id: chunk.id, from: chunk.from, to: chunk.to, chars: chunk.chars, path };
+      }),
+    })),
+  };
+  const path = join(dir, `${callId}.index.json`);
+  writeFileSync(path, JSON.stringify(manifest, null, 2));
   return path;
 }
 

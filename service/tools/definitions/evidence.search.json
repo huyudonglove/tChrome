@@ -25,6 +25,10 @@
                 "type": "string",
                 "description": "工具调用 ID（call_xx）；与 pageId 二选一"
               },
+              "levelId": {
+                "type": "string",
+                "description": "分层索引树的块 id（L1.1 / L2.2…），与 callId 同用时只回该块正文，不走 keyword/startLine；必须带 callId"
+              },
               "pageId": {
                 "type": "string",
                 "description": "页面观察 ID（page_xx）；与 callId 二选一"

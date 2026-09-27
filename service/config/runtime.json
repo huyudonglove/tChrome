@@ -16,7 +16,6 @@
     "summaryChars": 400,
     "lineWidth": 100,
     "searchContextChars": 2000,
-    "searchMaxContextChars": 4000,
     "searchMaxMatches": 8,
     "imageInlineBytes": 262144
   },

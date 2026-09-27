@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { executeTool } from "./execute.ts";
 import { applyToolEffects } from "../runtime/effects.ts";
-import { emptyLedger, loadTurn, saveFullReturn } from "../runtime/store.ts";
+import { emptyLedger, loadTurn, saveFullReturn, saveReturnIndexTree } from "../runtime/store.ts";
+import { buildLevels, retrievalWindowChars } from "../admission.ts";
 import { saveContextRecord, loadContextRecord } from "../runtime/records.ts";
 import { runtimeConfig } from "../config/runtime.ts";
 import type { Turn } from "../types.ts";
@@ -34,8 +35,12 @@ test("evidence.search returns default ±2000 context around keyword from cached 
     expect((row.matches as { hit: string; lineStart: number; lineEnd: number; before: string; after: string }[])[0]!.hit).toBe("NEEDLE_IN_HAYSTACK");
     expect((row.matches as { lineStart: number }[])[0]!.lineStart).toBeGreaterThan(0);
     expect((row.matches as { lineStart: number; lineEnd: number }[])[0]!.lineEnd).toBeGreaterThanOrEqual((row.matches as { lineStart: number }[])[0]!.lineStart);
-    expect((row.matches as { before: string }[])[0]!.before.length).toBe(runtimeConfig.results.searchContextChars);
-    expect((row.matches as { after: string }[])[0]!.after.length).toBe(runtimeConfig.results.searchContextChars);
+    // contextChars 现在是「本次取回总额」：单条命中的 before+hit+after 不超过 retrievalWindowChars。
+    const firstMatch = (row.matches as { hit: string; before: string; after: string }[])[0]!;
+    expect(firstMatch.before.length).toBeGreaterThan(0);
+    expect(firstMatch.after.length).toBeGreaterThan(0);
+    expect(firstMatch.before.length + firstMatch.hit.length + firstMatch.after.length)
+      .toBeLessThanOrEqual(retrievalWindowChars());
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
@@ -287,5 +292,50 @@ test("evidence.search hybrid only matches keyword inside startLine window", asyn
     expect(row.mode).toBe("hybrid");
     expect(row.ok).toBe(false);
     expect(row.faultCode).toBe("not_found");
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+});
+
+test("evidence.search resolves a levelId chunk from the layered index tree", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-level-"));
+  try {
+    const callId = "call_lv";
+    saveFullReturn(dataDir, "cv_01", callId, Array.from({ length: 400 }, (_, i) => `row ${i} payload`).join("\n"));
+    const labels = Array.from({ length: 200 }, (_, i) => `mod.ts:${i + 1} "${"x".repeat(30)}"`);
+    const tree = buildLevels("counts: matches×200", labels);
+    saveReturnIndexTree(dataDir, "cv_01", callId, tree);
+    const second = tree.levels[0]!.chunks[1]!;
+    expect(second).toBeDefined();
+    const execution = await executeTool({
+      name: "evidence.search",
+      arguments: { reason: "按块取回", windows: [{ callId, levelId: second.id }] },
+      dataDir, conversationId: "cv_01", lookup,
+    });
+    const row = JSON.parse(execution.text).results[0] as Record<string, unknown>;
+    expect(row.ok).toBe(true);
+    expect(row.levelId).toBe(second.id);
+    expect(row.levelName).toBe("L1明细");
+    expect(row.content).toBe(second.text);
+    expect(String(row.content).length).toBeLessThanOrEqual(runtimeConfig.results.inlineChars);
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+});
+
+test("evidence.search reports missing tree and unknown level ids", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-level-bad-"));
+  try {
+    saveFullReturn(dataDir, "cv_01", "call_a", "body");
+    const missing = await executeTool({
+      name: "evidence.search",
+      arguments: { reason: "无树", windows: [{ callId: "call_a", levelId: "L1.1" }] },
+      dataDir, conversationId: "cv_01", lookup,
+    });
+    expect(JSON.parse(missing.text).results[0]).toMatchObject({ ok: false, faultCode: "not_found" });
+    const labels = Array.from({ length: 200 }, (_, i) => `mod.ts:${i + 1} "y"`);
+    saveReturnIndexTree(dataDir, "cv_01", "call_b", buildLevels("counts: matches×200", labels));
+    const unknown = await executeTool({
+      name: "evidence.search",
+      arguments: { reason: "未知块", windows: [{ callId: "call_b", levelId: "L9.9" }] },
+      dataDir, conversationId: "cv_01", lookup,
+    });
+    expect(JSON.parse(unknown.text).results[0]).toMatchObject({ ok: false, faultCode: "not_found" });
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });

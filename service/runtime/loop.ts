@@ -2,7 +2,7 @@ import { saveContextRecord } from "./records.ts";
 import { allocateRecordId, inputRecord } from "./ids.ts";
 import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
-import { admitImages, admitText, deferredImageNote, payloadIndex } from "../admission.ts";
+import { admitImages, admitReturn, deferredImageNote } from "../admission.ts";
 import { escalate } from "./escalation.ts";
 import { requiresActiveTask } from "./task-gate.ts";
 import { repeatHint } from "./repeat-detect.ts";
@@ -44,7 +44,7 @@ import {
   loadTurn,
   paths,
   saveFullReturn,
-  saveReturnIndex,
+  saveReturnIndexTree,
   saveLedger,
   saveTurn,
   appendEvent,
@@ -298,22 +298,20 @@ const runQueue = async (input: {
       }
       const full = stored.text;
       saveFullReturn(dataDir, ledger.conversationId, item.callId, full);
-      // L2 like a CPU cache tier: the inline directory is L1, the unabridged label list lands on disk
-      // so the window never shows a truncated or half-sliced label.
-      // L1/L2 统一口径：只要返回超限且能抽出标签，L2 全量索引就落盘，不看聚类后的长度。
-      const { head, fullLabels } = payloadIndex(full);
-      const indexText = fullLabels.length ? `${head}\n${fullLabels.join("\n")}` : "";
-      const indexPath =
-        full.length > runtimeConfig.results.inlineChars && indexText.length
-          ? saveReturnIndex(dataDir, ledger.conversationId, item.callId, indexText)
-          : undefined;
-      // Oversized returns stay on disk; the window only gets a searchable pointer.
-      const admittedText = admitText(full, {
-        callId: item.callId,
-        name: item.name,
-        path: join(paths(dataDir, ledger.conversationId).returns, `${item.callId}.txt`),
-        ...(indexPath ? { indexPath } : {}),
-      });
+      // 分层索引树：L1/L2 每层都是完整一份，层内按门禁切 chunk、给可寻址 id，整树落盘供按 id 取回。
+      // 落盘与指针渲染都交给 admitReturn：目录在这里只算一次，indexPath 也由同一处产生。
+      const admittedText = admitReturn(
+        full,
+        {
+          callId: item.callId,
+          name: item.name,
+          path: join(paths(dataDir, ledger.conversationId).returns, `${item.callId}.txt`),
+        },
+        {
+          persistTree: (tree) =>
+            saveReturnIndexTree(dataDir, ledger.conversationId, item.callId, tree),
+        },
+      );
       const viewText = admittedText.mode === "inline" ? admittedText.text : JSON.stringify(admittedText.payload);
       const row: ToolIOItem = {
         ...item,
