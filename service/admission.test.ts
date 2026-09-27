@@ -134,14 +134,23 @@ test("summarizePayload scales index lines with payload size and keeps every line
   }
   const blockHeader = lines.find((line) => /^L2块目录\(共\d+块/.test(line));
   expect(blockHeader).toBeTruthy();
-  // L2 是 L1 的上层封装：块标签自带下层 id 区间与首尾标签，可单独寻址。
-  const blockTokens = lines
-    .flatMap((line) => line.split(", "))
-    .filter((token) => token.startsWith("L1.") && token.includes(" "));
-  expect(blockTokens.length).toBeGreaterThan(0);
-  for (const token of blockTokens) {
-    expect(token).toMatch(/^L1\.\d+(-L1\.\d+)? mod\d+\.ts:\d+ "kw\d+"( … mod\d+\.ts:\d+ "kw\d+")?$/);
+  // L2 是 L1 的上层封装，且是严格二分：每块 = 两个 L1 块各取一半正文
+  // （形如 `L1.1-L1.2 <L1.1 的前半> … <L1.2 的前半>`，半块内部用 ⏎ 标行边界）。
+  const l1 = indexTree(full)!.levels.find((level) => level.id === "L1")!;
+  const l2 = indexTree(full)!.levels.find((level) => level.id === "L2")!;
+  expect(l2).toBeDefined();
+  expect(l2.total).toBe(l1.chunks.length);
+  expect(l2.chunks.length).toBe(Math.ceil(l1.chunks.length / 2));
+  for (let i = 0; i < l2.chunks.length; i += 1) {
+    const a = l1.chunks[i * 2]!;
+    const b = l1.chunks[i * 2 + 1];
+    const chunk = l2.chunks[i]!;
+    expect(chunk.text.startsWith(b ? `${a.id}-${b.id} ` : `${a.id} `)).toBe(true);
+    expect(chunk.chars).toBe(chunk.text.length);
+    expect(chunk.chars).toBeLessThanOrEqual(gate);
   }
+  // 渲染层每块都有痕迹：装得下给正文，装不下给 id+区间 stub，不整块消失
+  for (const chunk of l2.chunks) expect(summary).toContain(chunk.id);
   expect(summary.length).toBeLessThan(gate);
 });
 
@@ -334,6 +343,32 @@ test("summarizePayload keeps a stub for every chunk and never drops a whole leve
   }
   expect(summary).toContain("（按 id 取回）");
   expect(summary.length).toBeLessThan(gate);
+});
+
+test("buildLevels halves the chunk count per level and keeps both halves in the parent block", () => {
+  const labels = Array.from({ length: 200 }, (_, i) => `mod${i}.ts:${i + 1} "${"x".repeat(60)}kw${i}"`);
+  const tree = buildLevels("counts: x", labels);
+  const l1 = tree.levels[0]!;
+  // 标签够长才会切出 8 块，才能看出 8 → 4 → 2 的金字塔
+  expect(l1.chunks.length).toBe(8);
+  for (const level of tree.levels.slice(1)) {
+    const prev = tree.levels[tree.levels.indexOf(level) - 1]!;
+    expect(level.total).toBe(prev.chunks.length);
+    expect(level.chunks.length).toBe(Math.ceil(prev.chunks.length / 2));
+    // 每个父块由两个子块各取一半正文拼成，最后一个可能只带单个子块
+    level.chunks.forEach((chunk, i) => {
+      const a = prev.chunks[i * 2]!;
+      const b = prev.chunks[i * 2 + 1];
+      expect(chunk.id).toBe(`${level.id}.${i + 1}`);
+      expect(chunk.from).toBe(a.from);
+      expect(chunk.to).toBe((b ?? a).to);
+      expect(chunk.text.startsWith(b ? `${a.id}-${b.id} ` : `${a.id} `)).toBe(true);
+      expect(chunk.text).toContain(a.text.split("\n")[0]!.slice(0, 40));
+      if (b) expect(chunk.text).toContain(b.text.split("\n")[0]!.slice(0, 40));
+      expect(chunk.chars).toBe(chunk.text.length);
+    });
+  }
+  expect(tree.levels.map((level) => level.id)).toEqual(["L1", "L2", "L3"]);
 });
 
 test("retrieval window shares the inline gate instead of a separate retrieval limit", () => {

@@ -328,26 +328,49 @@ function levelBudget(id: string, budget: number): number {
   return Math.max(MIN_INDEX_LINE_CHARS, id === "L1" ? Math.floor(budget * 0.6) : Math.floor(budget * 0.3));
 }
 
-/** 分层索引树：L1 是全量标签明细，L2 是 L1 全部块的上层封装，L3 又是 L2 的封装。
- * 每层都是完整的一份，不是「上一层没装下的剩余」，因此每层都能独立寻址。 */
+/** 从一块正文里取前一半（按整行截断，不切碎行），超预算时只留前若干行。 */
+function headHalf(text: string, cap: number): string {
+  const rows = text.split("\n");
+  const mid = Math.max(1, Math.ceil(rows.length / 2));
+  const out: string[] = [];
+  let used = 0;
+  for (const row of rows.slice(0, mid)) {
+    const add = out.length ? 1 + row.length : row.length;
+    // 单行就超 cap（上层块整行只有一条）时按字符截断，否则父块会突破门禁。
+    if (add > cap) {
+      if (!out.length) out.push(`${row.slice(0, Math.max(1, cap - 1))}…`);
+      break;
+    }
+    if (out.length && used + add > cap) break;
+    out.push(row);
+    used += add;
+  }
+  return out.join(" ⏎ ");
+}
+
+/** 分层索引树（严格二分金字塔）：L1 是全量标签明细；L(n+1) 的每一块由两个 Ln 块各取一半正文拼成，
+ * 于是块数逐层减半（L1 8 块 → L2 4 块 → L3 2 块），每层都是完整可独立寻址的一份，
+ * 而不是「上一层没装下的剩余」，也不是把下层标签整段抄一遍。
+ * 块正文里的 ⏎ 是被折叠的行边界，只作阅读提示，不影响按 id 取回原文。 */
 export function buildLevels(head: string, labels: string[]): IndexTree {
   const budget = Math.max(MIN_INDEX_LINE_CHARS, runtimeConfig.results.inlineChars - INDEX_OVERHEAD_RESERVE);
   const levels: IndexLevel[] = [];
   const l1Chunks = chunkRows(packRows(labels), "L1", levelBudget("L1", budget));
   levels.push({ id: "L1", name: "L1明细", total: labels.length, chunks: l1Chunks });
+  // 每个子块只取「该层单块预算的一半」，两个子块拼成的父块才真是上一层的一半，
+  // 于是 L1 8 块 → L2 4 块 → L3 2 块逐层减半，而不是把块越折越胖。
+  const halfCap = Math.max(80, Math.floor(levelBudget("L1", budget) / 2) - 40);
   let base = l1Chunks;
   for (let depth = 2; depth <= INDEX_LEVEL_CAP; depth += 1) {
     const id = `L${depth}`;
-    const blockLabels = base.map((chunk) => {
-      const firstId = base[chunk.from - 1]?.id ?? chunk.id;
-      const lastId = base[chunk.to - 1]?.id ?? chunk.id;
-      const range = firstId === lastId ? firstId : `${firstId}-${lastId}`;
-      const rowsOf = chunk.text.split("\n");
-      const first = rowsOf[0]!;
-      const last = rowsOf[rowsOf.length - 1]!;
-      return first === last ? `${range} ${first}` : `${range} ${first} … ${last}`;
-    });
-    const chunks = chunkRows(packRows(blockLabels), id, levelBudget(id, budget));
+    const chunks: LevelChunk[] = [];
+    for (let i = 0; i < base.length; i += 2) {
+      const a = base[i]!;
+      const b = base[i + 1];
+      const halfA = headHalf(a.text, halfCap);
+      const text = b ? `${a.id}-${b.id} ${halfA} … ${headHalf(b.text, halfCap)}` : `${a.id} ${halfA}`;
+      chunks.push({ id: `${id}.${chunks.length + 1}`, from: a.from, to: (b ?? a).to, chars: text.length, text });
+    }
     // 折层后块数不降说明这层没有信息增益，停下别做死循环。
     if (chunks.length >= base.length) break;
     levels.push({ id, name: `${id}块目录`, total: base.length, chunks });
