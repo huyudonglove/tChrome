@@ -509,7 +509,7 @@ export function App() {
   );
 
   return (
-    <div className={`workspace-shell${listOpen ? " sessions-open" : ""}`}>
+    <div className="workspace-shell">
       <div className="chrome-top">
         <header className="app-bar">
           <div className="brand-mark"><img className="brand-logo" src="./icons/icon-48.png" alt="Helm" /></div>
@@ -522,7 +522,9 @@ export function App() {
               onClick={() => { setListOpen(false); setLibraryOpen(true); }}>
               <Icon path="M5 3h14v18l-7-4-7 4V3z" />
             </button>
-            <button className="icon-button" type="button" title="会话" onClick={() => setListOpen((open) => !open)}>
+            <button className={`icon-button${listOpen ? " accent" : ""}`} type="button"
+              title="会话" aria-label="会话" aria-expanded={listOpen}
+              onClick={() => setListOpen((open) => !open)}>
               <Icon path="M4 6h16M4 12h16M4 18h10" />
             </button>
             <button className="icon-button accent" type="button" title="新会话" onClick={() => void startNew()}>

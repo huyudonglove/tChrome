@@ -199,13 +199,6 @@
   transform: translateY(-1px);
 }
 
-.library-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-
 .library-card-title {
   font-weight: 600;
   font-size: 13px;
@@ -220,4 +213,175 @@
   background: var(--surface-hover);
   color: var(--muted);
   border: 1px solid var(--line-subtle);
+}
+
+/* ---- 以下类名此前在 LibraryPanel.tsx 中使用但完全没有样式定义 ---- */
+
+/* 资料条目右侧操作区（编辑 / 删除） */
+.library-card-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* 类型徽标 */
+.library-kind {
+  display: inline-block;
+  margin-bottom: 4px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border: 1px solid rgba(99, 102, 241, 0.32);
+}
+
+/* 键值字段行（网址 / 账号 / 密码 / 内容） */
+.library-field {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.library-field > span {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-soft);
+}
+
+.library-field > div {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 6px 6px 6px 9px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--line-subtle);
+  border-radius: 7px;
+  color: var(--text);
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.library-field > div > span,
+.library-field > div > a {
+  flex: 1;
+  min-width: 0;
+}
+
+.library-field a {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+.library-field a:hover {
+  text-decoration: underline;
+}
+
+/* 标签行 */
+.library-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.library-tags span {
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  color: var(--muted);
+  background: var(--surface-hover);
+  border: 1px solid var(--line-subtle);
+}
+
+/* 新增 / 编辑表单 */
+.library-editor {
+  padding: 14px 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.library-editor h2 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.library-editor label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.library-editor label > input,
+.library-editor label > select,
+.library-editor label > textarea {
+  margin-top: 4px;
+}
+
+.library-editor textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.library-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* 空态 */
+.library-empty {
+  padding: 26px 18px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 12px;
+  text-align: center;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+/* 错误 / 提示条 */
+.library-error,
+.library-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 16px 10px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.library-error {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+}
+
+.library-notice {
+  color: var(--success);
+  background: var(--success-soft);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+}
+
+.library-error button {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 3px 9px !important;
+  font-size: 11px !important;
+  color: inherit !important;
+  background: transparent !important;
+  border-color: currentColor !important;
 }

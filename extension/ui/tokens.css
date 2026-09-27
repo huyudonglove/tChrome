@@ -537,6 +537,61 @@ svg.face {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
 }
 
+/* 等待用户选择/回复的交互卡片 */
+.interaction-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-color: var(--accent);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--accent-soft);
+}
+
+.interaction-card > strong {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.interaction-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.interaction-items button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--surface-hover);
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.interaction-items button strong {
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.interaction-items button:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.interaction-items button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.interaction-items button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* Markdown 与代码块质感打磨 */
 .message-body p {
   margin: 0 0 8px;
@@ -654,12 +709,7 @@ svg.face {
 }
 
 /* 悬浮 Composer 输入岛 (Raycast / Cursor 灵感) */
-.composer-area {
-  padding: 0 12px 14px;
-  position: relative;
-  z-index: 10;
-  background: linear-gradient(to top, var(--canvas) 85%, transparent 100%);
-}
+
 
 .composer {
   display: flex;
@@ -705,12 +755,6 @@ svg.face {
   border-top: 1px solid var(--line-subtle);
 }
 
-.composer-left {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .composer-right {
   display: flex;
   align-items: center;
@@ -718,7 +762,6 @@ svg.face {
 }
 
 /* 核心发送按钮 */
-.composer-submit,
 .composer button[type="submit"],
 .composer .send-button {
   display: inline-flex;
@@ -734,14 +777,12 @@ svg.face {
   transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.composer-submit:hover:not(:disabled),
 .composer button[type="submit"]:hover:not(:disabled),
 .composer .send-button:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px var(--accent-glow);
 }
 
-.composer-submit:active:not(:disabled),
 .composer button[type="submit"]:active:not(:disabled),
 .composer .send-button:active:not(:disabled) {
   transform: translateY(0) scale(0.96);
@@ -815,14 +856,6 @@ svg.face {
   border-bottom: 1px solid var(--line);
 }
 
-.history-footer {
-  padding: 10px 14px;
-  border-top: 1px solid var(--line);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--canvas);
-}
 
 .session-search {
   padding: 8px 12px;
@@ -1016,30 +1049,6 @@ svg.face {
   transform: translateY(0) scale(0.96);
 }
 
-/* 选项行 (Choice row) */
-.choice-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.choice-row button {
-  padding: 5px 12px;
-  font-size: 12.5px;
-  background: var(--surface-hover);
-  border: 1px solid var(--line-strong);
-  border-radius: 7px;
-  color: var(--text);
-  transition: all 0.15s ease;
-}
-
-.choice-row button:hover {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--accent-text);
-}
-
 /* 加载动画等待点 */
 .waiting-dots {
   display: inline-flex;
@@ -1231,7 +1240,7 @@ svg.face {
     border-radius: 8px;
   }
 
-  .brand-identity small {
+  .app-identity small {
     display: none;
   }
 
@@ -1258,10 +1267,6 @@ svg.face {
   .message-body pre {
     padding: 8px 10px;
     font-size: 11.5px;
-  }
-
-  .composer-area {
-    padding: 0 8px 10px;
   }
 
   .composer {
@@ -1387,4 +1392,25 @@ html[data-theme="mono"] {
   --code-bg: #000000;
   --code-text: #e0e0e0;
   --code-accent: #d4d4d4;
+}
+
+/* 全局键盘焦点环：此前只有 .icon-button 有 :focus-visible，
+   键盘 Tab 遍历时其余控件全部无焦点提示。用 :where 保持 0 特指度，
+   已有更具体规则的位置不受影响。 */
+:where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* 尊重系统的减弱动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
