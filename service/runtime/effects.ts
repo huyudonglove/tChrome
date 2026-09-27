@@ -191,12 +191,11 @@ export function applyToolEffects(input: {
               totalChars: resultChars,
               totalLines,
               lineWidth,
-              ...(summary ? { summary } : {}),
-              preview: summary || previewSource.slice(0, runtimeConfig.results.previewChars),
+              ...(summary ? { summary } : { head: previewSource.slice(0, runtimeConfig.results.previewChars) }),
               path: join(paths(dataDir, ledger.conversationId).conv, "context-records", "observation", `${id}.json`),
               message: summary
-                ? `runtime: 观察结果超过 ${inlineLimit} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；preview 为结构化摘要。用 evidence.search(windows=[{pageId:"${id}",keyword|startLine}]) 取片段，可一次带多个窗口。`
-                : `runtime: 观察结果超过 ${inlineLimit} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；preview 为原文前 ${runtimeConfig.results.previewChars} 字符。用 evidence.search(windows=[{pageId:"${id}",keyword|startLine}]) 取片段，可一次带多个窗口。`,
+                ? `runtime: 观察结果超过 ${inlineLimit} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；summary 为结构化摘要。用 evidence.search(windows=[{pageId:"${id}",keyword|startLine}]) 取片段，可一次带多个窗口。`
+                : `runtime: 观察结果超过 ${inlineLimit} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；head 为原文前 ${runtimeConfig.results.previewChars} 字符。用 evidence.search(windows=[{pageId:"${id}",keyword|startLine}]) 取片段，可一次带多个窗口。`,
               search: "evidence.search",
             };
           })()

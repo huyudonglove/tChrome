@@ -370,19 +370,30 @@ function renderTree(tree: IndexTree, budget: number): string {
   for (const level of tree.levels) {
     const unit = level.id === "L1" ? "条" : "块";
     const title = `${level.name}(共${level.total}${unit}，${level.chunks.length}块可寻址)`;
+    if (used + title.length + 1 > budget) break;
     lines.push(title);
     used += title.length + 1;
-    for (let i = 0; i < level.chunks.length; i += 1) {
-      const chunk = level.chunks[i]!;
+    // 预算不够不整层丢弃：装不下的块逐个留一行 id+区间摘要，后面的层与块始终有痕迹。
+    let folded = 0;
+    for (const chunk of level.chunks) {
       const body = `${chunk.id}\n${chunk.text}`;
-      if (used + body.length + 1 > budget) {
-        const rest = level.chunks.length - i;
-        lines.push(`…其余${rest}块按 id 取回（从 ${chunk.id} 起，evidence.search windows=[{callId,levelId}]）`);
-        used += 60;
-        break;
+      if (used + body.length + 1 <= budget) {
+        lines.push(body);
+        used += body.length + 1;
+        continue;
       }
-      lines.push(body);
-      used += body.length + 1;
+      const stub = `…${chunk.id} ${chunk.from}-${chunk.to}行/${chunk.chars}字（按 id 取回）`;
+      if (used + stub.length + 1 > budget) break;
+      lines.push(stub);
+      used += stub.length + 1;
+      folded += 1;
+    }
+    if (folded) {
+      const note = `…上列${folded}块只给了 id 与区间，正文按 id 取回（evidence.search windows=[{callId,levelId}]）`;
+      if (used + note.length + 1 <= budget) {
+        lines.push(note);
+        used += note.length + 1;
+      }
     }
   }
   return lines.join("\n");
@@ -448,13 +459,13 @@ export function admitText(
       ...(structured ? { summary } : {}),
       ...(levels.length ? { levels } : {}),
       ...(layers ? { layers } : {}),
-      // 目录可能接近门禁预算，preview 只放头部（counts 段），避免同一份字符串入窗两遍。
-      preview: structured ? summary.split("\n")[0].slice(0, previewChars) : full.slice(0, previewChars),
+      // 结构化摘要可能接近门禁预算，不再重复一份头部；只有抽不出结构时才回退原文头部。
+      ...(structured ? {} : { head: full.slice(0, previewChars) }),
       path: meta.path,
       ...(meta.indexPath ? { indexPath: meta.indexPath } : {}),
       message: structured
-        ? `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（summary 为分层目录，含 ${levels.join("、") || "L1"}；每层行内自带「本层覆盖/总量」，直接在该层定位或再往上翻一层；preview 为首行；全文 ${totalLines} 行${meta.indexPath ? `；完整不截断索引已落盘 ${meta.indexPath}` : ""}）。要细节请更精准：evidence.search(windows=[{${locate},keyword|startLine}])，可一次带多个窗口；取回结果会再过同一门禁。`
-        : `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（preview 前 ${previewChars} 字，全文 ${totalLines} 行）。要细节请更精准：evidence.search(windows=[{${locate},keyword|startLine}])，可一次带多个窗口；取回结果会再过同一门禁。`,
+        ? `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（summary 为分层目录，含 ${levels.join("、") || "L1"}；每层行内自带「本层覆盖/总量」，直接在该层定位或再往上翻一层；全文 ${totalLines} 行${meta.indexPath ? `；完整不截断索引已落盘 ${meta.indexPath}` : ""}）。要细节请更精准：evidence.search(windows=[{${locate},keyword|startLine}])，可一次带多个窗口；取回结果会再过同一门禁。`
+        : `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（head 为原文前 ${previewChars} 字，全文 ${totalLines} 行）。要细节请更精准：evidence.search(windows=[{${locate},keyword|startLine}])，可一次带多个窗口；取回结果会再过同一门禁。`,
       search: "evidence.search",
     },
   };

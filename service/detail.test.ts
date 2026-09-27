@@ -90,7 +90,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
         expect(JSON.stringify(queryRow)).not.toContain(f.tool.return.text);
         if (current.externalized) {
           expect(current.search).toBe("evidence.search");
-          expect(String(current.preview).length).toBeGreaterThan(0);
+          expect(String(current.head ?? current.summary).length).toBeGreaterThan(0);
         } else {
           expect(current.records).toEqual([f.tool]);
         }
@@ -132,7 +132,7 @@ test("unified gate externalizes large currentQuery and cancellation preserves th
       const current = section(input.messages[1]!.content, "currentQuery");
       expect(current.externalized).toBe(true);
       expect(current.search).toBe("evidence.search");
-      expect(current.preview).toBeDefined();
+      expect(current.head ?? current.summary).toBeDefined();
       expect(current.records).toEqual([]);
       return queryCall(f.sumId, "userInput");
     } };

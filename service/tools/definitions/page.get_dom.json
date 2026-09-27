@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.get_dom",
-    "description": "取区域或元素的完整 HTML 片段。\n参数：id（页面工具返回的 e_01/r_01），必填 tabId。\n返回：ok、id、tag、totalChars、html。超长结果由 Runtime 统一门禁外置（preview+path），可用 evidence.search 按 callId 检索。\n执行调度：parallel（Runtime 固定，不必返回）。",
+    "description": "取区域或元素的完整 HTML 片段。\n参数：id（页面工具返回的 e_01/r_01），必填 tabId。\n返回：ok、id、tag、totalChars、html。超长结果由 Runtime 统一门禁外置（summary+path），可用 evidence.search 按 callId 检索。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {

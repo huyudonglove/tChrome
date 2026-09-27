@@ -194,8 +194,8 @@ test("oversized observation.write result is externalized with path and totalLine
     expect(stub.path).toContain("observation");
     expect(stub.lineWidth).toBe(runtimeConfig.results.lineWidth);
     expect(stub.totalLines).toBe(Math.ceil(stub.totalChars / runtimeConfig.results.lineWidth));
-    expect(stub.preview.length).toBe(runtimeConfig.results.previewChars);
-    expect(stub.preview.startsWith('{"ok":true')).toBe(true);
+    expect(stub.preview).toBeUndefined();
+    expect(String(stub.summary).length).toBeGreaterThan(0);
     const archived = JSON.parse(loadContextRecord(dataDir, "cv_ext", "observation", windowRow.id)!);
     expect(archived.result.blob.length).toBe(runtimeConfig.results.inlineChars + 50);
     const textPath = join(dataDir, "conversations", "cv_ext", "context-records", "observation", `${windowRow.id}.txt`);

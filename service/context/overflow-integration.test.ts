@@ -131,7 +131,7 @@ test("large script results use evidence.search while small follow-up pages stay 
       expect(row).toBeDefined();
       const stub = JSON.parse(JSON.stringify(row.return.result));
       expect(stub.externalized).toBe(true);
-      expect(String(stub.preview).length).toBeGreaterThan(0);
+      expect(String(stub.head ?? stub.summary).length).toBeGreaterThan(0);
       expect(String(stub.path)).toContain("returns");
       return response(call("evidence.search", { windows: [{ callId: row.callId, keyword: "PAGE_SENTINEL", contextChars: 20 }] }));
     }

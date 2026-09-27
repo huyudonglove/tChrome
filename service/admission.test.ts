@@ -9,7 +9,7 @@ test("admitText inlines small text and degrades large text with a precise-fetch 
   expect(large.mode).toBe("preview");
   if (large.mode !== "preview") throw new Error("mode");
   expect(large.payload.externalized).toBe(true);
-  expect(large.payload.preview).toBe("x".repeat(runtimeConfig.results.previewChars));
+  expect(large.payload.head).toBe("x".repeat(runtimeConfig.results.previewChars));
   expect(String(large.payload.message)).toContain("更精准");
   expect(String(large.payload.message)).toContain("evidence.search(windows=[{callId=call_01");
 });
@@ -29,11 +29,11 @@ test("admitText turns an oversized JSON payload into a structured summary instea
   expect(summary).toContain("results×2");
   expect(summary).toContain("a.ts:1-40/400");
   expect(summary).toContain("b.ts:10-20/90");
-  // 目录变长后 preview 只放首行（counts 段），不再与完整目录重复。
-  expect(admitted.payload.preview).toBe(summary.split("\n")[0].slice(0, runtimeConfig.results.previewChars));
-  expect(admitted.payload.preview.length).toBeLessThan(summary.length);
+  // 目录已带全文信息，不再重复一份头部（payload.preview 已移除）。
+  expect(admitted.payload.preview).toBeUndefined();
+  expect(admitted.payload.head).toBeUndefined();
   expect(String(admitted.payload.message)).toContain("分层目录");
-  expect(String(admitted.payload.message)).toContain("preview 为首行");
+  expect(String(admitted.payload.message)).not.toContain("preview");
   // 指针带实际存在的层级，便于判断该继续翻上层还是在明细里直接定位。
   // 两个大文本各切出多行标签，L1 装得下但需要分块 → 折出 L2 块目录，levels 按实际存在的层给出。
   expect(admitted.payload.levels).toEqual(["L1", "L2"]);
@@ -47,7 +47,7 @@ test("summarizePayload reports failures and keeps non-JSON payloads on the raw h
   const plain = admitText("q".repeat(5000), { callId: "call_03", path: "/tmp/a.txt" });
   if (plain.mode !== "preview") throw new Error("mode");
   expect(plain.payload.summary).toBeUndefined();
-  expect(plain.payload.preview).toBe("q".repeat(runtimeConfig.results.previewChars));
+  expect(plain.payload.head).toBe("q".repeat(runtimeConfig.results.previewChars));
 });
 
 test("admitImages splits by byte gate and deferred note asks for a tighter capture", () => {
@@ -313,6 +313,27 @@ test("admitText puts per-layer addressable chunk ids into the pointer payload", 
   const plain = admitText("z".repeat(5000), { callId: "call_02", path: "/tmp/b.txt" });
   if (plain.mode !== "preview") throw new Error("mode");
   expect(plain.payload.layers).toBeUndefined();
+});
+
+test("summarizePayload keeps a stub for every chunk and never drops a whole level", () => {
+  const gate = runtimeConfig.results.inlineChars;
+  const full = JSON.stringify({
+    ok: true,
+    toolName: "local.fs_grep",
+    scannedFiles: 200,
+    filler: "x".repeat(60_000),
+    matches: Array.from({ length: 200 }, (_, i) => ({ path: `/repo/src/mod${i}.ts`, line: i + 1, column: 1, before: "", hit: `kw${i}`, after: "" })),
+  });
+  const tree = indexTree(full);
+  expect(tree).not.toBeNull();
+  const summary = summarizePayload(full, tree);
+  // 预算不够时按块降级：每层标题都在，每个块都有痕迹（正文或 id+区间 stub）。
+  for (const level of tree!.levels) {
+    expect(summary).toContain(`${level.name}(共${level.total}`);
+    for (const chunk of level.chunks) expect(summary).toContain(chunk.id);
+  }
+  expect(summary).toContain("（按 id 取回）");
+  expect(summary.length).toBeLessThan(gate);
 });
 
 test("retrieval window shares the inline gate instead of a separate retrieval limit", () => {
