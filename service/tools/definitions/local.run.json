@@ -30,7 +30,7 @@
         },
         "args": {
           "type": "array",
-          "description": "传给脚本的字面字符串数组，只能是字符串，不能传对象",
+          "description": "传给脚本的字面字符串数组",
           "items": {
             "type": "string"
           }
