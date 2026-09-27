@@ -63,7 +63,7 @@ test("catalog.add mode=remove unloads loaded tools and keeps core tools enabled"
 
   const removed = await fixture.execute("catalog.add", { names: ["capture_page", "finishTurn", "not_loaded"], mode: "remove" });
   expect(JSON.parse(removed.text)).toEqual({
-    ok: true, mode: "remove", removed: ["capture_page"], notLoaded: ["finishTurn", "not_loaded"],
+    ok: true, mode: "remove", removed: ["capture_page"], notLoaded: ["not_loaded"], protectedKept: ["finishTurn"],
   });
   expect(removed.effects).toEqual([{ type: "tools.disable", names: ["capture_page"] }]);
   fixture.apply(removed);
@@ -71,7 +71,7 @@ test("catalog.add mode=remove unloads loaded tools and keeps core tools enabled"
   expect(loadLedger(fixture.dataDir, fixture.ledger.conversationId).loadedToolIds).toEqual([]);
 
   const again = await fixture.execute("catalog.add", { names: ["capture_page"], mode: "remove" });
-  expect(JSON.parse(again.text)).toEqual({ ok: true, mode: "remove", removed: [], notLoaded: ["capture_page"] });
+  expect(JSON.parse(again.text)).toEqual({ ok: true, mode: "remove", removed: [], notLoaded: ["capture_page"], protectedKept: [] });
   expect(again.effects).toEqual([]);
 });
 

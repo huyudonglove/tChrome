@@ -574,8 +574,9 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     if (mode === "remove") {
       const protectedNames = lookup.protectedTools ?? [];
       const removed = names.filter((id) => lookup.enabledTools.includes(id) && !protectedNames.includes(id));
-      const notLoaded = names.filter((id) => !lookup.enabledTools.includes(id) || protectedNames.includes(id));
-      return result(JSON.stringify({ ok: true, mode, removed, notLoaded }),
+      const notLoaded = names.filter((id) => !lookup.enabledTools.includes(id) && !protectedNames.includes(id));
+      const protectedKept = names.filter((id) => protectedNames.includes(id));
+      return result(JSON.stringify({ ok: true, mode, removed, notLoaded, protectedKept }),
         removed.length ? [{ type: "tools.disable", names: removed }] : []);
     }
     const added = names.filter((id) => lookup.knownTools.includes(id) && !lookup.enabledTools.includes(id));
