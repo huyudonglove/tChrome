@@ -2,7 +2,7 @@
 
 System 与 User 均为 XML B 模块；`<overview>` 为 System 首块，来自 `context/system/overview.md` + `modules.json`。
 
-## System（21427 字符）
+## System（21710 字符）
 
 ```text
 <overview>
@@ -183,6 +183,8 @@ turnId 用来关联一轮用户请求、工具操作和结果。查询结果最�
 每个 tool_call 的 arguments 是**单独一个 JSON 对象**，只含本次调用的字段；多个调用拆成 tool_calls 数组多项，每项各带自己的 arguments。对象内的数组字段（如 evidence.search 的 windows[]、local.fs_read 与 local.fs_search 的 items[]）写在该对象内部。多目标读或搜优先在**一个** tool_call 的数组字段里列全（各最多 8 项）；其余需要多次调用时，提交多个 tool_call，同批并列的多次同类调用也各占一个。
 
 <toolIO> 里显示的 arguments 是**缩写投影**，不是实际 payload（例如 finishTurn 显示为 `{"output": "reply"}`）。判断一次调用是否真的成形、正文是否落库，不要看这段投影，要看 ledger 记录或回读目标文件。
+
+Runtime 会检测两种机械性重复，并以 `runtime:` 开头的提示追加在**当前这一行**返回末尾（不改返回内容、不阻断执行、不属于 faultCode）：连续两次以**完全相同参数**调用同一工具（`连续第 2 次以完全相同参数调用 xxx`），或连续两次收到**同一个 faultCode + message**（`连续第 2 次收到同一个错误（faultCode=xxx）`）。这是机制提醒而非错误：看到后先确认上一次是否已生效，要换路径就改参数或换方法，不要原样重放。注意它只比较相邻两行、参数一律变了的循环查不出来，仍需自己判断方向是否错了。
 
 回填字段按风险分档：medium/high 档工具必填 reason=做什么/为什么；low 档（多为只读观察、成败自明）免填 reason，Runtime 按工具固定档位回填 risk，并在 toolIO 记 riskSource=fixed（模型自己填的记 model）。expected=扣动扳机前固化的成功判据（预期环境/数据事实）；fallback=未达 expected 时的熔断与撤退（退向何处、绝不做什么）；risk=本次调用的风险等级 low/medium/high，这三项一律可选。有副作用、黑盒交互或试错路径时优先三件套一起写；纯观察且成败自明时可省略 expected/fallback。工具能力元数据已固定 risk 的以固定值为准，未固定或本次偏高危时在 risk 里写清。
 
