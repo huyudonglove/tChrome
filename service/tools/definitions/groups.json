@@ -7,6 +7,8 @@
     "agent.query",
     "agent.compress",
     "memory.write",
+    "notes.write",
+    "notes.delete",
     "observation.write",
     "tabs.current",
     "evidence.search",
