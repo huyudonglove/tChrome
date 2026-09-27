@@ -47,7 +47,7 @@
 | 3 | tools | 否 | — | — | main |
 | 4 | conversation | 否 | — | — | main |
 
-`<conversation>` 内为会话级 `<conversationMemory>`、`<conversationHistorySummary>` 与按 turnId 嵌套的 `<tn_xx>` 轮次切片（userInput / goal / task / toolIO / observations / notes / reflection / query / output）；被压缩覆盖的轮次整块删除。
+`<conversation>` 内为会话级 `<conversationMemory>`、`<conversationHistorySummary>` 与按 turnId 嵌套的 `<tn_xx>` 轮次切片（userInput / goal / task / toolIO / observations / notes / reflection / query / stopReason）；被压缩覆盖的轮次整块删除。
 
 ### Archive · 仅压缩
 
@@ -61,7 +61,7 @@
 | reflection | 是 | reflection | 轮次反思 |
 | taskHistory | 是 | taskHistory | 任务事件 |
 | queryHistory | 是 | queryHistory | 查询记录 |
-| turnOutput | 是 | output | 轮次收口 |
+| turnOutput | 是 | stopReason | 轮次收口 |
 
 压缩 Agent 提示词在 `service/agents/compression/context/`，字段列表由注册表 `compress=true` 生成注入，**不**把主 Agent 全套模块塞给压缩模型。
 

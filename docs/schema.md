@@ -83,7 +83,7 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。`returns/<ca
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
 | `at` | string | ISO-8601 |
-| `kind` | string | `session` 建会话 / `normalize` 用户输入开 Turn / `assemble` 装配 / `provider-request` 出网前 / `provider-response` 模型交口 / `tool` 工具跑完 / `memory` 落下一条记忆 / `compress` 压缩 / `turn-output` 本 Turn 收口 |
+| `kind` | string | `session` 建会话 / `normalize` 用户输入开 Turn / `assemble` 装配 / `provider-request` 出网前 / `provider-response` 模型交口 / `tool` 工具跑完 / `memory` 落下一条记忆 / `compress` 压缩 / `turn-stop-reason` 本 Turn 收口 |
 | `turnId` | string | 有回合就写 `tn_`；建会话没有 |
 | `data` | object | 这一次产出的正文 |
 
@@ -94,7 +94,7 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。`returns/<ca
 `kind=tool` 的 `data`：`callId` `name` `arguments` `return`。
 `kind=memory` 的 `data`：`memoryId` `layer` `sourceCallId`。
 `kind=compress` 的 data 为 beforeChars、afterChars；compress-start 记录压缩前 windowChars，compress-error 记录失败 detail。每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。已有摘要的轮次仅当 conversationHistorySummary 的 active 条数超过 30 时才再进入合并/升档压缩；≤30 跳过重压（独立的 query 原文仍可首次归档）。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 以正文或文件引用保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
-`kind=turn-output` 的 `data`：`output`。
+`kind=turn-stop-reason` 的 `data`：`stopReason`。
 `kind=session` 的 `data`：`conversationId`，可选 `action`=`new`/`open`。
 
 ## provider.md / provider-system.md
@@ -169,7 +169,7 @@ Runtime 独占维护。当前会话指针。
 | `input.submittedAt` | string | 面板提交时间，ISO-8601 |
 | `goalChanges` | object[] | 本轮每次 submitGoal 更新后的目标快照，按调用顺序保留；同一目标可多次出现，sourceCallId 区分变更，供归档和历史查询使用 |
 | `assembled` | object | 这一轮点名的 catalog IDs + 标签快照与页面观察，见「assembled」 |
-| `output` | object | 见「output」 |
+| `stopReason` | object | 见「stopReason」 |
 | `usage` | object，可选 | 新 Turn 分别记录 `modelRequests` 与 `toolCalls`。工具批次逐个计数，包含常驻与收口工具；未通过校验而未执行的调用不计入。旧 Turn 可缺省。统计不作为累计 20 次的停止条件。 |
 
 ### assembled

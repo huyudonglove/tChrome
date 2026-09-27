@@ -17,7 +17,7 @@
             "toolIO",
             "observations",
             "memoryWrites",
-            "output",
+            "stopReason",
             "queryHistory",
             "summaries"
           ]

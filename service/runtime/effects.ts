@@ -1,7 +1,7 @@
 import { saveContextRecord } from "./records.ts";
 import { wrapCachedText } from "./cache-lines.ts";
 import { deleteMemory, saveMemory, updateMemory } from "../memory/store.ts";
-import type { Ledger, MemoryRecord, RuntimeExecutionContext, ToolQueueItem, Turn, TurnOutput } from "../types.ts";
+import type { Ledger, MemoryRecord, RuntimeExecutionContext, ToolQueueItem, Turn, TurnStopReason } from "../types.ts";
 import type { ToolEffect } from "../tools/effects.ts";
 import { allocateRecordId, nowIso } from "./ids.ts";
 import { afterGoalSwitch, onGoalStatusChange, prepareTaskComplete, prepareTaskSet, prepareTaskUpdate } from "./tasks.ts";
@@ -36,7 +36,7 @@ export function applyToolEffects(input: {
   effects: ToolEffect[];
   execCtx?: RuntimeExecutionContext;
   storedText?: string;
-}): TurnOutput | null {
+}): TurnStopReason | null {
   const { dataDir, ledger, turn, call, effects } = input;
   const storedResult = (() => {
     if (!input.storedText) return undefined;
@@ -54,7 +54,7 @@ export function applyToolEffects(input: {
     activeTaskId: ledger.activeTaskId,
     activeTaskItemId: ledger.activeTaskItemId,
   };
-  let output: TurnOutput | null = null;
+  let output: TurnStopReason | null = null;
   for (const effect of effects) {
     switch (effect.type) {
       case "query.set": {
@@ -247,7 +247,7 @@ export function applyToolEffects(input: {
       case "turn.ask": {
         turn.status = "waiting_human";
         turn.completedAt = nowIso();
-        output = turn.output = { kind: "ask", question: effect.question };
+        output = turn.stopReason = { kind: "ask", question: effect.question };
         ledger.status = "waiting_human";
         ledger.pendingAsk = { turnId: turn.turnId, question: effect.question };
         ledger.active = { turnId: turn.turnId };
@@ -257,7 +257,7 @@ export function applyToolEffects(input: {
       case "turn.reply": {
         turn.status = "completed";
         turn.completedAt = nowIso();
-        output = turn.output = { kind: "reply", text: effect.text };
+        output = turn.stopReason = { kind: "reply", text: effect.text };
         ledger.status = "idle";
         ledger.active = null;
         ledger.pendingAsk = null;

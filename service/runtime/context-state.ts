@@ -114,8 +114,8 @@ function archiveContentFromInventory(
       content[field] = [];
       continue;
     }
-    if (field === "output") {
-      content[field] = options.complete ? history.output : null;
+    if (field === "stopReason") {
+      content[field] = options.complete ? history.stopReason : null;
       continue;
     }
     if (field === "reflection") {
@@ -178,7 +178,7 @@ export async function compressContext(input: CompressionInput, phase: "history" 
         conversationId: history.conversationId, turnId: history.turnId,
         status: history.status, createdAt: history.createdAt, completedAt: null,
         goalChanges: [], toolIO: [], observations: [], memoryWrites: [],
-        queryHistory: [query], output: null,
+        queryHistory: [query], stopReason: null,
         sequence: { turn: ledger.turnIds.indexOf(history.turnId), batch: tool ? batches.indexOf(batchKey(tool)) : batches.length },
         segment: { complete: false },
       } });

@@ -4,28 +4,27 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { appendEvent, emptyLedger, loadEvents, saveLedger, saveTurn, sessionView } from "./runtime/store.ts";
-import type { LogEvent, Turn, TurnOutput } from "./types.ts";
+import type { LogEvent, Turn, TurnStopReason } from "./types.ts";
 import { emptySessionView, projectSessionView } from "./presentation/session-view.ts";
 
-const makeTurn = (output: TurnOutput | null): Turn => ({ goalChanges: [],
+const makeTurn = (output: TurnStopReason | null): Turn => ({ goalChanges: [],
   turnId: "tn_01", conversationId: "cv_01", status: output ? "completed" : "inferring",
   createdAt: "2026-09-07T00:00:00.000Z", completedAt: null,
   input: { id: "input_fixture", text: "查看当前页面", submittedAt: "2026-09-07T00:00:00.000Z" },
   assembled: { baseToolsIds: [], toolIds: [],
      conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, observations: [], currentTabs: { ok: true, windows: [] } },
-  output,
-  // session view reads output.text for panel display
+  stopReason: output,
+  // session view reads stopReason.text for panel display
 });
 
-const outputs: { output: TurnOutput; expected: string }[] = [
-  { output: { kind: "error", faultCode: "missing_required", toolName: "click", detail: "click missing required: tabId; data/text must be string" }, expected: "工具调用缺少必填参数。\n工具：click\nclick missing required: tabId; data/text must be string" },
-  { output: { kind: "reply", text: "这是商品详情页。" }, expected: "这是商品详情页。" },
-  { output: { kind: "ask", question: "选择哪个商品？" }, expected: "选择哪个商品？" },
-  { output: { kind: "error", faultCode: "stopped" }, expected: "已停止" },
-  { output: { kind: "error", faultCode: "provider_error" }, expected: errorMessage("provider_error", "user") },
-  { output: { kind: "error", faultCode: "provider_error", detail: "status=400; 400 Your request was rejected by the upstream safety system (promptFeedback.blockReason=OTHER)" },
-    expected: `${errorMessage("provider_error", "user")}\nstatus=400; 400 Your request was rejected by the upstream safety system (promptFeedback.blockReason=OTHER)` },
-  { output: { kind: "error", faultCode: "max_outbounds" }, expected: "本轮已达到执行次数上限，任务还没有完成。" },
+const outputs: { stopReason: TurnStopReason; expected: string }[] = [
+  { stopReason: { kind: "error", faultCode: "missing_required", toolName: "click", detail: "click missing required: tabId; data/text must be string" }, expected: "工具调用缺少必填参数。" },
+  { stopReason: { kind: "reply", text: "这是商品详情页。" }, expected: "这是商品详情页。" },
+  { stopReason: { kind: "ask", question: "选择哪个商品？" }, expected: "选择哪个商品？" },
+  { stopReason: { kind: "interrupted", initiatedBy: "user" }, expected: "已中断（用户）" },
+  { stopReason: { kind: "error", faultCode: "provider_error" }, expected: errorMessage("provider_error", "user") },
+  { stopReason: { kind: "error", faultCode: "provider_error", detail: "status=400; 400 Your request was rejected by the upstream safety system (promptFeedback.blockReason=OTHER)" }, expected: errorMessage("provider_error", "user") },
+  { stopReason: { kind: "error", faultCode: "max_outbounds" }, expected: "本轮已达到执行次数上限，任务还没有完成。" },
 ];
 
 test("session compression activity follows the active turn and clears after completion or failure", () => {
@@ -69,13 +68,13 @@ test("session compression activity follows the active turn and clears after comp
   expect(emptySessionView().activity).toBeNull();
 });
 
-test.each(outputs)("session uses authoritative $output.kind and preserves diagnostic logs", ({ output, expected }) => {
+test.each(outputs)("session uses authoritative $stopReason.kind and preserves diagnostic logs", ({ stopReason, expected }) => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-session-output-"));
   try {
     const ledger = emptyLedger("cv_01");
     ledger.turnIds = ["tn_01"];
     saveLedger(dir, ledger);
-    saveTurn(dir, makeTurn(output));
+    saveTurn(dir, makeTurn(stopReason));
     appendEvent(dir, "cv_01", { kind: "provider-response", turnId: "tn_01", data: {
       content: "seen\nINTERNAL_PAGE_DATA\nreason\nINTERNAL_REASON\naction\nINTERMEDIATE_ACTION",
     } });

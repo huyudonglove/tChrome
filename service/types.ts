@@ -135,10 +135,11 @@ export type Assembled = {
   currentTabs: CurrentTabs;
 };
 
-export type TurnOutput =
+export type TurnStopReason =
   | { kind: "tool"; name: string; callId: string }
   | { kind: "ask"; question: string }
   | { kind: "reply"; text: string }
+  | { kind: "interrupted"; initiatedBy: "user" | "budget" | "service"; detail?: string }
   | { kind: "error"; faultCode: string; causeCode?: string; toolName?: string; detail?: string };
 
 export type Turn = {
@@ -151,7 +152,7 @@ export type Turn = {
   input: { id: string; text: string; submittedAt: string };
   assembled: Assembled;
   reflect?: { id: string; text: string; focus?: string }[] | null;
-  output: TurnOutput | null;
+  stopReason: TurnStopReason | null;
   // Optional for conversations saved before usage counters were introduced.
   usage?: { modelRequests: number; toolCalls: number };
 };
@@ -337,5 +338,5 @@ export type LogEvent = {
 export type TurnReply = {
   conversationId: string;
   turnId: string;
-  output: TurnOutput;
+  stopReason: TurnStopReason;
 };

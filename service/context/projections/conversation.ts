@@ -1,4 +1,4 @@
-import type { GoalRecord, Ledger, Observation, Task, TaskHistoryRecord, Turn, TurnOutput, UserInputRecord } from "../../types.ts";
+import type { GoalRecord, Ledger, Observation, Task, TaskHistoryRecord, Turn, TurnStopReason, UserInputRecord } from "../../types.ts";
 import type { MemoryRecord } from "../../memory/types.ts";
 import { goalRecordView, pageView, turnSummaryView, type TurnSummary } from "./records.ts";
 import { toolHistoryView } from "./tools.ts";
@@ -21,7 +21,7 @@ export type ConversationTurnSlice = {
   notes: Record<string, string>;
   reflection: { turnId: string; items: { id: string; text: string; focus?: string }[] } | null;
   query: ReturnType<typeof queryView>[];
-  output: TurnOutput | null;
+  stopReason: TurnStopReason | null;
 };
 
 export type ConversationPayload = {
@@ -133,11 +133,11 @@ export function conversationPayload(input: {
         ...queryView(query, { ...gate, path: gate.path?.(query) }),
         ...(input.currentQuery && query.queryId === input.currentQuery.queryId ? { currentQuery: true } : {}),
       })),
-      output: isLive
-        ? turn.output
+      stopReason: isLive
+        ? turn.stopReason
         : (input.dataDir
           ? (() => {
-            try { return loadTurn(input.dataDir!, ledger.conversationId, row.turnId).output; }
+            try { return loadTurn(input.dataDir!, ledger.conversationId, row.turnId).stopReason; }
             catch { return null; }
           })()
           : null),
@@ -176,7 +176,7 @@ export function conversationXml(payload: ConversationPayload): string {
       tag("notes", slice.notes),
       tag("reflection", slice.reflection),
       tag("query", slice.query),
-      tag("output", slice.output),
+      tag("stopReason", slice.stopReason),
     ].filter((block) => !/^<(\w+)>\n(null|""|\[\]|\{\})\n<\/\1>$/.test(block));
     parts.push(`<${slice.turnId}>\n${fields.join("\n")}\n</${slice.turnId}>`);
   }

@@ -152,7 +152,9 @@ export function primeActiveTask(dataDir: string): void {
 }
 
 export function loadTurn(dataDir: string, cvId: string, turnId: string): Turn {
-  const turn = JSON.parse(readFileSync(join(paths(dataDir, cvId).turns, `${turnId}.json`), "utf8")) as Turn;
+  const turn = JSON.parse(readFileSync(join(paths(dataDir, cvId).turns, `${turnId}.json`), "utf8")) as Turn & { output?: Turn["stopReason"] };
+  // Turns saved before the output -> stopReason rename keep the legacy field.
+  turn.stopReason ??= turn.output ?? null;
   turn.assembled.observations ??= [];
   return turn;
 }
@@ -446,9 +448,9 @@ export function stopTurn(dataDir: string): SessionView {
     const turn = loadTurn(dataDir, session.conversationId, turnId);
     turn.status = "failed";
     turn.completedAt = nowIso();
-    turn.output = { kind: "error", faultCode: "stopped" };
+    turn.stopReason = { kind: "interrupted", initiatedBy: "user" };
     saveTurn(dataDir, turn);
-    appendEvent(dataDir, session.conversationId, { kind: "turn-output", turnId, data: { output: turn.output } });
+    appendEvent(dataDir, session.conversationId, { kind: "turn-stop-reason", turnId, data: { stopReason: turn.stopReason } });
   }
   ledger.status = "paused";
   ledger.active = null;

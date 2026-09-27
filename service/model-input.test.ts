@@ -42,18 +42,18 @@ test("resident and dynamic guides remain separate, persist loaded schemas across
   } };
   try {
     const result = await handleTurn({ dataDir, repoRoot: join(import.meta.dir, ".."), provider }, { userInput: "检查接口", submittedAt: "now" });
-    expect(result.output).toEqual({ kind: "reply", text: "完成" });
+    expect(result.stopReason).toEqual({ kind: "reply", text: "完成" });
     expect(requests).toBe(2);
     const next = await handleTurn({ dataDir, repoRoot: join(import.meta.dir, ".."), provider }, { userInput: "下一轮", submittedAt: "now" });
-    expect(next.output).toEqual({ kind: "reply", text: "完成" });
+    expect(next.stopReason).toEqual({ kind: "reply", text: "完成" });
     expect(requests).toBe(3);
     expect(loadLedger(dataDir, result.conversationId).loadedToolIds).toEqual(["send_http"]);
     const fresh = newConversation(dataDir);
     expect(loadLedger(dataDir, fresh.conversationId!).loadedToolIds).toEqual([]);
-    expect((await handleTurn({ dataDir, repoRoot: join(import.meta.dir, ".."), provider }, { userInput: "新会话", submittedAt: "now" })).output).toEqual({ kind: "reply", text: "完成" });
+    expect((await handleTurn({ dataDir, repoRoot: join(import.meta.dir, ".."), provider }, { userInput: "新会话", submittedAt: "now" })).stopReason).toEqual({ kind: "reply", text: "完成" });
     expect(requests).toBe(4);
     openConversation(dataDir, result.conversationId);
-    expect((await handleTurn({ dataDir, repoRoot: join(import.meta.dir, ".."), provider }, { userInput: "重新打开", submittedAt: "now" })).output).toEqual({ kind: "reply", text: "完成" });
+    expect((await handleTurn({ dataDir, repoRoot: join(import.meta.dir, ".."), provider }, { userInput: "重新打开", submittedAt: "now" })).stopReason).toEqual({ kind: "reply", text: "完成" });
     expect(requests).toBe(5);
     expect(loadLedger(dataDir, result.conversationId).toolIO.filter(row => row.name === "catalog.add")).toHaveLength(1);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }

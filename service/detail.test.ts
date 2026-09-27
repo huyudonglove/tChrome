@@ -37,7 +37,7 @@ const collectNested = (user: string, tag: string): any[] => {
 };
 function fixture(dataDir: string, text = "精确证据".repeat(250)) {
   const { conversationId: cv } = ensureSession(dataDir), ledger = loadLedger(dataDir, cv);
-  const turns = Array.from({ length: 6 }, (_, i): Turn => ({ goalChanges: [], conversationId: cv, turnId: allocateRecordId(dataDir, cv, "turn"), status: "completed", createdAt: "2026-09-12", completedAt: "2026-09-12", input: { id: allocateRecordId(dataDir, cv, "input"), text: `要求${i}`, submittedAt: "2026-09-12" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [] }, output: { kind: "reply", text: "完成" } }));
+  const turns = Array.from({ length: 6 }, (_, i): Turn => ({ goalChanges: [], conversationId: cv, turnId: allocateRecordId(dataDir, cv, "turn"), status: "completed", createdAt: "2026-09-12", completedAt: "2026-09-12", input: { id: allocateRecordId(dataDir, cv, "input"), text: `要求${i}`, submittedAt: "2026-09-12" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [] }, stopReason: { kind: "reply", text: "完成" } }));
   ledger.turnIds = turns.map(row => row.turnId); ledger.userInputHistory = turns.slice(0, -1).map(inputRecord);
   turns.forEach(turn => saveTurn(dataDir, turn));
   const tool = { callId: allocateRecordId(dataDir, cv, "call"), turnId: "tn_01", batchId: allocateRecordId(dataDir, cv, "batch"), name: "page.get_summary", arguments: {}, return: { stage: "complete", totalChars: text.length, text } };
@@ -106,7 +106,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
       }
       return finish();
     } };
-    expect((await handleTurn({ repoRoot, dataDir, provider }, { userInput: "读取详情", submittedAt: "2026-09-12" })).output).toEqual({ kind: "reply", text: "完成" });
+    expect((await handleTurn({ repoRoot, dataDir, provider }, { userInput: "读取详情", submittedAt: "2026-09-12" })).stopReason).toEqual({ kind: "reply", text: "完成" });
     expect(loadLedger(dataDir, f.cv).currentQuery?.queryId).toBe("query_02");
     expect(loadIndex(dataDir, f.cv, "conversationHistory").coveredSourceIds).toContain("src_02");
     await handleTurn({ repoRoot, dataDir, provider }, { userInput: "继续", submittedAt: "2026-09-12" });
@@ -140,7 +140,7 @@ test("unified gate externalizes large currentQuery and cancellation preserves th
     await entered;
     const before = loadLedger(dataDir, f.cv).currentQuery;
     stopTurn(dataDir); release();
-    expect((await running).output).toEqual({ kind: "error", faultCode: "stopped" });
+    expect((await running).stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
     const after = loadLedger(dataDir, f.cv);
     expect(after.currentQuery).toEqual(before);
     // Second query was cancelled mid-flight; first query remains current (not yet rotated to history).

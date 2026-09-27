@@ -19,9 +19,9 @@ test("HTTP failures retain server details with a shared error code", async () =>
     faultCode: "service_http_error", message: errorMessage("service_http_error", "user"),
     details: { status: 500, body: { error: "catalog unavailable" } },
   });
-  reply({ output: { kind: "error", faultCode: "conversation_changed" } }, 409);
+  reply({ stopReason: { kind: "error", faultCode: "conversation_changed" } }, 409);
   await expect(requestJSON("/turn")).rejects.toMatchObject({
-    faultCode: "service_http_error", details: { status: 409, body: { output: { faultCode: "conversation_changed" } } },
+    faultCode: "service_http_error", details: { status: 409, body: { stopReason: { faultCode: "conversation_changed" } } },
   });
 });
 

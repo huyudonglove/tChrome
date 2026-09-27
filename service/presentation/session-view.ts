@@ -1,14 +1,16 @@
 import { errorMessage } from "../../shared/errors.ts";
 import type { Ledger, LogEvent, Turn } from "../types.ts";
 
-const outputText = (output: Turn["output"]): string => {
+const stopReasonText = (output: Turn["stopReason"]): string => {
   if (!output) return "";
   if (output.kind === "reply") return output.text;
   if (output.kind === "ask") return output.question;
   if (output.kind === "error") {
-    const message = errorMessage(output.faultCode, "user");
-    return [message, output.causeCode && output.causeCode !== output.faultCode ? `原因：${errorMessage(output.causeCode, "user")}` : "",
-      output.toolName ? `工具：${output.toolName}` : "", output.detail || ""].filter(Boolean).join("\n");
+    return errorMessage(output.faultCode, "user");
+  }
+  if (output.kind === "interrupted") {
+    const who = output.initiatedBy === "user" ? "用户" : output.initiatedBy === "budget" ? "预算" : "服务";
+    return [`已中断（${who}）`, output.detail || ""].filter(Boolean).join("\n");
   }
   return `${output.name} ${output.callId}`;
 };
@@ -111,7 +113,7 @@ export function projectSessionView({ ledger, events, turns }: {
     const turnId = turn.turnId;
     messages.push({ turnId, role: "user", text: turn.input.text });
     const turnEvents = events.filter((event) => event.turnId === turnId);
-    // Tool arguments supply progress; only turn.output supplies the final reply.
+    // Tool arguments supply progress; only turn.stopReason supplies the final reply.
     // Provider content and raw tool results stay in the logs.
     for (const event of turnEvents) {
       if (event.kind !== "tool") continue;
@@ -129,8 +131,8 @@ export function projectSessionView({ ledger, events, turns }: {
       }
     }
     pushLiveTools({ messages, ledger, turnId });
-    if (turn.output && turn.output.kind !== "tool") {
-      messages.push({ turnId, role: "assistant", text: outputText(turn.output) });
+    if (turn.stopReason && turn.stopReason.kind !== "tool") {
+      messages.push({ turnId, role: "assistant", text: stopReasonText(turn.stopReason) });
     }
   }
   let pendingAsk: SessionView["pendingAsk"] = null;

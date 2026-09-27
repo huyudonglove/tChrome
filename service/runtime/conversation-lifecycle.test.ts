@@ -24,11 +24,11 @@ test("deleting a running conversation cannot reuse its identity or overwrite its
     expect(replacement.conversationId).toBe("cv_02");
     const next = handleTurn(deps, { userInput: "NEW", submittedAt: "now" });
     releases[0]!(completed);
-    expect((await old).output).toEqual({ kind: "error", faultCode: "stopped" });
+    expect((await old).stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
     expect(loadLedger(dataDir, "cv_02").status).toBe("running");
     expect(loadTurn(dataDir, "cv_02", "tn_01").input.text).toBe("NEW");
     releases[1]!(completed);
-    expect((await next).output).toEqual({ kind: "reply", text: "结果" });
+    expect((await next).stopReason).toEqual({ kind: "reply", text: "结果" });
     expect(newConversation(dataDir).conversationId).toBe("cv_03");
     primeActiveTask(dataDir);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
@@ -65,10 +65,10 @@ test("loop scopes bridge requests so stopping a queued conversation leaves the a
     expect(bridge.list()[0]!.id).toBe(activeId);
     stopTurn(dataDir);
     bridge.abort("cv_02");
-    expect((await second).output).toEqual({ kind: "error", faultCode: "stopped" });
+    expect((await second).stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
     expect(bridge.list()[0]!.id).toBe(activeId);
     bridge.resolve(activeId, { ok: true });
-    expect((await first).output).toEqual({ kind: "reply", text: "结果" });
+    expect((await first).stopReason).toEqual({ kind: "reply", text: "结果" });
     expect(loadLedger(dataDir, "cv_01").status).toBe("idle");
     expect(loadLedger(dataDir, "cv_02").status).toBe("paused");
   } finally { bridge.abort(); rmSync(dataDir, { recursive: true, force: true }); }

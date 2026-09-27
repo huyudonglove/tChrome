@@ -21,7 +21,7 @@ function setup() {
   const turn: Turn = {
     turnId: "tn_effects", conversationId: ledger.conversationId, status: "inferring",
     createdAt: new Date().toISOString(), completedAt: null, input: { id: "input_fixture", text: "检查", submittedAt: "now" },
-    output: null, goalChanges: [], assembled: {
+    stopReason: null, goalChanges: [], assembled: {
       baseToolsIds: ["finishTurn"], toolIds: ["page.click"],
       conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, currentTabs: { ok: true, windows: [] },
       observations: [],
@@ -149,7 +149,7 @@ test("closing effects persist lifecycle changes; empty replies request another i
   expect(saved.active).toBeNull();
   expect(saved.pendingAsk).toBeNull();
   expect(saved.toolQueue).toEqual([]);
-  expect(loadTurn(fixture.dataDir, saved.conversationId, fixture.turn.turnId).output).toEqual({ kind: "reply", text: "已完成" });
+  expect(loadTurn(fixture.dataDir, saved.conversationId, fixture.turn.turnId).stopReason).toEqual({ kind: "reply", text: "已完成" });
   const empty = await fixture.execute("finishTurn", {});
   expect(empty.effects).toEqual([{ type: "queue.clear" }]);
   expect(empty.text).toContain("finishTurn 的回复为空");

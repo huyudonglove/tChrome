@@ -19,7 +19,7 @@ const turn = (): Turn => ({
   completedAt: null,
   input: { id: "input_01", text: "任务", submittedAt: "now" },
   assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [] },
-  output: null,
+  stopReason: null,
 });
 
 test("reflect.write allocates rf_ ids and reflect.delete removes by id", async () => {

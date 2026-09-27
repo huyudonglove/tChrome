@@ -1,4 +1,4 @@
-export const queryModules = ["userInput", "goalChanges", "toolIO", "observations", "memoryWrites", "output", "queryHistory", "summaries"] as const;
+export const queryModules = ["userInput", "goalChanges", "toolIO", "observations", "memoryWrites", "stopReason", "queryHistory", "summaries"] as const;
 export type QueryModule = typeof queryModules[number];
 export type QueryRequest = { sumId: string; module: QueryModule; intent: string };
 export type QueryResult = {

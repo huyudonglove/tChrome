@@ -51,7 +51,7 @@ for (const finish of ["length", "content_filter", "stop", "unknown"]) {
         : finish === "content_filter" ? "chat_content_refused"
         : finish === "stop" ? "chat_stop_with_tool_calls"
         : `chat_unexpected_finish: ${finish}`;
-      expect(result.output).toEqual({ kind: "error", faultCode, detail: `status=0; ${detailSuffix}` });
+      expect(result.stopReason).toEqual({ kind: "error", faultCode, detail: `status=0; ${detailSuffix}` });
       const ledger = loadLedger(dir, result.conversationId);
       expect(ledger.notes.kept).toBeUndefined();
       expect(ledger.toolIO).toEqual([]);
@@ -139,7 +139,7 @@ test("真实 Provider 到 Runtime：多个坏调用留账，合法兄弟照跑",
   } });
   try {
     const result = await handleTurn({ dataDir: dir, repoRoot: resolve(import.meta.dir, "../.."), provider: providerFor(server.port!) }, { userInput: "测试", submittedAt: "2026-09-08T00:00:00.000Z" });
-    expect(result.output).toEqual({ kind: "reply", text: "完成" });
+    expect(result.stopReason).toEqual({ kind: "reply", text: "完成" });
     const ledger = loadLedger(dir, "cv_01");
     expect(ledger.notes.kept).toBe("yes");
     expect(ledger.toolIO.map((item) => item.callId)).toEqual(["call_03", "call_04", "call_01", "call_02", "call_05"]);
@@ -171,7 +171,7 @@ for (const policy of ["unknown_tool", "missing_required", "exclusive_resident"])
     try {
       const reply = await handleTurn({ dataDir: dir, repoRoot: resolve(import.meta.dir, "../.."), provider: providerFor(server.port!) },
         { userInput: "测试", submittedAt: "now" });
-      expect(reply.output).toEqual({ kind: "reply", text: "完成" });
+      expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
       const ledger = loadLedger(dir, reply.conversationId);
       expect(ledger.notes.kept).toBe(policy === "exclusive_resident" ? undefined : "yes");
       expect(ledger.toolIO.some((row) => row.return.text.includes(policy))).toBe(true);

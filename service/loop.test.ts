@@ -72,7 +72,7 @@ test("需要标签时用 tabs.current 查询，观察不被焦点变化覆盖", 
         : [{id: "finish", name: "finishTurn", arguments: {text: "完成"}}]});
     }};
     const reply = await handleTurn({dataDir: dir, repoRoot, provider, host}, {userInput: "继续原页面", submittedAt: "now"});
-    expect(reply.output).toEqual({kind: "reply", text: "完成" });
+    expect(reply.stopReason).toEqual({kind: "reply", text: "完成" });
     const turn = loadTurn(dir, "cv_01", reply.turnId);
     expect(turn.assembled.currentPage?.tabId).toBe(12);
     expect(turn.assembled.observations).toHaveLength(1);
@@ -85,7 +85,7 @@ test("缺钥分得出网失败", async () => {
     primeActiveTask(dir);
   const provider = createProvider({ apiKey: "" });
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "hi", submittedAt: "2026-09-06T00:00:00.000Z" });
-  expect(reply.output).toEqual({ kind: "error", faultCode: "provider_key_missing" });
+  expect(reply.stopReason).toEqual({ kind: "error", faultCode: "provider_key_missing" });
   expect(loadSession(dir)?.conversationId).toStartWith("cv_");
   rmSync(dir, { recursive: true, force: true });
 });
@@ -100,7 +100,7 @@ test("finishTurn 收口回复", async () => {
     }),
   ]);
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "你好", submittedAt: "2026-09-06T00:00:00.000Z" });
-  expect(reply.output).toEqual({ kind: "reply", text: "你好" });
+  expect(reply.stopReason).toEqual({ kind: "reply", text: "你好" });
   const session = loadSession(dir);
   expect(session?.conversationId).toBe("cv_01");
   const ledger = loadLedger(dir, "cv_01");
@@ -118,7 +118,7 @@ test("finishTurn 收口回复", async () => {
     "provider-request",
     "provider-response",
     "tool",
-    "turn-output",
+    "turn-stop-reason",
   ]);
   expect(events[1]?.data.userInput).toBe("你好");
   expect(events.at(-1)?.data.output).toEqual({ kind: "reply", text: "你好" });
@@ -159,7 +159,7 @@ test("finishTurn 正文为空时要求修正参数后再调用", async () => {
     }),
   ]);
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "你好啊", submittedAt: "2026-09-06T00:00:00.000Z" });
-  expect(reply.output).toEqual({ kind: "reply", text: "你好" });
+  expect(reply.stopReason).toEqual({ kind: "reply", text: "你好" });
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -174,8 +174,8 @@ test("askUser 冻在追问", async () => {
     }),
   ]);
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "买这件", submittedAt: "2026-09-06T00:00:00.000Z" });
-  expect(reply.output.kind).toBe("ask");
-  if (reply.output.kind === "ask") expect(reply.output.question).toContain("要哪个尺码");
+  expect(reply.stopReason.kind).toBe("ask");
+  if (reply.stopReason.kind === "ask") expect(reply.stopReason.question).toContain("要哪个尺码");
   const ledger = loadLedger(dir, "cv_01");
   expect(ledger.status).toBe("waiting_human");
   rmSync(dir, { recursive: true, force: true });
@@ -196,10 +196,10 @@ test.each([
       toolCalls: [{ id: "bad", name, arguments: { reason: "完成当前步骤", ...args } }],
     })]);
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "测试", submittedAt: "now" });
-    expect(reply.output).toEqual({ kind: "error", faultCode, toolName: name, detail: expect.any(String) });
+    expect(reply.stopReason).toEqual({ kind: "error", faultCode, toolName: name, detail: expect.any(String) });
     expect(loadLedger(dir, reply.conversationId).pendingAsk).toBeNull();
     // Streamed model content is visible, but it must not fill finishTurn.text / askUser.question.
-    expect(reply.output.kind).toBe("error");
+    expect(reply.stopReason.kind).toBe("error");
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -220,7 +220,7 @@ test("下一句开新 Turn 并追加 userInputHistory", async () => {
   const deps = { dataDir: dir, repoRoot, provider };
   await handleTurn(deps, { userInput: "第一句", submittedAt: "2026-09-06T00:00:00.000Z" });
   const second = await handleTurn(deps, { userInput: "第二句", submittedAt: "2026-09-06T00:00:01.000Z" });
-  expect(second.output).toEqual({ kind: "reply", text: "第二回" });
+  expect(second.stopReason).toEqual({ kind: "reply", text: "第二回" });
   const ledger = loadLedger(dir, "cv_01");
   expect(ledger.userInputHistory).toEqual([{ id: expect.any(String), turnId: "tn_01", userInput: "第一句", submittedAt: "2026-09-06T00:00:00.000Z" }]);
   const firstInput = ledger.userInputHistory[0]!;
@@ -255,7 +255,7 @@ test("POST /turn 走完 mock 收口", async () => {
     }),
   );
   const body = await response.json();
-  expect(body.output).toEqual({ kind: "reply", text: "你好" });
+  expect(body.stopReason).toEqual({ kind: "reply", text: "你好" });
   expect(JSON.parse(readFileSync(join(dir, "session.json"), "utf8")).conversationId).toBe("cv_01");
   rmSync(dir, { recursive: true, force: true });
 });
@@ -288,7 +288,7 @@ test("开 Turn 不读页，模型 page.get_summary 后才填 currentPage", async
     },
   };
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider, host }, { userInput: "这是什么页", submittedAt: "2026-09-06T00:00:00.000Z" });
-  expect(reply.output).toEqual({ kind: "reply", text: "在看罗技" });
+  expect(reply.stopReason).toEqual({ kind: "reply", text: "在看罗技" });
   const turn = loadTurn(dir, "cv_01", reply.turnId);
   expect(turn.assembled.currentPage).toMatchObject({
     description: "当前页面信息",
@@ -332,7 +332,7 @@ test("web_search 走服务端执行", async () => {
   }) as typeof fetch;
   try {
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "这鼠标官网多少钱", submittedAt: "2026-09-06T00:00:00.000Z" });
-    expect(reply.output).toEqual({ kind: "reply", text: "官价 699" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "官价 699" });
     const turn = loadTurn(dir, "cv_01", reply.turnId);
     expect(turn.assembled.baseToolsIds).toContain("page.get_summary");
     expect(turn.assembled.toolIds).toContain("web_search");
@@ -366,7 +366,7 @@ test("Gemini grounding 写入 toolIO 但不进入执行队列或 usage.toolCalls
   ]);
   try {
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "这鼠标官网多少钱", submittedAt: "now" });
-    expect(reply.output).toEqual({ kind: "reply", text: "官价 699" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "官价 699" });
     const ledger = loadLedger(dir, "cv_01");
     const search = ledger.toolIO.find((row) => row.name === "google_search");
     expect(search?.callId).toMatch(/^call_\d{2,}$/);
@@ -526,7 +526,7 @@ test("记忆效果失败进入 toolIO，同批工具继续，模型收到错误�
       return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "会话记忆已保存，长期记忆写入冲突"} }] });
     } };
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "记录", submittedAt: "now" });
-    expect(reply.output.kind).toBe("reply");
+    expect(reply.stopReason.kind).toBe("reply");
     expect(requests).toBe(2);
     const ledger = loadLedger(dir, "cv_01");
     expect(ledger).toMatchObject({ status: "idle", active: null, liveTools: [], toolQueue: [], memoryIds: { conversation: ["mm_01"] }, notes: { next: "已执行" } });
@@ -566,7 +566,7 @@ test("同批 parallel 并发、serial 清空后独占，模型提交的 executio
   ]);
   try {
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider, host }, { userInput: "排程", submittedAt: "now" });
-    expect(reply.output).toEqual({ kind: "reply", text: "排程完成" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "排程完成" });
     // Both default-parallel reads overlap; the serial click runs alone after they drain.
     expect(maxRunning).toBeGreaterThanOrEqual(2);
     const clickStart = order.indexOf("start:page.click");
@@ -614,7 +614,7 @@ test("队列和正在跑的工具出现在 /session", () => {
       currentPage: null, observations: [],
       currentTabs: { ok: true, windows: [] },
     },
-    output: null,
+    stopReason: null,
   });
   const view = sessionView(dir, "cv_01");
   expect(view.messages.map((row) => ({ role: row.role, name: row.name, live: row.live }))).toEqual([
@@ -653,11 +653,11 @@ test("POST /stop 把 running 标成 paused", async () => {
   const stopped = await (await server.fetch(new Request("http://127.0.0.1:18788/stop", { method: "POST" }))).json() as { status: string };
   expect(stopped.status).toBe("paused");
   release({ ok: true });
-  const reply = await pending.then((response) => response.json()) as { output: { kind: string; faultCode?: string } };
-  expect(reply.output).toEqual({ kind: "error", faultCode: "stopped" });
+  const reply = await pending.then((response) => response.json()) as { stopReason: { kind: string; faultCode?: string } };
+  expect(reply.stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
   const session = await (await server.fetch(new Request("http://127.0.0.1:18788/session"))).json() as { status: string; messages: { text: string }[] };
   expect(session.status).toBe("paused");
-  expect(session.messages.at(-1)?.text).toBe("已停止");
+  expect(session.messages.at(-1)?.text).toBe("已中断（用户）");
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -688,7 +688,7 @@ test("arguments 不是 JSON 时好的工具照跑，坏的退回再出网", asyn
     },
   };
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider, host }, { userInput: "测注册", submittedAt: "2026-09-06T00:00:00.000Z" });
-  expect(reply.output).toEqual({ kind: "reply", text: "注册页在" });
+  expect(reply.stopReason).toEqual({ kind: "reply", text: "注册页在" });
   const ledger = loadLedger(dir, "cv_01");
   expect(ledger.status).toBe("idle");
   expect(ledger.toolIO.map((row) => row.name)).toEqual(["page.type", "page.get_summary", "finishTurn"]);
@@ -718,7 +718,7 @@ test("缺字段写进 toolIO 再出网，不补齐", async () => {
     }),
   ]);
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "填邮箱", submittedAt: "2026-09-06T00:00:00.000Z" });
-  expect(reply.output).toEqual({ kind: "reply", text: "缺 reason 也能收口" });
+  expect(reply.stopReason).toEqual({ kind: "reply", text: "缺 reason 也能收口" });
   const ledger = loadLedger(dir, "cv_01");
   expect(ledger.status).toBe("idle");
   expect(ledger.toolIO[0]!.name).toBe("page.type");
@@ -748,7 +748,7 @@ test("stop 没有 tool_calls 就写 needFinishTurn 再出网", async () => {
     },
   };
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "测完了吗", submittedAt: "2026-09-06T00:00:00.000Z" });
-  expect(reply.output).toEqual({ kind: "reply", text: "测完了" });
+  expect(reply.stopReason).toEqual({ kind: "reply", text: "测完了" });
   expect(seen).toEqual([undefined, "required"]);
   const ledger = loadLedger(dir, "cv_01");
   expect(ledger.toolIO[0]!.name).toBe("finishTurn");
@@ -772,7 +772,7 @@ test("连续 5 次模型请求未写观察时提示 observation.write", async ()
       return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
     } };
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "连续请求", submittedAt: "now" });
-    expect(reply.output).toEqual({ kind: "reply", text: "完成" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -797,7 +797,7 @@ test("submitGoal 创建父子目标并在后续轮次按稳定 ID 更新", async
     }),
   ]);
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "测这个站点", submittedAt: "2026-09-06T00:00:00.000Z" });
-  expect(reply.output).toEqual({ kind: "reply", text: "目标改成测登录页" });
+  expect(reply.stopReason).toEqual({ kind: "reply", text: "目标改成测登录页" });
   const ledger = loadLedger(dir, "cv_01");
   expect(ledger.currentGoalId).toBe("subgoal_01");
   expect(ledger.goals.map(({ id, parentId, goal, status }) => ({ id, parentId, goal, status }))).toEqual([
@@ -844,7 +844,7 @@ test("notes.write 按 key 写入，notes.delete 删除", async () => {
     }),
   ]);
   const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "先记下再删", submittedAt: "2026-09-06T00:00:00.000Z" });
-  expect(reply.output).toEqual({ kind: "reply", text: "笔记已删" });
+  expect(reply.stopReason).toEqual({ kind: "reply", text: "笔记已删" });
   const ledger = loadLedger(dir, "cv_01");
   expect(ledger.notes).toEqual({});
   expect(ledger.toolIO.map((row) => row.name)).toEqual(["notes.write", "notes.write", "notes.delete", "finishTurn"]);
@@ -881,12 +881,12 @@ test.each(["provider", "provider-reject", "browser", "browser-reject"])("停止�
     const before = loadLedger(dir, "cv_01");
     const eventsBefore = loadEvents(dir, "cv_01");
     releaseOld();
-    expect((await oldTurn).output).toEqual({ kind: "error", faultCode: "stopped" });
+    expect((await oldTurn).stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
     expect(loadLedger(dir, "cv_01")).toEqual(before);
     expect(loadEvents(dir, "cv_01")).toEqual(eventsBefore);
-    expect(loadTurn(dir, "cv_01", "tn_01").output).toEqual({ kind: "error", faultCode: "stopped" });
+    expect(loadTurn(dir, "cv_01", "tn_01").stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
     releaseNew(finish);
-    expect((await newTurn).output).toEqual({ kind: "reply", text: "完成" });
+    expect((await newTurn).stopReason).toEqual({ kind: "reply", text: "完成" });
     expect(loadLedger(dir, "cv_01").turnIds).toEqual(["tn_01", "tn_02"]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -912,7 +912,7 @@ test.each([
       executed.push(name);
       return { ok: true };
     } } }, { userInput: "测试", submittedAt: "now" });
-    expect(reply.output).toEqual({ kind: "reply", text: "结束" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "结束" });
     expect(executed).toEqual([]);
     expect(loadLedger(dir, "cv_01").toolIO.some((row) => row.return.text.includes(invalid.faultCode))).toBe(true);
   } finally {
@@ -933,7 +933,7 @@ test("第20次出网 content 为空但 finishTurn.text 有正文时正常结束"
       id: "final", name: "finishTurn", arguments: { reason: "已完成检查，可以报告结果", text: "检查完成，已确认搜索可用。"},
     }] }));
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider: mock(steps) }, { userInput: "检查搜索", submittedAt: new Date().toISOString() });
-    expect(reply.output).toEqual({ kind: "reply", text: "检查完成，已确认搜索可用。" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "检查完成，已确认搜索可用。" });
     expect(loadLedger(dir, reply.conversationId).status).toBe("idle");
     expect(loadEvents(dir, reply.conversationId).filter(e => e.kind === "provider-response")).toHaveLength(20);
   } finally { rmSync(dir, { recursive: true, force: true }); }
@@ -946,7 +946,7 @@ test("content 为空时 askUser.question 仍能展示问题和选项", async () 
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider: mock([ok({ finish: "tool_calls", content: "", toolCalls: [{
       id: "ask", name: "askUser", arguments: { reason: "需要确定检查范围", question: "先检查哪个页面？", choice: ["首页", "搜索页"] },
     }] })]) }, { userInput: "检查网站", submittedAt: new Date().toISOString() });
-    expect(reply.output).toEqual({ kind: "ask", question: "先检查哪个页面？\n选项：首页 / 搜索页" });
+    expect(reply.stopReason).toEqual({ kind: "ask", question: "先检查哪个页面？\n选项：首页 / 搜索页" });
     expect(sessionView(dir, reply.conversationId).pendingAsk).toMatchObject({ question: "先检查哪个页面？\n选项：首页 / 搜索页", choice: ["首页", "搜索页"] });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
@@ -977,7 +977,7 @@ test("工具抛错写入记录，清空执行状态并允许下一次模型请�
   } };
   try {
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "执行请求", submittedAt: "now" });
-    expect(reply.output).toEqual({ kind: "reply", text: "完成" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
     expect(requests).toBe(3);
     const ledger = loadLedger(dir, reply.conversationId);
     expect(ledger.status).toBe("idle");
@@ -1002,7 +1002,7 @@ test("纯文本 content 自动包装为 finishTurn 成功收口", async () => {
   ]);
   try {
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "测试纯文本", submittedAt: "2026-09-06T00:00:00.000Z" });
-    expect(reply.output).toEqual({ kind: "reply", text: "这是模型输出的纯文本答复" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "这是模型输出的纯文本答复" });
     const ledger = loadLedger(dir, "cv_01");
     expect(ledger.status).toBe("idle");
     const autoFinishCall = ledger.toolIO.find((row) => row.name === "finishTurn");

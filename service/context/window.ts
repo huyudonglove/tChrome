@@ -31,7 +31,7 @@ export function userText(input: {
   currentQuery?: QueryEvidence | null;
   queryHistory?: QueryEvidence[];
   inlineBudget?: { dataDir: string; system: string };
-  /** Restores settled turns' <output> from disk when not in inlineBudget. */
+  /** Restores settled turns' <stopReason> from disk when not in inlineBudget. */
   dataDir?: string;
 }): string {
   const { contextModules, ledger, turn, memories } = input;

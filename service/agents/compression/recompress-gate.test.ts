@@ -38,7 +38,7 @@ const turnSource = (id: string, turnId: string) => ({
     observations: [],
     memoryWrites: [],
     queryHistory: [],
-    output: { kind: "reply", text: turnId },
+    stopReason: { kind: "reply", text: turnId },
     sequence: { turn: Number(turnId.slice(3)), batch: 0 },
     segment: { complete: true },
   },

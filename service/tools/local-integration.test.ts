@@ -48,7 +48,7 @@ test("local tools are discoverable and load through the existing catalog before 
       if (step === 2) return response("local.run", { filename: "run.sh", cwd: dataDir });
       return response("finishTurn", { text: "完成" });
     } } }, { userInput: "验证本地命令", submittedAt: new Date().toISOString() });
-    expect(reply.output).toEqual({ kind: "reply", text: "完成" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
     const record = loadLedger(dataDir, reply.conversationId).toolIO.find(item => item.name === "local.run");
     expect(JSON.parse(record!.return.text)).toMatchObject({ ok: true, stdout: "local-execution-ok", exitCode: 0 });
   } finally { rmSync(dataDir, { recursive: true, force: true }); }

@@ -28,7 +28,7 @@ function aborted(signal: AbortSignal | undefined): Promise<never> {
 }
 function seed(dataDir: string, large = false) {
   const { conversationId: cv } = ensureSession(dataDir), ledger = loadLedger(dataDir, cv);
-  const turns = Array.from({ length: 5 }, (_, i): Turn => ({ goalChanges: [], conversationId: cv, turnId: `tn_0${i + 1}`, status: "completed", createdAt: "2026-09-12", completedAt: "2026-09-12", input: { id: `input_0${i + 1}`, text: large ? "历史要求".repeat(12000) : `历史要求${i}`, submittedAt: "2026-09-12" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [] }, output: { kind: "reply", text: "完成" } }));
+  const turns = Array.from({ length: 5 }, (_, i): Turn => ({ goalChanges: [], conversationId: cv, turnId: `tn_0${i + 1}`, status: "completed", createdAt: "2026-09-12", completedAt: "2026-09-12", input: { id: `input_0${i + 1}`, text: large ? "历史要求".repeat(12000) : `历史要求${i}`, submittedAt: "2026-09-12" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [] }, stopReason: { kind: "reply", text: "完成" } }));
   ledger.turnIds = turns.map(turn => turn.turnId); ledger.userInputHistory = turns.slice(0, -1).map(inputRecord);
   turns.forEach(turn => saveTurn(dataDir, turn)); saveLedger(dataDir, ledger);
   return { cv, turns };
@@ -43,9 +43,9 @@ test("stopping a main request aborts its signal and returns stopped without pers
     expect(signal).toBeInstanceOf(AbortSignal); stopTurn(dataDir);
     expect(signal!.aborted).toBe(true);
     const reply = await within(running);
-    expect(reply.output).toEqual({ kind: "error", faultCode: "stopped" }); expect(calls).toBe(1);
+    expect(reply.stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" }); expect(calls).toBe(1);
     expect(loadLedger(dataDir, reply.conversationId).status).toBe("paused");
-    expect(loadTurn(dataDir, reply.conversationId, reply.turnId).output).toEqual(reply.output);
+    expect(loadTurn(dataDir, reply.conversationId, reply.turnId).stopReason).toEqual(reply.stopReason);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
@@ -56,7 +56,7 @@ test("stopping compression aborts the auxiliary model and leaves archive coverag
     const provider: Provider = { complete: input => { expect(input.tools[0]?.function.name).toBe("submitTurnSummaries"); entered.resolve(input.signal); return aborted(input.signal); } };
     const running = handleTurn({ dataDir, repoRoot, provider }, body), signal = await within(entered.promise);
     stopTurn(dataDir); expect(signal?.aborted).toBe(true);
-    expect((await within(running)).output).toEqual({ kind: "error", faultCode: "stopped" });
+    expect((await within(running)).stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
     expect(loadLedger(dataDir, cv).status).toBe("paused");
     expect(loadIndex(dataDir, cv, "conversationHistory").coveredSourceIds).toEqual([]);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
@@ -76,7 +76,7 @@ test("query uses the main request's signal and cancellation cannot install query
     } };
     const running = handleTurn({ dataDir, repoRoot, provider }, body), signal = await within(entered.promise);
     stopTurn(dataDir); expect(signal?.aborted).toBe(true);
-    expect((await within(running)).output).toEqual({ kind: "error", faultCode: "stopped" });
+    expect((await within(running)).stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
     const ledger = loadLedger(dataDir, cv);
     expect(ledger.currentQuery).toBeNull(); expect(ledger.queryHistory).toEqual([]); expect(mainCalls).toBe(1);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
@@ -88,12 +88,12 @@ test("a replacement turn has its own signal and ignores a stopped provider's lat
     let signalB: AbortSignal | undefined;
     const a = handleTurn({ dataDir, repoRoot, provider: { complete: input => { entered.resolve(input.signal); return late.promise; } } }, body);
     const signalA = await within(entered.promise); stopTurn(dataDir);
-    expect((await within(a)).output).toEqual({ kind: "error", faultCode: "stopped" });
+    expect((await within(a)).stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
     const b = await handleTurn({ dataDir, repoRoot, provider: { complete: async input => { signalB = input.signal; return finish("新轮结果"); } } }, body);
     expect(signalB).toBeInstanceOf(AbortSignal); expect(signalB).not.toBe(signalA); expect(signalA?.aborted).toBe(true);
-    expect(b.output).toEqual({ kind: "reply", text: "新轮结果" });
+    expect(b.stopReason).toEqual({ kind: "reply", text: "新轮结果" });
     late.resolve(finish("旧轮迟到结果")); await Promise.resolve(); await Promise.resolve();
-    expect(loadTurn(dataDir, b.conversationId, b.turnId).output).toEqual(b.output);
+    expect(loadTurn(dataDir, b.conversationId, b.turnId).stopReason).toEqual(b.stopReason);
     expect(loadLedger(dataDir, b.conversationId).turnIds.at(-1)).toBe(b.turnId);
   } finally { late.resolve(finish()); rmSync(dataDir, { recursive: true, force: true }); }
 });
@@ -111,10 +111,10 @@ test("new/open conversation preserves running requests and deleting a conversati
     expect(signalA?.aborted).toBe(false); expect(signalB?.aborted).toBe(false);
     deleteConversation(dataDir, cvA);
     expect(signalA?.aborted).toBe(true); expect(signalB?.aborted).toBe(false);
-    expect((await within(a)).output).toEqual({ kind: "error", faultCode: "stopped" });
+    expect((await within(a)).stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
     expect(listConversationIds(dataDir)).not.toContain(cvA);
     expect(loadLedger(dataDir, cvB).status).toBe("running");
-    stopTurn(dataDir); expect((await within(b)).output).toEqual({ kind: "error", faultCode: "stopped" });
+    stopTurn(dataDir); expect((await within(b)).stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
@@ -132,11 +132,11 @@ test("immediately restarting during cancelled compression allows the new turn to
       compressed++;
       return completion([{ id: "summaries", name: "submitTurnSummaries", arguments: { tag: "历史", actions: "已处理", result: "已完成" } }]);
     } } }, body);
-    expect((await within(a)).output).toEqual({ kind: "error", faultCode: "stopped" });
+    expect((await within(a)).stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
     const reply = await within(b);
-    expect(reply.output).toEqual({ kind: "reply", text: "重启后完成" }); expect(compressed).toBeGreaterThan(0);
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "重启后完成" }); expect(compressed).toBeGreaterThan(0);
     expect(loadIndex(dataDir, cv, "conversationHistory").coveredSourceIds.length).toBeGreaterThan(0);
     late.resolve(finish("旧结果")); await Promise.resolve();
-    expect(loadTurn(dataDir, cv, reply.turnId).output).toEqual(reply.output);
+    expect(loadTurn(dataDir, cv, reply.turnId).stopReason).toEqual(reply.stopReason);
   } finally { late.resolve(finish()); rmSync(dataDir, { recursive: true, force: true }); }
 });

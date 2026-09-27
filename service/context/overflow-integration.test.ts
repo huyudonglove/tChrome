@@ -86,12 +86,12 @@ test("oversized notes stay durable, can be deleted by the model, and do not bloc
     expect(slot(user, "#notes")).toEqual({});
     return finish();
   }) }, { userInput: "保存后删除大笔记", submittedAt: "now" });
-  expect(reply.output).toEqual({ kind: "reply", text: "完成" });
+  expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
   expect(step).toBe(3);
   expect(loadLedger(dataDir, reply.conversationId).notes).toEqual({});
   let nextCalls = 0;
   const next = await handleTurn({ dataDir, repoRoot, host, provider: provider(() => { nextCalls++; return finish(); }) }, { userInput: "继续", submittedAt: "later" });
-  expect(next.output.kind).toBe("reply");
+  expect(next.stopReason.kind).toBe("reply");
   expect(nextCalls).toBe(1);
 }));
 
@@ -100,7 +100,7 @@ test("oversized project memory is referenced in a new conversation without losin
   let step = 0;
   const original = await handleTurn({ dataDir, repoRoot, host, provider: provider(() => ++step === 1
     ? response(call("memory.write", { projectMemory: [text] })) : finish()) }, { userInput: "保存长期记忆", submittedAt: "now" });
-  expect(original.output.kind).toBe("reply");
+  expect(original.stopReason.kind).toBe("reply");
   const fresh = newConversation(dataDir).conversationId!;
     primeActiveTask(dataDir);
   let calls = 0;
@@ -112,7 +112,7 @@ test("oversized project memory is referenced in a new conversation without losin
     return finish();
   }) }, { userInput: "读取长期记忆", submittedAt: "later" });
   expect(reply.conversationId).toBe(fresh);
-  expect(reply.output.kind).toBe("reply");
+  expect(reply.stopReason.kind).toBe("reply");
   expect(calls).toBe(1);
   expect(loadMemories(dataDir, fresh, { conversation: [], project: [] }).project[0]!.text).toBe(text);
 }));
@@ -145,7 +145,7 @@ test("large script results use evidence.search while small follow-up pages stay 
     expect(String(hit.path)).toContain("returns");
     return finish();
   }) }, { userInput: "读取大脚本并检索关键标记", submittedAt: "now" });
-  expect(reply.output.kind).toBe("reply");
+  expect(reply.stopReason.kind).toBe("reply");
   expect(step).toBe(4);
   expect(readFileSync(join(dataDir, "scripts", "large.js"), "utf8")).toBe(code);
 }));
@@ -162,7 +162,7 @@ test("individually small notes are externalized when their combined context exce
     expect(conversationReferences(user).length).toBeGreaterThan(0);
     return finish();
   }) }, { userInput: "继续使用这些笔记", submittedAt: "now" });
-  expect(reply.output.kind).toBe("reply");
+  expect(reply.stopReason.kind).toBe("reply");
   expect(calls).toBe(1);
   expect(loadLedger(dataDir, conversationId).notes).toEqual(ledger.notes);
 }));
@@ -177,8 +177,8 @@ test("context storage failure stops before sending a broken reference to the mod
   writeFileSync(join(dataDir, "context-files"), "blocked directory");
   let calls = 0;
   const reply = await handleTurn({ dataDir, repoRoot, host, provider: provider(() => { calls++; return finish(); }) }, { userInput: "继续", submittedAt: "now" });
-  expect(reply.output).toMatchObject({ kind: "error", faultCode: "context_storage_failed" });
-  expect((reply.output as { detail?: string }).detail).toBeTruthy();
+  expect(reply.stopReason).toMatchObject({ kind: "error", faultCode: "context_storage_failed" });
+  expect((reply.stopReason as { detail?: string }).detail).toBeTruthy();
   expect(calls).toBe(0);
   expect(loadLedger(dataDir, conversationId).notes.large).toBe(ledger.notes.large);
 }));
@@ -203,7 +203,7 @@ test("uncompressible notes between 200K and 250K remain inline and allow the mai
     expect(input.messages.reduce((size, message) => size + message.content.length, 0)).toBeGreaterThan(200_000);
     return base.complete(input);
   } } }, { userInput: "继续", submittedAt: "now" });
-  expect(reply.output.kind).toBe("reply");
+  expect(reply.stopReason.kind).toBe("reply");
   expect(calls).toBe(1);
   expect(loadLedger(dataDir, conversationId).notes).toEqual(ledger.notes);
 }));
@@ -217,7 +217,7 @@ test("history above 250K is compressed before any content is externalized", () =
     createdAt: "2026-09-11", completedAt: "2026-09-11",
     input: {id: `input_${String(i + 1).padStart(2, "0")}`, text: "H".repeat(35000), submittedAt: "2026-09-11"},
     assembled: {baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: []},
-    output: {kind: "reply", text: "已完成" },
+    stopReason: { kind: "reply", text: "已完成" },
   }));
   ledger.turnIds = turns.map(turn => turn.turnId);
   ledger.userInputHistory = turns.map(inputRecord);
@@ -243,7 +243,7 @@ test("history above 250K is compressed before any content is externalized", () =
     }
     return base.complete(input);
   }} }, { userInput: "继续", submittedAt: "now" });
-  expect(reply.output.kind).toBe("reply");
+  expect(reply.stopReason.kind).toBe("reply");
   expect(main).toBe(1);
   expect(loadIndex(dataDir, conversationId, "conversationHistory").coveredSourceIds.length).toBeGreaterThan(0);
   expect(loadLedger(dataDir, conversationId).userInputHistory.length).toBeGreaterThanOrEqual(turns.length);

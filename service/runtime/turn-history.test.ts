@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { emptyLedger, saveTurn } from "./store.ts";
 import { assembleTurnHistory, loadSettledTurnHistory } from "./turn-history.ts";
 import type { Turn } from "../types.ts";
-const turn = (turnId:string):Turn => ({goalChanges:[],conversationId:"cv_test",turnId,status:"completed",createdAt:"2026-09-11",completedAt:"2026-09-11",input:{id:`input_${turnId}`,text:"只改负责人",submittedAt:"2026-09-11"},assembled:{baseToolsIds:[],toolIds:[],conversationMemoryIds:[],projectMemoryIds:[],mcpIds:[],currentTabs: { ok: true, windows: [] },currentPage:null,observations:[]},output:{kind:"reply",text:"已修改并核对" }});
+const turn = (turnId:string):Turn => ({goalChanges:[],conversationId:"cv_test",turnId,status:"completed",createdAt:"2026-09-11",completedAt:"2026-09-11",input:{id:`input_${turnId}`,text:"只改负责人",submittedAt:"2026-09-11"},assembled:{baseToolsIds:[],toolIds:[],conversationMemoryIds:[],projectMemoryIds:[],mcpIds:[],currentTabs: { ok: true, windows: [] },currentPage:null,observations:[]},stopReason: { kind:"reply",text:"已修改并核对" }});
 test("turn process joins existing records without mixing turns or mutable memory/notes",()=>{
  const ledger=emptyLedger("cv_test");ledger.turnIds=["tn_01","tn_02"];
  ledger.notes={draft:"当前草稿"};
@@ -20,7 +20,7 @@ test("turn process joins existing records without mixing turns or mutable memory
  expect(record.goalChanges[0]!.status).toBe("active");
  expect(record.observations).toEqual(first.assembled.observations);
  expect(record.userInput.id).toBe(first.input.id);
- expect(record.output).toEqual({ kind: "reply", text: "已修改并核对" });
+ expect(record.stopReason).toEqual({ kind: "reply", text: "已修改并核对" });
  expect(record).not.toHaveProperty("notes");expect(record).not.toHaveProperty("memory");
  record.toolIO[0]!.return.text="修改投影";
  expect(JSON.stringify({ledger,first})).toBe(snapshot);
@@ -30,12 +30,12 @@ test("settled history preserves order and error outputs, excluding active and un
  const dir=mkdtempSync(join(tmpdir(),"turn-history-"));
  try {
   const ledger=emptyLedger("cv_test");ledger.turnIds=["tn_01","tn_02","tn_03"];
-  const failed=turn("tn_02");failed.status="failed";failed.output={kind:"error",faultCode:"provider_error"};
-  const current=turn("tn_03");current.status="inferring";current.completedAt=null;current.output=null;
+  const failed=turn("tn_02");failed.status="failed";failed.stopReason={kind:"error",faultCode:"provider_error"};
+  const current=turn("tn_03");current.status="inferring";current.completedAt=null;current.stopReason=null;
   for(const row of [turn("tn_01"),failed,current])saveTurn(dir,row);
   ledger.active={turnId:"tn_03"};
   const records=loadSettledTurnHistory(dir,ledger);
   expect(records.map(row=>row.turnId)).toEqual(["tn_01","tn_02"]);
-  expect(records[1]!.output).toEqual(failed.output);
+  expect(records[1]!.stopReason).toEqual(failed.stopReason);
  }finally {rmSync(dir,{recursive:true,force:true});}
 });

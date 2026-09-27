@@ -23,7 +23,7 @@ test("assembled User slots follow the shared data contract", () => {
   ledger.toolIO = [tool];
   const page = { id: "page_01", turnId: "tn_01", callId: "call_01", tabId: 42, type: "page.get_summary", result: { ok: true, tabId: 42, title: "任务", url: "https://example.com", description: "待处理" }, observedAt: "2026-09-12" };
   const turn: Turn = { goalChanges: [],
-    turnId: "tn_02", conversationId: "cv_01", status: "inferring", createdAt: "2026-09-12", completedAt: null, output: null,
+    turnId: "tn_02", conversationId: "cv_01", status: "inferring", createdAt: "2026-09-12", completedAt: null, stopReason: null,
     input: { id: "input_02", text: "当时状态是什么？", submittedAt: "2026-09-12" },
     assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: { tabId: 42, url: "https://example.com", title: "任务", description: "待处理" }, currentTabs: { ok: true, windows: [] }, observations: [page] },
   };

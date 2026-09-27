@@ -146,12 +146,12 @@ test("tabs.current 走扩展桥；停止释放桥接等待", async () => {
     expect(request.name).toBe("__currentTabs");
     const snapshot = {ok: true, windows: [{windowId: 1, focused: true, tabs: [{tabId: 12, active: true, url: "https://example.com", title: "测试"}]}]};
     server.bridge.resolve(request.id, snapshot);
-    expect((await (await pending).json()).output.kind).toBe("reply");
+    expect((await (await pending).json()).stopReason.kind).toBe("reply");
     const stopped = post();
     await Bun.sleep(0);
     expect(server.bridge.list()[0]?.name).toBe("__currentTabs");
     await server.fetch(new Request(`${base}/stop`, {method: "POST"}));
-    expect((await (await stopped).json()).output.faultCode).toBe("stopped");
+    expect((await (await stopped).json()).stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
     expect(server.bridge.list()).toEqual([]);
     expect(calls).toBeGreaterThan(0);
   } finally {server.bridge.abort(); rmSync(dir,{recursive: true,force:true});}

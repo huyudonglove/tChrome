@@ -32,7 +32,7 @@ test("script patch returns status to the model before filename execution reaches
         }
         return response([call("finishTurn", { text: "完成"})]);
       } } }, { userInput: "执行脚本", submittedAt: "now" });
-    expect(reply.output).toEqual({ kind: "reply", text: "完成" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
     expect(executions).toBe(1);
     const ledger = loadLedger(dataDir, reply.conversationId);
     expect(ledger.toolIO.find(row => row.name === "execute_javascript")!.arguments).toHaveProperty("filename", "demo.js");
@@ -49,7 +49,7 @@ test.each(["execute_javascript", "local.run", "local.process_start"])("patch and
         ? response([call("catalog.add", { names: ["script_patch", name] })])
         : response([call("script_patch", { filename: "demo.js", patch }), call(name, { filename: "demo.js", ...(name === "execute_javascript" ? { tabId: 12 } : { cwd: dataDir }) })]) },
     }, { userInput: "执行脚本", submittedAt: "now" });
-    expect(reply.output.kind).toBe("error");
+    expect(reply.stopReason.kind).toBe("error");
     expect(executions).toBe(0);
     expect(existsSync(join(dataDir, "scripts", "demo.js"))).toBe(false);
     expect(JSON.stringify(loadLedger(dataDir, reply.conversationId).toolIO)).toContain("script_steps_separate");

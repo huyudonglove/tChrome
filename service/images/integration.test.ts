@@ -56,7 +56,7 @@ test("截图按调用批次发送，历史仅保留路径，删除会话清理�
       } },
     }, { userInput: "截图看看页面", submittedAt: new Date().toISOString() });
 
-    expect(reply.output).toEqual({ kind: "reply", text: "完成" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
     expect(executed).toEqual(["capture_page", "capture_page", "capture_page"]);
     expect(requests).toHaveLength(5);
     const imagesOf = (request: any) => request.messages

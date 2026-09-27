@@ -13,7 +13,7 @@ const turn = (cv: string): Turn => ({
   createdAt: "now", completedAt: null,
   input: { id: "input_01", text: "改记忆", submittedAt: "now" },
   assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [] },
-  output: null,
+  stopReason: null,
 });
 
 test("memory.update and memory.delete operate by mm_/lm_ id", async () => {

@@ -275,9 +275,9 @@ export function createServer(options: ServeOptions = {}) {
       if (request.method === "POST" && url.pathname === "/turn") {
         const body = (await request.json()) as { conversationId?: string; userInput?: string; submittedAt?: string };
         const userInput = String(body.userInput ?? "").trim();
-        if (!userInput) return respond({ conversationId: "", turnId: "", output: { kind: "error", faultCode: "empty_input" } }, 400);
+        if (!userInput) return respond({ conversationId: "", turnId: "", stopReason: { kind: "error", faultCode: "empty_input" } }, 400);
         if (body.conversationId && body.conversationId !== ensureSession(dataDir).conversationId) {
-          return respond({ output: { kind: "error", faultCode: "conversation_changed" } }, 409);
+          return respond({ stopReason: { kind: "error", faultCode: "conversation_changed" } }, 409);
         }
         const submittedAt = body.submittedAt || new Date().toISOString();
         const reply = await handleTurn(deps, { userInput, submittedAt });

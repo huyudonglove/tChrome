@@ -29,7 +29,7 @@ import type {
   Provider,
   ToolIOItem,
   Turn,
-  TurnOutput,
+  TurnStopReason,
   TurnReply,
 } from "../types.ts";
 import { checkToolCalls } from "../tools/schema.ts";
@@ -57,7 +57,7 @@ import { executionContext } from "./tasks.ts";
 const stoppedReply = (ledger: Ledger, turn: Turn): TurnReply => ({
   conversationId: ledger.conversationId,
   turnId: turn.turnId,
-  output: { kind: "error", faultCode: "stopped" },
+  stopReason: { kind: "interrupted", initiatedBy: "user" },
 });
 
 const wasStopped = (dataDir: string, conversationId: string, turnId: string, expectedStatus: Ledger["status"] = "running") => {
@@ -186,7 +186,7 @@ const runQueue = async (input: {
   provider: Provider;
   repoRoot: string;
   signal?: AbortSignal;
-}): Promise<TurnOutput | null> => {
+}): Promise<TurnStopReason | null> => {
   const { dataDir, ledger, turn, toolRegistry, host, browserNames } = input;
   // Microtask/macrotask schedule over the batch: parallel joins the current wave;
   // serial drains the wave first, then runs alone with no overlap.
@@ -204,7 +204,7 @@ const runQueue = async (input: {
   const inflight = new Set<Promise<void>>();
   const live = new Map<number, { name: string; callId: string; reason?: string }>();
   let appliedUpTo = -1;
-  let closed: TurnOutput | null = null;
+  let closed: TurnStopReason | null = null;
 
   const syncQueue = (nextStart: number) => {
     if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) return;
@@ -274,10 +274,10 @@ const runQueue = async (input: {
     return tracked;
   };
 
-  const applyReady = async (): Promise<TurnOutput | null> => {
+  const applyReady = async (): Promise<TurnStopReason | null> => {
     while (appliedUpTo + 1 < slots.length && done.has(appliedUpTo + 1)) {
       if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
-        return { kind: "error", faultCode: "stopped" };
+        return { kind: "interrupted", initiatedBy: "user" };
       }
       const index = appliedUpTo + 1;
       const slot = slots[index]!;
@@ -339,14 +339,14 @@ const runQueue = async (input: {
       if (escalation.action === "hint") {
         row.return = { ...row.return, text: `${row.return.text}\n\n${escalation.text}` };
       }
-      let output: TurnOutput | null = null;
+      let output: TurnStopReason | null = null;
       try {
         output = applyToolEffects({
           dataDir, ledger, turn, call: item, effects: execution.effects,
           execCtx: slot.execCtx, storedText: full,
         });
       } catch (error) {
-        if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) return { kind: "error", faultCode: "stopped" };
+        if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) return { kind: "interrupted", initiatedBy: "user" };
         // Effects can fail after earlier writes succeeded. Report evidence without replaying them.
         const text = failedTool(error, "tool_execution_failed", { toolName: item.name,
           details: { executionState: "部分操作可能已生效，请先检查已保存记录与当前状态，不要直接重放整批操作。" } }).text;
@@ -365,11 +365,11 @@ const runQueue = async (input: {
     return null;
   };
 
-  const drainWave = async (): Promise<TurnOutput | null> => {
+  const drainWave = async (): Promise<TurnStopReason | null> => {
     while (inflight.size) {
       await Promise.race(inflight);
       if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
-        return { kind: "error", faultCode: "stopped" };
+        return { kind: "interrupted", initiatedBy: "user" };
       }
       const out = await applyReady();
       if (out) return out;
@@ -380,7 +380,7 @@ const runQueue = async (input: {
   for (let i = 0; i < slots.length; i++) {
     const slot = slots[i]!;
     if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
-      return { kind: "error", faultCode: "stopped" };
+      return { kind: "interrupted", initiatedBy: "user" };
     }
     if (slot.mode === "parallel") {
       void launch(slot, i + 1);
@@ -390,11 +390,11 @@ const runQueue = async (input: {
       closed = await drainWave();
       if (closed) break;
       if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
-        return { kind: "error", faultCode: "stopped" };
+        return { kind: "interrupted", initiatedBy: "user" };
       }
       await launch(slot, i + 1);
       if (wasStopped(dataDir, ledger.conversationId, turn.turnId)) {
-        return { kind: "error", faultCode: "stopped" };
+        return { kind: "interrupted", initiatedBy: "user" };
       }
       closed = await applyReady();
       if (closed) break;
@@ -419,7 +419,7 @@ export async function handleTurn(
     return {
       conversationId: ledger.conversationId,
       turnId: ledger.active?.turnId ?? "",
-      output: { kind: "error", faultCode: "busy" },
+      stopReason: { kind: "error", faultCode: "busy" },
     };
   }
   const prevId = ledger.turnIds.at(-1);
@@ -446,7 +446,7 @@ export async function handleTurn(
     completedAt: null,
     input: { id: allocateRecordId(deps.dataDir, ledger.conversationId, "input"), text: body.userInput, submittedAt: body.submittedAt },
     assembled: assemble(toolRegistry, ledger.loadedToolIds),
-    output: null,
+    stopReason: null,
     usage: { modelRequests: 0, toolCalls: 0 },
   };
   saveContextRecord(deps.dataDir, ledger.conversationId, "userInput", inputRecord(turn));
@@ -547,7 +547,7 @@ export async function handleTurn(
           turn.status = "failed";
           turn.completedAt = nowIso();
           const cause = errorInfo(error, "compression_failed");
-          turn.output = { kind: "error", faultCode: "compression_failed",
+          turn.stopReason = { kind: "error", faultCode: "compression_failed",
             ...(cause.faultCode !== "compression_failed" ? { causeCode: cause.faultCode } : {}),
             ...(cause.detail ? { detail: cause.detail } : {}) };
           ledger.status = "failed";
@@ -555,7 +555,7 @@ export async function handleTurn(
           saveTurn(deps.dataDir, turn);
           saveLedger(deps.dataDir, ledger);
           appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-error", turnId, data: { ...cause } });
-          return { conversationId: ledger.conversationId, turnId, output: turn.output };
+          return { conversationId: ledger.conversationId, turnId, stopReason: turn.stopReason };
         }
       }
       // The send boundary first compresses at 200K, then externalizes notes first only
@@ -566,14 +566,14 @@ export async function handleTurn(
       } catch (error) {
         turn.status = "failed";
         turn.completedAt = nowIso();
-        turn.output = { kind: "error", faultCode: error instanceof ContextBudgetError ? "context_limit" : "context_storage_failed",
+        turn.stopReason = { kind: "error", faultCode: error instanceof ContextBudgetError ? "context_limit" : "context_storage_failed",
           detail: error instanceof Error ? error.message : String(error) };
         ledger.status = "failed";
         ledger.active = null;
         saveTurn(deps.dataDir, turn);
         saveLedger(deps.dataDir, ledger);
         appendEvent(deps.dataDir, ledger.conversationId, { kind: "context-budget-error", turnId, data: { detail: String(error) } });
-        return { conversationId: ledger.conversationId, turnId, output: turn.output };
+        return { conversationId: ledger.conversationId, turnId, stopReason: turn.stopReason };
       }
       ledger.windowChars = windowChars(messages[0]!.content, messages[1]!.content);
       saveLedger(deps.dataDir, ledger);
@@ -653,7 +653,7 @@ export async function handleTurn(
       if (result.finish === "error") {
         turn.status = "failed";
         turn.completedAt = nowIso();
-        turn.output = { kind: "error", faultCode: result.faultCode ?? "provider_error",
+        turn.stopReason = { kind: "error", faultCode: result.faultCode ?? "provider_error",
           ...(result.detail ? { detail: result.detail } : {}) };
         ledger.status = "failed";
         ledger.active = null;
@@ -661,11 +661,11 @@ export async function handleTurn(
         saveTurn(deps.dataDir, turn);
         saveLedger(deps.dataDir, ledger);
         appendEvent(deps.dataDir, ledger.conversationId, {
-          kind: "turn-output",
+          kind: "turn-stop-reason",
           turnId,
-          data: { output: turn.output },
+          data: { output: turn.stopReason },
         });
-        return { conversationId: ledger.conversationId, turnId, output: turn.output };
+        return { conversationId: ledger.conversationId, turnId, stopReason: turn.stopReason };
       }
       // Gemini google_search (and similar) already ran on the provider side. Record
       // evidence in toolIO without queueing it for Runtime execution or usage counts.
@@ -741,17 +741,17 @@ export async function handleTurn(
           saveLedger(deps.dataDir, ledger);
           if (closed) {
             appendEvent(deps.dataDir, ledger.conversationId, {
-              kind: "turn-output",
+              kind: "turn-stop-reason",
               turnId,
               data: { output: closed },
             });
-            return { conversationId: ledger.conversationId, turnId, output: closed };
+            return { conversationId: ledger.conversationId, turnId, stopReason: closed };
           }
         }
         if (submitFails >= MAX_SUBMIT) {
           turn.status = "failed";
           turn.completedAt = nowIso();
-          turn.output = { kind: "error", faultCode: result.faultCode ?? "missing_required",
+          turn.stopReason = { kind: "error", faultCode: result.faultCode ?? "missing_required",
             toolName: result.badName, detail: result.detail };
           ledger.status = "failed";
           ledger.active = null;
@@ -759,11 +759,11 @@ export async function handleTurn(
           saveTurn(deps.dataDir, turn);
           saveLedger(deps.dataDir, ledger);
           appendEvent(deps.dataDir, ledger.conversationId, {
-            kind: "turn-output",
+            kind: "turn-stop-reason",
             turnId,
-            data: { output: turn.output },
+            data: { output: turn.stopReason },
           });
-          return { conversationId: ledger.conversationId, turnId, output: turn.output };
+          return { conversationId: ledger.conversationId, turnId, stopReason: turn.stopReason };
         }
         saveTurn(deps.dataDir, turn);
         saveLedger(deps.dataDir, ledger);
@@ -793,11 +793,11 @@ export async function handleTurn(
           saveLedger(deps.dataDir, ledger);
           if (closed) {
             appendEvent(deps.dataDir, ledger.conversationId, {
-              kind: "turn-output",
+              kind: "turn-stop-reason",
               turnId,
               data: { output: closed },
             });
-            return { conversationId: ledger.conversationId, turnId, output: closed };
+            return { conversationId: ledger.conversationId, turnId, stopReason: closed };
           }
         }
         submitFails += 1;
@@ -812,18 +812,18 @@ export async function handleTurn(
         if (submitFails >= MAX_SUBMIT) {
           turn.status = "failed";
           turn.completedAt = nowIso();
-          turn.output = { kind: "error", faultCode: "need_finish_turn" };
+          turn.stopReason = { kind: "error", faultCode: "need_finish_turn" };
           ledger.status = "failed";
           ledger.active = null;
           ledger.liveTools = [];
           saveTurn(deps.dataDir, turn);
           saveLedger(deps.dataDir, ledger);
           appendEvent(deps.dataDir, ledger.conversationId, {
-            kind: "turn-output",
+            kind: "turn-stop-reason",
             turnId,
-            data: { output: turn.output },
+            data: { output: turn.stopReason },
           });
-          return { conversationId: ledger.conversationId, turnId, output: turn.output };
+          return { conversationId: ledger.conversationId, turnId, stopReason: turn.stopReason };
         }
         saveTurn(deps.dataDir, turn);
         saveLedger(deps.dataDir, ledger);
@@ -867,11 +867,11 @@ export async function handleTurn(
       saveLedger(deps.dataDir, ledger);
       if (closed) {
         appendEvent(deps.dataDir, ledger.conversationId, {
-          kind: "turn-output",
+          kind: "turn-stop-reason",
           turnId,
           data: { output: closed },
         });
-        return { conversationId: ledger.conversationId, turnId, output: closed };
+        return { conversationId: ledger.conversationId, turnId, stopReason: closed };
       }
       // Successful tool batches are normal progress, not failed submissions.
       // Empty finishTurn calls must not create an unbounded retry loop.
@@ -884,7 +884,7 @@ export async function handleTurn(
     }
     turn.status = "failed";
     turn.completedAt = nowIso();
-    turn.output = { kind: "error", faultCode: "empty_finish_turn" };
+    turn.stopReason = { kind: "error", faultCode: "empty_finish_turn" };
     ledger.status = "failed";
     ledger.active = null;
     ledger.liveTools = [];
@@ -892,11 +892,11 @@ export async function handleTurn(
     saveTurn(deps.dataDir, turn);
     saveLedger(deps.dataDir, ledger);
     appendEvent(deps.dataDir, ledger.conversationId, {
-      kind: "turn-output",
+      kind: "turn-stop-reason",
       turnId,
-      data: { output: turn.output },
+      data: { output: turn.stopReason },
     });
-    return { conversationId: ledger.conversationId, turnId, output: turn.output };
+    return { conversationId: ledger.conversationId, turnId, stopReason: turn.stopReason };
   } catch (error) {
     if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
           return stoppedReply(ledger, turn);
@@ -905,7 +905,7 @@ export async function handleTurn(
     const liveTool = ledger.liveTools[0];
     turn.status = "failed";
     turn.completedAt = nowIso();
-    turn.output = { kind: "error", faultCode: "tool_execution_failed", detail: cause.detail,
+    turn.stopReason = { kind: "error", faultCode: "tool_execution_failed", detail: cause.detail,
       ...(cause.faultCode !== "tool_execution_failed" ? { causeCode: cause.faultCode } : {}),
       ...(liveTool ? { toolName: liveTool.name } : {}) };
     ledger.status = "failed";
@@ -925,10 +925,10 @@ export async function handleTurn(
     saveTurn(deps.dataDir, turn);
     saveLedger(deps.dataDir, ledger);
     appendEvent(deps.dataDir, ledger.conversationId, {
-      kind: "turn-output", turnId,
-      data: { output: turn.output, ...(liveTool ? { callId: liveTool.callId } : {}),
+      kind: "turn-stop-reason", turnId,
+      data: { output: turn.stopReason, ...(liveTool ? { callId: liveTool.callId } : {}),
         error: { ...cause, ...(error instanceof Error ? { stack: error.stack } : {}) } },
     });
-    return { conversationId: ledger.conversationId, turnId, output: turn.output };
+    return { conversationId: ledger.conversationId, turnId, stopReason: turn.stopReason };
   } finally { execution.finish(); }
 }

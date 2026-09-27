@@ -51,7 +51,7 @@ test("more than 20 successful tool rounds can finish normally", async () => {
     toolCalls: [call(`page_${index}`, "page.get_summary", { tabId: 1 })],
   }));
   await run([...steps, finish()], ({ reply, turn, ledger, modelRequests, browserCalls }) => {
-    expect(reply.output).toEqual({ kind: "reply", text: "任务完成" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "任务完成" });
     expect(ledger.status).toBe("idle");
     expect(modelRequests).toBe(26);
     expect(browserCalls).toHaveLength(25);
@@ -65,7 +65,7 @@ test("one model response counts every executed browser, resident and closing too
     call("note", "notes.write", { key: "finding", value: "已核实" }),
     call("finish", "finishTurn", { text: "任务完成"}),
   ] })], ({ reply, turn, ledger, modelRequests, browserCalls }) => {
-    expect(reply.output).toEqual({ kind: "reply", text: "任务完成" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "任务完成" });
     expect(modelRequests).toBe(1);
     expect(browserCalls).toEqual(["page.get_summary"]);
     expect(ledger.notes.finding).toBe("已核实");
@@ -76,7 +76,7 @@ test("one model response counts every executed browser, resident and closing too
 test("a valid tool round resets consecutive invalid submission count", async () => {
   await run([invalid(), emptyReply(), result({ toolCalls: [call("valid", "page.get_summary", { tabId: 1 })] }),
     invalid(), emptyReply(), finish()], ({ reply, turn, modelRequests, browserCalls }) => {
-    expect(reply.output).toEqual({ kind: "reply", text: "任务完成" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "任务完成" });
     expect(modelRequests).toBe(6);
     expect(browserCalls).toEqual(["page.get_summary"]);
     expect(turn.usage).toEqual({ modelRequests: 6, toolCalls: 2 });
@@ -85,7 +85,7 @@ test("a valid tool round resets consecutive invalid submission count", async () 
 
 test("three consecutive invalid submissions still stop without executing invalid calls", async () => {
   await run([invalid(), emptyReply(), invalid(), finish()], ({ reply, turn, ledger, modelRequests, browserCalls }) => {
-    expect(reply.output).toMatchObject({ kind: "error", faultCode: "missing_required", toolName: expect.any(String), detail: expect.stringContaining("missing required") });
+    expect(reply.stopReason).toMatchObject({ kind: "error", faultCode: "missing_required", toolName: expect.any(String), detail: expect.stringContaining("missing required") });
     expect(ledger.status).toBe("failed");
     expect(modelRequests).toBe(3);
     expect(browserCalls).toEqual([]);
@@ -96,7 +96,7 @@ test("three consecutive invalid submissions still stop without executing invalid
 test("finishTurn missing required text is rejected before execution three times", async () => {
   const emptyFinish = () => result({ toolCalls: [call("empty_finish", "finishTurn")] });
   await run([emptyFinish(), emptyFinish(), emptyFinish(), finish()], ({ reply, turn, ledger, modelRequests, browserCalls }) => {
-    expect(reply.output).toMatchObject({ kind: "error", faultCode: "missing_required", toolName: expect.any(String), detail: expect.stringContaining("missing required") });
+    expect(reply.stopReason).toMatchObject({ kind: "error", faultCode: "missing_required", toolName: expect.any(String), detail: expect.stringContaining("missing required") });
     expect(ledger.status).toBe("failed");
     expect(modelRequests).toBe(3);
     expect(browserCalls).toEqual([]);
@@ -107,11 +107,11 @@ test("finishTurn missing required text is rejected before execution three times"
 test("mixed missing and type errors reach model feedback and final output", async () => {
   const invalidClick = () => result({ toolCalls: [{ id: "bad_click", name: "click", arguments: { reason: "点击文字", targetText: true } }] });
   await run([result({ toolCalls: [call("enable", "catalog.add", { names: ["click"] })] }), invalidClick(), invalidClick(), invalidClick()], ({ reply, ledger, browserCalls }) => {
-    if (reply.output.kind === "error") {
-      expect(reply.output.detail).toContain("data/targetText must be string");
-      expect(reply.output.detail).toContain("at least one alternative");
+    if (reply.stopReason.kind === "error") {
+      expect(reply.stopReason.detail).toContain("data/targetText must be string");
+      expect(reply.stopReason.detail).toContain("at least one alternative");
     }
-    expect(reply.output).toMatchObject({ kind: "error", faultCode: "missing_required", toolName: "click" });
+    expect(reply.stopReason).toMatchObject({ kind: "error", faultCode: "missing_required", toolName: "click" });
     const feedback = ledger.toolIO.filter(row => row.name === "click");
     expect(feedback).toHaveLength(3);
     for (const row of feedback) {
@@ -129,7 +129,7 @@ test("same-name invalid calls retain independent diagnostics and schema before s
     bad("missing", { id: "e1", text: "x" }),
     bad("type", { tabId: 1, id: "e2", text: false, reason: "输入" }),
   ] }), result({ toolCalls: [call("fixed", "page.type", { tabId: 1, id: "e2", text: "x" })] }), finish()], ({ reply, ledger, browserCalls }) => {
-    expect(reply.output).toEqual({ kind: "reply", text: "任务完成" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "任务完成" });
     const rows = ledger.toolIO.filter(row => row.name === "page.type");
     expect(rows).toHaveLength(3);
     expect(rows[0]!.callId).not.toBe(rows[1]!.callId);

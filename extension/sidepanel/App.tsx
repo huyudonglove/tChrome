@@ -321,7 +321,7 @@ export function App() {
     try {
       void chrome.runtime.sendMessage({ type: "ping" }).catch(() => {});
       requestStarted = true;
-      await requestJSON<{ output?: Output }>("/turn", {
+      await requestJSON<{ stopReason?: Output }>("/turn", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ conversationId: session.conversationId, userInput: text, submittedAt: new Date().toISOString() }),
