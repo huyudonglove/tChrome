@@ -85,22 +85,25 @@ function expandLongContent(item: unknown): string[] {
   return labels;
 }
 
-/** 单条结果的紧凑标签：按可定位性从高到低取（行号区间 / 命中行 → 请求 → id → 名称）。 */
-function labelItem(item: unknown): string | null {
+/** 单条结果的紧凑标签：按可定位性从高到低取（行号区间 / 命中行 → 请求 → id → 名称）。
+ * parentPath 是祖先节点上的文件路径：evidence.search 这类载荷把 path 放在外层 results[]、
+ * 行号与命中词放在内层 matches[]，只看本项会丢掉定位信息，故由调用方下钻时带下来。 */
+function labelItem(item: unknown, parentPath = ""): string | null {
   if (typeof item === "string") return item.slice(0, 40);
   if (!item || typeof item !== "object") return null;
   const rec = item as Record<string, unknown>;
-  if (typeof rec.path === "string") {
-    const base = rec.path.split("/").pop() ?? rec.path;
-    if (typeof rec.startLine === "number") {
-      const range = rec.endLine === rec.startLine ? `${rec.startLine}` : `${rec.startLine}-${rec.endLine}`;
-      const total = typeof rec.totalLines === "number" ? `/${rec.totalLines}` : "";
-      return `${base}:${range}${total}`;
-    }
-    if (typeof rec.line === "number") return `${base}:${rec.line}${hitSnippet(rec)}`;
-    return base;
+  const own = typeof rec.path === "string" ? rec.path : parentPath;
+  const base = own ? own.split("/").pop() ?? own : "";
+  if (own && typeof rec.startLine === "number") {
+    const range = rec.endLine === rec.startLine ? `${rec.startLine}` : `${rec.startLine}-${rec.endLine}`;
+    const total = typeof rec.totalLines === "number" ? `/${rec.totalLines}` : "";
+    return `${base}:${range}${total}`;
   }
-  if (typeof rec.line === "number") return `line ${rec.line}${hitSnippet(rec)}`;
+  // 内层条目（evidence.search 的 matches 元素）把行号放在 lineStart，path 只挂在外层 results[] 上，
+  // 故行号也接受 lineStart，并在有祖先路径时带上它，才定位得到具体哪一行。
+  const lineNo = typeof rec.line === "number" ? rec.line : typeof rec.lineStart === "number" ? rec.lineStart : null;
+  if (lineNo !== null) return base ? `${base}:${lineNo}${hitSnippet(rec)}` : `line ${lineNo}${hitSnippet(rec)}`;
+  if (own) return base;
   // 分块条目（fs_outline 的 blocks）：没有 path/line，只有块号与块内行号，用 preview 开头做线索。
   if (typeof rec.startLine === "number" && typeof rec.preview === "string") {
     const head = rec.preview.trim().replace(/\s+/g, " ").slice(0, 32);
@@ -114,6 +117,34 @@ function labelItem(item: unknown): string | null {
     if (typeof value === "string" && value) return value.slice(0, 40);
   }
   return null;
+}
+
+/** 标签是否只到「文件名」这一层：只有 path 没有行号时，多半还有内层可定位信息。 */
+function bareFileLabel(item: unknown, label: string): boolean {
+  if (!item || typeof item !== "object") return false;
+  const rec = item as Record<string, unknown>;
+  if (typeof rec.path !== "string") return false;
+  return label === (rec.path.split("/").pop() ?? rec.path);
+}
+
+/** 内层条目标签：外层给 path、内层给 lineStart/hit 时，继承祖先路径拼成 base:line "hit"。
+ * 深度与条数都有上限：只补「外层标签只到文件名」的场景，不整体展开大对象。 */
+function nestedLabels(item: unknown, parentPath: string, depth = 1, cap = 60): string[] {
+  if (depth > 3 || !item || typeof item !== "object") return [];
+  const out: string[] = [];
+  const visit = (child: unknown) => {
+    if (out.length >= cap || !child || typeof child !== "object") return;
+    const label = labelItem(child, parentPath);
+    // 只收比「只有文件名」更具体的标签，泛泛的 id/name 不占目录预算。
+    if (label && !bareFileLabel(child, label)) out.push(label);
+    out.push(...nestedLabels(child, parentPath, depth + 1, cap - out.length));
+  };
+  for (const value of Object.values(item as Record<string, unknown>)) {
+    if (out.length >= cap) break;
+    if (Array.isArray(value)) value.forEach(visit);
+    else if (value && typeof value === "object") visit(value);
+  }
+  return out;
 }
 
 /** 索引聚类：同一条目的多处命中合并成 a.ts×12(1,7,42)，省地方且信息量更高。 */
@@ -185,6 +216,12 @@ export function payloadIndex(full: string): { head: string; labels: string[]; fu
       }
       const label = labelItem(item);
       if (label) labels.push(label);
+      // 标签只到文件名时往内层再走一步：evidence.search 这类载荷把 path 放外层、
+      // 行号与命中词放 matches[]，只看本项会退化成「只有文件名」。
+      if (label && bareFileLabel(item, label)) {
+        const parentPath = (item as Record<string, unknown>).path as string;
+        labels.push(...nestedLabels(item, parentPath, 1, Math.max(8, Math.floor(200 / source.value.length))));
+      }
     }
     counts.push(`${source.label}×${source.value.length}`);
     const unique = [...new Set(labels)];

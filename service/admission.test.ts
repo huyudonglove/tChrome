@@ -379,3 +379,30 @@ test("retrieval window shares the inline gate instead of a separate retrieval li
   expect(window).toBeLessThan(gate);
   expect(window).toBeGreaterThanOrEqual(100);
 });
+
+test("indexTree labels nested entries with the parent file name", () => {
+  const full = JSON.stringify({
+    ok: true,
+    toolName: "evidence.search",
+    results: [
+      {
+        ok: true,
+        source: "search",
+        path: "/tmp/call_817.txt",
+        mode: "search",
+        matches: [
+          { offset: 10, lineStart: 42, lineEnd: 42, before: "", hit: "notes.write", after: " tail" },
+          { offset: 30, lineStart: 87, lineEnd: 87, before: "", hit: "memory.write", after: " tail" },
+        ],
+      },
+    ],
+    filler: "x".repeat(5000),
+  });
+  const tree = indexTree(full);
+  expect(tree).not.toBeNull();
+  const rendered = tree!.levels.flatMap((level) => level.chunks.map((chunk) => chunk.text)).join("\n");
+  // 内层 matches[] 没有 path，行号与命中词要靠外层文件名才定位得到。
+  expect(rendered).toContain("call_817.txt:42");
+  expect(rendered).toContain("notes.write");
+  expect(rendered).toContain("call_817.txt:87");
+});
