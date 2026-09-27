@@ -156,3 +156,41 @@ test("tabs.current 走扩展桥；停止释放桥接等待", async () => {
     expect(calls).toBeGreaterThan(0);
   } finally {server.bridge.abort(); rmSync(dir,{recursive: true,force:true});}
 });
+
+test("/browser-batch 校验任务、要求扩展在线，并经扩展桥在真实标签执行", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-batch-"));
+  const repoRoot = join(import.meta.dir, "..");
+  const bridge = createToolBridge(dir);
+  const server = createServer({ dataDir: dir, repoRoot, bridge });
+  const version = executorVersion(repoRoot);
+  const post = (body: unknown) => server.fetch(new Request(`${base}/browser-batch`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+  }));
+  try {
+    expect((await post({ tasks: [] })).status).toBe(400);
+    expect((await post({ tasks: [{ name: "   " }] })).status).toBe(400);
+    expect((await post({ tasks: [{ name: "see_page", input: [] }] })).status).toBe(400);
+    expect((await post({ tasks: [{ input: {} }] })).status).toBe(400);
+    expect((await post({ tasks: [{ name: "see_page" }] })).status).toBe(503);
+    expect(bridge.list()).toEqual([]);
+
+    await server.fetch(new Request(`${base}/tool-request?executorVersion=${version}`));
+    const pending = post({ tasks: [{ name: "see_page", input: { tabId: 1 } }, { name: "tabs.current" }] });
+    let queued = bridge.list();
+    for (let i = 0; i < 50 && queued.length < 2; i++) {
+      await Bun.sleep(1);
+      queued = bridge.list();
+    }
+    expect(queued.map((item) => item.name)).toEqual(["see_page", "tabs.current"]);
+    for (const item of queued) bridge.resolve(item.id, { ok: true, marker: item.name });
+
+    const body = await (await pending).json() as { ok: boolean; count: number; results: { name: string; result: { marker?: string } }[] };
+    expect(body.ok).toBe(true);
+    expect(body.count).toBe(2);
+    expect(body.results.map((item) => item.name)).toEqual(["see_page", "tabs.current"]);
+    expect(body.results.map((item) => item.result.marker)).toEqual(["see_page", "tabs.current"]);
+  } finally {
+    bridge.abort();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

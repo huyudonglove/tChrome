@@ -15,7 +15,7 @@
         },
         "expr": {
           "type": "string",
-          "description": "要执行的 JavaScript 表达式或自执行函数字面量，例如 'document.title' 或 '(() => ({ w: window.innerWidth }))()'"
+          "description": "要执行的 JavaScript 表达式或自执行函数字面量，例如 'document.title' 或 '(() => ({ w: window.innerWidth }))()'。必须是单个表达式或 IIFE，语句用分号或逗号串起来；执行超时上限 4 秒，多语句、有副作用或需复用的脚本改用 script_write + execute_javascript。"
         }
       },
       "required": [

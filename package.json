@@ -10,7 +10,7 @@
     "build": "bun run scripts/build-extension.ts",
     "test": "bun test service shared",
     "test:extension": "bun test extension",
-    "check": "bun test service shared && bun run scripts/build-extension.ts"
+    "check": "bun test service shared && bun run scripts/build-extension.ts && bun run scripts/sync-context-examples.ts --check"
   },
   "dependencies": {
     "@tavily/core": "^0.7.11",

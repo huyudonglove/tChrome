@@ -166,6 +166,41 @@ export function createServer(options: ServeOptions = {}) {
         if (!bridge.resolve(body.id, body.result)) return respond({ ok: false, error: "没有这个工具请求" }, 404);
         return respond({ ok: true });
       }
+      // Batch entry for external scripts: enqueue browser tool calls on the same
+      // in-memory bridge the extension already polls, so they run on real tabs.
+      if (request.method === "POST" && url.pathname === "/browser-batch") {
+        let body: { tasks?: unknown } | null = null;
+        try { body = await request.json() as { tasks?: unknown }; } catch { body = null; }
+        const tasks = Array.isArray(body?.tasks) ? body.tasks as unknown[] : [];
+        if (!tasks.length) return respond({ ok: false, error: "tasks 不能为空" }, 400);
+        if (tasks.length > 32) return respond({ ok: false, error: "单批最多 32 个任务" }, 400);
+        const bad = tasks.findIndex((task) => {
+          const t = task as { name?: unknown; input?: unknown } | null;
+          if (!t || typeof t !== "object" || typeof t.name !== "string" || !t.name.trim()) return true;
+          if (t.input === undefined) return false;
+          return typeof t.input !== "object" || t.input === null || Array.isArray(t.input);
+        });
+        if (bad >= 0) return respond({ ok: false, error: `tasks[${bad}] 需要形如 { name: string, input?: object }` }, 400);
+        const view = extensionView();
+        if (view.status !== "ready") {
+          return respond({ ok: false, error: view.error || "浏览器扩展未连接，无法批量执行浏览器任务", extension: view }, 503);
+        }
+        const batchHost = snapshotHost("external-batch");
+        const results = await Promise.all(tasks.map(async (task, index) => {
+          const t = task as { name: string; input?: Record<string, unknown> };
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          try {
+            const result = await Promise.race([
+              batchHost.execute(t.name, t.input ?? {}),
+              new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("批量任务超时")), 60_000); }),
+            ]);
+            return { index, name: t.name, result };
+          } catch (error) {
+            return { index, name: t.name, result: { ok: false, error: error instanceof Error ? error.message : String(error) } as BrowserResult };
+          } finally { clearTimeout(timer!); }
+        }));
+        return respond({ ok: true, count: results.length, results });
+      }
       if (request.method === "GET" && url.pathname === "/session") {
         return respond(currentSessionView(dataDir));
       }

@@ -12,6 +12,16 @@ import type { Turn } from "../service/types.ts";
 const root = join(import.meta.dir, "..");
 const c = loadContextModules(root);
 const registry = loadToolRegistry(root);
+// --check：只比对不写盘，文档与当前渲染结果不一致时退出 1 并列出文件。用于把本脚本挂进 bun run check。
+const checkOnly = process.argv.includes("--check");
+const stale: string[] = [];
+function emit(path: string, text: string) {
+  if (checkOnly) {
+    if (readFileSync(path, "utf8") !== text) stale.push(path);
+    return;
+  }
+  writeFileSync(path, text);
+}
 function update(value: any): any {
   if (!value || typeof value !== "object") return value;
   if (value.type === "function" && value.function?.name && value.function.parameters) return toolSchemas(registry, [value.function.name])[0];
@@ -44,7 +54,7 @@ for (const file of readdirSync(join(root, "docs/examples")).filter(f => /^0[1-8]
     text = replaceFencedBlock(text, "<skill>", user);
   }
   text = text.replace(/^```json\n([\s\S]*?)^```/gm, (_, body) => fence("json", JSON.stringify(update(JSON.parse(body)), null, 2)));
-  writeFileSync(path, text);
+  emit(path, text);
 }
 const xml09 = join(root, "docs/examples/09-main-model-xml-sample.md");
 {
@@ -57,7 +67,7 @@ const xml09 = join(root, "docs/examples/09-main-model-xml-sample.md");
   let text = readFileSync(xml09, "utf8");
   text = replaceFencedSection(text, "## System（", `## System（${system.length} 字符）\n\n` + fence("text", system), "## User（");
   text = replaceFencedSection(text, "## User（", `## User（${user.length} 字符）\n\n` + fence("text", user));
-  writeFileSync(xml09, text);
+  emit(xml09, text);
 }
 const xml10 = join(root, "docs/examples/10-compression-agent-input-sample.md");
 {
@@ -131,5 +141,10 @@ const xml10 = join(root, "docs/examples/10-compression-agent-input-sample.md");
     parts.push("## " + heading, "", fence("text", block.text), "");
   }
   parts.push("## User", "", fence("text", user), "");
-  writeFileSync(xml10, parts.join("\n"));
+  emit(xml10, parts.join("\n"));
+}
+if (checkOnly && stale.length > 0) {
+  for (const path of stale) console.error("stale: " + path.slice(root.length + 1));
+  console.error("docs/examples 与当前渲染结果不一致，运行 bun run scripts/sync-context-examples.ts 同步。");
+  process.exit(1);
 }

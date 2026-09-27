@@ -463,7 +463,7 @@ Sample（动态清单格式，仅示例）：
     - reply-format｜侧栏/markdown/回复｜回复格式（本地侧栏）。
 </systemSkill>
 ```
-## User（16208 字符）
+## User（16494 字符）
 
 ```text
 <skill>
@@ -844,6 +844,7 @@ TAGS:
 
 ## 硬规则（都是踩过的坑）
 
+- **先打印真实样本，再写匹配逻辑**：需要按某种结构做解析或匹配（围栏配对、缩进层级、起止标记、字段顺序），而你没见过它的真实样子时，先花一次调用把样本打印出来（行号、计数、结构清单）再动手。猜结构会连改多版方案：v1 取第一个闭合标记 → 提前截断，v2 取最后一个 → 把历史堆积内容一起框进去，v3 按奇偶配对 → 正文自带围栏导致数量对不上；三次都建立在「文档应该是干净的」这个未验证前提上，直到打印真实结构才一次定稿。同理，补单测的 fixture 必须结构合法（内层围栏成对、不能挤成一行、body 里不留孤立裸围栏），不能造一份假样本再反过来怀疑实现。
 - **无头 ≠ 真实**。playwright `channel:'chrome', headless:true` 是全新 profile：无 cookie、无 token、无扩展。实测 shining3dReact 无头下 `/3dgs`、`/collections`、`/featured-models` 稳定 `Unable to load …` 被误报 P0，真实 Chrome 三页全有数据；根因是无头未登录 + `/api/sdk/cloud/auth/connect` 502，业务请求根本没发出。**无头结论只能当线索。**
 - **脚本接不上真实浏览器就别硬凑**。先探 `lsof -iTCP:9222 -sTCP:LISTEN` + `curl /json/version` + `connectOverCDP`；若 9222 在 LISTEN 但 `/json/version` 404，说明该 Chrome 走扩展注入桥，脚本无法复用登录态 → 分工：无头做批量速筛，真实标签做有状态结论。
 - **批量脚本工程细节**：复用单个 context；逐条即时打印（末尾一次性 `console.log` 会因缓冲区丢掉全部输出）；导航超时 12s；输出超 4000 字符会被外置，跑完用摘要脚本压成「只留非 2xx 与 error 行」。
