@@ -5,6 +5,7 @@ import { storeToolImages } from "../images/tool-result.ts";
 import { admitImages, admitText, deferredImageNote } from "../admission.ts";
 import { escalate } from "./escalation.ts";
 import { requiresActiveTask } from "./task-gate.ts";
+import { repeatHint } from "./repeat-detect.ts";
 import { ensureThumb, loadThumbRef } from "../images/thumb.ts";
 import { projectMemories } from "../memory/window.ts";
 import { errorInfo, errorMessage } from "../../shared/errors.ts";
@@ -314,7 +315,13 @@ const runQueue = async (input: {
         ...(slot.execCtx.activeTaskItemId ? { taskItemId: slot.execCtx.activeTaskItemId } : {}),
       };
       ledger.toolIO.push(row);
-      const escalation = escalate(ledger.toolIO.filter((r) => r.turnId === turn.turnId), item.name);
+      const turnRows = ledger.toolIO.filter((r) => r.turnId === turn.turnId);
+      // Hint only: identical calls or identical repeated failures are flagged, never blocked.
+      const repeated = repeatHint(turnRows);
+      if (repeated) {
+        row.return = { ...row.return, text: `${row.return.text}\n\n${repeated}` };
+      }
+      const escalation = escalate(turnRows, item.name);
       if (escalation.action === "force_end" || escalation.action === "interrupt") {
         saveLedger(dataDir, ledger);
         return { kind: "reply", text: escalation.text };
