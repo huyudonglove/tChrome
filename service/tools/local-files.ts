@@ -36,7 +36,7 @@ async function searchOneDir(input: Record<string, unknown>): Promise<Record<stri
     if (typeof input.query !== "string" || !input.query.length) throw new Error("query must be a non-empty filename substring");
     const limit = integer(input, "limit", 100, 1, 1000);
     const maxEntries = integer(input, "maxEntries", 10000, 1, 100000);
-    if (!(await lstat(path)).isDirectory()) throw new Error("path must be a directory, not a symlink");
+    if (!(await lstat(path)).isDirectory()) throw new Error("path must be a directory, not a file or symlink; pass the containing directory, or use local.fs_stat/local.fs_read for a file path");
     const pending = [path];
     const matches: Record<string, unknown>[] = [];
     let scanned = 0;
@@ -170,6 +170,9 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
         const limit = integer(input, "limit", 200, 1, 1000);
         const entries: Record<string, unknown>[] = [];
         let truncated = false;
+        if (!(await lstat(path)).isDirectory()) {
+          throw new Error("path must be a directory, not a file or symlink; pass the containing directory, or use local.fs_stat/local.fs_read for a file path");
+        }
         for await (const entry of await opendir(path)) {
           if (entries.length >= limit) { truncated = true; break; }
           entries.push({ name: entry.name, path: join(path, entry.name), type: typeOf(entry) });
@@ -228,7 +231,7 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
         const maxEntries = integer(input, "maxEntries", 10000, 1, 100000);
         const contextChars = integer(input, "contextChars", 80, 0, 200);
         const contextLines = integer(input, "contextLines", 0, 0, 20);
-        if (!(await lstat(path)).isDirectory()) throw new Error("path must be a directory, not a symlink");
+        if (!(await lstat(path)).isDirectory()) throw new Error("path must be a directory, not a file or symlink; pass the containing directory, or use local.fs_stat/local.fs_read for a file path");
         const pending = [path];
         const matches: Record<string, unknown>[] = [];
         let scannedFiles = 0;

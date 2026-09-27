@@ -280,3 +280,22 @@ test("fs_read supports line slice mode with startLine and endLine", async () => 
   expect(res5.ok).toBe(false);
   expect(res5.results[0]!.ok).toBe(false);
 });
+
+test("directory tools explain a file path instead of leaking ENOTDIR", async () => {
+  const file = join(root, "plain.txt");
+  await writeFile(file, "x");
+  for (const name of ["local.fs_list", "local.fs_search", "local.fs_grep"] as const) {
+    const input = name === "local.fs_search"
+      ? { items: [{ path: file, query: "x" }] }
+      : name === "local.fs_grep" ? { path: file, query: "x" } : { path: file };
+    const result = await run(name, input) as {
+      ok: boolean; message?: string; error?: string;
+      items?: { error?: string }[]; results?: { error?: string }[];
+    };
+    expect(result.ok).toBe(false);
+    const detail = result.error ?? result.message ?? result.results?.[0]?.error ?? result.items?.[0]?.error ?? "";
+    expect(detail).toContain("must be a directory");
+    expect(detail).toContain("local.fs_stat");
+    expect(detail).not.toContain("ENOTDIR");
+  }
+});
