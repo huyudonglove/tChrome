@@ -176,6 +176,15 @@ export function saveFullReturn(dataDir: string, cvId: string, callId: string, fu
   });
 }
 
+/** 完整索引落盘：内联目录装不下的标签写这里，模型按需 precision 检索，不再看到腰斩或 …(+n)。 */
+export function saveReturnIndex(dataDir: string, cvId: string, callId: string, index: string): string {
+  const dir = paths(dataDir, cvId).returns;
+  mkdirSync(dir, { recursive: true });
+  const path = join(dir, `${callId}.index.txt`);
+  writeFileSync(path, wrapCachedText(index));
+  return path;
+}
+
 export function loadFullReturn(dataDir: string, cvId: string, callId: string): string | null {
   const path = join(paths(dataDir, cvId).returns, `${callId}.txt`);
   if (!existsSync(path)) return null;
