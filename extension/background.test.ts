@@ -45,8 +45,10 @@ test("background dispatch continues without panel messages and resumes on alarms
       results.push(body.id);
       lastResult = body.result;
       expect(body.result).toBeDefined();
-      if (reportsFail) return Response.json({ok: false}, {status: 503});
+      // The service consumes the request whether or not the result is accepted,
+      // so the queue never hands the same id back and the pump cannot hot-loop.
       request = null;
+      if (reportsFail) return Response.json({ok: false}, {status: 503});
       return Response.json({ ok: true });
     }
     throw new Error(`Unexpected URL: ${url}`);
@@ -70,23 +72,24 @@ test("background dispatch continues without panel messages and resumes on alarms
     request = { id: "report-failure", name: "list_tabs" };
     reportsFail = true;
     interval();
-    await Bun.sleep(0);
-    interval();
-    await Bun.sleep(0);
+    await Bun.sleep(60);
+    // A refused report is retried with backoff but never re-executed.
+    expect(results.at(-1)).toBe("report-failure");
+    expect(executions).toBe(1);
     reportsFail = false;
     interval();
     await Bun.sleep(0);
     expect(executions).toBe(1);
-    expect(results.slice(-3)).toEqual(["report-failure", "report-failure", "report-failure"]);
     // Simulate a claim left by a previous worker that stopped during execution.
-    storage['tchrome-tool-execution'] = {id: 'interrupted-worker'};
+    // The records map is keyed by request id, not by a literal `id` field.
+    storage['tchrome-tool-executions'] = {'interrupted-worker': {}};
     request = {id: 'interrupted-worker', name: 'list_tabs'};
     interval();
     await Bun.sleep(0);
     expect(executions).toBe(1);
     expect(results.at(-1)).toBe('interrupted-worker');
     expect(lastResult).toMatchObject({ok: false, faultCode: 'tool_execution_failed'});
-    storage['tchrome-tool-execution'] = {id: 'completed-worker', result: {ok: true, tabs: []}};
+    storage['tchrome-tool-executions'] = {'completed-worker': {result: {ok: true, tabs: []}}};
     request = {id: 'completed-worker', name: 'list_tabs'};
     interval();
     await Bun.sleep(0);

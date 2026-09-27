@@ -12,9 +12,19 @@ const SERVICE = "http://127.0.0.1:18788";
 const PUMP_ALARM = "tchrome-tool-pump";
 let pumping = false;
 let active = false;
+// A service that keeps rejecting /tool-result must not turn the pump into a hot
+// loop: retry a few times with backoff, then give up so the next tick can try
+// again instead of starving timers while re-polling the same undelivered id.
+const REPORT_FAILURE_LIMIT = 3;
+const REPORT_BACKOFF_BASE_MS = 20;
+const REPORT_BACKOFF_MAX_MS = 200;
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 // Persist claims before execution so worker restarts never replay an action.
 const EXECUTION_RECORDS = "tchrome-tool-executions";
 const reported = new Map<string, Record<string, unknown>>();
+// Ids whose result the service refused; they must not be re-executed, but the
+// pump has to notice that the same id keeps coming back undelivered.
+const awaitingReport = new Set<string>();
 const tabChains = new Map<number, Promise<void>>();
 
 const withTabLock = async (tabId: number | null | undefined, fn: () => Promise<void>) => {
@@ -35,8 +45,18 @@ const runRequest = async (request: { id: string; name: string; input?: Record<st
   if (reported.has(request.id)) return;
   const records = await loadRecords();
   let result: Record<string, unknown>;
-  if (records[request.id]?.result) {
-    result = records[request.id]!.result!;
+  const claim = records[request.id];
+  if (claim?.result) {
+    result = claim.result!;
+  } else if (claim) {
+    // A claim without a result means a previous worker stopped mid-execution.
+    // The action may already have run, so never replay it: report the failure
+    // and let the service decide whether to retry.
+    result = {
+      ok: false,
+      faultCode: "tool_execution_failed",
+      error: `request ${request.id} was claimed but never completed by a previous worker`,
+    };
   } else {
     await chrome.storage.session.set({
       [EXECUTION_RECORDS]: { ...records, [request.id]: {} },
@@ -66,12 +86,17 @@ const runRequest = async (request: { id: string; name: string; input?: Record<st
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ id: request.id, result }),
   });
-  if (!response.ok) throw new Error(`tool-result ${response.status}`);
+  if (!response.ok) {
+    awaitingReport.add(request.id);
+    throw new Error(`tool-result ${response.status}`);
+  }
+  awaitingReport.delete(request.id);
 };
 
 const pumpTools = async () => {
   if (pumping) return;
   pumping = true;
+  let reportFailures = 0;
   try {
     while (true) {
       const listed = await fetch(`${SERVICE}/tool-request?executorVersion=${executorVersion}`);
@@ -93,6 +118,15 @@ const pumpTools = async () => {
       }
       active = true;
       await Promise.all(requests.map((request) => runRequest(request).catch(() => {})));
+      const undelivered = requests.filter((request) => awaitingReport.has(request.id)).length;
+      reportFailures = undelivered ? reportFailures + undelivered : 0;
+      if (reportFailures >= REPORT_FAILURE_LIMIT) {
+        active = false;
+        return;
+      }
+      if (reportFailures) {
+        await sleep(Math.min(REPORT_BACKOFF_BASE_MS * 2 ** (reportFailures - 1), REPORT_BACKOFF_MAX_MS));
+      }
     }
   } finally {
     pumping = false;
