@@ -11,6 +11,7 @@ export type ToolEffect =
   | { type: "memory.update"; memoryId: string; text: string }
   | { type: "memory.delete"; memoryId: string }
   | { type: "tools.enable"; names: string[] }
+  | { type: "tools.disable"; names: string[] }
   | { type: "skill.load"; id: string }
   | { type: "page.set"; page: CurrentPage; result: Record<string, unknown> }
   | { type: "observation.write"; observationType: string; result: unknown; tabId?: number }

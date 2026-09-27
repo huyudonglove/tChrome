@@ -168,6 +168,16 @@
     "script_read",
     "script_list",
     "checkContinue",
-    "reportProgress"
+    "reportProgress",
+    "memory.update",
+    "memory.delete",
+    "notes.write",
+    "notes.delete",
+    "page.clear_result",
+    "skill.load",
+    "reflect.delete",
+    "job.stop",
+    "wait_response",
+    "page.get_by_role"
   ]
 }

@@ -81,6 +81,7 @@ export type ExecuteInput = {
     unusedTools: string[];
     knownTools: string[];
     enabledTools: string[];
+    protectedTools?: string[];
   };
   observationIds?: string[];
   defaultTabId?: number | null;
@@ -569,6 +570,14 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   }
   if (name === "catalog.add") {
     const names = [...new Set(asStringArray(args.names))];
+    const mode = args.mode === "remove" ? "remove" : "add";
+    if (mode === "remove") {
+      const protectedNames = lookup.protectedTools ?? [];
+      const removed = names.filter((id) => lookup.enabledTools.includes(id) && !protectedNames.includes(id));
+      const notLoaded = names.filter((id) => !lookup.enabledTools.includes(id) || protectedNames.includes(id));
+      return result(JSON.stringify({ ok: true, mode, removed, notLoaded }),
+        removed.length ? [{ type: "tools.disable", names: removed }] : []);
+    }
     const added = names.filter((id) => lookup.knownTools.includes(id) && !lookup.enabledTools.includes(id));
     const alreadyEnabled = names.filter((id) => lookup.enabledTools.includes(id));
     const unknown = names.filter((id) => !lookup.knownTools.includes(id) && !lookup.enabledTools.includes(id));

@@ -28,16 +28,16 @@ export type ToolRegistry = {
 const CAUSAL_BACKFILL = {
   expected: {
     type: "string",
-    description: "扣动扳机前固化的成功判据：预期的环境/数据变化（看到什么才算成功）。可选。",
+    description: "成功判据：看到什么才算成功。可选。",
   },
   fallback: {
     type: "string",
-    description: "未达 expected 时的熔断策略：立刻退向何处、绝不做什么。可选。",
+    description: "未达 expected 时的退路。可选。",
   },
   risk: {
     type: "string",
     enum: ["low", "medium", "high"],
-    description: "本次调用的风险等级。工具风险未固定或本次比平时高危时填写；high 需要活动 Task（task.set）。可选。",
+    description: "风险等级；high 需先 task.set。可选。",
   },
 } as const;
 

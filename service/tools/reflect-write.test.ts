@@ -27,7 +27,8 @@ test("reflect.write allocates rf_ ids and reflect.delete removes by id", async (
   expect(registry.tools["reflect.write"]).toBeTruthy();
   expect(registry.tools["reflect.delete"]).toBeTruthy();
   expect(registry.toolGroups.baseToolsIds).toContain("reflect.write");
-  expect(registry.toolGroups.baseToolsIds).toContain("reflect.delete");
+  // reflect.delete 是低频工具，已下沉为动态工具，只保证可被 catalog.add 加载。
+  expect(registry.index.service).toContain("reflect.delete");
 
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-reflect-"));
   try {

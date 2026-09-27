@@ -226,7 +226,7 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
         const useRegex = flag(input, "regex");
         const pattern = useRegex ? new RegExp(query, "g") : null;
         const limit = integer(input, "limit", 50, 1, 200);
-        const maxFiles = integer(input, "maxFiles", 400, 1, 5000);
+        const maxFiles = integer(input, "maxFiles", 5000, 1, 5000);
         const maxFileBytes = integer(input, "maxFileBytes", 1048576, 1, 1048576);
         const maxEntries = integer(input, "maxEntries", 10000, 1, 100000);
         const contextChars = integer(input, "contextChars", 80, 0, 200);
@@ -237,6 +237,7 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
         let scannedFiles = 0;
         let scannedEntries = 0;
         let truncated = false;
+        const truncations: string[] = [];
         const skipped: { path: string; reason: string }[] = [];
         const errors: { path: string; error: string }[] = [];
         const skipDirs = new Set(["node_modules", ".git"]);
@@ -244,7 +245,11 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
           const directory = pending.pop()!;
           try {
             for await (const entry of await opendir(directory)) {
-              if (scannedEntries >= maxEntries || matches.length >= limit) { truncated = true; break outer; }
+              if (scannedEntries >= maxEntries || matches.length >= limit) {
+                truncations.push(scannedEntries >= maxEntries ? "maxEntries" : "limit");
+                truncated = true;
+                break outer;
+              }
               scannedEntries++;
               const entryPath = join(directory, entry.name);
               if (entry.isSymbolicLink()) continue;
@@ -257,7 +262,7 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
                 continue;
               }
               if (!entry.isFile()) continue;
-              if (scannedFiles >= maxFiles) { truncated = true; break outer; }
+              if (scannedFiles >= maxFiles) { truncations.push("maxFiles"); truncated = true; break outer; }
               scannedFiles++;
               const stat = await lstat(entryPath);
               if (!stat.isFile()) continue;
@@ -301,7 +306,7 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
                   if (!m) break;
                   pushMatch(m.index, m[0]);
                   pattern.lastIndex = m.index + Math.max(m[0].length, 1);
-                  if (matches.length >= limit) { truncated = true; break outer; }
+                  if (matches.length >= limit) { truncations.push("limit"); truncated = true; break outer; }
                 }
               } else {
                 let from = 0;
@@ -310,17 +315,26 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
                   if (at === -1) break;
                   pushMatch(at, query);
                   from = at + Math.max(query.length, 1);
-                  if (matches.length >= limit) { truncated = true; break outer; }
+                  if (matches.length >= limit) { truncations.push("limit"); truncated = true; break outer; }
                 }
               }
             }
           } catch (error) {
             if (directory === path) throw error;
             if (errors.length < 100) errors.push({ path: directory, error: error instanceof Error ? error.message : String(error) });
+            truncations.push("error");
             truncated = true;
           }
         }
-        return { ok: true, path, matches, scannedFiles, scannedEntries, truncated, skipped, errors };
+        const base = { ok: true, path, matches, scannedFiles, scannedEntries, truncated, truncations, partial: truncated, errors };
+        if (matches.length) return { ...base, skipped };
+        return {
+          ...base,
+          skippedCount: skipped.length,
+          note: truncated
+            ? `no matches, but the search stopped early (${truncations.join(", ")}); 0 matches does not mean the whole tree is clean`
+            : "no matches in the whole scanned tree",
+        };
       }
       default: throw new Error(`Unknown local file tool: ${name}`);
     }

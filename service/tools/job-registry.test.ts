@@ -103,7 +103,8 @@ test("execute_javascript heartbeat uses job.status and forwards the eventual scr
   expect(tools.tools["job.status"]).toBeTruthy();
   expect(tools.tools["job.stop"]).toBeTruthy();
   expect(tools.toolGroups.baseToolsIds).toContain("job.status");
-  expect(tools.toolGroups.baseToolsIds).toContain("job.stop");
+  // job.stop 是低频工具，已下沉为动态工具，只保证可被 catalog.add 加载。
+  expect(tools.index.service).toContain("job.stop");
   const filename = "beat.js";
   expect(await patchScript(dataDir, {
     filename,

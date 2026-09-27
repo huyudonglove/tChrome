@@ -34,6 +34,7 @@ function setup() {
       unusedTools: ["capture_page"],
       knownTools: ["finishTurn", "page.click", "capture_page"],
       enabledTools: [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds],
+      protectedTools: [...turn.assembled.baseToolsIds],
     },
     ...options,
   });
@@ -52,6 +53,26 @@ test("catalog.add reports only enabled names and distinguishes duplicates and un
   const repeated = await fixture.execute("catalog.add", { names: ["capture_page"] });
   expect(JSON.parse(repeated.text)).toEqual({ ok: true, added: [], alreadyEnabled: ["capture_page"], unknown: [] });
   expect(repeated.effects).toEqual([]);
+});
+
+test("catalog.add mode=remove unloads loaded tools and keeps core tools enabled", async () => {
+  const fixture = setup();
+  const added = await fixture.execute("catalog.add", { names: ["capture_page"] });
+  fixture.apply(added);
+  expect(fixture.turn.assembled.toolIds).toEqual(["page.click", "capture_page"]);
+
+  const removed = await fixture.execute("catalog.add", { names: ["capture_page", "finishTurn", "not_loaded"], mode: "remove" });
+  expect(JSON.parse(removed.text)).toEqual({
+    ok: true, mode: "remove", removed: ["capture_page"], notLoaded: ["finishTurn", "not_loaded"],
+  });
+  expect(removed.effects).toEqual([{ type: "tools.disable", names: ["capture_page"] }]);
+  fixture.apply(removed);
+  expect(fixture.turn.assembled.toolIds).toEqual(["page.click"]);
+  expect(loadLedger(fixture.dataDir, fixture.ledger.conversationId).loadedToolIds).toEqual([]);
+
+  const again = await fixture.execute("catalog.add", { names: ["capture_page"], mode: "remove" });
+  expect(JSON.parse(again.text)).toEqual({ ok: true, mode: "remove", removed: [], notLoaded: ["capture_page"] });
+  expect(again.effects).toEqual([]);
 });
 
 test("runtime persists stable hierarchical goals, explicit lifecycle and notes through effects", async () => {

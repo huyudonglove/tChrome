@@ -256,7 +256,8 @@ const runQueue = async (input: {
             lookup: {
               knownTools: Object.keys(toolRegistry.tools),
               enabledTools: [...turn.assembled.toolIds, ...toolRegistry.toolGroups.baseToolsIds],
-              unusedTools: dynamicToolIds(toolRegistry).filter((id) => !turn.assembled.toolIds.includes(id)),
+              unusedTools: dynamicToolIds(toolRegistry).filter((id) => !turn.assembled.toolIds.includes(id) && !toolRegistry.toolGroups.baseToolsIds.includes(id)),
+              protectedTools: toolRegistry.toolGroups.baseToolsIds,
             },
           });
         }

@@ -186,8 +186,30 @@ test("grep finds literal text with line context and skips binaries, noisy dirs, 
     { path: join(nested, ".git"), reason: "skipped directory" },
   ]));
   const limited = await run("local.fs_grep", { path: root, query: "needle", limit: 1 });
-  expect(limited).toMatchObject({ ok: true, truncated: true });
+  expect(limited).toMatchObject({ ok: true, truncated: true, partial: true });
   expect(limited.matches).toHaveLength(1);
+  expect(limited.truncations).toContain("limit");
+
+  const capped = await run("local.fs_grep", { path: root, query: "absent-token", maxFiles: 1 });
+  expect(capped).toMatchObject({ ok: true, truncated: true, partial: true, matches: [] });
+  expect(capped.truncations).toContain("maxFiles");
+  expect(capped.scannedFiles).toBe(1);
+
+  const entryCapped = await run("local.fs_grep", { path: root, query: "absent-token", maxEntries: 1 });
+  expect(entryCapped).toMatchObject({ ok: true, truncated: true, partial: true, matches: [] });
+  expect(entryCapped.truncations).toContain("maxEntries");
+
+  const none = await run("local.fs_grep", { path: root, query: "absent-token" });
+  expect(none).toMatchObject({ ok: true, truncated: false, partial: false, matches: [] });
+  expect(none.skipped).toBeUndefined();
+  expect(none.skippedCount).toBeGreaterThan(0);
+  expect(none.note).toContain("no matches");
+
+  const noneCapped = await run("local.fs_grep", { path: root, query: "absent-token", maxFiles: 1 });
+  expect(noneCapped).toMatchObject({ ok: true, truncated: true, partial: true, matches: [] });
+  expect(noneCapped.skipped).toBeUndefined();
+  expect(String(noneCapped.note)).toContain("maxFiles");
+
   expect(await run("local.fs_grep", { path: root, query: "needle", maxFileBytes: 4 })).toMatchObject({
     ok: true, matches: [],
   });

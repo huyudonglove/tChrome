@@ -145,6 +145,12 @@ export function applyToolEffects(input: {
         ledger.loadedToolIds = [...new Set([...ledger.loadedToolIds, ...effect.names])];
         turn.assembled.toolIds = [...new Set([...turn.assembled.toolIds, ...effect.names])];
         break;
+      case "tools.disable": {
+        const drop = new Set(effect.names);
+        ledger.loadedToolIds = ledger.loadedToolIds.filter((id) => !drop.has(id));
+        turn.assembled.toolIds = turn.assembled.toolIds.filter((id) => !drop.has(id));
+        break;
+      }
       case "skill.load": {
         if (!effect.id.trim()) throw new Error("skill.load 需要非空 id");
         ledger.loadedSkillIds = [...new Set([...(ledger.loadedSkillIds ?? []), effect.id])];
