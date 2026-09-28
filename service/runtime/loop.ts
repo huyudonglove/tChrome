@@ -512,7 +512,7 @@ export async function handleTurn(
           for (const phase of ["history", "current"] as const) {
             if (windowChars(messages[0]!.content, messages[1]!.content) < ledger.compressAt) break;
             const outcome = await compressContext({ ...deps, ledger, turn, memories, isCancelled: () => wasStopped(deps.dataDir, ledger.conversationId, turn.turnId), onStart: () => {
-              if (!compressionStarted) appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-start", turnId, data: { windowChars: initialChars } });
+              if (!compressionStarted) appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-start", turnId, data: { source: "runtime", windowChars: initialChars } });
               compressionStarted = true;
               appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-phase", turnId, data: { phase } });
             }, onProgress: (progress) => {

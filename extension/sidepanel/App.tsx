@@ -219,6 +219,8 @@ export function App() {
   const progress = session.activity && typeof session.activity.total === "number" && session.activity.total > 0
     ? ` ${session.activity.completed ?? 0}/${session.activity.total}`
     : "";
+  const compressionSource = session.activity?.source === "agent" ? "agent" : "runtime";
+  const compressionSourceText = compressionSource === "agent" ? "我主动触发" : "上下文超限自动";
   const compressionText = `${phaseText}${progress}`;
 
   const loadAll = async () => {
@@ -622,7 +624,7 @@ export function App() {
                   <article className="message-row assistant muted">
                     <Avatar who="assistant" />
                     <div className="message-body"><div className="waiting-dots" role="status" aria-label="正在处理">
-                      <span aria-hidden="true">.</span><span aria-hidden="true">.</span><span aria-hidden="true">.</span>
+                      <span aria-hidden="true" /><span aria-hidden="true" /><span aria-hidden="true" />
                     </div></div>
                   </article>
                 ) : null}
@@ -653,7 +655,8 @@ export function App() {
       ) : null}
 
       {compressing && !serviceDown ? (
-        <div className="compression-status" role="status" aria-live="polite">
+        <div className={`compression-status compression-${compressionSource}`} role="status" aria-live="polite">
+          <span className="compression-source">{compressionSourceText}</span>
           <strong>{compressionText}</strong>
           <span>按轮顺序压缩，完成后自动继续，可随时停止。</span>
         </div>

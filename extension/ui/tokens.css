@@ -527,6 +527,24 @@ svg.face {
   color: var(--muted);
 }
 
+/* 区分主动压缩与 runtime 自动压缩 */
+.compression-status.compression-agent {
+  color: #0f766e;
+  background: rgba(20, 184, 166, 0.14);
+}
+.compression-status.compression-runtime {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.14);
+}
+.compression-status .compression-source {
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  color: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 .review-card {
   flex-shrink: 0;
   margin: 10px 14px;
@@ -1066,6 +1084,7 @@ svg.face {
 }
 
 .waiting-dots span {
+  display: inline-block;
   width: 5px;
   height: 5px;
   border-radius: 50%;

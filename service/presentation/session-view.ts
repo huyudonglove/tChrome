@@ -28,7 +28,7 @@ export type SessionView = {
   status: Ledger["status"] | "idle";
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
   liveTools: { name: string; callId: string; reason?: string }[];
-  activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null; completed: number; total: number | null } | null;
+  activity: { kind: "compressing"; source: "agent" | "runtime"; phase: "history" | "current" | "summaries" | null; completed: number; total: number | null } | null;
   task: {
     activeTaskId: string | null;
     activeTaskItemId: string | null;
@@ -85,7 +85,7 @@ const compressionActivity = (ledger: Ledger, events: LogEvent[]): SessionView["a
   let activity: SessionView["activity"] = null;
   for (const event of events) {
     if (event.turnId !== ledger.active.turnId) continue;
-    if (event.kind === "compress-start") activity = { kind: "compressing", phase: null, completed: 0, total: null };
+    if (event.kind === "compress-start") activity = { kind: "compressing", source: event.data.source === "agent" ? "agent" : "runtime", phase: null, completed: 0, total: null };
     if (event.kind === "compress-phase" && activity) {
       const phase = event.data.phase;
       if (phase === "history" || phase === "current" || phase === "summaries") activity.phase = phase;
