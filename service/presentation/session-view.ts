@@ -30,12 +30,10 @@ export type SessionView = {
   liveTools: { name: string; callId: string; reason?: string }[];
   activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null; completed: number; total: number | null } | null;
   task: {
-    currentGoalId: string | null;
     activeTaskId: string | null;
     activeTaskItemId: string | null;
     task: {
       id: string;
-      goalId: string;
       title?: string;
       status: string;
       items: { id: string; text: string; status: string; blockedReason?: string }[];
@@ -149,13 +147,11 @@ export function projectSessionView({ ledger, events, turns }: {
 const taskView = (ledger: Ledger): SessionView["task"] => {
   const plan = ledger.activeTaskId ? ledger.tasks.find((row) => row.id === ledger.activeTaskId) ?? null : null;
   return {
-    currentGoalId: ledger.currentGoalId,
     activeTaskId: ledger.activeTaskId,
     activeTaskItemId: ledger.activeTaskItemId,
     task: plan
       ? {
         id: plan.id,
-        goalId: plan.goalId ?? "",
         ...(plan.title ? { title: plan.title } : {}),
         status: plan.status,
         items: plan.items.map((item) => ({
@@ -171,7 +167,7 @@ const taskView = (ledger: Ledger): SessionView["task"] => {
 
 export const emptySessionView = (): SessionView => ({
   conversationId: null, status: "idle", pendingAsk: null, liveTools: [], activity: null,
-  task: { currentGoalId: null, activeTaskId: null, activeTaskItemId: null, task: null },
+  task: { activeTaskId: null, activeTaskItemId: null, task: null },
   messages: [],
 });
 

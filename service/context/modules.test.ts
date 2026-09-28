@@ -42,7 +42,7 @@ test("user window renders B-style XML modules with data under 内容", () => {
   const ledger = emptyLedger("cv_xml");
   ledger.notes = { candidate: "草稿 {{literal}}" };
   const turn: Turn = {
-    goalChanges: [], turnId: "tn_01", conversationId: "cv_xml", status: "inferring",
+    turnId: "tn_01", conversationId: "cv_xml", status: "inferring",
     createdAt: "", completedAt: null,
     input: { id: "input_01", text: "用户输入", submittedAt: "" },
     stopReason: null,

@@ -1,16 +1,7 @@
-import type { GoalRecord, LastAction, Observation, UserInputRecord } from "../../types.ts";
+import type { LastAction, Observation, UserInputRecord } from "../../types.ts";
 
 // Select model-facing fields without changing archival records.
 export const inputHistoryView = (records: UserInputRecord[]) => records.map(({ id, turnId, userInput }) => ({ id, turnId, userInput }));
-export const goalRecordView = ({ id, parentId, status, turnId, sourceCallId, goal, taskId, activeTaskItemId }: GoalRecord) => ({
-  id, parentId, status, turnId, sourceCallId, goal, taskId, activeTaskItemId,
-});
-export const activeGoalIds = (records: GoalRecord[]) => new Set(records.filter(row => row.status === "active").flatMap(row => row.parentId ? [row.id, row.parentId] : [row.id]));
-export const goalView = (records: GoalRecord[], currentGoalId: string | null) => {
-  const ids = activeGoalIds(records);
-  return { currentGoalId, goals: records.filter(row => ids.has(row.id)).map(goalRecordView) };
-};
-export const goalHistoryView = (records: GoalRecord[]) => records.filter(row => row.status !== "active").map(goalRecordView);
 export const pageView = (page: Observation) => ({
   id: page.id,
   turnId: page.turnId,
@@ -19,7 +10,6 @@ export const pageView = (page: Observation) => ({
   tabId: page.tabId,
   type: page.type,
   result: page.result,
-  ...(page.goalId !== undefined ? { goalId: page.goalId } : {}),
   ...(page.taskId !== undefined ? { taskId: page.taskId } : {}),
   ...(page.taskItemId !== undefined ? { taskItemId: page.taskItemId } : {}),
 });

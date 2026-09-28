@@ -241,7 +241,6 @@ const runQueue = async (input: {
             dataDir,
             conversationId: ledger.conversationId,
             browserNames,
-            goalContext: { goals: ledger.goals, currentGoalId: ledger.currentGoalId, turnId: turn.turnId, sourceCallId: slot.item.callId },
             host,
             signal: input.signal,
             observationIds: turn.assembled.observations.map((row) => row.id),
@@ -320,7 +319,6 @@ const runQueue = async (input: {
         ...(stored.images.length ? { images: stored.images } : {}),
         return: { stage: "complete", totalChars: full.length, text: viewText },
         ...(riskAudit.get(item.callId) ?? {}),
-        ...(slot.execCtx.goalId ? { goalId: slot.execCtx.goalId } : {}),
         ...(slot.execCtx.activeTaskId ? { taskId: slot.execCtx.activeTaskId } : {}),
         ...(slot.execCtx.activeTaskItemId ? { taskItemId: slot.execCtx.activeTaskItemId } : {}),
       };
@@ -438,7 +436,6 @@ export async function handleTurn(
   const toolRegistry = loadToolRegistry(deps.repoRoot);
   const turnId = allocateRecordId(deps.dataDir, ledger.conversationId, "turn");
   const turn: Turn = {
-    goalChanges: [],
     turnId,
     conversationId: ledger.conversationId,
     status: "assembling",

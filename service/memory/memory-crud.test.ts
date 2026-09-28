@@ -9,7 +9,7 @@ import { executeTool } from "../tools/execute.ts";
 import type { Turn } from "../types.ts";
 
 const turn = (cv: string): Turn => ({
-  goalChanges: [], conversationId: cv, turnId: "tn_01", status: "inferring",
+  conversationId: cv, turnId: "tn_01", status: "inferring",
   createdAt: "now", completedAt: null,
   input: { id: "input_01", text: "改记忆", submittedAt: "now" },
   assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [] },

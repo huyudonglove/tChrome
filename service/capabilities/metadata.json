@@ -4711,27 +4711,6 @@
         "capture_viewport"
       ]
     },
-    "submitGoal": {
-      "purpose": "创建、更新或切换会话目标",
-      "triggers": [
-        "submitGoal",
-        "开始、切换、跟踪或收口任务目标"
-      ],
-      "outputs": [
-        "目标或清单状态"
-      ],
-      "preconditions": [
-        "目标范围已获得用户授权"
-      ],
-      "risk": "low",
-      "verification": [
-        "目标或清单状态与实际执行进度一致"
-      ],
-      "alternatives": [
-        "通过会话记忆记录进度"
-      ],
-      "composesWith": []
-    },
     "switch_tab": {
       "purpose": "明确切换到指定标签并读取页面",
       "triggers": [
@@ -5259,7 +5238,7 @@
         "目标或计划状态"
       ],
       "preconditions": [
-        "当前已有 active Goal"
+        "当前已有 active Task"
       ],
       "risk": "medium",
       "verification": [
@@ -5269,7 +5248,6 @@
         "通过会话记忆记录进度"
       ],
       "composesWith": [
-        "submitGoal",
         "finishTurn"
       ]
     },
@@ -5283,7 +5261,7 @@
         "目标或计划状态"
       ],
       "preconditions": [
-        "当前已有 active Goal"
+        "当前已有 active Task"
       ],
       "risk": "medium",
       "verification": [
@@ -5293,7 +5271,6 @@
         "通过会话记忆记录进度"
       ],
       "composesWith": [
-        "submitGoal",
         "finishTurn"
       ]
     },
@@ -5307,7 +5284,7 @@
         "目标或计划状态"
       ],
       "preconditions": [
-        "当前已有 active Goal"
+        "当前已有 active Task"
       ],
       "risk": "medium",
       "verification": [
@@ -5317,7 +5294,6 @@
         "通过会话记忆记录进度"
       ],
       "composesWith": [
-        "submitGoal",
         "finishTurn"
       ]
     },

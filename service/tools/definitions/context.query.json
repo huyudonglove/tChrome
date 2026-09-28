@@ -13,7 +13,6 @@
           "type": "string",
           "enum": [
             "userInput",
-            "goalChanges",
             "toolIO",
             "observations",
             "memoryWrites",

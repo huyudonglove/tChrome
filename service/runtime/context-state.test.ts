@@ -12,7 +12,7 @@ import type { Ledger, Turn, Provider, CompletionResult } from "../types.ts";
 import type { Memories } from "../memory/types.ts";
 import { handleTurn } from "./loop.ts";
 const repoRoot = join(import.meta.dir, "../..");
-const makeTurn = (cv: string, id: string, text = id): Turn => ({ goalChanges: [], conversationId: cv, turnId: id, status: "completed", createdAt: "2026-09-11", completedAt: "2026-09-11", input: { id: `input_${id}`, text, submittedAt: "2026-09-11" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [] }, stopReason: { kind: "reply", text: `完成${id}` } });
+const makeTurn = (cv: string, id: string, text = id): Turn => ({ conversationId: cv, turnId: id, status: "completed", createdAt: "2026-09-11", completedAt: "2026-09-11", input: { id: `input_${id}`, text, submittedAt: "2026-09-11" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [] }, stopReason: { kind: "reply", text: `完成${id}` } });
 const result = (partial: Partial<CompletionResult>): CompletionResult => ({ finish: "tool_calls", content: "", toolCalls: [], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [], ...partial });
 const summaryResponse = (_messages: Parameters<Provider["complete"]>[0]["messages"]) => result({ toolCalls: [{ id: "submit", name: "submitTurnSummaries", arguments: { tag: "历史事项", actions: "已检查", result: "该轮已完成" } }] });
 const oneTurnOf = (messages: Parameters<Provider["complete"]>[0]["messages"]) => {
@@ -35,10 +35,6 @@ test("whole-turn grouping removes covered module increments, retaining current s
     const ledger = emptyLedger("cv_test"), turns = seed(dataDir, ledger);
     ledger.userInputHistory = turns.map(inputRecord);
     ledger.toolIO = turns.map(turn => ({ callId: `call_${turn.turnId}`, turnId: turn.turnId, batchId: `batch_${turn.turnId}`, name: "memory.write", arguments: {}, return: { stage: "complete", text: "成功", totalChars: 2 } }));
-    ledger.goals = turns.map(turn => ({ parentId: null, status: "completed", updatedAt: "2026-09-11", id: `goal_${turn.turnId}`, turnId: turn.turnId, goal: `目标${turn.turnId}`, sourceCallId: `call_${turn.turnId}`, createdAt: "2026-09-11" }));
-    ledger.goals[0]!.status = "active";
-    ledger.currentGoalId = ledger.goals[0]!.id;
-    turns.forEach((turn, i) => { turn.goalChanges = [structuredClone(ledger.goals[i]!)]; saveTurn(dataDir, turn); });
     ledger.notes = { draft: "当前草稿" };
     const memories: Memories = { project: [], conversation: turns.map(turn => ({ memoryId: `mm_${turn.turnId}`, turnId: turn.turnId, layer: "conversation", text: `记忆${turn.turnId}`, createdAt: "2026-09-11", sourceCallId: `call_${turn.turnId}` })) };
     const current = makeTurn(ledger.conversationId, "tn_06"); current.status = "inferring"; current.stopReason = null; current.completedAt = null;
@@ -56,9 +52,8 @@ test("whole-turn grouping removes covered module increments, retaining current s
     await compressContext({ dataDir, repoRoot, provider, ledger, turn: current, memories, isCancelled: () => false });
     const view = contextState(dataDir, ledger, current, memories);
     expect(view.ledger.userInputHistory.map(row => row.turnId)).toEqual([]);
-    expect(view.ledger.goals.filter(row => row.status !== "active").map(row => row.turnId)).toEqual([]);
     expect(view.ledger.toolIO).toHaveLength(0); expect(view.memories.conversation).toHaveLength(0);
-    expect(view.ledger.goals.filter(row => row.status === "active")).toEqual(ledger.goals.filter(row => row.status === "active")); expect(view.ledger.notes).toEqual(ledger.notes);
+    expect(view.ledger.notes).toEqual(ledger.notes);
     expect(view.summaries.map(row => row.turnId)).toEqual(["tn_01", "tn_02", "tn_03", "tn_04", "tn_05"]);
     expect(JSON.stringify({ ledger, current, memories })).toBe(before);
     await compressContext({ dataDir, repoRoot, provider, ledger, turn: current, memories, isCancelled: () => false });
@@ -121,7 +116,7 @@ test("stop during batched compression cannot commit coverage or overwrite paused
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
-test("long current turn archives older complete batches and keeps input, current goal/page and last two batches", async () => {
+test("long current turn archives older complete batches and keeps input, current page and last two batches", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "context-segment-"));
     primeActiveTask(dataDir);
   try {
@@ -130,13 +125,11 @@ test("long current turn archives older complete batches and keeps input, current
     ledger.toolIO = Array.from({ length: 6 }, (_, i) => ({ callId: `call_${i}`, turnId: current.turnId, batchId: `b_${Math.floor(i / 2)}`, name: "page.get_summary", arguments: {}, return: { stage: "complete" as const, text: "结果", totalChars: 2 } }));
     current.assembled.observations = ledger.toolIO.map((row, i) => ({ id: `p_${i}`, turnId: current.turnId, callId: row.callId, toolName: row.name, tabId: 1, url: "https://example.com", title: "页面", description: `状态${i}`, observedAt: "2026-09-11" }));
     current.assembled.currentPage = current.assembled.observations[5]!;
-    ledger.goals = [{ parentId: null, status: "active", updatedAt: "2026-09-11", ...{ id: "goal_1", turnId: current.turnId, sourceCallId: "call_0", goal: "当前目标", createdAt: "2026-09-11" } }]; ledger.currentGoalId = ledger.goals[0]!.id;
-    current.goalChanges = structuredClone(ledger.goals);
     const memories: Memories = { project: [], conversation: [] }, provider: Provider = { complete: async input => summaryResponse(input.messages) };
     await compressContext({ dataDir, repoRoot, ledger, turn: current, memories, provider, isCancelled: () => false }, "current");
     const view = contextState(dataDir, ledger, current, memories);
     expect(view.ledger.toolIO).toEqual(ledger.toolIO.slice(2)); expect(view.turn.assembled.observations).toEqual(current.assembled.observations.slice(2));
-    expect(view.turn.input).toEqual(current.input); expect(view.turn.assembled.currentPage).toEqual(current.assembled.currentPage); expect(view.ledger.goals.filter(row => row.status === "active")).toEqual(ledger.goals.filter(row => row.status === "active"));
+    expect(view.turn.input).toEqual(current.input); expect(view.turn.assembled.currentPage).toEqual(current.assembled.currentPage);
     const index = loadIndex(dataDir, ledger.conversationId, "conversationHistory"), sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
     expect((sources[0]!.content as { toolIO: unknown[] }).toolIO).toHaveLength(2);
     expect((sources[0]!.content as { stopReason: unknown }).stopReason).toBeNull();
@@ -151,8 +144,6 @@ test("segmented turn later closes into one active summary without rearchiving co
     ledger.turnIds = [first.turnId]; ledger.active = { turnId: first.turnId };
     first.status = "inferring"; first.completedAt = null; first.stopReason = null;
     ledger.toolIO = Array.from({ length: 3 }, (_, i) => ({ callId: `call_${i}`, turnId: first.turnId, batchId: `batch_${i}`, name: "page.get_summary", arguments: {}, return: { stage: "complete" as const, text: `结果${i}`, totalChars: 3 } }));
-    ledger.goals = [{ parentId: null, status: "active", updatedAt: "2026-09-11", ...{ id: "goal_1", turnId: first.turnId, goal: "保持状态", sourceCallId: "call_0", createdAt: "2026-09-11" } }]; ledger.currentGoalId = ledger.goals[0]!.id;
-    first.goalChanges = structuredClone(ledger.goals);
     const memories: Memories = { project: [], conversation: [{ memoryId: "mm_1", turnId: first.turnId, layer: "conversation", text: "只改负责人", sourceCallId: "call_0", createdAt: "2026-09-11" }] };
     const provider: Provider = { complete: async input => summaryResponse(input.messages) };
     await compressContext({ dataDir, repoRoot, provider, ledger, turn: first, memories, isCancelled: () => false }, "current");
@@ -172,11 +163,10 @@ test("segmented turn later closes into one active summary without rearchiving co
     const realTurnIds = index.activeIds.map(id => index.entries.find(row => row.id === id)!.turnId).filter(id => id.startsWith("tn_0"));
     expect(realTurnIds).toEqual(["tn_01", "tn_02", "tn_03", "tn_04", "tn_05"]);
     const sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
-    const tail = sources.find(row => row.id === "src_02")!.content as { toolIO: unknown[]; memoryWrites: unknown[]; goalChanges: unknown[]; stopReason: unknown };
-    expect(tail.toolIO).toHaveLength(2); expect(tail.goalChanges).toEqual([]); expect(tail.memoryWrites).toEqual([]);
+    const tail = sources.find(row => row.id === "src_02")!.content as { toolIO: unknown[]; memoryWrites: unknown[]; stopReason: unknown };
+    expect(tail.toolIO).toHaveLength(2); expect(tail.memoryWrites).toEqual([]);
     expect(tail.stopReason).toEqual({ kind: "reply", text: first.stopReason.kind === "reply" ? first.stopReason.text : "" });
     expect((sources[0]!.content as { segment: { complete: boolean } }).segment.complete).toBe(false);
-    expect(contextState(dataDir, ledger, current, memories).ledger.goals).toEqual(ledger.goals);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 

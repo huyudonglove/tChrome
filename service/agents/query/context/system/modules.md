@@ -9,7 +9,6 @@ request：
 - sumId：本次查询入口摘要 ID。
 - module：指定读取的模块。取值与含义：
   - userInput：用户原话
-  - goalChanges：目标历史变更快照（保留固定 id、parentId 和当时 status）
   - toolIO：工具参数与结果（归档形态，含 return.text）
   - observations：观察结果（页面、代码、截图等）
   - memoryWrites：会话记忆写入

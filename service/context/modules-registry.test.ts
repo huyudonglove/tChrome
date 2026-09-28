@@ -22,7 +22,6 @@ test("module registry owns consumers, compress flags and archive fields", () => 
   const registry = loadModuleRegistry(root);
   expect(compressedArchiveFields(registry)).toEqual([
     "userInput",
-    "goalChanges",
     "toolIO",
     "observations",
     "memoryWrites",

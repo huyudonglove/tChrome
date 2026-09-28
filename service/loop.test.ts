@@ -598,8 +598,7 @@ test("队列和正在跑的工具出现在 /session", () => {
   saveTurn(dir, {
     turnId: "tn_01",
     conversationId: "cv_01",
-    goalChanges: [],
-    status: "inferring",
+        status: "inferring",
     createdAt: "2026-09-06T00:00:00.000Z",
     completedAt: null,
     input: { id: "input_fixture", text: "测这个站", submittedAt: "2026-09-06T00:00:00.000Z" },
@@ -774,48 +773,6 @@ test("连续 5 次模型请求未写观察时提示 observation.write", async ()
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "连续请求", submittedAt: "now" });
     expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
   } finally { rmSync(dir, { recursive: true, force: true }); }
-});
-
-test("submitGoal 创建父子目标并在后续轮次按稳定 ID 更新", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "tchrome-goal-"));
-    primeActiveTask(dir);
-  const provider = mock([
-    ok({
-      finish: "tool_calls",
-      content: "",
-      toolCalls: [{ id: "call_01", name: "submitGoal", arguments: { reason: "立目标", goal: "测这个站点" } }],
-    }),
-    ok({
-      finish: "tool_calls",
-      content: "",
-      toolCalls: [{ id: "call_02", name: "submitGoal", arguments: { reason: "开始子任务", parentId: "goal_01", goal: "测登录页" } }],
-    }),
-    ok({
-      finish: "tool_calls",
-      content: "",
-      toolCalls: [{ id: "call_03", name: "finishTurn", arguments: { text: "目标改成测登录页", reason: "答完"} }],
-    }),
-  ]);
-  const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "测这个站点", submittedAt: "2026-09-06T00:00:00.000Z" });
-  expect(reply.stopReason).toEqual({ kind: "reply", text: "目标改成测登录页" });
-  const ledger = loadLedger(dir, "cv_01");
-  expect(ledger.currentGoalId).toBe("subgoal_01");
-  expect(ledger.goals.map(({ id, parentId, goal, status }) => ({ id, parentId, goal, status }))).toEqual([
-    { id: "goal_01", parentId: null, goal: "测这个站点", status: "active" },
-    { id: "subgoal_01", parentId: "goal_01", goal: "测登录页", status: "active" },
-  ]);
-  expect(JSON.parse(ledger.toolIO.find(item => item.name === "submitGoal")!.return.text)).toMatchObject({ ok: true, record: { id: "goal_01" } });
-  const nextProvider = mock([
-    ok({ finish: "tool_calls", toolCalls: [{ id: "call_04", name: "submitGoal", arguments: { reason: "已验证", id: "subgoal_01", status: "completed" } }] }),
-    ok({ finish: "tool_calls", toolCalls: [{ id: "call_05", name: "finishTurn", arguments: { text: "登录页通过"} }] }),
-  ]);
-  await handleTurn({ dataDir: dir, repoRoot, provider: nextProvider }, { userInput: "登录页通过了", submittedAt: "2026-09-06T00:01:00.000Z" });
-  const completed = loadLedger(dir, "cv_01");
-  expect(completed.currentGoalId).toBe("goal_01");
-  expect(completed.goals).toHaveLength(2);
-  expect(completed.goals.find(goal => goal.id === "subgoal_01")).toMatchObject({ parentId: "goal_01", status: "completed", goal: "测登录页" });
-  expect(loadTurn(dir, "cv_01", reply.turnId).goalChanges.at(-1)?.status).toBe("active");
-  rmSync(dir, { recursive: true, force: true });
 });
 
 test("notes.write 按 key 写入，notes.delete 删除", async () => {

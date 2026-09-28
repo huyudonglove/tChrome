@@ -22,8 +22,7 @@ const fixture = () => {
     turnId: "tn_plan", conversationId: "cv_plan", status: "inferring",
     createdAt: new Date().toISOString(), completedAt: null,
     input: { id: "input_plan", text: "做任务", submittedAt: "now" },
-    stopReason: null, goalChanges: [],
-    assembled: {
+    stopReason: null,     assembled: {
       baseToolsIds: [], toolIds: [],
       conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [],
       currentPage: null, currentTabs: { ok: true, windows: [] }, observations: [],
@@ -34,10 +33,9 @@ const fixture = () => {
     arguments: args,
     dataDir,
     conversationId: ledger.conversationId,
-    goalContext: { goals: ledger.goals, currentGoalId: ledger.currentGoalId, turnId: turn.turnId, sourceCallId: "call_plan" },
     lookup: {
-      knownTools: ["task.set", "task.update", "task.complete", "submitGoal", "finishTurn"],
-      enabledTools: ["task.set", "task.update", "task.complete", "submitGoal", "finishTurn"],
+      knownTools: ["task.set", "task.update", "task.complete", "finishTurn"],
+      enabledTools: ["task.set", "task.update", "task.complete", "finishTurn"],
       unusedTools: [],
     },
   });
@@ -71,19 +69,14 @@ test("task tools are resident and schema-valid", () => {
   ], tools, registry.toolGroups.baseToolsIds, ["task.set", "task.update", "task.complete"]).schemaOk).toBe(true);
 });
 
-test("task persists, single doing, history append-only, weak goal link", async () => {
+test("task persists, single doing, history append-only", async () => {
   const fx = fixture();
   try {
     const standalone = await fx.execute("task.set", { reason: "独立任务", items: [{ text: "步骤一" }] });
     expect(JSON.parse(standalone.text)).toMatchObject({ ok: true, count: 1 });
     fx.apply(standalone, "c_standalone", "task.set");
     expect(fx.ledger.activeTaskId).toBe("task_01");
-    expect(fx.ledger.tasks[0]).toMatchObject({ id: "task_01", goalId: null, status: "active" });
-    expect(fx.ledger.currentGoalId).toBeNull();
-
-    const goalExec = await fx.execute("submitGoal", { reason: "立目标", goal: "修这个 bug" });
-    fx.apply(goalExec, "c0", "submitGoal");
-    expect(fx.ledger.currentGoalId).toBe("goal_01");
+    expect(fx.ledger.tasks[0]).toMatchObject({ id: "task_01", status: "active" });
 
     const set = await fx.execute("task.set", {
       reason: "拆步骤", title: "修复",
@@ -95,12 +88,11 @@ test("task persists, single doing, history append-only, weak goal link", async (
     expect(JSON.parse(set.text)).toMatchObject({ ok: true, count: 2 });
     const historyAfterSet = fx.ledger.taskHistory.length;
     fx.apply(set, "c1", "task.set");
-    // items: standalone used item_01; goal task uses item_02, item_03
+    // items: standalone used item_01; the replacement task uses item_02, item_03
     expect(fx.ledger.activeTaskId).toBe("task_02");
     expect(fx.ledger.activeTaskItemId).toBe("item_02");
     expect(fx.ledger.tasks.find((t) => t.id === "task_01")).toMatchObject({ status: "cancelled" });
-    expect(fx.ledger.tasks[1]).toMatchObject({ id: "task_02", goalId: "goal_01", status: "active" });
-    expect(fx.ledger.goals[0]).toMatchObject({ taskId: "task_02" });
+    expect(fx.ledger.tasks[1]).toMatchObject({ id: "task_02", status: "active" });
     expect(fx.ledger.taskHistory.length).toBeGreaterThan(historyAfterSet);
     expect(fx.ledger.taskHistory.at(-1)).toMatchObject({
       type: "item_started",
@@ -129,7 +121,7 @@ test("task persists, single doing, history append-only, weak goal link", async (
     expect(fx.ledger.activeTaskItemId).toBe("item_03");
 
     const ctx = executionContext(fx.ledger);
-    expect(ctx).toEqual({ goalId: "goal_01", activeTaskId: "task_02", activeTaskItemId: "item_03" });
+    expect(ctx).toEqual({ activeTaskId: "task_02", activeTaskItemId: "item_03" });
 
     const early = await fx.execute("task.complete", { reason: "提前" });
     expect(() => fx.apply(early, "c4", "task.complete")).toThrow(/未完成步骤/);
@@ -140,7 +132,6 @@ test("task persists, single doing, history append-only, weak goal link", async (
     fx.apply(complete, "c6", "task.complete");
     expect(fx.ledger.tasks[1]!.status).toBe("completed");
     expect(fx.ledger.activeTaskId).toBeNull();
-    expect(fx.ledger.goals[0]!.status).toBe("active");
 
     fx.ledger.active = { turnId: "tn_plan2" };
     expect(fx.ledger.tasks[1]!.status).toBe("completed");
@@ -149,13 +140,6 @@ test("task persists, single doing, history append-only, weak goal link", async (
     const set2 = await fx.execute("task.set", { reason: "换任务", items: [{ text: "新步骤" }] });
     fx.apply(set2, "c7", "task.set");
     expect(fx.ledger.tasks[2]).toMatchObject({ id: "task_03", status: "active" });
-
-    const end = await fx.execute("submitGoal", { reason: "收口", id: "goal_01", status: "completed" });
-    fx.apply(end, "c8", "submitGoal");
-    expect(fx.ledger.tasks[2]!.status).toBe("cancelled");
-    expect(fx.ledger.activeTaskId).toBeNull();
-    expect(fx.ledger.taskHistory.some((row) => row.type === "task_cancelled" && row.reason === "goal_ended")).toBe(true);
-    expect(fx.ledger.taskHistory.some((row) => row.type === "goal_completed")).toBe(true);
 
     const saved = loadLedger(fx.dataDir, fx.ledger.conversationId);
     expect(saved.schemaVersion).toBe(2);
@@ -170,7 +154,6 @@ test("task persists, single doing, history append-only, weak goal link", async (
 test("task.set replace marks previous task cancelled reason=replaced", async () => {
   const fx = fixture();
   try {
-    fx.apply(await fx.execute("submitGoal", { reason: "目标", goal: "任务" }), "c0", "submitGoal");
     fx.apply(await fx.execute("task.set", { reason: "一", items: [{ text: "a" }] }), "c1", "task.set");
     fx.apply(await fx.execute("task.set", { reason: "二", items: [{ text: "b" }] }), "c2", "task.set");
     expect(fx.ledger.tasks[0]).toMatchObject({ status: "cancelled" });

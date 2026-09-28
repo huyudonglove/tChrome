@@ -19,7 +19,6 @@
   <conversationHistorySummary>…</conversationHistorySummary>
   <tn_01>
     <userInput>…</userInput>
-    <goal>…</goal>
     <task>…</task>
     <toolIO>…</toolIO>
     <observations>…</observations>
@@ -38,8 +37,7 @@
 | 标签 | 数据结构 | 身份字段 |
 | --- | --- | --- |
 | `userInput` | `{id, turnId, userInput}` | `id` |
-| `goal` | `{currentGoalId, goals}`；goals 为该轮涉及目标（当前轮为活跃目标及父级） | `id` / `parentId` |
-| `task` | `{currentGoalId, activeTaskId, activeTaskItemId, task, events}` | `activeTaskId`、items `id`、events `id` |
+| `task` | `{activeTaskId, activeTaskItemId, task, events}` | `activeTaskId`、items `id`、events `id` |
 | `toolIO` | `[{callId, turnId, batchId?, name, arguments, return:{stage, result}}]` | `callId` |
 | `observations` | `[{id, turnId, callId, batchId?, tabId, type, result}]` | `id` |
 | `notes` | `{key:text}` 本轮草稿 | turnId + key |
@@ -47,7 +45,7 @@
 | `query` | 查询记录数组；`currentQuery:true` 标记当前查询 | `queryId` |
 | `stopReason` | 轮次收口对象或 null | — |
 
-被压缩覆盖的 `<tn_xx>` 整块删除，只在 `conversationHistorySummary` 留摘要。目标记录统一为 `{id, parentId, status, turnId, sourceCallId?, goal, taskId?, activeTaskItemId?}`。任务记录 `Task` 可独立存在，items 用 `item_` 编号；events 只追加。查询记录为 `{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}`。
+被压缩覆盖的 `<tn_xx>` 整块删除，只在 `conversationHistorySummary` 留摘要。任务记录 `Task` 可独立存在，items 用 `item_` 编号；events 只追加。查询记录为 `{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}`。
 
 工具投影的 `return` 为 `{stage, result}`；result 与 observations 中同一 callId 的观察对应时，只保留 `{ok, observationId}`。context.query 的 result 为 `{ok, status, sumId, module, intent, currentQuery:true, recordCount}`。归档原文使用 `{stage, totalChars, text}`，只出现在压缩/查询候选里，不进主模型窗口。finishTurn / askUser 在 toolIO 只存指针 `{output:"reply"|"ask"}`，正文在本轮 stopReason。
 

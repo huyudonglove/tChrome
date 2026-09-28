@@ -4,7 +4,7 @@ import { deleteMemory, saveMemory, updateMemory } from "../memory/store.ts";
 import type { Ledger, MemoryRecord, RuntimeExecutionContext, ToolQueueItem, Turn, TurnStopReason } from "../types.ts";
 import type { ToolEffect } from "../tools/effects.ts";
 import { allocateRecordId, nowIso } from "./ids.ts";
-import { afterGoalSwitch, onGoalStatusChange, prepareTaskComplete, prepareTaskSet, prepareTaskUpdate } from "./tasks.ts";
+import { prepareTaskComplete, prepareTaskSet, prepareTaskUpdate } from "./tasks.ts";
 import { join } from "node:path";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { appendEvent, paths, saveLedger, saveTurn } from "./store.ts";
@@ -50,7 +50,6 @@ export function applyToolEffects(input: {
     }
   })();
   const execCtx = input.execCtx ?? {
-    goalId: ledger.currentGoalId,
     activeTaskId: ledger.activeTaskId,
     activeTaskItemId: ledger.activeTaskItemId,
   };
@@ -62,18 +61,6 @@ export function applyToolEffects(input: {
         ledger.currentQuery = { ...effect.query,
           queryId: allocateRecordId(dataDir, ledger.conversationId, "query"),
           turnId: turn.turnId, sourceCallId: call.callId };
-        break;
-      }
-      case "goal.upsert": {
-        const previous = ledger.goals.find(record => record.id === effect.record.id);
-        const previousGoalId = ledger.currentGoalId;
-        const index = ledger.goals.findIndex(record => record.id === effect.record.id);
-        if (index === -1) ledger.goals.push(effect.record);
-        else ledger.goals[index] = effect.record;
-        ledger.currentGoalId = effect.currentGoalId;
-        turn.goalChanges.push(structuredClone(effect.record));
-        onGoalStatusChange(dataDir, ledger, previous, effect.record, turn.turnId);
-        afterGoalSwitch(dataDir, ledger, previousGoalId, effect.currentGoalId, turn.turnId);
         break;
       }
       case "note.write": ledger.notes[effect.key] = effect.value; break;
@@ -209,7 +196,6 @@ export function applyToolEffects(input: {
           ...(effect.tabId !== undefined ? { tabId: effect.tabId } : {}),
           type: effect.observationType,
           result,
-          ...(execCtx.goalId ? { goalId: execCtx.goalId } : {}),
           ...(execCtx.activeTaskId ? { taskId: execCtx.activeTaskId } : {}),
           ...(execCtx.activeTaskItemId ? { taskItemId: execCtx.activeTaskItemId } : {}),
         };

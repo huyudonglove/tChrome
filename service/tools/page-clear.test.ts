@@ -16,8 +16,7 @@ const setup = () => {
     turnId: "tn_01", conversationId: ledger.conversationId, status: "inferring",
     createdAt: new Date().toISOString(), completedAt: null,
     input: { id: "input_01", text: "清理旧观察", submittedAt: "now" },
-    stopReason: null, goalChanges: [],
-    assembled: {
+    stopReason: null,     assembled: {
       baseToolsIds: ["page.clear_result"], toolIds: [],
       conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [],
       currentPage: { tabId: 12, url: "https://example.com", title: "示例", description: "d" },

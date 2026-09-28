@@ -1,4 +1,3 @@
-import { prepareGoalUpdate, type GoalContext } from "../runtime/goals.ts";
 import { errorMessage } from "../../shared/errors.ts";
 import { errorDetail } from "../../shared/error-details.ts";
 import type { QueryModule, QueryResult } from "../agents/query/types.ts";
@@ -66,7 +65,6 @@ export type ExecuteInput = {
   arguments: ToolArguments;
   dataDir: string;
   conversationId?: string;
-  goalContext?: GoalContext;
   browserNames: string[];
   host?: BrowserHost;
   signal?: AbortSignal;
@@ -175,16 +173,6 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     if (!text) return { ...failedTool(errorMessage("empty_ask_user", "model"), "empty_ask_user"), effects: [{ type: "queue.clear" }] };
     const question = questionWithChoices(text, asStringArray(args.choice));
     return result(question, [{ type: "turn.ask", question }]);
-  }
-  if (name === "submitGoal") {
-    if (!input.conversationId || !input.goalContext) return failedTool(errorDetail("goal_missing_context"), "invalid_arguments");
-    try {
-      const update = prepareGoalUpdate(dataDir, input.conversationId, input.goalContext, args);
-      return result(JSON.stringify({ ok: true, record: update.record, currentGoalId: update.currentGoalId }),
-        [{ type: "goal.upsert", ...update }]);
-    } catch (error) {
-      return failedTool(error, "invalid_arguments");
-    }
   }
   if (name === "reflect.write") {
     const text = typeof args.text === "string" ? args.text.trim() : "";

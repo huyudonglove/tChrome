@@ -19,10 +19,6 @@ const MODULE_POINTERS: Record<string, (args: Record<string, unknown>, result: un
   "memory.write": () => ({ args: { memory: true }, result: { ok: true, memory: true } }),
   "memory.update": (args) => ({ args: { memory: args.memoryId ?? true }, result: { ok: true, memoryId: args.memoryId ?? null } }),
   "memory.delete": (args) => ({ args: { memory: args.memoryId ?? true, deleted: true }, result: { ok: true, memoryId: args.memoryId ?? null, deleted: true } }),
-  "submitGoal": (_args, result) => {
-    const record = (result as { record?: { id?: string; status?: string } } | undefined)?.record;
-    return { args: { goal: record?.id ?? true }, result: { ok: true, goalId: record?.id ?? null, status: record?.status ?? null } };
-  },
   "reflect.write": (_args, result) => {
     const id = (result as { id?: string } | undefined)?.id;
     return { args: { reflect: id ?? true }, result: { ok: true, reflectId: id ?? null } };

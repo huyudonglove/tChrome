@@ -20,7 +20,6 @@
     { "id": "conversation", "role": "user", "order": 4, "file": "user/conversation.md", "consumers": ["main"], "compress": false, "description": "Conversation Timeline By Turn" },
 
     { "id": "userInput", "role": "archive", "order": 1, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "userInput", "coverage": "turn", "description": "Turn user input" },
-    { "id": "goalChanges", "role": "archive", "order": 2, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "goalChanges", "coverage": "sourceCallId", "description": "Goal changes in the turn" },
     { "id": "toolIO", "role": "archive", "order": 3, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "toolIO", "coverage": "batch", "description": "Tool IO" },
     { "id": "observations", "role": "archive", "order": 4, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "observations", "coverage": "callId", "description": "Observations" },
     { "id": "memoryWrites", "role": "archive", "order": 5, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "memoryWrites", "coverage": "sourceCallId", "description": "Conversation memory writes" },

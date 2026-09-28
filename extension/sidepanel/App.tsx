@@ -19,12 +19,10 @@ type SessionView = {
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
   liveTools: { name: string; callId: string; reason?: string }[];
   task: {
-    currentGoalId: string | null;
     activeTaskId: string | null;
     activeTaskItemId: string | null;
     task: {
       id: string;
-      goalId: string;
       title?: string;
       status: string;
       items: { id: string; text: string; status: string; blockedReason?: string }[];
@@ -48,7 +46,7 @@ type ConversationItem = {
 
 const emptySession = (): SessionView => ({
   conversationId: null, status: "idle", activity: null, pendingAsk: null, liveTools: [],
-  task: { currentGoalId: null, activeTaskId: null, activeTaskItemId: null, task: null },
+  task: { activeTaskId: null, activeTaskItemId: null, task: null },
   messages: [],
 });
 

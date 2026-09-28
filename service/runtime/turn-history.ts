@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import type { QueryEvidence } from "../context/projections/queries.ts";
 import type { Memories, MemoryRecord } from "../memory/types.ts";
-import type { GoalRecord, Ledger, Observation, TaskHistoryRecord, ToolIOItem, Turn, TurnStopReason, UserInputRecord } from "../types.ts";
+import type { Ledger, Observation, TaskHistoryRecord, ToolIOItem, Turn, TurnStopReason, UserInputRecord } from "../types.ts";
 import { compressedArchiveFields, loadModuleRegistry } from "../context/modules.ts";
 import { inputRecord } from "./ids.ts";
 import { loadTurn } from "./store.ts";
@@ -14,7 +14,6 @@ export type TurnHistoryRecord = {
   createdAt: string;
   completedAt: string | null;
   userInput: UserInputRecord;
-  goalChanges: GoalRecord[];
   toolIO: ToolIOItem[];
   observations: Observation[];
   memoryWrites: MemoryRecord[];
@@ -29,7 +28,6 @@ type ProjectContext = { ledger: Ledger; turn: Turn; memories: Memories };
 /** projectors keyed by inventory archiveField; assemble only what the inventory marks compress:true. */
 const projectors: Record<string, (ctx: ProjectContext) => unknown> = {
   userInput: ({ turn }) => inputRecord(turn),
-  goalChanges: ({ turn }) => turn.goalChanges,
   toolIO: ({ ledger, turn }) => ledger.toolIO.filter(item => item.turnId === turn.turnId),
   observations: ({ turn }) => turn.assembled.observations.filter(item => item.turnId === turn.turnId),
   memoryWrites: ({ turn, memories }) => memories.conversation.filter(item => item.turnId === turn.turnId),

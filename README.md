@@ -18,7 +18,7 @@ I am not just a chatbot confined to a dialog box. I am an **autonomous browser a
 
 When collaborating with you, I adhere to the following principles:
 - **Evidence-based, no assumptions**: I never guess page states. Every step is grounded in the Chromium Accessibility (A11y) tree, rigorous state probes, or high-definition visual crop slices. I decide the next move based on real feedback and never claim success without verification.
-- **Goal-driven with clear hierarchy**: For complex, multi-step workflows, I decompose high-level goals into structured subgoals, ensuring explicit phase transitions and complete historical audit trails.
+- **Task-driven execution**: For complex, multi-step workflows, I break work into a persistent Task with stable item IDs, single-doing discipline, and append-only history audit trails.
 - **Tiered cognition, local-first**: Notes for temporary drafts, conversation memory for confirmed facts, project memory for long-term knowledge, and the Library for high-value URLs and credentials. All your session data, logs, screenshots, and library records are stored locally on your machine—completely open, inspectable, and under your control.
 
 **tChrome** is my host framework (composed of **Chrome Extension + Local Bun Service + Model Provider**), and I—**Helm**—am the autonomous intelligence taking the helm, acting, and delivering results for you across the web.
@@ -86,7 +86,7 @@ This cuts interaction latency and token overhead by more than 50% while eliminat
 
 ### 6. Deterministic State Bus & 4,000-Character Guardrail (Context Assembly)
 tChrome abandons fragile single-prompt concatenation and generic linear message lists:
-- **Layered Assembly Bus**: Strictly decouples immutable System semantic contracts from dynamic User state slots (Goal / Checklist / Notes / Memory / ToolIO), dynamically assembled per turn;
+- **Layered Assembly Bus**: Strictly decouples immutable System semantic contracts from dynamic User state slots (Task / Notes / Memory / ToolIO), dynamically assembled per turn;
 - **4,000-Character Inline Safety Guardrail**: All single tool outputs and large page observations pass through a 4,000-character inline check. Over-limit content is externalized to disk with fixed line widths, allowing the agent to retrieve exact excerpts or line windows via `evidence.search`, physically preventing prompt pollution and context overflow;
 - **Structured Monotonic Short IDs**: Persistent IDs (`call_01`, `e_01`, `proc_01`) prevent hallucinated identifiers from breaking tool execution chains.
 
@@ -102,7 +102,7 @@ Raw interaction logs and tool arguments remain intact on disk. When deep verific
 ### 9. Tiered Cognitive Architecture & Structured Library
 | Tier | Purpose | Scope |
 | --- | --- | --- |
-| **Persistent Task (`<task>`)** | Cross-turn step plan bound to the active Goal; Runtime auto-links tool calls | Survives turn ends; Task complete ≠ Goal complete |
+| **Persistent Task (`<task>`)** | Cross-turn step plan with stable item IDs; Runtime auto-links tool calls | Survives turn ends; auto-closes when all items are done |
 | **Work Notes (`<notes>`)** | Ephemeral drafts, candidates, and working scratchpad | Preserved across turns in current session |
 | **Conversation Memory (`<conversationMemory>`)** | Confirmed facts, user preferences, and key architectural decisions | Preserved across turns in current session |
 | **Long-Term Memory (`<projectMemory>`)** | Shared domain conventions, environmental preferences, and persistent facts | Globally shared across all sessions |

@@ -139,8 +139,6 @@ Runtime 独占维护。当前会话指针。
 | `pendingAsk` | object \| null | `waiting_human` 时 `{turnId, question}`；否则 `null` |
 | `turnIds` | string[] | 已建的回合，按时间 |
 | `userInputHistory` | object[] | 上一轮及更早的输入，按旧到新排列。每项 `{id, turnId, userInput, submittedAt}`；新会话 `[]`。当前输入进入历史时保留原 ID |
-| `goals` | object[] | 全部目标的最新记录 `{id, parentId, status, turnId, goal, sourceCallId, createdAt, updatedAt}`；总目标 `goal_01`、子目标 `subgoal_01` 分别持久自增。parentId 为 null 或所属总目标 ID，status 为 active/completed/cancelled；更新保留 ID。新会话 `[]` |
-| `currentGoalId` | string \| null | 当前选择的 active 目标。`<goal>` 展示此指针、全部 active 目标及所需父级；`<goalHistory>` 展示已结束目标。新会话 null |
 | `toolQueue` | object[] | 本 Turn 待执行的工具。模型一次出网交的 `toolCalls` 按数组顺序入队。任务队列按这个顺序跑。跑完一条弹出，写入 `toolIO`。新会话 / 新出网前空。每项 `{callId, name, arguments}` |
 | `liveTool` | object \| null | 正在跑的那条 `{name, callId}`。空闲 / 追问 / 失败为 `null` |
 | `toolIO` | object[] | 本会话完整工具记录，按执行顺序追加。本地始终保留；模型窗口按压缩目录 coveredSourceIds 过滤已覆盖记录 |
@@ -167,7 +165,6 @@ Runtime 独占维护。当前会话指针。
 | `input.id` | string | 创建输入时生成并持久保存的 `input_01`；不从 turnId 推导，后续渲染和进入历史沿用此 ID |
 | `input.text` | string | 本轮用户原话。用户下一条输入才开新 Turn |
 | `input.submittedAt` | string | 面板提交时间，ISO-8601 |
-| `goalChanges` | object[] | 本轮每次 submitGoal 更新后的目标快照，按调用顺序保留；同一目标可多次出现，sourceCallId 区分变更，供归档和历史查询使用 |
 | `assembled` | object | 这一轮点名的 catalog IDs + 标签快照与页面观察，见「assembled」 |
 | `stopReason` | object | 见「stopReason」 |
 | `usage` | object，可选 | 新 Turn 分别记录 `modelRequests` 与 `toolCalls`。工具批次逐个计数，包含常驻与收口工具；未通过校验而未执行的调用不计入。旧 Turn 可缺省。统计不作为累计 20 次的停止条件。 |
@@ -220,14 +217,13 @@ Memory 投影保持全部可见原文。会话记忆根据来源 turnId 随轮�
 
 ## context-records/<kind>/<id>.json
 
-用户输入和页面观察以稳定 ID 写入本会话独立记录，kind 为 userInput、observation。目标最新状态统一保存在 Ledger.goals，读取 kind=goal 时按 ID 从账本查找；不另存目标文件。窗口变化和压缩不修改原记录。主模型用目标 ID 更新、选择目标，用 parentId 关联子目标。
+用户输入和页面观察以稳定 ID 写入本会话独立记录，kind 为 userInput、observation。窗口变化和压缩不修改原记录。
 
 - 用户输入：`{id: "input_01", turnId, userInput, submittedAt}`，当前 `#userInput` 和对应历史项共用 ID。
-- 目标：`{id, parentId, status, turnId, goal, sourceCallId, createdAt, updatedAt}`，按稳定 ID 查询取得最新状态；历史变更快照保存在 Turn.goalChanges，按归档 goalChanges 回查。
 - 页面观察：`{id, turnId, tabId, url, title, description, observedAt, callId, toolName}`，当前页和对应历史项共用观察 ID。
 - 记忆继续使用 memory 文件及 memoryId，注入模型时仅显示原文。
 
-conversationHistorySummary 显示当前有效摘要的 {sumId, turnId, tag, userRequest, actions, result}；sumId 用于查询入口，来源关系保存在本地归档。压缩材料字段：userInput、goalChanges、toolIO、observations、memoryWrites、queryHistory、reflection、output。
+conversationHistorySummary 显示当前有效摘要的 {sumId, turnId, tag, userRequest, actions, result}；sumId 用于查询入口，来源关系保存在本地归档。压缩材料字段：userInput、toolIO、observations、memoryWrites、queryHistory、reflection、output。
 
 ## compression/conversationHistory/
 
@@ -283,7 +279,7 @@ System `<baseTools>` 展示常驻能力导航，User `<tools>` 展示本会话�
 
 `askUser` 的 `text` 是根据 arguments.question 和选项生成的工具返回文本。`finishTurn` 的 `text` 是回复用户的正文（仅取 finishTurn.arguments.text，不使用 content 回退）。动态工具的 `text` 是工具正文；`context.query` 的 `text` 仅含状态和引用。`memory.write` 的 `text` 是落下的层和条数。
 
-常驻 `context.query(sumId, module, intent)` 从指定摘要的来源中查询一个模块。模块为 userInput、goalChanges、toolIO、observations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将完整 records 放入 currentQuery；`<toolIO>` 只投影 currentQuery 指针。查询结果与其它工具返回共用统一内联门禁（默认 4000 字符），超出时注入 externalized 摘要（preview+path+totalLines/lineWidth）；本地全文按默认 100 字/行拆行，可用 evidence.search 按 keyword 或只传 startLine（约 400 字窗口）检索。查询不会刷新页面。
+常驻 `context.query(sumId, module, intent)` 从指定摘要的来源中查询一个模块。模块为 userInput、toolIO、observations、memoryWrites、output、queryHistory 或 summaries。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后将完整 records 放入 currentQuery；`<toolIO>` 只投影 currentQuery 指针。查询结果与其它工具返回共用统一内联门禁（默认 4000 字符），超出时注入 externalized 摘要（preview+path+totalLines/lineWidth）；本地全文按默认 100 字/行拆行，可用 evidence.search 按 keyword 或只传 startLine（约 400 字窗口）检索。查询不会刷新页面。
 
 工具窗口投影使用 {callId, turnId, batchId?, name, arguments, return: {stage, result}}，arguments 隐藏 affectsPage，保留 reason 与操作参数。result 对合法 JSON 解析一次，普通文本和截断文本保持原样。callId 标识调用，turnId 标识所属轮次，batchId 标识工具批次；totalChars 不注入主模型，操作用 tabId、控件引用及错误详情仍保留。与 observations 中同一 turnId+callId 的观察对应时，return.result 只保留 {ok, observationId}，完整观察结果只出现在 `<observations>`；本地原始返回保持完整。
 
@@ -328,7 +324,6 @@ Ajv 只验 `tool_calls[].arguments`，不验 `content`。
 | 工具 | required 其余 | 谁填其余 |
 |---|---|---|
 | `askUser` | `question`、`choice` | 非空问题正文与选项 |
-| `submitGoal` | 创建时 `goal`；更新时 `id` | 创建子目标时传 parentId；创建默认 active。按 id 更新正文、状态或选中 active 目标，parentId 创建后不变。关闭当前目标时转回 active 父目标，否则清空当前选择；不自动关闭其他目标，也不级联修改子目标 |
 | `finishTurn` | `text` | 非空回复正文，不依赖 content |
 | `context.query` | `sumId` `module` `intent` | 查询 Agent 选择来源轮次，Runtime 将完整 records 写入 currentQuery；超长走统一 4000 门禁 |
 | `capture_page` | `mode`；element 另需 ref/selector 二选一 | `viewport` / `full_page` / `element`；元素定位不混用 page.* 的 id，PDF 使用 `save_pdf` |

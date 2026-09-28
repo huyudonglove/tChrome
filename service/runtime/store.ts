@@ -75,8 +75,6 @@ export function emptyLedger(conversationId: string): Ledger {
     loadedSkillIds: [],
     userInputHistory: [],
     reflectHistory: [],
-    goals: [],
-    currentGoalId: null,
     tasks: [],
     taskHistory: [],
     activeTaskId: null,
@@ -95,20 +93,13 @@ export function emptyLedger(conversationId: string): Ledger {
   };
 }
 
-/** Additive v2 load: keep prior goals/history; default Task pointers. */
 function normalizeLedger(raw: Partial<Ledger> & { conversationId?: string }, conversationId: string): Ledger {
   const base = emptyLedger(conversationId);
-  const goals = (raw.goals ?? []).map((goal) => ({
-    ...goal,
-    taskId: goal.taskId ?? null,
-    activeTaskItemId: goal.activeTaskItemId ?? null,
-  }));
   return {
     ...base,
     ...raw,
     schemaVersion: 2,
     conversationId,
-    goals,
     userInputHistory: raw.userInputHistory ?? [],
     reflectHistory: raw.reflectHistory ?? [],
     tasks: raw.tasks ?? [],
@@ -139,7 +130,6 @@ export function primeActiveTask(dataDir: string): void {
   if (!ledger.tasks.some((row) => row.id === id)) {
     ledger.tasks.push({
       id,
-      goalId: null,
       status: "active",
       items: [],
       createdAt: now,

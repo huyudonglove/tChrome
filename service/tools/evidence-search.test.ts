@@ -169,8 +169,7 @@ test("oversized observation.write result is externalized with path and totalLine
       turnId: "tn_01", conversationId: "cv_ext", status: "inferring",
       createdAt: new Date().toISOString(), completedAt: null,
       input: { id: "input_01", text: "大结果", submittedAt: "now" },
-      stopReason: null, goalChanges: [],
-      assembled: {
+      stopReason: null,       assembled: {
         baseToolsIds: [], toolIds: [],
         conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [],
         currentPage: null, currentTabs: { ok: true, windows: [] }, observations: [],

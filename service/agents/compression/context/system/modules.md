@@ -19,7 +19,6 @@ Sample（一次请求只含一个完整轮次的骨架，仅示例）：
           "createdAt": "...",
           "completedAt": "...",
           "userInput": { "id": "input_01", "turnId": "tn_01", "userInput": "打开导出页", "submittedAt": "..." },
-          "goalChanges": [],
           "toolIO": [
             { "callId": "call_02", "turnId": "tn_01", "name": "page.get_summary",
               "arguments": { "tabId": 12, "reason": "读概况" },

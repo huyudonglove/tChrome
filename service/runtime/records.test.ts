@@ -33,7 +33,7 @@ test("source store retrieves archived input, page and both memory layers", async
       createdAt: "2026-09-11T00:00:00.000Z", sourceCallId: "call_01" });
   }
   const query = async (kind: string, id: string, conversationId = "cv_01") => {
-    const text = loadContextRecord(dir, conversationId, kind as "userInput" | "goal" | "observation" | "memory", id);
+    const text = loadContextRecord(dir, conversationId, kind as "userInput" | "observation" | "memory", id);
     return { ok: text !== null, text: text ?? "", source: { kind, id, historical: true } };
   };
   for (const kind of ["userInput", "observation"]) {

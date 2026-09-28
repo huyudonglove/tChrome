@@ -1,4 +1,4 @@
-import type { GoalRecord, Ledger, Task, TaskHistoryRecord, TaskItem, TaskItemStatus, ToolArguments } from "../types.ts";
+import type { Ledger, RuntimeExecutionContext, Task, TaskHistoryRecord, TaskItem, TaskItemStatus, ToolArguments } from "../types.ts";
 import { allocateRecordId, nowIso } from "./ids.ts";
 import { errorDetail } from "../../shared/error-details.ts";
 
@@ -31,14 +31,6 @@ const pushHistory = (
 const activeDoing = (plan: Task): TaskItem | null =>
   plan.items.find((item) => item.status === "doing") ?? null;
 
-const syncGoalPlanPointers = (ledger: Ledger, goalId: string | null, plan: Task | null): void => {
-  if (!goalId) return;
-  const goal = ledger.goals.find((row) => row.id === goalId);
-  if (!goal) return;
-  goal.taskId = plan?.id ?? null;
-  goal.activeTaskItemId = plan ? (activeDoing(plan)?.id ?? null) : null;
-};
-
 const ensureSingleDoing = (plan: Task): void => {
   const doing = plan.items.filter((item) => item.status === "doing");
   if (doing.length > 1) {
@@ -49,21 +41,12 @@ const ensureSingleDoing = (plan: Task): void => {
 const setLedgerActive = (ledger: Ledger, plan: Task | null): void => {
   ledger.activeTaskId = plan && plan.status === "active" ? plan.id : null;
   ledger.activeTaskItemId = plan && plan.status === "active" ? (activeDoing(plan)?.id ?? null) : null;
-  if (plan) syncGoalPlanPointers(ledger, plan.goalId, plan.status === "active" ? plan : null);
-  else if (ledger.currentGoalId) syncGoalPlanPointers(ledger, ledger.currentGoalId, null);
 };
 
 const findPlan = (ledger: Ledger, taskId: string): Task => {
   const plan = ledger.tasks.find((row) => row.id === taskId);
   if (!plan) throw new Error(errorDetail("task_not_found", { id: taskId }));
   return plan;
-};
-
-/** Weak Goal↔Task: Task may stand alone; currentGoalId is only attached when active. */
-const optionalActiveGoalId = (ledger: Ledger): string | null => {
-  if (!ledger.currentGoalId) return null;
-  const goal = ledger.goals.find((row) => row.id === ledger.currentGoalId);
-  return goal && goal.status === "active" ? goal.id : null;
 };
 
 const touchPlan = (plan: Task): void => {
@@ -76,7 +59,6 @@ export function prepareTaskSet(dataDir: string, context: TaskContext, args: Tool
   history: TaskHistoryRecord[];
 } {
   const { ledger } = context;
-  const linkedGoalId = optionalActiveGoalId(ledger);
   const rawItems = Array.isArray(args.items) ? args.items : [];
   const items: TaskItem[] = [];
   const seenDoing: string[] = [];
@@ -105,7 +87,6 @@ export function prepareTaskSet(dataDir: string, context: TaskContext, args: Tool
     throw new Error(errorDetail("task_set_multi_doing_submit", { count: seenDoing.length, texts: seenDoing.join(", ") }));
   }
 
-  // Replace whatever active task exists (goal-bound or standalone), not only goal.taskId.
   const previous = ledger.activeTaskId
     ? ledger.tasks.find((row) => row.id === ledger.activeTaskId && row.status === "active")
     : undefined;
@@ -118,7 +99,6 @@ export function prepareTaskSet(dataDir: string, context: TaskContext, args: Tool
     touchPlan(previous);
     const record = {
       taskId: previous.id,
-      goalId: previous.goalId ?? "",
       type: "task_cancelled" as const,
       reason: "replaced",
       before: { status: "active" },
@@ -132,7 +112,6 @@ export function prepareTaskSet(dataDir: string, context: TaskContext, args: Tool
   const now = nowIso();
   const plan: Task = {
     id: taskId,
-    goalId: linkedGoalId,
     status: "active",
     items,
     createdAt: now,
@@ -142,7 +121,6 @@ export function prepareTaskSet(dataDir: string, context: TaskContext, args: Tool
   ledger.tasks.push(plan);
   pushHistory(dataDir, ledger, {
     taskId: plan.id,
-    goalId: plan.goalId ?? "",
     type: "task_created",
     after: { title: plan.title ?? null, itemCount: plan.items.length },
     ...(replacedPlanId ? { reason: `replaced:${replacedPlanId}` } : {}),
@@ -152,7 +130,6 @@ export function prepareTaskSet(dataDir: string, context: TaskContext, args: Tool
   if (doing) {
     pushHistory(dataDir, ledger, {
       taskId: plan.id,
-      goalId: plan.goalId ?? "",
       taskItemId: doing.id,
       type: "item_started",
       after: { status: "doing" },
@@ -172,9 +149,6 @@ export function prepareTaskUpdate(dataDir: string, context: TaskContext, args: T
   if (!taskId) throw new Error(errorDetail("task_update_need_active"));
   const plan = findPlan(ledger, taskId);
   if (plan.status !== "active") throw new Error(errorDetail("task_update_terminal", { id: plan.id }));
-  if (args.goalId !== undefined && args.goalId !== plan.goalId) {
-    throw new Error(errorDetail("task_update_goal_mismatch"));
-  }
 
   const raw = Array.isArray(args.items) ? args.items : [];
   if (!raw.length) throw new Error(errorDetail("task_update_empty_items"));
@@ -184,9 +158,6 @@ export function prepareTaskUpdate(dataDir: string, context: TaskContext, args: T
     if (!itemId) throw new Error(errorDetail("task_update_need_item_id", { index: i }));
     if (row.taskId !== undefined && row.taskId !== plan.id) {
       throw new Error(errorDetail("task_update_plan_mismatch"));
-    }
-    if (row.goalId !== undefined && row.goalId !== plan.goalId) {
-      throw new Error(errorDetail("task_update_goal_id_mismatch"));
     }
     const status = row.status === "todo" || row.status === "doing" || row.status === "done"
       ? row.status as TaskItemStatus
@@ -253,7 +224,6 @@ export function prepareTaskUpdate(dataDir: string, context: TaskContext, args: T
         : "item_updated" as const;
     pushHistory(dataDir, ledger, {
       taskId: working.id,
-      goalId: working.goalId ?? "",
       taskItemId: item.id,
       type,
       before,
@@ -289,7 +259,6 @@ export function prepareTaskComplete(dataDir: string, context: TaskContext, args:
   touchPlan(plan);
   pushHistory(dataDir, ledger, {
     taskId: plan.id,
-    goalId: plan.goalId ?? "",
     type: "task_completed",
     before,
     after: { status: "completed" },
@@ -299,7 +268,6 @@ export function prepareTaskComplete(dataDir: string, context: TaskContext, args:
   if (ledger.activeTaskId === plan.id) {
     ledger.activeTaskId = null;
     ledger.activeTaskItemId = null;
-    syncGoalPlanPointers(ledger, plan.goalId, null);
   }
   return { plan, history: [ledger.taskHistory.at(-1)!] };
 }
@@ -322,7 +290,6 @@ export function autoCompleteActiveTask(dataDir: string, ledger: Ledger, turnId: 
   touchPlan(plan);
   pushHistory(dataDir, ledger, {
     taskId: plan.id,
-    goalId: plan.goalId ?? "",
     type: "task_completed",
     before,
     after: { status: "completed" },
@@ -332,81 +299,12 @@ export function autoCompleteActiveTask(dataDir: string, ledger: Ledger, turnId: 
   if (ledger.activeTaskId === plan.id) {
     ledger.activeTaskId = null;
     ledger.activeTaskItemId = null;
-    syncGoalPlanPointers(ledger, plan.goalId, null);
   }
   return true;
 }
 
-export function endTasksForGoal(dataDir: string, ledger: Ledger, goal: GoalRecord, reason: "goal_ended" | "replaced", turnId: string): void {
-  const open = ledger.tasks.filter((row) => row.goalId === goal.id && row.status === "active");
-  for (const plan of open) {
-    plan.status = "cancelled";
-    plan.updatedAt = nowIso();
-    pushHistory(dataDir, ledger, {
-      taskId: plan.id,
-      goalId: plan.goalId ?? "",
-      type: "task_cancelled",
-      reason,
-      before: { status: "active" },
-      after: { status: "cancelled" },
-    }, turnId);
-  }
-  goal.taskId = null;
-  goal.activeTaskItemId = null;
-  if (ledger.activeTaskId && open.some((row) => row.id === ledger.activeTaskId)) {
-    ledger.activeTaskId = null;
-    ledger.activeTaskItemId = null;
-  }
-}
-
-function appendGoalTerminalHistory(dataDir: string, ledger: Ledger, goal: GoalRecord, turnId: string): void {
-  if (goal.status === "active") return;
-  const taskId = goal.taskId
-    ?? [...ledger.tasks].reverse().find((row) => row.goalId === goal.id)?.id;
-  if (!taskId) return;
-  const type = goal.status === "completed" ? "goal_completed" : "goal_cancelled";
-  const exists = ledger.taskHistory.some((row) =>
-    row.goalId === goal.id && row.type === type && row.after !== undefined &&
-    (row.after as { status?: string } | undefined)?.status === goal.status);
-  if (exists) return;
-  pushHistory(dataDir, ledger, {
-    taskId,
-    goalId: goal.id,
-    type,
-    after: { status: goal.status },
-  }, turnId);
-}
-
-export function afterGoalSwitch(dataDir: string, ledger: Ledger, previousGoalId: string | null, nextGoalId: string | null, turnId: string): void {
-  if (previousGoalId && previousGoalId !== nextGoalId) {
-    const previous = ledger.goals.find((row) => row.id === previousGoalId);
-    if (previous && previous.status !== "active") {
-      endTasksForGoal(dataDir, ledger, previous, "goal_ended", turnId);
-      appendGoalTerminalHistory(dataDir, ledger, previous, turnId);
-    }
-  }
-  // Weak link: goal switches never clear a standalone (goalId=null) active task.
-  // Only retarget when the next active goal has its own bound task.
-  if (!nextGoalId) return;
-  const next = ledger.goals.find((row) => row.id === nextGoalId);
-  if (!next || next.status !== "active") return;
-  const plan = next.taskId ? ledger.tasks.find((row) => row.id === next.taskId && row.status === "active") : undefined;
-  if (plan) setLedgerActive(ledger, plan);
-}
-
-/** Goal terminal transition: cancel open tasks then append goal history. */
-export function onGoalStatusChange(dataDir: string, ledger: Ledger, previous: GoalRecord | undefined, record: GoalRecord, turnId: string): void {
-  if (previous && previous.status === "active" && record.status !== "active") {
-    endTasksForGoal(dataDir, ledger, record, "goal_ended", turnId);
-    appendGoalTerminalHistory(dataDir, ledger, record, turnId);
-  } else if (!previous && record.status !== "active") {
-    appendGoalTerminalHistory(dataDir, ledger, record, turnId);
-  }
-}
-
 export function executionContext(ledger: Ledger): RuntimeExecutionContext {
   return {
-    goalId: ledger.currentGoalId,
     activeTaskId: ledger.activeTaskId,
     activeTaskItemId: ledger.activeTaskItemId,
   };

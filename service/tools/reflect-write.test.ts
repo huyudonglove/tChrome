@@ -11,8 +11,7 @@ import type { Turn } from "../types.ts";
 const repoRoot = join(import.meta.dir, "../..");
 
 const turn = (): Turn => ({
-  goalChanges: [],
-  turnId: "tn_01",
+    turnId: "tn_01",
   conversationId: "cv_01",
   status: "inferring",
   createdAt: "now",

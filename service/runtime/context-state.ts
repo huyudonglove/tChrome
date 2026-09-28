@@ -1,4 +1,3 @@
-import { activeGoalIds } from "../context/projections/records.ts";
 import { mkdirSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { allocateRecordId } from "./ids.ts";
@@ -67,13 +66,11 @@ export function contextState(dataDir: string, ledger: Ledger, turn: Turn, memori
     if (!entry) throw new Error(`Missing active turn summary record: ${id}`);
     return entry;
   }).sort((a, b) => (turnOrder.get(a.turnId) ?? Infinity) - (turnOrder.get(b.turnId) ?? Infinity));
-  const retainedGoals = activeGoalIds(ledger.goals);
   return {
     ledger: { ...ledger,
       userInputHistory: ledger.userInputHistory.filter(row => !turnCovered(row.turnId)),
       reflectHistory: ledger.reflectHistory.filter(row => !turnCovered(row.turnId)),
       taskHistory: ledger.taskHistory.filter(row => !row.turnId || !turnCovered(row.turnId)),
-      goals: ledger.goals.filter(row => retainedGoals.has(row.id) || !originCovered(row.turnId, row.sourceCallId)),
       toolIO: ledger.toolIO.filter(row => !toolCovered(row)),
       queryHistory: ledger.queryHistory.filter(row => !isCovered(querySourceKey(row.queryId))),
     },
@@ -127,7 +124,7 @@ function archiveContentFromInventory(
       continue;
     }
     if (!Array.isArray(raw)) {
-      content[field] = raw ?? (field === "goalChanges" || field === "toolIO" || field === "observations" || field === "memoryWrites" ? [] : null);
+      content[field] = raw ?? (field === "toolIO" || field === "observations" || field === "memoryWrites" ? [] : null);
       continue;
     }
     if (options.keepCallIds) {
@@ -144,7 +141,7 @@ function archiveContentFromInventory(
     }
     if (field === "toolIO") {
       content[field] = raw.filter((row: ToolIOItem) => !coverage.toolCovered(row));
-    } else if (field === "goalChanges" || field === "memoryWrites") {
+    } else if (field === "memoryWrites") {
       content[field] = raw.filter((row: { turnId: string; sourceCallId: string }) => !coverage.originCovered(row.turnId, row.sourceCallId));
     } else if (field === "observations") {
       content[field] = raw.filter((row: { turnId: string; callId: string }) => !coverage.originCovered(row.turnId, row.callId));
@@ -177,7 +174,7 @@ export async function compressContext(input: CompressionInput, phase: "history" 
       records.push({ id, content: {
         conversationId: history.conversationId, turnId: history.turnId,
         status: history.status, createdAt: history.createdAt, completedAt: null,
-        goalChanges: [], toolIO: [], observations: [], memoryWrites: [],
+        toolIO: [], observations: [], memoryWrites: [],
         queryHistory: [query], stopReason: null,
         sequence: { turn: ledger.turnIds.indexOf(history.turnId), batch: tool ? batches.indexOf(batchKey(tool)) : batches.length },
         segment: { complete: false },

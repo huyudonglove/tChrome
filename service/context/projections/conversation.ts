@@ -1,6 +1,6 @@
-import type { GoalRecord, Ledger, Observation, Task, TaskHistoryRecord, Turn, TurnStopReason, UserInputRecord } from "../../types.ts";
+import type { Ledger, Observation, Task, TaskHistoryRecord, Turn, TurnStopReason, UserInputRecord } from "../../types.ts";
 import type { MemoryRecord } from "../../memory/types.ts";
-import { goalRecordView, pageView, turnSummaryView, type TurnSummary } from "./records.ts";
+import { pageView, turnSummaryView, type TurnSummary } from "./records.ts";
 import { toolHistoryView } from "./tools.ts";
 import { queryView, type QueryEvidence, type QueryViewOptions } from "./queries.ts";
 import { loadTurn } from "../../runtime/store.ts";
@@ -8,9 +8,7 @@ import { loadTurn } from "../../runtime/store.ts";
 export type ConversationTurnSlice = {
   turnId: string;
   userInput: { id: string; turnId: string; userInput: string };
-  goal: { currentGoalId: string | null; goals: ReturnType<typeof goalRecordView>[] };
   task: {
-    currentGoalId: string | null;
     activeTaskId: string | null;
     activeTaskItemId: string | null;
     task: ReturnType<typeof taskView> | null;
@@ -34,7 +32,6 @@ const taskView = (plan: Task | null | undefined) => {
   if (!plan) return null;
   return {
     id: plan.id,
-    goalId: plan.goalId,
     ...(plan.title ? { title: plan.title } : {}),
     status: plan.status,
     items: plan.items.map((item) => ({
@@ -81,17 +78,6 @@ export function conversationPayload(input: {
   const queries: QueryEvidence[] = [...(input.queryHistory ?? [])];
   if (input.currentQuery) queries.push(input.currentQuery);
   const notesByTurn = input.notesByTurn ?? {};
-  const goalChangesByTurn = new Map<string, GoalRecord[]>();
-  for (const goal of ledger.goals) {
-    const rows = goalChangesByTurn.get(goal.turnId) ?? [];
-    rows.push(goal);
-    goalChangesByTurn.set(goal.turnId, rows);
-  }
-  for (const goal of turn.goalChanges ?? []) {
-    const rows = goalChangesByTurn.get(goal.turnId) ?? [];
-    if (!rows.some((row) => row.id === goal.id && row.updatedAt === goal.updatedAt)) rows.push(goal);
-    goalChangesByTurn.set(goal.turnId, rows);
-  }
 
   const turns: ConversationTurnSlice[] = [];
   const seen = new Set<string>();
@@ -99,12 +85,6 @@ export function conversationPayload(input: {
     if (seen.has(row.turnId)) continue;
     seen.add(row.turnId);
     const isLive = row.turnId === turn.turnId;
-    const goals = goalChangesByTurn.get(row.turnId) ?? [];
-    const activeIds = new Set(
-      (isLive ? ledger.goals : goals)
-        .filter((goal) => goal.status === "active")
-        .flatMap((goal) => (goal.parentId ? [goal.id, goal.parentId] : [goal.id])),
-    );
     const taskEvents = groupByTurn(ledger.taskHistory, row.turnId);
     const liveTask = isLive && ledger.activeTaskId ? ledger.tasks.find((plan) => plan.id === ledger.activeTaskId) : null;
     const toolRows = groupByTurn(ledger.toolIO, row.turnId);
@@ -112,12 +92,7 @@ export function conversationPayload(input: {
     turns.push({
       turnId: row.turnId,
       userInput: { id: row.id, turnId: row.turnId, userInput: row.userInput },
-      goal: {
-        currentGoalId: isLive ? ledger.currentGoalId : null,
-        goals: (isLive ? ledger.goals.filter((goal) => activeIds.has(goal.id)) : goals).map(goalRecordView),
-      },
       task: {
-        currentGoalId: isLive ? ledger.currentGoalId : null,
         activeTaskId: isLive ? ledger.activeTaskId : null,
         activeTaskItemId: isLive ? ledger.activeTaskItemId : null,
         task: isLive ? taskView(liveTask) : null,
@@ -169,7 +144,6 @@ export function conversationXml(payload: ConversationPayload): string {
     const slice = raw as ConversationTurnSlice;
     const fields = [
       tag("userInput", slice.userInput),
-      tag("goal", slice.goal),
       tag("task", slice.task),
       tag("toolIO", slice.toolIO),
       tag("observations", slice.observations),

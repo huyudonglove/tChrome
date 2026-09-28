@@ -16,18 +16,6 @@ export type CurrentPage = {
 };
 
 export type UserInputRecord = { id: string; turnId: string; userInput: string; submittedAt: string };
-export type GoalRecord = {
-  id: string;
-  parentId: string | null;
-  goal: string;
-  status: "active" | "completed" | "cancelled";
-  turnId: string;
-  sourceCallId: string;
-  createdAt: string;
-  updatedAt: string;
-  taskId: string | null;
-  activeTaskItemId: string | null;
-};
 
 export type ReflectHistoryItem = { id: string; text: string; focus?: string };
 export type ReflectHistoryRecord = {
@@ -47,7 +35,6 @@ export type Observation = {
   type: string;
   /** Full tool return for this observation call. */
   result: unknown;
-  goalId?: string | null;
   taskId?: string | null;
   taskItemId?: string | null;
 };
@@ -77,8 +64,6 @@ export type TaskItem = {
 
 export type Task = {
   id: string;
-  /** Weak link: null = standalone task not bound to any Goal. */
-  goalId: string | null;
   title?: string;
   status: TaskStatus;
   items: TaskItem[];
@@ -93,15 +78,11 @@ export type TaskHistoryType =
   | "item_updated"
   | "item_completed"
   | "task_completed"
-  | "task_cancelled"
-  | "goal_completed"
-  | "goal_cancelled";
+  | "task_cancelled";
 
 export type TaskHistoryRecord = {
   id: string;
   taskId: string;
-  /** Empty string when the Task was standalone (no Goal). */
-  goalId: string;
   taskItemId?: string;
   type: TaskHistoryType;
   before?: unknown;
@@ -113,7 +94,6 @@ export type TaskHistoryRecord = {
 };
 
 export type RuntimeExecutionContext = {
-  goalId: string | null;
   activeTaskId: string | null;
   activeTaskItemId: string | null;
 };
@@ -143,7 +123,6 @@ export type TurnStopReason =
   | { kind: "error"; faultCode: string; causeCode?: string; toolName?: string; detail?: string };
 
 export type Turn = {
-  goalChanges: GoalRecord[];
   turnId: string;
   conversationId: string;
   status: TurnStatus;
@@ -179,7 +158,6 @@ export type ToolIOItem = ToolQueueItem & {
   turnId: string;
   return: ToolReturn;
   images?: ImageReference[];
-  goalId?: string | null;
   taskId?: string | null;
   taskItemId?: string | null;
   /** Effective risk level: the model's own value, otherwise the tool's fixed level. */
@@ -201,8 +179,6 @@ export type Ledger = {
   loadedSkillIds?: string[];
   userInputHistory: UserInputRecord[];
   reflectHistory: ReflectHistoryRecord[];
-  goals: GoalRecord[];
-  currentGoalId: string | null;
   tasks: Task[];
   taskHistory: TaskHistoryRecord[];
   activeTaskId: string | null;
