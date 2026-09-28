@@ -18,6 +18,7 @@
             "observations",
             "memoryWrites",
             "stopReason",
+            "output",
             "queryHistory",
             "summaries"
           ]
