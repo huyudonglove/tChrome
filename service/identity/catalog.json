@@ -20,20 +20,6 @@
     "allocation": "counter",
     "description": "用户输入记录"
   },
-  "goal": {
-    "field": "id",
-    "prefix": "goal",
-    "scope": "conversation",
-    "allocation": "counter",
-    "description": "总目标（稳定 ID）"
-  },
-  "subgoal": {
-    "field": "id",
-    "prefix": "subgoal",
-    "scope": "conversation",
-    "allocation": "counter",
-    "description": "子目标（parentId 关联总目标）"
-  },
   "taskHistory": {
     "field": "id",
     "prefix": "th",
