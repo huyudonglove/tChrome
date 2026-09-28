@@ -59,7 +59,6 @@
 | observations | 是 | observations | 观察（页面/代码等） |
 | memoryWrites | 是 | memoryWrites | 会话记忆写入 |
 | reflection | 是 | reflection | 轮次反思 |
-| taskHistory | 是 | taskHistory | 任务事件 |
 | queryHistory | 是 | queryHistory | 查询记录 |
 | turnOutput | 是 | stopReason | 轮次收口 |
 

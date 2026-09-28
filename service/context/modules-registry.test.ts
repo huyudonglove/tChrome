@@ -27,7 +27,6 @@ test("module registry owns consumers, compress flags and archive fields", () => 
     "observations",
     "memoryWrites",
     "reflection",
-    "taskHistory",
     "queryHistory",
     "stopReason",
   ]);

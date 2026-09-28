@@ -25,7 +25,6 @@
     { "id": "observations", "role": "archive", "order": 4, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "observations", "coverage": "callId", "description": "Observations" },
     { "id": "memoryWrites", "role": "archive", "order": 5, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "memoryWrites", "coverage": "sourceCallId", "description": "Conversation memory writes" },
     { "id": "reflection", "role": "archive", "order": 6, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "reflection", "coverage": "turn", "description": "Turn reflection" },
-    { "id": "taskHistory", "role": "archive", "order": 7, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "taskHistory", "coverage": "turn", "description": "Task Event History" },
     { "id": "queryHistory", "role": "archive", "order": 8, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "queryHistory", "coverage": "queryId", "description": "Query History" },
     { "id": "turnOutput", "role": "archive", "order": 9, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "stopReason", "coverage": "settledTurnOnly", "description": "Turn closing output", "inputSemantics": "对象或 null。`{kind:\"reply\", text}` 为最终回复正文；`{kind:\"ask\", question}` / `{kind:\"error\", faultCode, causeCode?, toolName?, detail?}` / `{kind:\"tool\", name, callId}`。null 表示暂无收尾。" }
   ]

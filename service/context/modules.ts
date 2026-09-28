@@ -50,7 +50,6 @@ const DEFAULT_SEMANTICS: Record<string, string> = {
   queryHistory: "数组 `[{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}]`。status 为 complete / not_found / error；records 保留原模块记录。结论写入 result。",
   stopReason: "对象或 null。`{kind:\"reply\", text}` 为最终回复正文（侧栏与后续上下文同一 text）；`{kind:\"ask\", question}` 在等用户；`{kind:\"error\", faultCode, causeCode?, toolName?, detail?}` 本轮失败；`{kind:\"tool\", name, callId}` 停在该工具调用、还没收口。null 表示暂无收尾。",
   reflection: "对象或 null。`{turnId, items:[{id, text, focus?}]}` 本轮反思列表；null 或空 items 表示未填写。",
-  taskHistory: "数组 `[{id, turnId, taskId, goalId, taskItemId?, type, before?, after?, reason?, at}]`。type 为 task_created / item_started / item_updated / item_completed / task_completed / task_cancelled / goal_completed / goal_cancelled。只追加。",
 };
 
 export function loadModuleRegistry(root: string): ModuleRegistry {
