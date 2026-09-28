@@ -127,7 +127,9 @@
     "stream.push",
     "image.crop",
     "asset.list",
-    "asset.read"
+    "asset.read",
+    "page.get_by_role",
+    "wait_response"
   ],
   "service": [
     "send_http",
@@ -176,8 +178,6 @@
     "page.clear_result",
     "skill.load",
     "reflect.delete",
-    "job.stop",
-    "wait_response",
-    "page.get_by_role"
+    "job.stop"
   ]
 }

@@ -10,7 +10,7 @@ import { checkToolCalls } from "./schema.ts";
 import { autoCompleteActiveTask, executionContext } from "../runtime/tasks.ts";
 import type { Turn } from "../types.ts";
 
-const repoRoot = "/Users/huyudong/Projects/tChrome";
+const repoRoot = new URL("../../", import.meta.url).pathname;
 const registry = loadToolRegistry(repoRoot);
 
 const fixture = () => {

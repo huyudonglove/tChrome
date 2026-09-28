@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { loadToolRegistry, toolSchemas } from "./registry.ts";
 import { checkToolCalls } from "./schema.ts";
 
-const root = "/Users/huyudong/Projects/tChrome";
+const root = new URL("../../", import.meta.url).pathname;
 const registry = loadToolRegistry(root);
 
 test("page.type accepts clearBeforeType and pressEnter", () => {

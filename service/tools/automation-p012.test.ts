@@ -6,7 +6,7 @@ import { applyToolEffects } from "../runtime/effects.ts";
 import { emptyLedger } from "../runtime/store.ts";
 import type { Turn } from "../types.ts";
 
-const root = "/Users/huyudong/Projects/tChrome";
+const root = new URL("../../", import.meta.url).pathname;
 const registry = loadToolRegistry(root);
 
 test("P0-P2 automation tools are registered with schemas", () => {

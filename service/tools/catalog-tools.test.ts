@@ -1,6 +1,13 @@
 import { expect, test } from "bun:test";
 import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import { loadToolRegistry, toolSchemas } from "./registry.ts";
+import { LOCAL_TOOL_NAMES } from "./local-tools.ts";
+import { SERVICE_TOOL_NAMES } from "./service-tools.ts";
+import { COMPOUND_TOOL_NAMES } from "./compound-tools.ts";
+import { JOB_TOOL_NAMES } from "./job-registry.ts";
+import { IMAGE_TOOL_NAMES } from "./image-crop.ts";
+import { STREAM_TOOL_NAMES } from "./stream-tools.ts";
 import { parseToolArguments } from "./arguments.ts";
 import { checkToolCalls } from "./schema.ts";
 import type { ToolCall } from "../types.ts";
@@ -182,4 +189,40 @@ test('model tool registry exposes canonical capabilities and rejects retired ali
     expect(() => toolSchemas(registry, [name])).toThrow(`unknown tool ${name}`);
   }
   expect(toolSchemas(registry, ['web_search', 'send_http']).map(t => t.function.name)).toEqual(['web_search', 'send_http']);
+});
+
+// 归组守卫：index.json / groups.json 暴露的每个工具名，都必须能被 execute.ts 的某条分派路径命中。
+// 判定标准不是「名字登记在哪」，而是「executeTool 会不会走到某个分支」——名单常量、显式 name=== 分支、
+// 或 idx.browser 兜底三选一。登记在 service 数组却没有分支的，会在分派末尾落到 tool_unwired（unknown_tool）。
+test("index.json 登记的每个工具都能被 execute.ts 的分派路径命中", () => {
+  const registry = loadToolRegistry(repoRoot);
+  const source = readFileSync(join(repoRoot, "service/tools/execute.ts"), "utf8");
+  const explicit = new Set([...source.matchAll(/name\s*===\s*"([^"]+)"/g)].map((row) => row[1]!));
+  const lists = [LOCAL_TOOL_NAMES, SERVICE_TOOL_NAMES, COMPOUND_TOOL_NAMES, JOB_TOOL_NAMES, IMAGE_TOOL_NAMES, STREAM_TOOL_NAMES];
+  // 注意：这里不把 idx.service 当作有效分支。落进 service 数组但没接线的名字正是要拦的缺陷。
+  const branchOf = (name: string) => {
+    if (explicit.has(name)) return "explicit";
+    if (lists.some((list) => (list as readonly string[]).includes(name))) return "list";
+    if (registry.index.browser.includes(name)) return "browser";
+    return "unwired";
+  };
+  const exposed = [...new Set([
+    ...registry.index.browser,
+    ...registry.index.service,
+    ...registry.toolGroups.baseToolsIds,
+    ...registry.toolGroups.coreToolIds,
+  ])];
+  expect(exposed.length).toBeGreaterThan(20);
+  expect(exposed.filter((name) => branchOf(name) === "unwired")).toEqual([]);
+});
+
+test("service 数组不含已由浏览器通道实现的工具名", () => {
+  const registry = loadToolRegistry(repoRoot);
+  // page.get_by_role / wait_response 曾误登记在 service 数组，实际实现方是 extension/tools/browser-tools.js。
+  const extensionSource = readFileSync(join(repoRoot, "extension/tools/browser-tools.js"), "utf8");
+  const implemented = new Set(
+    [...extensionSource.matchAll(/['"]([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)*)['"]/g)].map((row) => row[1]!),
+  );
+  const misplaced = registry.index.service.filter((name) => implemented.has(name) && !registry.index.browser.includes(name));
+  expect(misplaced).toEqual([]);
 });
