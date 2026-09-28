@@ -10,9 +10,12 @@
 | --- | --- |
 | tag | 便于检索的主题（对象/事件/约束） |
 | actions | 实际执行的关键步骤、修正与失败，串联成一段；区分计划与已执行 |
-| result | 已验证结果、最终回复（材料里 output.text）、错误或等待状态；保留证据差异 |
+| result | 已验证结果、最终回复（材料里 stopReason.text）、错误或等待状态；保留证据差异 |
+| reflection（可选） | 本轮值得留给以后自己的思考：判断变化、思路与路径整理、取舍与踩坑；写成独立一段，日常流水账不填 |
+
+reflection 单独成字段，不揉进 actions；材料里它在 <reflection> 标签下。
 
 userRequest 不由我提交；Runtime 会从本轮用户原话写入摘要。
 
-若上一次无效，Runtime 会回灌带 runtime: 前缀的校验结果；那是 Runtime 校验不通过，不是材料原文。我按其中列出的具体错误改，只提交 {tag, actions, result}。格式或 schema 错误最多自救 3 次。再次压缩同一轮已有 summaries 时，缩短重复表述，保留关键因果与失败。
+若上一次无效，Runtime 会回灌带 runtime: 前缀的校验结果；那是 Runtime 校验不通过，不是材料原文。我按其中列出的具体错误改，提交 {tag, actions, result}（reflection 视需要给或不给）。格式或 schema 错误最多自救 3 次。再次压缩同一轮已有 summaries 时，缩短重复表述，保留关键因果与失败。
 </compressionOutput>

@@ -18,7 +18,7 @@ Runtime 会检测两种机械性重复，并以 `runtime:` 开头的提示追加
 
 动作类工具返回可能带可选 effects（观察器稀疏注入，无异常则整段不出现）：network=动作后新出现的 4xx/断网；console=JS 未捕获异常或 console.error；nav=URL 变化；delta=拖拽回弹、表单 aria-invalid/validationMessage 等；mutations.newAlerts=白名单提示条新增文案；domChange=剥离样式后的结构 HTML 前后 diff 摘要（"-旧 +新"）。effects 是证据，不自动改写 ok：对照 expected 判断是否达成，未达则按 fallback 收敛。effects 是可选附加信息，不是必填字段；键不存在表示未观察到该类异常，仍须用可见结果验收。
 
-每批最多包含一个 askUser 或 finishTurn，并且放在最后。答复需参考本批其他工具结果时，等结果返回后再答复。本轮总结、依据、风险或下一步用 reflect.write；完成本轮用 finishTurn 提交答复（text 给用户，同一 text 供后续上下文）；等待用户回答用 askUser。
+每批最多包含一个 askUser 或 finishTurn，并且放在最后。答复需参考本批其他工具结果时，等结果返回后再答复。本轮总结、依据、风险或下一步可按需写入 reflect.write（只在结论被自己推翻、同一卡点反复出现或做了取舍决策时写，流水账式复述不必写）；完成本轮用 finishTurn 提交答复（text 给用户，同一 text 供后续上下文）；等待用户回答用 askUser。
 
 同标签页若有先后因果依赖（如填写后再点击提交），调用按数组先后顺序提交并依循 serial 独占语义调度；存在依赖的动作应单独成批或保持 serial，避免与被依赖动作并列在同一 parallel 并发波次引发 DOM 竞态。
 

@@ -23,6 +23,12 @@
           "minLength": 1,
           "pattern": "\\S",
           "description": "本轮已验证结果、最终回复、错误或等待状态的文字摘要。保留回复与执行证据的差异；查询结论注明来自历史证据。"
+        },
+        "reflection": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "可选。仅当材料里的 reflection 记录了自我纠错、反复踩同一坑或取舍决策时填写，原样转述其结论，不要展开过程；没有则省略，不要为凑字段编造。"
         }
       },
       "required": ["tag", "actions", "result"],

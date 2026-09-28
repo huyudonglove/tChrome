@@ -6,9 +6,9 @@ import { compressionLog } from "./log.ts";
 import { compressionSystemFromModules } from "./context/loader.ts";
 import type { ChatMessage, ChatTool, CompletionResult, Provider } from "../../types.ts";
 
-export type TurnSummary = { turnId: string; tag: string; userRequest: string; actions: string; result: string };
+export type TurnSummary = { turnId: string; tag: string; userRequest: string; actions: string; result: string; reflection?: string };
 export type CompressionTurn = { turnId: string; [field: string]: unknown };
-export type SubmittedTurnFields = { tag: string; actions: string; result: string };
+export type SubmittedTurnFields = { tag: string; actions: string; result: string; reflection?: string };
 
 /** Format/schema failures go back to the model for self-repair; transport faults do not loop. */
 export const COMPRESSION_FORMAT_ATTEMPTS = 3;
@@ -56,9 +56,9 @@ export function compressionTurnsFromUserMessage(content: string): CompressionTur
 
 export function compressionRepairInstruction(toolName: string, turnId: string, fault: string): string {
   if (fault.includes('"must be object"') || fault.includes("must be object")) {
-    return `上一次参数不是对象。每个 ${toolName} 只提交 {tag, actions, result} 三个非空字符串，不要包数组，也不要填 turnId。本轮是 ${turnId}。大轮可拆成多条 ${toolName}（同属本轮）。请修正后在一次回包里调用一或多个 ${toolName}。`;
+    return `上一次参数不是对象。每个 ${toolName} 提交对象 {tag, actions, result}，三个必填字段均为非空字符串；reflection 可选。不要包数组，也不要填 turnId。本轮是 ${turnId}。大轮可拆成多条 ${toolName}（同属本轮）。请修正后在一次回包里调用一或多个 ${toolName}。`;
   }
-  return `上一次 ${toolName} 无效。请看 fault。每个 ${toolName} 只提交 {tag, actions, result} 三个非空字符串。本轮是 ${turnId}，不要填 turnId。大轮可拆成多条 ${toolName}（同属本轮）。请修正后在一次回包里调用一或多个 ${toolName}。`;
+  return `上一次 ${toolName} 无效。请看 fault。每个 ${toolName} 提交对象 {tag, actions, result}，三个必填字段均为非空字符串；reflection 可选。本轮是 ${turnId}，不要填 turnId。大轮可拆成多条 ${toolName}（同属本轮）。请修正后在一次回包里调用一或多个 ${toolName}。`;
 }
 
 /** One turn per request. One response may carry several summaries for that turn; all must be valid. */
@@ -123,12 +123,14 @@ export async function requestTurnSummaries(input: {
           break;
         }
         const value = call.arguments as SubmittedTurnFields;
+        const reflection = value.reflection?.trim();
         summaries.push({
           turnId,
           tag: value.tag.trim(),
           userRequest: userRequestFromTurn(input.turn),
           actions: value.actions.trim(),
           result: value.result.trim(),
+          ...(reflection ? { reflection } : {}),
         });
       }
       if (schemaFault) {

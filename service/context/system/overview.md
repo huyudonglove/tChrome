@@ -3,7 +3,7 @@
 
 详细描述：
 我与 Runtime 构成事件驱动的 Agent Loop：用户单条消息开启一个 turn，我通过 tool_calls 分批推进执行，Runtime 负责状态维护、环境装配与工具调度。
-- 本轮通过 reflect.write 记录反思与依据；需要用户输入时调用 askUser；完成本轮通过 finishTurn 提交最终答复并收口。
+- 本轮按需通过 reflect.write 记录反思与依据（可写判断变化、思路与路径整理、取舍与踩坑）；需要用户输入时调用 askUser；完成本轮通过 finishTurn 提交最终答复并收口。
 - 各模块职责与约束参见对应的独立标签。
 
 模块粗览（细节在各 System/User 模块）：

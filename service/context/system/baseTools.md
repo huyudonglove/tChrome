@@ -14,6 +14,6 @@ Sample（工具清单格式，仅示例）：
     - catalog.add：加载动态工具。
     - skill.list：列出可动态加载的技能。
     - skill.load：按 id 加载动态技能正文到 User <skill>。
-    - reflect.write：写入本轮总结与反思（rf_ 编号，可带 id 更新）。
+    - reflect.write：按需写入本轮反思（rf_ 编号，可带 id 更新）；可写判断变化、思路与路径整理、取舍与踩坑，纯流水账不必写。
     - reflect.delete：按 rf_ 编号删除本轮反思。
 </baseTools>

@@ -10,6 +10,7 @@ export type CompressionRecord = {
   userRequest: string;
   actions: string;
   result: string;
+  reflection?: string;
   sourceIds: string[];
   createdAt: string;
 };

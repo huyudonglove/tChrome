@@ -100,7 +100,7 @@ async function compress(input: Input): Promise<CompressOutcome> {
       : {
           turnId,
           segments: sourcesForTurn.map(source => asTurn(source.content)),
-          summaries: priorForTurn.map(({ tag, userRequest, actions, result }) => ({ tag, userRequest, actions, result })),
+          summaries: priorForTurn.map(({ tag, userRequest, actions, result, reflection }) => ({ tag, userRequest, actions, result, ...(reflection ? { reflection } : {}) })),
         };
 
     let summaries;
