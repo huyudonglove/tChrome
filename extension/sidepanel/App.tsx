@@ -211,6 +211,12 @@ export function App() {
   const connectionUpdating = useRef(false);
   const refreshVersion = useRef(0);
   const switching = useRef(false);
+  // The conversation this panel owns; every request is routed by it.
+  const sessionRef = useRef<string>("");
+  const applySession = (next: SessionView) => {
+    setSession(next);
+    if (next.conversationId) sessionRef.current = next.conversationId;
+  };
   const running = sending || session.status === "running";
   const compressing = session.status === "running" && session.activity?.kind === "compressing";
   const phaseText = session.activity?.phase
@@ -228,8 +234,8 @@ export function App() {
     const version = refreshVersion.current;
     const valid = () => !switching.current && generation === submission.current && version === refreshVersion.current;
     await Promise.allSettled([
-      requestJSON<SessionView>("/session").then(next => {
-        if (valid()) { setSession(next); setSyncError(""); }
+      requestJSON<SessionView>(sessionRef.current ? `/session?conversationId=${encodeURIComponent(sessionRef.current)}` : "/session").then(next => {
+        if (valid() && (!sessionRef.current || !next.conversationId || next.conversationId === sessionRef.current)) { applySession(next); setSyncError(""); }
       }).catch(error => { if (valid()) setSyncError(errorText(error)); }),
       requestJSON<{ items: ConversationItem[] }>("/conversations").then(listed => {
         if (valid()) { setItems(listed.items ?? []); setListError(""); }
@@ -273,10 +279,13 @@ export function App() {
       inFlight = true;
       const generation = submission.current;
       const version = refreshVersion.current;
+      const requested = sessionRef.current;
       const valid = () => !switching.current && alive && generation === submission.current && version === refreshVersion.current;
+      // A response for another conversation belongs to a different panel; drop it.
+      const owns = (next: SessionView) => !requested || !next.conversationId || next.conversationId === requested;
       try {
-        const next = await requestJSON<SessionView>("/session");
-        if (valid()) { setSession(next); setSyncError(""); }
+        const next = await requestJSON<SessionView>(requested ? `/session?conversationId=${encodeURIComponent(requested)}` : "/session");
+        if (valid() && owns(next)) { applySession(next); setSyncError(""); }
       } catch (error) {
         if (valid()) setSyncError(errorText(error));
       } finally { inFlight = false; }
@@ -324,7 +333,7 @@ export function App() {
       await requestJSON<{ stopReason?: Output }>("/turn", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ conversationId: session.conversationId, userInput: text, submittedAt: new Date().toISOString() }),
+        body: JSON.stringify({ conversationId: sessionRef.current || session.conversationId, userInput: text, submittedAt: new Date().toISOString() }),
       });
 
       if (submission.current !== currentSubmission) return;
@@ -355,12 +364,12 @@ export function App() {
   };
 
   const stopRun = () => stopCurrentSession<SessionView>({
-    conversationId: session.conversationId,
+    conversationId: sessionRef.current || session.conversationId,
     submission,
     switching,
     onStopped: (stopped) => {
       refreshVersion.current++;
-      setSession(stopped);
+      applySession(stopped);
       setStatus("");
       setSyncError("");
       sendingRef.current = false;
@@ -384,7 +393,7 @@ export function App() {
     });
     submission.current++;
     refreshVersion.current++;
-    setSession(next);
+    applySession(next);
     sendingRef.current = false;
     setSending(false);
     setListOpen(false);
@@ -414,7 +423,7 @@ export function App() {
     const next = await requestJSON<SessionView>("/conversations/new", { method: "POST" });
     submission.current++;
     refreshVersion.current++;
-    setSession(next);
+    applySession(next);
     sendingRef.current = false;
     setSending(false);
     setListOpen(false);
@@ -450,13 +459,13 @@ export function App() {
     });
     submission.current++;
     refreshVersion.current++;
-    if (next.conversationId !== session.conversationId) {
+    if (next.conversationId !== sessionRef.current) {
       setDraft("");
       setStatus("");
       setShowJump(false);
       followBottom.current = true;
     }
-    setSession(next);
+    applySession(next);
     sendingRef.current = false;
     setSending(false);
     const listed = await requestJSON<{ items: ConversationItem[] }>("/conversations");

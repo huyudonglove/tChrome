@@ -350,7 +350,14 @@ export function sessionView(dataDir: string, cvId: string): SessionView {
   });
 }
 
-export function currentSessionView(dataDir: string): SessionView {
+// `conversationId` lets each panel read its own conversation; when omitted the
+// global pointer stays the fallback so single-panel behaviour is unchanged.
+export function currentSessionView(dataDir: string, conversationId?: string | null): SessionView {
+  const requested = conversationId ?? null;
+  if (requested) {
+    if (!listConversationIds(dataDir).includes(requested)) return currentSessionView(dataDir);
+    return sessionView(dataDir, requested);
+  }
   const session = loadSession(dataDir);
   if (!session?.conversationId) {
     return emptySessionView();
@@ -425,9 +432,10 @@ export function ensureSession(dataDir: string): Session {
   return session;
 }
 
-export function stopTurn(dataDir: string): SessionView {
-  const session = loadSession(dataDir);
-  if (!session?.conversationId) return currentSessionView(dataDir);
+export function stopTurn(dataDir: string, targetConversationId?: string | null): SessionView {
+  // Stop the caller's conversation; the global pointer stays the fallback.
+  const session = { conversationId: targetConversationId || loadSession(dataDir)?.conversationId };
+  if (!session.conversationId) return currentSessionView(dataDir);
   cancelExecution(dataDir, session.conversationId);
   abortLocalProcesses(localScope(dataDir, session.conversationId));
   abortJobsForScope(jobScope(dataDir, session.conversationId));

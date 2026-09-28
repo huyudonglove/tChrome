@@ -14,10 +14,15 @@ test("background dispatch continues without panel messages and resumes on alarms
   let status = 200;
   let reportsFail = false;
   let executions = 0;
+  let hanging = false;
   const storage: Record<string, any> = {};
   Object.defineProperty(globalThis, "chrome", { configurable: true, value: {
     storage: {session: {get: async () => storage, set: async (values: any) => { Object.assign(storage, values); }}},
-    windows: { getAll: async () => { executions++; return []; } },
+    windows: { getAll: async () => {
+      if (hanging) return new Promise(() => {});
+      executions++;
+      return [];
+    } },
     sidePanel: { setPanelBehavior: () => {} },
     runtime: {
       getPlatformInfo: (callback: () => void) => { keepAliveCalls++; callback(); },
@@ -34,6 +39,11 @@ test("background dispatch continues without panel messages and resumes on alarms
     interval = callback;
     return 0;
   }) as typeof setInterval);
+  const realSetTimeout = globalThis.setTimeout;
+  const timeoutSpy = spyOn(globalThis, "setTimeout").mockImplementation(((callback: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => {
+    // The executor watchdog uses 60s; fire those immediately so the test stays fast.
+    return realSetTimeout(callback, ms === 60_000 ? 0 : ms, ...args);
+  }) as typeof setTimeout);
   const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (url: string, options?: RequestInit) => {
     if (url.endsWith("/session")) return Response.json({ status: active ? "running" : "idle" });
     if (url.includes("/tool-request?")) {
@@ -89,13 +99,45 @@ test("background dispatch continues without panel messages and resumes on alarms
     expect(executions).toBe(1);
     expect(results.at(-1)).toBe('interrupted-worker');
     expect(lastResult).toMatchObject({ok: false, faultCode: 'tool_execution_failed'});
+    // A claim that is still inside the TTL is treated as a live worker: refuse it.
+    storage['tchrome-tool-executions'] = {'live-worker': {claimedAt: Date.now()}};
+    request = {id: 'live-worker', name: 'list_tabs'};
+    interval();
+    await Bun.sleep(0);
+    expect(executions).toBe(1);
+    expect(results.at(-1)).toBe('live-worker');
+    expect(lastResult).toMatchObject({ok: false, faultCode: 'tool_execution_failed'});
+    // A claim older than the TTL cannot belong to a running worker, so it is
+    // reclaimed and the request runs again instead of failing forever.
+    storage['tchrome-tool-executions'] = {'expired-worker': {claimedAt: Date.now() - 120_000}};
+    request = {id: 'expired-worker', name: 'list_tabs'};
+    interval();
+    await Bun.sleep(0);
+    expect(executions).toBe(2);
+    expect(results.at(-1)).toBe('expired-worker');
+    expect(lastResult).toMatchObject({ok: true});
     storage['tchrome-tool-executions'] = {'completed-worker': {result: {ok: true, tabs: []}}};
     request = {id: 'completed-worker', name: 'list_tabs'};
     interval();
     await Bun.sleep(0);
-    expect(executions).toBe(1);
+    // Still 2: the expired claim above was the only extra execution.
+    expect(executions).toBe(2);
     expect(results.at(-1)).toBe('completed-worker');
     expect(lastResult).toEqual({ok: true, tabs: []});
+    // A renderer that never resolves must not wedge the pump: the watchdog
+    // reports tool_timeout and the very next tick still executes tools.
+    hanging = true;
+    request = { id: "hung-renderer", name: "list_tabs" };
+    interval();
+    await Bun.sleep(20);
+    expect(results.at(-1)).toBe("hung-renderer");
+    expect(lastResult).toMatchObject({ ok: false, faultCode: "tool_timeout" });
+    hanging = false;
+    request = { id: "after-hang", name: "list_tabs" };
+    interval();
+    await Bun.sleep(0);
+    expect(results.at(-1)).toBe("after-hang");
+    expect(lastResult).toMatchObject({ ok: true });
     const delivered = results.slice();
     // Reject both old services that omit a version and incompatible builds.
     request = { id: "must-not-execute", name: "list_browser_tools" };
@@ -109,6 +151,7 @@ test("background dispatch continues without panel messages and resumes on alarms
   } finally {
     fetchSpy.mockRestore();
     intervalSpy.mockRestore();
+    timeoutSpy.mockRestore();
     if (originalChrome) Object.defineProperty(globalThis, "chrome", originalChrome);
     else Reflect.deleteProperty(globalThis, "chrome");
   }

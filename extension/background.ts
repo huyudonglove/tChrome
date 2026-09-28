@@ -21,6 +21,16 @@ const REPORT_BACKOFF_MAX_MS = 200;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 // Persist claims before execution so worker restarts never replay an action.
 const EXECUTION_RECORDS = "tchrome-tool-executions";
+// A claim without a result normally means a previous worker died mid-execution
+// and the action may already have run, so it is never replayed. But MV3 kills
+// the worker after ~30s of idleness, which strands long tools (screenshots) the
+// same way. Past this TTL the record cannot belong to a live worker, so treat
+// it as expired and let the request run again.
+const CLAIM_TTL_MS = 60_000;
+// One hung renderer (executeScript against a stalled tab) must not wedge the
+// pump forever: every execution gets a hard deadline above any legitimate wait
+// tool (max 15s), then reports tool_timeout so the service turn can proceed.
+const TOOL_EXEC_TIMEOUT_MS = 60_000;
 const reported = new Map<string, Record<string, unknown>>();
 // Ids whose result the service refused; they must not be re-executed, but the
 // pump has to notice that the same id keeps coming back undelivered.
@@ -38,17 +48,30 @@ const withTabLock = async (tabId: number | null | undefined, fn: () => Promise<v
   await next;
 };
 
-const loadRecords = async (): Promise<Record<string, { result?: Record<string, unknown> }>> =>
-  ((await chrome.storage.session.get(EXECUTION_RECORDS))[EXECUTION_RECORDS] as Record<string, { result?: Record<string, unknown> }>) ?? {};
+type ExecutionRecord = { claimedAt?: number; result?: Record<string, unknown> };
+
+const loadRecords = async (): Promise<Record<string, ExecutionRecord>> =>
+  ((await chrome.storage.session.get(EXECUTION_RECORDS))[EXECUTION_RECORDS] as Record<string, ExecutionRecord>) ?? {};
 
 const runRequest = async (request: { id: string; name: string; input?: Record<string, unknown> }) => {
   if (reported.has(request.id)) return;
   const records = await loadRecords();
-  let result: Record<string, unknown>;
+  // Seeded so the definite-assignment check holds when a tool throws outside
+  // the inner try; every real path overwrites it before it is reported.
+  let result: Record<string, unknown> = {
+    ok: false,
+    faultCode: "tool_execution_failed",
+    error: `request ${request.id} produced no result`,
+  };
   const claim = records[request.id];
+  // Records written before claimedAt existed stay un-replayable: an untimed
+  // claim may belong to a worker that ran the action but died before reporting.
+  const expired = !!claim && !claim.result
+    && typeof claim.claimedAt === "number"
+    && Date.now() - claim.claimedAt > CLAIM_TTL_MS;
   if (claim?.result) {
     result = claim.result!;
-  } else if (claim) {
+  } else if (claim && !expired) {
     // A claim without a result means a previous worker stopped mid-execution.
     // The action may already have run, so never replay it: report the failure
     // and let the service decide whether to retry.
@@ -59,18 +82,32 @@ const runRequest = async (request: { id: string; name: string; input?: Record<st
     };
   } else {
     await chrome.storage.session.set({
-      [EXECUTION_RECORDS]: { ...records, [request.id]: {} },
+      [EXECUTION_RECORDS]: { ...records, [request.id]: { claimedAt: Date.now() } },
     });
     const input = request.input ?? {};
     const tabId = typeof input.tabId === "number" ? input.tabId : null;
     try {
       await withTabLock(tabId, async () => {
-        try {
-          result = request.name === "__openTabs" ? (await readOpenTabs()) as unknown as Record<string, unknown>
-            : (await runBrowserTool(request.name, input)) as Record<string, unknown>;
-        } catch (error) {
-          result = { ok: false, error: error instanceof Error ? error.message : String(error) };
-        }
+        const work = (async () => {
+          try {
+            return request.name === "__openTabs" ? (await readOpenTabs()) as unknown as Record<string, unknown>
+              : (await runBrowserTool(request.name, input)) as Record<string, unknown>;
+          } catch (error) {
+            return { ok: false, error: error instanceof Error ? error.message : String(error) };
+          }
+        })();
+        // The tab-lock chain only advances when this callback resolves, so the
+        // watchdog lives inside it. Late work keeps running detached and can no
+        // longer write `result`, so a hung renderer cannot wedge the pump.
+        const outcome = await Promise.race([
+          work.then((value) => ({ done: true as const, value })),
+          sleep(TOOL_EXEC_TIMEOUT_MS).then(() => ({ done: false as const, value: null })),
+        ]);
+        result = outcome.done ? outcome.value : {
+          ok: false,
+          faultCode: "tool_timeout",
+          error: `${request.name} 执行超时（${TOOL_EXEC_TIMEOUT_MS}ms 看门狗），页面或浏览器执行挂死；可停止本轮后换标签重试`,
+        };
       });
     } catch (error) {
       result = { ok: false, error: error instanceof Error ? error.message : String(error) };

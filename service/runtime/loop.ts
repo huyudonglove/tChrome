@@ -408,9 +408,10 @@ const runQueue = async (input: {
 
 export async function handleTurn(
   deps: LoopDeps,
-  body: { userInput: string; submittedAt: string },
+  body: { userInput: string; submittedAt: string; conversationId?: string },
 ): Promise<TurnReply> {
-  const session = ensureSession(deps.dataDir);
+  // Route by the caller's conversation; the global pointer is only a fallback.
+  const session = { conversationId: body.conversationId || ensureSession(deps.dataDir).conversationId };
   const host = deps.host?.forScope?.(session.conversationId) ?? deps.host;
   const ledger = loadLedger(deps.dataDir, session.conversationId);
   if (ledger.status === "running") {

@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { handleTurn, type LoopDeps } from "./runtime/loop.ts";
 import { resolveProxy } from "./provider/uuapi.ts";
 import { configuredProvider, isProviderName, providerApiKeyEnv, providerOptions } from "./provider/config.ts";
-import { ensureSession, loadSession, defaultDataDir, currentSessionView, listConversations, openConversation, newConversation, deleteConversation, stopTurn } from "./runtime/store.ts";
+import { ensureSession, loadSession, defaultDataDir, currentSessionView, listConversations, listConversationIds, openConversation, newConversation, deleteConversation, stopTurn } from "./runtime/store.ts";
 import { createToolBridge, type ToolBridge } from "./runtime/bridge.ts";
 import type { BrowserResult, BrowserHost, CurrentTabs } from "./types.ts";
 import { executorVersion, executorMismatchMessage } from "./executor-version.ts";
@@ -202,7 +202,8 @@ export function createServer(options: ServeOptions = {}) {
         return respond({ ok: true, count: results.length, results });
       }
       if (request.method === "GET" && url.pathname === "/session") {
-        return respond(currentSessionView(dataDir));
+        const requested = url.searchParams.get("conversationId");
+        return respond(currentSessionView(dataDir, requested));
       }
       if ((request.method === "GET" && url.pathname === "/library")
         || (request.method === "POST" && ["/library/save", "/library/delete"].includes(url.pathname))) {
@@ -276,21 +277,21 @@ export function createServer(options: ServeOptions = {}) {
         const body = (await request.json()) as { conversationId?: string; userInput?: string; submittedAt?: string };
         const userInput = String(body.userInput ?? "").trim();
         if (!userInput) return respond({ conversationId: "", turnId: "", stopReason: { kind: "error", faultCode: "empty_input" } }, 400);
-        if (body.conversationId && body.conversationId !== ensureSession(dataDir).conversationId) {
-          return respond({ stopReason: { kind: "error", faultCode: "conversation_changed" } }, 409);
+        if (body.conversationId && !listConversationIds(dataDir).includes(body.conversationId)) {
+          return respond({ stopReason: { kind: "error", faultCode: "unknown_conversation" } }, 404);
         }
         const submittedAt = body.submittedAt || new Date().toISOString();
-        const reply = await handleTurn(deps, { userInput, submittedAt });
+        const reply = await handleTurn(deps, { userInput, submittedAt, conversationId: body.conversationId });
         return respond(reply);
       }
       if (request.method === "POST" && url.pathname === "/stop") {
         const raw = await request.text();
         const target = raw ? (JSON.parse(raw) as { conversationId?: string | null }).conversationId : undefined;
-        const conversationId = loadSession(dataDir)?.conversationId;
-        if (target !== undefined && target !== conversationId) {
-          return respond({ error: "会话已切换，停止请求已忽略" }, 409);
+        const conversationId = target ?? loadSession(dataDir)?.conversationId;
+        if (conversationId && !listConversationIds(dataDir).includes(conversationId)) {
+          return respond({ error: "没有这个会话" }, 404);
         }
-        const stopped = stopTurn(dataDir);
+        const stopped = stopTurn(dataDir, conversationId);
         if (conversationId) host.abort?.(conversationId);
         return respond(stopped);
       }
