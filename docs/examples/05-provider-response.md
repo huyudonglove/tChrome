@@ -25,7 +25,6 @@
   "baseToolsIds": [
     "askUser",
     "finishTurn",
-    "submitGoal",
     "context.query",
     "agent.query",
     "agent.compress",
@@ -276,7 +275,6 @@
   "baseToolsIds": [
     "askUser",
     "finishTurn",
-    "submitGoal",
     "context.query",
     "agent.query",
     "agent.compress",
