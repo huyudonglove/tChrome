@@ -677,7 +677,9 @@ export function App() {
                   {item.text}
                   {item.blockedReason ? ` · ${item.blockedReason}` : ""}
                 </span>
-                <span className="plan-status">{item.status}</span>
+                <span className="plan-status">
+                  {item.status === "done" ? "已完成" : item.status === "doing" ? "进行中" : "待办"}
+                </span>
               </li>
             ))}
           </ul>
