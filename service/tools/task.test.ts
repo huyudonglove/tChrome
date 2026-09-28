@@ -7,7 +7,7 @@ import { applyToolEffects } from "../runtime/effects.ts";
 import { emptyLedger, loadLedger } from "../runtime/store.ts";
 import { loadToolRegistry, toolSchemas } from "./registry.ts";
 import { checkToolCalls } from "./schema.ts";
-import { executionContext } from "../runtime/tasks.ts";
+import { autoCompleteActiveTask, executionContext } from "../runtime/tasks.ts";
 import type { Turn } from "../types.ts";
 
 const repoRoot = "/Users/huyudong/Projects/tChrome";
@@ -176,6 +176,37 @@ test("task.set replace marks previous task cancelled reason=replaced", async () 
     expect(fx.ledger.tasks[0]).toMatchObject({ status: "cancelled" });
     expect(fx.ledger.taskHistory.some((row) => row.type === "task_cancelled" && row.reason === "replaced")).toBe(true);
     expect(fx.ledger.activeTaskId).toBe("task_02");
+  } finally {
+    fx.cleanup();
+  }
+});
+
+test("autoCompleteActiveTask closes a finished plan and skips open ones", async () => {
+  const fx = fixture();
+  try {
+    fx.apply(await fx.execute("task.set", { reason: "自动收口", items: [{ text: "a" }, { text: "b" }] }), "c1", "task.set");
+    expect(fx.ledger.activeTaskId).toBe("task_01");
+    // Still open: no auto close, the plan stays active.
+    expect(autoCompleteActiveTask(fx.dataDir, fx.ledger, "tn_plan")).toBe(false);
+    expect(fx.ledger.tasks[0]!.status).toBe("active");
+
+    fx.apply(await fx.execute("task.update", { reason: "全部完成", items: [
+      { id: "item_01", status: "done" },
+      { id: "item_02", status: "done" },
+    ] }), "c2", "task.update");
+    expect(autoCompleteActiveTask(fx.dataDir, fx.ledger, "tn_plan")).toBe(true);
+    expect(fx.ledger.tasks[0]!.status).toBe("completed");
+    expect(fx.ledger.tasks[0]!.completedAt).toBeTruthy();
+    expect(fx.ledger.activeTaskId).toBeNull();
+    expect(fx.ledger.activeTaskItemId).toBeNull();
+    expect(fx.ledger.taskHistory.at(-1)).toMatchObject({
+      taskId: "task_01",
+      type: "task_completed",
+      reason: "auto_closed",
+      after: { status: "completed" },
+    });
+    // Idempotent: nothing left to close.
+    expect(autoCompleteActiveTask(fx.dataDir, fx.ledger, "tn_plan")).toBe(false);
   } finally {
     fx.cleanup();
   }

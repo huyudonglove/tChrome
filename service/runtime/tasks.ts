@@ -304,6 +304,39 @@ export function prepareTaskComplete(dataDir: string, context: TaskContext, args:
   return { plan, history: [ledger.taskHistory.at(-1)!] };
 }
 
+/**
+ * Close an active Task whose items are all done. A finished turn must not leave a
+ * zombie plan behind, so the loop closes it instead of relying on the model to call
+ * task.complete. Returns true when the ledger changed and needs persisting.
+ */
+export function autoCompleteActiveTask(dataDir: string, ledger: Ledger, turnId: string): boolean {
+  const taskId = ledger.activeTaskId;
+  if (!taskId) return false;
+  const plan = ledger.tasks.find((row) => row.id === taskId);
+  if (!plan || plan.status !== "active") return false;
+  if (!plan.items.length) return false;
+  if (plan.items.some((item) => item.status !== "done")) return false;
+  const before = { status: plan.status };
+  plan.status = "completed";
+  plan.completedAt = nowIso();
+  touchPlan(plan);
+  pushHistory(dataDir, ledger, {
+    taskId: plan.id,
+    goalId: plan.goalId ?? "",
+    type: "task_completed",
+    before,
+    after: { status: "completed" },
+    reason: "auto_closed",
+  }, turnId);
+  setLedgerActive(ledger, plan);
+  if (ledger.activeTaskId === plan.id) {
+    ledger.activeTaskId = null;
+    ledger.activeTaskItemId = null;
+    syncGoalPlanPointers(ledger, plan.goalId, null);
+  }
+  return true;
+}
+
 export function endTasksForGoal(dataDir: string, ledger: Ledger, goal: GoalRecord, reason: "goal_ended" | "replaced", turnId: string): void {
   const open = ledger.tasks.filter((row) => row.goalId === goal.id && row.status === "active");
   for (const plan of open) {

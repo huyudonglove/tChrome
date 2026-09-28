@@ -50,7 +50,7 @@ import {
   appendEvent,
   appendProviderExchange,
 } from "./store.ts";
-import { executionContext } from "./tasks.ts";
+import { autoCompleteActiveTask, executionContext } from "./tasks.ts";
 
 // stopTurn already persists cancellation. A superseded worker must never write
 // its stale ledger back over a newer turn (or recreate a deleted conversation).
@@ -864,6 +864,9 @@ export async function handleTurn(
         };
       }
       saveTurn(deps.dataDir, turn);
+      // A plan whose items are all done is finished work; close it here so a
+      // finished turn never leaves a zombie task behind. Persisted below.
+      autoCompleteActiveTask(deps.dataDir, ledger, turnId);
       saveLedger(deps.dataDir, ledger);
       if (closed) {
         appendEvent(deps.dataDir, ledger.conversationId, {
