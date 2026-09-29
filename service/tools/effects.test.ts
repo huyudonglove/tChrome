@@ -242,6 +242,7 @@ test("observation.write persists observations in chronological order", () => {
     tabId: pages[index]!.tabId,
     type: index === 0 ? "page.get_summary" : "page.click",
     result,
+    writtenTurn: fixture.ledger.userInputHistory.length + 1,
   })));
   const observedTimes = history.map((page) => Date.parse(page.observedAt));
   expect(observedTimes[0]!).toBeGreaterThanOrEqual(startedAt);

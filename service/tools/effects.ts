@@ -13,7 +13,7 @@ export type ToolEffect =
   | { type: "tools.disable"; names: string[] }
   | { type: "skill.load"; id: string }
   | { type: "page.set"; page: CurrentPage; result: Record<string, unknown> }
-  | { type: "observation.write"; observationType: string; result: unknown; tabId?: number }
+  | { type: "observation.write"; observationType: string; result: unknown; tabId?: number; validForTurns?: number; refresh?: string }
   | { type: "page.clear_result"; pageId: string }
   | { type: "task.set"; title?: string; items: { text: string; status?: "todo" | "doing" | "done"; expectedEffect?: string; verification?: string }[] }
   | { type: "task.update"; taskId?: string; items: { id: string; status?: "todo" | "doing" | "done"; text?: string; expectedEffect?: string; verification?: string; blockedReason?: string }[] }

@@ -11,6 +11,27 @@ const recordDirectory = (dataDir: string, conversationId: string, kind: ContextR
   join(dataDir, "conversations", conversationId, "context-records", kind);
 const missing = (error: unknown) => (error as NodeJS.ErrnoException).code === "ENOENT";
 
+/** Drop a record (and its searchable mirror) once nothing in the window may need it anymore. */
+export function removeContextRecord(
+  dataDir: string,
+  conversationId: string,
+  kind: ContextRecordKind,
+  id: string,
+): boolean {
+  if (!safeId(conversationId) || !safeId(id) || !kinds.has(kind)) return false;
+  const dir = recordDirectory(dataDir, conversationId, kind);
+  let removed = false;
+  for (const file of [`${id}.json`, `${id}.txt`]) {
+    try {
+      rmSync(join(dir, file), { force: true });
+      removed = true;
+    } catch {
+      // A missing mirror is fine; the record is going away either way.
+    }
+  }
+  return removed;
+}
+
 /** Publish a complete immutable source record before the context window references it. */
 export function saveContextRecord<T extends { id: string }>(dataDir: string, conversationId: string, kind: ContextRecordKind, record: T): void {
   if (!safeId(conversationId) || !safeId(record.id) || !kinds.has(kind)) throw new Error("Invalid context record identity");

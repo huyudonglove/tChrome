@@ -203,8 +203,16 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     if (!observationType) return failedTool(errorDetail("observation_type_empty"), "invalid_arguments");
     if (args.result === undefined || args.result === null) return failedTool(errorDetail("observation_result_empty"), "invalid_arguments");
     const tabId = typeof args.tabId === "number" && Number.isFinite(args.tabId) && args.tabId > 0 ? args.tabId : undefined;
+    const validForTurns = typeof args.validForTurns === "number" && Number.isFinite(args.validForTurns) && args.validForTurns >= 1
+      ? Math.floor(args.validForTurns)
+      : undefined;
+    // refresh points at an existing observation id so the record is refreshed in place (new
+    // writtenTurn/validUntilTurn) instead of piling up a second copy of the same conclusion.
+    const refresh = typeof args.refresh === "string" && /^page_[0-9]{2,}$/.test(args.refresh.trim())
+      ? args.refresh.trim()
+      : undefined;
     return result(JSON.stringify({ ok: true, type: observationType, ...(tabId !== undefined ? { tabId } : {}) }),
-      [{ type: "observation.write", observationType, result: args.result, ...(tabId !== undefined ? { tabId } : {}) }]);
+      [{ type: "observation.write", observationType, result: args.result, ...(tabId !== undefined ? { tabId } : {}), ...(validForTurns !== undefined ? { validForTurns } : {}), ...(refresh !== undefined ? { refresh } : {}) }]);
   }
   if (name === "tabs.current") {
     if (!host?.readCurrentTabs) return failedTool(errorDetail("browser_not_connected"), "browser_unavailable");

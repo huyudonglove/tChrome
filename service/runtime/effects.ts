@@ -157,7 +157,21 @@ export function applyToolEffects(input: {
         break;
       }
       case "observation.write": {
-        const id = allocateRecordId(dataDir, ledger.conversationId, "page");
+        // 1-based turn number, same numbering as context/projections/conversation.ts (inputs index + 1):
+        // the current turn's input is not in userInputHistory yet, so it sits one past the stored ones.
+        const currentTurn = ledger.userInputHistory.length + 1;
+        const refreshId = effect.refresh;
+        let refreshedIndex = -1;
+        if (refreshId !== undefined) {
+          refreshedIndex = turn.assembled.observations.findIndex((item) => item.id === refreshId);
+          const previous = refreshedIndex >= 0 ? turn.assembled.observations[refreshedIndex] : undefined;
+          if (!previous) throw new Error(`observation.refresh: ${refreshId} is not in this turn's observations`);
+          if (previous.writtenTurn !== currentTurn) {
+            throw new Error(`observation.refresh: ${refreshId} was written in turn ${previous.writtenTurn ?? "unknown"}; only the current turn (${currentTurn}) can be refreshed`);
+          }
+        }
+        const refreshed = refreshedIndex >= 0 ? turn.assembled.observations[refreshedIndex] : undefined;
+        const id = refreshed ? refreshed.id : allocateRecordId(dataDir, ledger.conversationId, "page");
         // Observation body is the effect payload; storedText is only the tool ack.
         const result = effect.result ?? storedResult;
         const resultChars = JSON.stringify(result).length;
@@ -187,6 +201,9 @@ export function applyToolEffects(input: {
             };
           })()
           : result;
+        // 1-based turn number, same numbering as context/projections/conversation.ts (inputs index + 1):
+        // the current turn's input is not in userInputHistory yet, so it sits one past the stored ones.
+        const writtenTurn = ledger.userInputHistory.length + 1;
         const record = {
           id,
           turnId: turn.turnId,
@@ -198,18 +215,30 @@ export function applyToolEffects(input: {
           result,
           ...(execCtx.activeTaskId ? { taskId: execCtx.activeTaskId } : {}),
           ...(execCtx.activeTaskItemId ? { taskItemId: execCtx.activeTaskItemId } : {}),
+          writtenTurn,
+          ...(effect.validForTurns !== undefined ? { validUntilTurn: writtenTurn + effect.validForTurns - 1 } : {}),
         };
-        saveContextRecord(dataDir, ledger.conversationId, "observation", record);
         const searchable = typeof effect.result === "string"
           ? effect.result
           : JSON.stringify(effect.result ?? null);
         const obsDir = recordDirectory(dataDir, ledger.conversationId, "observation");
         mkdirSync(obsDir, { recursive: true });
+        if (refreshedIndex >= 0) {
+          // Refresh rewrites in place: saveContextRecord is immutable by design, so a re-issued
+          // record would throw instead of renewing an entry written earlier in this same turn.
+          writeFileSync(join(obsDir, `${id}.json`), `${JSON.stringify(record, null, 2)}\n`);
+        } else {
+          saveContextRecord(dataDir, ledger.conversationId, "observation", record);
+        }
         writeFileSync(join(obsDir, `${id}.txt`), wrapCachedText(searchable));
-        turn.assembled.observations.push({
-          ...record,
-          result: windowResult,
-        });
+        if (refreshedIndex >= 0) {
+          turn.assembled.observations[refreshedIndex] = { ...record, result: windowResult };
+        } else {
+          turn.assembled.observations.push({
+            ...record,
+            result: windowResult,
+          });
+        }
         break;
       }
       case "page.clear_result": {

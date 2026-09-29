@@ -562,7 +562,7 @@ export async function handleTurn(
           const detail = [...tally.entries()].sort((a, b) => b[1] - a[1]).map(([name, n]) => `${name}×${n}`).join("、");
           last.return = {
             ...last.return,
-            text: `${last.return.text}\n\n${OBSERVATION_NUDGE_MARKER} ${evidenceCallsSinceObservation} 次产出证据的工具调用（${detail}），仍未固化任何观察——这段时间的页面/代码/截图结论只散在工具返回里，跨轮或被压缩后只会剩指针，需要时得重新翻。建议用 observation.write 写一次阶段检查点：现在处于什么状态、哪些已确认、哪些仍未验证，后续轮次就能直接接着推进而不是从头取证；这是给自己留的交接笔记，不是工具流水账。下次提示门槛收紧到 ${observationNudgeGate} 次。`,
+            text: `${last.return.text}\n\n${OBSERVATION_NUDGE_MARKER} ${evidenceCallsSinceObservation} 次产出证据的工具调用（${detail}），仍未固化任何观察——这段时间查到的结论只散在工具返回里，跨轮或被压缩后只会剩指针，需要时得重新翻。建议用 observation.write 写一次阶段小结：现在处于什么状态、已确认哪些结论、哪些仍未验证、下一步从哪接，后续轮次就能直接接着推进而不是从头取证；这是给自己留的交接笔记，不是工具流水账。下次提示门槛收紧到 ${observationNudgeGate} 次。`,
           };
         }
       }
@@ -578,7 +578,7 @@ export async function handleTurn(
         compressNudgeSent = true;
         const last = rows.at(-1);
         if (last) {
-          last.return = { ...last.return, text: `${last.return.text}\n\n${OBSERVATION_NUDGE_MARKER} 上下文即将被压缩（当前窗口 ${initialChars} 字符，阈值 ${ledger.compressAt}）——这一步会把本轮的工具返回压成摘要与指针，而本轮还没有任何 observation 固化，这段时间的页面/代码/截图结论下一轮就只剩指针了。建议先用 observation.write 写一次阶段检查点：现在处于什么状态、哪些已确认、哪些仍未验证。本轮的下一次循环仍会照常压缩，不会一直推迟。` };
+          last.return = { ...last.return, text: `${last.return.text}\n\n${OBSERVATION_NUDGE_MARKER} 上下文即将被压缩（当前窗口 ${initialChars} 字符，阈值 ${ledger.compressAt}）——这一步会把本轮的工具返回压成摘要与指针，而本轮还没有任何 observation 固化，这段时间的结论下一轮就只剩指针了。建议先用 observation.write 写一次阶段小结：现在处于什么状态、已确认哪些结论、哪些仍未验证、下一步从哪接。本轮的下一次循环仍会照常压缩，不会一直推迟。` };
         }
         state = contextState(deps.dataDir, ledger, turn, memories);
         messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir);

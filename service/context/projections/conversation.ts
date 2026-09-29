@@ -81,9 +81,10 @@ export function conversationPayload(input: {
 
   const turns: ConversationTurnSlice[] = [];
   const seen = new Set<string>();
-  for (const row of inputs) {
+  for (const [inputIndex, row] of inputs.entries()) {
     if (seen.has(row.turnId)) continue;
     seen.add(row.turnId);
+    const currentTurn = inputIndex + 1;
     const isLive = row.turnId === turn.turnId;
     const taskEvents = groupByTurn(ledger.taskHistory, row.turnId);
     const liveTask = isLive && ledger.activeTaskId ? ledger.tasks.find((plan) => plan.id === ledger.activeTaskId) : null;
@@ -99,7 +100,7 @@ export function conversationPayload(input: {
         events: taskEvents,
       },
       toolIO: toolHistoryView(toolRows, pages),
-      observations: pages.map(pageView),
+      observations: pages.map((page) => pageView(page, currentTurn)).filter((page) => page !== null),
       notes: (isLive ? ledger.notes : notesByTurn[row.turnId]) ?? {},
       reflection: reflectByTurn.get(row.turnId)?.length
         ? { turnId: row.turnId, items: reflectByTurn.get(row.turnId)! }

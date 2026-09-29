@@ -37,6 +37,10 @@ export type Observation = {
   result: unknown;
   taskId?: string | null;
   taskItemId?: string | null;
+  /** 1-based turn ordinal this observation was written in. */
+  writtenTurn?: number;
+  /** Last 1-based turn ordinal in which this observation may still hold; undefined means it never expires. */
+  validUntilTurn?: number;
 };
 
 /** Most recent model-returned tool batch; replaced before the next model request. */
