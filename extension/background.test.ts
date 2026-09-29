@@ -35,8 +35,10 @@ test("background dispatch continues without panel messages and resumes on alarms
       onAlarm: { addListener: (callback: typeof alarmListener) => { alarmListener = callback; } },
     },
   } });
-  const intervalSpy = spyOn(globalThis, "setInterval").mockImplementation(((callback: () => void) => {
-    interval = callback;
+  // background.ts now owns two timers: the 1s pump tick and the per-claim
+  // heartbeat. Keep only the tick handle so the test still drives the pump.
+  const intervalSpy = spyOn(globalThis, "setInterval").mockImplementation(((callback: () => void, ms?: number) => {
+    if (ms === 1000) interval = callback;
     return 0;
   }) as typeof setInterval);
   const realSetTimeout = globalThis.setTimeout;
@@ -116,12 +118,23 @@ test("background dispatch continues without panel messages and resumes on alarms
     expect(executions).toBe(2);
     expect(results.at(-1)).toBe('expired-worker');
     expect(lastResult).toMatchObject({ok: true});
+    // A claim whose beat stopped is abandoned even inside the TTL: the worker
+    // was reclaimed by Chrome mid-execution, so replaying is safe and needed.
+    storage['tchrome-tool-executions'] = {'dead-beat-worker': {
+      claimedAt: Date.now() - 1_000, heartbeatAt: Date.now() - 90_000,
+    }};
+    request = {id: 'dead-beat-worker', name: 'list_tabs'};
+    interval();
+    await Bun.sleep(0);
+    expect(executions).toBe(3);
+    expect(results.at(-1)).toBe('dead-beat-worker');
+    expect(lastResult).toMatchObject({ok: true});
     storage['tchrome-tool-executions'] = {'completed-worker': {result: {ok: true, tabs: []}}};
     request = {id: 'completed-worker', name: 'list_tabs'};
     interval();
     await Bun.sleep(0);
-    // Still 2: the expired claim above was the only extra execution.
-    expect(executions).toBe(2);
+    // Still 3: the expired and dead-beat claims were the only extra executions.
+    expect(executions).toBe(3);
     expect(results.at(-1)).toBe('completed-worker');
     expect(lastResult).toEqual({ok: true, tabs: []});
     // A renderer that never resolves must not wedge the pump: the watchdog

@@ -30,6 +30,19 @@ const CLAIM_TTL_MS = 60_000;
 // One hung renderer (executeScript against a stalled tab) must not wedge the
 // pump forever: every execution gets a hard deadline above any legitimate wait
 // tool (max 15s), then reports tool_timeout so the service turn can proceed.
+// While a tool runs, the worker refreshes `heartbeatAt` on its claim. Those
+// storage writes are chrome API calls, so they also reset the MV3 idle timer:
+// this is both the liveness marker and the keepalive that stops Chrome from
+// reclaiming the worker mid-execution (the usual cause of stranded claims).
+const HEARTBEAT_INTERVAL_MS = 10_000;
+// Two missed beats mean the claiming worker is gone, so its claim can be
+// reclaimed at once instead of burning the full claim TTL.
+const HEARTBEAT_STALE_MS = 20_000;
+// How often a stranded claim is re-read while we wait for its owner to land a
+// result or for its beat to die.
+const RECLAIM_POLL_MS = 500;
+// Slack on top of the stale window before a claim is treated as abandoned.
+const RECLAIM_GRACE_MS = 5_000;
 const TOOL_EXEC_TIMEOUT_MS = 60_000;
 const reported = new Map<string, Record<string, unknown>>();
 // Ids whose result the service refused; they must not be re-executed, but the
@@ -48,10 +61,93 @@ const withTabLock = async (tabId: number | null | undefined, fn: () => Promise<v
   await next;
 };
 
-type ExecutionRecord = { claimedAt?: number; result?: Record<string, unknown> };
+type ExecutionRecord = { claimedAt?: number; heartbeatAt?: number; result?: Record<string, unknown> };
 
 const loadRecords = async (): Promise<Record<string, ExecutionRecord>> =>
   ((await chrome.storage.session.get(EXECUTION_RECORDS))[EXECUTION_RECORDS] as Record<string, ExecutionRecord>) ?? {};
+
+// Refreshes the beat of an in-flight claim. The storage write is a chrome API
+// call, so it also resets the MV3 idle timer while the tool is running.
+const beatClaim = async (id: string) => {
+  const current = await loadRecords();
+  const record = current[id];
+  if (!record || record.result) return;
+  await chrome.storage.session.set({
+    [EXECUTION_RECORDS]: { ...current, [id]: { ...record, heartbeatAt: Date.now() } },
+  });
+};
+
+// Gives a stranded claim one chance to resolve instead of failing the turn:
+// either its owner is still alive and lands a result, or its beat dies and the
+// request may be replayed. Claims written before heartbeats existed carry no
+// beat to read, so they keep the original never-replay behaviour.
+const waitForClaim = async (
+  id: string,
+  claim: ExecutionRecord,
+): Promise<{ result?: Record<string, unknown>; reclaim?: boolean }> => {
+  if (typeof claim.heartbeatAt !== "number") return {};
+  const lastBeat = claim.heartbeatAt;
+  const deadline = Date.now() + HEARTBEAT_STALE_MS + RECLAIM_GRACE_MS;
+  while (Date.now() < deadline) {
+    await sleep(RECLAIM_POLL_MS);
+    const current = (await loadRecords())[id];
+    if (current?.result) return { result: current.result };
+    const beat = typeof current?.heartbeatAt === "number" ? current.heartbeatAt : lastBeat;
+    if (Date.now() - beat > HEARTBEAT_STALE_MS) return { reclaim: true };
+  }
+  return {};
+};
+
+const executeClaim = async (
+  request: { id: string; name: string; input?: Record<string, unknown> },
+  records: Record<string, ExecutionRecord>,
+): Promise<Record<string, unknown>> => {
+  let result: Record<string, unknown> = {
+    ok: false,
+    faultCode: "tool_execution_failed",
+    error: `request ${request.id} produced no result`,
+  };
+  const claimedAt = Date.now();
+  await chrome.storage.session.set({
+    [EXECUTION_RECORDS]: { ...records, [request.id]: { claimedAt, heartbeatAt: claimedAt } },
+  });
+  const input = request.input ?? {};
+  const tabId = typeof input.tabId === "number" ? input.tabId : null;
+  const beat = setInterval(() => { void beatClaim(request.id).catch(() => {}); }, HEARTBEAT_INTERVAL_MS);
+  try {
+    await withTabLock(tabId, async () => {
+      const work = (async () => {
+        try {
+          return request.name === "__openTabs" ? (await readOpenTabs()) as unknown as Record<string, unknown>
+            : (await runBrowserTool(request.name, input)) as Record<string, unknown>;
+        } catch (error) {
+          return { ok: false, error: error instanceof Error ? error.message : String(error) };
+        }
+      })();
+      // The tab-lock chain only advances when this callback resolves, so the
+      // watchdog lives inside it. Late work keeps running detached and can no
+      // longer write `result`, so a hung renderer cannot wedge the pump.
+      const outcome = await Promise.race([
+        work.then((value) => ({ done: true as const, value })),
+        sleep(TOOL_EXEC_TIMEOUT_MS).then(() => ({ done: false as const, value: null })),
+      ]);
+      result = outcome.done ? outcome.value : {
+        ok: false,
+        faultCode: "tool_timeout",
+        error: `${request.name} 执行超时（${TOOL_EXEC_TIMEOUT_MS}ms 看门狗），页面或浏览器执行挂死；可停止本轮后换标签重试`,
+      };
+    });
+  } catch (error) {
+    result = { ok: false, error: error instanceof Error ? error.message : String(error) };
+  } finally {
+    clearInterval(beat);
+  }
+  const after = await loadRecords();
+  await chrome.storage.session.set({
+    [EXECUTION_RECORDS]: { ...after, [request.id]: { result } },
+  });
+  return result;
+};
 
 const runRequest = async (request: { id: string; name: string; input?: Record<string, unknown> }) => {
   if (reported.has(request.id)) return;
@@ -66,56 +162,36 @@ const runRequest = async (request: { id: string; name: string; input?: Record<st
   const claim = records[request.id];
   // Records written before claimedAt existed stay un-replayable: an untimed
   // claim may belong to a worker that ran the action but died before reporting.
-  const expired = !!claim && !claim.result
-    && typeof claim.claimedAt === "number"
-    && Date.now() - claim.claimedAt > CLAIM_TTL_MS;
+  // A timed claim dies two ways: its heartbeat stopped (the worker was reclaimed
+  // by Chrome mid-execution) or it simply outlived the TTL. Either is reclaimable.
+  const now = Date.now();
+  const heartbeatStale = !!claim && !claim.result
+    && typeof claim.heartbeatAt === "number"
+    && now - claim.heartbeatAt > HEARTBEAT_STALE_MS;
+  const expired = !!claim && !claim.result && typeof claim.claimedAt === "number"
+    && (heartbeatStale || now - claim.claimedAt > CLAIM_TTL_MS);
   if (claim?.result) {
     result = claim.result!;
   } else if (claim && !expired) {
     // A claim without a result means a previous worker stopped mid-execution.
-    // The action may already have run, so never replay it: report the failure
-    // and let the service decide whether to retry.
-    result = {
-      ok: false,
-      faultCode: "tool_execution_failed",
-      error: `request ${request.id} was claimed but never completed by a previous worker`,
-    };
-  } else {
-    await chrome.storage.session.set({
-      [EXECUTION_RECORDS]: { ...records, [request.id]: { claimedAt: Date.now() } },
-    });
-    const input = request.input ?? {};
-    const tabId = typeof input.tabId === "number" ? input.tabId : null;
-    try {
-      await withTabLock(tabId, async () => {
-        const work = (async () => {
-          try {
-            return request.name === "__openTabs" ? (await readOpenTabs()) as unknown as Record<string, unknown>
-              : (await runBrowserTool(request.name, input)) as Record<string, unknown>;
-          } catch (error) {
-            return { ok: false, error: error instanceof Error ? error.message : String(error) };
-          }
-        })();
-        // The tab-lock chain only advances when this callback resolves, so the
-        // watchdog lives inside it. Late work keeps running detached and can no
-        // longer write `result`, so a hung renderer cannot wedge the pump.
-        const outcome = await Promise.race([
-          work.then((value) => ({ done: true as const, value })),
-          sleep(TOOL_EXEC_TIMEOUT_MS).then(() => ({ done: false as const, value: null })),
-        ]);
-        result = outcome.done ? outcome.value : {
-          ok: false,
-          faultCode: "tool_timeout",
-          error: `${request.name} 执行超时（${TOOL_EXEC_TIMEOUT_MS}ms 看门狗），页面或浏览器执行挂死；可停止本轮后换标签重试`,
-        };
-      });
-    } catch (error) {
-      result = { ok: false, error: error instanceof Error ? error.message : String(error) };
+    // Rather than failing the turn outright, give that worker one window to land
+    // its result: the action may already have run, so it must not be replayed
+    // while it is still beating. If the beat dies the claim is abandoned and the
+    // request is safe to run again.
+    const settled = await waitForClaim(request.id, claim);
+    if (settled.result) {
+      result = settled.result;
+    } else if (settled.reclaim) {
+      result = await executeClaim(request, await loadRecords());
+    } else {
+      result = {
+        ok: false,
+        faultCode: "tool_execution_failed",
+        error: `request ${request.id} was claimed but never completed by a previous worker`,
+      };
     }
-    const after = await loadRecords();
-    await chrome.storage.session.set({
-      [EXECUTION_RECORDS]: { ...after, [request.id]: { result } },
-    });
+  } else {
+    result = await executeClaim(request, records);
   }
   reported.set(request.id, result!);
   const response = await fetch(`${SERVICE}/tool-result?executorVersion=${executorVersion}`, {
