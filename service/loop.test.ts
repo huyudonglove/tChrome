@@ -755,22 +755,107 @@ test("stop 没有 tool_calls 就写 needFinishTurn 再出网", async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("连续 5 次模型请求未写观察时提示 observation.write", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "tchrome-obs-nudge-"));
+test("观察提醒按证据类工具调用计数：累计 30 次证据类调用才提示", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-obs-nudge-evidence-"));
   primeActiveTask(dir);
   try {
     let step = 0;
     const provider: Provider = { complete: async input => {
       step++;
       const body = input.messages[1]!.content;
-      if (step < 5) {
+      if (step <= 30) {
+        expect(body).not.toContain("建议用 observation.write");
+        // 每步只发 1 个证据类调用，避免 60 次硬收口；bookkeeping 不计数的断言见下一个用例
+        return ok({ finish: "tool_calls", toolCalls: [
+          { id: `e_${step}`, name: "page.get_summary", arguments: { tabId: 12 } },
+        ] });
+      }
+      expect(body).toContain("建议用 observation.write");
+      expect(body).toContain("page.get_summary×30");
+      expect(body).toContain("次产出证据的工具调用");
+      expect(body).toContain("下次提示门槛收紧到 20 次");
+      return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
+    } };
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "连续取证", submittedAt: "now" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("观察提醒门槛在同一轮内 30 → 20 → 10 逐次收紧", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-obs-nudge-tighten-"));
+  primeActiveTask(dir);
+  try {
+    let step = 0;
+    const provider: Provider = { complete: async input => {
+      step++;
+      const body = input.messages[1]!.content;
+      if (step === 31) {
+        // 第 30 次证据类调用后已提示一次，门槛收紧到 20
+        expect(body).toContain("建议用 observation.write");
+        expect(body).toContain("下次提示门槛收紧到 20 次");
+      }
+      if (step >= 32 && step <= 50) {
+        // 门槛已是 20，这 19 次内不应再提示
+        expect(body).not.toContain("建议用 observation.write");
+      }
+      if (step === 51) {
+        // 累计 50 次，门槛收紧到 10 并再次提示
+        expect(body).toContain("建议用 observation.write");
+        expect(body).toContain("下次提示门槛收紧到 10 次");
+      }
+      if (step <= 50) {
+        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "page.get_summary", arguments: { tabId: 12 } }] });
+      }
+      return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
+    } };
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "门槛收紧", submittedAt: "now" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("写一次 observation.write 后计数与门槛重置回 30", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-obs-nudge-reset-"));
+  primeActiveTask(dir);
+  try {
+    let step = 0;
+    const provider: Provider = { complete: async input => {
+      step++;
+      const body = input.messages[1]!.content;
+      if (step === 31) {
+        expect(body).toContain("建议用 observation.write");
+        expect(body).toContain("下次提示门槛收紧到 20 次");
+        return ok({ finish: "tool_calls", toolCalls: [{ id: "w", name: "observation.write", arguments: { reason: "固化", type: "code", result: "状态" } }] });
+      }
+      if (step >= 32 && step <= 56) {
+        // 写观察后门槛重置回 30，这 25 次内不应再提示
+        expect(body).not.toContain("建议用 observation.write");
+        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "page.get_summary", arguments: { tabId: 12 } }] });
+      }
+      if (step <= 30) {
+        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "page.get_summary", arguments: { tabId: 12 } }] });
+      }
+      return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
+    } };
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "重置门槛", submittedAt: "now" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("只有 bookkeeping 工具时观察提醒保持安静", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-obs-nudge-quiet-"));
+  primeActiveTask(dir);
+  try {
+    let step = 0;
+    const provider: Provider = { complete: async input => {
+      step++;
+      const body = input.messages[1]!.content;
+      if (step <= 40) {
         expect(body).not.toContain("建议用 observation.write");
         return ok({ finish: "tool_calls", toolCalls: [{ id: `n_${step}`, name: "notes.write", arguments: { reason: "草稿", key: `k${step}`, value: "v" } }] });
       }
-      expect(body).toContain("建议用 observation.write");
       return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
     } };
-    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "连续请求", submittedAt: "now" });
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "只写笔记", submittedAt: "now" });
     expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

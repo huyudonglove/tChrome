@@ -18,6 +18,43 @@ import { skillGuide, loadedSkillText } from "../skills/loader.ts";
 import { loadContextModules, type ContextModules } from "../context/modules.ts";
 import { loadToolRegistry, coreToolIds, dynamicToolIds, toolSchemas, toolGuideFor, type ToolRegistry } from "../tools/registry.ts";
 import { executeTool } from "../tools/execute.ts";
+
+// Observation nudge: counted on evidence-producing tool calls (not model sends), so a turn
+// that only reads/threads bookkeeping stays quiet while a long取证 turn gets asked to checkpoint.
+// Gates tighten 30 -> 20 -> 10 within a turn and reset after every observation.write.
+// Marker prefix appended to the last tool return; stripped on the next pass so a nudge never sticks.
+const OBSERVATION_NUDGE_MARKER = "runtime: 本回合已累计";
+const OBSERVATION_NUDGE_FIRST_GATE = 30;
+const OBSERVATION_NUDGE_MIN_GATE = 10;
+const OBSERVATION_NUDGE_STEP = 10;
+// Management / bookkeeping tools: their returns add no new evidence worth checkpointing.
+const OBSERVATION_NUDGE_EXCLUDED = new Set([
+  "observation.write",
+  "reflect.write",
+  "reflect.delete",
+  "notes.write",
+  "notes.delete",
+  "memory.write",
+  "memory.update",
+  "memory.delete",
+  "task.set",
+  "task.update",
+  "task.complete",
+  "evidence.search",
+  "page.clear_result",
+  "image.crop",
+  "catalog.add",
+  "skill.load",
+  "skill_list",
+  "tab.context",
+  "agent.compress",
+  "agent.query",
+  "context_query",
+  "checkContinue",
+  "reportProgress",
+  "askUser",
+  "finishTurn",
+]);
 import type { ToolExecution } from "../tools/effects.ts";
 import { applyToolEffects } from "./effects.ts";
 import type {
@@ -472,8 +509,12 @@ export async function handleTurn(
   deps = { ...deps, provider: execution.provider, signal: execution.signal };
   try {
     let submitFails = 0;
-    let sendsSinceObservation = 0;
+    let evidenceCallsSinceObservation = 0;
+    // Evidence calls already covered by an earlier nudge in this turn, so the gate measures the
+    // calls made *since* the last nudge instead of re-firing on the same cumulative total.
+    let nudgedEvidenceCount = 0;
     let observationWrites = 0;
+    let observationNudgeGate = OBSERVATION_NUDGE_FIRST_GATE;
     let imageBatchId: string | undefined;
     while (true) {
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
@@ -487,20 +528,36 @@ export async function handleTurn(
       const images: ChatMessage["images"] = imageBatchId === undefined ? [] : ledger.toolIO
         .filter(item => item.turnId === turn.turnId && item.batchId === imageBatchId)
         .flatMap(item => (item.images ?? []).map(image => ({ ...image, callId: item.callId })));
-      // Nudge on model-send cadence: every 5 consecutive sends without observation.write.
-      const writeCount = ledger.toolIO.filter((r) => r.turnId === turn.turnId && r.name === "observation.write").length;
+      // Nudge on evidence-producing tool calls: count this turn's toolIO, skipping bookkeeping tools.
+      const rows = ledger.toolIO.filter((r) => r.turnId === turn.turnId);
+      // Strip a nudge appended by an earlier iteration before re-evaluating: the text is written
+      // into toolIO, so without this it would reappear in every later model request of the turn.
+      for (const row of rows) {
+        const at = row.return.text.indexOf(OBSERVATION_NUDGE_MARKER);
+        if (at >= 0) row.return = { ...row.return, text: row.return.text.slice(0, at).trimEnd() };
+      }
+      const writeCount = rows.filter((r) => r.name === "observation.write").length;
       if (writeCount > observationWrites) {
         observationWrites = writeCount;
-        sendsSinceObservation = 0;
+        observationNudgeGate = OBSERVATION_NUDGE_FIRST_GATE;
+        nudgedEvidenceCount = 0;
       }
-      sendsSinceObservation += 1;
-      if (sendsSinceObservation > 0 && sendsSinceObservation % 5 === 0) {
-        const rows = ledger.toolIO.filter((r) => r.turnId === turn.turnId);
+      // Count only the evidence calls made since the most recent observation.write, so a real
+      // checkpoint resets both the counter and the gate instead of just the gate.
+      const lastWriteAt = rows.reduce((acc, r, i) => (r.name === "observation.write" ? i : acc), -1);
+      const evidenceRows = rows.slice(lastWriteAt + 1).filter((r) => !OBSERVATION_NUDGE_EXCLUDED.has(r.name));
+      evidenceCallsSinceObservation = evidenceRows.length;
+      if (evidenceCallsSinceObservation - nudgedEvidenceCount >= observationNudgeGate) {
+        nudgedEvidenceCount = evidenceCallsSinceObservation;
+        observationNudgeGate = Math.max(OBSERVATION_NUDGE_MIN_GATE, observationNudgeGate - OBSERVATION_NUDGE_STEP);
         const last = rows.at(-1);
-        if (last && !last.return.text.includes("建议用 observation.write")) {
+        if (last) {
+          const tally = new Map<string, number>();
+          for (const row of evidenceRows) tally.set(row.name, (tally.get(row.name) ?? 0) + 1);
+          const detail = [...tally.entries()].sort((a, b) => b[1] - a[1]).map(([name, n]) => `${name}×${n}`).join("、");
           last.return = {
             ...last.return,
-            text: `${last.return.text}\n\nruntime: 本回合已连续 ${sendsSinceObservation} 次模型请求未记录观察，建议用 observation.write 记录当前页面/代码/截图等观察后再继续。`,
+            text: `${last.return.text}\n\n${OBSERVATION_NUDGE_MARKER} ${evidenceCallsSinceObservation} 次产出证据的工具调用（${detail}），仍未固化任何观察——这段时间的页面/代码/截图结论只散在工具返回里，跨轮或被压缩后只会剩指针，需要时得重新翻。建议用 observation.write 写一次阶段检查点：现在处于什么状态、哪些已确认、哪些仍未验证，后续轮次就能直接接着推进而不是从头取证；这是给自己留的交接笔记，不是工具流水账。下次提示门槛收紧到 ${observationNudgeGate} 次。`,
           };
         }
       }
