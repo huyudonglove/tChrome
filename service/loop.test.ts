@@ -860,6 +860,76 @@ test("只有 bookkeeping 工具时观察提醒保持安静", async () => {
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test("压缩前若无观察则先提示一次，下一轮才压缩", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-compress-nudge-"));
+  primeActiveTask(dir);
+  try {
+    // 第一轮只用来量窗口大小：initialChars 就是 system + user 两段
+    let measured = 0;
+    const probe: Provider = { complete: async input => {
+      measured = input.messages[0]!.content.length + input.messages[1]!.content.length;
+      return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "第一轮结束" } }] });
+    } };
+    await handleTurn({ dataDir: dir, repoRoot, provider: probe }, { userInput: "量一下窗口", submittedAt: "now" });
+    // loadLedger 返回的是冻结对象，saveLedger 内部会写 updatedAt，需先克隆再改
+    const patched = structuredClone(loadLedger(dir, "cv_01"));
+    // 令窗口刚好越过压缩阈值，且仍留 headroom 之内
+    patched.compressAt = Math.max(1, measured - 3000);
+    saveLedger(dir, patched);
+    let step = 0;
+    const provider: Provider = { complete: async input => {
+      step++;
+      const body = input.messages[1]!.content;
+      if (step === 1) {
+        expect(body).toContain("上下文即将被压缩");
+        expect(body).toContain("建议用 observation.write");
+        return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "e_1", name: "page.get_summary", arguments: { tabId: 12 } }] });
+      }
+      if (step === 2) {
+        // compressNudgeSent 已置位，这一轮照常压缩
+        expect(body).not.toContain("上下文即将被压缩");
+        return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "e_2", name: "page.get_summary", arguments: { tabId: 13 } }] });
+      }
+      return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
+    } };
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "第二轮取证", submittedAt: "now" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
+    expect(step).toBeGreaterThanOrEqual(3);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("本轮写过 observation.write 时压缩前不再提示", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-compress-nudge-obs-"));
+  primeActiveTask(dir);
+  try {
+    let measured = 0;
+    const probe: Provider = { complete: async input => {
+      measured = input.messages[0]!.content.length + input.messages[1]!.content.length;
+      return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "第一轮结束" } }] });
+    } };
+    await handleTurn({ dataDir: dir, repoRoot, provider: probe }, { userInput: "量一下窗口", submittedAt: "now" });
+    const patched = structuredClone(loadLedger(dir, "cv_01"));
+    patched.compressAt = Math.max(1, measured - 3000);
+    saveLedger(dir, patched);
+    let step = 0;
+    const provider: Provider = { complete: async input => {
+      step++;
+      const body = input.messages[1]!.content;
+      if (step === 1) {
+        expect(body).not.toContain("上下文即将被压缩");
+        return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "o_1", name: "observation.write", arguments: { reason: "固化", type: "code", result: "已确认窗口结构" } }] });
+      }
+      if (step === 2) {
+        expect(body).not.toContain("上下文即将被压缩");
+        return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
+      }
+      return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
+    } };
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "第二轮取证", submittedAt: "now" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test("notes.write 按 key 写入，notes.delete 删除", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-notes-"));
     primeActiveTask(dir);

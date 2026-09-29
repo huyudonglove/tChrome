@@ -27,6 +27,9 @@ const OBSERVATION_NUDGE_MARKER = "runtime: 本回合已累计";
 const OBSERVATION_NUDGE_FIRST_GATE = 30;
 const OBSERVATION_NUDGE_MIN_GATE = 10;
 const OBSERVATION_NUDGE_STEP = 10;
+// Compress-prep checkpoint: how much room above compressAt still allows deferring compression once
+// (below the hard externalize edge at externalizeAtChars, deferring further would risk context_limit).
+const COMPRESS_NUDGE_HEADROOM = 20000;
 // Management / bookkeeping tools: their returns add no new evidence worth checkpointing.
 const OBSERVATION_NUDGE_EXCLUDED = new Set([
   "observation.write",
@@ -515,6 +518,8 @@ export async function handleTurn(
     let nudgedEvidenceCount = 0;
     let observationWrites = 0;
     let observationNudgeGate = OBSERVATION_NUDGE_FIRST_GATE;
+    // Compress-prep checkpoint: at most one deferred compression per turn.
+    let compressNudgeSent = false;
     let imageBatchId: string | undefined;
     while (true) {
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
@@ -564,7 +569,21 @@ export async function handleTurn(
       let state = contextState(deps.dataDir, ledger, turn, memories);
       let messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir);
       const initialChars = windowChars(messages[0]!.content, messages[1]!.content);
-      if (initialChars >= ledger.compressAt) {
+      // Compress-prep checkpoint: compression turns this turn's tool returns into summaries and
+      // pointers, so ask for one observation first — but only while the window still has headroom
+      // below the hard externalize edge, and only once per turn (compressNudgeSent).
+      const deferForCheckpoint = !compressNudgeSent && writeCount === 0 && rows.length > 0
+        && initialChars >= ledger.compressAt && initialChars < ledger.compressAt + COMPRESS_NUDGE_HEADROOM;
+      if (deferForCheckpoint) {
+        compressNudgeSent = true;
+        const last = rows.at(-1);
+        if (last) {
+          last.return = { ...last.return, text: `${last.return.text}\n\n${OBSERVATION_NUDGE_MARKER} 上下文即将被压缩（当前窗口 ${initialChars} 字符，阈值 ${ledger.compressAt}）——这一步会把本轮的工具返回压成摘要与指针，而本轮还没有任何 observation 固化，这段时间的页面/代码/截图结论下一轮就只剩指针了。建议先用 observation.write 写一次阶段检查点：现在处于什么状态、哪些已确认、哪些仍未验证。本轮的下一次循环仍会照常压缩，不会一直推迟。` };
+        }
+        state = contextState(deps.dataDir, ledger, turn, memories);
+        messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir);
+      }
+      if (!deferForCheckpoint && initialChars >= ledger.compressAt) {
         let compressionStarted = false;
         try {
           for (const phase of ["history", "current"] as const) {
