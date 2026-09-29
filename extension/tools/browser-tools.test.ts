@@ -145,6 +145,30 @@ test("page.eval_expr routes through CDP before page.* dispatch and evaluates inl
   });
 });
 
+test("page.eval_expr reports line/column and the offending source line on syntax errors", async () => {
+  const tab = mockJavascript(async () => ({
+    exceptionDetails: {
+      text: "Uncaught",
+      lineNumber: 0,
+      columnNumber: 5,
+      exception: { description: "SyntaxError: Unexpected token '}'" },
+    },
+  }));
+  const expr = "(() => { return 1; }())";
+  const out = await runBrowserTool("page.eval_expr", { tabId: tab, expr });
+  expect(out).toMatchObject({
+    ok: false,
+    lineNumber: 0,
+    columnNumber: 5,
+    line: 1,
+    column: 6,
+    lineCount: 1,
+    sourceLine: expr,
+  });
+  expect(String((out as any).error)).toContain("SyntaxError");
+  expect(String((out as any).error)).toContain("第 1/1 行第 6 列");
+});
+
 for (const remote of [{ type: "undefined" }, { type: "number", unserializableValue: "NaN" },
   { type: "number", unserializableValue: "-0" }, { type: "bigint", unserializableValue: "42n" },
   { type: "object", subtype: "null", value: null }]) {

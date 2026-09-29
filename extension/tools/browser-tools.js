@@ -1099,8 +1099,24 @@ const executeBrowserTool = async (name, input = {}) => {
         });
         const res = await Promise.race([evaluate, timeout]);
         if (res.exceptionDetails) {
-          const desc = res.exceptionDetails.exception?.description || res.exceptionDetails.text || '执行抛出异常';
-          return {ok: false, tabId: tab.id, error: desc};
+          const details = res.exceptionDetails;
+          const desc = details.exception?.description || details.text || '执行抛出异常';
+          const lineNumber = typeof details.lineNumber === 'number' ? details.lineNumber : null;
+          const columnNumber = typeof details.columnNumber === 'number' ? details.columnNumber : null;
+          const out = {ok: false, tabId: tab.id, error: desc, lineNumber, columnNumber};
+          if (lineNumber != null) {
+            // CDP lineNumber is 0-based; report 1-based so the position is directly usable.
+            const lines = expr.split('\n');
+            const sourceLine = lines[lineNumber] ?? '';
+            const line = lineNumber + 1;
+            const column = (columnNumber ?? 0) + 1;
+            out.line = line;
+            out.column = column;
+            out.lineCount = lines.length;
+            out.sourceLine = sourceLine.length > 200 ? sourceLine.slice(0, 200) : sourceLine;
+            out.error = `${desc}（第 ${line}/${lines.length} 行第 ${column} 列：${out.sourceLine.trim()}）`;
+          }
+          return out;
         }
         const remote = res.result;
         if (!remote?.type) return {ok: false, tabId: tab.id, error: '执行器未返回 JavaScript 结果'};
