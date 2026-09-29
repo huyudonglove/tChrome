@@ -231,8 +231,10 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
         const maxEntries = integer(input, "maxEntries", 10000, 1, 100000);
         const contextChars = integer(input, "contextChars", 80, 0, 200);
         const contextLines = integer(input, "contextLines", 0, 0, 20);
-        if (!(await lstat(path)).isDirectory()) throw new Error("path must be a directory, not a file or symlink; pass the containing directory, or use local.fs_stat/local.fs_read for a file path");
-        const pending = [path];
+        const rootStat = await lstat(path);
+        const singleFile = rootStat.isFile() ? path : null;
+        if (!singleFile && !rootStat.isDirectory()) throw new Error("path must be a directory or a regular file, not a symlink or special file; pass the containing directory to search a whole tree, or a single file path to search only that file");
+        const pending = [singleFile ? resolve(path, "..") : path];
         const matches: Record<string, unknown>[] = [];
         let scannedFiles = 0;
         let scannedEntries = 0;
@@ -252,6 +254,7 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
               }
               scannedEntries++;
               const entryPath = join(directory, entry.name);
+              if (singleFile && entryPath !== singleFile) continue;
               if (entry.isSymbolicLink()) continue;
               if (entry.isDirectory()) {
                 if (skipDirs.has(entry.name)) {
@@ -320,7 +323,7 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
               }
             }
           } catch (error) {
-            if (directory === path) throw error;
+            if (directory === path || (singleFile && directory === resolve(path, ".."))) throw error;
             if (errors.length < 100) errors.push({ path: directory, error: error instanceof Error ? error.message : String(error) });
             truncations.push("error");
             truncated = true;

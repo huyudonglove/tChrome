@@ -8,7 +8,7 @@
       "properties": {
         "path": {
           "type": "string",
-          "description": "要检索的目录绝对路径"
+          "description": "要检索的目录绝对路径；也可传单个文件路径，此时只检索该文件"
         },
         "query": {
           "type": "string",

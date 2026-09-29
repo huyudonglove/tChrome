@@ -306,10 +306,10 @@ test("fs_read supports line slice mode with startLine and endLine", async () => 
 test("directory tools explain a file path instead of leaking ENOTDIR", async () => {
   const file = join(root, "plain.txt");
   await writeFile(file, "x");
-  for (const name of ["local.fs_list", "local.fs_search", "local.fs_grep"] as const) {
+  for (const name of ["local.fs_list", "local.fs_search"] as const) {
     const input = name === "local.fs_search"
       ? { items: [{ path: file, query: "x" }] }
-      : name === "local.fs_grep" ? { path: file, query: "x" } : { path: file };
+      : { path: file };
     const result = await run(name, input) as {
       ok: boolean; message?: string; error?: string;
       items?: { error?: string }[]; results?: { error?: string }[];
@@ -320,4 +320,36 @@ test("directory tools explain a file path instead of leaking ENOTDIR", async () 
     expect(detail).toContain("local.fs_stat");
     expect(detail).not.toContain("ENOTDIR");
   }
+});
+
+test("fs_grep accepts a single file path and searches only that file", async () => {
+  const nested = join(root, "nested");
+  await mkdir(nested);
+  const target = join(nested, "target.ts");
+  await writeFile(target, "const alpha = 1;\nconst beta = 2;\n");
+  await writeFile(join(nested, "sibling.ts"), "const alpha = 3;\n");
+  await mkdir(join(nested, "deep"));
+  await writeFile(join(nested, "deep", "deeper.ts"), "const alpha = 4;\n");
+
+  const result = await run("local.fs_grep", { path: target, query: "alpha", contextChars: 10 }) as {
+    ok: boolean;
+    path: string;
+    matches: { path: string; line: number; column: number }[];
+    scannedFiles: number;
+  };
+  expect(result.ok).toBe(true);
+  expect(result.path).toBe(target);
+  expect(result.matches.map((row) => row.path)).toEqual([target]);
+  expect(result.matches[0]).toMatchObject({ path: target, line: 1, column: 7 });
+  expect(result.scannedFiles).toBe(1);
+
+  const regex = await run("local.fs_grep", { path: target, query: "const (alpha|beta)", regex: true }) as {
+    ok: boolean;
+    matches: { line: number }[];
+  };
+  expect(regex.ok).toBe(true);
+  expect(regex.matches.map((row) => row.line)).toEqual([1, 2]);
+
+  const missing = await run("local.fs_grep", { path: join(nested, "nope.ts"), query: "alpha" });
+  expect(missing.ok).toBe(false);
 });
