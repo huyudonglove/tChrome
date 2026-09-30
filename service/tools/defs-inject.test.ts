@@ -21,14 +21,16 @@ test('description gates carry the configured inlineChars', () => {
   expect(query?.function?.description).not.toMatch(/\{\{\w+\}\}/);
 });
 
-test('intent maxLength equals the configured inlineChars', () => {
+test('intent maxLength equals the configured intentMaxChars', () => {
   const params = registry.tools['context.query']?.function?.parameters as any;
-  expect(params.properties.intent.maxLength).toBe(runtimeConfig.results.inlineChars);
+  expect(params.properties.intent.maxLength).toBe(runtimeConfig.results.intentMaxChars);
 });
 
 test('raw definition files carry placeholders, not hardcoded gate numbers', () => {
   const file = join(root, 'service', 'tools', 'definitions', 'context.query.json');
   const text = readFileSync(file, 'utf8');
   expect(text).toContain('{{inlineChars}}');
+  expect(text).toContain('{{intentMaxChars}}');
   expect(text).not.toContain(String(runtimeConfig.results.inlineChars));
+  expect(text).not.toContain(String(runtimeConfig.results.intentMaxChars));
 });

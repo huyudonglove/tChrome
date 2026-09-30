@@ -13,6 +13,7 @@ export function promptNumberSlots(): Record<string, string> {
     summaryChars: String(runtimeConfig.results.summaryChars),
     lineWidth: String(runtimeConfig.results.lineWidth),
     searchContextChars: String(runtimeConfig.results.searchContextChars),
+    intentMaxChars: String(runtimeConfig.results.intentMaxChars),
     imageInlineBytes: String(runtimeConfig.results.imageInlineBytes),
   };
 }

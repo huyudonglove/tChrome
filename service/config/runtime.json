@@ -18,6 +18,7 @@
     "externalizeAtChars": { "follow": "contextWindowChars", "ratio": 1.25 },
     "inlineChars": { "follow": "contextWindowChars", "ratio": 0.02, "cap": 4000 },
     "searchContextChars": { "follow": "contextWindowChars", "ratio": 0.01, "cap": 2000 },
+    "intentMaxChars": { "follow": "contextWindowChars", "ratio": 0.02, "cap": 4000 },
     "previewChars": { "follow": "inlineChars", "ratio": 0.1, "floor": 200 },
     "summaryChars": { "follow": "inlineChars", "ratio": 0.1, "floor": 200 },
     "imageInlineBytes": { "fixed": 262144 },

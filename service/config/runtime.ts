@@ -85,6 +85,8 @@ const results = {
   summaryChars: resolveGate("summaryChars"),
   lineWidth: resolveGate("lineWidth"),
   searchContextChars: resolveGate("searchContextChars"),
+  // intent 是给查询岗的自然语言指令，语义与「单次返回内联门禁」无关，单独一份门禁。
+  intentMaxChars: resolveGate("intentMaxChars"),
   searchMaxMatches: resolveGate("searchMaxMatches"),
   imageInlineBytes: resolveGate("imageInlineBytes"),
   // 指针/记录壳的固定开销：取回窗口要给它留位，否则返回的指针本身会顶破入窗门禁。
