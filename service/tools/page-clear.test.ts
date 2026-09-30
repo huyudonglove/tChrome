@@ -38,6 +38,7 @@ test("page.clear_result keeps identity and marks result cleared", async () => {
       name: "page.clear_result",
       arguments: { reason: "元素详情不再需要", pageId: "page_01" },
       dataDir,
+      browserNames: [],
       observationIds: ["page_01"],
       lookup: { knownTools: ["page.clear_result"], enabledTools: ["page.clear_result"], unusedTools: [] },
     });
@@ -62,6 +63,7 @@ test("unknown pageId is rejected before effects", async () => {
       name: "page.clear_result",
       arguments: { reason: "清理", pageId: "page_99" },
       dataDir,
+      browserNames: [],
       observationIds: ["page_01"],
       lookup: { knownTools: ["page.clear_result"], enabledTools: ["page.clear_result"], unusedTools: [] },
     });

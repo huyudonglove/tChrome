@@ -3,7 +3,7 @@ import { createProvider } from "./uuapi.ts";
 import { sseResponse } from "./sse.ts";
 
 const responsesDone = (output: unknown[]) => sseResponse([
-  ...output.flatMap((item) => {
+  ...output.flatMap((item): Record<string, unknown>[] => {
     const row = item as { type?: string; content?: { type?: string; text?: string }[] };
     if (row.type === "message") {
       return (row.content ?? []).map((part) => ({

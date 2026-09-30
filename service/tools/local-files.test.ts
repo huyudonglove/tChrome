@@ -171,7 +171,7 @@ test("grep finds literal text with line context and skips binaries, noisy dirs, 
   await symlink(root, join(nested, "loop"));
   const result = await run("local.fs_grep", { path: root, query: "needle", contextChars: 6 });
   expect(result).toMatchObject({ ok: true, truncated: false });
-  const matches = [...(result.matches as { path: string; line: number }[])].sort((a, b) =>
+  const matches = [...(result.matches as { path: string; line: number; column: number; before: string; hit: string; after: string }[])].sort((a, b) =>
     a.path === b.path ? a.line - b.line : a.path < b.path ? -1 : 1);
   expect(matches).toEqual([
     { path: file, line: 1, column: 7, before: "alpha ", hit: "needle", after: " beta" },

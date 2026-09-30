@@ -259,7 +259,8 @@ export function createServer(options: ServeOptions = {}) {
         if ("provider" in body && !isProviderName(body.provider)) return respond({ error: "invalid_provider" }, 400);
         const nextEnabled = body.enabled ?? proxyEnabled;
         const nextName = body.provider ?? providerName;
-        if (nextName !== providerName && !Bun.env[providerApiKeyEnv[nextName]]?.trim()) {
+        const nextApiKeyEnv = nextName ? providerApiKeyEnv[nextName] : undefined;
+        if (nextName && nextName !== providerName && !(nextApiKeyEnv && Bun.env[nextApiKeyEnv]?.trim())) {
           return respond({ error: "所选 provider 尚未配置 API Key" }, 400);
         }
         try {

@@ -89,7 +89,9 @@ export function toolHistoryView(records: ToolIOItem[], observations: Observation
           arguments: mapped.args,
           return: {
             stage: record.return.stage,
-            result: hint ? { ...mapped.result, message: hint } : mapped.result,
+            result: hint && typeof mapped.result === "object" && mapped.result !== null && !Array.isArray(mapped.result)
+              ? { ...(mapped.result as Record<string, unknown>), message: hint }
+              : mapped.result,
           },
         };
       }

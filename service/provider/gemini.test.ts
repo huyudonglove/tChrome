@@ -33,7 +33,9 @@ const geminiBody = (body: unknown, status = 200) =>
 test("请求体包含 systemInstruction、google_search 与 functionDeclarations", async () => {
   let captured: any;
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(request) {
-    captured = { url: request.url, headers: Object.fromEntries(request.headers), body: await request.json() };
+    const headers: Record<string, string> = {};
+    request.headers.forEach((value, key) => { headers[key] = value; });
+    captured = { url: request.url, headers, body: await request.json() };
     return geminiBody({ candidates: [{ finishReason: "STOP", content: { parts: [{ text: "好的" }] } }] });
   } });
   try {

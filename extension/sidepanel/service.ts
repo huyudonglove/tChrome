@@ -35,7 +35,7 @@ export async function requestJSON<T>(path: string, init?: RequestInit): Promise<
   if (body === undefined || body === null) {
     throw new AppError("service_invalid_response", errorMessage("service_invalid_response", "user"), { path });
   }
-  const route = path.split("?")[0];
+  const route = path.split("?")[0] ?? "";
   if (["/session", "/stop", "/conversations/open", "/conversations/new", "/conversations/delete"].includes(route)
     && (typeof body !== "object" || !Array.isArray(body.messages)
       || !["idle", "running", "waiting_human", "paused", "failed"].includes(body.status)

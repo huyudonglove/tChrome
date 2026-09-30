@@ -62,10 +62,10 @@ test("fs_outline chunks unstructured files by blockChars", async () => {
     expect(out.blockChars).toBe(400);
     const blocks = out.blocks as { index: number; startOffset: number; startLine: number; chars: number }[];
     expect(blocks.length).toBe(3);
-    expect(blocks[0].startOffset).toBe(0);
-    expect(blocks[0].startLine).toBe(1);
-    expect(blocks[1].startOffset).toBe(400);
-    expect(blocks[1].startLine).toBe(5);
+    expect(blocks[0]!.startOffset).toBe(0);
+    expect(blocks[0]!.startLine).toBe(1);
+    expect(blocks[1]!.startOffset).toBe(400);
+    expect(blocks[1]!.startLine).toBe(5);
   });
 });
 
@@ -80,7 +80,7 @@ test("fs_outline groups symbols by kind when the table exceeds the inline budget
     expect(out.symbols).toBeUndefined();
     const grouped = out.grouped as Record<string, { name: string }[]>;
     expect(Array.isArray(grouped.function)).toBe(true);
-    expect(grouped.function.length).toBe(400);
+    expect(grouped.function?.length).toBe(400);
   });
 });
 

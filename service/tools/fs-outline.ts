@@ -30,7 +30,7 @@ function kindOf(node: ts.Node): string | null {
 
 function nameOf(node: ts.Node, source: ts.SourceFile): string {
   const named = node as ts.NamedDeclaration;
-  if (named.name && named.name.text) return named.name.text;
+  if (named.name && "text" in named.name) return named.name.text;
   if (ts.isVariableStatement(node)) {
     return node.declarationList.declarations.map((d) => d.name.getText(source)).join(",");
   }
@@ -113,7 +113,7 @@ export async function runFsOutline(input: Record<string, unknown>): Promise<Reco
     if (grouped) return { ...base, mode: "symbols" as const, symbolCount: symbols.length, grouped: grouped.groups };
     return { ...base, mode: "symbols" as const, symbolCount: symbols.length, symbols };
   } catch (error) {
-    const { faultCode, detail, message } = errorInfo(error, "tool_execution_failed");
-    return { ok: false, path: typeof input.path === "string" ? input.path : undefined, faultCode, error: detail || message };
+    const { faultCode, detail } = errorInfo(error, "tool_execution_failed");
+    return { ok: false, path: typeof input.path === "string" ? input.path : undefined, faultCode, error: detail };
   }
 }

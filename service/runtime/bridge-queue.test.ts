@@ -86,7 +86,7 @@ test("an unanswered request fails with a timeout instead of hanging the turn", a
   }) as typeof setTimeout);
   const bridge = createToolBridge(dir);
   try {
-    const pending = bridge.execute("scope", "capture_page", { tabId: 1 });
+    const pending = bridge.execute("capture_page", { tabId: 1 });
     const request = bridge.list()[0]!;
     const result = await pending;
     expect(result).toMatchObject({ ok: false, faultCode: "tool_execution_failed" });

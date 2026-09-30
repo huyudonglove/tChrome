@@ -73,6 +73,8 @@ import type {
   Turn,
   TurnStopReason,
   TurnReply,
+  ToolQueueItem,
+  RuntimeExecutionContext,
 } from "../types.ts";
 import { checkToolCalls } from "../tools/schema.ts";
 import { contextState, compressContext } from "./context-state.ts";
@@ -267,8 +269,9 @@ const runQueue = async (input: {
       try {
         const toolRisk = toolRegistry.capabilities.find((row) => row.kind === "tool" && row.id === slot.item.name)?.risk;
         // Model arguments stay untouched; the effective level is only recorded so every call is auditable.
-        if (slot.item.arguments.risk !== undefined) {
-          riskAudit.set(slot.item.callId, { risk: slot.item.arguments.risk, riskSource: "model" });
+        const modelRisk = slot.item.arguments.risk;
+        if (typeof modelRisk === "string") {
+          riskAudit.set(slot.item.callId, { risk: modelRisk, riskSource: "model" });
         } else if (toolRisk && toolRisk !== "unknown") {
           riskAudit.set(slot.item.callId, { risk: toolRisk, riskSource: "fixed" });
         }
@@ -622,7 +625,11 @@ export async function handleTurn(
                 appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-progress", turnId, data: { completed: progress.completed, total: progress.total, turnId: progress.turnId } });
                 return;
               }
-              appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-progress", turnId, data: { completed: progress.completed, total: progress.total, failedTurnId: progress.failedTurnId } });
+              if (progress.type === "stopped") {
+                appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-progress", turnId, data: { completed: progress.completed, total: progress.total, failedTurnId: progress.failedTurnId } });
+                return;
+              }
+              appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-progress", turnId, data: { merged: progress.merged, level: progress.level, turnIds: progress.turnIds } });
             } }, phase);
             if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
           return stoppedReply(ledger, turn);

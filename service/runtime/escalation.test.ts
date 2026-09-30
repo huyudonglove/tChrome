@@ -18,7 +18,7 @@ const row = (name: string, args: Record<string, unknown> = {}): ToolIOItem => ({
 const rows = (...names: string[]): ToolIOItem[] => names.map((name) => row(name));
 
 test("checkContinue and reportProgress do not inflate the total", () => {
-  const business = Array.from({ length: SAME_TOOL_PROMPT - 1 }, (_, i) => `tool_${i}`);
+  const business = Array.from({ length: SAME_TOOL_PROMPT - 1 }, (_, i) => row(`tool_${i}`));
   const withMeta = [
     ...business,
     row(CHECK_TOOL, { cont: true }),
@@ -28,25 +28,25 @@ test("checkContinue and reportProgress do not inflate the total", () => {
 });
 
 test("once checkContinue exists, total gates yield like the old same-tool gates", () => {
-  const many = Array.from({ length: 65 }, (_, i) => `tool_${i}`);
+  const many = Array.from({ length: 65 }, (_, i) => row(`tool_${i}`));
   const withCheck = [row(CHECK_TOOL, { cont: true }), ...many];
   // 与旧单工具规则一致：出现过 checkContinue 后，总次数门禁不再触发，交给升级链。
-  expect(escalate(withCheck, many.at(-1)!).action).toBe("continue");
+  expect(escalate(withCheck, many.at(-1)!.name).action).toBe("continue");
 
-  const atPrompt = Array.from({ length: SAME_TOOL_PROMPT }, (_, i) => `tool_${i}`);
+  const atPrompt = Array.from({ length: SAME_TOOL_PROMPT }, (_, i) => row(`tool_${i}`));
   const checked = [row(CHECK_TOOL, { cont: true }), ...atPrompt];
-  expect(escalate(checked, atPrompt.at(-1)!).action).toBe("continue");
+  expect(escalate(checked, atPrompt.at(-1)!.name).action).toBe("continue");
 
   // 连续 3 次 check 后仍进入 reportProgress 链
   const checks3 = Array.from({ length: 3 }, () => row(CHECK_TOOL, { cont: true }));
-  expect(escalate([...checks3, ...many], many.at(-1)!)).toMatchObject({
+  expect(escalate([...checks3, ...many], many.at(-1)!.name)).toMatchObject({
     action: "hint",
     text: expect.stringContaining("reportProgress"),
   });
 });
 
 test("checkContinue cont=false interrupts before any counting", () => {
-  const many = Array.from({ length: 65 }, (_, i) => `tool_${i}`);
+  const many = Array.from({ length: 65 }, (_, i) => row(`tool_${i}`));
   const withFalse = [...many, row(CHECK_TOOL, { cont: false })];
   expect(escalate(withFalse, CHECK_TOOL).action).toBe("interrupt");
 });

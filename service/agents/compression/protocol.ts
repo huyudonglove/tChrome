@@ -231,7 +231,7 @@ export async function requestCrossTurnFold(input: {
     throw new Error("Compression fold produced no summary");
   } catch (error) {
     const info = errorInfo(error, "tool_execution_failed");
-    append("fold-error", { detail: info.detail || info.message });
+    append("fold-error", { detail: info.detail });
     throw error;
   }
 }

@@ -52,7 +52,7 @@ test("/stop 按 conversationId 停止对应会话，不影响其他会话", asyn
   try {
     const old = newConversation(dataDir);
     const current = newConversation(dataDir);
-    const aborted: (string | undefined)[] = [];
+    const aborted: (string | null | undefined)[] = [];
     const server = createServer({ dataDir, host: { execute: async () => ({ ok: true }), abort: scope => aborted.push(scope) } });
     await server.fetch(post("/stop", { conversationId: old.conversationId }));
     expect(aborted).toEqual([old.conversationId]);

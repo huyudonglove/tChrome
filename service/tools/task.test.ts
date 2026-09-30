@@ -33,6 +33,7 @@ const fixture = () => {
     arguments: args,
     dataDir,
     conversationId: ledger.conversationId,
+    browserNames: [],
     lookup: {
       knownTools: ["task.set", "task.update", "task.complete", "finishTurn"],
       enabledTools: ["task.set", "task.update", "task.complete", "finishTurn"],

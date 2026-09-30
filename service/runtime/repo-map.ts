@@ -98,7 +98,7 @@ export function extractSymbolsFromFile(content: string, relativePath: string): F
   const varRegex = /^(?:export\s+)(?:const|let|var)\s+([A-Za-z0-9_$]+)(?::\s*([^=;]+))?/;
 
   for (let i = 0; i < lines.length; i++) {
-    const rawLine = lines[i];
+    const rawLine = lines[i] ?? "";
     const trimmed = rawLine.trim();
     const lineNum = i + 1;
 
@@ -116,7 +116,7 @@ export function extractSymbolsFromFile(content: string, relativePath: string): F
     // 1. 函数声明
     const funcMatch = trimmed.match(funcRegex);
     if (funcMatch) {
-      const name = funcMatch[1];
+      const name = funcMatch[1] ?? "";
       const params = funcMatch[3] ? funcMatch[3].trim() : "";
       const returnType = funcMatch[4] ? funcMatch[4].trim() : "";
       const sig = returnType ? `(${params}): ${returnType}` : `(${params})`;
@@ -127,7 +127,7 @@ export function extractSymbolsFromFile(content: string, relativePath: string): F
     // 2. 箭头函数变量
     const constFuncMatch = trimmed.match(constFuncRegex);
     if (constFuncMatch) {
-      const name = constFuncMatch[1];
+      const name = constFuncMatch[1] ?? "";
       const params = constFuncMatch[2] ? constFuncMatch[2].trim() : "";
       const returnType = constFuncMatch[3] ? constFuncMatch[3].trim() : "";
       const sig = returnType ? `(${params}): ${returnType}` : `(${params})`;
@@ -138,28 +138,28 @@ export function extractSymbolsFromFile(content: string, relativePath: string): F
     // 3. 类声明
     const classMatch = trimmed.match(classRegex);
     if (classMatch) {
-      symbols.push({ name: classMatch[1], kind: "class", line: lineNum });
+      symbols.push({ name: classMatch[1] ?? "", kind: "class", line: lineNum });
       continue;
     }
 
     // 4. 接口声明
     const interfaceMatch = trimmed.match(interfaceRegex);
     if (interfaceMatch) {
-      symbols.push({ name: interfaceMatch[1], kind: "interface", line: lineNum });
+      symbols.push({ name: interfaceMatch[1] ?? "", kind: "interface", line: lineNum });
       continue;
     }
 
     // 5. 类型声明
     const typeMatch = trimmed.match(typeRegex);
     if (typeMatch) {
-      symbols.push({ name: typeMatch[1], kind: "type", line: lineNum });
+      symbols.push({ name: typeMatch[1] ?? "", kind: "type", line: lineNum });
       continue;
     }
 
     // 6. 普通导出变量
     const varMatch = trimmed.match(varRegex);
     if (varMatch && !trimmed.includes("=>")) {
-      const name = varMatch[1];
+      const name = varMatch[1] ?? "";
       const type = varMatch[2] ? varMatch[2].trim() : "";
       symbols.push({ name, kind: "variable", signature: type || undefined, line: lineNum });
       continue;

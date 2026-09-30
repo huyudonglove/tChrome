@@ -45,15 +45,15 @@ test("oversized records return in one shot for the unified inline gate",async()=
   expect(calls).toBe(1);
   expect(result.status).toBe("complete");
   expect(result.records).toHaveLength(1);
-  expect(JSON.parse(JSON.stringify(result.records[0]!.return.text))).toBe('带有"转义\\字符'.repeat(1500));
+  expect(String((result.records[0]!.return as { text?: unknown }).text)).toBe('带有"转义\\字符'.repeat(1500));
 });
 test("complete candidates use one request; failure, cancellation and unmatched result do not return evidence",async()=>{
   const input=fixture("x".repeat(50000));let calls=0;
   const p=provider(["tn_01"],request=>{
     const turns=queryTurnsFromUserMessage(request.messages[1]!.content).turns;
     expect(turns).toHaveLength(1);
-    expect(turns[0].records).toHaveLength(1);
-    expect(turns[0].records[0].return.text).toBe("x".repeat(50000));
+    expect(turns[0]!.records).toHaveLength(1);
+    expect(String((turns[0]!.records[0]!.return as { text?: unknown }).text)).toBe("x".repeat(50000));
     calls++;
     throw new Error("offline");
   });

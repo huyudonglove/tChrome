@@ -106,7 +106,7 @@ export function lintSourceCode(
       severity: "error",
       rule: "syntax-error",
       message: errorMsg,
-      sourceLine: lines[line - 1] ? lines[line - 1].trim() : undefined,
+      sourceLine: lines[line - 1]?.trim(),
     });
   }
 
@@ -114,7 +114,7 @@ export function lintSourceCode(
   if (options.checkRules !== false) {
     for (let i = 0; i < lines.length; i++) {
       const lineNum = i + 1;
-      const rawLine = lines[i];
+      const rawLine = lines[i] ?? "";
       const trimmed = rawLine.trim();
 
       if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*")) {

@@ -23,7 +23,6 @@ import { loadContextRecord } from "../runtime/records.ts";
 import { lineNumberAt, linesOf, wrapCachedText } from "../runtime/cache-lines.ts";
 import { existsSync, readFileSync } from "node:fs";
 import { runtimeConfig } from "../config/runtime.ts";
-import { errorDetail } from "../../shared/error-details.ts";
 
 const questionWithChoices = (question: string, choice: string[]): string =>
   choice.length === 0 ? question : `${question}\n选项：${choice.join(" / ")}`;
@@ -237,7 +236,8 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     const rawItems = Array.isArray(args.items) ? args.items : [];
     const items = rawItems.map((item: unknown) => {
       const row = (item ?? {}) as Record<string, unknown>;
-      const status = row.status === "doing" || row.status === "done" || row.status === "todo" ? row.status : undefined;
+      const status: "todo" | "doing" | "done" | undefined =
+        row.status === "doing" || row.status === "done" || row.status === "todo" ? row.status : undefined;
       return {
         text: String(row.text ?? ""),
         ...(status ? { status } : {}),

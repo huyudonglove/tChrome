@@ -30,5 +30,5 @@ export const lastActionView = (action: LastAction | null) => action;
 
 
 /** One summary row; a large turn may have several rows sharing the same turnId. */
-export type TurnSummary = { id: string; turnId: string; tag: string; userRequest: string; actions: string; result: string; reflection?: string };
+export type TurnSummary = { id: string; turnId: string; tag: string; userRequest: string; actions: string; result: string; reflection?: string; turnIds?: string[] };
 export const turnSummaryView = (records: TurnSummary[] = []) => records.map(({ id, turnId, tag, userRequest, actions, result, reflection, turnIds }) => ({ sumId: id, turnId, tag, userRequest, actions, result, ...(reflection ? { reflection } : {}), ...(turnIds?.length ? { turnIds } : {}) }));

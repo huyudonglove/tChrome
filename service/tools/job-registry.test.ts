@@ -27,7 +27,7 @@ test("HTTP heartbeat returns jobId and job.status later delivers the full result
   const mock = spyOn(globalThis, "fetch").mockImplementation((async () => {
     await gate;
     return new Response("payload");
-  }) as typeof fetch);
+  }) as unknown as typeof fetch);
   try {
     const pending = runServiceTool(dataDir, "send_http", {
       url: "https://example.com/slow",

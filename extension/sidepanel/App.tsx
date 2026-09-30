@@ -15,7 +15,7 @@ type Message = { turnId?: string; role: "user" | "assistant" | "tool"; text: str
 type SessionView = {
   conversationId: string | null;
   status: string;
-  activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null; completed?: number; total?: number | null } | null;
+  activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null; completed?: number; total?: number | null; source?: "agent" | "runtime" } | null;
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
   liveTools: { name: string; callId: string; reason?: string }[];
   task: {
@@ -86,7 +86,7 @@ const MdContent = ({ text }: { text: string }) => {
     let cancelled = false;
     el.innerHTML = renderMarkdown(text);
     const mountWidgets = async () => {
-      const nodes = [...el.querySelectorAll("tchrome-widget")];
+      const nodes = Array.from(el.querySelectorAll("tchrome-widget"));
       for (const node of nodes) {
         const html = (node as HTMLElement).innerHTML || node.textContent || "";
         if (!html.trim()) continue;
@@ -134,7 +134,7 @@ const MdContent = ({ text }: { text: string }) => {
           if (action === "pick") {
             const items = (button.getAttribute("data-items") || "").split("|").map(s => s.trim()).filter(Boolean);
             if (items.length && targetEl) {
-              targetEl.textContent = items[Math.floor(Math.random() * items.length)];
+              targetEl.textContent = items[Math.floor(Math.random() * items.length)] ?? "";
               button.style.transform = "scale(0.96)";
               window.setTimeout(() => { button.style.transform = ""; }, 80);
             }

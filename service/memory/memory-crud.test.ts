@@ -20,8 +20,8 @@ test("memory.update and memory.delete operate by mm_/lm_ id", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "memory-crud-"));
   try {
     const conversationId = "cv_01";
-    saveMemory(dataDir, conversationId, { memoryId: "mm_01", turnId: "tn_01", layer: "conversation", text: "旧会话记忆", createdAt: "now" });
-    saveMemory(dataDir, conversationId, { memoryId: "lm_01", turnId: "tn_01", layer: "project", text: "旧长久记忆", createdAt: "now" });
+    saveMemory(dataDir, conversationId, { memoryId: "mm_01", turnId: "tn_01", layer: "conversation", text: "旧会话记忆", createdAt: "now", sourceCallId: "call_00" });
+    saveMemory(dataDir, conversationId, { memoryId: "lm_01", turnId: "tn_01", layer: "project", text: "旧长久记忆", createdAt: "now", sourceCallId: "call_00" });
 
     const upd = await executeTool({
       name: "memory.update",
@@ -36,7 +36,7 @@ test("memory.update and memory.delete operate by mm_/lm_ id", async () => {
     ledger.memoryIds.conversation = ["mm_01"];
     ledger.memoryIds.project = ["lm_01"];
     const t = turn(conversationId);
-    applyToolEffects({ dataDir, ledger, turn: t, call: { callId: "call_01", turnId: t.turnId, name: "memory.update", arguments: {} }, effects: upd.effects });
+    applyToolEffects({ dataDir, ledger, turn: t, call: { callId: "call_01", name: "memory.update", arguments: {} }, effects: upd.effects });
     expect(loadMemory(dataDir, conversationId, "mm_01").text).toBe("新会话记忆");
 
     const del = await executeTool({
@@ -46,7 +46,7 @@ test("memory.update and memory.delete operate by mm_/lm_ id", async () => {
       browserNames: [],
       lookup: { unusedTools: [], knownTools: ["memory.delete"], enabledTools: ["memory.delete"] },
     });
-    applyToolEffects({ dataDir, ledger, turn: t, call: { callId: "call_02", turnId: t.turnId, name: "memory.delete", arguments: {} }, effects: del.effects });
+    applyToolEffects({ dataDir, ledger, turn: t, call: { callId: "call_02", name: "memory.delete", arguments: {} }, effects: del.effects });
     expect(() => loadMemory(dataDir, conversationId, "lm_01")).toThrow();
     expect(ledger.memoryIds.conversation).toEqual(["mm_01"]);
     expect(updateMemory(dataDir, conversationId, "mm_01", "再改").text).toBe("再改");

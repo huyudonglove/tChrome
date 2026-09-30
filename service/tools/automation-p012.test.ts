@@ -62,6 +62,7 @@ test("tab.context sets default tab and fills later browser calls", async () => {
     name: "tab.context",
     arguments: { reason: "绑定", action: "set", tabId: 42 },
     dataDir,
+    browserNames: [],
     defaultTabId: ledger.contextTab?.tabId ?? null,
     lookup: { knownTools: ["tab.context"], enabledTools: ["tab.context"], unusedTools: [] },
   });
@@ -103,6 +104,7 @@ test("tab.context sets default tab and fills later browser calls", async () => {
     name: "tab.context",
     arguments: { reason: "清除", action: "clear" },
     dataDir,
+    browserNames: [],
     defaultTabId: ledger.contextTab?.tabId ?? null,
     lookup: { knownTools: ["tab.context"], enabledTools: ["tab.context"], unusedTools: [] },
   });

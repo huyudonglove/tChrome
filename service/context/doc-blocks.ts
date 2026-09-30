@@ -21,7 +21,8 @@ function isFenceOpen(line: string): boolean {
 // 块首：围栏行的下一行正好是 contentLine。
 function blockOpen(lines: string[], contentLine: string): number {
   for (let i = 0; i + 1 < lines.length; i++) {
-    if (isFence(lines[i]) && lines[i + 1] === contentLine) return i;
+    const line = lines[i];
+    if (line !== undefined && isFence(line) && lines[i + 1] === contentLine) return i;
   }
   return -1;
 }
@@ -30,8 +31,9 @@ function blockOpen(lines: string[], contentLine: string): number {
 function blockClose(lines: string[], openIndex: number): number {
   let depth = 0;
   for (let i = openIndex + 1; i < lines.length; i++) {
-    if (!isFence(lines[i])) continue;
-    if (isFenceOpen(lines[i])) {
+    const line = lines[i];
+    if (line === undefined || !isFence(line)) continue;
+    if (isFenceOpen(line)) {
       depth++;
       continue;
     }

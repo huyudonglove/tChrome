@@ -114,7 +114,7 @@ test("failed turn stops sequence: prefix stays covered, later turns keep origina
   expect(outcome.failedTurnId).toBe("tn_02");
   expect(outcome.totalTurns).toBe(2);
   expect(progress.at(-1)).toEqual({ type: "stopped", completed: 1, total: 2, failedTurnId: "tn_02" });
-  expect(readSource(args.dataDir, args.conversationId, args.module, "one")).toEqual(records[0]);
+  expect(readSource(args.dataDir, args.conversationId, args.module, "one")).toEqual(records[0]!);
   expect(readSource(args.dataDir, args.conversationId, args.module, "two")).toBeNull();
   const index = loadIndex(args.dataDir, args.conversationId, args.module);
   expect(index.coveredSourceIds).toEqual(["one"]);

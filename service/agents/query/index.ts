@@ -11,7 +11,7 @@ type RecordValue = Record<string, unknown>;
 const fallbackRecordKey = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const recordKeyFor = (record: RecordValue): string => {
   const nativeId = ["callId", "pageId", "recordId", "memoryId", "queryId", "id"]
-    .map(key => record[key]).find(value => typeof value === "string" && value.length > 0);
+    .map(key => record[key]).find((value): value is string => typeof value === "string" && value.length > 0);
   return nativeId ?? fallbackRecordKey(record);
 };
 

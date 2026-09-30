@@ -131,10 +131,11 @@ function archiveContentFromInventory(
       content[field] = raw ?? (field === "toolIO" || field === "observations" || field === "memoryWrites" ? [] : null);
       continue;
     }
-    if (options.keepCallIds) {
+    const keepCallIds = options.keepCallIds;
+    if (keepCallIds) {
       content[field] = raw.filter((row: Record<string, unknown>) => {
         const callId = typeof row.sourceCallId === "string" ? row.sourceCallId : typeof row.callId === "string" ? row.callId : null;
-        return callId ? options.keepCallIds.has(callId) : false;
+        return callId ? keepCallIds.has(callId) : false;
       });
       continue;
     }

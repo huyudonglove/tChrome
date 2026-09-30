@@ -44,7 +44,7 @@ test("whole-turn grouping removes covered module increments, retaining current s
       calls++; expect(input.tools.map(tool => tool.function.name)).toEqual(["submitTurnSummaries"]);
       const source = oneTurnOf(input.messages);
       expect(source.turnId).toBe(`tn_0${calls}`);
-      expect(source.memoryWrites[0].turnId).toBe(source.turnId);
+      expect((source.memoryWrites as Array<{ turnId: string }>)[0]!.turnId).toBe(source.turnId);
       expect((source.stopReason as { text?: string }).text).toBe(`完成${source.turnId}`);
       return summaryResponse(input.messages);
     } };
@@ -123,8 +123,8 @@ test("long current turn archives older complete batches and keeps input, current
     const ledger = emptyLedger("cv_test"), current = makeTurn(ledger.conversationId, "tn_01");
     current.status = "inferring"; current.stopReason = null; current.completedAt = null; ledger.turnIds = [current.turnId]; ledger.active = { turnId: current.turnId };
     ledger.toolIO = Array.from({ length: 6 }, (_, i) => ({ callId: `call_${i}`, turnId: current.turnId, batchId: `b_${Math.floor(i / 2)}`, name: "page.get_summary", arguments: {}, return: { stage: "complete" as const, text: "结果", totalChars: 2 } }));
-    current.assembled.observations = ledger.toolIO.map((row, i) => ({ id: `p_${i}`, turnId: current.turnId, callId: row.callId, toolName: row.name, tabId: 1, url: "https://example.com", title: "页面", description: `状态${i}`, observedAt: "2026-09-11" }));
-    current.assembled.currentPage = current.assembled.observations[5]!;
+    current.assembled.observations = ledger.toolIO.map((row, i) => ({ id: `p_${i}`, turnId: current.turnId, callId: row.callId, observedAt: "2026-09-11", type: row.name, result: { ok: true, tabId: 1, url: "https://example.com", title: "页面", state: `状态${i}` } }));
+    current.assembled.currentPage = { tabId: 1, url: "https://example.com", title: "页面", description: "状态5" };
     const memories: Memories = { project: [], conversation: [] }, provider: Provider = { complete: async input => summaryResponse(input.messages) };
     await compressContext({ dataDir, repoRoot, ledger, turn: current, memories, provider, isCancelled: () => false }, "current");
     const view = contextState(dataDir, ledger, current, memories);

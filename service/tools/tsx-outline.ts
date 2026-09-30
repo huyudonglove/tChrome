@@ -73,7 +73,7 @@ function buildNode(opening: ts.JsxOpeningElement | ts.JsxSelfClosingElement, dyn
 
 function classNameOf(opening: ts.JsxOpeningElement | ts.JsxSelfClosingElement): { tokens: string[]; dynamic: boolean } {
   for (const attr of opening.attributes.properties) {
-    if (ts.isJsxAttribute(attr) && attr.name.text === "className") return readClassName(attr);
+    if (ts.isJsxAttribute(attr) && ts.isIdentifier(attr.name) && attr.name.text === "className") return readClassName(attr);
   }
   return { tokens: [], dynamic: false };
 }
@@ -180,7 +180,7 @@ export async function runTsxOutline(input: Record<string, unknown>): Promise<Rec
       stats: { ...stats, lines: lines.length },
     };
   } catch (error) {
-    const { faultCode, detail, message } = errorInfo(error, "tool_execution_failed");
-    return { ok: false, path: typeof input.path === "string" ? input.path : undefined, faultCode, error: detail || message };
+    const { faultCode, detail } = errorInfo(error, "tool_execution_failed");
+    return { ok: false, path: typeof input.path === "string" ? input.path : undefined, faultCode, error: detail };
   }
 }

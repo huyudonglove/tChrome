@@ -52,9 +52,9 @@ test("真坏掉的字符串仍失败", () => {
 test("数组字段被再编码成字符串时拆一层", () => {
   const args = { summaries: JSON.stringify([{ turnId: "tn_01" }]) };
   unwrapStringArrayField(args, "summaries");
-  expect(args.summaries).toEqual([{ turnId: "tn_01" }]);
+  expect(args.summaries as unknown).toEqual([{ turnId: "tn_01" }]);
   unwrapStringArrayField(args, "summaries");
-  expect(args.summaries).toEqual([{ turnId: "tn_01" }]);
+  expect(args.summaries as unknown).toEqual([{ turnId: "tn_01" }]);
   const stillString = { summaries: "not-json" };
   unwrapStringArrayField(stillString, "summaries");
   expect(stillString.summaries).toBe("not-json");

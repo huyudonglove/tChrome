@@ -54,7 +54,7 @@ function parseTestOutput(output: string): DiagnosticError[] {
   let currentTest: string | undefined;
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+    const line = lines[i] ?? "";
     const failMatch = line.match(/(?:✗|\(fail\)|FAIL)\s+(.+?)(?:\s+\[.+\])?$/);
     if (failMatch) {
       currentTest = failMatch[1]?.trim();

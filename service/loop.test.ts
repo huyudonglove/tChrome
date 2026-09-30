@@ -652,7 +652,7 @@ test("POST /stop 把 running 标成 paused", async () => {
   const stopped = await (await server.fetch(new Request("http://127.0.0.1:18788/stop", { method: "POST" }))).json() as { status: string };
   expect(stopped.status).toBe("paused");
   release({ ok: true });
-  const reply = await pending.then((response) => response.json()) as { stopReason: { kind: string; faultCode?: string } };
+  const reply = await pending.then((response) => response.json()) as { stopReason: { kind: string; faultCode?: string; initiatedBy?: string } };
   expect(reply.stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
   const session = await (await server.fetch(new Request("http://127.0.0.1:18788/session"))).json() as { status: string; messages: { text: string }[] };
   expect(session.status).toBe("paused");

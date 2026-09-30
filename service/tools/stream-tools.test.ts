@@ -72,8 +72,11 @@ test("stream.pull writes browser bytes through the pipe and stream.push uploads 
 });
 
 test("stream tools require absolute host path and a browser bridge", async () => {
-  await expect(runStreamTool("stream.pull", { source: { kind: "dom" }, path: "relative" }, { readCurrentTabs: async () => ({ ok: true, windows: [] }), execute: async () => ({ ok: true }) }))
-    .resolves.toMatchObject({ ok: false });
-  await expect(runStreamTool("stream.pull", { source: { kind: "dom" }, path: "/tmp/x" }, undefined))
-    .resolves.toMatchObject({ ok: false });
+  const dir = temp();
+  try {
+    await expect(runStreamTool("stream.pull", { source: { kind: "dom" }, path: "relative" }, { readCurrentTabs: async () => ({ ok: true, windows: [] }), execute: async () => ({ ok: true }) }, dir, "cv_01"))
+      .resolves.toMatchObject({ ok: false });
+    await expect(runStreamTool("stream.pull", { source: { kind: "dom" }, path: "/tmp/x" }, undefined, dir, "cv_01"))
+      .resolves.toMatchObject({ ok: false });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

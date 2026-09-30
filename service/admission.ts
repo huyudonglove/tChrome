@@ -69,7 +69,7 @@ function expandLongContent(item: unknown): string[] {
   for (let i = 0; i < lines.length; i += 1) {
     const lineNo = firstLine + i;
     // 按码点切，避免中文字符被 UTF-16 从中间劈成半个字符。
-    const chars = Array.from(lines[i]);
+    const chars = Array.from(lines[i] ?? "");
     if (chars.length <= LONG_LINE_CHARS) {
       labels.push(`${base}:${lineNo}${hitSnippet({ hit: chars.join("") }, 40)}`);
       continue;

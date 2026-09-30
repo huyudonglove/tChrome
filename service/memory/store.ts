@@ -6,8 +6,9 @@ const memoryDir = (dataDir: string, conversationId: string) => join(dataDir, "co
 const projectDir = (dataDir: string) => join(dataDir, "memory", "project");
 const jsonFiles = (dir: string) => existsSync(dir) ? readdirSync(dir).filter(name => name.endsWith(".json")).sort() : [];
 const read = (path: string): MemoryRecord => JSON.parse(readFileSync(path, "utf8"));
+const memoryIdCollator = new Intl.Collator(undefined, { numeric: true });
 const chronological = (a: MemoryRecord, b: MemoryRecord) => a.createdAt.localeCompare(b.createdAt)
-  || a.memoryId.localeCompare(b.memoryId, { numeric: true });
+  || memoryIdCollator.compare(a.memoryId, b.memoryId);
 
 export function loadMemory(dataDir: string, conversationId: string, memoryId: string): MemoryRecord {
   const local = join(memoryDir(dataDir, conversationId), `${memoryId}.json`);

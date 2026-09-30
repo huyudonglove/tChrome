@@ -1,4 +1,4 @@
-import type { ToolIOItem } from "./types.ts";
+import type { ToolIOItem } from "../types.ts";
 
 export const CHECK_TOOL = "checkContinue";
 export const PROGRESS_TOOL = "reportProgress";

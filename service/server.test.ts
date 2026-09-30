@@ -182,7 +182,8 @@ test("/browser-batch 校验任务、要求扩展在线，并经扩展桥在真�
       queued = bridge.list();
     }
     expect(queued.map((item) => item.name)).toEqual(["see_page", "tabs.current"]);
-    for (const item of queued) bridge.resolve(item.id, { ok: true, marker: item.name });
+    // marker 只是本用例自定义的透传标记，不在 BrowserResult 内，故按 resolve 签名断言一次。
+    for (const item of queued) bridge.resolve(item.id, { ok: true, marker: item.name } as Parameters<typeof bridge.resolve>[1]);
 
     const body = await (await pending).json() as { ok: boolean; count: number; results: { name: string; result: { marker?: string } }[] };
     expect(body.ok).toBe(true);

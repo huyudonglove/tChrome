@@ -62,9 +62,9 @@ test("stop and delete terminate only their conversation's local processes even w
   let second = "";
   try {
     expect(await patchScript(dataDir, { filename: "sleep.sh", patch: "--- /dev/null\n+++ b/sleep.sh\n@@ -0,0 +1 @@\n+sleep 30\n" })).toMatchObject({ ok: true });
-    const a = await runLocalTool("local.process_start", { filename: "sleep.sh", cwd: dataDir }, dataDir, first);
+    const a = await runLocalTool("local.process_start", { filename: "sleep.sh", cwd: dataDir }, dataDir, first) as { processId: string };
     second = newConversation(dataDir).conversationId!;
-    const b = await runLocalTool("local.process_start", { filename: "sleep.sh", cwd: dataDir }, dataDir, second);
+    const b = await runLocalTool("local.process_start", { filename: "sleep.sh", cwd: dataDir }, dataDir, second) as { processId: string };
     stopTurn(dataDir);
     expect(await runLocalTool("local.process_status", { processId: b.processId }, dataDir, second)).toMatchObject({ status: "stopped" });
     expect(await runLocalTool("local.process_status", { processId: a.processId }, dataDir, first)).toMatchObject({ status: "running" });

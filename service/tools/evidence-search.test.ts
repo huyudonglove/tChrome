@@ -10,7 +10,7 @@ import { saveContextRecord, loadContextRecord } from "../runtime/records.ts";
 import { runtimeConfig } from "../config/runtime.ts";
 import type { Turn } from "../types.ts";
 
-const lookup = { knownTools: ["evidence.search", "page.clear_result"], enabledTools: ["evidence.search"], unusedTools: [] };
+const lookup: { knownTools: string[]; enabledTools: string[]; unusedTools: string[] } = { knownTools: ["evidence.search", "page.clear_result"], enabledTools: ["evidence.search"], unusedTools: [] };
 
 test("evidence.search returns default ±2000 context around keyword from cached call return", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-search-"));
@@ -22,6 +22,7 @@ test("evidence.search returns default ±2000 context around keyword from cached 
       arguments: { reason: "查关键字", windows: [{ callId: "call_09", keyword: "NEEDLE_IN_HAYSTACK" }] },
       dataDir,
       conversationId: "cv_01",
+      browserNames: [],
       lookup,
     });
     const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[] };
@@ -70,6 +71,7 @@ test("evidence.search lines mode reads from startLine within the searchContextCh
       arguments: { reason: "按行读", windows: [{ callId: "call_lines", startLine: 3 }] },
       dataDir,
       conversationId: "cv_01",
+      browserNames: [],
       lookup,
     });
     const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[] };
@@ -94,14 +96,14 @@ test("evidence.search allows keyword with startLine as hybrid and rejects blank 
     const hybrid = await executeTool({
       name: "evidence.search",
       arguments: { reason: "x", windows: [{ callId: "call_01", keyword: "hello", startLine: 1 }] },
-      dataDir, conversationId: "cv_01", lookup,
+      dataDir, conversationId: "cv_01", browserNames: [], lookup,
     });
     const hybridParsed = JSON.parse(hybrid.text) as { ok: boolean; results: Record<string, unknown>[] };
     expect(hybridParsed.results[0]).toMatchObject({ ok: true, mode: "hybrid", matchCount: 1 });
     const blank = await executeTool({
       name: "evidence.search",
       arguments: { reason: "x", windows: [{ callId: "call_01" }] },
-      dataDir, conversationId: "cv_01", lookup,
+      dataDir, conversationId: "cv_01", browserNames: [], lookup,
     });
     expect(JSON.parse(blank.text)).toMatchObject({ ok: false, results: [{ ok: false, faultCode: "invalid_arguments" }] });
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
@@ -120,6 +122,7 @@ test("evidence.search reads page observation archive and returns file path", asy
       arguments: { reason: "查元素", windows: [{ pageId: "page_01", keyword: "alpha-target" }] },
       dataDir,
       conversationId: "cv_01",
+      browserNames: [],
       lookup,
     });
     const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[] };
@@ -148,6 +151,7 @@ test("evidence.search returns one result per window and keeps per-item ok", asyn
       },
       dataDir,
       conversationId: "cv_01",
+      browserNames: [],
       lookup,
     });
     const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[] };
@@ -209,13 +213,13 @@ test("evidence.search rejects missing sources and blank keywords", async () => {
     const missing = await executeTool({
       name: "evidence.search",
       arguments: { reason: "x", windows: [{ callId: "call_missing", keyword: "abc" }] },
-      dataDir, conversationId: "cv_01", lookup,
+      dataDir, conversationId: "cv_01", browserNames: [], lookup,
     });
     expect(JSON.parse(missing.text)).toMatchObject({ ok: false, results: [{ ok: false, faultCode: "file_not_found" }] });
     const blank = await executeTool({
       name: "evidence.search",
       arguments: { reason: "x", windows: [{ callId: "call_01", keyword: "  " }] },
-      dataDir, conversationId: "cv_01", lookup,
+      dataDir, conversationId: "cv_01", browserNames: [], lookup,
     });
     expect(JSON.parse(blank.text)).toMatchObject({ ok: false, results: [{ ok: false, faultCode: "invalid_arguments" }] });
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
@@ -232,7 +236,7 @@ test("evidence.search finds keyword split across wrap newlines", async () => {
     const execution = await executeTool({
       name: "evidence.search",
       arguments: { reason: "跨行检索", windows: [{ callId: "call_kw", keyword: "NEEDLE" }] },
-      dataDir, conversationId: "cv_01", lookup,
+      dataDir, conversationId: "cv_01", browserNames: [], lookup,
     });
     const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[] };
     const row = parsed.results[0]! as Record<string, unknown>;
@@ -253,7 +257,7 @@ test("evidence.search paddingLines expands upward and marks isTarget", async () 
     const execution = await executeTool({
       name: "evidence.search",
       arguments: { reason: "向前回溯", windows: [{ callId: "call_pad", startLine: 10, paddingLines: 3 }] },
-      dataDir, conversationId: "cv_01", lookup,
+      dataDir, conversationId: "cv_01", browserNames: [], lookup,
     });
     const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[] };
     const row = parsed.results[0]! as Record<string, unknown>;
@@ -278,14 +282,14 @@ test("evidence.search hybrid only matches keyword inside startLine window", asyn
     const full = await executeTool({
       name: "evidence.search",
       arguments: { reason: "全文", windows: [{ callId: "call_h", keyword: "TARGET_WORD" }] },
-      dataDir, conversationId: "cv_01", lookup,
+      dataDir, conversationId: "cv_01", browserNames: [], lookup,
     });
     expect(JSON.parse(full.text).results[0]).toMatchObject({ ok: true, matchCount: 1 });
     // Anchored at line 2, small context: line 3 may be out of a tiny window
     const anchored = await executeTool({
       name: "evidence.search",
       arguments: { reason: "锚点", windows: [{ callId: "call_h", keyword: "TARGET_WORD", startLine: 1, contextChars: 20 }] },
-      dataDir, conversationId: "cv_01", lookup,
+      dataDir, conversationId: "cv_01", browserNames: [], lookup,
     });
     const row = JSON.parse(anchored.text).results[0];
     expect(row.mode).toBe("hybrid");
@@ -307,7 +311,7 @@ test("evidence.search resolves a levelId chunk from the layered index tree", asy
     const execution = await executeTool({
       name: "evidence.search",
       arguments: { reason: "按块取回", windows: [{ callId, levelId: second.id }] },
-      dataDir, conversationId: "cv_01", lookup,
+      dataDir, conversationId: "cv_01", browserNames: [], lookup,
     });
     const row = JSON.parse(execution.text).results[0] as Record<string, unknown>;
     expect(row.ok).toBe(true);
@@ -325,7 +329,7 @@ test("evidence.search reports missing tree and unknown level ids", async () => {
     const missing = await executeTool({
       name: "evidence.search",
       arguments: { reason: "无树", windows: [{ callId: "call_a", levelId: "L1.1" }] },
-      dataDir, conversationId: "cv_01", lookup,
+      dataDir, conversationId: "cv_01", browserNames: [], lookup,
     });
     expect(JSON.parse(missing.text).results[0]).toMatchObject({ ok: false, faultCode: "not_found" });
     const labels = Array.from({ length: 200 }, (_, i) => `mod.ts:${i + 1} "y"`);
@@ -333,7 +337,7 @@ test("evidence.search reports missing tree and unknown level ids", async () => {
     const unknown = await executeTool({
       name: "evidence.search",
       arguments: { reason: "未知块", windows: [{ callId: "call_b", levelId: "L9.9" }] },
-      dataDir, conversationId: "cv_01", lookup,
+      dataDir, conversationId: "cv_01", browserNames: [], lookup,
     });
     expect(JSON.parse(unknown.text).results[0]).toMatchObject({ ok: false, faultCode: "not_found" });
   } finally { rmSync(dataDir, { recursive: true, force: true }); }

@@ -52,7 +52,13 @@ export async function fetchText(
         status: response.status,
         url: response.url,
         ms: Date.now() - started,
-        headers: Object.fromEntries(response.headers.entries()),
+        headers: (() => {
+          const collected: Record<string, string> = {};
+          response.headers.forEach((value, key) => {
+            collected[key] = value;
+          });
+          return collected;
+        })(),
         text,
         attempts,
         truncated,

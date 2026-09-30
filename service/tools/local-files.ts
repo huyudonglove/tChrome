@@ -60,8 +60,8 @@ async function searchOneDir(input: Record<string, unknown>): Promise<Record<stri
     }
     return { ok: true, path, matches, scanned, truncated, errors };
   } catch (error) {
-    const { faultCode, detail, message } = errorInfo(error, "tool_execution_failed");
-    return { ok: false, path: typeof input.path === "string" ? input.path : undefined, faultCode, error: detail || message };
+    const { faultCode, detail } = errorInfo(error, "tool_execution_failed");
+    return { ok: false, path: typeof input.path === "string" ? input.path : undefined, faultCode, error: detail };
   }
 }
 
@@ -109,8 +109,8 @@ async function readOneFile(input: Record<string, unknown>): Promise<Record<strin
       return { ok: true, path, content: buffer.subarray(0, consumed).toString("utf8"), offset, nextOffset: offset + consumed, size: stat.size, truncated: offset + consumed < stat.size };
     } finally { await file.close(); }
   } catch (error) {
-    const { faultCode, detail, message } = errorInfo(error, "tool_execution_failed");
-    return { ok: false, faultCode, error: detail || message };
+    const { faultCode, detail } = errorInfo(error, "tool_execution_failed");
+    return { ok: false, faultCode, error: detail };
   }
 }
 

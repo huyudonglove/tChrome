@@ -26,7 +26,7 @@ export type ConversationTurnSlice = {
 
 export type ConversationPayload = {
   conversationMemory: MemoryRecord[] | string;
-  conversationHistorySummary: TurnSummary[] | string;
+  conversationHistorySummary: ReturnType<typeof turnSummaryView> | string;
   turns: ConversationTurnSlice[];
   /** Session-wide first–last callId; detail lives only in the shared toolIO pool below. */
   toolRange: string | null;
@@ -51,7 +51,7 @@ const taskView = (plan: Task | null | undefined) => {
   };
 };
 
-const groupByTurn = <T extends { turnId: string }>(rows: T[], turnId: string) => rows.filter((row) => row.turnId === turnId);
+const groupByTurn = <T extends { turnId?: string }>(rows: T[], turnId: string) => rows.filter((row) => row.turnId === turnId);
 
 /** Rebuild turn slices from ledger arrays + the live turn; covered turns are already filtered upstream. */
 export function conversationPayload(input: {
@@ -61,7 +61,7 @@ export function conversationPayload(input: {
   conversationSummaries?: TurnSummary[] | string;
   currentQuery?: QueryEvidence | null;
   queryHistory?: QueryEvidence[];
-  gate: QueryViewOptions & { path?: (query: QueryEvidence) => string | undefined };
+  gate: Omit<QueryViewOptions, "path"> & { path?: (query: QueryEvidence) => string | undefined };
   /** Per-turn notes snapshots; live notes always land on the active turn. */
   notesByTurn?: Record<string, Record<string, string>>;
   /** Needed to restore settled turns' <output> from disk. */

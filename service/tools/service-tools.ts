@@ -45,7 +45,7 @@ export async function runServiceTool(
   input: Record<string, unknown> = {},
   signal?: AbortSignal,
   conversationId?: string,
-) {
+): Promise<Record<string, unknown>> {
   const heartbeatTools = new Set(["send_http", "send_http_batch", "web_search", "tavily_search"]);
   if (heartbeatTools.has(name) && input.heartbeatSec !== undefined) {
     try {
