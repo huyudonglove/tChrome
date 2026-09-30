@@ -568,8 +568,10 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     // 每窗口除命中正文外还有固定结构开销（source/path/mode/JSON 包装），按指针壳预留留位。
     const ROW_OVERHEAD = runtimeConfig.results.pointerShellReserve;
     const serialize = (rows: Record<string, unknown>[], dropped: number[]): string =>
+      // 主动裁剪不是执行失败：dropped 只描述「因预算没取完」，用 truncated/droppedWindows 表达；
+      // 若并进 ok，Runtime 会按 ok=false 补一个 tool_execution_failed，把预算裁剪误报成工具报错。
       JSON.stringify({
-        ok: rows.every((row) => row.ok) && dropped.length === 0,
+        ok: rows.every((row) => row.ok),
         results: rows,
         ...(dropped.length ? { truncated: true, droppedWindows: dropped } : {}),
       });

@@ -367,10 +367,9 @@ test("evidence.search splits one call budget across windows and reports dropped 
     expect(firstWidth).toBeLessThanOrEqual(retrievalWindowChars());
     if (parsed.droppedWindows?.length) {
       expect(parsed.truncated).toBe(true);
-      expect(parsed.ok).toBe(false);
-    } else {
-      expect(parsed.ok).toBe(true);
     }
+    // 裁剪只标记 truncated/droppedWindows，不应把整体判成失败（否则会被补成 tool_execution_failed）。
+    expect(parsed.ok).toBe(true);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
