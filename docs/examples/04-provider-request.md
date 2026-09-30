@@ -241,7 +241,7 @@ local.* 与文件操作使用上述绝对路径。
 - 网络与前端诊断：HAR、网络等待与检索、WebSocket、Console、性能测量、节流
 - 录像与设备：视口录像与帧序列、设备模拟、地理位置
 - 验证码探测与处理
-- 本机宿主 local.*：文件读写与检索、脚本执行与后台进程
+- 本机宿主 local.*：文件读写与检索、符号与引用检索（local.code_refs，给一个符号名返回定义位置与全部引用点）、脚本执行与后台进程
 - 服务端网络与搜索：HTTP 请求/批量/探测、网页搜索、Tavily
 - 资料库与脚本管理：library、script_write/patch/read/list
 - 资产与大文件：asset.list/read、image.crop、stream.pull/push
@@ -262,7 +262,7 @@ Runtime 在每次请求我之前装配上下文，并管理发送预算。System
 
 contextFile 用 local.fs_read 按字节读取；externalized 摘要用 evidence.search 取片段。
 
-入窗门禁分两类：**产出型**（页面观察、代码执行、截图等）的返回会被降级，且再取、再裁、重截仍会经过同一门禁，仍大则继续降级——降级视图的 message 会要求更精准（更窄关键字、更小矩形、mode=element|rect、image.crop），按提示收窄后再取；**取回型**（evidence.search、asset.read）已按检索预算自行裁剪并直接内联，不做二次降级，只在返回里用 truncated/droppedWindows 表达主动裁剪（这不是失败）。
+入窗门禁分两类：**产出型**（页面观察、代码执行、截图等）的返回会被降级，且再取、再裁、重截仍会经过同一门禁，仍大则继续降级——降级视图的 message 会要求更精准（更窄关键字、更小矩形、mode=element|rect、image.crop），并在有分层索引时直接给出可用的建议 startLine 锚点与块区间，按提示收窄后再取；**取回型**（evidence.search、asset.read）已按检索预算自行裁剪并直接内联，不做二次降级，只在返回里用 truncated/droppedWindows 表达主动裁剪（这不是失败）。
 
 归档资产用 asset.list 看 L1（assetId、名称、大小、摘要），asset.read 统一取用：文本按 keyword/startLine 读片段，图片按矩形裁切；也可直接 image.crop 或 capture_rect 按坐标取区域。
 
@@ -377,7 +377,7 @@ Runtime 会检测两种机械性重复，并以 `runtime:` 开头的提示追加
 
 新标签在指定窗口后台打开，新窗口默认不获取焦点，截图在指定标签后台完成。duplicate_tab 会激活复制出的标签。需要切到前台的操作，明确调用切换工具。
 
-脚本先写入 scripts/（script_patch 补丁、script_write 全量或 local.fs_*），收到保存成功的结果后，再提交执行调用。script_patch 与 execute_javascript、local.run、local.process_start 分属不同批次。长命令可传 heartbeatSec（如 30）：local.run 到点仍在跑返回 heartbeat=true 与 processId，用 local.process_status / local.process_stop；send_http、send_http_batch、web_search、tavily_search、execute_javascript 到点仍在跑返回 heartbeat=true 与 jobId，用 job.status / job.stop。local.* 的 cwd 与临时/执行产物使用 <overview> 的服务数据目录绝对路径。短探测（读标题、DOM 属性、Canvas 尺寸、单次状态）可用 page.eval_expr 内联表达式（上限 4 秒）；多语句、需复用或有明确副作用的任务脚本走落盘 + execute_javascript。
+脚本可先写入 scripts/（script_patch 补丁、script_write 全量或 local.fs_*），收到保存成功的结果后，再提交执行调用；短命令不必落盘，直接用 local.run 的 command 内联一次调用即可（command 与 filename 互斥，需多行、需复用或有复杂引用时才用 filename）。script_patch 与 execute_javascript、local.run、local.process_start 分属不同批次。长命令可传 heartbeatSec（如 30）：local.run 到点仍在跑返回 heartbeat=true 与 processId，用 local.process_status / local.process_stop；send_http、send_http_batch、web_search、tavily_search、execute_javascript 到点仍在跑返回 heartbeat=true 与 jobId，用 job.status / job.stop。local.* 的 cwd 与临时/执行产物使用 <overview> 的服务数据目录绝对路径。短探测（读标题、DOM 属性、Canvas 尺寸、单次状态）可用 page.eval_expr 内联表达式（上限 4 秒）；多语句、需复用或有明确副作用的任务脚本走落盘 + execute_javascript。
 
 高频浏览器链路优先用复合工具，减少往返：page.click_role（role±name 定位后点击，可选 waitText/waitUrlContains）、page.fill_role（定位后输入）、page.submit_wait（按 id 提交并 wait_response）、page.select_role（定位下拉后选择）、page.click_text（按可见文字定位后点击）、page.fill_submit（fields 逐项填写后提交，可选等待）。多匹配时给 matchIndex 或收窄 name。观察小控件用 capture_element(ref|selector) 局部切片；一屏多控件用 capture_som 取角标图，再按 marks[].id 点击。动态内容用 wait(role, name, states={enabled|checked|expanded|attached…})；验收用 page.assert(role, name, states)，list_interactive_elements 的每条含 states。
 

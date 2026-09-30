@@ -514,7 +514,7 @@ export function admitText(
   const anchorHint = finest
     ? `建议按最细一层 ${finest.id} 的锚点收窄：${anchors
         .map((chunk) => `startLine=${chunk.from}${chunk.to > chunk.from ? `（${chunk.from}-${chunk.to} 行）` : ""}`)
-        .join(" 或 ")}（全文 ${totalLines} 行，约 ${Math.max(1, Math.round(totalLines / finest.total))} 行/块）`
+        .join(" 或 ")}（全文 ${totalLines} 行，共 ${finest.total} 块可按 id 取回）`
     : `建议按行收窄：startLine=1 起小段读（全文 ${totalLines} 行，约 ${lineWidth} 字/行）`;
   return {
     mode: "preview",

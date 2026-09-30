@@ -323,7 +323,7 @@ test("admitText puts per-layer addressable chunk ids into the pointer payload", 
   // 降级提示直接给出最细一层的 startLine 锚点，模型不必再猜该往哪读。
   const hint = String(admitted.payload.message);
   expect(hint).toContain(`startLine=${l1.chunks[0]?.from}`);
-  expect(hint).toContain("行/块");
+  expect(hint).toContain(`共 ${l1.total} 块`);
   // 纯文本载荷抽不出层级 → 不带 layers
   const plain = admitText("z".repeat(5000), { callId: "call_02", path: "/tmp/b.txt" });
   if (plain.mode !== "preview") throw new Error("mode");
