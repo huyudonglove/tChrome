@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SUMMARY_RECOMPRESS_MIN_ACTIVE, compressRecords } from "./index.ts";
+import { runtimeConfig } from "../../config/runtime.ts";
 import { commitArchive, loadIndex } from "../../context-archive/store.ts";
 import type { Provider } from "../../types.ts";
 
@@ -43,7 +44,7 @@ const turnSource = (id: string, turnId: string) => ({
   },
 });
 
-test("extra sources take L1 immediately; L2 merge waits for active list to exceed 30", async () => {
+test("extra sources take L1 immediately; L2 merge waits for the active L1 gate", async () => {
   const dataDir = dir();
   const conversationId = "cv_01";
   // Seed one L1 summary for tn_01 via a prior successful compress.
@@ -76,8 +77,11 @@ test("extra sources take L1 immediately; L2 merge waits for active list to excee
   expect(index.entries.filter(e => e.turnId === "tn_01").every(e => e.level === 1)).toBe(true);
   expect(index.coveredSourceIds).toContain("src_02");
 
-  // Pad active summaries past the threshold, then L2 merge is allowed.
-  const padEntries = Array.from({ length: SUMMARY_RECOMPRESS_MIN_ACTIVE }, (_, i) => ({
+  // Pad past both gates the merge has to clear: the recompress gate counts active L1
+  // rows, and the cross-turn fold only runs once L1 rows exceed the per-level fold
+  // minimum. Padding to the fold minimum alone would leave Phase B silent.
+  const padLength = Math.max(SUMMARY_RECOMPRESS_MIN_ACTIVE + 1, runtimeConfig.context.summaryFoldMinRows + 1);
+  const padEntries = Array.from({ length: padLength }, (_, i) => ({
     id: `sum_pad_${String(i + 1).padStart(2, "0")}`,
     module: "conversationHistory" as const,
     level: 1,

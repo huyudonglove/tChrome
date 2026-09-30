@@ -90,7 +90,10 @@ async function compress(input: Input): Promise<CompressOutcome> {
     // L1: always cover uncovered sources (a turn may accumulate several L1 rows).
     // L2: only when active summaries exceed the gate, fold prior summaries into a higher level.
     const priorSummaries = activeEntries().filter(record => record.turnId === turnId);
-    const mergeAllowed = index.activeIds.length > SUMMARY_RECOMPRESS_MIN_ACTIVE;
+    // Count only the L1 rows this merge would re-read: higher-level rows are already
+    // condensed, so counting them made the gate unreachable in long sessions.
+    const activeL1Count = activeEntries().filter((record) => record.level === 1).length;
+    const mergeAllowed = activeL1Count > SUMMARY_RECOMPRESS_MIN_ACTIVE;
     const mergeTurn = priorSummaries.length > 0 && mergeAllowed;
     const sourcesForTurn = sources;
     const priorForTurn = mergeTurn ? priorSummaries : [];
@@ -156,13 +159,13 @@ async function compress(input: Input): Promise<CompressOutcome> {
 }
 
 /** Chunk sizes keep each fold model call bounded. */
-const FOLD_L1_TO_L2_CHUNK = 10;
+const FOLD_L1_TO_L2_CHUNK = runtimeConfig.context.foldL1ToL2Chunk;
 
 /** Rows per fold call for levels above L1 (L2→L3, L3→L4, ...). */
-const FOLD_HIGHER_CHUNK = 10;
+const FOLD_HIGHER_CHUNK = runtimeConfig.context.foldHigherChunk;
 
 /** Highest level a fold may produce; bounds the upgrade cascade. */
-const FOLD_MAX_LEVEL = 6;
+const FOLD_MAX_LEVEL = runtimeConfig.context.foldMaxLevel;
 
 /** Rows a level must exceed before it folds into the next level up (per level, not global). */
 const FOLD_MIN_ROWS = runtimeConfig.context.summaryFoldMinRows;

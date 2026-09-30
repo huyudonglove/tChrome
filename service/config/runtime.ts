@@ -98,6 +98,10 @@ const context = {
   summaryRecompressMinActive: resolveGate("summaryRecompressMinActive"),
   // A summary level only folds into the next one once it holds more than this many rows.
   summaryFoldMinRows: resolveGate("summaryFoldMinRows"),
+  // Rows folded per model call (L1→L2, and each higher level), and the level ceiling.
+  foldL1ToL2Chunk: resolveGate("foldL1ToL2Chunk"),
+  foldHigherChunk: resolveGate("foldHigherChunk"),
+  foldMaxLevel: resolveGate("foldMaxLevel"),
   keepToolBatches: resolveGate("keepToolBatches"),
   toolioRingSize: resolveGate("toolioRingSize"),
   // Nudge thresholds (repeat / actions / observation / compress-prep). Declared here so every
