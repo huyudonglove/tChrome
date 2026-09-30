@@ -98,6 +98,17 @@ const context = {
   summaryRecompressMinActive: resolveGate("summaryRecompressMinActive"),
   keepToolBatches: resolveGate("keepToolBatches"),
   toolioRingSize: resolveGate("toolioRingSize"),
+  // Nudge thresholds (repeat / actions / observation / compress-prep). Declared here so every
+  // "how many rows / how many calls" threshold has one source, same as the char budgets above.
+  repeatWindow: resolveGate("repeatWindow"),
+  repeatCallLimit: resolveGate("repeatCallLimit"),
+  repeatToolLimit: resolveGate("repeatToolLimit"),
+  repeatFaultLimit: resolveGate("repeatFaultLimit"),
+  actionsNudgeEvery: resolveGate("actionsNudgeEvery"),
+  observationNudgeFirstGate: resolveGate("observationNudgeFirstGate"),
+  observationNudgeMinGate: resolveGate("observationNudgeMinGate"),
+  observationNudgeStep: resolveGate("observationNudgeStep"),
+  compressNudgeHeadroom: resolveGate("compressNudgeHeadroom"),
 };
 
 // Relational invariants: a mis-scaled pair must fail at startup, not at runtime.

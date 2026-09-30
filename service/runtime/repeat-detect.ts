@@ -1,14 +1,19 @@
 import { ENVIRONMENT_FAULTS } from "../../shared/errors.ts";
 import type { ToolIOItem } from "../types.ts";
+import { runtimeConfig } from "../config/runtime.ts";
+
+// Thresholds live in service/config/runtime.json (gates.context) so every "how many rows"
+// budget has one source; the aliases below keep the call sites readable.
+const g = runtimeConfig.context;
 
 /** Sliding window: hints inspect the last N tool rows of the turn, not only the last two. */
-export const REPEAT_WINDOW = 8;
+export const REPEAT_WINDOW = g.repeatWindow;
 /** Equivalent-argument repeats of one tool inside the window (hint only, never blocks). */
-export const REPEAT_CALL_LIMIT = 2;
+export const REPEAT_CALL_LIMIT = g.repeatCallLimit;
 /** Same tool called this many times inside the window, whatever the arguments. */
-export const REPEAT_TOOL_LIMIT = 4;
+export const REPEAT_TOOL_LIMIT = g.repeatToolLimit;
 /** Same faultCode this many times inside the window. The message is deliberately ignored. */
-export const REPEAT_FAULT_LIMIT = 2;
+export const REPEAT_FAULT_LIMIT = g.repeatFaultLimit;
 /** Framing arguments differ between two attempts at the same action, so they do not count. */
 const FRAMING_KEYS = new Set(["x", "y", "width", "height"]);
 /** Stable marker per rule: a rule fires at most once per turn. */

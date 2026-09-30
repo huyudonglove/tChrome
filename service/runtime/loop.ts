@@ -25,13 +25,13 @@ import { executeTool } from "../tools/execute.ts";
 // Marker prefix appended to the last tool return; stripped on the next pass so a nudge never sticks.
 const OBSERVATION_NUDGE_MARKER = "runtime: 本回合已累计";
 const ACTIONS_NUDGE_MARKER = "runtime: actions-nudge";
-const ACTIONS_NUDGE_EVERY = 5;
-const OBSERVATION_NUDGE_FIRST_GATE = 30;
-const OBSERVATION_NUDGE_MIN_GATE = 10;
-const OBSERVATION_NUDGE_STEP = 10;
+const ACTIONS_NUDGE_EVERY = runtimeConfig.context.actionsNudgeEvery;
+const OBSERVATION_NUDGE_FIRST_GATE = runtimeConfig.context.observationNudgeFirstGate;
+const OBSERVATION_NUDGE_MIN_GATE = runtimeConfig.context.observationNudgeMinGate;
+const OBSERVATION_NUDGE_STEP = runtimeConfig.context.observationNudgeStep;
 // Compress-prep checkpoint: how much room above compressAt still allows deferring compression once
 // (below the hard externalize edge at externalizeAtChars, deferring further would risk context_limit).
-const COMPRESS_NUDGE_HEADROOM = 20000;
+const COMPRESS_NUDGE_HEADROOM = runtimeConfig.context.compressNudgeHeadroom;
 // Management / bookkeeping tools: their returns add no new evidence worth checkpointing.
 const OBSERVATION_NUDGE_EXCLUDED = new Set([
   "observation.write",
