@@ -176,7 +176,7 @@ export async function requestCrossTurnFold(input: {
     try { log.append(stage, data); } catch {}
   };
   const spanId = foldSpanId(input.turnIds);
-  const tier = input.level >= 3 ? "L3" : "L2";
+  const tier = "L2";
   append("fold-start", { conversationId: input.conversationId, module: input.module, spanId, level: input.level, turns: input.turnIds.length });
   try {
     const system = compressionSystemPrompt(input.repoRoot);

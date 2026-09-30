@@ -14,9 +14,8 @@ export type ConversationTurnSlice = {
     task: ReturnType<typeof taskView> | null;
     events: TaskHistoryRecord[];
   };
-  toolIO: ReturnType<typeof toolHistoryView>;
-  /** First–last callId of this turn; detail is kept only for the newest ring calls. */
-  toolRange: string | null;
+  /** First–last callId of this turn (ids are per-conversation sequential). */
+  callRange: string | null;
   actions: { id: string; text: string; at: string }[] | null;
   observations: ReturnType<typeof pageView>[];
   notes: Record<string, string>;
@@ -29,6 +28,10 @@ export type ConversationPayload = {
   conversationMemory: MemoryRecord[] | string;
   conversationHistorySummary: TurnSummary[] | string;
   turns: ConversationTurnSlice[];
+  /** Session-wide first–last callId; detail lives only in the shared toolIO pool below. */
+  toolRange: string | null;
+  /** Shared rolling pool: newest calls across all turns. */
+  toolIO: ReturnType<typeof toolHistoryView>;
 };
 
 const taskView = (plan: Task | null | undefined) => {
@@ -104,8 +107,11 @@ export function conversationPayload(input: {
         task: isLive ? taskView(liveTask) : null,
         events: taskEvents,
       },
-      toolIO: toolHistoryView(toolRows, pages, ringCallIds),
-      toolRange: toolRows.length ? `${toolRows[0]!.callId}–${toolRows.at(-1)!.callId}` : null,
+      callRange: toolRows.length
+        ? (toolRows[0]!.callId === toolRows.at(-1)!.callId
+          ? toolRows[0]!.callId
+          : `${toolRows[0]!.callId}–${toolRows.at(-1)!.callId}`)
+        : null,
       actions: isLive
         ? (turn.actions ?? null)
         : (input.dataDir
@@ -133,12 +139,19 @@ export function conversationPayload(input: {
           : null),
     });
   }
+  const sessionCalls = ledger.toolIO;
   return {
     conversationMemory: input.memories.conversation,
     conversationHistorySummary: Array.isArray(input.conversationSummaries)
       ? turnSummaryView(input.conversationSummaries)
       : input.conversationSummaries ?? [],
     turns,
+    toolRange: sessionCalls.length
+      ? (sessionCalls[0]!.callId === sessionCalls.at(-1)!.callId
+        ? sessionCalls[0]!.callId
+        : `${sessionCalls[0]!.callId}–${sessionCalls.at(-1)!.callId}`)
+      : null,
+    toolIO: toolHistoryView(sessionCalls.slice(-10), [], ringCallIds),
   };
 }
 
@@ -160,8 +173,7 @@ export function conversationXml(payload: ConversationPayload): string {
     const fields = [
       tag("userInput", slice.userInput),
       tag("task", slice.task),
-      ...(slice.toolRange ? [tag("toolRange", `${slice.toolRange}（本段 ${slice.toolIO.length} 次调用；仅最近 10 次保留详情，其余 evidence.search(callId) 取回）`)] : []),
-      tag("toolIO", slice.toolIO),
+      ...(slice.callRange ? [tag("callRange", slice.callRange)] : []),
       tag("actions", slice.actions),
       tag("observations", slice.observations),
       tag("notes", slice.notes),
@@ -171,5 +183,10 @@ export function conversationXml(payload: ConversationPayload): string {
     ].filter((block) => !/^<(\w+)>\n(null|""|\[\]|\{\})\n<\/\1>$/.test(block));
     parts.push(`<${slice.turnId}>\n${fields.join("\n")}\n</${slice.turnId}>`);
   }
+  // Shared tool pool at the bottom: session range + newest call details only.
+  if (payload.toolRange) {
+    parts.push(tag("toolRange", `${payload.toolRange}（全会话工具调用范围；详情仅保留最近 10 次，更早按轮内 callRange 用 evidence.search(callId) 取回）`));
+  }
+  parts.push(tag("toolIO", payload.toolIO));
   return parts.join("\n");
 }

@@ -31,7 +31,7 @@ Sample（一次请求只含一个完整轮次的骨架，仅示例）：
           "memoryWrites": [],
           "queryHistory": [],
           "reflection": { "turnId": "tn_01", "items": [{ "id": "rf_01", "text": "已确认页面支持 CSV；未下载文件二次核验。", "focus": "证据" }] },
-          "output": { "kind": "reply", "text": "1. 列表已出现新记录\n2. 提交成功\n3. 无需回滚" },
+          "stopReason": { "kind": "reply", "text": "1. 列表已出现新记录\n2. 提交成功\n3. 无需回滚" },
           "sequence": { "turn": 0, "batch": 2 },
           "segment": { "complete": true }
         }
@@ -45,7 +45,7 @@ Sample（一次请求只含一个完整轮次的骨架，仅示例）：
         {
           "turnId": "tn_03",
           "segments": [
-            { "conversationId": "cv_01", "turnId": "tn_03", "status": "completed", "toolIO": [], "reflection": null, "output": { "kind": "tool", "name": "page.click", "callId": "call_08" } }
+            { "conversationId": "cv_01", "turnId": "tn_03", "status": "completed", "toolIO": [], "reflection": null, "stopReason": { "kind": "tool", "name": "page.click", "callId": "call_08" } }
           ],
           "summaries": [{ "tag": "导出", "userRequest": "导出本月报表", "actions": "打开导出页", "result": "页面支持 CSV" }]
         }

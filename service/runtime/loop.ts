@@ -590,7 +590,8 @@ export async function handleTurn(
       const initialChars = windowChars(messages[0]!.content, messages[1]!.content);
       // Compress-prep checkpoint: compression turns this turn's tool returns into summaries and
       // pointers, so ask for one observation first — but only while the window still has headroom
-      // below the hard externalize edge, and only once per turn (compressNudgeSent).
+      // below the hard externalize edge, and only once per turn (compressNudgeSent). The next
+      // loop iteration compresses as usual; the gate is deferred by one send, never dropped.
       const deferForCheckpoint = !compressNudgeSent && writeCount === 0 && rows.length > 0
         && initialChars >= ledger.compressAt && initialChars < ledger.compressAt + COMPRESS_NUDGE_HEADROOM;
       if (deferForCheckpoint) {

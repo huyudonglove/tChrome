@@ -65,8 +65,10 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
     const provider: Provider = { complete: async input => {
       if (input.tools[0]?.function.name === "submitMatches") return reply([{ id: "matches", name: "submitMatches", arguments: { turnIds: ["tn_01"] } }]);
       if (input.tools[0]?.function.name === "submitTurnSummaries") {
-        compressed++; expect(input.messages[1]!.content).not.toContain(f.tool.return.text);
-        expect(main).toBe(1);
+        compressed++;
+        expect(input.messages[1]!.content).not.toContain(f.tool.return.text);
+        // Compression runs on the send after the one-shot nudge deferral (main===2 already sent).
+        expect(main).toBe(2);
         expect(sessionView(dataDir, f.cv).activity).toMatchObject({ kind: "compressing", phase: "history" });
         expect(sessionView(dataDir, f.cv).activity?.total).toBeGreaterThan(0);
         return reply([{ id: "summaries", name: "submitTurnSummaries", arguments: { tag: "早期要求", actions: "已处理", result: "已完成" } }]);
@@ -74,7 +76,8 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
       main++;
       if (main === 1) { expect(compressed).toBe(0); return queryCall(f.sumId); }
       if (main === 2) {
-        expect(compressed).toBeGreaterThan(0);
+        // Compress-prep nudge defers the 200K gate by one send when no observation is written yet.
+        expect(compressed).toBe(0);
         expect(sessionView(dataDir, f.cv).activity).toBeNull();
         const values = Object.fromEntries(modules.userOrder.map(tag => {
           const id = tag.slice(1);
@@ -84,20 +87,23 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
         }));
         expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
         const current = section(input.messages[1]!.content, "currentQuery");
-        const toolIO = section(input.messages[1]!.content, "toolIO");
-        const queryRow = toolIO.find((row: any) => row.name === "context.query");
-        expect(queryRow?.return?.result).toMatchObject({ currentQuery: true });
-        expect(JSON.stringify(queryRow)).not.toContain(f.tool.return.text);
         if (current.externalized) {
           expect(current.search).toBe("evidence.search");
           expect(String(current.head ?? current.summary).length).toBeGreaterThan(0);
         } else {
           expect(current.records).toEqual([f.tool]);
         }
-        expect(JSON.stringify(toolIO)).not.toContain(f.tool.return.text);
         return queryCall(f.sumId, "userInput");
       }
       if (main === 3) {
+        expect(compressed).toBeGreaterThan(0);
+        expect(sessionView(dataDir, f.cv).activity).toBeNull();
+        const toolIO = section(input.messages[1]!.content, "toolIO");
+        const queryRow = toolIO.find((row: any) => row.name === "context.query");
+        const result = queryRow?.return?.result;
+        if (typeof result === "string") expect(result).toContain("currentQuery");
+        else expect(result).toMatchObject({ currentQuery: true });
+        expect(JSON.stringify(toolIO)).not.toContain(f.tool.return.text);
         expect(section(input.messages[1]!.content, "queryHistory")).toHaveLength(1);
         expect(section(input.messages[1]!.content, "currentQuery").queryId).toBe("query_02");
       } else {

@@ -142,9 +142,7 @@ export function primeActiveTask(dataDir: string): void {
 }
 
 export function loadTurn(dataDir: string, cvId: string, turnId: string): Turn {
-  const turn = JSON.parse(readFileSync(join(paths(dataDir, cvId).turns, `${turnId}.json`), "utf8")) as Turn & { output?: Turn["stopReason"] };
-  // Turns saved before the output -> stopReason rename keep the legacy field.
-  turn.stopReason ??= turn.output ?? null;
+  const turn = JSON.parse(readFileSync(join(paths(dataDir, cvId).turns, `${turnId}.json`), "utf8")) as Turn;
   turn.assembled.observations ??= [];
   return turn;
 }

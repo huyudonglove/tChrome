@@ -47,7 +47,7 @@
 | 3 | tools | 否 | — | — | main |
 | 4 | conversation | 否 | — | — | main |
 
-`<conversation>` 内为会话级 `<conversationMemory>`、`<conversationHistorySummary>` 与按 turnId 嵌套的 `<tn_xx>` 轮次切片（userInput / task / toolIO / actions / observations / notes / reflection / query / stopReason）；被压缩覆盖的轮次整块删除。
+`<conversation>` 内为会话级 `<conversationMemory>`、`<conversationHistorySummary>` 与按 turnId 嵌套的 `<tn_xx>` 轮次切片（userInput / task / callRange / actions / observations / notes / reflection / query / stopReason）；外层底部为全会话公用 toolRange + toolIO（最近 10 次详情滚动池）；被压缩覆盖的轮次整块删除。
 
 ### Archive · 仅压缩
 
@@ -55,7 +55,7 @@
 |---|---|---|---|
 | userInput | 是 | userInput | 轮次用户输入 |
 | actions | 是 | actions | 模型维护的工具调用流水 |
-| toolIO | 是 | toolIO | 工具调用与返回 |
+| toolIO | 是 | toolIO | 底部公用池：最近 10 次调用详情（轮内只留 callRange） |
 | observations | 是 | observations | 观察（页面/代码等） |
 | memoryWrites | 是 | memoryWrites | 会话记忆写入 |
 | reflection | 是 | reflection | 轮次反思 |

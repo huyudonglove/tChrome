@@ -20,7 +20,7 @@
   <tn_01>
     <userInput>…</userInput>
     <task>…</task>
-    <toolIO>…</toolIO>
+    <callRange>call_01–call_12</callRange>
     <actions>…</actions>
     <observations>…</observations>
     <notes>…</notes>
@@ -39,7 +39,8 @@
 | --- | --- | --- |
 | `userInput` | `{id, turnId, userInput}` | `id` |
 | `task` | `{activeTaskId, activeTaskItemId, task, events}` | `activeTaskId`、items `id`、events `id` |
-| `toolIO` | `[{callId, turnId, batchId?, name, arguments, return:{stage, result}}]`；仅最近 10 次调用保留详情，更早为外置指针 | `callId` |
+| `callRange` | string \| null | 本段工具调用 ID 首尾（如 `call_01–call_12`；单次调用只一个 id） |
+| `toolIO` | 数组 | conversation 底部全会话公用池：仅最近 10 次调用保留详情，更早按各轮 callRange 用 evidence.search(callId) 取回 |
 | `actions` | `[{id, text, at}]` 或 null；actions.write 追加的本轮流水 | `id` |
 | `observations` | `[{id, turnId, callId, batchId?, tabId, type, result}]` | `id` |
 | `notes` | `{key:text}` 本轮草稿 | turnId + key |

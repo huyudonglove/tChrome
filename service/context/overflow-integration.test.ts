@@ -32,6 +32,12 @@ const nestedTag = (user: string, name: string): any => {
 };
 const slot = (user: string, name: string): any => {
   const key = name.replace(/^#/, "");
+  // toolIO is a shared pool at the bottom of <conversation>, not inside a turn slice.
+  if (key === "toolIO") {
+    const conversationOnly = String(xmlSlots(user).conversation ?? "");
+    const pool = conversationOnly.match(/<toolIO>\n([\s\S]*?)\n<\/toolIO>/);
+    return pool ? JSON.parse(pool[1]!) : [];
+  }
   if (key === "notes" || key === "toolIO" || key === "userInput" || key === "goal" || key === "task") {
     const conversation = String(xmlSlots(user).conversation ?? "");
     const turn = conversation.match(/<tn_[^>]+>\n([\s\S]*?)\n<\/tn_[^>]+>/);

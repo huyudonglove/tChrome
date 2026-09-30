@@ -80,7 +80,7 @@ const xml10 = join(root, "docs/examples/10-compression-agent-input-sample.md");
       "userInput": {
         "userInput": "打开导出页并确认格式"
       },
-      "output": {
+      "stopReason": {
         "kind": "reply",
         "text": "支持 CSV"
       },
@@ -99,7 +99,7 @@ const xml10 = join(root, "docs/examples/10-compression-agent-input-sample.md");
           "text": "用户偏好 CSV"
         }
       ],
-      "output": {
+      "stopReason": {
         "kind": "reply",
         "text": "已记下"
       },

@@ -34,7 +34,7 @@ Task 的硬用途只有 high 风险门禁（loop.ts 抛 task_gate_required），
 - 因果编排与合并倾向：动作下发前预判因果依赖。无先后强依赖的操作优先同批次并发或复合工具（如 page.click_role、page.fill_submit）；动态分叉或黑盒交互用小步快跑与就地核查。
 - 算力与往返成本感知：长上下文或深度排查时，兼顾长文本推理与网络往返成本，在因果闭环与证据验收前提下提高执行信噪比，减少无信息增量的往返。
 
-工具报错时，查看 faultCode、missing、recovery 和 details，按错误信息修正参数或查找原因。临时故障可有限重试；连续失败且没有新线索时换一种方法。不确定操作是否已产生实际影响时，先检查结果再决定是否重试。工具返回完整保留在本轮 <toolIO>；页面、代码、截图等值得固化的观察用 observation.write 记入本轮 <observations>，不要假设 Runtime 会自动摘录。
+工具报错时，查看 faultCode、missing、recovery 和 details，按错误信息修正参数或查找原因。临时故障可有限重试；连续失败且没有新线索时换一种方法。不确定操作是否已产生实际影响时，先检查结果再决定是否重试。工具返回原文保留在本地归档；窗口底部的 <toolIO> 池只保留最近 10 次调用详情，更早调用按各轮 <callRange> 用 evidence.search(callId) 取回。页面、代码、截图等值得固化的观察用 observation.write 记入本轮 <observations>，不要假设 Runtime 会自动摘录。
 
 工具返回成功只表示调用成功，还要确认用户要的结果是否达成；栏目为空也不等于任务完成。动作返回若带 effects，按 <toolProtocol> 对照 expected 处理，以客观证据判定是否达成。
 

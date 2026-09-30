@@ -88,3 +88,33 @@ test("fold is a no-op below the active-summary gate", async () => {
   expect(merged).toBe(0);
   expect(loadIndex(dataDir, conversationId, "conversationHistory").activeIds).toHaveLength(3);
 });
+
+test("L1+L1 only: same turnId stays L1, different turnIds become L2, never L3", async () => {
+  const dataDir = dir();
+  const conversationId = "cv_rules";
+  const pad = SUMMARY_RECOMPRESS_MIN_ACTIVE + 5;
+  const rows: CompressionRecord[] = [];
+  for (let i = 1; i <= pad; i++) rows.push(l1(`sum_pad_${i}`, `tn_${String(i).padStart(2, "0")}`, i));
+  // Two extra L1s on one turn: same-ID merge must stay L1.
+  rows.push(l1("sum_same_a", "tn_same", 50));
+  rows.push(l1("sum_same_b", "tn_same", 51));
+  rows.push(l1("sum_live", "tn_live", 99));
+  commitArchive(dataDir, conversationId, {
+    version: 1 as const, module: "conversationHistory" as const,
+    entries: rows, activeIds: rows.map((r) => r.id), coveredSourceIds: [],
+  }, [], rows);
+
+  await foldActiveSummaries({
+    dataDir, conversationId, repoRoot, provider,
+    module: "conversationHistory", records: [], protectTurnId: "tn_live",
+  });
+
+  const after = loadIndex(dataDir, conversationId, "conversationHistory");
+  const active = after.activeIds.map((id) => after.entries.find((e) => e.id === id)!);
+  expect(active.every((e) => e.level <= 2)).toBe(true);
+  expect(after.entries.every((e) => e.level <= 2)).toBe(true);
+  const l2 = active.filter((e) => e.level === 2);
+  expect(l2.every((e) => (e.turnIds?.length ?? 0) > 1)).toBe(true);
+  const sameTurn = active.filter((e) => e.turnIds?.includes("tn_same") || e.turnId === "tn_same");
+  expect(sameTurn.every((e) => e.level === 1)).toBe(true);
+});
