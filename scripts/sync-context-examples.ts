@@ -15,6 +15,15 @@ const registry = loadToolRegistry(root);
 // --check：只比对不写盘，文档与当前渲染结果不一致时退出 1 并列出文件。用于把本脚本挂进 bun run check。
 const checkOnly = process.argv.includes("--check");
 const stale: string[] = [];
+// 文档示例必须与宿主无关：`systemText` 的 env 留空时会回落到本机 process.cwd() /
+// TCHROME_DATA / hostOsLabel()，同一份 examples 在 macOS 提交、在 ubuntu 上 --check
+// 必然判为过期。这里钉死为当初烘焙进 docs/examples 的那组值，两边渲染结果一致，
+// 且不需要改动任何已提交文档。
+const PINNED_ENV = {
+  cwd: "/Users/huyudong/Projects/tChrome",
+  dataDir: "/Users/huyudong/Library/Application Support/tChrome",
+  os: "macOS (darwin/arm64)",
+};
 function emit(path: string, text: string) {
   if (checkOnly) {
     if (readFileSync(path, "utf8") !== text) stale.push(path);
@@ -50,7 +59,7 @@ for (const file of readdirSync(join(root, "docs/examples")).filter(f => /^0[1-8]
     const ledger = emptyLedger(snapshot.conversationId);
     ledger.userInputHistory = snapshot.userInputHistory;
     const user = userText({ contextModules: c, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: loadSkills(root), toolGuide: toolGuideFor(registry, snapshot.toolIds) });
-    text = replaceFencedBlock(text, "<overview>", systemText(c, "2026-09-06", toolGuideFor(registry, registry.toolGroups.baseToolsIds), {}, skillGuide(root)));
+    text = replaceFencedBlock(text, "<overview>", systemText(c, "2026-09-06", toolGuideFor(registry, registry.toolGroups.baseToolsIds), PINNED_ENV, skillGuide(root)));
     text = replaceFencedBlock(text, "<skill>", user);
   }
   text = text.replace(/^```json\n([\s\S]*?)^```/gm, (_, body) => fence("json", JSON.stringify(update(JSON.parse(body)), null, 2)));
@@ -62,7 +71,7 @@ const xml09 = join(root, "docs/examples/09-main-model-xml-sample.md");
   const turn = { turnId: snapshot.turnId, input: { id: `input_${snapshot.turnId.slice(3)}`, text: snapshot.userInput, submittedAt: snapshot.submittedAt }, assembled: snapshot } as Turn;
   const ledger = emptyLedger(snapshot.conversationId);
   ledger.userInputHistory = snapshot.userInputHistory;
-  const system = systemText(c, "2026-09-18", toolGuideFor(registry, registry.toolGroups.baseToolsIds), {}, skillGuide(root));
+  const system = systemText(c, "2026-09-18", toolGuideFor(registry, registry.toolGroups.baseToolsIds), PINNED_ENV, skillGuide(root));
   const user = userText({ contextModules: c, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: loadSkills(root), toolGuide: toolGuideFor(registry, snapshot.toolIds) });
   let text = readFileSync(xml09, "utf8");
   text = replaceFencedSection(text, "## System（", `## System（${system.length} 字符）\n\n` + fence("text", system), "## User（");
