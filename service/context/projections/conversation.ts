@@ -3,6 +3,7 @@ import type { MemoryRecord } from "../../memory/types.ts";
 import { pageView, turnSummaryView, type TurnSummary } from "./records.ts";
 import { toolHistoryView } from "./tools.ts";
 import { queryView, type QueryEvidence, type QueryViewOptions } from "./queries.ts";
+import { runtimeConfig } from "../../config/runtime.ts";
 import { loadTurn } from "../../runtime/store.ts";
 
 export type ConversationTurnSlice = {
@@ -85,7 +86,7 @@ export function conversationPayload(input: {
   if (input.currentQuery) queries.push(input.currentQuery);
   const notesByTurn = input.notesByTurn ?? {};
   // Newest tool calls keep their detail; everything older collapses to pointers.
-  const ringCallIds = new Set(ledger.toolIO.slice(-10).map((row) => row.callId));
+  const ringCallIds = new Set(ledger.toolIO.slice(-runtimeConfig.context.toolioRingSize).map((row) => row.callId));
 
   const turns: ConversationTurnSlice[] = [];
   const seen = new Set<string>();
@@ -151,7 +152,7 @@ export function conversationPayload(input: {
         ? sessionCalls[0]!.callId
         : `${sessionCalls[0]!.callId}–${sessionCalls.at(-1)!.callId}`)
       : null,
-    toolIO: toolHistoryView(sessionCalls.slice(-10), [], ringCallIds),
+    toolIO: toolHistoryView(sessionCalls.slice(-runtimeConfig.context.toolioRingSize), [], ringCallIds),
   };
 }
 

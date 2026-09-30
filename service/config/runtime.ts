@@ -97,6 +97,7 @@ const context = {
   externalizeAtChars: resolveGate("externalizeAtChars"),
   summaryRecompressMinActive: resolveGate("summaryRecompressMinActive"),
   keepToolBatches: resolveGate("keepToolBatches"),
+  toolioRingSize: resolveGate("toolioRingSize"),
 };
 
 // Relational invariants: a mis-scaled pair must fail at startup, not at runtime.
