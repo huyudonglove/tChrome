@@ -15,7 +15,7 @@ type Message = { turnId?: string; role: "user" | "assistant" | "tool"; text: str
 type SessionView = {
   conversationId: string | null;
   status: string;
-  activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null; completed?: number; total?: number | null; source?: "agent" | "runtime" } | null;
+  activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null; completed?: number; total?: number | null; source?: "agent" | "runtime"; fold?: { merged: number; level: number; turnIds: number } | null } | null;
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
   liveTools: { name: string; callId: string; reason?: string }[];
   task: {
@@ -227,7 +227,10 @@ export function App() {
     : "";
   const compressionSource = session.activity?.source === "agent" ? "agent" : "runtime";
   const compressionSourceText = compressionSource === "agent" ? "我主动触发" : "上下文超限自动";
-  const compressionText = `${phaseText}${progress}`;
+  const foldText = session.activity?.fold
+    ? ` 折叠 ${session.activity.fold.merged} 段 · 第 ${session.activity.fold.level} 层`
+    : "";
+  const compressionText = `${phaseText}${progress}${foldText}`;
 
   const loadAll = async () => {
     const generation = submission.current;

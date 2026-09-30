@@ -11,7 +11,8 @@
     "test": "bun test service shared",
     "test:extension": "bun test extension",
     "check:wiring": "bun run scripts/tool_wiring_check.ts",
-    "check": "bun run check:wiring && bun test service shared && bun run scripts/build-extension.ts && bun run scripts/sync-context-examples.ts --check"
+    "typecheck": "tsc --noEmit",
+    "check": "bun run check:wiring && bun run typecheck && bun test service shared && bun run scripts/build-extension.ts && bun run scripts/sync-context-examples.ts --check"
   },
   "dependencies": {
     "@tavily/core": "^0.7.11",
