@@ -4,9 +4,22 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { homedir, tmpdir } from "node:os";
 import { isAbsolute, extname, join, resolve } from "node:path";
 import { stat, mkdir, mkdtemp, writeFile } from "node:fs/promises";
-import { appendFileSync, rmSync } from "node:fs";
+import { appendFileSync, existsSync, rmSync } from "node:fs";
 import { readScript } from "../scripts/store.ts";
 import { StringDecoder } from "node:string_decoder";
+
+// .sh 解释器按平台探测：macOS 上 zsh 存在，CI 的 ubuntu runner 只有 bash/sh，
+// 硬编码 /bin/zsh 会让所有 .sh 与内联 command 在 Linux 上 spawn ENOENT。
+export function resolveShellInterpreter(
+  platform: NodeJS.Platform = process.platform,
+  probe: (path: string) => boolean = existsSync,
+): string {
+  const candidates = platform === "darwin" ? ["/bin/zsh", "/bin/bash", "/bin/sh"] : ["/bin/bash", "/bin/sh", "/bin/zsh"];
+  for (const candidate of candidates) {
+    if (probe(candidate)) return candidate;
+  }
+  return candidates[candidates.length - 1]!;
+}
 
 export const LOCAL_PROCESS_TOOL_NAMES = ["local.run", "local.process_start", "local.process_status", "local.process_write", "local.process_stop", "local.open", "local.capabilities"] as const;
 type Status = "running" | "exited" | "error" | "timeout" | "stopped";
@@ -80,11 +93,11 @@ async function start(input: Record<string, unknown>, scope: string, token: { can
       executable = process.platform === "darwin" ? "/usr/bin/open" : "xdg-open";
       argv = [path];
     } else {
-      const interpreters: Record<string, string> = { ".sh": "/bin/zsh", ".py": "python3", ".js": process.execPath, ".mjs": process.execPath, ".cjs": process.execPath };
+      const interpreters: Record<string, string> = { ".sh": resolveShellInterpreter(), ".py": "python3", ".js": process.execPath, ".mjs": process.execPath, ".cjs": process.execPath };
       let extension: string;
       let code: string;
       if (command !== undefined) {
-        // 内联命令走同一快照机制：落临时 .sh 交给 zsh，避免与落盘脚本行为分叉。
+        // 内联命令走同一快照机制：落临时 .sh 交给系统 sh，避免与落盘脚本行为分叉。
         extension = ".sh";
         code = command;
       } else {

@@ -2312,7 +2312,7 @@
       ]
     },
     "local.process_start": {
-      "purpose": "Execute a saved script by filename in absolute cwd. Save first with script_patch, script_write or local.fs_write. Extensions: .sh uses zsh, .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches. No default timeout; optional timeoutMs terminates the process group when elapsed. Complete stdout/stderr are returned and persisted in stdoutPath/stderrPath. Returns processId immediately; use local.process_status, local.process_write and local.process_stop to interact. script_patch must run in an earlier call than this execution.",
+      "purpose": "Run a shell command (command, inline) or a saved script (filename) in absolute cwd. Save first with script_patch, script_write or local.fs_write when using filename. Extensions: .sh uses the system shell (zsh/bash/sh by platform), .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches. No default timeout; optional timeoutMs terminates the process group when elapsed. Complete stdout/stderr are returned and persisted in stdoutPath/stderrPath. Returns processId immediately; use local.process_status, local.process_write and local.process_stop to interact. script_patch must run in an earlier call than this execution.",
       "triggers": [
         "local.process_start",
         "任务需要访问本机文件、Git、脚本或系统能力"
@@ -2449,7 +2449,7 @@
       ]
     },
     "local.run": {
-      "purpose": "Execute a saved script by filename in absolute cwd. Save first with script_patch, script_write or local.fs_write. Extensions: .sh uses zsh, .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches.",
+      "purpose": "Run a shell command (command, inline) or a saved script (filename) in absolute cwd. Save first with script_patch, script_write or local.fs_write when using filename. Extensions: .sh uses the system shell (zsh/bash/sh by platform), .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches.",
       "triggers": [
         "local.run",
         "任务需要访问本机文件、Git、脚本或系统能力"

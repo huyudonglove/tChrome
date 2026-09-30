@@ -9,7 +9,7 @@
         "filename": {
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*\\.(sh|py|js|mjs|cjs)$",
-          "description": "服务数据目录 scripts/ 下的单层脚本文件名，不含目录。必须以字母或数字开头，以 .sh / .py / .js / .mjs / .cjs 结尾，不接受目录分隔符与其他扩展名（写成 '>name.mjs' 这类会被 pattern 拒绝）。扩展名决定解释器：.sh 用 zsh，.py 用 python3，.js/.mjs/.cjs 用 Bun。"
+          "description": "服务数据目录 scripts/ 下的单层脚本文件名，不含目录。必须以字母或数字开头，以 .sh / .py / .js / .mjs / .cjs 结尾，不接受目录分隔符与其他扩展名（写成 '>name.mjs' 这类会被 pattern 拒绝）。扩展名决定解释器：.sh 用系统 shell（按平台 zsh/bash/sh），.py 用 python3，.js/.mjs/.cjs 用 Bun。"
         },
         "code": {
           "type": "string",

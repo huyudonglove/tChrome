@@ -3,7 +3,7 @@ import { mkdtemp, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { patchScript } from "../scripts/store.ts";
-import { abortAllLocalProcesses, abortLocalProcesses, runLocalProcessTool } from "./local-process";
+import { abortAllLocalProcesses, abortLocalProcesses, resolveShellInterpreter, runLocalProcessTool } from "./local-process";
 
 let cwd: string;
 let scope: string;
@@ -168,4 +168,16 @@ test("blocked stdin writes finish when a process times out", async () => {
   }
   expect(results.some((result) => result.ok === false)).toBe(true);
   expect(await waitFor(started.processId, (value) => value.status === "timeout" && value.signal === "SIGKILL")).toMatchObject({ ok: false });
+});
+
+test("resolveShellInterpreter prefers the platform shell and falls back when absent", () => {
+  // macOS: zsh → bash → sh
+  expect(resolveShellInterpreter("darwin", () => true)).toBe("/bin/zsh");
+  expect(resolveShellInterpreter("darwin", (path) => path !== "/bin/zsh")).toBe("/bin/bash");
+  expect(resolveShellInterpreter("darwin", (path) => path === "/bin/sh")).toBe("/bin/sh");
+  // Linux/CI runner has no zsh: bash → sh → zsh
+  expect(resolveShellInterpreter("linux", () => true)).toBe("/bin/bash");
+  expect(resolveShellInterpreter("linux", (path) => path === "/bin/sh")).toBe("/bin/sh");
+  // Nothing probed exists: return the last candidate rather than throwing.
+  expect(resolveShellInterpreter("linux", () => false)).toBe("/bin/zsh");
 });

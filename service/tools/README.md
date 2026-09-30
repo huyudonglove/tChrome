@@ -26,7 +26,7 @@
 
 `local-files.ts` 提供绝对路径的文件读写、列表、搜索、复制、移动与删除；`local-process.ts` 提供脚本执行、后台进程、标准输入、终止和系统打开。`local-tools.ts` 统一分派本机工具并建立会话作用域。工具定义仍只维护在 `definitions/local.*.json`，通过现有动态目录发现和 `catalog.add` 加载，不另建浏览器到本机的通信通道。
 
-脚本在服务电脑上按扩展名选择解释器执行（zsh / python3 / bun），不依赖文件可执行位；必须提供绝对 cwd。`script_patch` 仅接受 `new file mode 100644` 一类纯内容补丁，拒绝 rename、mode 变更与 `100755`。stdout/stderr 完整写入 process-output/<processId>/，进程 ID 只属于创建它的会话，服务重启后失效；停止会话、删除会话和服务正常退出会终止对应进程组。新建或切换会话不停止原会话任务；需要停止时先停止原会话。已结束进程记录保留至服务结束。
+脚本在服务电脑上按扩展名选择解释器执行（.sh 按平台取 zsh/bash/sh，.py python3，.js/.mjs/.cjs bun），不依赖文件可执行位；必须提供绝对 cwd。`script_patch` 仅接受 `new file mode 100644` 一类纯内容补丁，拒绝 rename、mode 变更与 `100755`。stdout/stderr 完整写入 process-output/<processId>/，进程 ID 只属于创建它的会话，服务重启后失效；停止会话、删除会话和服务正常退出会终止对应进程组。新建或切换会话不停止原会话任务；需要停止时先停止原会话。已结束进程记录保留至服务结束。
 
 本地能力使用服务进程的操作系统权限，不绕过macOS权限；文件修改即时生效，不随聊天记录删除而回滚。execution=parallel 仅表示可与同批其他 parallel 调用并发，不表示本地操作没有副作用。文件复制/移动默认拒绝已存在目标，移动的默认实现是复制成功后删除源，操作期间应避免源被其他程序修改。
 
@@ -38,7 +38,7 @@
 
 脚本保存在服务数据目录下的 `scripts/`（该目录是绝对路径，由 System `<overview>` 注入；环境变量 `TCHROME_DATA` 可覆盖默认位置，模型调用不要写 `~/` 缩写）：可用 `script_patch(filename, patch)` 应用单文件 git unified diff（新增、修改、删除），或 `script_write(filename, code)` 全量写入，也可用 `local.fs_*` 直接读写该目录；`script_read(filename)` 返回代码，`script_list()` 返回文件名。脚本类工具默认 execution=serial。文件名为单层 .sh/.py/.js/.mjs/.cjs。执行快照在系统临时目录，进程输出在数据目录 `process-output/`；不要把临时脚本或执行产物写进代码仓库。
 
-`execute_javascript` 使用 filename（仅 .js/.mjs/.cjs）和必填 tabId，不接受内联 code；内容为页面表达式，多语句或异步逻辑使用 IIFE。`page.eval_expr` 是免落盘的轻量内联表达式入口（必填 tabId + expr，4 秒上限），只适合短探测；多语句或需复用的任务脚本仍走 script_write + execute_javascript。`local.run` / `local.process_start` 使用 filename 和绝对路径 cwd，可选 args 字符串数组及 timeoutMs；.sh 由 zsh、.py 由 python3、.js/.mjs/.cjs 由 bun 执行，不接受内联 command。补丁只返回状态，必须在确认成功后的下一次模型调用执行；Runtime 拒绝同批 script_patch 与脚本执行。
+`execute_javascript` 使用 filename（仅 .js/.mjs/.cjs）和必填 tabId，不接受内联 code；内容为页面表达式，多语句或异步逻辑使用 IIFE。`page.eval_expr` 是免落盘的轻量内联表达式入口（必填 tabId + expr，4 秒上限），只适合短探测；多语句或需复用的任务脚本仍走 script_write + execute_javascript。`local.run` / `local.process_start` 使用绝对路径 cwd，可选 args 字符串数组及 timeoutMs；.sh 按平台取系统 shell（macOS 优先 zsh，Linux 优先 bash，均回退到另一个或 sh）、.py 由 python3、.js/.mjs/.cjs 由 bun 执行。`local.run` 还可改用 command 内联命令正文（与 filename 互斥），`local.process_start` 只接受 filename。补丁只返回状态，必须在确认成功后的下一次模型调用执行；Runtime 拒绝同批 script_patch 与脚本执行。
 
 长耗时调用可传 heartbeatSec（正整数秒）：`local.run` 提前返回 processId，用 `local.process_status` / `local.process_stop`；`send_http`、`send_http_batch`、`web_search`、`tavily_search`、`execute_javascript` 提前返回 jobId，用常驻 `job.status` / `job.stop`。任务结束后心跳结束；停止会话/删除会话会取消对应任务。
 

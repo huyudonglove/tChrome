@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.run",
-    "description": "Run a shell command or a saved script. Two mutually exclusive ways in, pick one: (1) command — inline the command body, one call, no need to save anything first; (2) filename — execute a saved script under the service data directory scripts/ (save it first with script_patch, script_write or local.fs_write) when the body is multi-line, will be reused, or contains complex quoting. Both paths run through the same private temp snapshot, so they never interfere. Extensions for filename: .sh uses zsh, .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches.\ncwd: absolute path for the process working directory; use the service data directory from System overview unless the user names another directory.\nheartbeatSec: optional positive seconds (e.g. 30). If the process is still running when that time elapses, return heartbeat=true, status=running, processId, stdoutPreview/stderrPreview. Then use local.process_status or local.process_stop. If the process exits before heartbeatSec, the call returns the complete result. Without heartbeatSec, the call waits for completion (timeoutMs still applies).\nComplete stdout/stderr persist in stdoutPath/stderrPath. Nonzero exit means failure. script_patch must run in an earlier call than this execution.\n执行调度：serial（Runtime 固定，不必返回）。",
+    "description": "Run a shell command or a saved script. Two mutually exclusive ways in, pick one: (1) command — inline the command body, one call, no need to save anything first; (2) filename — execute a saved script under the service data directory scripts/ (save it first with script_patch, script_write or local.fs_write) when the body is multi-line, will be reused, or contains complex quoting. Both paths run through the same private temp snapshot, so they never interfere. Extensions for filename: .sh uses the system shell (zsh/bash/sh by platform), .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches.\ncwd: absolute path for the process working directory; use the service data directory from System overview unless the user names another directory.\nheartbeatSec: optional positive seconds (e.g. 30). If the process is still running when that time elapses, return heartbeat=true, status=running, processId, stdoutPreview/stderrPreview. Then use local.process_status or local.process_stop. If the process exits before heartbeatSec, the call returns the complete result. Without heartbeatSec, the call waits for completion (timeoutMs still applies).\nComplete stdout/stderr persist in stdoutPath/stderrPath. Nonzero exit means failure. script_patch must run in an earlier call than this execution.\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -26,7 +26,7 @@
         },
         "command": {
           "type": "string",
-          "description": "内联命令正文（zsh 执行），适合一行探针，省去先 script_write 再执行的两次往返；与 filename 互斥。需要多行、需复用或有复杂引用时改用 filename 落盘脚本。"
+          "description": "内联命令正文（按平台选 shell 执行），适合一行探针，省去先 script_write 再执行的两次往返；与 filename 互斥。需要多行、需复用或有复杂引用时改用 filename 落盘脚本。"
         },
         "filename": {
           "type": "string",
