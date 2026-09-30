@@ -158,12 +158,20 @@ async function compress(input: Input): Promise<CompressOutcome> {
 /** Chunk sizes keep each fold model call bounded. */
 const FOLD_L1_TO_L2_CHUNK = 10;
 
+/** Rows per fold call for levels above L1 (L2→L3, L3→L4, ...). */
+const FOLD_HIGHER_CHUNK = 10;
+
+/** Highest level a fold may produce; bounds the upgrade cascade. */
+const FOLD_MAX_LEVEL = 6;
+
 /**
- * Summary folding per the confirmed rule:
+ * Summary folding:
  * - gate: active summaries above SUMMARY_RECOMPRESS_MIN_ACTIVE
  * - protect the newest turn's rows (current turn stays fresh)
- * - only L1+L1 may merge: same turnId stays L1; different turnIds upgrade to L2
- * - never cross levels (no L2→L3, no L1+L2); L2 rows are terminal
+ * - L1+L1: same turnId stays L1, different turnIds upgrade to L2
+ * - higher levels fold among themselves: rows of one level N merge into a
+ *   single level N+1 record, applied repeatedly (L2→L3→L4...) while a level
+ *   still holds more than one row; levels never mix inside one fold
  * - every fold is one model call; failures stop folding, never the walk
  */
 export async function foldActiveSummaries(input: Input & { protectTurnId: string | null }): Promise<number> {
@@ -176,10 +184,8 @@ export async function foldActiveSummaries(input: Input & { protectTurnId: string
   let merged = 0;
   const freshRecords: CompressionRecord[] = [];
 
-  const foldRows = async (rows: CompressionRecord[]): Promise<void> => {
+  const foldRows = async (rows: CompressionRecord[], level: number): Promise<void> => {
     const turnIds = [...new Set(rows.map((row) => row.turnId))];
-    // L1+L1 only: same ID stays L1, different IDs upgrade to L2.
-    const level = turnIds.length > 1 ? 2 : 1;
     const summary = await requestCrossTurnFold({
       provider: input.provider,
       repoRoot: input.repoRoot,
@@ -225,10 +231,10 @@ export async function foldActiveSummaries(input: Input & { protectTurnId: string
   for (const rows of byTurn.values()) {
     if (rows.length < 2) continue;
     input.isCancelled?.() && (() => { throw new Error("Compression cancelled"); })();
-    await foldRows([...rows].sort(byCreatedAt));
+    await foldRows([...rows].sort(byCreatedAt), 1);
   }
 
-  // Phase B: different-turn L1s fold into L2 spans (newest L1 kept). L2 is terminal.
+  // Phase B: different-turn L1s fold into L2 spans (newest L1 kept).
   const l1Rest = entries()
     .filter((row) => row.level === 1 && row.turnId !== input.protectTurnId)
     .sort(byCreatedAt);
@@ -236,8 +242,23 @@ export async function foldActiveSummaries(input: Input & { protectTurnId: string
     const foldable = l1Rest.slice(0, -1);
     for (let i = 0; i < foldable.length; i += FOLD_L1_TO_L2_CHUNK) {
       input.isCancelled?.() && (() => { throw new Error("Compression cancelled"); })();
-      await foldRows(foldable.slice(i, i + FOLD_L1_TO_L2_CHUNK));
+      await foldRows(foldable.slice(i, i + FOLD_L1_TO_L2_CHUNK), 2);
     }
+  }
+
+  // Phase C: each higher level folds into one level up (L2→L3, L3→L4, ...).
+  // Same level only, newest row of that level kept, so every pass strictly shrinks it.
+  for (let level = 2; level < FOLD_MAX_LEVEL; level += 1) {
+    const rows = entries()
+      .filter((row) => row.level === level && row.turnId !== input.protectTurnId)
+      .sort(byCreatedAt);
+    if (rows.length <= 1) break;
+    const foldable = rows.slice(0, -1);
+    for (let i = 0; i < foldable.length; i += FOLD_HIGHER_CHUNK) {
+      input.isCancelled?.() && (() => { throw new Error("Compression cancelled"); })();
+      await foldRows(foldable.slice(i, i + FOLD_HIGHER_CHUNK), level + 1);
+    }
+    if (foldable.length <= FOLD_HIGHER_CHUNK) break;
   }
 
   if (freshRecords.length) commitArchive(input.dataDir, input.conversationId, index, [], freshRecords);

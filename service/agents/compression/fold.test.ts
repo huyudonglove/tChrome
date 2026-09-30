@@ -89,7 +89,7 @@ test("fold is a no-op below the active-summary gate", async () => {
   expect(loadIndex(dataDir, conversationId, "conversationHistory").activeIds).toHaveLength(3);
 });
 
-test("L1+L1 only: same turnId stays L1, different turnIds become L2, never L3", async () => {
+test("same-turn L1+L1 stays L1; cross-turn L1 becomes L2, and L2 may upgrade to L3", async () => {
   const dataDir = dir();
   const conversationId = "cv_rules";
   const pad = SUMMARY_RECOMPRESS_MIN_ACTIVE + 5;
@@ -111,8 +111,10 @@ test("L1+L1 only: same turnId stays L1, different turnIds become L2, never L3", 
 
   const after = loadIndex(dataDir, conversationId, "conversationHistory");
   const active = after.activeIds.map((id) => after.entries.find((e) => e.id === id)!);
-  expect(active.every((e) => e.level <= 2)).toBe(true);
-  expect(after.entries.every((e) => e.level <= 2)).toBe(true);
+  expect(active.every((e) => e.level <= 3)).toBe(true);
+  expect(after.entries.every((e) => e.level <= 3)).toBe(true);
+  // L2 is no longer terminal: with enough L2 rows one of them upgrades to L3.
+  expect(after.entries.some((e) => e.level >= 3)).toBe(true);
   const l2 = active.filter((e) => e.level === 2);
   expect(l2.every((e) => (e.turnIds?.length ?? 0) > 1)).toBe(true);
   const sameTurn = active.filter((e) => e.turnIds?.includes("tn_same") || e.turnId === "tn_same");
