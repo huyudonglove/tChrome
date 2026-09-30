@@ -1,4 +1,5 @@
 import { errorInfo } from "../../../shared/errors.ts";
+import { runtimeConfig } from "../../config/runtime.ts";
 import { createHash } from "node:crypto";
 import type { Provider } from "../../types.ts";
 import { requestMatches, type QueryCandidate } from "./protocol.ts";
@@ -21,7 +22,7 @@ export async function queryContext(input: QueryInput): Promise<QueryResult> {
   const cancelled = (): QueryResult => ({ ...base, ok: false, status: "cancelled", faultCode: "stopped", detail: "查询已取消。" });
   try {
     if (!queryModules.includes(input.module) || typeof input.sumId !== "string" || !/^[A-Za-z0-9_-]{1,100}$/.test(input.sumId)
-      || typeof input.intent !== "string" || !input.intent.trim() || input.intent.length > 4000) throw new Error("查询参数无效。");
+      || typeof input.intent !== "string" || !input.intent.trim() || input.intent.length > runtimeConfig.results.inlineChars) throw new Error("查询参数无效。");
     if (input.isCancelled?.()) return cancelled();
     const index = loadIndex(input.dataDir, input.conversationId, "conversationHistory");
     const byId = new Map(index.entries.map(entry => [entry.id, entry]));

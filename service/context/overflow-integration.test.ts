@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { runtimeConfig } from "../config/runtime.ts";
 import { handleTurn } from "../runtime/loop.ts";
 import { loadLedger, newConversation, primeActiveTask, saveLedger, saveTurn } from "../runtime/store.ts";
 import { loadMemories } from "../memory/store.ts";
@@ -62,7 +63,7 @@ const provider = (run: (user: string) => CompletionResult): Provider => ({ compl
     const turns = compressionTurnsFromUserMessage(messages[1]!.content);
     return response({ id: "summary", name: "submitTurnSummaries", arguments: { tag: "容量测试", actions: "保存和读取文件", result: "成功" } });
   }
-  expect(messages.reduce((size, message) => size + message.content.length, 0)).toBeLessThanOrEqual(250_000);
+  expect(messages.reduce((size, message) => size + message.content.length, 0)).toBeLessThanOrEqual(runtimeConfig.context.externalizeAtChars);
   const values = xmlSlots(messages[1]!.content);
   expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
   return run(messages[1]!.content);
@@ -206,7 +207,7 @@ test("uncompressible notes between 200K and 250K remain inline and allow the mai
   });
   const reply = await handleTurn({ dataDir, repoRoot, host, provider: { complete: async input => {
     expect(input.tools.some(tool => tool.function.name === "submitTurnSummaries")).toBe(false);
-    expect(input.messages.reduce((size, message) => size + message.content.length, 0)).toBeGreaterThan(200_000);
+    expect(input.messages.reduce((size, message) => size + message.content.length, 0)).toBeGreaterThan(runtimeConfig.context.compressAtChars);
     return base.complete(input);
   } } }, { userInput: "继续", submittedAt: "now" });
   expect(reply.stopReason.kind).toBe("reply");
@@ -245,7 +246,7 @@ test("history above 250K is compressed before any content is externalized", () =
       expect(main).toBe(0);
       expect(existsSync(join(dataDir, "context-files"))).toBe(false);
     } else {
-      expect(input.messages.reduce((size, message) => size + message.content.length, 0)).toBeLessThan(200_000);
+      expect(input.messages.reduce((size, message) => size + message.content.length, 0)).toBeLessThan(runtimeConfig.context.compressAtChars);
     }
     return base.complete(input);
   }} }, { userInput: "继续", submittedAt: "now" });

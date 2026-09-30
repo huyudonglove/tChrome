@@ -10,19 +10,20 @@
   "tls": {
     "timeoutMs": 8000
   },
-  "results": {
-    "inlineChars": 4000,
-    "previewChars": 400,
-    "summaryChars": 400,
-    "lineWidth": 100,
-    "searchContextChars": 2000,
-    "searchMaxMatches": 8,
-    "imageInlineBytes": 262144
+  "scale": {
+    "contextWindowChars": 200000
   },
-  "context": {
-    "compressAtChars": 200000,
-    "externalizeAtChars": 250000,
-    "summaryRecompressMinActive": 30,
-    "keepToolBatches": 2
+  "gates": {
+    "compressAtChars": { "follow": "contextWindowChars", "ratio": 1.0 },
+    "externalizeAtChars": { "follow": "contextWindowChars", "ratio": 1.25 },
+    "inlineChars": { "follow": "contextWindowChars", "ratio": 0.02, "cap": 4000 },
+    "searchContextChars": { "follow": "contextWindowChars", "ratio": 0.01, "cap": 2000 },
+    "previewChars": { "follow": "inlineChars", "ratio": 0.1, "floor": 200 },
+    "summaryChars": { "follow": "inlineChars", "ratio": 0.1, "floor": 200 },
+    "imageInlineBytes": { "fixed": 262144 },
+    "lineWidth": { "fixed": 100 },
+    "searchMaxMatches": { "fixed": 8 },
+    "summaryRecompressMinActive": { "fixed": 30 },
+    "keepToolBatches": { "fixed": 2 }
   }
 }

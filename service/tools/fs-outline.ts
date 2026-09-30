@@ -8,7 +8,7 @@ import { integer, pathArg } from "./local-files.ts";
 /** 可给出符号表的代码扩展名。 */
 const CODE_EXT = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
 
-/** 无结构化数据时的切块粒度占门禁的比例（4000 / 10 = 400 字符）。 */
+/** 无结构化数据时的切块粒度占内联门禁的比例（BLOCK_RATIO = 10）。 */
 const BLOCK_RATIO = 10;
 
 type SymbolEntry = { kind: string; name: string; startLine: number; endLine: number };

@@ -2,6 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, mkdirSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
+import { runtimeConfig } from "../../config/runtime.ts";
 import type { Provider } from "../../types.ts";
 import { compressRecords, SUMMARY_RECOMPRESS_MIN_ACTIVE } from "./index.ts";
 import { compressionTurnsFromUserMessage } from "./protocol.ts";
@@ -130,7 +131,7 @@ test("oversized string is sent whole in one request and archived unchanged", asy
   const calls: CompressionTurn[][] = [];
   const args = setup(model(turns => calls.push(turns)));
   const original = source("tn_01", "large", "起" + "\"\\\n文".repeat(60000) + "结束");
-  expect(original.content.userInput.userInput.length).toBeGreaterThan(200000);
+  expect(original.content.userInput.userInput.length).toBeGreaterThan(runtimeConfig.context.compressAtChars);
   await compressRecords({ ...args, records: [original] });
   expect(calls).toEqual([[original.content]]);
   expect(readSource(args.dataDir, args.conversationId, args.module, "large")).toEqual(original);

@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ChatTool, ExecutionMode } from "../types.ts";
+import { promptNumberSlots } from "../context/prompt-numbers.ts";
 import { loadCapabilityCatalog } from "./capability.ts";
 import type { CapabilityRecord } from "./capability-types.ts";
 
@@ -88,6 +89,14 @@ function enforceReasonRequirement(tool: ChatTool): ChatTool {
   };
 }
 
+/** Runtime numbers exposed to tool definitions as {{slot}} placeholders. */
+const NUMBER_SLOTS = promptNumberSlots();
+
+/** Replaces {{slot}} in definition source text with the configured number. Exported so scripts that read definition files directly stay in sync. */
+export function fillNumbers(text: string): string {
+  return text.replace(/\{\{(\w+)\}\}/g, (whole, key: string) => NUMBER_SLOTS[key] ?? whole);
+}
+
 export function loadToolRegistry(root: string): ToolRegistry {
   const index = JSON.parse(readFileSync(join(root, "service", "tools", "definitions", "index.json"), "utf8")) as ToolIndex;
   const toolGroups = JSON.parse(readFileSync(join(root, "service", "tools", "definitions", "groups.json"), "utf8")) as ToolGroups;
@@ -95,7 +104,9 @@ export function loadToolRegistry(root: string): ToolRegistry {
   const execution: Record<string, ExecutionMode> = {};
   for (const file of readdirSync(join(root, "service", "tools", "definitions"))) {
     if (!file.endsWith(".json") || ["index.json", "groups.json"].includes(file)) continue;
-    const raw = JSON.parse(readFileSync(join(root, "service", "tools", "definitions", file), "utf8")) as ChatTool;
+    const source = fillNumbers(readFileSync(join(root, "service", "tools", "definitions", file), "utf8"));
+    const raw = JSON.parse(source) as ChatTool;
+    if (/\{\{\w+\}\}/.test(source)) throw new Error(`unresolved number placeholder in definitions/${file}`);
     const name = raw.function?.name;
     if (!name) continue;
     const mode: ExecutionMode = raw.execution === "parallel" ? "parallel" : "serial";

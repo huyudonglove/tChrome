@@ -12,6 +12,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { fillNumbers } from "../service/tools/registry.ts";
 import { LOCAL_TOOL_NAMES } from "../service/tools/local-tools.ts";
 import { SERVICE_TOOL_NAMES } from "../service/tools/service-tools.ts";
 import { COMPOUND_TOOL_NAMES } from "../service/tools/compound-tools.ts";
@@ -21,7 +22,7 @@ import { IMAGE_TOOL_NAMES } from "../service/tools/image-crop.ts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const defsDir = join(root, "service", "tools", "definitions");
-const readJson = (path: string): any => JSON.parse(readFileSync(path, "utf8"));
+const readJson = (path: string): any => JSON.parse(fillNumbers(readFileSync(path, "utf8")));
 
 const index = readJson(join(defsDir, "index.json")) as { browser: string[]; service: string[] };
 const groups = readJson(join(defsDir, "groups.json")) as { baseToolsIds: string[]; coreToolIds: string[] };

@@ -183,7 +183,7 @@ test("200K during a live tool loop compresses older batches before the next main
     primed.compressAt = 40000;
     saveLedger(dataDir, primed);
     let main = 0, aux = 0;
-    // Stay under the 4000 inline gate so accumulation, not a single huge return, fills the window.
+    // Stay under the single-return inline gate so accumulation, not a single huge return, fills the window.
     const provider: Provider = { complete: async input => {
       if (input.tools[0]?.function.name === "submitTurnSummaries") { aux++; return summaryResponse(input.messages); }
       main++;

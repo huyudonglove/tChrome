@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.fs_outline",
-    "description": "提取文件大纲，便于在读取正文前先掌握结构。代码文件（.ts/.tsx/.js/.jsx/.mjs/.cjs）用 TS AST 收集顶层声明，返回 symbols[]（kind/name/startLine/endLine），行号区间可直接配合 local.fs_read(startLine, endLine) 精确取回正文；其余文件无结构化数据，按 blockChars 字符数切块返回 blocks[]（index/startOffset/startLine/chars/preview），startLine 按 100 字折行口径换算以便对接 evidence.search。maxFileBytes 默认 1048576，blockChars 默认 4000/10。输出远小于 4000 字符门禁。\n执行调度：parallel（Runtime 固定，不必返回）。\n",
+    "description": "提取文件大纲，便于在读取正文前先掌握结构。代码文件（.ts/.tsx/.js/.jsx/.mjs/.cjs）用 TS AST 收集顶层声明，返回 symbols[]（kind/name/startLine/endLine），行号区间可直接配合 local.fs_read(startLine, endLine) 精确取回正文；其余文件无结构化数据，按 blockChars 字符数切块返回 blocks[]（index/startOffset/startLine/chars/preview），startLine 按 100 字折行口径换算以便对接 evidence.search。maxFileBytes 默认 1048576，blockChars 默认 {{inlineChars}}/10。输出远小于 {{inlineChars}} 字符门禁。\n执行调度：parallel（Runtime 固定，不必返回）。\n",
     "parameters": {
       "type": "object",
       "properties": {

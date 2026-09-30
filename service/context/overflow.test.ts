@@ -4,15 +4,18 @@ import {tmpdir} from 'node:os';
 import {join, isAbsolute} from 'node:path';
 import {createHash} from 'node:crypto';
 import {externalizeContext, CONTEXT_INLINE_CHARS} from './overflow.ts';
+import { runtimeConfig } from '../config/runtime.ts';
+
+const INLINE = runtimeConfig.context.externalizeAtChars;
 
 const measure = (slots: Record<string, string>) => Object.values(slots).reduce((sum, text) => sum + text.length, 0);
 function temporary(run: (dataDir: string) => void) {
   const dataDir = mkdtempSync(join(tmpdir(), 'context-overflow-'));
   try { run(dataDir); } finally { rmSync(dataDir, {recursive: true, force: true}); }
 }
-test('250000 characters remain inline, larger content is stored whole with absolute path', () => temporary(dataDir => {
-  expect(CONTEXT_INLINE_CHARS).toBe(250000);
-  const exact = {'#notes': 'a'.repeat(250000)};
+test(`${INLINE} characters remain inline, larger content is stored whole with absolute path`, () => temporary(dataDir => {
+  expect(CONTEXT_INLINE_CHARS).toBe(INLINE);
+  const exact = {'#notes': 'a'.repeat(INLINE)};
   expect(externalizeContext({dataDir, slots: exact, measure})).toEqual(exact);
   expect(readdirSync(dataDir)).toEqual([]);
   const slots = {'#notes': JSON.stringify({note: '中'.repeat(CONTEXT_INLINE_CHARS)})};
@@ -54,9 +57,9 @@ test('large array records are externalized while small pagination results remain
   expect(externalizeContext({dataDir, slots: result, measure})).toEqual(result);
 }));
 test('unmovable skill, tools or fixed rendering overhead produce an explicit budget error', () => temporary(dataDir => {
-  expect(() => externalizeContext({dataDir, slots: {'#skill': 'x'.repeat(250001)}, measure})).toThrow('Context inline budget exceeded');
-  expect(() => externalizeContext({dataDir, slots: {'#tools': 'x'.repeat(250001)}, measure})).toThrow('Context inline budget exceeded');
-  expect(() => externalizeContext({dataDir, slots: {'#notes': 'small'}, measure: () => 250001})).toThrow('250000');
+  expect(() => externalizeContext({dataDir, slots: {'#skill': 'x'.repeat(INLINE + 1)}, measure})).toThrow('Context inline budget exceeded');
+  expect(() => externalizeContext({dataDir, slots: {'#tools': 'x'.repeat(INLINE + 1)}, measure})).toThrow('Context inline budget exceeded');
+  expect(() => externalizeContext({dataDir, slots: {'#notes': 'small'}, measure: () => INLINE + 1})).toThrow(String(INLINE));
 }));
 test('stored conflicts and symlinks are refused without replacing existing contents', () => temporary(dataDir => {
   const content = 'x'.repeat(250001);

@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { runtimeConfig } from "./config/runtime.ts";
 import { handleTurn } from "./runtime/loop.ts";
 import { ensureSession, loadLedger, saveLedger, saveTurn, stopTurn, sessionView } from "./runtime/store.ts";
 import { allocateRecordId, inputRecord, pacificDate } from "./runtime/ids.ts";
@@ -59,7 +60,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
     const previewLedger = { ...f.ledger, userInputHistory: f.turns.map(inputRecord) };
     const view = contextState(dataDir, previewLedger, next, { project: [], conversation: [] });
     const overhead = systemText(modules, pacificDate(), toolGuideFor(registry, next.assembled.baseToolsIds), {}, skillGuide(repoRoot)).length + userText({ contextModules: modules, ledger: view.ledger, turn: next, conversationSummaries: view.summaries, memories: { project: "[]", conversation: "[]" }, skillText: "", toolGuide: toolGuideFor(registry, next.assembled.toolIds) }).length;
-    f.turns[1]!.input.text += "x".repeat(200000 - overhead - 500);
+    f.turns[1]!.input.text += "x".repeat(runtimeConfig.context.compressAtChars - overhead - 500);
     saveTurn(dataDir, f.turns[1]!); f.ledger.userInputHistory = f.turns.slice(0, -1).map(inputRecord); saveLedger(dataDir, f.ledger);
     let main = 0, compressed = 0;
     const provider: Provider = { complete: async input => {

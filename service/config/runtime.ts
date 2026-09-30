@@ -18,11 +18,103 @@ const resolved = {
   },
 };
 
+const BASE_KEY = "contextWindowChars";
+
+export type GateSpec =
+  | { fixed: number }
+  | { follow: string; ratio: number; cap?: number; floor?: number };
+
+/**
+ * Gates are declared as base * ratio (optionally capped/floored) or as a fixed
+ * count, so widening the window scales the related thresholds together while
+ * caps keep single-injection gates pinned. Values resolve in declaration order
+ * and may reference another gate; cycles and unknown references fail fast.
+ *
+ * Exported so the resolution rules can be tested without mutating runtime.json.
+ */
+export function deriveGates(base: number, gates: Record<string, GateSpec>): Record<string, number> {
+  if (!Number.isSafeInteger(base) || base <= 0) throw new Error(`Invalid runtime configuration: scale.${BASE_KEY}`);
+  const gateValues: Record<string, number> = {};
+  const resolving = new Set<string>();
+  const resolveGate = (key: string): number => {
+    const cached = gateValues[key];
+    if (cached !== undefined) return cached;
+    const spec = gates[key];
+    if (!spec) throw new Error(`Invalid runtime configuration: gates.${key} is not declared`);
+    if (resolving.has(key)) throw new Error(`Invalid runtime configuration: gates.${key} follows itself`);
+    resolving.add(key);
+    let value: number;
+    if ("fixed" in spec) {
+      value = spec.fixed;
+    } else {
+      const source = spec.follow === BASE_KEY ? base : resolveGate(spec.follow);
+      value = Math.round(source * spec.ratio);
+      if (spec.cap !== undefined) value = Math.min(value, spec.cap);
+      if (spec.floor !== undefined) value = Math.max(value, spec.floor);
+    }
+    resolving.delete(key);
+    if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`Invalid runtime configuration: gates.${key}`);
+    gateValues[key] = value;
+    return value;
+  };
+  for (const key of Object.keys(gates)) resolveGate(key);
+  return gateValues;
+}
+
+const base = config.scale.contextWindowChars;
+const gates = config.gates as unknown as Record<string, GateSpec>;
+const gateValues = deriveGates(base, gates);
+const resolveGate = (key: string): number => {
+  const value = gateValues[key];
+  if (value === undefined) throw new Error(`Invalid runtime configuration: gates.${key} is not declared`);
+  return value;
+};
+
 // Fail at startup instead of silently disabling a deadline with an invalid value.
 for (const [group, values] of Object.entries(resolved)) {
-  for (const [key, value] of Object.entries(values)) {
-    if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`Invalid runtime configuration: ${group}.${key}`);
+  if (group === "scale" || group === "gates") continue;
+  for (const [key, value] of Object.entries(values as Record<string, unknown>)) {
+    if (!Number.isSafeInteger(value) || (value as number) <= 0) throw new Error(`Invalid runtime configuration: ${group}.${key}`);
   }
   Object.freeze(values);
 }
-export const runtimeConfig = Object.freeze(resolved);
+
+const results = {
+  inlineChars: resolveGate("inlineChars"),
+  previewChars: resolveGate("previewChars"),
+  summaryChars: resolveGate("summaryChars"),
+  lineWidth: resolveGate("lineWidth"),
+  searchContextChars: resolveGate("searchContextChars"),
+  searchMaxMatches: resolveGate("searchMaxMatches"),
+  imageInlineBytes: resolveGate("imageInlineBytes"),
+};
+const context = {
+  compressAtChars: resolveGate("compressAtChars"),
+  externalizeAtChars: resolveGate("externalizeAtChars"),
+  summaryRecompressMinActive: resolveGate("summaryRecompressMinActive"),
+  keepToolBatches: resolveGate("keepToolBatches"),
+};
+
+// Relational invariants: a mis-scaled pair must fail at startup, not at runtime.
+if (!(context.externalizeAtChars > context.compressAtChars)) {
+  throw new Error("Invalid runtime configuration: context.externalizeAtChars must exceed context.compressAtChars");
+}
+if (!(results.summaryChars <= results.inlineChars)) {
+  throw new Error("Invalid runtime configuration: results.summaryChars must not exceed results.inlineChars");
+}
+if (!(results.previewChars <= results.summaryChars)) {
+  throw new Error("Invalid runtime configuration: results.previewChars must not exceed results.summaryChars");
+}
+// searchContextChars is a per-window slice, so it stays below inlineChars; only
+// require it to be a positive integer that the gate resolver already produced.
+
+Object.freeze(results);
+Object.freeze(context);
+
+export const runtimeConfig = Object.freeze({
+  network: resolved.network,
+  sdk: resolved.sdk,
+  tls: resolved.tls,
+  results,
+  context,
+});
