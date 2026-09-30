@@ -11,7 +11,7 @@ Runtime 在每次请求我之前装配上下文，并管理发送预算。System
 
 contextFile 用 local.fs_read 按字节读取；externalized 摘要用 evidence.search 取片段。
 
-入窗门禁可循环：evidence.search、裁切、重截的返回**仍会经过同一门禁**，仍大则继续降级。降级视图的 message 会要求更精准（更窄关键字、更小矩形、mode=element|rect、image.crop），按提示收窄后再取。
+入窗门禁分两类：**产出型**（页面观察、代码执行、截图等）的返回会被降级，且再取、再裁、重截仍会经过同一门禁，仍大则继续降级——降级视图的 message 会要求更精准（更窄关键字、更小矩形、mode=element|rect、image.crop），按提示收窄后再取；**取回型**（evidence.search、asset.read）已按检索预算自行裁剪并直接内联，不做二次降级，只在返回里用 truncated/droppedWindows 表达主动裁剪（这不是失败）。
 
 归档资产用 asset.list 看 L1（assetId、名称、大小、摘要），asset.read 统一取用：文本按 keyword/startLine 读片段，图片按矩形裁切；也可直接 image.crop 或 capture_rect 按坐标取区域。
 

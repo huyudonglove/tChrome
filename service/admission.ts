@@ -524,8 +524,8 @@ export function admitText(
       path: meta.path,
       ...(meta.indexPath ? { indexPath: meta.indexPath } : {}),
       message: structured
-        ? `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（summary 为分层目录，含 ${levels.join("、") || "L1"}；每层行内自带「本层覆盖/总量」，直接在该层定位或再往上翻一层；全文 ${totalLines} 行${meta.indexPath ? `；完整不截断索引已落盘 ${meta.indexPath}` : ""}）。要细节请更精准：evidence.search(windows=[{${locate},keyword|startLine}])，可一次带多个窗口；取回结果会再过同一门禁。`
-        : `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（head 为原文前 ${previewChars} 字，全文 ${totalLines} 行）。要细节请更精准：evidence.search(windows=[{${locate},keyword|startLine}])，可一次带多个窗口；取回结果会再过同一门禁。`,
+        ? `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（summary 为分层目录，含 ${levels.join("、") || "L1"}；每层行内自带「本层覆盖/总量」，直接在该层定位或再往上翻一层；全文 ${totalLines} 行${meta.indexPath ? `；完整不截断索引已落盘 ${meta.indexPath}` : ""}）。要细节请更精准：evidence.search(windows=[{${locate},keyword|startLine}])，可一次带多个窗口；${RETRIEVAL_INLINE_NOTE}`
+        : `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（head 为原文前 ${previewChars} 字，全文 ${totalLines} 行）。要细节请更精准：evidence.search(windows=[{${locate},keyword|startLine}])，可一次带多个窗口；${RETRIEVAL_INLINE_NOTE}`,
       search: "evidence.search",
     },
   };
@@ -547,6 +547,11 @@ export function admitReturn(
   return admitText(full, { ...meta, tree, ...(indexPath ? { indexPath } : {}) });
 }
 
+/** 取回型语义的唯一说明来源：取回型工具（evidence.search / asset.read）经 admitExecution 的
+ *  admitted 通道按检索预算直接内联，取回的正文不会再被二次降级；图片裁切/重截不走该通道，
+ *  仍按入窗门槛判定。降级 message 里对模型描述这条事实时只引用这里，不另写一份。 */
+const RETRIEVAL_INLINE_NOTE = "取回结果按检索预算内联，不会二次降级。";
+
 /** 门禁编排：工具自报已按预算裁剪过（admitted）时直接内联，否则走 admitReturn。
  *  取回型工具（evidence.search / asset.read）走这条免二次外置通道；
  *  产出型工具不设该标记，行为与此前完全一致。 */
@@ -559,6 +564,9 @@ export function admitExecution(
   if (admitted) return { mode: "inline", text: full };
   return admitReturn(full, meta, options);
 }
+
+/** 图片侧的对应事实：裁切/重截不走 admitted 通道，其返回仍按入窗门槛判定。 */
+const IMAGE_REFLOW_NOTE = "裁切/重截后的图片仍按入窗门槛判定。";
 
 /** 图片门禁：小图随批附带像素；过大只保留元数据。 */
 export function admitImages<T extends Pick<ImageReference, "bytes">>(images: T[]): { inline: T[]; deferred: T[] } {
@@ -575,12 +583,12 @@ export function admitImage(image: ImageReference): { mode: "inline" | "ref"; fet
   if (inline.length) return { mode: "inline", fetchHint: "" };
   return {
     mode: "ref",
-    fetchHint: "信息已降级。要细节请更精准：image.crop 裁更小矩形，或 capture_page(mode=element|rect)；取回结果仍会经过同一门禁。",
+    fetchHint: `信息已降级。要细节请更精准：image.crop 裁更小矩形，或 capture_page(mode=element|rect)；${IMAGE_REFLOW_NOTE}`,
   };
 }
 
 export function deferredImageNote(deferred: Pick<ImageReference, "id" | "path" | "width" | "height" | "bytes">[]): string {
   if (!deferred.length) return "";
   const rows = deferred.map((image) => `${image.id} ${image.width}x${image.height} ${image.bytes}B`).join(", ");
-  return `runtime: 图片超过入窗门槛未附带像素（${rows}）。要画面请更精准：image.crop 或 capture_page(mode=element|rect) 只取目标区域；取回结果会再过同一门禁。`;
+  return `runtime: 图片超过入窗门槛未附带像素（${rows}）。要画面请更精准：image.crop 或 capture_page(mode=element|rect) 只取目标区域；${IMAGE_REFLOW_NOTE}`;
 }
