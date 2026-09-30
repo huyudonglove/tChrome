@@ -244,6 +244,23 @@ test("grep supports regex mode and multi-line context extraction", async () => {
   expect((literal.matches as unknown[]).length).toBe(0);
 });
 
+test("grep regex anchors line starts on non-first lines", async () => {
+  const dir = join(root, "grepa");
+  await mkdir(dir);
+  const file = join(dir, "anchored.txt");
+  await writeFile(file, ["head line", "const alpha = 1", "mid", "const beta = 2"].join("\n"));
+
+  const anchored = await run("local.fs_grep", { path: dir, query: "^const (alpha|beta)", regex: true });
+  expect(anchored).toMatchObject({ ok: true, truncated: false });
+  expect((anchored.matches as { line: number; column: number }[]).map((row) => [row.line, row.column])).toEqual([[2, 1], [4, 1]]);
+
+  const noHit = await run("local.fs_grep", { path: dir, query: "^const mid$", regex: true });
+  expect((noHit.matches as unknown[]).length).toBe(0);
+
+  const tail = await run("local.fs_grep", { path: dir, query: "mid$", regex: true });
+  expect(tail.matches).toMatchObject([{ path: file, line: 3, hit: "mid" }]);
+});
+
 test("fs_read supports line slice mode with startLine and endLine", async () => {
   const file = join(root, "lines.txt");
   const sample = ["line 1: apple", "line 2: banana", "line 3: cherry", "line 4: date", "line 5: elderberry"].join("\n");

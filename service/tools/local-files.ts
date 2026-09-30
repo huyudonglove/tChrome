@@ -224,7 +224,8 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
         }
         const query = input.query;
         const useRegex = flag(input, "regex");
-        const pattern = useRegex ? new RegExp(query, "g") : null;
+        // m 标志：整文件文本一次性喂给 exec，没有 m 时 ^/$ 只锚定整文件首尾，行首/行尾锚点必然落空
+        const pattern = useRegex ? new RegExp(query, "gm") : null;
         const limit = integer(input, "limit", 50, 1, 200);
         const maxFiles = integer(input, "maxFiles", 5000, 1, 5000);
         const maxFileBytes = integer(input, "maxFileBytes", 1048576, 1, 1048576);
