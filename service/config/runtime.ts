@@ -104,6 +104,9 @@ const context = {
   foldMaxLevel: resolveGate("foldMaxLevel"),
   keepToolBatches: resolveGate("keepToolBatches"),
   toolioRingSize: resolveGate("toolioRingSize"),
+  // Per-turn tool-call budget: prompt checkContinue at the soft gate, force-end at the hard gate.
+  checkContinuePrompt: resolveGate("checkContinuePrompt"),
+  checkContinueHard: resolveGate("checkContinueHard"),
   // Nudge thresholds (repeat / actions / observation / compress-prep). Declared here so every
   // "how many rows / how many calls" threshold has one source, same as the char budgets above.
   repeatWindow: resolveGate("repeatWindow"),

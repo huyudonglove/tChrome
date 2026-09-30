@@ -9,6 +9,8 @@ export function promptNumberSlots(): Record<string, string> {
     summaryRecompressMin: String(ctx.summaryRecompressMinActive),
     summaryFoldMin: String(ctx.summaryFoldMinRows),
     keepBatches: String(ctx.keepToolBatches),
+    checkContinuePrompt: String(ctx.checkContinuePrompt),
+    checkContinueHard: String(ctx.checkContinueHard),
     inlineChars: String(runtimeConfig.results.inlineChars),
     previewChars: String(runtimeConfig.results.previewChars),
     summaryChars: String(runtimeConfig.results.summaryChars),

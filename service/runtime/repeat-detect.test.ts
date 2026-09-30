@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { failureSignature, repeatHint, REPEAT_CALL_LIMIT, REPEAT_TOOL_LIMIT, REPEAT_WINDOW } from "./repeat-detect.ts";
 import type { ToolIOItem } from "../types.ts";
+import { runtimeConfig } from "../config/runtime.ts";
 
 let seq = 0;
 const row = (name: string, args: Record<string, unknown> = {}, text = ""): ToolIOItem => {
@@ -123,15 +124,16 @@ test("re-cropping the same region counts as a replay because framing keys are ig
 
 test("one tool called many times in the window is flagged even with different arguments", () => {
   // Non-framing arguments differ (mode), so the call rule stays quiet and the tool rule fires.
-  const hint = repeatHint([
-    row("capture_page", { tabId: 7, mode: "viewport" }),
-    row("page.get_summary", { tabId: 7 }),
-    row("capture_page", { tabId: 7, mode: "rect", x: 1, y: 2, width: 10, height: 10 }),
-    row("page.assert", { tabId: 7, text: "ok" }),
-    row("capture_page", { tabId: 7, mode: "full_page" }),
-    row("page.recheck", { tabId: 7, text: "ok" }),
-    row("capture_page", { tabId: 7, mode: "som" }),
-  ]);
+  // Built from the configured thresholds: the rule counts the tool inside the last
+  // REPEAT_WINDOW rows only, so the padding has to fit both numbers.
+  // The rule only looks at the last REPEAT_WINDOW rows, so the REPEAT_TOOL_LIMIT
+  // shots have to sit at the very end of the array to be counted at all.
+  const pads = Math.max(0, REPEAT_WINDOW - REPEAT_TOOL_LIMIT);
+  const filler = (i: number) => row(`tool.filler${i}`, { tabId: 7 });
+  const shots = Array.from({ length: REPEAT_TOOL_LIMIT }, (_, i) =>
+    row("capture_page", { tabId: 7, mode: `mode${i}` }),
+  );
+  const hint = repeatHint([...Array.from({ length: pads }, (_, i) => filler(100 + i)), ...shots]);
   expect(hint).toContain("capture_page");
   expect(hint).toContain("runtime[repeat:tool]");
 });
@@ -181,5 +183,5 @@ test("the call rule fires before the error rule for the same pair", () => {
   expect(hint).not.toContain("faultCode=");
   expect(String(REPEAT_CALL_LIMIT)).toBe("2");
   expect(String(REPEAT_WINDOW)).toBe("8");
-  expect(String(REPEAT_TOOL_LIMIT)).toBe("4");
+  expect(String(REPEAT_TOOL_LIMIT)).toBe(String(runtimeConfig.context.repeatToolLimit));
 });

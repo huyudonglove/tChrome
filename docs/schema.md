@@ -168,7 +168,7 @@ Runtime 独占维护。当前会话指针。
 | `input.submittedAt` | string | 面板提交时间，ISO-8601 |
 | `assembled` | object | 这一轮点名的 catalog IDs + 标签快照与页面观察，见「assembled」 |
 | `stopReason` | object | 见「stopReason」 |
-| `usage` | object，可选 | 新 Turn 分别记录 `modelRequests` 与 `toolCalls`。工具批次逐个计数，包含常驻与收口工具；未通过校验而未执行的调用不计入。旧 Turn 可缺省。统计不作为累计 20 次的停止条件。 |
+| `usage` | object，可选 | 新 Turn 分别记录 `modelRequests` 与 `toolCalls`。工具批次逐个计数，包含常驻与收口工具；未通过校验而未执行的调用不计入。旧 Turn 可缺省。统计本身不构成停止条件；停止条件是 Runtime 在 `checkContinue(cont=true)` 连续确认若干次后强制收口，具体门槛见 `service/config/runtime.json`。 |
 
 ### assembled
 

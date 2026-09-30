@@ -1,9 +1,11 @@
+import { runtimeConfig } from "../config/runtime.ts";
 import type { ToolIOItem } from "../types.ts";
 
 export const CHECK_TOOL = "checkContinue";
 export const PROGRESS_TOOL = "reportProgress";
-export const SAME_TOOL_PROMPT = 20;
-export const SAME_TOOL_HARD = 60;
+// Per-turn tool-call budget comes from gates (prompt threshold / hard stop).
+export const SAME_TOOL_PROMPT = runtimeConfig.context.checkContinuePrompt;
+export const SAME_TOOL_HARD = runtimeConfig.context.checkContinueHard;
 export const CHECK_PROMPTS = 3;
 export const PROGRESS_LIMIT = 3;
 export const ASK_THEN_ROUNDS = 3;
@@ -16,10 +18,10 @@ export type Escalation =
   | { action: "interrupt"; text: string };
 
 /**
- * 每 turn 计数升级链：门槛数字不变（20/60/3）。
+ * 每 turn 计数升级链：提示/硬收口门槛读 gates.context（checkContinuePrompt / checkContinueHard），其余链级数字不变。
  * 计数改为本轮业务工具总次数（不含 checkContinue / reportProgress），
- * 避免轮换工具名绕过单工具 20/60 门禁。
- * 链：总次数 20 提示 checkContinue，60 强制收口；
+ * 避免轮换工具名绕过单工具门禁。
+ * 链：总次数达 checkContinuePrompt 提示 checkContinue，达 checkContinueHard 强制收口；
  * check×3→进度；进度×3→askUser 1 次；其后 3 轮建议 finishTurn，再 3 次强制结束。
  */
 export function escalate(rows: ToolIOItem[], lastName: string): Escalation {
