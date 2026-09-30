@@ -367,7 +367,7 @@ const runQueue = async (input: {
       ledger.toolIO.push(row);
       const turnRows = ledger.toolIO.filter((r) => r.turnId === turn.turnId);
       // Hint only: identical calls or identical repeated failures are flagged, never blocked.
-      const repeated = repeatHint(turnRows);
+      const repeated = repeatHint(turnRows, ledger.toolIO);
       if (repeated) {
         row.return = { ...row.return, text: `${row.return.text}\n\n${repeated}` };
       }

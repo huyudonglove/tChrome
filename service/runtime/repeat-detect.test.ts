@@ -132,6 +132,22 @@ test("failureSignature reads faultCode from JSON and tolerates non-JSON text", (
   expect(failureSignature(row("t", {}, 'prefix "faultCode":"boom" suffix'))).toBe("boom::");
 });
 
+test("a diagnosable fault never seen in history asks to be written down once", () => {
+  const failed = row("capture_page", { tabId: 1 }, failure("executor_version_mismatch", "版本不一致"));
+  const fresh = repeatHint([failed]);
+  expect(fresh).toContain("first-fault:memory");
+  expect(fresh).toContain("executor_version_mismatch");
+  // a later occurrence in the same turn is a distinct call, so it counts as "seen before"
+  const again = row("capture_page", { tabId: 1 }, failure("executor_version_mismatch", "版本不一致"));
+  expect(repeatHint([failed, again])).not.toContain("first-fault:memory");
+  // an earlier occurrence anywhere in the conversation suppresses it
+  const earlier = row("capture_page", { tabId: 2 }, failure("executor_version_mismatch", "版本不一致"));
+  expect(repeatHint([failed], [earlier, failed])).toBeUndefined();
+  // design-internal failures are not diagnosable and must not nag
+  const gate = row("page.type", { tabId: 1 }, failure("task_gate_required", "需要活动 Task"));
+  expect(repeatHint([gate])).toBeUndefined();
+});
+
 test("the call rule fires before the error rule for the same pair", () => {
   const text = failure("missing_required", "a");
   const hint = repeatHint([row("open_url", { url: "x" }, text), row("open_url", { url: "x" }, text)]);

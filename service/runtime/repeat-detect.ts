@@ -15,7 +15,20 @@ const RULE_MARKERS = {
   call: "runtime[repeat:call]",
   tool: "runtime[repeat:tool]",
   fault: "runtime[repeat:fault]",
+  faultMemory: "runtime[first-fault:memory]",
 } as const;
+/**
+ * Faults whose root cause lives outside the current call (host environment, extension
+ * build, service version, broken bridge). Design-internal failures (task_gate_required,
+ * assertion_failed, correct_arguments, missing_required) are deliberately absent: a hint
+ * to write them down would be noise.
+ */
+export const DIAGNOSABLE_FAULTS = new Set([
+  "executor_version_mismatch",
+  "file_exists",
+  "bridge_timeout",
+  "unserializable_value",
+]);
 
 /** Stable stringify so key order never makes two identical calls look different. */
 function fingerprint(args: unknown, ignoreFraming = false): string {
@@ -46,14 +59,14 @@ export function failureSignature(row: ToolIOItem): string | undefined {
 }
 
 /** faultCode only; the message is not part of the signature so per-request ids still match. */
-function faultCodeOf(row: ToolIOItem): string | undefined {
+export function faultCodeOf(row: ToolIOItem): string | undefined {
   return failureSignature(row)?.split("::")[0];
 }
 
 /**
  * Sliding-window repeat detection, hint only (never blocks). Inspects the last
  * REPEAT_WINDOW rows of the turn so a loop that alternates tools, or that keeps
- * re-shooting with different framing coordinates, is still caught. Three rules,
+ * re-shooting with different framing coordinates, is still caught. Four rules,
  * each firing at most once per turn (a fired marker is already in some row):
  * 1. call: the same tool appears REPEAT_CALL_LIMIT times with equivalent arguments
  *    (framing keys such as x/y/width/height are ignored, so re-cropping the same
@@ -61,11 +74,25 @@ function faultCodeOf(row: ToolIOItem): string | undefined {
  * 2. tool: the same tool appears REPEAT_TOOL_LIMIT times with any arguments;
  * 3. fault: the same faultCode shows up REPEAT_FAULT_LIMIT times in the window.
  */
-export function repeatHint(rows: ToolIOItem[]): string | undefined {
+export function repeatHint(rows: ToolIOItem[], history: ToolIOItem[] = rows): string | undefined {
+  const current = rows[rows.length - 1];
+  if (!current) return undefined;
+  const alreadyFired = (marker: string): boolean => rows.some((row) => row.return?.text?.includes(marker));
+  // A diagnosable fault that never appeared before is worth writing down: the next time it
+  // shows up nothing will recall this occurrence, and similar symptoms routinely have
+  // opposite causes. history is the whole-conversation toolIO; default rows = this turn.
+  if (!alreadyFired(RULE_MARKERS.faultMemory)) {
+    const fault = faultCodeOf(current);
+    // The current row is already in history (loop.ts pushes it before calling us), so it must be
+    // excluded or every fault would count as "seen before" and the rule would never fire. Compare
+    // by callId rather than object identity: the same row object can legitimately appear twice.
+    const seenBefore = (code: string): boolean => history.some((row) => row.callId !== current.callId && faultCodeOf(row) === code);
+    if (fault && DIAGNOSABLE_FAULTS.has(fault) && !seenBefore(fault)) {
+      return `${RULE_MARKERS.faultMemory} runtime: 本轮首次遇到故障 ${fault}。这类故障的根因不在这次调用里（宿主环境、扩展构建、服务版本或桥接），处置经验不会自己出现在记忆中——下次症状可能相似、根因和动作却相反，所以那时不会去翻其他故障的处置。如果你已经定位清楚根因，请用 memory.write 写一条 projectMemory，把三段记清楚：症状（怎么发现的、表现是什么）→ 根因（真实原因、代码位置）→ 处置（怎么修的、下次先做什么）。没定位清楚就不要写。这只是提示，不阻断排查。`;
+    }
+  }
   if (rows.length < REPEAT_CALL_LIMIT) return undefined;
   const window = rows.slice(-REPEAT_WINDOW);
-  const current = window[window.length - 1]!;
-  const alreadyFired = (marker: string): boolean => rows.some((row) => row.return?.text?.includes(marker));
 
   const byTool = window.filter((row) => row.name === current.name);
   if (!alreadyFired(RULE_MARKERS.call)) {

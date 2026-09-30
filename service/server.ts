@@ -5,6 +5,7 @@ import { resolveProxy } from "./provider/uuapi.ts";
 import { configuredProvider, isProviderName, providerApiKeyEnv, providerOptions } from "./provider/config.ts";
 import { ensureSession, loadSession, defaultDataDir, currentSessionView, listConversations, listConversationIds, openConversation, newConversation, deleteConversation, stopTurn } from "./runtime/store.ts";
 import { createToolBridge, type ToolBridge } from "./runtime/bridge.ts";
+import { calibrateServiceCounters } from "./runtime/ids.ts";
 import type { BrowserResult, BrowserHost, CurrentTabs } from "./types.ts";
 import { executorVersion, executorMismatchMessage } from "./executor-version.ts";
 import { abortAllLocalProcesses } from "./tools/local-process.ts";
@@ -51,6 +52,7 @@ const json = (body: unknown, status = 200) =>
 export function createServer(options: ServeOptions = {}) {
   const repoRoot = options.repoRoot ?? process.cwd();
   const dataDir = options.dataDir ?? defaultDataDir();
+  calibrateServiceCounters(dataDir);
   const connectionPath = join(dataDir, "connection.json");
   const savedConnection = existsSync(connectionPath)
     ? JSON.parse(readFileSync(connectionPath, "utf8")) : null;

@@ -1,5 +1,5 @@
 import type { Turn, UserInputRecord } from "../types.ts";
-import { mkdirSync, readFileSync, writeFileSync, renameSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { catalog, idPrefix, type IdentityKind } from "../identity/catalog.ts";
 export { idPrefix } from "../identity/catalog.ts";
@@ -23,6 +23,41 @@ export function allocateRecordId(dataDir: string, conversationId: string | null,
   renameSync(`${path}.tmp`, path);
   return `${idPrefix(kind)}${String(next).padStart(2, "0")}`;
 }
+/** Service-scoped kinds whose records land on disk as <prefix>_NN.json, so counters can be re-derived from the filesystem. */
+const COUNTER_DISK_DIRS: Partial<Record<IdentityKind, (dataDir: string) => string>> = {
+  projectMemory: (dataDir) => join(dataDir, "memory", "project"),
+};
+
+/**
+ * Lift service-scoped counters to the highest ID already on disk. A counter file that is
+ * missing or lags behind disk would otherwise re-issue live IDs (memory writes then fail
+ * with file_exists because they open files exclusively).
+ */
+export function calibrateServiceCounters(dataDir: string): Record<string, number> {
+  const path = join(dataDir, "id-counters.json");
+  let counters: Record<string, number> = {};
+  try { counters = JSON.parse(readFileSync(path, "utf8")); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  let changed = false;
+  for (const [kind, dirOf] of Object.entries(COUNTER_DISK_DIRS) as [IdentityKind, (dataDir: string) => string][]) {
+    const dir = dirOf(dataDir);
+    if (!existsSync(dir)) continue;
+    const prefix = idPrefix(kind);
+    let max = 0;
+    for (const name of readdirSync(dir)) {
+      if (!name.startsWith(prefix) || !name.endsWith(".json")) continue;
+      const value = Number(name.slice(prefix.length, -".json".length));
+      if (Number.isSafeInteger(value) && value > max) max = value;
+    }
+    if (max > (counters[kind] ?? 0)) { counters[kind] = max; changed = true; }
+  }
+  if (!changed) return counters;
+  mkdirSync(dataDir, { recursive: true });
+  writeFileSync(`${path}.tmp`, JSON.stringify(counters));
+  renameSync(`${path}.tmp`, path);
+  return counters;
+}
+
 export function nowIso(): string {
   return new Date().toISOString();
 }
