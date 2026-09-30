@@ -629,7 +629,10 @@ export async function handleTurn(
                 appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-progress", turnId, data: { completed: progress.completed, total: progress.total, failedTurnId: progress.failedTurnId } });
                 return;
               }
-              appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-progress", turnId, data: { merged: progress.merged, level: progress.level, turnIds: progress.turnIds } });
+              if (progress.type === "fold") {
+                appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-progress", turnId, data: { merged: progress.merged, level: progress.level, turnIds: progress.turnIds } });
+                return;
+              }
             } }, phase);
             if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
           return stoppedReply(ledger, turn);
