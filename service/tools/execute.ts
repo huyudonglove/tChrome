@@ -84,7 +84,11 @@ export type ExecuteInput = {
   defaultTabId?: number | null;
 };
 
-const result = (text: string, effects: ToolEffect[] = []): ToolExecution => ({ text, effects });
+// admitted=true：取回型工具主动按门禁预算裁剪过（见 ToolExecution 注释），
+// 门禁编排处见到该标记应直接内联，不再二次外置成指针。
+const result = (text: string, effects: ToolEffect[] = [], admitted?: boolean): ToolExecution => ({
+  text, effects, ...(admitted ? { admitted } : {}),
+});
 
 const externalResult = (value: Record<string, unknown>): ToolExecution => {
   const page = pageFromBrowser(value);
@@ -294,7 +298,9 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     if (!input.conversationId) return failedTool(errorDetail("evidence_missing_session"), "invalid_arguments");
     const windows = Array.isArray(args.windows) ? args.windows as Record<string, unknown>[] : [];
     if (windows.length < 1 || windows.length > 8) return failedTool(errorDetail("evidence_windows_range"), "invalid_arguments");
-    const searchOne = (win: Record<string, unknown>): Record<string, unknown> => {
+    // charBudget：本窗口可用字符预算（单次调用总额按剩余窗口数摊分下来）。
+    // 传 null 表示不摊分——levelId 是一次性按块取回正文，不与其他窗口分摊。
+    const searchOne = (win: Record<string, unknown>, charBudget: number | null): Record<string, unknown> => {
       const keyword = typeof win.keyword === "string" ? win.keyword : "";
       const callId = typeof win.callId === "string" ? win.callId.trim() : "";
       const pageId = typeof win.pageId === "string" ? win.pageId.trim() : "";
@@ -339,9 +345,11 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       }
       const limits = runtimeConfig.results;
       const rawWindow = Number(win.contextChars ?? limits.searchContextChars);
+      // 窗口预算 = 摊分额度与入窗门禁取小（摊分额度已由 retrievalWindowChars 起算，这里只做双保险）
+      const charCap = charBudget == null ? retrievalWindowChars() : charBudget;
       const contextChars = Number.isFinite(rawWindow)
-        ? Math.min(retrievalWindowChars(), Math.max(20, Math.floor(rawWindow)))
-        : limits.searchContextChars;
+        ? Math.min(charCap, Math.max(20, Math.floor(rawWindow)))
+        : Math.min(limits.searchContextChars, charCap);
       // contextChars 是「本次取回总额」而非单侧上限：先按命中数摊分，再摊到 before/after 两侧，
       // 这样无论命中几条、每侧多长，单次取回都不会超过入窗门禁。
       const sideChars = (hitCount: number, hitLen: number): number =>
@@ -552,8 +560,40 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
         ...(matches.length ? {} : { faultCode: "not_found", detail: errorDetail("evidence_keyword_miss") }),
       };
     };
-    const results = windows.map(searchOne);
-    return result(JSON.stringify({ ok: results.every((row) => row.ok), results }));
+    // 单次调用总额摊分：预算是「一次调用」的总字符数，不是每窗口各拿一份。
+    // 每行除命中正文外还有固定结构开销（source/path/mode/JSON 包装），按 ROW_OVERHEAD 预留，
+    // 否则实际产出仍会顶破入窗门禁。收窄后取不完的窗口不再硬塞，显式标记 truncated/droppedWindows，
+    // 让模型知道这是主动裁剪而不是丢了窗口。
+    const budget = retrievalWindowChars();
+    // 每窗口除命中正文外还有固定结构开销（source/path/mode/JSON 包装），按指针壳预留留位。
+    const ROW_OVERHEAD = runtimeConfig.results.pointerShellReserve;
+    const serialize = (rows: Record<string, unknown>[], dropped: number[]): string =>
+      JSON.stringify({
+        ok: rows.every((row) => row.ok) && dropped.length === 0,
+        results: rows,
+        ...(dropped.length ? { truncated: true, droppedWindows: dropped } : {}),
+      });
+    const results: Record<string, unknown>[] = [];
+    const droppedWindows: number[] = [];
+    for (let i = 0; i < windows.length; i += 1) {
+      const win = windows[i]!;
+      const levelId = typeof win.levelId === "string" ? win.levelId.trim() : "";
+      const pending = windows.length - i;
+      if (levelId) {
+        // 按块取回不参与摊分：它已按 id 精确定位到小块正文，不可再窄，也不该被丢弃。
+        results.push(searchOne(win, null));
+        continue;
+      }
+      const used = serialize(results, droppedWindows).length + ROW_OVERHEAD * pending;
+      if (used >= budget) {
+        droppedWindows.push(i);
+        continue;
+      }
+      results.push(searchOne(win, Math.max(20, Math.floor((budget - used) / pending))));
+    }
+    // 摊分后总量已被 retrievalWindowChars 钉住，属「已按门禁预算裁剪」的取回型返回：
+    // 再过一次 admitReturn 只可能把它降级成目录，形成「取回→外置→再取回」死循环。
+    return result(serialize(results, droppedWindows), [], true);
   }
   if (name === "skill.list") {
     const tag = typeof args.tag === "string" && args.tag.trim() ? args.tag.trim() : undefined;
@@ -684,15 +724,21 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     }
     if (!asset.source.callId) {
       const full = readFileSync(join(dataDir, "conversations", input.conversationId, asset.path), "utf8");
+      // 取回窗口按 retrievalWindowChars 留位（与 evidence.search 同源），而不是按 inlineChars：
+      // 外层还要 JSON.stringify 包 asset 元数据，按入窗门禁裁剪仍会被顶破。
+      const fetchBudget = retrievalWindowChars();
       const window = args.startLine
         ? full.split(/\r?\n/).slice(Number(args.startLine) - 1, Number(args.startLine) + 3).join("\n")
         : typeof args.keyword === "string" && args.keyword
-          ? full.slice(Math.max(0, full.indexOf(args.keyword) - 200), Math.max(0, full.indexOf(args.keyword) - 200) + 400)
-          : full.slice(0, runtimeConfig.results.inlineChars);
+          ? full.slice(Math.max(0, full.indexOf(args.keyword) - Math.floor(fetchBudget / 2)), Math.max(0, full.indexOf(args.keyword) - Math.floor(fetchBudget / 2)) + fetchBudget)
+          : full.slice(0, fetchBudget);
       const admitted = admitReturn(window, { path: asset.path, name: asset.name });
+      // window 已由 admitReturn 按取回门禁裁过（或本就是短片段），不再二次外置。
+      // 外层还要 JSON.stringify 包 asset 元数据，故片段本体按 retrievalWindowChars 留位，
+      // 与 evidence.search 取回同源，避免「已裁剪的取回型返回」再被顶破外置。
       return admitted.mode === "inline"
-        ? result(JSON.stringify({ ok: true, asset, window: admitted.text, flavor: textFlavor(window) }))
-        : result(JSON.stringify({ ok: true, asset, ...((admitted as { payload?: Record<string, unknown> }).payload ?? {}), flavor: textFlavor(window) }));
+        ? result(JSON.stringify({ ok: true, asset, window: admitted.text, flavor: textFlavor(window) }), [], true)
+        : result(JSON.stringify({ ok: true, asset, ...((admitted as { payload?: Record<string, unknown> }).payload ?? {}), flavor: textFlavor(window) }), [], true);
     }
     return await executeTool({
       ...input,

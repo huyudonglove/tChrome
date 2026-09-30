@@ -342,3 +342,57 @@ test("evidence.search reports missing tree and unknown level ids", async () => {
     expect(JSON.parse(unknown.text).results[0]).toMatchObject({ ok: false, faultCode: "not_found" });
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
+
+test("evidence.search splits one call budget across windows and reports dropped ones", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-split-"));
+  try {
+    const windows = [];
+    for (let i = 0; i < 4; i += 1) {
+      const callId = `call_sp${i}`;
+      saveFullReturn(dataDir, "cv_01", callId, `${"x".repeat(3000)}NEEDLE_${i}${"y".repeat(3000)}`);
+      windows.push({ callId, keyword: `NEEDLE_${i}`, contextChars: 3000 });
+    }
+    const execution = await executeTool({
+      name: "evidence.search",
+      arguments: { reason: "多窗口取回应共享总额", windows },
+      dataDir, conversationId: "cv_01", browserNames: [], lookup,
+    });
+    const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[]; truncated?: boolean; droppedWindows?: number[] };
+    // 单次调用总额摊分：整体产出不超过取回窗口预算，不会再被二次外置。
+    expect(execution.text.length).toBeLessThanOrEqual(retrievalWindowChars());
+    expect(parsed.results.length).toBeGreaterThan(0);
+    // 后段窗口的片段应短于它自报的 contextChars（预算被收窄）。
+    const first = parsed.results[0]! as { matches: { before: string; after: string; hit: string }[] };
+    const firstWidth = first.matches[0]!.before.length + first.matches[0]!.hit.length + first.matches[0]!.after.length;
+    expect(firstWidth).toBeLessThanOrEqual(retrievalWindowChars());
+    if (parsed.droppedWindows?.length) {
+      expect(parsed.truncated).toBe(true);
+      expect(parsed.ok).toBe(false);
+    } else {
+      expect(parsed.ok).toBe(true);
+    }
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+});
+
+test("evidence.search keeps levelId windows out of budget splitting", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-split-level-"));
+  try {
+    const callId = "call_lv2";
+    saveFullReturn(dataDir, "cv_01", callId, Array.from({ length: 400 }, (_, i) => `row ${i} payload`).join("\n"));
+    const tree = buildLevels("counts: matches×200", Array.from({ length: 200 }, (_, i) => `mod.ts:${i + 1} "${"x".repeat(30)}"`));
+    saveReturnIndexTree(dataDir, "cv_01", callId, tree);
+    const second = tree.levels[0]!.chunks[1]!;
+    const execution = await executeTool({
+      name: "evidence.search",
+      arguments: { reason: "按块取回不受摊分影响", windows: [
+        { callId, keyword: "row 1", contextChars: 3000 },
+        { callId, levelId: second.id },
+      ] },
+      dataDir, conversationId: "cv_01", browserNames: [], lookup,
+    });
+    const parsed = JSON.parse(execution.text) as { results: Record<string, unknown>[] };
+    const levelRow = parsed.results.find((row) => row.levelId === second.id) as Record<string, unknown>;
+    expect(levelRow).toBeDefined();
+    expect(levelRow.content).toBe(second.text);
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+});

@@ -24,12 +24,12 @@ const BLOCK_LABEL_CHARS = 200;
 /** 指针里 layers 最多列多少个可寻址块 id：够定位即可，再多就该去读 index.json。 */
 const LAYER_CHUNK_CAP = 40;
 
-/** 指针壳的固定开销（totalChars/totalLines/path/message 等）：取回窗口要给它留位。 */
-const POINTER_SHELL_RESERVE = 400;
-
 /** 检索取回的窗口上限：不另设门禁，统一按入窗门禁扣掉指针壳计算。 */
 export const retrievalWindowChars = (): number =>
-  Math.max(MIN_INDEX_LINE_CHARS, runtimeConfig.results.inlineChars - POINTER_SHELL_RESERVE);
+  Math.max(
+    MIN_INDEX_LINE_CHARS,
+    runtimeConfig.results.inlineChars - runtimeConfig.results.pointerShellReserve,
+  );
 
 /** 命中关键词片段：grep 类结果带上 hit，目录里能直接看出「哪一行有我要的字」。 */
 function hitSnippet(rec: Record<string, unknown>, max = 20): string {
@@ -545,6 +545,19 @@ export function admitReturn(
   const tree = options.tree === undefined ? indexTree(full) : options.tree;
   const indexPath = tree && options.persistTree ? options.persistTree(tree) : undefined;
   return admitText(full, { ...meta, tree, ...(indexPath ? { indexPath } : {}) });
+}
+
+/** 门禁编排：工具自报已按预算裁剪过（admitted）时直接内联，否则走 admitReturn。
+ *  取回型工具（evidence.search / asset.read）走这条免二次外置通道；
+ *  产出型工具不设该标记，行为与此前完全一致。 */
+export function admitExecution(
+  full: string,
+  admitted: boolean | undefined,
+  meta: { callId?: string; pageId?: string; path: string; name?: string },
+  options: { tree?: IndexTree | null; persistTree?: (tree: IndexTree) => string } = {},
+): { mode: "inline"; text: string } | { mode: "preview"; payload: Record<string, unknown> } {
+  if (admitted) return { mode: "inline", text: full };
+  return admitReturn(full, meta, options);
 }
 
 /** 图片门禁：小图随批附带像素；过大只保留元数据。 */

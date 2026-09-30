@@ -87,6 +87,8 @@ const results = {
   searchContextChars: resolveGate("searchContextChars"),
   searchMaxMatches: resolveGate("searchMaxMatches"),
   imageInlineBytes: resolveGate("imageInlineBytes"),
+  // 指针/记录壳的固定开销：取回窗口要给它留位，否则返回的指针本身会顶破入窗门禁。
+  pointerShellReserve: resolveGate("pointerShellReserve"),
 };
 const context = {
   compressAtChars: resolveGate("compressAtChars"),

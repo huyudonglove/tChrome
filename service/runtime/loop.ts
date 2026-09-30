@@ -2,7 +2,7 @@ import { saveContextRecord } from "./records.ts";
 import { allocateRecordId, inputRecord } from "./ids.ts";
 import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
-import { admitImages, admitReturn, deferredImageNote } from "../admission.ts";
+import { admitExecution, admitImages, deferredImageNote } from "../admission.ts";
 import { escalate } from "./escalation.ts";
 import { requiresActiveTask } from "./task-gate.ts";
 import { repeatHint } from "./repeat-detect.ts";
@@ -345,8 +345,12 @@ const runQueue = async (input: {
       saveFullReturn(dataDir, ledger.conversationId, item.callId, full);
       // 分层索引树：L1/L2 每层都是完整一份，层内按门禁切 chunk、给可寻址 id，整树落盘供按 id 取回。
       // 落盘与指针渲染都交给 admitReturn：目录在这里只算一次，indexPath 也由同一处产生。
-      const admittedText = admitReturn(
+      // 取回型工具（evidence.search / asset.read）已在工具内按门禁预算裁剪并显式声明 admitted，直接内联。
+      // 再过一次 admitReturn 只会把它降级成目录，模型只能再次取回同样的内容，形成「取回→外置→再取回」死循环。
+      // 全文仍在上面 saveFullReturn 落盘，需要更细片段仍可按 callId/levelId 取回。
+      const admittedText = admitExecution(
         full,
+        execution.admitted,
         {
           callId: item.callId,
           name: item.name,

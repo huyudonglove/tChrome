@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { admitImages, admitText, buildLevels, deferredImageNote, indexTree, payloadIndex, retrievalWindowChars, summarizePayload } from "./admission.ts";
+import { admitExecution, admitImages, admitText, buildLevels, deferredImageNote, indexTree, payloadIndex, retrievalWindowChars, summarizePayload } from "./admission.ts";
 import { runtimeConfig } from "./config/runtime.ts";
 
 test("admitText inlines small text and degrades large text with a precise-fetch hint", () => {
@@ -405,4 +405,24 @@ test("indexTree labels nested entries with the parent file name", () => {
   expect(rendered).toContain("call_817.txt:42");
   expect(rendered).toContain("notes.write");
   expect(rendered).toContain("call_817.txt:87");
+});
+
+test("admitExecution inlines a retrieval return that the tool already budgeted", () => {
+  // 取回型返回（evidence.search / asset.read）自带 admitted 标记：即使超过入窗门禁也不二次外置，
+  // 否则「取回→外置→再取回」会形成死循环。
+  const full = JSON.stringify({ ok: true, results: [], filler: "x".repeat(runtimeConfig.results.inlineChars * 3) });
+  const admitted = admitExecution(full, true, { callId: "call_01", path: "/tmp/call_01.txt" });
+  expect(admitted).toEqual({ mode: "inline", text: full });
+  // 产出型工具不设标记，行为与此前完全一致：仍走 admitReturn 外置成指针。
+  const plain = admitExecution(full, undefined, { callId: "call_02", path: "/tmp/call_02.txt" });
+  expect(plain.mode).toBe("preview");
+});
+
+test("admitExecution rejects a truthy-but-not-true admitted flag from falling through the gate", () => {
+  // admitted 只认布尔 true：undefined/false 走原门禁。
+  const full = "y".repeat(runtimeConfig.results.inlineChars * 2);
+  for (const flag of [undefined, false]) {
+    expect(admitExecution(full, flag, { path: "/tmp/x.txt" }).mode).toBe("preview");
+  }
+  expect(admitExecution(full, true, { path: "/tmp/x.txt" }).mode).toBe("inline");
 });

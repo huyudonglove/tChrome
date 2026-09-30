@@ -27,4 +27,6 @@ export type ToolEffect =
   | { type: "turn.reply"; text: string }
   | { type: "queue.clear" };
 
-export type ToolExecution = { text: string; effects: ToolEffect[] };
+/** admitted=true 表示本工具的 text 已按门禁预算主动裁剪过（取回型工具），
+ *  门禁编排处应直接内联，不再二次外置成指针，否则会出现「取回→外置→再取回」死循环。 */
+export type ToolExecution = { text: string; effects: ToolEffect[]; admitted?: boolean };

@@ -22,6 +22,7 @@
     "summaryChars": { "follow": "inlineChars", "ratio": 0.1, "floor": 200 },
     "imageInlineBytes": { "fixed": 262144 },
     "lineWidth": { "fixed": 100 },
+    "pointerShellReserve": { "follow": "inlineChars", "ratio": 0.1, "cap": 400, "floor": 100 },
     "searchMaxMatches": { "fixed": 8 },
     "summaryRecompressMinActive": { "fixed": 30 },
     "keepToolBatches": { "fixed": 2 }
