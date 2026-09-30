@@ -30,7 +30,9 @@ jobs:
         run: bun run typecheck
 
       - name: Unit tests
-        run: bun test service shared
+        # Full suite, not `bun test service shared`: the narrower form left the
+        # browser-side specs unguarded, so a regression there would pass CI.
+        run: bun test
 
       - name: Build extension
         run: bun run scripts/build-extension.ts

@@ -61,6 +61,37 @@ export function faultCodeOf(row: ToolIOItem): string | undefined {
   return failureSignature(row)?.split("::")[0];
 }
 
+/** Clip a restated failure string so the hint stays one readable line. */
+function clip(text: string, max = 200): string {
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+/**
+ * Human-facing part of a failure: what went wrong plus the direction the tool itself
+ * offered. A repeat hint that only names the faultCode leaves the model guessing why
+ * the same call keeps failing, so the hint restates these instead of "you saw this
+ * error again".
+ */
+export function failureDetail(row: ToolIOItem): string | undefined {
+  const text = row.return?.text;
+  if (typeof text !== "string" || !text.includes("faultCode")) return undefined;
+  try {
+    const parsed = JSON.parse(text) as { message?: unknown; recovery?: unknown; details?: { reason?: unknown } };
+    const pick = (value: unknown): string | undefined =>
+      typeof value === "string" && value.trim() ? value.trim() : undefined;
+    const parts: string[] = [];
+    const message = pick(parsed.message);
+    if (message) parts.push(`原因 ${clip(message)}`);
+    const recovery = pick(parsed.recovery);
+    if (recovery) parts.push(`工具给的处置方向 ${recovery}`);
+    const reason = pick(parsed.details?.reason);
+    if (reason) parts.push(clip(reason));
+    return parts.length ? parts.join("；") : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Sliding-window repeat detection, hint only (never blocks). Inspects the last
  * REPEAT_WINDOW rows of the turn so a loop that alternates tools, or that keeps
@@ -107,7 +138,12 @@ export function repeatHint(rows: ToolIOItem[], history: ToolIOItem[] = rows): st
     if (currentFault) {
       const faults = window.filter((row) => faultCodeOf(row) === currentFault);
       if (faults.length >= REPEAT_FAULT_LIMIT) {
-        return `${RULE_MARKERS.fault} runtime: 最近 ${window.length} 次调用中已第 ${faults.length} 次收到同一个错误（faultCode=${currentFault}）。先读错误里的 details/recovery 改参数或换方法，不要继续用同样的调用。`;
+        // Restate the previous failure instead of only naming the code: knowing it is
+        // "the same error" is not actionable, knowing what it said last time is.
+        const previous = faults[faults.length > 1 ? faults.length - 2 : 0];
+        const detail = previous ? failureDetail(previous) : undefined;
+        const recap = detail ? `上一次同样失败时错误写的是：${detail}。` : "";
+        return `${RULE_MARKERS.fault} runtime: 最近 ${window.length} 次调用中已第 ${faults.length} 次收到同一个错误（faultCode=${currentFault}）。${recap}先确认上一次是否已生效；要继续就改参数或换方法，不要原样重放——同参重放已连续失败 ${faults.length} 次。若上面写的处置方向指向环境或服务侧（例如扩展构建、桥接、服务版本），重复调用同一个工具不会变好，改走宿主侧探针或直接向用户说明卡点。`;
       }
     }
   }

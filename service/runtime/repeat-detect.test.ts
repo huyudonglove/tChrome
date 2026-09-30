@@ -88,6 +88,31 @@ test("the same faultCode with different messages still counts as one repeated fa
   expect(hint).toContain("faultCode=tool_execution_failed");
 });
 
+test("the repeated-fault hint restates the previous failure and names a next step", () => {
+  // The point of the upgrade: "you saw this again" is not actionable, the previous
+  // message and the tool's own recovery direction are.
+  const first = JSON.stringify({
+    ok: false,
+    faultCode: "file_not_found",
+    message: "script a.sh not found under scripts/",
+    recovery: "correct_arguments",
+    details: { reason: "filename points at a file that does not exist" },
+  });
+  // Different arguments on purpose: identical ones would be claimed by the call rule
+  // first, and this case is about the fault rule restating the previous failure.
+  const hint = repeatHint([row("local.run", { filename: "a.sh" }, first), row("local.run", { filename: "b.sh" }, first)]);
+  expect(hint).toContain("file_not_found");
+  expect(hint).toContain("script a.sh not found");
+  expect(hint).toContain("correct_arguments");
+  expect(hint).toContain("不要原样重放");
+});
+
+test("the repeated-fault hint still fires when the previous failure carries no detail fields", () => {
+  const bare = failure("tool_execution_failed", "");
+  const hint = repeatHint([row("open_url", { url: "x" }, bare), row("open_url", { url: "y" }, bare)]);
+  expect(hint).toContain("faultCode=tool_execution_failed");
+});
+
 test("re-cropping the same region counts as a replay because framing keys are ignored", () => {
   const hint = repeatHint([
     row("capture_page", { tabId: 7, mode: "rect", x: 0, y: 0, width: 100, height: 100 }),
