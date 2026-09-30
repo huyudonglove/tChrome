@@ -164,9 +164,13 @@ const FOLD_HIGHER_CHUNK = 10;
 /** Highest level a fold may produce; bounds the upgrade cascade. */
 const FOLD_MAX_LEVEL = 6;
 
+/** Rows a level must exceed before it folds into the next level up (per level, not global). */
+const FOLD_MIN_ROWS = runtimeConfig.context.summaryFoldMinRows;
+
 /**
  * Summary folding:
- * - gate: active summaries above SUMMARY_RECOMPRESS_MIN_ACTIVE
+ * - gate: each level folds only once it holds more than FOLD_MIN_ROWS rows
+ *   (per level; levels are independent, so a level under the gate is skipped)
  * - protect the newest turn's rows (current turn stays fresh)
  * - L1+L1: same turnId stays L1, different turnIds upgrade to L2
  * - higher levels fold among themselves: rows of one level N merge into a
@@ -176,7 +180,8 @@ const FOLD_MAX_LEVEL = 6;
  */
 export async function foldActiveSummaries(input: Input & { protectTurnId: string | null }): Promise<number> {
   const index = loadIndex(input.dataDir, input.conversationId, input.module);
-  if (index.activeIds.length <= SUMMARY_RECOMPRESS_MIN_ACTIVE) return 0;
+  // No global gate: each phase below folds only when its own level holds more
+  // than FOLD_MIN_ROWS rows, so levels are independent of each other.
   const entries = () => index.activeIds
     .map((id) => index.entries.find((record) => record.id === id)!)
     .filter((record): record is CompressionRecord => Boolean(record));
@@ -238,7 +243,7 @@ export async function foldActiveSummaries(input: Input & { protectTurnId: string
   const l1Rest = entries()
     .filter((row) => row.level === 1 && row.turnId !== input.protectTurnId)
     .sort(byCreatedAt);
-  if (l1Rest.length > 1) {
+  if (l1Rest.length > FOLD_MIN_ROWS) {
     const foldable = l1Rest.slice(0, -1);
     for (let i = 0; i < foldable.length; i += FOLD_L1_TO_L2_CHUNK) {
       input.isCancelled?.() && (() => { throw new Error("Compression cancelled"); })();
@@ -252,7 +257,7 @@ export async function foldActiveSummaries(input: Input & { protectTurnId: string
     const rows = entries()
       .filter((row) => row.level === level && row.turnId !== input.protectTurnId)
       .sort(byCreatedAt);
-    if (rows.length <= 1) break;
+    if (rows.length <= FOLD_MIN_ROWS) break;
     const foldable = rows.slice(0, -1);
     for (let i = 0; i < foldable.length; i += FOLD_HIGHER_CHUNK) {
       input.isCancelled?.() && (() => { throw new Error("Compression cancelled"); })();

@@ -96,6 +96,8 @@ const context = {
   compressAtChars: resolveGate("compressAtChars"),
   externalizeAtChars: resolveGate("externalizeAtChars"),
   summaryRecompressMinActive: resolveGate("summaryRecompressMinActive"),
+  // A summary level only folds into the next one once it holds more than this many rows.
+  summaryFoldMinRows: resolveGate("summaryFoldMinRows"),
   keepToolBatches: resolveGate("keepToolBatches"),
   toolioRingSize: resolveGate("toolioRingSize"),
   // Nudge thresholds (repeat / actions / observation / compress-prep). Declared here so every

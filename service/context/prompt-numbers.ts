@@ -7,6 +7,7 @@ export function promptNumberSlots(): Record<string, string> {
     compressAt: String(ctx.compressAtChars),
     externalizeAt: String(ctx.externalizeAtChars),
     summaryRecompressMin: String(ctx.summaryRecompressMinActive),
+    summaryFoldMin: String(ctx.summaryFoldMinRows),
     keepBatches: String(ctx.keepToolBatches),
     inlineChars: String(runtimeConfig.results.inlineChars),
     previewChars: String(runtimeConfig.results.previewChars),

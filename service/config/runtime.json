@@ -26,6 +26,7 @@
     "pointerShellReserve": { "follow": "inlineChars", "ratio": 0.1, "cap": 400, "floor": 100 },
     "searchMaxMatches": { "fixed": 8 },
     "summaryRecompressMinActive": { "fixed": 30 },
+    "summaryFoldMinRows": { "fixed": 20 },
     "keepToolBatches": { "fixed": 2 },
     "toolioRingSize": { "fixed": 10 },
     "repeatWindow": { "fixed": 8 },
