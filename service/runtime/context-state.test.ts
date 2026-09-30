@@ -8,10 +8,14 @@ import { contextState, compressContext } from "./context-state.ts";
 import { compressionTurnsFromUserMessage } from "../agents/compression/protocol.ts";
 import { loadIndex, resolveSources, commitArchive } from "../context-archive/store.ts";
 import { SUMMARY_RECOMPRESS_MIN_ACTIVE } from "../agents/compression/index.ts";
+import { runtimeConfig } from "../config/runtime.ts";
 import type { Ledger, Turn, Provider, CompletionResult } from "../types.ts";
 import type { Memories } from "../memory/types.ts";
 import { handleTurn } from "./loop.ts";
 const repoRoot = join(import.meta.dir, "../..");
+// Current-phase archiving keeps the last KEEP_BATCHES batches in the window, so
+// fixtures must build one batch more than that to exercise the "older" path.
+const KEEP = runtimeConfig.context.keepToolBatches;
 const makeTurn = (cv: string, id: string, text = id): Turn => ({ conversationId: cv, turnId: id, status: "completed", createdAt: "2026-09-11", completedAt: "2026-09-11", input: { id: `input_${id}`, text, submittedAt: "2026-09-11" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [] }, stopReason: { kind: "reply", text: `完成${id}` } });
 const result = (partial: Partial<CompletionResult>): CompletionResult => ({ finish: "tool_calls", content: "", toolCalls: [], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [], ...partial });
 const summaryResponse = (_messages: Parameters<Provider["complete"]>[0]["messages"]) => result({ toolCalls: [{ id: "submit", name: "submitTurnSummaries", arguments: { tag: "历史事项", actions: "已检查", result: "该轮已完成" } }] });
@@ -122,7 +126,7 @@ test("long current turn archives older complete batches and keeps input, current
   try {
     const ledger = emptyLedger("cv_test"), current = makeTurn(ledger.conversationId, "tn_01");
     current.status = "inferring"; current.stopReason = null; current.completedAt = null; ledger.turnIds = [current.turnId]; ledger.active = { turnId: current.turnId };
-    ledger.toolIO = Array.from({ length: 6 }, (_, i) => ({ callId: `call_${i}`, turnId: current.turnId, batchId: `b_${Math.floor(i / 2)}`, name: "page.get_summary", arguments: {}, return: { stage: "complete" as const, text: "结果", totalChars: 2 } }));
+    ledger.toolIO = Array.from({ length: KEEP * 2 + 2 }, (_, i) => ({ callId: `call_${i}`, turnId: current.turnId, batchId: `b_${Math.floor(i / 2)}`, name: "page.get_summary", arguments: {}, return: { stage: "complete" as const, text: "结果", totalChars: 2 } }));
     current.assembled.observations = ledger.toolIO.map((row, i) => ({ id: `p_${i}`, turnId: current.turnId, callId: row.callId, observedAt: "2026-09-11", type: row.name, result: { ok: true, tabId: 1, url: "https://example.com", title: "页面", state: `状态${i}` } }));
     current.assembled.currentPage = { tabId: 1, url: "https://example.com", title: "页面", description: "状态5" };
     const memories: Memories = { project: [], conversation: [] }, provider: Provider = { complete: async input => summaryResponse(input.messages) };
@@ -143,7 +147,7 @@ test("segmented turn later closes into one active summary without rearchiving co
     const ledger = emptyLedger("cv_test"), first = makeTurn(ledger.conversationId, "tn_01");
     ledger.turnIds = [first.turnId]; ledger.active = { turnId: first.turnId };
     first.status = "inferring"; first.completedAt = null; first.stopReason = null;
-    ledger.toolIO = Array.from({ length: 3 }, (_, i) => ({ callId: `call_${i}`, turnId: first.turnId, batchId: `batch_${i}`, name: "page.get_summary", arguments: {}, return: { stage: "complete" as const, text: `结果${i}`, totalChars: 3 } }));
+    ledger.toolIO = Array.from({ length: KEEP + 1 }, (_, i) => ({ callId: `call_${i}`, turnId: first.turnId, batchId: `batch_${i}`, name: "page.get_summary", arguments: {}, return: { stage: "complete" as const, text: `结果${i}`, totalChars: 3 } }));
     const memories: Memories = { project: [], conversation: [{ memoryId: "mm_1", turnId: first.turnId, layer: "conversation", text: "只改负责人", sourceCallId: "call_0", createdAt: "2026-09-11" }] };
     const provider: Provider = { complete: async input => summaryResponse(input.messages) };
     await compressContext({ dataDir, repoRoot, provider, ledger, turn: first, memories, isCancelled: () => false }, "current");
@@ -167,7 +171,9 @@ test("segmented turn later closes into one active summary without rearchiving co
     for (const turnId of ["tn_01", "tn_02", "tn_03", "tn_04", "tn_05"]) expect(coveredTurns.has(turnId)).toBe(true);
     const sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
     const tail = sources.find(row => row.id === "src_02")!.content as { toolIO: unknown[]; memoryWrites: unknown[]; stopReason: unknown };
-    expect(tail.toolIO).toHaveLength(2); expect(tail.memoryWrites).toEqual([]);
+    // One call per batch: the KEEP newest batches are held in window until the turn
+    // itself is archived, so the turn-level source carries exactly KEEP rows.
+    expect(tail.toolIO).toHaveLength(KEEP); expect(tail.memoryWrites).toEqual([]);
     expect(tail.stopReason).toEqual({ kind: "reply", text: first.stopReason.kind === "reply" ? first.stopReason.text : "" });
     expect((sources[0]!.content as { segment: { complete: boolean } }).segment.complete).toBe(false);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
@@ -187,8 +193,8 @@ test("200K during a live tool loop compresses older batches before the next main
     const provider: Provider = { complete: async input => {
       if (input.tools[0]?.function.name === "submitTurnSummaries") { aux++; return summaryResponse(input.messages); }
       main++;
-      if (main === 4) { expect(aux).toBeGreaterThan(0); expect(input.messages[1]!.content).toContain("<conversationHistorySummary>"); }
-      return result({ toolCalls: main <= 3
+      if (main === KEEP + 2) { expect(aux).toBeGreaterThan(0); expect(input.messages[1]!.content).toContain("<conversationHistorySummary>"); }
+      return result({ toolCalls: main <= KEEP + 1
         ? [
             ...(main > 1 ? [{ id: `c${main}`, name: "checkContinue", arguments: { reason: "继续", cont: true } }] : []),
             ...Array.from({ length: main > 1 ? 19 : 20 }, (_, i) => ({ id: `p${main}_${i}`, name: "page.get_summary", arguments: { reason: "读取", tabId: 1 } })),
@@ -198,9 +204,9 @@ test("200K during a live tool loop compresses older batches before the next main
     const reply = await handleTurn({ dataDir, repoRoot, provider, host: { execute: async () => ({
       ok: true, tabId: 1, url: "https://example.com/p", title: "页", description: "证".repeat(3500),
     }) } }, { userInput: "核对结果", submittedAt: "2026-09-11" });
-    expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" }); expect(main).toBe(4);
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" }); expect(main).toBe(KEEP + 2);
     const ledger = loadLedger(dataDir, reply.conversationId);
-    expect(ledger.toolIO).toHaveLength(61);
+    expect(ledger.toolIO).toHaveLength((KEEP + 1) * 20 + 1);
     expect(loadIndex(dataDir, reply.conversationId, "conversationHistory").coveredSourceIds.length).toBeGreaterThan(0);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
@@ -212,7 +218,7 @@ test("retired query evidence is archived independently of an already-covered too
     const ledger = emptyLedger("cv_test"), current = makeTurn(ledger.conversationId, "tn_01");
     ledger.turnIds = [current.turnId]; ledger.active = { turnId: current.turnId };
     current.status = "inferring"; current.completedAt = null; current.stopReason = null;
-    ledger.toolIO = Array.from({ length: 3 }, (_, i) => ({ callId: `call_0${i + 1}`, turnId: current.turnId, batchId: `batch_0${i + 1}`, name: "context.query", arguments: {}, return: { stage: "complete" as const, text: "查询成功", totalChars: 4 } }));
+    ledger.toolIO = Array.from({ length: KEEP + 1 }, (_, i) => ({ callId: `call_0${i + 1}`, turnId: current.turnId, batchId: `batch_0${i + 1}`, name: "context.query", arguments: {}, return: { stage: "complete" as const, text: "查询成功", totalChars: 4 } }));
     ledger.currentQuery = { queryId: "query_01", turnId: current.turnId, sourceCallId: "call_01", sumId: "sum_01", module: "toolIO", intent: "核对历史", status: "complete", records: [{ callId: "call_old", turnId: "tn_old", text: "受保护原文" }] };
     const memories: Memories = { project: [], conversation: [] };
     let requests = 0;

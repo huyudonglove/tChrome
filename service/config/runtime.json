@@ -30,7 +30,7 @@
     "foldL1ToL2Chunk": { "fixed": 10 },
     "foldHigherChunk": { "fixed": 10 },
     "foldMaxLevel": { "fixed": 6 },
-    "keepToolBatches": { "fixed": 2 },
+    "keepToolBatches": { "fixed": 3 },
     "toolioRingSize": { "fixed": 10 },
     "repeatWindow": { "fixed": 8 },
     "repeatCallLimit": { "fixed": 2 },
