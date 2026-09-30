@@ -84,6 +84,11 @@
     "user": "工具调用参数类型错误。",
     "recovery": "correct_arguments"
   },
+  "conflicting_params": {
+    "model": "互斥参数同时出现。按详细错误中列出的字段只保留其中一个。",
+    "user": "工具调用同时传了互斥参数。",
+    "recovery": "correct_arguments"
+  },
   "unknown_tool": {
     "model": "工具不存在或尚未加载。先查看工具目录并加载所需工具。",
     "user": "请求的工具不存在或尚未加载。",

@@ -46,6 +46,8 @@
               },
               "contextChars": {
                 "type": "integer",
+                "minimum": 100,
+                "maximum": 20000,
                 "description": "关键字两侧保留的字符数，或按行读取的窗口字符数，默认 2000"
               }
             },

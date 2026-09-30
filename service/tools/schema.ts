@@ -122,6 +122,36 @@ function validationDetails(errors: ErrorObject[], schema: unknown): { missing: s
   return { missing, detail: parts.join("; ") };
 }
 
+// Mutually exclusive sibling properties. JSON Schema cannot express
+// "at most one of these siblings" for plain optional fields, so Ajv reports the
+// combination as a generic type error and hides the real cause.
+const MUTEX_GROUPS: string[][] = [
+  ["offset", "startLine"],
+  ["callId", "pageId"],
+];
+
+/** Names of the first mutually exclusive pair found at any depth, or "". */
+function mutexConflict(value: unknown, groups: string[][]): string {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const hit = mutexConflict(item, groups);
+      if (hit) return hit;
+    }
+    return "";
+  }
+  if (!value || typeof value !== "object") return "";
+  const record = value as Record<string, unknown>;
+  for (const group of groups) {
+    const present = group.filter((key) => record[key] !== undefined);
+    if (present.length > 1) return present.join(" + ");
+  }
+  for (const item of Object.values(record)) {
+    const hit = mutexConflict(item, groups);
+    if (hit) return hit;
+  }
+  return "";
+}
+
 export function checkToolCalls(
   toolCalls: ToolCall[],
   tools: ChatTool[],
@@ -158,6 +188,17 @@ export function checkToolCalls(
         missing: [],
         badName: call.name,
         detail: `${call.name} 不在 baseToolsIds + toolIds`,
+      };
+    }
+    const conflict = mutexConflict(call.arguments, MUTEX_GROUPS);
+    if (conflict) {
+      return {
+        parseOk: true,
+        schemaOk: false,
+        faultCode: "conflicting_params",
+        missing: [],
+        badName: call.name,
+        detail: errorDetail("conflicting_params", { tool: call.name, fields: conflict }),
       };
     }
     const schema = byName.get(call.name)?.function.parameters;

@@ -4,6 +4,7 @@
   "arguments_json_concat": "正确写法示例：arguments 必须是单个合法 JSON 对象字符串，直接包含该工具 schema 字段，严禁多包一层 \"arguments\"。如需调用多个工具请在 tool_calls 数组中分立。单调用示例：tool=local.fs_search，其 arguments 内容为 {\"items\":[{\"path\":\"/abs/dir\",\"query\":\"foo\"}],\"reason\":\"查找\"}。",
   "arguments_json_invalid": "正确写法示例：arguments 必须是可被 JSON.parse 解析的单个合法 JSON 对象字符串，直接填写工具 schema 字段，切勿在外层多套 \"arguments\" 或工具外壳。合法 arguments 示例：{\"path\":\"/abs/file.txt\",\"search\":\"old\",\"replace\":\"new\",\"reason\":\"说明\"}",
   "arguments_unable_parse": "Unable to parse JSON string",
+  "conflicting_params": "{tool} 的参数 {fields} 互斥，只能传其中一个；改用其中一个字段表达定位目标。",
   "script_steps_separate": "先单独提交 script_patch，查看写入结果后在下一次调用中执行脚本。",
   "exec_js_need_script": "请先保存 JavaScript 文件到 scripts/，再传 filename 执行。",
   "browser_not_connected": "浏览器未连接",
