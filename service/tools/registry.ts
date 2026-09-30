@@ -21,6 +21,8 @@ export type ToolRegistry = {
   toolGroups: ToolGroups;
   /** Per-tool default schedule when the call omits arguments.execution. */
   execution: Record<string, ExecutionMode>;
+  /** Per-tool mutually exclusive argument groups, declared by the definition itself. */
+  mutex: Record<string, string[][]>;
   /** Unified metadata for tools and skills, without changing tool execution contracts. */
   capabilities: CapabilityRecord[];
 };
@@ -102,6 +104,7 @@ export function loadToolRegistry(root: string): ToolRegistry {
   const toolGroups = JSON.parse(readFileSync(join(root, "service", "tools", "definitions", "groups.json"), "utf8")) as ToolGroups;
   const tools: Record<string, ChatTool> = {};
   const execution: Record<string, ExecutionMode> = {};
+  const mutex: Record<string, string[][]> = {};
   for (const file of readdirSync(join(root, "service", "tools", "definitions"))) {
     if (!file.endsWith(".json") || ["index.json", "groups.json"].includes(file)) continue;
     const source = fillNumbers(readFileSync(join(root, "service", "tools", "definitions", file), "utf8"));
@@ -112,6 +115,8 @@ export function loadToolRegistry(root: string): ToolRegistry {
     const mode: ExecutionMode = raw.execution === "parallel" ? "parallel" : "serial";
     tools[name] = injectCausalBackfill({ type: "function", function: raw.function });
     execution[name] = mode;
+    const declaredMutex = (raw as { mutex?: unknown }).mutex;
+    if (Array.isArray(declaredMutex) && declaredMutex.length > 0) mutex[name] = declaredMutex as string[][];
   }
   const capabilities = loadCapabilityCatalog(root, { tools, index, toolGroups, execution });
   for (const [name, tool] of Object.entries(tools)) {
@@ -119,7 +124,7 @@ export function loadToolRegistry(root: string): ToolRegistry {
     if (risk === "low") tools[name] = relaxReasonRequirement(tool);
     else if (risk === "medium" || risk === "high") tools[name] = enforceReasonRequirement(tool);
   }
-  return { tools, index, toolGroups, execution, capabilities };
+  return { tools, index, toolGroups, execution, mutex, capabilities };
 }
 
 export function dynamicToolIds(registry: ToolRegistry): string[] {

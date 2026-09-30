@@ -125,10 +125,9 @@ function validationDetails(errors: ErrorObject[], schema: unknown): { missing: s
 // Mutually exclusive sibling properties. JSON Schema cannot express
 // "at most one of these siblings" for plain optional fields, so Ajv reports the
 // combination as a generic type error and hides the real cause.
-const MUTEX_GROUPS: string[][] = [
-  ["offset", "startLine"],
-  ["callId", "pageId"],
-];
+// The groups are declared by each tool definition ("mutex" at the definition
+// root) and collected into ToolRegistry.mutex, so adding a new mutual
+// exclusion never requires touching this file.
 
 /** Names of the first mutually exclusive pair found at any depth, or "". */
 function mutexConflict(value: unknown, groups: string[][]): string {
@@ -157,6 +156,7 @@ export function checkToolCalls(
   tools: ChatTool[],
   baseToolsIds: string[],
   toolIds: string[],
+  mutexGroups: Record<string, string[][]> = {},
 ): SchemaCheck {
   const names = allowed(baseToolsIds, toolIds);
   const byName = new Map(tools.map((tool) => [tool.function.name, tool]));
@@ -190,7 +190,7 @@ export function checkToolCalls(
         detail: `${call.name} 不在 baseToolsIds + toolIds`,
       };
     }
-    const conflict = mutexConflict(call.arguments, MUTEX_GROUPS);
+    const conflict = mutexConflict(call.arguments, mutexGroups[call.name] ?? []);
     if (conflict) {
       return {
         parseOk: true,

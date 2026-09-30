@@ -169,11 +169,12 @@ const validateCompletion = (
   tools: Parameters<typeof checkToolCalls>[1],
   baseToolsIds: string[],
   toolIds: string[],
+  mutexGroups: Parameters<typeof checkToolCalls>[4],
 ) => {
-  const batch = checkToolCalls(raw.toolCalls, tools, baseToolsIds, toolIds);
+  const batch = checkToolCalls(raw.toolCalls, tools, baseToolsIds, toolIds, mutexGroups);
   const checks = raw.toolCalls.map((call) => ({
     call,
-    check: checkToolCalls([call], tools, baseToolsIds, toolIds),
+    check: checkToolCalls([call], tools, baseToolsIds, toolIds, mutexGroups),
   }));
   const result: CompletionResult = raw.finish === "error" ? raw : {
     ...raw,
@@ -721,7 +722,7 @@ export async function handleTurn(
         ? allocateRecordId(deps.dataDir, ledger.conversationId, "batch") : undefined;
       imageBatchId = batchId;
       const { result, batch: batchCheck, checks, validCalls } = validateCompletion(
-        rawResult, tools, turn.assembled.baseToolsIds, turn.assembled.toolIds,
+        rawResult, tools, turn.assembled.baseToolsIds, turn.assembled.toolIds, toolRegistry.mutex,
       );
       const toolIds = [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds];
       appendProviderExchange(deps.dataDir, ledger.conversationId, {

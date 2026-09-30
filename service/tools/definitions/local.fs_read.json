@@ -60,5 +60,8 @@
       "additionalProperties": false
     }
   },
-  "execution": "parallel"
+  "execution": "parallel",
+  "mutex": [
+    ["offset", "startLine"]
+  ]
 }

@@ -1,3 +1,4 @@
+import { ENVIRONMENT_FAULTS } from "../../shared/errors.ts";
 import type { ToolIOItem } from "../types.ts";
 
 /** Sliding window: hints inspect the last N tool rows of the turn, not only the last two. */
@@ -19,16 +20,13 @@ const RULE_MARKERS = {
 } as const;
 /**
  * Faults whose root cause lives outside the current call (host environment, extension
- * build, service version, broken bridge). Design-internal failures (task_gate_required,
- * assertion_failed, correct_arguments, missing_required) are deliberately absent: a hint
- * to write them down would be noise.
+ * build, service version, broken bridge). Declared as data in shared/fault-metadata.json
+ * (scope: "environment") and derived in shared/errors.ts, so declaring a new environment
+ * fault is a data edit, not a code edit here. Design-internal failures
+ * (task_gate_required, assertion_failed, correct_arguments, missing_required) are
+ * deliberately absent: a hint to write them down would be noise.
  */
-export const DIAGNOSABLE_FAULTS = new Set([
-  "executor_version_mismatch",
-  "file_exists",
-  "bridge_timeout",
-  "unserializable_value",
-]);
+export const DIAGNOSABLE_FAULTS = ENVIRONMENT_FAULTS;
 
 /** Stable stringify so key order never makes two identical calls look different. */
 function fingerprint(args: unknown, ignoreFraming = false): string {

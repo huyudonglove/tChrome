@@ -1,4 +1,5 @@
 import messages from "./error-messages.json";
+import faultMetadata from "./fault-metadata.json";
 
 export type Recovery = "correct_arguments" | "inspect_state" | "user_action" | "retry" | "none";
 type ErrorMessage = { model: string; user: string; recovery: Recovery };
@@ -36,6 +37,26 @@ export function errorInfo(error: unknown, fallback = "tool_execution_failed"): E
 
 const messageFor = (code: string): ErrorMessage =>
   Object.hasOwn(catalog, code) ? catalog[code]! : catalog.tool_execution_failed!;
+
+export type FaultScope = "environment" | "internal";
+export type FaultMetadata = { scope: FaultScope };
+const faultMeta = faultMetadata as Record<string, FaultMetadata>;
+
+/** Scope of a faultCode, from shared/fault-metadata.json. Unregistered codes fall back to "internal". */
+export function faultScope(code: string): FaultScope {
+  return Object.hasOwn(faultMeta, code) ? faultMeta[code]!.scope : "internal";
+}
+
+/**
+ * Faults whose root cause lives outside the current call (host environment, extension
+ * build, service version, broken bridge). Design-internal failures (task_gate_required,
+ * assertion_failed, correct_arguments, missing_required) are deliberately absent: a hint
+ * to write them down would be noise. Declared as data in fault-metadata.json so a new
+ * environment-scoped fault never needs a code edit here.
+ */
+export const ENVIRONMENT_FAULTS = new Set(
+  Object.keys(faultMeta).filter((code) => faultMeta[code]!.scope === "environment"),
+);
 
 /** Prefix for model-facing harness text. All catalog model messages are Runtime-originated. */
 export const RUNTIME_MODEL_PREFIX = "runtime: ";

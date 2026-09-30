@@ -63,5 +63,8 @@
       "additionalProperties": false
     }
   },
-  "execution": "parallel"
+  "execution": "parallel",
+  "mutex": [
+    ["callId", "pageId"]
+  ]
 }

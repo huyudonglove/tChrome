@@ -23,7 +23,13 @@ export function allocateRecordId(dataDir: string, conversationId: string | null,
   renameSync(`${path}.tmp`, path);
   return `${idPrefix(kind)}${String(next).padStart(2, "0")}`;
 }
-/** Service-scoped kinds whose records land on disk as <prefix>_NN.json, so counters can be re-derived from the filesystem. */
+/**
+ * Service-scoped kinds whose records land on disk as <prefix>_NN.json, so counters can be
+ * re-derived from the filesystem. This is deliberately not the full service-scoped set:
+ * process / job / account / bridge exist only in id-counters.json and never touch disk, so
+ * there is nothing to scan for them and calibration cannot apply. Adding a kind here is
+ * required for its counter to survive a lost or lagging counter file.
+ */
 const COUNTER_DISK_DIRS: Partial<Record<IdentityKind, (dataDir: string) => string>> = {
   projectMemory: (dataDir) => join(dataDir, "memory", "project"),
 };

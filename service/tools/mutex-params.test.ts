@@ -11,6 +11,7 @@ const check = (name: string, args: Record<string, unknown>) => checkToolCalls(
   tools,
   MUTEX_TOOLS,
   [],
+  registry.mutex,
 );
 
 test('offset and startLine on the same item report conflicting_params', () => {
@@ -40,6 +41,20 @@ test('callId and pageId are reported as conflicting in any window item', () => {
   for (const window of [{callId: 'call_1'}, {pageId: 'page_01'}]) {
     expect(check('evidence.search', {windows: [window]}).faultCode).not.toBe('conflicting_params');
   }
+});
+
+test('tools that declare no mutex group are never checked', () => {
+  // Same argument names, but local.fs_list declares no mutex group: the check is scoped
+  // per tool, so an undeclared combination must pass rather than fall back to a global list.
+  const undeclared = toolSchemas(registry, ['local.fs_list']);
+  const result = checkToolCalls(
+    [{id: 'call_undeclared', name: 'local.fs_list', arguments: {path: '/tmp', offset: 0, startLine: 1}}],
+    undeclared,
+    ['local.fs_list'],
+    [],
+    registry.mutex,
+  );
+  expect(result.faultCode).not.toBe('conflicting_params');
 });
 
 test('unrelated sibling keys never trip the mutex check', () => {

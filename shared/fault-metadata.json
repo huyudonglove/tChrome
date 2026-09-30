@@ -1,0 +1,6 @@
+{
+  "executor_version_mismatch": { "scope": "environment" },
+  "file_exists": { "scope": "environment" },
+  "bridge_timeout": { "scope": "environment" },
+  "unserializable_value": { "scope": "environment" }
+}
