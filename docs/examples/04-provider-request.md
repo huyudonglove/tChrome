@@ -193,7 +193,7 @@ SDK 写法：`client.chat.completions.create({ model, messages, tools, stream: f
 - <skill>：本会话已加载的动态技能正文。
 - <systemSkill>：常驻技能正文与动态技能清单。
 - <projectMemory>：跨会话记忆。
-- <conversation>：会话时间线。会话级 <conversationMemory>、<conversationHistorySummary>、按 turnId 嵌套的 <tn_xx> 轮次切片（userInput / task / callRange / actions / observations / notes / reflection / query / stopReason），以及底部全会话公用的 <toolRange> 与 <toolIO>（跨轮滚动池，仅保留最近 10 次调用详情）。
+- <conversation>：会话时间线。会话级 <conversationMemory>、<conversationHistorySummary>、按 turnId 嵌套的 <tn_xx> 轮次切片，以及底部全会话公用的 <toolRange> 与 <toolIO>（跨轮滚动池，仅保留最近 10 次调用详情）。<tn_xx> 的二级标签与各轮材料的读取规则见 User 侧同名模块，枚举只在那里维护一处。
 - <tools>：本会话已加载的动态工具。
 
 当前日期：2026-09-06。
@@ -1108,6 +1108,11 @@ TAGS:
 详细描述：
 跨会话适用的领域背景、术语和长期约束。memoryId 标识条目，sourceCallId 和 sourceConversationId 关联来源，text 是正文。工具与 <conversationMemory> 相同（write / update / delete），编号为 lm_。
 
+写入前必须知道的三条成本与边界：
+- 共享范围是服务级，不是按项目隔离。所有会话共享同一份 project 记忆，与当前操作的是哪个代码仓库无关。只对某个仓库成立的事实（某项目路径、某项目构建基线、某项目失败清单）不该写进这里。
+- 默认永不过期，注入时不做任何裁剪。每条都会永久占用每一轮的上下文预算，直到显式 memory.delete。
+- 没有「更新语义」，只有追加与整条改写。同一事实有新结论时用 memory.update 就地改写，不要再追加一条把旧版本留在那里；否则每次判断哪个是当前真相都要重读全部。
+
 内容：
 []
 </projectMemory>
@@ -1329,7 +1334,7 @@ undefined
     "type": "function",
     "function": {
       "name": "memory.write",
-      "description": "保存后续需要的事实、偏好或进展。\n参数：conversationMemory、projectMemory 为字符串数组，按旧到新追加至对应记忆末尾，至少提供一项有意义的内容。conversationMemory 保存本会话已确认的事实、偏好和决定；projectMemory 保存跨会话仍适用的长期信息。草稿和待办通过 notes.write 管理。\n返回：两类记忆的写入条数。conversationMemory 仅在本会话保存；projectMemory 跨会话共享，删除来源会话后仍保留。\n执行调度：serial（Runtime 固定，不必返回）。",
+      "description": "保存后续需要的事实、偏好或进展。\n参数：conversationMemory、projectMemory 为字符串数组，按旧到新追加至对应记忆末尾，至少提供一项有意义的内容。conversationMemory 保存本会话已确认的事实、偏好和决定；projectMemory 保存跨会话仍适用的长期信息。草稿和待办通过 notes.write 管理。\nprojectMemory 的三条边界：共享范围是服务级而非按仓库隔离（所有会话共享，与当前操作哪个仓库无关），只对某个仓库成立的事实不该写进来；默认永不过期且注入时不裁剪，每条会永久占用每轮上下文预算，直到 memory.delete；没有更新语义，事实有新结论时用 memory.update 就地改写而不是再追加一条。\n返回：两类记忆的写入条数。conversationMemory 仅在本会话保存；projectMemory 跨会话共享，删除来源会话后仍保留。\n执行调度：serial（Runtime 固定，不必返回）。",
       "parameters": {
         "type": "object",
         "properties": {
