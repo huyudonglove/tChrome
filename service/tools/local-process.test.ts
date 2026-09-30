@@ -59,9 +59,15 @@ test.each([
   expect(await Bun.file(join(cwd, "injected")).exists()).toBe(false);
 });
 
+test("accepts an inline shell command without saving a script", async () => {
+  const result = await call("run", { command: 'printf "%s" "$1"', cwd, args: ["inline"] });
+  expect(result).toMatchObject({ ok: true, stdout: "inline", exitCode: 0 });
+});
+
 test("rejects inline code, missing scripts and invalid arguments", async () => {
   const filename = await script("printf valid");
-  for (const input of [{ command: "printf bypass" }, { filename, command: "printf bypass" }, { filename, code: "printf bypass" },
+  for (const input of [{ filename, command: "printf bypass" }, { filename, code: "printf bypass" },
+    { command: 1 as unknown as string }, { command: "printf x", args: [1] },
     { filename: "missing.sh" }, { filename: "../escape.sh" }, { filename: "file.txt" }, { filename, args: [1] }]) {
     expect(await call("run", { cwd, ...input })).toMatchObject({ ok: false });
   }

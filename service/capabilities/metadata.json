@@ -2530,6 +2530,32 @@
         "local.fs_read"
       ]
     },
+    "local.code_refs": {
+      "purpose": "按符号名检索代码定义位置与全部引用点，省去先猜文件再读全文的往返",
+      "triggers": [
+        "local.code_refs",
+        "需要改动一个函数、类型或常量，但不确定它写在哪个文件"
+      ],
+      "outputs": [
+        "定义位置（文件、行号、符号种类）与引用点列表"
+      ],
+      "preconditions": [
+        "用户已授权当前宿主操作范围",
+        "符号名与目录均为已知"
+      ],
+      "risk": "low",
+      "verification": [
+        "检查 ok=true；definitions 命中位置与预期实现文件一致"
+      ],
+      "alternatives": [
+        "local.fs_grep",
+        "local.tsx_outline"
+      ],
+      "composesWith": [
+        "local.fs_read",
+        "local.tsx_outline"
+      ]
+    },
     "long_press": {
       "purpose": "长按页面元素",
       "triggers": [

@@ -59,7 +59,10 @@ function lookup(input: Record<string, unknown>, scope: string): Entry {
   return entry;
 }
 async function start(input: Record<string, unknown>, scope: string, token: { cancelled: boolean }, dataDir: string, open: boolean): Promise<Entry> {
-  if ("command" in input || "code" in input) throw new Error("Inline code is not accepted; save a script under scripts/ and provide filename");
+  if ("code" in input) throw new Error("code is not accepted; pass an inline shell command via command, or save a script under scripts/ and provide filename");
+  const command = input.command;
+  if (command !== undefined && typeof command !== "string") throw new Error("command must be a string");
+  if (command !== undefined && input.filename !== undefined) throw new Error("Provide either command or filename, not both");
   const cwd = open ? homedir() : requiredString(input, "cwd");
   if (!isAbsolute(cwd) || !(await stat(cwd)).isDirectory()) throw new Error("cwd must be an existing absolute directory");
   const timeoutMs = input.timeoutMs;
@@ -77,15 +80,23 @@ async function start(input: Record<string, unknown>, scope: string, token: { can
       executable = process.platform === "darwin" ? "/usr/bin/open" : "xdg-open";
       argv = [path];
     } else {
-      filename = requiredString(input, "filename");
-      const extension = extname(filename);
       const interpreters: Record<string, string> = { ".sh": "/bin/zsh", ".py": "python3", ".js": process.execPath, ".mjs": process.execPath, ".cjs": process.execPath };
+      let extension: string;
+      let code: string;
+      if (command !== undefined) {
+        // 内联命令走同一快照机制：落临时 .sh 交给 zsh，避免与落盘脚本行为分叉。
+        extension = ".sh";
+        code = command;
+      } else {
+        filename = requiredString(input, "filename");
+        extension = extname(filename);
+        code = (await readScript(dataDir, filename)).code;
+      }
       executable = interpreters[extension]!;
       if (!executable) throw new Error("Unsupported script extension; use .sh, .py, .js, .mjs, or .cjs");
-      const script = await readScript(dataDir, filename);
       temporary = await mkdtemp(join(tmpdir(), "tchrome-script-run-"));
       const snapshotPath = join(temporary, `script${extension}`);
-      await writeFile(snapshotPath, script.code, { mode: 0o600, flag: "wx" });
+      await writeFile(snapshotPath, code, { mode: 0o600, flag: "wx" });
       argv = [snapshotPath, ...args];
     }
     if (token.cancelled) throw new Error("Local process start cancelled");

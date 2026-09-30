@@ -12,6 +12,8 @@ test("admitText inlines small text and degrades large text with a precise-fetch 
   expect(large.payload.head).toBe("x".repeat(runtimeConfig.results.previewChars));
   expect(String(large.payload.message)).toContain("更精准");
   expect(String(large.payload.message)).toContain("evidence.search(windows=[{callId=call_01");
+  // 降级提示必须可直接操作：没有层级时也要给出建议的 startLine 锚点。
+  expect(String(large.payload.message)).toContain("startLine=1");
 });
 
 test("admitText turns an oversized JSON payload into a structured summary instead of a raw head slice", () => {
@@ -318,6 +320,10 @@ test("admitText puts per-layer addressable chunk ids into the pointer payload", 
   }
   // 块正文不进指针，只带元数据
   expect(JSON.stringify(layers)).not.toContain("mod.ts:1 ");
+  // 降级提示直接给出最细一层的 startLine 锚点，模型不必再猜该往哪读。
+  const hint = String(admitted.payload.message);
+  expect(hint).toContain(`startLine=${l1.chunks[0]?.from}`);
+  expect(hint).toContain("行/块");
   // 纯文本载荷抽不出层级 → 不带 layers
   const plain = admitText("z".repeat(5000), { callId: "call_02", path: "/tmp/b.txt" });
   if (plain.mode !== "preview") throw new Error("mode");

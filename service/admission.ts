@@ -505,6 +505,17 @@ export function admitText(
       }))
     : undefined;
   const locate = meta.pageId ? `pageId=${meta.pageId}` : `callId=${meta.callId ?? ""}`;
+  // 可操作提示：降级文案不能只说「更精准」，得直接给出下一轮的 startLine 锚点。
+  // 锚点取块数最多的那一层（粒度最细），其 chunk.from 就是可直接用的起始行号。
+  const finest = [...(layers ?? [])]
+    .filter((layer) => layer.chunks.length > 0)
+    .sort((a, b) => b.total - a.total)[0];
+  const anchors = (finest?.chunks ?? []).slice(0, 3);
+  const anchorHint = finest
+    ? `建议按最细一层 ${finest.id} 的锚点收窄：${anchors
+        .map((chunk) => `startLine=${chunk.from}${chunk.to > chunk.from ? `（${chunk.from}-${chunk.to} 行）` : ""}`)
+        .join(" 或 ")}（全文 ${totalLines} 行，约 ${Math.max(1, Math.round(totalLines / finest.total))} 行/块）`
+    : `建议按行收窄：startLine=1 起小段读（全文 ${totalLines} 行，约 ${lineWidth} 字/行）`;
   return {
     mode: "preview",
     payload: {
@@ -524,8 +535,8 @@ export function admitText(
       path: meta.path,
       ...(meta.indexPath ? { indexPath: meta.indexPath } : {}),
       message: structured
-        ? `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（summary 为分层目录，含 ${levels.join("、") || "L1"}；每层行内自带「本层覆盖/总量」，直接在该层定位或再往上翻一层；全文 ${totalLines} 行${meta.indexPath ? `；完整不截断索引已落盘 ${meta.indexPath}` : ""}）。要细节请更精准：evidence.search(windows=[{${locate},keyword|startLine}])，可一次带多个窗口；${RETRIEVAL_INLINE_NOTE}`
-        : `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（head 为原文前 ${previewChars} 字，全文 ${totalLines} 行）。要细节请更精准：evidence.search(windows=[{${locate},keyword|startLine}])，可一次带多个窗口；${RETRIEVAL_INLINE_NOTE}`,
+        ? `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（summary 为分层目录，含 ${levels.join("、") || "L1"}；每层行内自带「本层覆盖/总量」，直接在该层定位或再往上翻一层；全文 ${totalLines} 行${meta.indexPath ? `；完整不截断索引已落盘 ${meta.indexPath}` : ""}）。要细节请更精准：evidence.search(windows=[{${locate},keyword|startLine}])，可一次带多个窗口；${anchorHint}；${RETRIEVAL_INLINE_NOTE}`
+        : `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（head 为原文前 ${previewChars} 字，全文 ${totalLines} 行）。要细节请更精准：evidence.search(windows=[{${locate},keyword|startLine}])，可一次带多个窗口；${anchorHint}；${RETRIEVAL_INLINE_NOTE}`,
       search: "evidence.search",
     },
   };
