@@ -84,6 +84,30 @@
         "evidence.search"
       ]
     },
+    "actions.write": {
+      "purpose": "向当前 Turn 追加工具调用动作流水",
+      "triggers": [
+        "actions.write",
+        "连续多步工具调用后固化执行流水"
+      ],
+      "outputs": [
+        "本轮动作流水条目"
+      ],
+      "preconditions": [
+        "用户已授权当前宿主操作范围"
+      ],
+      "risk": "low",
+      "verification": [
+        "检查 ok=true；turn.actions 追加了新条目"
+      ],
+      "alternatives": [
+        "通过 observation.write 记录阶段观察"
+      ],
+      "composesWith": [
+        "observation.write",
+        "finishTurn"
+      ]
+    },
     "page.eval_expr": {
       "purpose": "在页面主上下文中快速执行轻量表达式并读回值（免脚本落盘）",
       "triggers": [

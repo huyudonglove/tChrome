@@ -91,7 +91,8 @@ test("summary layer re-enters compression once active summaries exceed the gate"
   expect(merged.committedTurnIds).toEqual(["tn_01"]);
   const next = loadIndex(args.dataDir, args.conversationId, args.module);
   const mergedRecord = next.entries.find(row => row.turnId === "tn_01" && row.sourceIds.includes("segment_2"))!;
-  expect(mergedRecord.level).toBe(2);
+  // Same-turn consolidation stays L1; cross-turn folds own the L2+ levels.
+  expect(mergedRecord.level).toBe(1);
   expect(mergedRecord.sourceIds).toEqual(["sum_01", "segment_2"]);
   expect(next.activeIds).toContain(mergedRecord.id);
   expect(next.activeIds).not.toContain("sum_01");

@@ -15,6 +15,9 @@ export type ConversationTurnSlice = {
     events: TaskHistoryRecord[];
   };
   toolIO: ReturnType<typeof toolHistoryView>;
+  /** First–last callId of this turn; detail is kept only for the newest ring calls. */
+  toolRange: string | null;
+  actions: { id: string; text: string; at: string }[] | null;
   observations: ReturnType<typeof pageView>[];
   notes: Record<string, string>;
   reflection: { turnId: string; items: { id: string; text: string; focus?: string }[] } | null;
@@ -78,6 +81,8 @@ export function conversationPayload(input: {
   const queries: QueryEvidence[] = [...(input.queryHistory ?? [])];
   if (input.currentQuery) queries.push(input.currentQuery);
   const notesByTurn = input.notesByTurn ?? {};
+  // Newest tool calls keep their detail; everything older collapses to pointers.
+  const ringCallIds = new Set(ledger.toolIO.slice(-10).map((row) => row.callId));
 
   const turns: ConversationTurnSlice[] = [];
   const seen = new Set<string>();
@@ -99,7 +104,16 @@ export function conversationPayload(input: {
         task: isLive ? taskView(liveTask) : null,
         events: taskEvents,
       },
-      toolIO: toolHistoryView(toolRows, pages),
+      toolIO: toolHistoryView(toolRows, pages, ringCallIds),
+      toolRange: toolRows.length ? `${toolRows[0]!.callId}–${toolRows.at(-1)!.callId}` : null,
+      actions: isLive
+        ? (turn.actions ?? null)
+        : (input.dataDir
+          ? (() => {
+            try { return loadTurn(input.dataDir!, ledger.conversationId, row.turnId).actions ?? null; }
+            catch { return null; }
+          })()
+          : null),
       observations: pages.map((page) => pageView(page, currentTurn)).filter((page) => page !== null),
       notes: (isLive ? ledger.notes : notesByTurn[row.turnId]) ?? {},
       reflection: reflectByTurn.get(row.turnId)?.length
@@ -146,7 +160,9 @@ export function conversationXml(payload: ConversationPayload): string {
     const fields = [
       tag("userInput", slice.userInput),
       tag("task", slice.task),
+      ...(slice.toolRange ? [tag("toolRange", `${slice.toolRange}（本段 ${slice.toolIO.length} 次调用；仅最近 10 次保留详情，其余 evidence.search(callId) 取回）`)] : []),
       tag("toolIO", slice.toolIO),
+      tag("actions", slice.actions),
       tag("observations", slice.observations),
       tag("notes", slice.notes),
       tag("reflection", slice.reflection),

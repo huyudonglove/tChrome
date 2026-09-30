@@ -160,8 +160,11 @@ test("segmented turn later closes into one active summary without rearchiving co
     commitArchive(dataDir, ledger.conversationId, seeded, [], []);
     await compressContext({ dataDir, repoRoot, provider, ledger, turn: current, memories, isCancelled: () => false });
     const index = loadIndex(dataDir, ledger.conversationId, "conversationHistory");
-    const realTurnIds = index.activeIds.map(id => index.entries.find(row => row.id === id)!.turnId).filter(id => id.startsWith("tn_0"));
-    expect(realTurnIds).toEqual(["tn_01", "tn_02", "tn_03", "tn_04", "tn_05"]);
+    // Cross-turn folding may replace per-turn L1 rows with span records; assert the
+    // original turns are still covered by the active summary set.
+    const activeRows = index.activeIds.map((id) => index.entries.find((row) => row.id === id)!);
+    const coveredTurns = new Set(activeRows.flatMap((row) => row.turnIds ?? [row.turnId]));
+    for (const turnId of ["tn_01", "tn_02", "tn_03", "tn_04", "tn_05"]) expect(coveredTurns.has(turnId)).toBe(true);
     const sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
     const tail = sources.find(row => row.id === "src_02")!.content as { toolIO: unknown[]; memoryWrites: unknown[]; stopReason: unknown };
     expect(tail.toolIO).toHaveLength(2); expect(tail.memoryWrites).toEqual([]);
@@ -174,6 +177,11 @@ test("200K during a live tool loop compresses older batches before the next main
   const dataDir = mkdtempSync(join(tmpdir(), "context-live-boundary-"));
     primeActiveTask(dataDir);
   try {
+    // The rolling toolIO ring keeps the window much smaller than before, so this
+    // scenario lowers the threshold instead of relying on toolIO bloat.
+    const primed = loadLedger(dataDir, ensureSession(dataDir).conversationId);
+    primed.compressAt = 40000;
+    saveLedger(dataDir, primed);
     let main = 0, aux = 0;
     // Stay under the 4000 inline gate so accumulation, not a single huge return, fills the window.
     const provider: Provider = { complete: async input => {

@@ -31,8 +31,8 @@ function setup() {
     name, arguments: args, dataDir, browserNames: [], conversationId: ledger.conversationId,
     lookup: {
       unusedTools: ["capture_page"],
-      knownTools: ["finishTurn", "page.click", "capture_page"],
-      enabledTools: [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds],
+      knownTools: ["finishTurn", "page.click", "capture_page", "actions.write"],
+      enabledTools: [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds, "actions.write"],
       protectedTools: [...turn.assembled.baseToolsIds],
     },
     ...options,
@@ -250,4 +250,19 @@ test("observation.write persists observations in chronological order", () => {
   expect(observedTimes[1]!).toBeLessThanOrEqual(Date.now());
   expect(loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId).assembled)
     .toEqual(fixture.turn.assembled);
+});
+
+test("actions.write appends turn actions with stable act_ ids", async () => {
+  const fixture = setup();
+  const first = await fixture.execute("actions.write", { reason: "记一笔", text: "调用 list_tabs，拿到 3 个标签" });
+  expect(JSON.parse(first.text)).toMatchObject({ ok: true });
+  fixture.apply(first);
+  const second = await fixture.execute("actions.write", { reason: "再记", text: "调用 page.click，页面已跳转" });
+  fixture.apply(second, "call_actions_2");
+  expect(fixture.turn.actions).toHaveLength(2);
+  expect(fixture.turn.actions![0]).toMatchObject({ text: "调用 list_tabs，拿到 3 个标签" });
+  expect(fixture.turn.actions![1]!.id).toMatch(/^act_/);
+  expect(loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId).actions).toHaveLength(2);
+  const missing = await fixture.execute("actions.write", { reason: "空", text: "  " });
+  expect(JSON.parse(missing.text)).toMatchObject({ ok: false, faultCode: "invalid_arguments" });
 });

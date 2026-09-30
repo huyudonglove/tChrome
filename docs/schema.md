@@ -139,6 +139,7 @@ Runtime 独占维护。当前会话指针。
 | `pendingAsk` | object \| null | `waiting_human` 时 `{turnId, question}`；否则 `null` |
 | `turnIds` | string[] | 已建的回合，按时间 |
 | `userInputHistory` | object[] | 上一轮及更早的输入，按旧到新排列。每项 `{id, turnId, userInput, submittedAt}`；新会话 `[]`。当前输入进入历史时保留原 ID |
+| `actions` | object[] \| null | 模型经 `actions.write` 追加的工具调用流水 `[{id, text, at}]`，id 前缀 `act_`；进压缩归档字段 actions。新会话 null |
 | `toolQueue` | object[] | 本 Turn 待执行的工具。模型一次出网交的 `toolCalls` 按数组顺序入队。任务队列按这个顺序跑。跑完一条弹出，写入 `toolIO`。新会话 / 新出网前空。每项 `{callId, name, arguments}` |
 | `liveTool` | object \| null | 正在跑的那条 `{name, callId}`。空闲 / 追问 / 失败为 `null` |
 | `toolIO` | object[] | 本会话完整工具记录，按执行顺序追加。本地始终保留；模型窗口按压缩目录 coveredSourceIds 过滤已覆盖记录 |

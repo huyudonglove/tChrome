@@ -149,8 +149,26 @@ const executeClaim = async (
   return result;
 };
 
+const postResult = async (id: string, result: Record<string, unknown>) => {
+  const response = await fetch(`${SERVICE}/tool-result?executorVersion=${executorVersion}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ id, result }),
+  });
+  if (!response.ok) {
+    awaitingReport.add(id);
+    throw new Error(`tool-result ${response.status}`);
+  }
+  awaitingReport.delete(id);
+};
+
 const runRequest = async (request: { id: string; name: string; input?: Record<string, unknown> }) => {
-  if (reported.has(request.id)) return;
+  if (reported.has(request.id)) {
+    // Already executed; the earlier POST may have failed (e.g. executor version
+    // mismatch). Re-deliver the stored result instead of skipping forever.
+    try { await postResult(request.id, reported.get(request.id)!); } catch { /* backoff set */ }
+    return;
+  }
   const records = await loadRecords();
   // Seeded so the definite-assignment check holds when a tool throws outside
   // the inner try; every real path overwrites it before it is reported.
@@ -194,16 +212,7 @@ const runRequest = async (request: { id: string; name: string; input?: Record<st
     result = await executeClaim(request, records);
   }
   reported.set(request.id, result!);
-  const response = await fetch(`${SERVICE}/tool-result?executorVersion=${executorVersion}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ id: request.id, result }),
-  });
-  if (!response.ok) {
-    awaitingReport.add(request.id);
-    throw new Error(`tool-result ${response.status}`);
-  }
-  awaitingReport.delete(request.id);
+  await postResult(request.id, result!);
 };
 
 const pumpTools = async () => {

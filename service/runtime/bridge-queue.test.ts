@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, spyOn, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -76,4 +76,25 @@ test("executeTracked exposes the request id and abortById removes only that pend
   expect(bridge.abortById(tracked.id)).toBe(false);
   bridge.resolve(bridge.list()[0]!.id, { ok: true });
   expect(await other).toEqual({ ok: true });
+});
+
+test("an unanswered request fails with a timeout instead of hanging the turn", async () => {
+  const dir = root();
+  const realSetTimeout = globalThis.setTimeout;
+  const spy = spyOn(globalThis, "setTimeout").mockImplementation(((callback: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => {
+    return realSetTimeout(callback, ms === 120_000 ? 0 : ms, ...args);
+  }) as typeof setTimeout);
+  const bridge = createToolBridge(dir);
+  try {
+    const pending = bridge.execute("scope", "capture_page", { tabId: 1 });
+    const request = bridge.list()[0]!;
+    const result = await pending;
+    expect(result).toMatchObject({ ok: false, faultCode: "tool_execution_failed" });
+    expect(String((result as { error?: string }).error)).toContain("超时");
+    // Late results for a timed-out request are ignored.
+    expect(bridge.resolve(request.id, { ok: true })).toBe(false);
+  } finally {
+    spy.mockRestore();
+    bridge.abort();
+  }
 });

@@ -6,7 +6,7 @@ import { compressionLog } from "./log.ts";
 import { compressionSystemFromModules } from "./context/loader.ts";
 import type { ChatMessage, ChatTool, CompletionResult, Provider } from "../../types.ts";
 
-export type TurnSummary = { turnId: string; tag: string; userRequest: string; actions: string; result: string; reflection?: string };
+export type TurnSummary = { turnId: string; tag: string; userRequest: string; actions: string; result: string; reflection?: string; turnIds?: string[] };
 export type CompressionTurn = { turnId: string; [field: string]: unknown };
 export type SubmittedTurnFields = { tag: string; actions: string; result: string; reflection?: string };
 
@@ -147,5 +147,91 @@ export async function requestTurnSummaries(input: {
     const { faultCode, detail, details } = errorInfo(error, "compression_failed");
     append("error", { faultCode, detail, stack: error instanceof Error ? error.stack : undefined });
     throw new AppError(faultCode, `${detail}; compression log: ${log.path}`, { ...details, logPath: log.path }, { cause: error });
+  }
+}
+
+export type FoldRow = { turnId: string; tag: string; userRequest: string; actions: string; result: string; reflection?: string };
+
+/** Span id for a cross-turn fold record, e.g. tn_01..tn_12. */
+export function foldSpanId(turnIds: string[]): string {
+  return `${turnIds[0]}..${turnIds[turnIds.length - 1]}`;
+}
+
+/**
+ * One model call merges several summary rows into a single stage record.
+ * Same tool/schema as per-turn summaries; the runtime fills turnId/userRequest.
+ */
+export async function requestCrossTurnFold(input: {
+  provider: Provider;
+  repoRoot: string;
+  level: number;
+  turnIds: string[];
+  rows: FoldRow[];
+  dataDir: string;
+  conversationId: string;
+  module?: string;
+}): Promise<TurnSummary> {
+  const log = compressionLog(input.dataDir, input.conversationId);
+  const append = (stage: string, data: unknown) => {
+    try { log.append(stage, data); } catch {}
+  };
+  const spanId = foldSpanId(input.turnIds);
+  const tier = input.level >= 3 ? "L3" : "L2";
+  append("fold-start", { conversationId: input.conversationId, module: input.module, spanId, level: input.level, turns: input.turnIds.length });
+  try {
+    const system = compressionSystemPrompt(input.repoRoot);
+    const tool = JSON.parse(readFileSync(join(input.repoRoot, "service/agents/compression/tools/submit-turn-summaries.json"), "utf8")) as ChatTool;
+    const validate = new Ajv({ allErrors: true }).compile(tool.function.parameters);
+    const baseMessages: ChatMessage[] = [
+      { role: "system", content: system },
+      { role: "user", content: `<summaryFold>\n${JSON.stringify({ level: input.level, turnIds: input.turnIds, summaries: input.rows })}\n</summaryFold>\n把以上 ${input.rows.length} 条轮次摘要合并成一条${tier}阶段纪要：覆盖哪些轮次、共同推进了什么、阶段结论是什么。只通过 ${tool.function.name} 提交 {tag, actions, result}（reflection 可选），不要填 turnId。` },
+    ];
+    let lastError = "";
+    for (let attempt = 1; attempt <= COMPRESSION_FORMAT_ATTEMPTS; attempt++) {
+      const messages: ChatMessage[] = attempt === 1 ? baseMessages : [
+        ...baseMessages,
+        { role: "user", content: JSON.stringify({ selfRepair: true, attempt, maxAttempts: COMPRESSION_FORMAT_ATTEMPTS, fault: modelSpeech(lastError), instruction: modelSpeech(`上一次折叠提交无效。每个 ${tool.function.name} 提交对象 {tag, actions, result}，三个必填字段均为非空字符串；不要包数组，也不要填 turnId。本轮折叠跨度 ${spanId}。`) }) },
+      ];
+      const request: Parameters<Provider["complete"]>[0] = { tools: [tool], messages };
+      append("fold-request", { attempt, ...request });
+      const response = await input.provider.complete(request);
+      append("fold-response", { attempt, ...response });
+      if (response.finish === "error" && response.faultCode) {
+        throw new AppError(response.faultCode, `Compression fold agent failed: ${response.faultCode}`);
+      }
+      const protocolFault = formatFault(response, tool.function.name);
+      if (protocolFault) {
+        lastError = protocolFault;
+        append("fold-format-error", { attempt, detail: protocolFault });
+        if (attempt === COMPRESSION_FORMAT_ATTEMPTS) throw new Error(`Compression fold format failed after ${COMPRESSION_FORMAT_ATTEMPTS} attempts: ${protocolFault}`);
+        continue;
+      }
+      const call = response.toolCalls[0]!;
+      if (!validate(call.arguments)) {
+        lastError = `Compression fold schema failed: ${JSON.stringify(validate.errors)}`;
+        append("fold-validation-error", { attempt, errors: validate.errors });
+        if (attempt === COMPRESSION_FORMAT_ATTEMPTS) throw new Error(lastError);
+        continue;
+      }
+      const value = call.arguments as SubmittedTurnFields;
+      const reflection = value.reflection?.trim();
+      const userRequest = input.rows.length === 1
+        ? input.rows[0]!.userRequest
+        : `覆盖 ${input.turnIds.length} 轮（${input.turnIds[0]}…${input.turnIds[input.turnIds.length - 1]}）`;
+      return {
+        turnId: spanId,
+        turnIds: input.turnIds,
+        tag: value.tag.trim(),
+        userRequest,
+        actions: value.actions.trim(),
+        result: value.result.trim(),
+        ...(reflection ? { reflection } : {}),
+      };
+    }
+    throw new Error("Compression fold produced no summary");
+  } catch (error) {
+    const info = errorInfo(error, "tool_execution_failed");
+    append("fold-error", { detail: info.detail || info.message });
+    throw error;
   }
 }

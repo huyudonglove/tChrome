@@ -135,6 +135,7 @@ export type Turn = {
   input: { id: string; text: string; submittedAt: string };
   assembled: Assembled;
   reflect?: { id: string; text: string; focus?: string }[] | null;
+  actions?: { id: string; text: string; at: string }[] | null;
   stopReason: TurnStopReason | null;
   // Optional for conversations saved before usage counters were introduced.
   usage?: { modelRequests: number; toolCalls: number };

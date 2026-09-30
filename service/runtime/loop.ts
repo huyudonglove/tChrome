@@ -24,6 +24,8 @@ import { executeTool } from "../tools/execute.ts";
 // Gates tighten 30 -> 20 -> 10 within a turn and reset after every observation.write.
 // Marker prefix appended to the last tool return; stripped on the next pass so a nudge never sticks.
 const OBSERVATION_NUDGE_MARKER = "runtime: 本回合已累计";
+const ACTIONS_NUDGE_MARKER = "runtime: actions-nudge";
+const ACTIONS_NUDGE_EVERY = 5;
 const OBSERVATION_NUDGE_FIRST_GATE = 30;
 const OBSERVATION_NUDGE_MIN_GATE = 10;
 const OBSERVATION_NUDGE_STEP = 10;
@@ -484,6 +486,7 @@ export async function handleTurn(
     completedAt: null,
     input: { id: allocateRecordId(deps.dataDir, ledger.conversationId, "input"), text: body.userInput, submittedAt: body.submittedAt },
     assembled: assemble(toolRegistry, ledger.loadedToolIds),
+    actions: [],
     stopReason: null,
     usage: { modelRequests: 0, toolCalls: 0 },
   };
@@ -538,8 +541,12 @@ export async function handleTurn(
       // Strip a nudge appended by an earlier iteration before re-evaluating: the text is written
       // into toolIO, so without this it would reappear in every later model request of the turn.
       for (const row of rows) {
-        const at = row.return.text.indexOf(OBSERVATION_NUDGE_MARKER);
-        if (at >= 0) row.return = { ...row.return, text: row.return.text.slice(0, at).trimEnd() };
+        let text = row.return.text;
+        const obsAt = text.indexOf(OBSERVATION_NUDGE_MARKER);
+        if (obsAt >= 0) text = text.slice(0, obsAt).trimEnd();
+        const actAt = text.indexOf(ACTIONS_NUDGE_MARKER);
+        if (actAt >= 0) text = text.slice(0, actAt).trimEnd();
+        if (text !== row.return.text) row.return = { ...row.return, text };
       }
       const writeCount = rows.filter((r) => r.name === "observation.write").length;
       if (writeCount > observationWrites) {
@@ -563,6 +570,18 @@ export async function handleTurn(
           last.return = {
             ...last.return,
             text: `${last.return.text}\n\n${OBSERVATION_NUDGE_MARKER} ${evidenceCallsSinceObservation} 次产出证据的工具调用（${detail}），仍未固化任何观察——这段时间查到的结论只散在工具返回里，跨轮或被压缩后只会剩指针，需要时得重新翻。建议用 observation.write 写一次阶段小结：现在处于什么状态、已确认哪些结论、哪些仍未验证、下一步从哪接，后续轮次就能直接接着推进而不是从头取证；这是给自己留的交接笔记，不是工具流水账。下次提示门槛收紧到 ${observationNudgeGate} 次。`,
+          };
+        }
+      }
+      // ToolIO ring nudge: every few calls, keep the <actions> log current so the
+      // window can drop older call details without losing the narrative.
+      const actionsRecent = rows.slice(-ACTIONS_NUDGE_EVERY).some((r) => r.name === "actions.write");
+      if (rows.length > 0 && rows.length % ACTIONS_NUDGE_EVERY === 0 && !actionsRecent) {
+        const last = rows.at(-1);
+        if (last) {
+          last.return = {
+            ...last.return,
+            text: `${last.return.text}\n\n${ACTIONS_NUDGE_MARKER} 本回合已累计 ${rows.length} 次工具调用，请用 actions.write 记录「调用了什么、拿到了什么」——窗口只保留最近 10 次调用详情，更早的只剩 ID 范围与本流水。`,
           };
         }
       }

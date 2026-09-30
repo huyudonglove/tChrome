@@ -28,12 +28,25 @@ const MODULE_POINTERS: Record<string, (args: Record<string, unknown>, result: un
   "task.update": (args) => ({ args: { task: args.taskId ?? true }, result: { ok: true, taskId: args.taskId ?? null } }),
   "task.complete": (args) => ({ args: { task: args.taskId ?? true }, result: { ok: true, taskId: args.taskId ?? null, completed: true } }),
   "observation.write": (args) => ({ args: { observations: args.type ?? true }, result: { ok: true, observation: args.type ?? true } }),
+  "actions.write": (args) => ({ args: { actions: true }, result: { ok: true, action: true } }),
 };
 
 /** Page observation payloads live in <observations>; toolIO keeps a pointer only. */
-export function toolHistoryView(records: ToolIOItem[], observations: Observation[] = []) {
+export function toolHistoryView(records: ToolIOItem[], observations: Observation[] = [], ringCallIds?: Set<string>) {
   const byCall = new Map(observations.map((item) => [`${item.turnId}:${item.callId}`, item]));
   return records.map(record => {
+    // Rolling ring: only the newest calls keep their detail inline; older ones
+    // collapse to a pointer so a long turn cannot grow the window without bound.
+    if (ringCallIds && !ringCallIds.has(record.callId)) {
+      return {
+        callId: record.callId,
+        turnId: record.turnId,
+        batchId: record.batchId,
+        name: record.name,
+        arguments: { ...(typeof record.arguments?.reason === "string" ? { reason: record.arguments.reason } : {}) },
+        return: { stage: "complete", result: { externalized: true, callId: record.callId, note: "详情已外置，evidence.search(callId) 取回" } },
+      };
+    }
     let result = resultView(record.return.text);
     const observation = byCall.get(`${record.turnId}:${record.callId}`);
     if (observation && record.return.stage === "complete") {

@@ -118,6 +118,13 @@
     "allocation": "counter",
     "description": "本轮反思记录"
   },
+  "action": {
+    "field": "id",
+    "prefix": "act",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "轮内工具调用动作流水"
+  },
   "account": {
     "field": "id",
     "prefix": "account",

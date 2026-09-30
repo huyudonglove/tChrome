@@ -28,6 +28,7 @@ test("module registry owns consumers, compress flags and archive fields", () => 
     "reflection",
     "queryHistory",
     "stopReason",
+    "actions",
   ]);
   const mainSystem = registryModules(registry, { role: "system", consumer: "main" }).map(row => row.id);
   expect(mainSystem).toContain("runtime");

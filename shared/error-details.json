@@ -11,6 +11,7 @@
   "library_missing": "资料不存在",
   "library_unknown_action": "未知资料操作",
   "report_progress_empty": "reportProgress 需要非空 text",
+  "actions_empty_text": "actions.write 需要非空 text。",
   "reflect_empty_text": "reflect.write 的 text 为空",
   "reflect_missing_session": "reflect.write 缺少会话标识",
   "reflect_bad_id": "id 必须是 rf_ 编号",

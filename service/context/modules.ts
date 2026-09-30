@@ -45,6 +45,7 @@ const DEFAULT_SEMANTICS: Record<string, string> = {
   userInput: "对象 `{id, turnId, userInput, submittedAt}`。片段可缺省，不表示用户没输入。",
   observations: "数组 `[{id, turnId, callId, batchId?, tabId?, type, result, writtenTurn?, validUntilTurn?}]`。type 为产生观察的工具名；result 是该次观察的完整返回。与 toolIO 同 callId 时两份都读。观察跟着轮次走：超过自己声明的 validUntilTurn 后不再注入；跨轮仍要留的结论用 memory.write 写成会话记忆。",
   memoryWrites: "数组 `[{memoryId, turnId, layer, text, createdAt, sourceCallId}]`。此处只含本轮写入的会话记忆。",
+  actions: "数组 `[{id, text, at}]`。模型经 actions.write 追加的本轮工具调用流水：调用了什么、拿到了什么。",
   toolIO: "数组 `[{callId, batchId?, turnId, name, arguments, return:{stage,result}, images?}]`。写模块的调用（finishTurn/askUser/notes/memory/task/reflect/observation）只存指针，正文在对应模块。与 observations 同 callId 的调用 result 为 `{ok, observationId}`。",
   queryHistory: "数组 `[{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}]`。status 为 complete / not_found / error；records 保留原模块记录。结论写入 result。",
   stopReason: "对象或 null。`{kind:\"reply\", text}` 为最终回复正文（侧栏与后续上下文同一 text）；`{kind:\"ask\", question}` 在等用户；`{kind:\"error\", faultCode, causeCode?, toolName?, detail?}` 本轮失败；`{kind:\"tool\", name, callId}` 停在该工具调用、还没收口。null 表示暂无收尾。",

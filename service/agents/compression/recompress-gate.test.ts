@@ -105,8 +105,11 @@ test("extra sources take L1 immediately; L2 merge waits for active list to excee
   const after = loadIndex(dataDir, conversationId, "conversationHistory");
   expect(together.committedTurnIds).toEqual(["tn_01"]);
   const tn01 = after.entries.filter(e => e.turnId === "tn_01");
-  expect(tn01.some(e => e.level >= 2)).toBe(true);
-  expect(after.activeIds).toContain(tn01.find(e => e.level >= 2)!.id);
+  // Same-turn consolidation stays L1 under the new hierarchy semantics.
+  expect(tn01.every(e => e.level === 1)).toBe(true);
+  expect(tn01.some(e => e.id !== firstSumId)).toBe(true);
   expect(after.activeIds).not.toContain(firstSumId);
   expect(after.coveredSourceIds).toContain("src_03");
+  // Cross-turn fold ran (active was above the gate): padded L1s became L2 spans.
+  expect(after.entries.some(e => e.level === 2 && (e.turnIds?.length ?? 0) > 1)).toBe(true);
 });

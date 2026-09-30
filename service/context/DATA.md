@@ -21,6 +21,7 @@
     <userInput>…</userInput>
     <task>…</task>
     <toolIO>…</toolIO>
+    <actions>…</actions>
     <observations>…</observations>
     <notes>…</notes>
     <reflection>…</reflection>
@@ -38,7 +39,8 @@
 | --- | --- | --- |
 | `userInput` | `{id, turnId, userInput}` | `id` |
 | `task` | `{activeTaskId, activeTaskItemId, task, events}` | `activeTaskId`、items `id`、events `id` |
-| `toolIO` | `[{callId, turnId, batchId?, name, arguments, return:{stage, result}}]` | `callId` |
+| `toolIO` | `[{callId, turnId, batchId?, name, arguments, return:{stage, result}}]`；仅最近 10 次调用保留详情，更早为外置指针 | `callId` |
+| `actions` | `[{id, text, at}]` 或 null；actions.write 追加的本轮流水 | `id` |
 | `observations` | `[{id, turnId, callId, batchId?, tabId, type, result}]` | `id` |
 | `notes` | `{key:text}` 本轮草稿 | turnId + key |
 | `reflection` | `{turnId, items:[{id,text,focus?}]}` 或 null | rf_ |

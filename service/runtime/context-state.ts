@@ -119,6 +119,10 @@ function archiveContentFromInventory(
       content[field] = options.complete ? history.reflection : null;
       continue;
     }
+    if (field === "actions") {
+      content[field] = options.complete ? (history.actions ?? []) : null;
+      continue;
+    }
     if (field === "userInput") {
       content[field] = raw;
       continue;

@@ -1,6 +1,9 @@
 import { allocateRecordId } from "./ids.ts";
 import type { BrowserHost, BrowserResult, CurrentTabs } from "../types.ts";
 
+/** Browser tools wait for the extension; a vanished executor must not hang the turn. */
+export const BRIDGE_TIMEOUT_MS = 120_000;
+
 export type ToolRequest = {
   id: string;
   name: string;
@@ -28,17 +31,36 @@ export function createToolBridge(dataDir: string): ToolBridge {
     const request: ToolRequest = { id: allocateRecordId(dataDir, null, "bridge"), name, input };
     return request;
   };
-  const execute = (scope: string | undefined, name: string, input: Record<string, unknown>): Promise<BrowserResult> =>
+  const withTimeout = (done: (result: BrowserResult) => void): ((result: BrowserResult) => void) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      done({ ok: false, faultCode: "tool_execution_failed", error: `浏览器执行等待超时（${BRIDGE_TIMEOUT_MS}ms）：执行器未返回，可能是标签页挂死或扩展失联` });
+    }, BRIDGE_TIMEOUT_MS);
+    return (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      done(result);
+    };
+  };
+  /** Push a pending item whose settle path (result, timeout, or abort) always dequeues it. */
+  const push = (scope: string | undefined, request: ToolRequest): Promise<BrowserResult> =>
     new Promise((done) => {
-      const request = enqueue(scope, name, input);
-      queue.push({ request, scope, done });
+      const item: Pending = { request, scope, done: () => {} };
+      item.done = withTimeout((result) => {
+        const index = queue.indexOf(item);
+        if (index >= 0) queue.splice(index, 1);
+        done(result);
+      });
+      queue.push(item);
     });
+  const execute = (scope: string | undefined, name: string, input: Record<string, unknown>): Promise<BrowserResult> =>
+    push(scope, enqueue(scope, name, input));
   const executeTracked = (scope: string | undefined, name: string, input: Record<string, unknown>): { id: string; result: Promise<BrowserResult> } => {
     const request = enqueue(scope, name, input);
-    const result = new Promise<BrowserResult>((done) => {
-      queue.push({ request, scope, done });
-    });
-    return { id: request.id, result };
+    return { id: request.id, result: push(scope, request) };
   };
   const abort = (scope?: string) => {
     const removed: Pending[] = [];

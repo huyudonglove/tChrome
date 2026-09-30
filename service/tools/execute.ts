@@ -174,6 +174,11 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     const question = questionWithChoices(text, asStringArray(args.choice));
     return result(question, [{ type: "turn.ask", question }]);
   }
+  if (name === "actions.write") {
+    const text = typeof args.text === "string" ? args.text.trim() : "";
+    if (!text) return failedTool(errorDetail("actions_empty_text"), "invalid_arguments", { toolName: name });
+    return result(JSON.stringify({ ok: true }), [{ type: "actions.append", text }]);
+  }
   if (name === "reflect.write") {
     const text = typeof args.text === "string" ? args.text.trim() : "";
     if (!text) return failedTool(errorDetail("reflect_empty_text"), "invalid_arguments", { toolName: name });

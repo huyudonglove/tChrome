@@ -11,6 +11,8 @@ export type CompressionRecord = {
   actions: string;
   result: string;
   reflection?: string;
+  /** Cross-turn folds: every turn this record covers (span rows also carry turnId). */
+  turnIds?: string[];
   sourceIds: string[];
   createdAt: string;
 };
