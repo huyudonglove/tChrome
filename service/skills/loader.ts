@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { runtimeConfig } from "../config/runtime.ts";
 
 export type SkillManifest = { residentSkillIds: string[]; dynamicSkillIds: string[] };
 export type SkillDocument = { id: string; body: string; description: string };
@@ -65,6 +66,30 @@ export function skillCatalog(repoRoot: string, keyword?: string): { id: string; 
   return items.filter(item => `${item.id} ${item.summary}`.toLowerCase().includes(want));
 }
 
+export type SkillCatalogEntry = { id: string; summary: string; purpose: string };
+
+export type SkillCatalogPage = {
+  skills: SkillCatalogEntry[];
+  /** 过滤后的总数，分页据此判断是否还有更多 */
+  total: number;
+  offset: number;
+  /** 未传 limit 时为 null，表示全量返回 */
+  limit: number | null;
+  hasMore: boolean;
+};
+
+/**
+ * skill.list 的取用形态：keyword 过滤后可选分页。
+ * 不传 offset/limit 时全量返回，保证清单里被限量的技能仍可一次取全。
+ */
+export function skillCatalogPage(repoRoot: string, options: { keyword?: string; offset?: number; limit?: number } = {}): SkillCatalogPage {
+  const all = skillCatalog(repoRoot, options.keyword);
+  const offset = Math.max(0, Math.trunc(options.offset ?? 0));
+  const limit = options.limit == null ? null : Math.max(1, Math.trunc(options.limit));
+  const skills = limit == null ? all.slice(offset) : all.slice(offset, offset + limit);
+  return { skills, total: all.length, offset, limit, hasMore: offset + skills.length < all.length };
+}
+
 export function skillGuide(repoRoot: string): string {
   const { residentSkillIds, dynamicSkillIds } = loadSkillManifest(repoRoot);
   const parts: string[] = [];
@@ -76,10 +101,14 @@ export function skillGuide(repoRoot: string): string {
   parts.push("### 动态技能清单", "");
   if (!dynamicSkillIds.length) parts.push("—");
   else {
-    for (const id of dynamicSkillIds) {
+    // 清单只列前 skillCatalogLimit 条，其余走 skill.list 全量或分页取回
+    const shown = dynamicSkillIds.slice(0, runtimeConfig.context.skillCatalogLimit);
+    for (const id of shown) {
       const { summary } = skillInfo(repoRoot, id);
       parts.push(`- ${id}｜${summary}`);
     }
+    const hidden = dynamicSkillIds.length - shown.length;
+    if (hidden > 0) parts.push(`- 另有 ${hidden} 条，skill.list 可全量或分页查看。`);
   }
   return parts.join("\n");
 }

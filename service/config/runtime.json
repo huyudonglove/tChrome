@@ -32,6 +32,7 @@
     "foldMaxLevel": { "fixed": 6 },
     "keepToolBatches": { "fixed": 3 },
     "toolioRingSize": { "fixed": 10 },
+    "skillCatalogLimit": { "fixed": 10 },
     "actionsNudgeEvicted": {
       "follow": "toolioRingSize",
       "ratio": 0.5,

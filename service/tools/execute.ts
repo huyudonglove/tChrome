@@ -12,7 +12,7 @@ import { admitReturn, retrievalWindowChars } from "../admission.ts";
 import { LOCAL_TOOL_NAMES, runLocalTool } from "./local-tools.ts";
 import { COMPOUND_TOOL_NAMES, runCompoundTool } from "./compound-tools.ts";
 import { JOB_TOOL_NAMES, runJobTool, withJobHeartbeat, jobScope } from "./job-registry.ts";
-import { loadSkillManifest, skillCatalog } from "../skills/loader.ts";
+import { loadSkillManifest, skillCatalog, skillCatalogPage } from "../skills/loader.ts";
 import { listItems, saveItem, deleteItem } from "../library/store.ts";
 import { readScript } from "../scripts/store.ts";
 import { failedTool, normalizeToolExecution } from "./result.ts";
@@ -599,7 +599,10 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   }
   if (name === "skill.list") {
     const keyword = typeof args.keyword === "string" && args.keyword.trim() ? args.keyword.trim() : undefined;
-    return result(JSON.stringify({ ok: true, skills: skillCatalog(repoRoot, keyword) }));
+    const numArg = (value: unknown): number | undefined =>
+      typeof value === "number" && Number.isFinite(value) ? value : undefined;
+    const page = skillCatalogPage(repoRoot, { keyword, offset: numArg(args.offset), limit: numArg(args.limit) });
+    return result(JSON.stringify({ ok: true, ...page }));
   }
   if (name === "skill.load") {
     const id = typeof args.id === "string" ? args.id.trim() : "";

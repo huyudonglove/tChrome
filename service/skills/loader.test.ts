@@ -2,7 +2,7 @@ import { test, expect } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { loadSkillManifest, loadSkills, skillCatalog, skillGuide } from "./loader.ts";
+import { loadSkillManifest, loadSkills, skillCatalog, skillCatalogPage, skillGuide } from "./loader.ts";
 
 test("resident skills assemble into system guide and only dynamic skills enter catalog", () => {
   const root = mkdtempSync(join(tmpdir(), "tchrome-skills-"));
@@ -35,6 +35,24 @@ test("resident skills assemble into system guide and only dynamic skills enter c
     expect(guide).toContain("- first｜浏览器页面观察。");
     expect(guide).toContain("- third｜侧栏回复格式。");
     expect(guide).not.toContain("- second｜");
+    expect(skillCatalogPage(root)).toEqual({
+      skills: [
+        { id: "first", summary: "浏览器页面观察。", purpose: "第一技能" },
+        { id: "third", summary: "侧栏回复格式。", purpose: "第三技能" },
+      ],
+      total: 2,
+      offset: 0,
+      limit: null,
+      hasMore: false,
+    });
+    // keyword 只匹配 id + summary，不匹配 purpose
+    expect(skillCatalogPage(root, { keyword: "第一" }).skills).toEqual([]);
+    expect(skillCatalogPage(root, { keyword: "浏览器" }).skills).toEqual([
+      { id: "first", summary: "浏览器页面观察。", purpose: "第一技能" },
+    ]);
+    expect(skillCatalogPage(root, { limit: 1 })).toMatchObject({ total: 2, offset: 0, limit: 1, hasMore: true });
+    expect(skillCatalogPage(root, { offset: 1, limit: 1 }).skills.map(item => item.id)).toEqual(["third"]);
+    expect(skillCatalogPage(root, { offset: 9 }).skills).toEqual([]);
     writeFileSync(join(dir, "index.json"), JSON.stringify({ residentSkillIds: [], dynamicSkillIds: [] }));
     expect(loadSkills(root)).toBe("");
     expect(skillGuide(root)).toBe("### 动态技能清单\n\n—");

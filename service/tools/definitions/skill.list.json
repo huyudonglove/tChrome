@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "skill.list",
-    "description": "列出可动态加载的技能：id、summary。常驻技能正文在 <systemSkill>。动态正文 skill.load 后进入 User <skill>。\n参数：可选 keyword，对 id 与 summary 做子串过滤。\n返回：ok、skills[{id, summary}]。\n执行调度：parallel（Runtime 固定，不必返回）。",
+    "description": "列出可动态加载的技能：id、summary。常驻技能正文在 <systemSkill>。动态正文 skill.load 后进入 User <skill>。\n参数：可选 keyword，对 id 与 summary 做子串过滤；可选 offset 与 limit 做分页（都不传则全量返回）。\n返回：ok、skills[{id, summary}]、total（过滤后总数）、offset、limit（全量时为 null）、hasMore。\n执行调度：parallel（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -14,6 +14,16 @@
           "minLength": 1,
           "pattern": "\\S",
           "description": "可选；对 id 与 summary 做子串匹配（大小写不敏感），只列出命中的技能"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "可选；从第几条开始取（0 起）。不传 offset 且不传 limit 时全量返回"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "可选；本次最多返回几条。省略即全量返回"
         }
       },
       "required": [

@@ -484,7 +484,7 @@ Sample（工具清单格式，仅示例）：
     - task.set：创建或替换持久化执行任务（步骤清单）。
     - observation.write：把页面/代码/截图等观察记入本轮 <observations>。类似 notes.write｜深入 evidence.search/reflect.write
     - catalog.add：加载动态工具。
-    - skill.list：列出可动态加载的技能。
+    - skill.list：列出可动态加载的技能（可选 keyword 过滤，可选 offset/limit 分页；都不传则全量）。
     - skill.load：按 id 加载动态技能正文到 User <skill>。
     - reflect.write：按需写入本轮反思（rf_ 编号，可带 id 更新）；可写判断变化、思路与路径整理、取舍与踩坑，纯流水账不必写。
     - reflect.delete：按 rf_ 编号删除本轮反思。
@@ -494,7 +494,7 @@ Sample（工具清单格式，仅示例）：
 能力：【System Skills】
 
 详细描述：
-常驻技能正文装配在本模块，一直可用，不经 skill.load。动态技能用 skill.list（可选 keyword 子串过滤）查看，skill.load(id) 将正文载入 User <skill>；加载状态在会话内保持。User <skill> 只含动态加载正文，不重复常驻技能。
+常驻技能正文装配在本模块，一直可用，不经 skill.load。下方动态技能清单最多列前 10 条，其余不在此处出现。完整清单用 skill.list 查看：可选 keyword 子串过滤，可选 offset 与 limit 分页，两者都不传则全量返回。skill.load(id) 将正文载入 User <skill>；加载状态在会话内保持。User <skill> 只含动态加载正文，不重复常驻技能。
 
 ### 常驻技能
 
@@ -643,7 +643,7 @@ Sample（动态清单格式，仅示例）：
 能力：【Loaded Skills】
 
 详细描述：
-本会话已加载的动态技能正文。常驻技能在 <systemSkill>，不在本栏重复。尚未加载动态技能时本栏为空；先 skill.list 再 skill.load(id)。加载后正文整段保留，不参与压缩。
+本会话已加载的动态技能正文。常驻技能在 <systemSkill>，不在本栏重复。尚未加载动态技能时本栏为空；先 skill.list 再 skill.load(id)；skill.list 可用 keyword 过滤、并用 offset/limit 分页取全量。加载后正文整段保留，不参与压缩。
 
 内容：
 SUMMARY: 回复格式（本地侧栏）：展示、可点击区块与 iframe 互动组件。

@@ -104,6 +104,9 @@ const context = {
   foldMaxLevel: resolveGate("foldMaxLevel"),
   keepToolBatches: resolveGate("keepToolBatches"),
   toolioRingSize: resolveGate("toolioRingSize"),
+  // How many dynamic skills the System-side catalog lists by default; the rest stay
+  // reachable through skill.list (which pages over the full set).
+  skillCatalogLimit: resolveGate("skillCatalogLimit"),
   // Per-turn tool-call budget: prompt checkContinue at the soft gate, force-end at the hard gate.
   checkContinuePrompt: resolveGate("checkContinuePrompt"),
   checkContinueHard: resolveGate("checkContinueHard"),
