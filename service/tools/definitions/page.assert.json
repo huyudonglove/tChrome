@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.assert",
-    "description": "断言页面条件（只读）。参数同 page.recheck，含 role±name±states。任一条件不满足则 ok=false、faultCode=assertion_failed，并列出失败项。用于操作成功验收；观察性检查用 page.recheck。\n执行调度：parallel（Runtime 固定，不必返回）。",
+    "description": "断言页面条件（只读）。参数同 page.recheck，含 role±name±states。任一条件不满足则 ok=false、faultCode=assertion_failed，并列出失败项。用于操作成功验收；观察性检查用 page.recheck。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "memory.writeProject",
-    "description": "保存跨会话仍适用的长期信息。\n参数：projectMemory 为字符串数组（正文），按旧到新追加；scope 是归属键（必填，单值，本批同归属），决定这条记忆默认注入到哪些会话；summary 可选，与 projectMemory 等长、按下标一一对应，每条一句能独立看懂的结论，用于窗口里的分 scope 索引。\nscope 的两条边界：一是归属而非分类标签，写错会让该注入的不注入、不该注入的注入，没有兜底；只属于某个项目的事实（如某仓库路径、构建基线、失败清单）归该项目，跨项目的方法论与纪律归 global。二是项目默认注入，Runtime 按当前上下文出现的项目键注入 global 与当前项目，其余 scope 只以 summary 索引形式出现，需不需要由你判断后加载。\n另外两条边界：默认永不过期且注入时不裁剪，每条会永久占用每轮上下文预算，直到 memory.delete；没有更新语义，事实有新结论时用 memory.update 就地改写而不是再追加一条。\nsummary 缺省时由 Runtime 从正文截首句兜底；summary 要能脱离正文独立看懂，跨 scope 时带上项目名。\n返回：写入条数与所用 scope。\n执行调度：serial（Runtime 固定，不必返回）。",
+    "description": "保存跨会话仍适用的长期信息。\n参数：projectMemory 为字符串数组（正文），按旧到新追加；scope 是归属键（必填，单值，本批同归属），决定这条记忆默认注入到哪些会话；summary 可选，与 projectMemory 等长、按下标一一对应，每条一句能独立看懂的结论，用于窗口里的分 scope 索引。\nscope 的两条边界：一是归属而非分类标签，写错会让该注入的不注入、不该注入的注入，没有兜底；只属于某个项目的事实（如某仓库路径、构建基线、失败清单）归该项目，跨项目的方法论与纪律归 global。二是项目默认注入，Runtime 按当前上下文出现的项目键注入 global 与当前项目，其余 scope 只以 summary 索引形式出现，需不需要由你判断后加载。\n另外两条边界：默认永不过期且注入时不裁剪，每条会永久占用每轮上下文预算，直到 memory.delete；没有更新语义，事实有新结论时用 memory.update 就地改写而不是再追加一条。\nsummary 缺省时由 Runtime 从正文截首句兜底；summary 要能脱离正文独立看懂，跨 scope 时带上项目名。\n返回：写入条数与所用 scope。",
     "parameters": {
       "type": "object",
       "properties": {

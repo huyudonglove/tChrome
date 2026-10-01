@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "evidence.search",
-    "description": "在已缓存的超量结果中检索或按行读取，一次最多 8 个窗口。单次工具返回或页面观察 result 超过内联门禁时，Runtime 只注入摘要与本地 path，全文按固定行宽（默认 100 字/行）写入本地；摘要含 totalLines。\nwindows 每项：callId 或 pageId 二选一。三种模式：仅 keyword=全文检索（折行容差）；仅 startLine=按行读取；keyword+startLine=以 startLine 为锚的区域检索（hybrid）。可选 paddingLines（0..50，默认 0）向前回溯行并标注 isTarget。可选 contextChars（默认 {{searchContextChars}}，指本次调用的总额预算，多窗口按剩余预算摊分，levelId 窗口不参与摊分）。\n返回 results[]，每项含 ok、source、path、mode=search|lines|hybrid 及对应 matches/lines；只回片段，不回灌全文。\n执行调度：parallel（Runtime 固定，不必返回）。",
+    "description": "在已缓存的超量结果中检索或按行读取，一次最多 8 个窗口。单次工具返回或页面观察 result 超过内联门禁时，Runtime 只注入摘要与本地 path，全文按固定行宽（默认 100 字/行）写入本地；摘要含 totalLines。\nwindows 每项：callId 或 pageId 二选一。三种模式：仅 keyword=全文检索（折行容差）；仅 startLine=按行读取；keyword+startLine=以 startLine 为锚的区域检索（hybrid）。可选 paddingLines（0..50，默认 0）向前回溯行并标注 isTarget。可选 contextChars（默认 {{searchContextChars}}，指本次调用的总额预算，多窗口按剩余预算摊分，levelId 窗口不参与摊分）。\n返回 results[]，每项含 ok、source、path、mode=search|lines|hybrid 及对应 matches/lines；只回片段，不回灌全文。",
     "parameters": {
       "type": "object",
       "properties": {

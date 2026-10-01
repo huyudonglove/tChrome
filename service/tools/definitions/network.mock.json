@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "network.mock",
-    "description": "浏览器网络请求拦截与 Mock 打桩。基于 CDP Fetch 域支持对匹配 URL 的请求拦截并伪造响应（状态码、响应头、正文），或模拟底层网络故障与连接拒绝。\n参数：必填 tabId、action（set|list|clear）；action=set 时提供 rule。\n返回：ok、action、tabId、rules 或 currentRules。action=clear 返回 clearedCount。具有全局穿透力，前端控制台与页面 JS 无感知透明生效。\n执行调度：serial（Runtime 固定，不必返回）。",
+    "description": "浏览器网络请求拦截与 Mock 打桩。基于 CDP Fetch 域支持对匹配 URL 的请求拦截并伪造响应（状态码、响应头、正文），或模拟底层网络故障与连接拒绝。\n参数：必填 tabId、action（set|list|clear）；action=set 时提供 rule。\n返回：ok、action、tabId、rules 或 currentRules。action=clear 返回 clearedCount。具有全局穿透力，前端控制台与页面 JS 无感知透明生效。",
     "parameters": {
       "type": "object",
       "properties": {

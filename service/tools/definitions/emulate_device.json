@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "emulate_device",
-    "description": "模拟设备视口与 UA。\n参数：可选 device 预设名，或 width/height/deviceScaleFactor/mobile/userAgent；必填 tabId。\n返回：ok、device、width、height。\n执行调度：serial（Runtime 固定，不必返回）。",
+    "description": "模拟设备视口与 UA。\n参数：可选 device 预设名，或 width/height/deviceScaleFactor/mobile/userAgent；必填 tabId。\n返回：ok、device、width、height。",
     "parameters": {
       "type": "object",
       "properties": {

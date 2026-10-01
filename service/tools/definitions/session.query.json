@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "session.query",
-    "description": "会话数据聚合查询：按工具名/轮次/关键字统计或列出本机 tChrome 会话的调用记录。替代手搓 glob+python 解析 toolio.jsonl，典型场景是「本会话各工具调用了多少次」「哪些轮次调用最密」「哪些返回超量被外置」「有哪些会话、各占多大」。返回 ok、mode 与对应 payload（外置全文仍用 evidence.search 取回）。\n\n执行调度：parallel（Runtime 固定，不必返回）。",
+    "description": "会话数据聚合查询：按工具名/轮次/关键字统计或列出本机 tChrome 会话的调用记录。替代手搓 glob+python 解析 toolio.jsonl，典型场景是「本会话各工具调用了多少次」「哪些轮次调用最密」「哪些返回超量被外置」「有哪些会话、各占多大」。返回 ok、mode 与对应 payload（外置全文仍用 evidence.search 取回）。\n",
     "parameters": {
       "type": "object",
       "properties": {

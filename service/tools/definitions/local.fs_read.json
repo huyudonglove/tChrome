@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.fs_read",
-    "description": "按字节分页或按行切片读取 UTF-8 文本文件，一次最多 8 个目标。items 每项含 path（绝对路径）及可选字节分页 offset（默认 0）、limit（默认 65536，范围 4..1048576），或行切片 startLine（1 起，与 offset 互斥）、endLine。返回 results[]，字节分页含 content、size、nextOffset、truncated；行切片含 content、startLine、endLine、totalLines。逐项 ok，失败项带 faultCode/error。注意内联门禁：单次返回超过 {{inlineChars}} 字符会被 Runtime 降级为摘要指针（默认 limit 65536 字节，整读几十 KB 的源文件几乎必然触发），拿到的只是指针而非正文。读大文件优先用 startLine/endLine 行切片小段取，或先用 local.fs_grep 定位行号再定点读；整读大型 .tsx/.jsx 前先用 local.tsx_outline 拿 DOM 骨架。\n执行调度：parallel（Runtime 固定，不必返回）。",
+    "description": "按字节分页或按行切片读取 UTF-8 文本文件，一次最多 8 个目标。items 每项含 path（绝对路径）及可选字节分页 offset（默认 0）、limit（默认 65536，范围 4..1048576），或行切片 startLine（1 起，与 offset 互斥）、endLine。返回 results[]，字节分页含 content、size、nextOffset、truncated；行切片含 content、startLine、endLine、totalLines。逐项 ok，失败项带 faultCode/error。注意内联门禁：单次返回超过 {{inlineChars}} 字符会被 Runtime 降级为摘要指针（默认 limit 65536 字节，整读几十 KB 的源文件几乎必然触发），拿到的只是指针而非正文。读大文件优先用 startLine/endLine 行切片小段取，或先用 local.fs_grep 定位行号再定点读；整读大型 .tsx/.jsx 前先用 local.tsx_outline 拿 DOM 骨架。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "calibrate_drag",
-    "description": "按最近一次 capture_page(mode=viewport) 的图像坐标拖动。\n参数：point1/point2=截图像素坐标，image_size=[宽,高]，可选 viewport；必填 tabId。可选 humanize 同 drag：缺省原子精确，全部拟人开关默认关。\n返回：ok、mapped_from、mapped_to。先截图把滑块和缺口点在图上，再调用本工具。\n执行调度：serial（Runtime 固定，不必返回）。",
+    "description": "按最近一次 capture_page(mode=viewport) 的图像坐标拖动。\n参数：point1/point2=截图像素坐标，image_size=[宽,高]，可选 viewport；必填 tabId。可选 humanize 同 drag：缺省原子精确，全部拟人开关默认关。\n返回：ok、mapped_from、mapped_to。先截图把滑块和缺口点在图上，再调用本工具。",
     "parameters": {
       "type": "object",
       "properties": {

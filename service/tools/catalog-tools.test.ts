@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { join } from "node:path";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { loadToolRegistry, toolSchemas, coreToolIds, dynamicToolIds, zeroCallToolNote } from "./registry.ts";
 import { LOCAL_TOOL_NAMES } from "./local-tools.ts";
 import { SERVICE_TOOL_NAMES } from "./service-tools.ts";
@@ -54,6 +54,14 @@ test("每个工具有 schema 和 reason，execution 可选且不进 required", (
   }
   for (const name of registry.toolGroups.coreToolIds) {
     expect(registry.tools[name], `core ${name}`).toBeTruthy();
+  }
+});
+
+test("调度说明由 execution 字段派生：定义文件不得再手抄", () => {
+  const dir = join(repoRoot, "service", "tools", "definitions");
+  for (const file of readdirSync(dir)) {
+    if (!file.endsWith(".json") || ["index.json", "groups.json"].includes(file)) continue;
+    expect(readFileSync(join(dir, file), "utf8"), `${file} 手抄调度说明`).not.toContain("执行调度");
   }
 });
 

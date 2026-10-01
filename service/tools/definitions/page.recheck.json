@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.recheck",
-    "description": "轻量只读复验（不作为断言）。条件：text / urlContains / titleContains / id / selector / role±name±states。states 见 wait（enabled/checked/selected/expanded/invalid…）。多匹配 role/name 且未给 matchIndex 时不通过。成功验收用 page.assert。\n执行调度：parallel（Runtime 固定，不必返回）。",
+    "description": "轻量只读复验（不作为断言）。条件：text / urlContains / titleContains / id / selector / role±name±states。states 见 wait（enabled/checked/selected/expanded/invalid…）。多匹配 role/name 且未给 matchIndex 时不通过。成功验收用 page.assert。",
     "parameters": {
       "type": "object",
       "properties": {

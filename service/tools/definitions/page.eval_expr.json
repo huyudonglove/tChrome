@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page.eval_expr",
-    "description": "在目标页面的 JavaScript 环境中快速执行单行表达式或 IIFE，并直接读回结构化返回值。免脚本落盘，适合快速探测 DOM、读取 Canvas 像素与提取状态；多语句或有副作用的任务脚本仍用 script_write + execute_javascript。\n参数：必填 tabId、expr（表达式字符串）；可选 reason。\n返回：ok、tabId、value、type。执行报错返回 ok=false 与 error；不可序列化时返回 unserializableValue 或 description。表达式执行超时上限 4 秒。\n执行调度：serial。",
+    "description": "在目标页面的 JavaScript 环境中快速执行单行表达式或 IIFE，并直接读回结构化返回值。免脚本落盘，适合快速探测 DOM、读取 Canvas 像素与提取状态；多语句或有副作用的任务脚本仍用 script_write + execute_javascript。\n参数：必填 tabId、expr（表达式字符串）；可选 reason。\n返回：ok、tabId、value、type。执行报错返回 ok=false 与 error；不可序列化时返回 unserializableValue 或 description。表达式执行超时上限 4 秒。",
     "parameters": {
       "type": "object",
       "properties": {

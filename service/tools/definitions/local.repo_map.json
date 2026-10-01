@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.repo_map",
-    "description": "仓库结构导航：按目录聚合出「哪块职责在哪、入口文件是哪个」，一次返回每个目录的文件数、符号数、入口文件与其主要符号，避免靠猜路径翻文件。默认 directories 模式返回目录聚合（体积可控）；mode=map 返回 Aider 风格的完整符号拓扑文本（会较大，被降级时用 evidence.search 取片段）。path 给目录会递归扫描，只读不改动。执行调度：parallel（Runtime 固定，不必返回）。",
+    "description": "仓库结构导航：按目录聚合出「哪块职责在哪、入口文件是哪个」，一次返回每个目录的文件数、符号数、入口文件与其主要符号，避免靠猜路径翻文件。默认 directories 模式返回目录聚合（体积可控）；mode=map 返回 Aider 风格的完整符号拓扑文本（会较大，被降级时用 evidence.search 取片段）。path 给目录会递归扫描，只读不改动。",
     "parameters": {
       "type": "object",
       "properties": {

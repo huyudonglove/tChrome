@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local.fs_search",
-    "description": "在目录内递归按名称子串 query 搜索文件名，不跟随符号链接，不搜索文件内容。一次最多 8 个目标，与 local.fs_read 同一 items 批处理哲学。\nitems 每项：path（绝对目录）、query（非空子串），可选 limit（默认 100，1..1000）、maxEntries（默认 10000，1..100000）。\n返回 results[]，每项含 ok、path、matches、scanned、truncated、errors；逐项 ok，失败项带 faultCode/error。截断时缩小目录或收紧 query。\n执行调度：parallel（Runtime 固定，不必返回）。",
+    "description": "在目录内递归按名称子串 query 搜索文件名，不跟随符号链接，不搜索文件内容。一次最多 8 个目标，与 local.fs_read 同一 items 批处理哲学。\nitems 每项：path（绝对目录）、query（非空子串），可选 limit（默认 100，1..1000）、maxEntries（默认 10000，1..100000）。\n返回 results[]，每项含 ok、path、matches、scanned、truncated、errors；逐项 ok，失败项带 faultCode/error。截断时缩小目录或收紧 query。",
     "parameters": {
       "type": "object",
       "properties": {

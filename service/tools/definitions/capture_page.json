@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "capture_page",
-    "description": "截图工具。必填 tabId + mode：viewport 视口、full_page 整页、element 单元素（ref 或 selector 二选一）、rect 按 CSS 像素矩形裁切（必填 x/y/width/height，适合降级后精准取区域）、som 视口 Set-of-Marks（可交互元素打角标，返回 marks[{badge,id,x,y,w,h,role,name}]，用 id 调 page.click；可选 maxMarks 默认40上限80、roles 如 button/link）。\n返回：ok、mode、image；som 另带 marks/viewport/devicePixelRatio（marks 为 CSS 像素）；rect 另带 crop_rect。角标层截图后自动清除。PDF 用 save_pdf。\n执行调度：parallel（Runtime 固定，不必返回）。",
+    "description": "截图工具。必填 tabId + mode：viewport 视口、full_page 整页、element 单元素（ref 或 selector 二选一）、rect 按 CSS 像素矩形裁切（必填 x/y/width/height，适合降级后精准取区域）、som 视口 Set-of-Marks（可交互元素打角标，返回 marks[{badge,id,x,y,w,h,role,name}]，用 id 调 page.click；可选 maxMarks 默认40上限80、roles 如 button/link）。\n返回：ok、mode、image；som 另带 marks/viewport/devicePixelRatio（marks 为 CSS 像素）；rect 另带 crop_rect。角标层截图后自动清除。PDF 用 save_pdf。",
     "parameters": {
       "type": "object",
       "properties": {

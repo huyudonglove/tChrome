@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "context_menu",
-    "description": "触发页面右键菜单。\n参数：可选 text（文本）。\n返回：ok、triggered、point。\n执行调度：serial（Runtime 固定，不必返回）。",
+    "description": "触发页面右键菜单。\n参数：可选 text（文本）。\n返回：ok、triggered、point。",
     "parameters": {
       "type": "object",
       "properties": {

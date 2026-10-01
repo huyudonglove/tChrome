@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "type",
-    "description": "向指定可编辑控件输入 text。必须提供 ref（e_ 编号）或非空 target；不会默认选择当前焦点。ref 失效不回退按文字定位；target 多项匹配时明确失败。返回：ok、value。\n执行调度：serial（Runtime 固定，不必返回）。",
+    "description": "向指定可编辑控件输入 text。必须提供 ref（e_ 编号）或非空 target；不会默认选择当前焦点。ref 失效不回退按文字定位；target 多项匹配时明确失败。返回：ok、value。",
     "parameters": {
       "type": "object",
       "properties": {

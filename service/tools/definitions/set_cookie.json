@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "set_cookie",
-    "description": "设置 Cookie。\n参数：必填 name、value；可选 url、domain、path、secure、sameSite、expires（秒，相对当前）。\n返回：ok、name、value。\n执行调度：serial（Runtime 固定，不必返回）。",
+    "description": "设置 Cookie。\n参数：必填 name、value；可选 url、domain、path、secure、sameSite、expires（秒，相对当前）。\n返回：ok、name、value。",
     "parameters": {
       "type": "object",
       "properties": {

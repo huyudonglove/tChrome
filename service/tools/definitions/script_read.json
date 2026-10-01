@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "script_read",
-    "description": "读取服务数据目录 scripts/ 中指定脚本的完整代码。filename 为单层文件名；返回 ok、filename 和 code。\n执行调度：serial（Runtime 固定，不必返回）。",
+    "description": "读取服务数据目录 scripts/ 中指定脚本的完整代码。filename 为单层文件名；返回 ok、filename 和 code。",
     "parameters": {
       "type": "object",
       "properties": {

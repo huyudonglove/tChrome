@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "list_downloads",
-    "description": "列出下载项。\n返回：ok、downloads（下载记录）。\n执行调度：parallel（Runtime 固定，不必返回）。",
+    "description": "列出下载项。\n返回：ok、downloads（下载记录）。",
     "parameters": {
       "type": "object",
       "properties": {

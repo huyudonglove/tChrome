@@ -44,6 +44,17 @@ const CAUSAL_BACKFILL = {
   },
 } as const;
 
+/** Per-tool schedule note shown to the model, derived from the execution field so it can never drift. */
+function executionNote(mode: ExecutionMode): string {
+  return `执行调度：${mode}（Runtime 固定，不必返回）。`;
+}
+
+/** Hand-written notes are stripped from the definition before the derived one is appended. */
+function withExecutionNote(fn: ChatTool["function"], mode: ExecutionMode): ChatTool["function"] {
+  const description = (fn.description ?? "").replace(/执行调度：[^\n]*?。/g, "").replace(/\n+$/, "");
+  return { ...fn, description: `${description}\n${executionNote(mode)}` };
+}
+
 function injectCausalBackfill(tool: ChatTool): ChatTool {
   const params = tool.function.parameters as { properties?: Record<string, unknown> } | undefined;
   if (!params || typeof params !== "object" || !params.properties || typeof params.properties !== "object") return tool;
@@ -113,7 +124,7 @@ export function loadToolRegistry(root: string): ToolRegistry {
     const name = raw.function?.name;
     if (!name) continue;
     const mode: ExecutionMode = raw.execution === "parallel" ? "parallel" : "serial";
-    tools[name] = injectCausalBackfill({ type: "function", function: raw.function });
+    tools[name] = injectCausalBackfill({ type: "function", function: withExecutionNote(raw.function, mode) });
     execution[name] = mode;
     const declaredMutex = (raw as { mutex?: unknown }).mutex;
     if (Array.isArray(declaredMutex) && declaredMutex.length > 0) mutex[name] = declaredMutex as string[][];

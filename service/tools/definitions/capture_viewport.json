@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "capture_viewport",
-    "description": "捕获当前页面可视区截图。必填 tabId。返回 ok、mode、image。执行调度：parallel（Runtime 固定，不必返回）。",
+    "description": "捕获当前页面可视区截图。必填 tabId。返回 ok、mode、image。",
     "parameters": {
       "type": "object",
       "properties": {
