@@ -256,6 +256,14 @@ local.* 操作服务所在电脑。文件路径与 local.run / local.process_sta
 详细描述：
 Runtime 在每次请求我之前装配上下文，并管理发送预算。System 与 User 合计达到 200000 字符时，将选中的已结束轮次或当前轮较早工具批次整理到 <conversationHistorySummary>（同一 turnId 可有多条摘要），原文保存在本地；被覆盖的 <tn_xx> 轮次整块删除，只留摘要。当前轮保留最近 3 个完整工具批次。未覆盖原文会 L1 首压；摘要折叠没有全局门槛，按层独立判断：每一层自己超过 {{summaryFoldMin}} 条才折升级，不足则整层保持原样。先按 L1+L1 合并（同 turnId 仍为 L1，不同 turnId 才升 L2），L2 及以上再按同层递进升级（L2→L3、L3→L4，最高到 L6），各层互不混用、每次折叠保留各层最新一条，因此越早的摘要层级越高。摘要不足以支持当前判断、关键工具返回被外置、操作失败或需要核对历史约定时，主动用 agent.query 按 sumId、module 和 intent 回查原文，再继续执行或答复；context.query 保留为兼容入口。长任务中若可预判当前轮还会产生大量工具返回，且历史工具记录明显占据主要预算，可主动调用 agent.compress 压缩已结束轮次（phase=history）；只有当前工具结果已确认不再需要原文时才使用 phase=current。压缩阈值由 Runtime 把握，自动压缩作为兜底。压缩后仍超过 250000 字符时，优先把 <conversation> 内大块正文写入本地文件，用引用替换内联正文。<skill> 始终保留全文，不参与压缩或裁剪；<baseTools>、<tools> 和编号规则保持内联。
 
+内容过多时 Runtime 有三种加载方式，可逆性不同，先按这条总览判断走哪条，细则见各自段落：
+
+- 分层摘要（不可逆）：已结束轮次或当前轮较早批次被整理进 <conversationHistorySummary>，同层超过 {{summaryFoldMin}} 条才折升级、越早的轮次层级越高。窗口里只剩摘要，原文归档在本地，要细节用 agent.query 按 sumId + module + intent 回查；金字塔层级语义见 <conversation>。
+- 分页与限量（可逆）：内容按数量截断而非折叠，被截断的部分仍完整保留，用工具自身的分页参数取回——skill.list 的 offset/limit（不传则全量，见 systemSkill）、local.fs_read 的 offset/startLine/limit；按归属过滤的条目（如记忆 scope）也走这条，目录与取正文路径见 <projectMemory>。
+- 外置降级（可逆）：单次返回过大时按固定行宽折行落盘，窗口只留结构化摘要与本地 path，用 evidence.search 取回（keyword 全文检索 / startLine 按行读 / levelId 直取某一块），下一段展开。
+
+三者只在能接受多少信息损失上不同：分层摘要会丢掉细节，分页与外置都不丢原文。
+
 超量结果有两种读法，按窗口里实际出现的形状选用：
 
 - 单次工具返回或页面观察 result 超过内联门禁（4000 字符）时，窗口只保留 externalized 摘要（含 totalChars、totalLines、lineWidth、本地 path；summary 为结构化摘要（列出可定位事实：文件路径与行号区间、列表条目数与前几项标签、faultCode/message、scannedFiles/truncated 等，长度上限 400 字符），无法从 JSON 抽出事实时才改给 head（原文前 400 字符））。全文按固定行宽拆行（100 字/行）。读这类结果用 evidence.search(windows=[{callId|pageId, keyword?, startLine?, paddingLines?, contextChars?}])：仅 keyword=全文检索（允许关键字跨折行）；仅 startLine=按行读（paddingLines 可向前回溯并标 isTarget）；二者同传=以 startLine 为锚的区域检索；带 levelId（与 callId 同用，如 {callId, levelId:"L1.2"}）直接取回该层某一块的正文，不带关键词。一次最多 8 项，返回 results[] 逐项。所有工具返回共用这一套门禁。
