@@ -5,6 +5,7 @@ import { runtimeConfig } from "../config/runtime.ts";
 import { fetchText } from "../network/http-text.ts";
 import { runAccountVault } from "./account-vault.ts";
 import { runTavilySearch } from "./tavily-search.ts";
+import { runSessionQuery } from "./session-query.ts";
 import { patchScript, writeScript, readScript, listScripts } from "../scripts/store.ts";
 import { withJobHeartbeat, jobScope } from "./job-registry.ts";
 
@@ -18,6 +19,7 @@ export const SERVICE_TOOL_NAMES = [
   "probe_dns",
   "probe_ssl",
   "account_vault",
+  "session.query",
 ] as const;
 
 const hostOf = (input: Record<string, unknown>) => {
@@ -73,6 +75,7 @@ export async function runServiceTool(
     }
   }
   if (name === "account_vault") return runAccountVault(dataDir, input);
+  if (name === "session.query") return runSessionQuery(dataDir, input, conversationId);
   if (name === "tavily_search") return runTavilySearch(input);
   if (name === "send_http") {
     const error = httpAddressError(input.url);

@@ -180,6 +180,7 @@
     "page.clear_result",
     "skill.load",
     "reflect.delete",
-    "job.stop"
+    "job.stop",
+    "session.query"
   ]
 }

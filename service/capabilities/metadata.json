@@ -2582,6 +2582,38 @@
         "local.code_refs"
       ]
     },
+    "session.query": {
+      "purpose": "会话数据聚合查询：一条调用回答「本会话各工具用了几次、哪些轮最密、哪些返回被外置、有哪些会话各占多大」，省去手搓 glob + python 解析 toolio.jsonl",
+      "triggers": [
+        "session.query",
+        "要统计或回溯本会话/全部会话的工具调用分布、轮次密度、超量外置清单",
+        "想先看整体量级再决定要不要展开某轮原文"
+      ],
+      "outputs": [
+        "summary=总会览（调用数、distinctTools、轮数、总量与外置量）",
+        "conversations=各会话轮数与目录体积",
+        "tools/turns=按工具或按轮的聚合（可带 argumentKey 看参数取值分布）",
+        "calls/externalized=匹配行清单与超量外置清单"
+      ],
+      "preconditions": [
+        "用户已授权读取本机会话数据",
+        "只读，不修改任何会话文件"
+      ],
+      "risk": "low",
+      "verification": [
+        "检查 ok=true；calls/distinctTools 与 toolio 行数量相符",
+        "用已知 callId 交叉核对 mode=calls 的结果"
+      ],
+      "alternatives": [
+        "evidence.search",
+        "agent.query",
+        "local.run"
+      ],
+      "composesWith": [
+        "evidence.search",
+        "agent.query"
+      ]
+    },
     "long_press": {
       "purpose": "长按页面元素",
       "triggers": [
