@@ -2710,34 +2710,6 @@
       ],
       "composesWith": []
     },
-    "memory.write": {
-      "purpose": "保存后续需要的事实、偏好或进展",
-      "triggers": [
-        "memory.write",
-        "需要保存、更新或清理跨轮事实与工作草稿"
-      ],
-      "outputs": [
-        "记忆、笔记或删除结果"
-      ],
-      "preconditions": [
-        "内容已被确认且属于约定记忆范围"
-      ],
-      "risk": "medium",
-      "verification": [
-        "返回成功且更新后的记录内容正确"
-      ],
-      "alternatives": [
-        "使用当前 notes 临时保存"
-      ],
-      "composesWith": [],
-      "similar": [
-        "notes.write",
-        "observation.write"
-      ],
-      "deeper": [
-        "memory.update"
-      ]
-    },
     "move_tab": {
       "purpose": "移动指定标签的位置",
       "triggers": [
@@ -2879,7 +2851,7 @@
       "composesWith": [],
       "similar": [
         "observation.write",
-        "memory.write"
+        "memory.writeProject"
       ],
       "deeper": [
         "reflect.write"
@@ -5375,6 +5347,62 @@
         "page.get_summary",
         "open_url",
         "switch_tab"
+      ]
+    },
+    "memory.writeConversation": {
+      "purpose": "保存后续需要的事实、偏好或进展",
+      "triggers": [
+        "memory.writeConversation",
+        "需要保存本会话内跨轮要用的事实与进展"
+      ],
+      "outputs": [
+        "记忆、笔记或删除结果"
+      ],
+      "preconditions": [
+        "内容已被确认且属于约定记忆范围"
+      ],
+      "risk": "medium",
+      "verification": [
+        "返回成功且更新后的记录内容正确"
+      ],
+      "alternatives": [
+        "使用当前 notes 临时保存"
+      ],
+      "composesWith": [],
+      "similar": [
+        "notes.write",
+        "observation.write"
+      ],
+      "deeper": [
+        "memory.update"
+      ]
+    },
+    "memory.writeProject": {
+      "purpose": "保存后续需要的事实、偏好或进展",
+      "triggers": [
+        "memory.writeProject",
+        "需要保存跨会话长期信息，scope 必填、summary 可选"
+      ],
+      "outputs": [
+        "记忆、笔记或删除结果"
+      ],
+      "preconditions": [
+        "内容已被确认且属于约定记忆范围"
+      ],
+      "risk": "medium",
+      "verification": [
+        "返回成功且更新后的记录内容正确"
+      ],
+      "alternatives": [
+        "使用当前 notes 临时保存"
+      ],
+      "composesWith": [],
+      "similar": [
+        "notes.write",
+        "observation.write"
+      ],
+      "deeper": [
+        "memory.update"
       ]
     }
   },

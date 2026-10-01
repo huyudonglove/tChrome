@@ -6,7 +6,7 @@ export type ToolEffect =
   | { type: "query.set"; query: Omit<QueryEvidence, "queryId" | "turnId" | "sourceCallId"> }
   | { type: "note.write"; key: string; value: string }
   | { type: "note.delete"; key: string }
-  | { type: "memory.append"; entries: { layer: MemoryLayer; text: string }[] }
+  | { type: "memory.append"; entries: { layer: MemoryLayer; scope?: string; summary?: string; text: string }[] }
   | { type: "memory.update"; memoryId: string; text: string }
   | { type: "memory.delete"; memoryId: string }
   | { type: "tools.enable"; names: string[] }

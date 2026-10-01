@@ -106,7 +106,7 @@ test("oversized project memory is referenced in a new conversation without losin
   const text = "P".repeat(305_000);
   let step = 0;
   const original = await handleTurn({ dataDir, repoRoot, host, provider: provider(() => ++step === 1
-    ? response(call("memory.write", { projectMemory: [text] })) : finish()) }, { userInput: "保存长期记忆", submittedAt: "now" });
+    ? response(call("memory.writeProject", { scope: "tChrome", projectMemory: [text] })) : finish()) }, { userInput: "保存长期记忆", submittedAt: "now" });
   expect(original.stopReason.kind).toBe("reply");
   const fresh = newConversation(dataDir).conversationId!;
     primeActiveTask(dataDir);

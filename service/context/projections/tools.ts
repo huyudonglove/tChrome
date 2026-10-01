@@ -16,7 +16,8 @@ const MODULE_POINTERS: Record<string, (args: Record<string, unknown>, result: un
     const key = String(args.key ?? "");
     return { args: { notes: key, deleted: true }, result: { ok: true, note: key, deleted: true } };
   },
-  "memory.write": () => ({ args: { memory: true }, result: { ok: true, memory: true } }),
+  "memory.writeConversation": () => ({ args: { memory: true }, result: { ok: true, memory: true } }),
+  "memory.writeProject": () => ({ args: { memory: true }, result: { ok: true, memory: true } }),
   "memory.update": (args) => ({ args: { memory: args.memoryId ?? true }, result: { ok: true, memoryId: args.memoryId ?? null } }),
   "memory.delete": (args) => ({ args: { memory: args.memoryId ?? true, deleted: true }, result: { ok: true, memoryId: args.memoryId ?? null, deleted: true } }),
   "reflect.write": (_args, result) => {

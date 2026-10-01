@@ -7,7 +7,7 @@ import { escalate } from "./escalation.ts";
 import { requiresActiveTask } from "./task-gate.ts";
 import { repeatHint } from "./repeat-detect.ts";
 import { ensureThumb, loadThumbRef } from "../images/thumb.ts";
-import { projectMemories } from "../memory/window.ts";
+import { deriveActiveScopes, projectMemories, renderScopeIndex } from "../memory/window.ts";
 import { errorInfo, errorMessage } from "../../shared/errors.ts";
 import { errorDetail } from "../../shared/error-details.ts";
 import { failedTool, toolFailure } from "../tools/result.ts";
@@ -39,7 +39,8 @@ const OBSERVATION_NUDGE_EXCLUDED = new Set([
   "reflect.delete",
   "notes.write",
   "notes.delete",
-  "memory.write",
+  "memory.writeConversation",
+  "memory.writeProject",
   "memory.update",
   "memory.delete",
   "task.set",
@@ -150,15 +151,19 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
     }
   }
   const imageNote = deferredImageNote(deferred) + (thumbs.length ? " 已附缩略图，细节仍需 image.crop 或 mode=element|rect。" : "");
+  // Ownership: the project a turn touches decides which scoped memories are injected. Derivation is
+  // evidence-based (paths in the recent tool calls), never a declared guess.
+  const activeScopes = deriveActiveScopes(ledger.toolIO);
+  const scopeNote = renderScopeIndex(memories, activeScopes);
   return [
     { role: "system", content: system },
     { role: "user", content: userText({
-      contextModules, ledger, turn, memories: projectMemories(memories), skillText, conversationSummaries: summaries,
+      contextModules, ledger, turn, memories: projectMemories(memories, activeScopes), skillText, conversationSummaries: summaries,
       currentQuery: ledger.currentQuery, queryHistory: ledger.queryHistory,
       toolGuide: toolGuideFor(toolRegistry, turn.assembled.toolIds),
       dataDir: historyDataDir ?? dataDir,
       ...(dataDir ? { inlineBudget: { dataDir, system } } : {}),
-    }) + (imageNote ? `\n\n${imageNote}` : ""), images: [...inline, ...thumbs] },
+    }) + [scopeNote, imageNote].filter(Boolean).map((note) => `\n\n${note}`).join(""), images: [...inline, ...thumbs] },
   ];
 };
 

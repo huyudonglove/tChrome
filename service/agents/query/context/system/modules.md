@@ -49,7 +49,7 @@ Sample（一次查询含两个候选轮次，仅示例）：
             {
               "callId": "call_04",
               "turnId": "tn_02",
-              "name": "memory.write",
+              "name": "memory.writeProject",
               "arguments": { "layer": "conversation", "text": "用户偏好 CSV" },
               "return": { "stage": "complete", "totalChars": 12, "text": "{\"ok\":true}" }
             }

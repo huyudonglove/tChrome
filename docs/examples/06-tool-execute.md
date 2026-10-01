@@ -134,12 +134,12 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
 }
 ```
 
-本轮样例两层记忆为空，直到模型交 `memory.write`。形状如下（本轮主链是 `web_search`，这条不进本轮写出的）。Runtime 落盘后，下一次出网把正文带进 `#conversationMemory` / `#projectMemory`。
+本轮样例两层记忆为空，直到模型交 `memory.writeConversation`。形状如下（本轮主链是 `web_search`，这条不进本轮写出的）。Runtime 落盘后，下一次出网把正文带进 `#conversationMemory` / `#projectMemory`。
 
 ```json
 {
   "callId": "call_mem",
-  "name": "memory.write",
+  "name": "memory.writeConversation",
   "arguments": {
     "reason": "记下当前页型号，下一轮核对官网价时用。",
     "affectsPage": false,
@@ -175,7 +175,8 @@ askUser / finishTurn 也是工具调用，同样追加。形状如下（本轮�
     "context.query",
     "agent.query",
     "agent.compress",
-    "memory.write",
+    "memory.writeConversation",
+    "memory.writeProject",
     "memory.update",
     "memory.delete",
     "notes.write",

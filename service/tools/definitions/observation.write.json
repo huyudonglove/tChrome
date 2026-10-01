@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "observation.write",
-    "description": "把当前观察结果记入本轮 <observations>。页面结构、代码执行结果、截图结论、网络现象等都用本工具落盘，供后续核对与 evidence.search 检索。\n参数：必填 type（观察来源，如 page.get_summary / execute_javascript / screenshot / code）、result（观察正文，对象或字符串）；可选 tabId。\n返回：{ok, type}；观察编号由 Runtime 分配，下一轮 <observations> 可见。\n本回合累计多次工具调用仍未记录时 Runtime 会提示。observation.write 是写给自己的阶段小结，不是工具返回的搬运：写「现在处于什么状态、已确认哪些结论、哪些仍未验证、下一步从哪接」，让后续轮次（含上下文被压缩后）能直接接着推进，不必重新翻工具返回。工具返回已在外置门禁内自动落盘并可用 evidence.search 取回，因此只写那些「不写就会忘、且翻回去很贵」的状态与结论。观察跟着轮次走：想跨轮长期留存的，用 memory.write 写成会话记忆，别只留在观察里。\n执行调度：serial（Runtime 固定，不必返回）。",
+    "description": "把当前观察结果记入本轮 <observations>。页面结构、代码执行结果、截图结论、网络现象等都用本工具落盘，供后续核对与 evidence.search 检索。\n参数：必填 type（观察来源，如 page.get_summary / execute_javascript / screenshot / code）、result（观察正文，对象或字符串）；可选 tabId。\n返回：{ok, type}；观察编号由 Runtime 分配，下一轮 <observations> 可见。\n本回合累计多次工具调用仍未记录时 Runtime 会提示。observation.write 是写给自己的阶段小结，不是工具返回的搬运：写「现在处于什么状态、已确认哪些结论、哪些仍未验证、下一步从哪接」，让后续轮次（含上下文被压缩后）能直接接着推进，不必重新翻工具返回。工具返回已在外置门禁内自动落盘并可用 evidence.search 取回，因此只写那些「不写就会忘、且翻回去很贵」的状态与结论。观察跟着轮次走：想跨轮长期留存的，用 memory.writeProject / memory.writeConversation 写成会话记忆，别只留在观察里。\n执行调度：serial（Runtime 固定，不必返回）。",
     "parameters": {
       "type": "object",
       "properties": {

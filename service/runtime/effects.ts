@@ -92,10 +92,12 @@ export function applyToolEffects(input: {
         break;
       }
       case "memory.append":
-        for (const { layer, text } of effect.entries) {
+        for (const { layer, text, scope, summary } of effect.entries) {
           const memoryId = allocateRecordId(dataDir, ledger.conversationId, layer === "project" ? "projectMemory" : "conversationMemory");
           const record: MemoryRecord = {
             memoryId, turnId: turn.turnId, layer, text,
+            ...(scope ? { scope } : {}),
+            ...(summary ? { summary } : {}),
             createdAt: nowIso(), sourceCallId: call.callId,
           };
           saveMemory(dataDir, ledger.conversationId, record);

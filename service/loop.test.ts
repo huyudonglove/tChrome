@@ -487,10 +487,18 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
       toolCalls: [
         {
           id: "call_01",
-          name: "memory.write",
+          name: "memory.writeConversation",
           arguments: {
             reason: "记下",
             conversationMemory: ["本轮用户要查鼠标价", "用户在核对罗技 MX Master 3S"],
+          },
+        },
+        {
+          id: "call_01b",
+          name: "memory.writeProject",
+          arguments: {
+            reason: "记下",
+            scope: "tChrome",
             projectMemory: ["项目偏好：查官网价"],
           },
         },
@@ -515,7 +523,7 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
   });
   expect(turn.assembled.toolIds).toEqual(["see_page", "web_search", "capture_page", "cookies_get"]);
   expect(ledger.memoryIds).toEqual(memoryIdsBefore);
-  expect(ledger.toolIO).toHaveLength(3);
+  expect(ledger.toolIO).toHaveLength(4);
   expect(loadIndex(dir, ledger.conversationId, "conversationHistory").coveredSourceIds).toEqual(["tool_old"]);
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).text).toBe("本轮用户要查鼠标价");
 
@@ -530,7 +538,8 @@ test("记忆效果失败进入 toolIO，同批工具继续，模型收到错误�
     let requests = 0;
     const provider: Provider = { complete: async input => {
       if (++requests === 1) return ok({ finish: "tool_calls", toolCalls: [
-        { id: "memory", name: "memory.write", arguments: { reason: "记录", conversationMemory: ["本轮已写入"], projectMemory: ["不能覆盖"] } },
+        { id: "memory", name: "memory.writeConversation", arguments: { reason: "记录", conversationMemory: ["本轮已写入"] } },
+        { id: "memoryP", name: "memory.writeProject", arguments: { reason: "记录", scope: "tChrome", projectMemory: ["不能覆盖"] } },
         { id: "next", name: "notes.write", arguments: { reason: "下一步", key: "next", value: "已执行" } },
       ] });
       expect(input.messages[1]!.content).toContain('"faultCode": "file_exists"');
@@ -545,8 +554,9 @@ test("记忆效果失败进入 toolIO，同批工具继续，模型收到错误�
     expect(ledger).toMatchObject({ status: "idle", active: null, liveTools: [], toolQueue: [], memoryIds: { conversation: ["mm_01"] }, notes: { next: "已执行" } });
     expect(loadMemory(dir, "cv_01", "mm_01").text).toBe("本轮已写入");
     expect(loadMemory(dir, "cv_01", "lm_01").text).toBe("已有记忆");
-    expect(JSON.parse(ledger.toolIO[0]!.return.text)).toMatchObject({ ok: false, faultCode: "file_exists", toolName: "memory.write" });
-    const toolEvent = loadEvents(dir, "cv_01").find(event => event.kind === "tool");
+    const failedWrite = ledger.toolIO.find((item) => item.name === "memory.writeProject");
+    expect(JSON.parse(failedWrite!.return.text)).toMatchObject({ ok: false, faultCode: "file_exists", toolName: "memory.writeProject" });
+    const toolEvent = loadEvents(dir, "cv_01").find(event => event.kind === "tool" && event.data.name === "memory.writeProject");
     expect(JSON.parse((toolEvent!.data.return as {text:string}).text).ok).toBe(false);
     expect(loadTurn(dir, "cv_01", reply.turnId).status).toBe("completed");
   } finally { rmSync(dir, { recursive: true, force: true }); }

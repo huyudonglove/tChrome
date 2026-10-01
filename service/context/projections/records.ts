@@ -6,7 +6,7 @@ export const inputHistoryView = (records: UserInputRecord[]) => records.map(({ i
  * `currentTurn` is the 1-based ordinal of the turn being assembled.
  * An observation whose validUntilTurn has passed is dropped (returns null) instead of
  * being injected as a fact that no longer holds: a stale observation is either gone or
- * was worth keeping, and worth keeping belongs in memory (memory.write / memory.update).
+ * was worth keeping, and worth keeping belongs in memory (memory.writeProject / memory.writeConversation).
  */
 export const pageView = (page: Observation, currentTurn?: number) =>
   (page.validUntilTurn !== undefined && currentTurn !== undefined && currentTurn > page.validUntilTurn)

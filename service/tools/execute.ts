@@ -631,12 +631,33 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   if (name === "list_browser_tools") {
     return result(JSON.stringify({ ok: true, tools: lookup.unusedTools }));
   }
-  if (name === "memory.write") {
-    const entries = (["conversation", "project"] as const).flatMap((layer) =>
-      asStringArray(args[`${layer}Memory`]).map((text) => ({ layer, text })));
+  if (name === "memory.writeConversation") {
+    const entries = asStringArray(args.conversationMemory).map((text) => ({
+      layer: "conversation" as const, text,
+    }));
     const effects: ToolEffect[] = entries.length ? [{ type: "memory.append", entries }] : [];
-    const count = (layer: string) => entries.filter((entry) => entry.layer === layer).length;
-    return result(`落下 conversation=${count("conversation")} project=${count("project")}`, effects);
+    return result(`落下 conversation=${entries.length} project=0`, effects);
+  }
+  if (name === "memory.writeProject") {
+    const texts = asStringArray(args.projectMemory);
+    const summaries = asStringArray(args.summary);
+    if (summaries.length > 0 && summaries.length !== texts.length) {
+      return failedTool(
+        errorDetail("conflicting_params", { tool: name, fields: "summary 与 projectMemory" }),
+        "invalid_arguments",
+        { toolName: name },
+      );
+    }
+    const scope = String(args.scope ?? "").trim();
+    const entries = texts.map((text, index) => ({
+      layer: "project" as const,
+      text,
+      ...(scope ? { scope } : {}),
+      ...(summaries[index] ? { summary: summaries[index] } : {}),
+    }));
+    const effects: ToolEffect[] = entries.length ? [{ type: "memory.append", entries }] : [];
+    const withSummary = entries.filter((entry) => entry.summary).length;
+    return result(`落下 conversation=0 project=${entries.length} scope=${scope || "(空)"} summary=${withSummary}`, effects);
   }
   if (name === "memory.update") {
     const memoryId = String(args.memoryId ?? "").trim();

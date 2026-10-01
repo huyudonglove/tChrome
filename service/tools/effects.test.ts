@@ -86,8 +86,8 @@ test("runtime persists notes through effects", async () => {
 
 test("memory effects contain normalized entries and runtime persists their source and summary", async () => {
   const fixture = setup();
-  const execution = await fixture.execute("memory.write", {
-    conversationMemory: ["找到按钮", "", null, "用户目标"], projectMemory: [],
+  const execution = await fixture.execute("memory.writeConversation", {
+    conversationMemory: ["找到按钮", "", null, "用户目标"],
   });
   expect(execution.text).toBe("落下 conversation=2 project=0");
   expect(fixture.ledger.memoryIds.conversation).toEqual([]);
