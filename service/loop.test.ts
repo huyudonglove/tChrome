@@ -130,7 +130,6 @@ test("finishTurn 收口回复", async () => {
     "assemble",
     "provider-request",
     "provider-response",
-    "tool",
     "turn-stop-reason",
   ]);
   expect(events[1]?.data.userInput).toBe("你好");
@@ -538,8 +537,8 @@ test("记忆效果失败进入 toolIO，同批工具继续，模型收到错误�
     expect(loadMemory(dir, "cv_01", "lm_01").text).toBe("已有记忆");
     const failedWrite = ledger.toolIO.find((item) => item.name === "memory.writeProject");
     expect(JSON.parse(failedWrite!.return.text)).toMatchObject({ ok: false, faultCode: "file_exists", toolName: "memory.writeProject" });
-    const toolEvent = loadEvents(dir, "cv_01").find(event => event.kind === "tool" && event.data.name === "memory.writeProject");
-    expect(JSON.parse((toolEvent!.data.return as {text:string}).text).ok).toBe(false);
+    // tool events are no longer duplicated into events.jsonl; toolio.jsonl is the single source of truth
+    expect(loadEvents(dir, "cv_01").some(event => event.kind === "tool")).toBe(false);
     expect(loadTurn(dir, "cv_01", reply.turnId).status).toBe("completed");
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
@@ -1106,7 +1105,7 @@ test("工具抛错写入记录，清空执行状态并允许下一次模型请�
     expect(ledger.toolQueue).toEqual([]);
     const failure = ledger.toolIO.find(row => row.name === "send_http")!;
     expect(JSON.parse(failure.return.text)).toMatchObject({ ok: false, faultCode: "tool_execution_failed", toolName: "send_http" });
-    expect(loadEvents(dir, reply.conversationId).some(event => event.kind === "tool" && event.data.callId === failure.callId)).toBe(true);
+    expect(loadEvents(dir, reply.conversationId).some(event => event.kind === "tool")).toBe(false);
     expect(loadTurn(dir, reply.conversationId, reply.turnId).status).toBe("completed");
   } finally { globalThis.fetch = originalFetch; rmSync(dir, { recursive: true, force: true }); }
 });

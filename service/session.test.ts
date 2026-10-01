@@ -123,3 +123,21 @@ test("running toolIO and live queue retain reasons without raw returns", () => {
     expect(JSON.stringify(view)).not.toContain("PRIVATE");
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+test("tool messages fall back to ledger.toolIO when events carry no tool rows", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-session-toolio-fallback-"));
+  try {
+    const ledger = emptyLedger("cv_01");
+    ledger.turnIds = ["tn_01"];
+    ledger.toolIO = [{ turnId: "tn_01", callId: "call_01", name: "page.get_summary", arguments: { reason: "读取页面摘要" },
+      return: { stage: "complete", totalChars: 26, text: '{"data":"RAW_TOOL_RETURN"}' } }];
+    saveLedger(dir, ledger);
+    saveTurn(dir, makeTurn({ kind: "reply", text: "完成" }));
+    const view = sessionView(dir, "cv_01");
+    expect(view.messages).toEqual([
+      { turnId: "tn_01", role: "user", text: "查看当前页面" },
+      { turnId: "tn_01", role: "tool", name: "page.get_summary", text: "读取页面摘要" },
+      { turnId: "tn_01", role: "assistant", text: "完成" },
+    ]);
+    expect(JSON.stringify(view)).not.toContain("RAW_TOOL_RETURN");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

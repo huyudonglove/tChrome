@@ -407,11 +407,9 @@ const runQueue = async (input: {
         saveTurn(dataDir, turn);
         saveLedger(dataDir, ledger);
       }
-      appendEvent(dataDir, ledger.conversationId, {
-        kind: "tool",
-        turnId: turn.turnId,
-        data: { callId: item.callId, name: item.name, arguments: item.arguments, return: row.return, ...(row.images ? { images: row.images } : {}) },
-      });
+      // Tool calls are not written to events.jsonl: toolio.jsonl is the single source of truth
+      // (it carries turnId/batchId/risk/taskId and is amended in place to the final return), and
+      // projectSessionView falls back to ledger.toolIO when a turn has no tool events.
       if (output) return output;
     }
     return null;
