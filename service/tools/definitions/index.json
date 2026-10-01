@@ -156,6 +156,7 @@
     "local.tsx_outline",
     "local.fs_outline",
     "local.code_refs",
+    "local.repo_map",
     "local.diagnose",
     "local.open",
     "local.process_start",

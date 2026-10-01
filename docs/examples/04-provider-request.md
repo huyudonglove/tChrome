@@ -242,7 +242,7 @@ local.* 与文件操作使用上述绝对路径。
 - 网络与前端诊断：HAR、网络等待与检索、WebSocket、Console、性能测量、节流
 - 录像与设备：视口录像与帧序列、设备模拟、地理位置
 - 验证码探测与处理
-- 本机宿主 local.*：文件读写与检索、符号与引用检索（local.code_refs，给一个符号名返回定义位置与全部引用点）、脚本执行与后台进程
+- 本机宿主 local.*：文件读写与检索、符号与引用检索（local.code_refs，给一个符号名返回定义位置与全部引用点）、仓库结构导航（local.repo_map，按目录聚合出哪块职责在哪、入口文件是哪个）、脚本执行与后台进程
 - 服务端网络与搜索：HTTP 请求/批量/探测、网页搜索、Tavily
 - 资料库与脚本管理：library、script_write/patch/read/list
 - 资产与大文件：asset.list/read、image.crop、stream.pull/push

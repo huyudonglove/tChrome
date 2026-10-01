@@ -2556,6 +2556,32 @@
         "local.tsx_outline"
       ]
     },
+    "local.repo_map": {
+      "purpose": "仓库结构导航：按目录聚合出「哪块职责在哪、入口文件是哪个」，省去靠猜路径翻文件",
+      "triggers": [
+        "local.repo_map",
+        "刚接手一个陌生仓库，或需要找某块职责属于哪个模块、入口文件是哪个"
+      ],
+      "outputs": [
+        "目录聚合（目录名、文件数、符号数、入口文件与其主要符号）或完整符号拓扑渲染文本"
+      ],
+      "preconditions": [
+        "用户已授权当前宿主操作范围",
+        "目录绝对路径已知"
+      ],
+      "risk": "low",
+      "verification": [
+        "检查 ok=true；目录名与符号数与实际文件规模相符"
+      ],
+      "alternatives": [
+        "local.fs_list",
+        "local.code_refs"
+      ],
+      "composesWith": [
+        "local.fs_read",
+        "local.code_refs"
+      ]
+    },
     "long_press": {
       "purpose": "长按页面元素",
       "triggers": [
