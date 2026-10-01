@@ -24,8 +24,8 @@ import { executeTool } from "../tools/execute.ts";
 // Gates tighten 30 -> 20 -> 10 within a turn and reset after every observation.write.
 // Marker prefix appended to the last tool return; stripped on the next pass so a nudge never sticks.
 const OBSERVATION_NUDGE_MARKER = "runtime: 本回合已累计";
-const ACTIONS_NUDGE_MARKER = "runtime: actions-nudge";
-const ACTIONS_NUDGE_EVERY = runtimeConfig.context.actionsNudgeEvery;
+const ACTIONS_NUDGE_MARKER = "runtime: 较早调用已出窗";
+
 const OBSERVATION_NUDGE_FIRST_GATE = runtimeConfig.context.observationNudgeFirstGate;
 const OBSERVATION_NUDGE_MIN_GATE = runtimeConfig.context.observationNudgeMinGate;
 const OBSERVATION_NUDGE_STEP = runtimeConfig.context.observationNudgeStep;
@@ -583,15 +583,40 @@ export async function handleTurn(
       }
       // ToolIO ring nudge: every few calls, keep the <actions> log current so the
       // window can drop older call details without losing the narrative.
-      const actionsRecent = rows.slice(-ACTIONS_NUDGE_EVERY).some((r) => r.name === "actions.write");
-      if (rows.length > 0 && rows.length % ACTIONS_NUDGE_EVERY === 0 && !actionsRecent) {
-        const last = rows.at(-1);
-        if (last) {
-          last.return = {
-            ...last.return,
-            text: `${last.return.text}\n\n${ACTIONS_NUDGE_MARKER} 本回合已累计 ${rows.length} 次工具调用，请用 actions.write 记录「调用了什么、拿到了什么」——窗口只保留最近 10 次调用详情，更早的只剩 ID 范围与本流水。`,
-          };
+      
+      // <actions> nudge: gate on what actually leaves the window. The toolIO
+      // ring keeps only the last RING_SIZE calls, so an early call stops being
+      // readable once it is pushed out and left with nothing but an id. Counting
+      // calls instead nags during unrelated probing; counting evictions asks
+      // the question that matters - how much of this turn's evidence can no
+      // longer be read inline? Thresholds double after each nudge (START,
+      // 2*START, ... capped at CAP), so the longer the turn runs the quieter it
+      // gets. Writing an actions.write resets the run by construction: every
+      // count below is measured from the last one.
+      const RING_SIZE = runtimeConfig.context.toolioRingSize;
+      const NUDGE_START = runtimeConfig.context.actionsNudgeEvicted;
+      const NUDGE_CAP = runtimeConfig.context.actionsNudgeCap;
+      const lastActionsIdx = rows.map((r) => r.name).lastIndexOf("actions.write");
+      const callsSinceActions = rows.length - 1 - lastActionsIdx;
+      const evicted = Math.max(0, callsSinceActions - (RING_SIZE - 1));
+      const thresholds: number[] = [];
+      for (let t = NUDGE_START; t < NUDGE_CAP; t *= 2) thresholds.push(t);
+      thresholds.push(NUDGE_CAP);
+      let threshold = NUDGE_CAP;
+      for (const t of thresholds) {
+        if (evicted <= t) {
+          threshold = t;
+          break;
         }
+      }
+      const last = rows.at(-1);
+      const pastCap = evicted > NUDGE_CAP;
+      const due = evicted >= threshold && (!pastCap || evicted % NUDGE_CAP === 0);
+      if (last && last.name !== "actions.write" && due) {
+        last.return = {
+          ...last.return,
+          text: `${last.return.text}\n${ACTIONS_NUDGE_MARKER}\n自上次 actions.write 起，已有 ${evicted} 条较早调用在窗口里只剩 ID（窗口只保留最近 ${RING_SIZE} 条调用详情）。用 actions.write 记「调用了什么、拿到了什么」——这是早期调用出窗后唯一的留痕通道；下次提醒前门槛放宽到 ${Math.min(NUDGE_CAP, threshold * 2)} 条出窗。`,
+        };
       }
       let state = contextState(deps.dataDir, ledger, turn, memories);
       let messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir);

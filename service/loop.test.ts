@@ -4,6 +4,13 @@ import { runtimeConfig } from "./config/runtime.ts";
 const OBS_FIRST = runtimeConfig.context.observationNudgeFirstGate;
 const OBS_GATE_2 = Math.max(runtimeConfig.context.observationNudgeMinGate, OBS_FIRST - runtimeConfig.context.observationNudgeStep);
 const OBS_MIN = runtimeConfig.context.observationNudgeMinGate;
+
+const RING_SIZE = runtimeConfig.context.toolioRingSize;
+const ACT_START = runtimeConfig.context.actionsNudgeEvicted;
+const ACT_CAP = runtimeConfig.context.actionsNudgeCap;
+const ACT_NUDGE_TEXT = "runtime: 较早调用已出窗";
+// 首次提醒出现在第 RING_SIZE - 1 + ACT_START 次调用之后（body 在下一次请求里才看到）
+const ACT_FIRST = RING_SIZE - 1 + ACT_START;
 import { loadContextRecord } from "./runtime/records.ts";
 import { loadMemories, loadMemory, saveMemory } from "./memory/store.ts";
 import { expect, test } from "bun:test";
@@ -1136,4 +1143,63 @@ test("纯文本 content 自动包装为 finishTurn 成功收口", async () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+
+test(`<actions> 提醒按出窗条数触发：出窗满 ${ACT_START} 条才提示`, async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-actions-nudge-evicted-"));
+  primeActiveTask(dir);
+  try {
+    let step = 0;
+    const provider: Provider = { complete: async input => {
+      step++;
+      const body = input.messages[1]!.content;
+      if (step <= ACT_FIRST) {
+        // 出窗条数还没到门槛：连续用同一工具也不能被提醒
+        expect(body).not.toContain(ACT_NUDGE_TEXT);
+        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "notes.write", arguments: { reason: "记录取证", key: `k${step}`, value: "v" } }] });
+      }
+      if (step === ACT_FIRST + 1) {
+        // 追加的说明文案会被固定行宽折断，只断言 marker 与「只提醒一次」
+        expect(body.split(ACT_NUDGE_TEXT).length - 1).toBe(1);
+        return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
+      }
+      return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
+    } };
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "出窗提醒", submittedAt: "now" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test(`写一次 actions.write 后出窗计数归零，下一次提醒要重新攒满 ${ACT_START} 条`, async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-actions-nudge-reset-"));
+  primeActiveTask(dir);
+  try {
+    let step = 0;
+    const evidence = () => ok({ finish: "tool_calls" as const, toolCalls: [{ id: `e_${step}`, name: "notes.write", arguments: { reason: "记录取证", key: `k${step}`, value: "v" } }] });
+    const provider: Provider = { complete: async input => {
+      step++;
+      const body = input.messages[1]!.content;
+      if (step <= ACT_FIRST) {
+        expect(body).not.toContain(ACT_NUDGE_TEXT);
+        return evidence();
+      }
+      if (step === ACT_FIRST + 1) {
+        expect(body).toContain(ACT_NUDGE_TEXT);
+        return ok({ finish: "tool_calls", toolCalls: [{ id: "act", name: "actions.write", arguments: { reason: "记录已完成的取证", text: "跑了用例" } }] });
+      }
+      if (step <= 2 * ACT_FIRST) {
+        // 写过 actions.write 后从 0 重新数，这一段不该再被提醒
+        expect(body).not.toContain(ACT_NUDGE_TEXT);
+        return evidence();
+      }
+      if (step === 2 * ACT_FIRST + 2) {
+        expect(body).toContain(ACT_NUDGE_TEXT);
+        return evidence();
+      }
+      return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
+    } };
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "重置出窗计数", submittedAt: "now" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
