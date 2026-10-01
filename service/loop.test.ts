@@ -1194,3 +1194,51 @@ test(`写一次 actions.write 后出窗计数归零，下一次提醒要重新�
     expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+const REFLECT_CALLS = runtimeConfig.context.reflectNudgeCalls;
+const REFLECT_NUDGE_TEXT = "runtime: 本回合尚未落反思";
+// 反思提醒按本轮原始调用数触发：满 REFLECT_CALLS 次调用后才提示（body 在下一次请求里才看得到）
+test(`<reflection> 提醒按本轮调用数触发：满 ${REFLECT_CALLS} 次调用仍未写 reflect.write 才提示`, async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-reflect-nudge-"));
+  primeActiveTask(dir);
+  try {
+    let step = 0;
+    const provider: Provider = { complete: async input => {
+      step++;
+      const body = input.messages[1]!.content;
+      if (step <= REFLECT_CALLS) {
+        // 调用数还没到门槛：连打同一工具也不会被提醒
+        expect(body).not.toContain(REFLECT_NUDGE_TEXT);
+        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "notes.write", arguments: { reason: "记录取证", key: `k${step}`, value: "v" } }] });
+      }
+      if (step === REFLECT_CALLS + 1) {
+        expect(body.split(REFLECT_NUDGE_TEXT).length - 1).toBe(1);
+        return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
+      }
+      return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
+    } };
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "反思提醒", submittedAt: "now" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test(`本轮写过 reflect.write 就整轮不再提醒（走过 ${REFLECT_CALLS} 次调用也不提示）`, async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-reflect-nudge-skip-"));
+  primeActiveTask(dir);
+  try {
+    let step = 0;
+    const provider: Provider = { complete: async input => {
+      step++;
+      const body = input.messages[1]!.content;
+      expect(body).not.toContain(REFLECT_NUDGE_TEXT);
+      if (step === 3) {
+        return ok({ finish: "tool_calls", toolCalls: [{ id: "rf_01", name: "reflect.write", arguments: { reason: "记录判断变化", text: "取证顺序应先窄读再动手", focus: "证据" } }] });
+      }
+      if (step <= REFLECT_CALLS + 1) {
+        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "notes.write", arguments: { reason: "记录取证", key: `k${step}`, value: "v" } }] });
+      }
+      return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
+    } };
+    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "反思提醒", submittedAt: "now" });
+    expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

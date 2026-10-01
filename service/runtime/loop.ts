@@ -26,6 +26,9 @@ import { executeTool } from "../tools/execute.ts";
 const OBSERVATION_NUDGE_MARKER = "runtime: 本回合已累计";
 const ACTIONS_NUDGE_MARKER = "runtime: 较早调用已出窗";
 
+const REFLECT_NUDGE_MARKER = "runtime: 本回合尚未落反思";
+const REFLECT_NUDGE_CALLS = runtimeConfig.context.reflectNudgeCalls;
+
 const OBSERVATION_NUDGE_FIRST_GATE = runtimeConfig.context.observationNudgeFirstGate;
 const OBSERVATION_NUDGE_MIN_GATE = runtimeConfig.context.observationNudgeMinGate;
 const OBSERVATION_NUDGE_STEP = runtimeConfig.context.observationNudgeStep;
@@ -597,6 +600,8 @@ export async function handleTurn(
         if (obsAt >= 0) text = text.slice(0, obsAt).trimEnd();
         const actAt = text.indexOf(ACTIONS_NUDGE_MARKER);
         if (actAt >= 0) text = text.slice(0, actAt).trimEnd();
+        const refAt = text.indexOf(REFLECT_NUDGE_MARKER);
+        if (refAt >= 0) text = text.slice(0, refAt).trimEnd();
         if (text !== row.return.text) row.return = { ...row.return, text };
       }
       const writeCount = rows.filter((r) => r.name === "observation.write").length;
@@ -659,6 +664,16 @@ export async function handleTurn(
         last.return = {
           ...last.return,
           text: `${last.return.text}\n${ACTIONS_NUDGE_MARKER}\n自上次 actions.write 起，已有 ${evicted} 条较早调用在窗口里只剩 ID（窗口只保留最近 ${RING_SIZE} 条调用详情）。用 actions.write 记「调用了什么、拿到了什么」——这是早期调用出窗后唯一的留痕通道；下次提醒前门槛放宽到 ${Math.min(NUDGE_CAP, threshold * 2)} 条出窗。`,
+        };
+      }
+
+      // Reflect nudge: counted on raw calls for the turn rather than evidence calls, because
+      // reflection tracks judgement changes and repeated dead ends, which pure reading also triggers.
+      const reflectWritten = rows.some((row) => row.name === "reflect.write");
+      if (last && rows.length >= REFLECT_NUDGE_CALLS && !reflectWritten) {
+        last.return = {
+          ...last.return,
+          text: `${last.return.text}\n${REFLECT_NUDGE_MARKER}\n本回合已有 ${rows.length} 次工具调用，尚未写 reflect.write。若这轮出现了结论被推翻、同一卡点反复、或一次取舍决策，用 reflect.write 记下当前状态与下一步；纯流水账不必写。`,
         };
       }
       let state = contextState(deps.dataDir, ledger, turn, memories);

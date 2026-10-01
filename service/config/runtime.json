@@ -52,6 +52,7 @@
     "observationNudgeFirstGate": { "fixed": 20 },
     "observationNudgeMinGate": { "fixed": 10 },
     "observationNudgeStep": { "fixed": 10 },
-    "compressNudgeHeadroom": { "follow": "contextWindowChars", "ratio": 0.1, "floor": 1000 }
+    "compressNudgeHeadroom": { "follow": "contextWindowChars", "ratio": 0.1, "floor": 1000 },
+    "reflectNudgeCalls": { "fixed": 25 }
   }
 }

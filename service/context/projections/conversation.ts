@@ -32,6 +32,8 @@ export type ConversationPayload = {
   /** Session-wide first–last callId; detail lives only in the shared toolIO pool below. */
   toolRange: string | null;
   /** Shared rolling pool: newest calls across all turns. */
+  /** Session-wide reflection tally: how many反思 this session has, and the latest focus. */
+  reflectionStatus: { count: number; latestId?: string; latestFocus?: string } | null;
   toolIO: ReturnType<typeof toolHistoryView>;
 };
 
@@ -140,8 +142,18 @@ export function conversationPayload(input: {
           : null),
     });
   }
+  const reflectItems = [...reflectByTurn.values()].flat();
+  const latestReflect = reflectItems[reflectItems.length - 1];
+  const reflectionStatus = reflectItems.length
+    ? {
+        count: reflectItems.length,
+        ...(latestReflect?.id ? { latestId: latestReflect.id } : {}),
+        ...(latestReflect?.focus ? { latestFocus: latestReflect.focus } : {}),
+      }
+    : null;
   const sessionCalls = ledger.toolIO;
   return {
+    reflectionStatus,
     conversationMemory: input.memories.conversation,
     conversationHistorySummary: Array.isArray(input.conversationSummaries)
       ? turnSummaryView(input.conversationSummaries)
@@ -161,10 +173,12 @@ const tag = (name: string, value: unknown) => `<${name}>\n${typeof value === "st
 
 /** Nested XML body for the conversation module data section. */
 export function conversationXml(payload: ConversationPayload): string {
+  const emptyTag = /^<(\w+)>\n(null|""|\[\]|\{\})\n<\/\1>$/;
   const parts = [
+    tag("reflectionStatus", payload.reflectionStatus),
     tag("conversationMemory", payload.conversationMemory),
     tag("conversationHistorySummary", payload.conversationHistorySummary),
-  ];
+  ].filter((block) => !emptyTag.test(block));
   for (const raw of payload.turns) {
     if (raw && typeof raw === "object" && "contextFile" in (raw as object) && !("turnId" in (raw as object))) {
       parts.push(tag("externalizedTurn", raw));
@@ -181,7 +195,7 @@ export function conversationXml(payload: ConversationPayload): string {
       tag("reflection", slice.reflection),
       tag("query", slice.query),
       tag("stopReason", slice.stopReason),
-    ].filter((block) => !/^<(\w+)>\n(null|""|\[\]|\{\})\n<\/\1>$/.test(block));
+    ].filter((block) => !emptyTag.test(block));
     parts.push(`<${slice.turnId}>\n${fields.join("\n")}\n</${slice.turnId}>`);
   }
   // Shared tool pool at the bottom: session range + newest call details only.
