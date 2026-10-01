@@ -41,7 +41,7 @@ test("module registry owns consumers and archive fields", () => {
   expect(md).toContain("return:{stage,result}");
   expect(md).toContain("只存指针");
   expect(md).not.toContain("modules.json");
-  expect(md).not.toContain("compress=true");
+  expect(md).not.toContain("archiveField");
 });
 
 test("overview skims and README tables match registries; hierarchy tags stay in registry", () => {

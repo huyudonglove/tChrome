@@ -37,7 +37,7 @@ service/agents/compression/context/
   system/output.md
 ```
 
-User 仅为 `<compressionTurns>\n{"turns":[...]}\n</compressionTurns>`（标签内无说明）。归档字段由主注册表 `service/context/modules.json`（compress=true）注入 System。可读对照表见 [context/README.md](../context/README.md)。新增模块：改注册表 + projector，再视需要更新压缩 `context/system/` 措辞。
+User 仅为 `<compressionTurns>\n{"turns":[...]}\n</compressionTurns>`（标签内无说明）。归档字段由主注册表 `service/context/modules.json` 中带 `archiveField` 的条目（role=archive）注入 System。可读对照表见 [context/README.md](../context/README.md)。新增模块：改注册表 + projector，再视需要更新压缩 `context/system/` 措辞。
 
 `service/runtime/turn-history.ts` 提供 `assembleTurnHistory` 和 `loadSettledTurnHistory`，使用既有 turnId 汇集输入、目标变化、工具结果、页面观察及最终输出。记录包含 conversationId，轮次编号只在所属会话内解释；已结束历史按账本顺序读取，排除当前活动轮次和未结束记录。会话记忆写入按来源 turnId 关联到当轮，notes 保持当前状态，不增加轮次或版本历史。
 
