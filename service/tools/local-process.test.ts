@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
-import { mkdtemp, rm, readFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { patchScript } from "../scripts/store.ts";
-import { abortAllLocalProcesses, abortLocalProcesses, resolveShellInterpreter, runLocalProcessTool } from "./local-process";
+import { abortAllLocalProcesses, abortLocalProcesses, pruneProcessOutputs, resolveShellInterpreter, runLocalProcessTool } from "./local-process";
 
 let cwd: string;
 let scope: string;
@@ -180,4 +181,32 @@ test("resolveShellInterpreter prefers the platform shell and falls back when abs
   expect(resolveShellInterpreter("linux", (path) => path === "/bin/sh")).toBe("/bin/sh");
   // Nothing probed exists: return the last candidate rather than throwing.
   expect(resolveShellInterpreter("linux", () => false)).toBe("/bin/zsh");
+});
+test("pruneProcessOutputs keeps the newest proc_NNN dirs and leaves foreign entries alone", async () => {
+  const dataDir = await mkdtemp(join(tmpdir(), "tchrome-prune-"));
+  const root = join(dataDir, "process-output");
+  const ids = ["proc_01", "proc_02", "proc_03", "proc_04", "proc_05"];
+  for (const id of ids) {
+    await mkdir(join(root, id), { recursive: true });
+    await Bun.write(join(root, id, "stdout.txt"), "done\n");
+  }
+  await mkdir(join(root, "not-a-proc"), { recursive: true });
+  await Bun.write(join(root, "loose.txt"), "keep me");
+
+  // Quota 2: the three oldest proc dirs go, the newest two stay.
+  pruneProcessOutputs(dataDir, 2);
+  for (const id of ids.slice(0, 3)) expect(existsSync(join(root, id))).toBe(false);
+  for (const id of ids.slice(3)) expect(existsSync(join(root, id))).toBe(true);
+  // Names that are not proc_NNN are not ours to delete.
+  expect(existsSync(join(root, "not-a-proc"))).toBe(true);
+  expect(existsSync(join(root, "loose.txt"))).toBe(true);
+
+  // Quota at or above the remaining count is a no-op.
+  pruneProcessOutputs(dataDir, 2);
+  for (const id of ids.slice(3)) expect(existsSync(join(root, id))).toBe(true);
+
+  // A missing process-output root must not throw.
+  pruneProcessOutputs(join(dataDir, "absent"), 2);
+
+  await rm(dataDir, { recursive: true, force: true });
 });

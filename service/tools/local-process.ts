@@ -1,10 +1,11 @@
+import { runtimeConfig } from "../config/runtime.ts";
 import { allocateRecordId } from "../runtime/ids.ts";
 import { errorInfo } from "../../shared/errors.ts";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { homedir, tmpdir } from "node:os";
 import { isAbsolute, extname, join, resolve } from "node:path";
 import { stat, mkdir, mkdtemp, writeFile } from "node:fs/promises";
-import { appendFileSync, existsSync, rmSync } from "node:fs";
+import { appendFileSync, existsSync, readdirSync, rmSync } from "node:fs";
 import { readScript } from "../scripts/store.ts";
 import { StringDecoder } from "node:string_decoder";
 
@@ -19,6 +20,26 @@ export function resolveShellInterpreter(
     if (probe(candidate)) return candidate;
   }
   return candidates[candidates.length - 1]!;
+}
+
+// process-output/<procId> 只写不读（process_status 走内存 entry 快照），目录数只增不减。
+// 每次新建进程时按 runtimeConfig.context.processOutputRetain 淘汰最旧的 proc_NNN；
+// 仍在运行的进程（processes 里 status 还是 running）不参与淘汰，避免删掉正在写的输出。
+const PROCESS_ID_PATTERN = /^proc_(\d+)$/;
+
+export function pruneProcessOutputs(dataDir: string, retain = runtimeConfig.context.processOutputRetain): void {
+  const root = join(resolve(dataDir), "process-output");
+  let names: string[];
+  try { names = readdirSync(root); }
+  catch { return; }
+  const prunable = names
+    .map((name) => ({ name, id: Number(PROCESS_ID_PATTERN.exec(name)?.[1] ?? Number.NaN) }))
+    .filter((entry) => Number.isInteger(entry.id) && processes.get(entry.name)?.status !== "running")
+    .sort((a, b) => a.id - b.id);
+  for (const entry of prunable.slice(0, Math.max(0, prunable.length - retain))) {
+    try { rmSync(join(root, entry.name), { recursive: true, force: true }); }
+    catch { /* 淘汰是尽力而为，失败不阻断新进程 */ }
+  }
 }
 
 export const LOCAL_PROCESS_TOOL_NAMES = ["local.run", "local.process_start", "local.process_status", "local.process_write", "local.process_stop", "local.open", "local.capabilities"] as const;
@@ -118,6 +139,7 @@ async function start(input: Record<string, unknown>, scope: string, token: { can
     await mkdir(outputDir, { recursive: true });
     const stdoutPath = join(outputDir, "stdout.txt"), stderrPath = join(outputDir, "stderr.txt");
     await Promise.all([writeFile(stdoutPath, ""), writeFile(stderrPath, "")]);
+    pruneProcessOutputs(dataDir);
     if (token.cancelled) throw new Error("Local process start cancelled");
     let done!: () => void;
     const finished = new Promise<void>((resolve) => { done = resolve; });

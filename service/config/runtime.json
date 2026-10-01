@@ -41,6 +41,7 @@
     "actionsNudgeCap": {
       "fixed": 40
     },
+    "processOutputRetain": { "fixed": 200 },
     "checkContinuePrompt": { "fixed": 30 },
     "checkContinueHard": { "fixed": 60 },
     "repeatWindow": { "fixed": 8 },
