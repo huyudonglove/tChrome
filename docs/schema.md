@@ -59,6 +59,8 @@ session.json
 conversations/<cvId>/ledger.json
 conversations/<cvId>/events.jsonl
 conversations/<cvId>/events.NN.jsonl
+conversations/<cvId>/toolio.jsonl
+conversations/<cvId>/toolio.NN.jsonl
 conversations/<cvId>/turns/<turnId>.json
 conversations/<cvId>/memory/<memoryId>.json
 conversations/<cvId>/context-records/<kind>/<id>.json
@@ -93,6 +95,17 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。`returns/<ca
 `kind=compress` 的 data 为 beforeChars、afterChars；compress-start 记录压缩前 windowChars，compress-error 记录失败 detail。每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。已有摘要的轮次仅当 conversationHistorySummary 的 active 条数超过 30 时才再进入合并/升档压缩；≤30 跳过重压（独立的 query 原文仍可首次归档）。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 以正文或文件引用保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
 `kind=turn-stop-reason` 的 `data`：`stopReason`。
 `kind=session` 的 `data`：`conversationId`，可选 `action`=`new`/`open`。
+
+## toolio.jsonl
+
+`ledger.json` 的 `toolIO` 独立成文件，与 `events.jsonl` 同为只追加、超 3MB 轮转为 `toolio.NN.jsonl`（NN 自增），读时按 `toolio.01.jsonl`…再到 `toolio.jsonl` 合并。一行一个 JSON 对象，两种形态：
+
+| `k` | 其余字段 | 什么时候写 |
+|---|---|---|
+| `row` | `row`：与旧 `ledger.toolIO[]` 元素同构 | 新增一条工具记录 |
+| `amend` | `callId` `return` | 该 callId 的 `return` 事后被改写（如补存全文返回），读时后写的覆盖先写的（last-wins） |
+
+`ledger.json` 不再落 `toolIO`；`loadLedger` 返回的是内存行的活引用，调用方照旧 `push` 或按 `callId` 改 `return`，改动由下一次 `saveLedger` 追加成 `row` / `amend`。旧会话的存量行在首次 `saveLedger` 时收编落盘，迁移以 `ledger.json` 为准。
 
 ## session.json
 

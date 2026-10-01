@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, appendFileSync, renameSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import type { Ledger, LogEvent, ChatMessage, Session, Turn } from "../types.ts";
+import type { Ledger, LogEvent, ChatMessage, Session, ToolIOItem, Turn } from "../types.ts";
 import type { IndexTree } from "../admission.ts";
 import { runtimeConfig } from "../config/runtime.ts";
 import { idPrefix, nextId, nowIso } from "./ids.ts";
@@ -38,6 +38,7 @@ export const paths = (dataDir: string, cvId?: string) => {
     conv,
     ledger: join(conv, "ledger.json"),
     events: join(conv, "events.jsonl"),
+    toolio: join(conv, "toolio.jsonl"),
     turns: join(conv, "turns"),
     returns: join(conv, "returns"),
   };
@@ -109,12 +110,27 @@ function normalizeLedger(raw: Partial<Ledger> & { conversationId?: string }, con
 
 export function loadLedger(dataDir: string, cvId: string): Ledger {
   const raw = readJson<Partial<Ledger>>(paths(dataDir, cvId).ledger, emptyLedger(cvId));
-  return normalizeLedger(raw, cvId);
+  const ledger = normalizeLedger(raw, cvId);
+  const cache = toolRowCache(dataDir, cvId);
+  if (cache.rows.length === 0 && Array.isArray(raw.toolIO) && raw.toolIO.length > 0) {
+    // Migration: an older ledger.json still carries toolIO. Adopt it in memory (ledger stays the
+    // single source of truth, never events.jsonl) and let the next saveLedger flush it to toolio.jsonl.
+    cache.rows = raw.toolIO;
+    cache.byCallId = new Map(raw.toolIO.map((row) => [row.callId, row]));
+    cache.persistedCount = 0;
+    cache.persistedReturn = new Map();
+  }
+  ledger.toolIO = cache.rows;
+  return ledger;
 }
 
 export function saveLedger(dataDir: string, ledger: Ledger): void {
   ledger.updatedAt = nowIso();
-  writeJson(paths(dataDir, ledger.conversationId).ledger, ledger);
+  const cvId = ledger.conversationId;
+  persistToolRows(dataDir, cvId, ledger.toolIO ?? []);
+  // toolIO lives in the append-only toolio.jsonl; ledger.json only carries conversation state.
+  const { toolIO: _toolIO, ...state } = ledger;
+  writeJson(paths(dataDir, cvId).ledger, state);
 }
 
 /** Ensure a conversation has an active standalone Task so non-exempt tools can run (tests / fixtures). */
@@ -250,6 +266,119 @@ function rotateLogIfNeeded(activePath: string, incomingBytes: number): void {
     if (Number.isFinite(index) && index > max) max = index;
   }
   renameSync(activePath, join(dir, `${stem}.${String(max + 1).padStart(2, "0")}${ext}`));
+}
+
+/**
+ * toolIO rows live in the append-only toolio.jsonl (one JSON object per line) instead of
+ * ledger.json, so ledger.json stops growing with every tool call. Two line kinds:
+ * `{ k: "row", row }` appends a new call, `{ k: "amend", callId, return }` replaces the return
+ * of an already appended row (last-wins on read) — that covers the paths that rewrite a row's
+ * return after the fact (saveFullReturn on tool failure, stripping nudge markers at assembly).
+ */
+type ToolIoLine = { k: "row"; row: ToolIOItem } | { k: "amend"; callId: string; return: ToolIOItem["return"] };
+
+interface ToolRowCache {
+  rows: ToolIOItem[];
+  byCallId: Map<string, ToolIOItem>;
+  persistedCount: number;
+  persistedReturn: Map<string, string>;
+}
+
+const toolRowCaches = new Map<string, ToolRowCache>();
+
+/**
+ * Change detector for a row's return. Length alone is not enough: the rewrite
+ * paths (full return restored after a failure, nudge markers stripped) can land
+ * on the same character count, so fold in a 32-bit FNV hash of the text. Still
+ * ~20x cheaper than re-serializing every row.
+ */
+const returnSignature = (row: ToolIOItem): string => {
+  const text = row.return.text ?? "";
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `${row.return.stage}|${row.return.totalChars ?? 0}|${text.length}|${hash.toString(36)}`;
+};
+
+export function loadToolRows(dataDir: string, cvId: string): ToolIOItem[] {
+  return toolRowCache(dataDir, cvId).rows;
+}
+
+function toolRowCache(dataDir: string, cvId: string): ToolRowCache {
+  const key = `${dataDir}::${cvId}`;
+  const hit = toolRowCaches.get(key);
+  if (hit) return hit;
+  const conv = paths(dataDir, cvId).conv;
+  const active = paths(dataDir, cvId).toolio;
+  const archives = existsSync(conv)
+    ? readdirSync(conv)
+        .filter((name) => /^toolio\.\d+\.jsonl$/.test(name))
+        .sort()
+        .map((name) => join(conv, name))
+    : [];
+  const cache: ToolRowCache = { rows: [], byCallId: new Map(), persistedCount: 0, persistedReturn: new Map() };
+  for (const path of [...archives, active]) {
+    if (!existsSync(path)) continue;
+    for (const line of readFileSync(path, "utf8").split("\n")) {
+      if (!line) continue;
+      let entry: ToolIoLine;
+      try {
+        entry = JSON.parse(line) as ToolIoLine;
+      } catch {
+        continue; // a torn last line from a hard kill; skip it
+      }
+      if (entry.k === "row") {
+        cache.rows.push(entry.row);
+        cache.byCallId.set(entry.row.callId, entry.row);
+        cache.persistedReturn.set(entry.row.callId, returnSignature(entry.row));
+      } else if (entry.k === "amend") {
+        const row = cache.byCallId.get(entry.callId);
+        if (!row) continue;
+        row.return = entry.return;
+        cache.persistedReturn.set(entry.callId, returnSignature(row));
+      }
+    }
+  }
+  cache.persistedCount = cache.rows.length;
+  toolRowCaches.set(key, cache);
+  return cache;
+}
+
+/** Flush rows that are not on disk yet, then one amend line per row whose return changed. */
+function persistToolRows(dataDir: string, cvId: string, rows: ToolIOItem[]): void {
+  const cache = toolRowCache(dataDir, cvId);
+  const path = paths(dataDir, cvId).toolio;
+  const payloads: string[] = [];
+  if (rows !== cache.rows) {
+    // loadLedger hands out cache.rows as the live reference, so callers normally mutate that array;
+    // a ledger built independently (tests, tooling) is adopted into the cache before flushing.
+    for (const row of rows) {
+      const known = cache.byCallId.get(row.callId);
+      if (!known) cache.byCallId.set(row.callId, row);
+      else if (known !== row) Object.assign(known, row);
+    }
+    for (const row of rows) if (!cache.rows.includes(row)) cache.rows.push(row);
+  }
+  for (const row of cache.rows.slice(cache.persistedCount)) {
+    payloads.push(`${JSON.stringify({ k: "row", row } satisfies ToolIoLine)}\n`);
+    cache.byCallId.set(row.callId, row);
+    cache.persistedReturn.set(row.callId, returnSignature(row));
+  }
+  for (const row of cache.rows) {
+    const signature = returnSignature(row);
+    if (cache.persistedReturn.get(row.callId) === signature) continue;
+    payloads.push(`${JSON.stringify({ k: "amend", callId: row.callId, return: row.return } satisfies ToolIoLine)}\n`);
+    cache.persistedReturn.set(row.callId, signature);
+  }
+  cache.persistedCount = Math.max(cache.persistedCount, rows.length);
+  if (payloads.length === 0) return;
+  const payload = payloads.join("");
+  mkdirSync(dirname(path), { recursive: true });
+  rotateLogIfNeeded(path, Buffer.byteLength(payload, "utf8"));
+  if (existsSync(path)) appendFileSync(path, payload);
+  else writeFileSync(path, payload);
 }
 
 export function sessionView(dataDir: string, cvId: string): SessionView {
