@@ -160,7 +160,42 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
         const row = (item ?? {}) as Record<string, unknown>;
         return readOneFile(row);
       }));
-      return { ok: results.every((row) => row.ok), results };
+      const ok = results.every((row) => row.ok);
+      // Opt-in total content budget: keep the return inside the inline gate by
+      // cutting whole lines in item order, instead of letting Runtime externalize
+      // the whole batch into a pointer. Never applied unless the caller asks.
+      if (input.maxChars !== undefined) {
+        const maxChars = integer(input, "maxChars", 0, 200, 1000000);
+        const total = results.reduce((sum, row) => sum + (typeof row.content === "string" ? row.content.length : 0), 0);
+        if (total > maxChars) {
+          let remaining = maxChars;
+          for (const row of results) {
+            if (typeof row.content !== "string" || row.content.length === 0) continue;
+            if (remaining <= 0) {
+              row.content = "";
+              row.truncatedForBudget = true;
+              continue;
+            }
+            if (row.content.length <= remaining) {
+              remaining -= row.content.length;
+              continue;
+            }
+            const kept: string[] = [];
+            let used = 0;
+            for (const line of row.content.split("\n")) {
+              const cost = line.length + 1;
+              if (used + cost > remaining) break;
+              kept.push(line);
+              used += cost;
+            }
+            row.content = kept.join("\n");
+            row.truncatedForBudget = true;
+            remaining -= used;
+          }
+          return { ok, results, budgetNote: `total content ${total} chars exceeded maxChars=${maxChars}; items were cut in order at line boundaries — re-read the cut ones with a precise startLine/endLine` };
+        }
+      }
+      return { ok, results };
     }
     if (name === "local.fs_search") {
       const items = input.items;

@@ -19,9 +19,9 @@ export type Escalation =
 
 /**
  * 每 turn 计数升级链：提示/硬收口门槛读 gates.context（checkContinuePrompt / checkContinueHard），其余链级数字不变。
- * 计数改为本轮业务工具总次数（不含 checkContinue / reportProgress），
- * 避免轮换工具名绕过单工具门禁。
- * 链：总次数达 checkContinuePrompt 提示 checkContinue，达 checkContinueHard 强制收口；
+ * 计数为「自上次 checkContinue 以来的业务调用数」（不含 checkContinue / reportProgress），
+ * 避免轮换工具名绕过单工具门禁；分段计数则避免调过一次就豁免掉本轮剩余全部预算。
+ * 链：段内次数达 checkContinuePrompt 提示 checkContinue，达 checkContinueHard 强制收口；
  * check×3→进度；进度×3→askUser 1 次；其后 3 轮建议 finishTurn，再 3 次强制结束。
  */
 export function escalate(rows: ToolIOItem[], lastName: string): Escalation {
@@ -34,14 +34,18 @@ export function escalate(rows: ToolIOItem[], lastName: string): Escalation {
   const reports = turnRows.filter((row) => row.name === PROGRESS_TOOL).length;
   const asks = turnRows.filter((row) => row.name === "askUser").length;
   const finishes = turnRows.filter((row) => row.name === "finishTurn").length;
-  // 本轮业务工具总次数（升级工具本身不计入），不再按单工具名分别统计。
-  const total = turnRows.filter((row) => row.name !== CHECK_TOOL && row.name !== PROGRESS_TOOL).length;
+  // 预算计数：只数「自上次 checkContinue 以来」的业务调用（升级工具本身不计入）。
+  // 分段而非整轮累计——checkContinue 的语义是「我确认了，继续」，
+  // 调过一次不应一次性豁免掉本轮剩余全部预算，否则一个长轮可以无限跑下去。
+  const lastCheckIndex = turnRows.map((row) => row.name).lastIndexOf(CHECK_TOOL);
+  const sinceCheckRows = lastCheckIndex < 0 ? turnRows : turnRows.slice(lastCheckIndex + 1);
+  const total = sinceCheckRows.filter((row) => row.name !== CHECK_TOOL && row.name !== PROGRESS_TOOL).length;
 
-  if (total >= SAME_TOOL_HARD && !checks.length) {
-    return { action: "force_end", text: `runtime: 本轮工具调用已达 ${total} 次仍未调用 checkContinue，本 turn 结束。` };
+  if (total >= SAME_TOOL_HARD) {
+    return { action: "force_end", text: `runtime: 距上次 checkContinue 已调用 ${total} 次工具仍未再次调用 checkContinue，本 turn 结束。` };
   }
-  if (total >= SAME_TOOL_PROMPT && !checks.length) {
-    return { action: "hint", text: `runtime: 本轮工具调用已达 ${total} 次。请调用 checkContinue(cont=true) 继续或 cont=false 中断；${SAME_TOOL_HARD} 次仍未调用将结束本 turn。` };
+  if (total >= SAME_TOOL_PROMPT) {
+    return { action: "hint", text: `runtime: 距上次 checkContinue 已调用 ${total} 次工具。请调用 checkContinue(cont=true) 继续或 cont=false 中断；${SAME_TOOL_HARD} 次仍未调用将结束本 turn。` };
   }
   if (checksTrue >= CHECK_PROMPTS && !reports) {
     return { action: "hint", text: "runtime: checkContinue 已确认 3 次仍继续。请调用 reportProgress 汇报当前进度（做了什么、卡点、下一步）。" };

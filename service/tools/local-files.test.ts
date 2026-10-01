@@ -406,3 +406,46 @@ test("fs_search ENOENT suggests the nearest existing directory", async () => {
   expect(result.results[0]!.faultCode).toBe("file_not_found");
   expect(result.results[0]!.candidates).toContain(join(nested, "registry.ts"));
 });
+
+test("fs_read maxChars cuts whole lines in item order and explains how to re-read", async () => {
+  const a = join(root, "a.txt");
+  const b = join(root, "b.txt");
+  await writeFile(a, ["a1", "a2", "a3", "a4"].join("\n"));
+  await writeFile(b, ["b1", "b2", "b3", "b4"].join("\n"));
+
+  // 1. Under budget: returned verbatim, no marker fields.
+  const small = await run("local.fs_read", { items: [{ path: a, startLine: 1, endLine: 2 }], maxChars: 2000 }) as {
+    ok: boolean;
+    budgetNote?: string;
+    results: { content: string; truncatedForBudget?: boolean }[];
+  };
+  expect(small.ok).toBe(true);
+  expect(small.budgetNote).toBeUndefined();
+  expect(small.results[0]!.content).toBe("a1\na2");
+  expect(small.results[0]!.truncatedForBudget).toBeUndefined();
+
+  // 2. Over budget: content is cut in item order at line boundaries, note tells how to recover.
+  const wide = join(root, "wide-a.txt");
+  const wide2 = join(root, "wide-b.txt");
+  const many = (tag: string) => Array.from({ length: 40 }, (_, i) => `${tag}-${String(i).padStart(2, "0")}-padding`);
+  await writeFile(wide, many("a").join("\n"));
+  await writeFile(wide2, many("b").join("\n"));
+  const capped = await run("local.fs_read", { items: [{ path: wide }, { path: wide2 }], maxChars: 200 }) as {
+    ok: boolean;
+    budgetNote?: string;
+    results: { content: string; truncatedForBudget?: boolean }[];
+  };
+  expect(capped.ok).toBe(true);
+  expect(capped.results[0]!.content.startsWith("a-00-padding\n")).toBe(true);
+  expect(capped.results[0]!.content.split("\n").length).toBeLessThan(40);
+  expect(capped.results[0]!.truncatedForBudget).toBe(true);
+  expect(capped.results[1]!.content).toBe("");
+  expect(capped.results[1]!.truncatedForBudget).toBe(true);
+  expect(capped.budgetNote).toContain("maxChars=200");
+
+  // 3. Without maxChars nothing is cut (previous behaviour preserved).
+  const uncapped = await run("local.fs_read", { items: [{ path: a }] }) as {
+    results: { truncatedForBudget?: boolean }[];
+  };
+  expect(uncapped.results[0]!.truncatedForBudget).toBeUndefined();
+});
