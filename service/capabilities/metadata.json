@@ -4581,7 +4581,7 @@
       "composesWith": []
     },
     "skill.list": {
-      "purpose": "列出可动态加载的技能：id、tags、首句",
+      "purpose": "列出可动态加载的技能：id、summary",
       "triggers": [
         "skill.list",
         "任务需要目录发现、专项技能说明或按需加载技能"

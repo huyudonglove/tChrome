@@ -1,8 +1,4 @@
-TAGS:
-- canvas
-- webgl
-- 富图形
-- 存储穿透
+SUMMARY: 对 Canvas/WebGL 应用做底层数据探测、脚本注入与视觉标注操作。
 # Canvas 与 WebGL 应用操作 (Canvas & WebGL)
 
 Canvas 2D、WebGL 等页面（在线绘图、看板、小游戏）将内容直接画在像素画布上，缺少常规 DOM 节点和无障碍树，无法用元素 ID 或角色定位。优先穿透数据模型；画面证据用截图。`execute_javascript`、`capture_page`、`press` 等按需 `catalog.add`。

@@ -9,9 +9,9 @@ test("resident skills assemble into system guide and only dynamic skills enter c
   const dir = join(root, "service/skills");
   try {
     for (const name of ["first", "second", "third"]) mkdirSync(join(dir, name), { recursive: true });
-    writeFileSync(join(dir, "first/SKILL.md"), "TAGS:\n- 浏览器\n- 页面\n# 第一技能\nFIRST {{data}}");
-    writeFileSync(join(dir, "second/SKILL.md"), "TAGS:\n- 宿主\n# 第二技能\nSECOND");
-    writeFileSync(join(dir, "third/SKILL.md"), "TAGS:\n- 侧栏\n# 第三技能\nTHIRD");
+    writeFileSync(join(dir, "first/SKILL.md"), "SUMMARY: 浏览器页面观察。\n# 第一技能\nFIRST {{data}}");
+    writeFileSync(join(dir, "second/SKILL.md"), "# 第二技能\nSECOND");
+    writeFileSync(join(dir, "third/SKILL.md"), "SUMMARY: 侧栏回复格式。\n# 第三技能\nTHIRD");
     writeFileSync(join(dir, "index.json"), JSON.stringify({
       residentSkillIds: ["second"],
       dynamicSkillIds: ["first", "third"],
@@ -20,18 +20,20 @@ test("resident skills assemble into system guide and only dynamic skills enter c
       residentSkillIds: ["second"],
       dynamicSkillIds: ["first", "third"],
     });
-    expect(loadSkills(root)).toBe("TAGS:\n- 浏览器\n- 页面\n# 第一技能\nFIRST {{data}}\n\nTAGS:\n- 侧栏\n# 第三技能\nTHIRD");
+    expect(loadSkills(root)).toBe("SUMMARY: 浏览器页面观察。\n# 第一技能\nFIRST {{data}}\n\nSUMMARY: 侧栏回复格式。\n# 第三技能\nTHIRD");
     const catalog = skillCatalog(root);
     expect(catalog).toEqual([
-      { id: "first", tags: ["浏览器", "页面"], purpose: "第一技能" },
-      { id: "third", tags: ["侧栏"], purpose: "第三技能" },
+      { id: "first", summary: "浏览器页面观察。", purpose: "第一技能" },
+      { id: "third", summary: "侧栏回复格式。", purpose: "第三技能" },
     ]);
     expect(skillCatalog(root, "浏览器").map(item => item.id)).toEqual(["first"]);
+    expect(skillCatalog(root, "侧栏").map(item => item.id)).toEqual(["third"]);
+    expect(skillCatalog(root, "FIRST").map(item => item.id)).toEqual(["first"]);
     const guide = skillGuide(root);
     expect(guide).toContain("### 常驻技能");
     expect(guide).toContain("SECOND");
-    expect(guide).toContain("- first｜浏览器/页面｜第一技能。");
-    expect(guide).toContain("- third｜侧栏｜第三技能。");
+    expect(guide).toContain("- first｜浏览器页面观察。");
+    expect(guide).toContain("- third｜侧栏回复格式。");
     expect(guide).not.toContain("- second｜");
     writeFileSync(join(dir, "index.json"), JSON.stringify({ residentSkillIds: [], dynamicSkillIds: [] }));
     expect(loadSkills(root)).toBe("");

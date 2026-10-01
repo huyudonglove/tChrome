@@ -1,8 +1,4 @@
-TAGS:
-- 页面
-- 截图
-- 观察
-- 表格
+SUMMARY: 网页观察与操作：按区域缩小到控件、交互验收与截图证据。
 # 网页观察与操作
 
 常驻页面操作方法。浏览器主链路工具一直可用；截图、`page.get_by_role`、`wait`、`wait_response` 等按需 `catalog.add`。

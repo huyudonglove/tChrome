@@ -598,8 +598,8 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     return result(serialize(results, droppedWindows), [], true);
   }
   if (name === "skill.list") {
-    const tag = typeof args.tag === "string" && args.tag.trim() ? args.tag.trim() : undefined;
-    return result(JSON.stringify({ ok: true, skills: skillCatalog(repoRoot, tag) }));
+    const keyword = typeof args.keyword === "string" && args.keyword.trim() ? args.keyword.trim() : undefined;
+    return result(JSON.stringify({ ok: true, skills: skillCatalog(repoRoot, keyword) }));
   }
   if (name === "skill.load") {
     const id = typeof args.id === "string" ? args.id.trim() : "";
@@ -609,7 +609,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     }
     const hit = skillCatalog(repoRoot).find(item => item.id === id);
     if (!hit) return failedTool(errorDetail("skill_unknown", { id }), "invalid_arguments", { toolName: name });
-    return result(JSON.stringify({ ok: true, id: hit.id, tags: hit.tags, purpose: hit.purpose }), [{ type: "skill.load", id }]);
+    return result(JSON.stringify({ ok: true, id: hit.id, summary: hit.summary, purpose: hit.purpose }), [{ type: "skill.load", id }]);
   }
   if (name === "catalog.add") {
     const names = [...new Set(asStringArray(args.names))];

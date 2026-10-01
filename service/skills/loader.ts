@@ -27,49 +27,42 @@ export function loadSkillManifest(repoRoot: string): SkillManifest {
   return { residentSkillIds, dynamicSkillIds };
 }
 
-export function readSkill(repoRoot: string, id: string): SkillDocument & { tags: string[] } {
+export function readSkill(repoRoot: string, id: string): SkillDocument & { summary: string } {
   if (!id || id.includes("..") || id.includes("/") || id.includes("\\")) throw new Error("invalid skill id");
   const path = join(repoRoot, "service/skills", id, "SKILL.md");
   const body = readFileSync(path, "utf8").trim();
   if (!body) throw new Error(`empty skill ${id}`);
   const lines = body.split(/\r?\n/);
-  const tags: string[] = [];
-  // 标签在正文最外层：TAGS: 后跟一至多行 - tag，再才是 # 标题。
+  const title = lines.map(line => line.trim()).find(line => line.startsWith("#"))?.replace(/^#+\s*/, "").trim() || id;
+  // 摘要在正文最外层：SUMMARY: 一句话，写在 # 标题之前；缺省回退标题。
+  let summary = "";
   for (const raw of lines) {
     const line = raw.trim();
     if (line.startsWith("#")) break;
-    if (!line) continue;
-    const head = line.match(/^TAGS[:：]?\s*(.*)$/i);
+    const head = line.match(/^SUMMARY[:：]\s*(.+)$/i);
     if (head) {
-      const rest = head[1]!.trim();
-      if (rest) tags.push(...rest.split(/[,，、|]+/).map(part => part.trim()).filter(Boolean));
-      continue;
-    }
-    const bullet = line.match(/^[-*]\s+(.+)$/);
-    if (bullet) {
-      tags.push(...bullet[1]!.split(/[,，、|]+/).map(part => part.trim()).filter(Boolean));
-      continue;
+      summary = head[1]!.trim();
+      break;
     }
   }
-  const title = lines.map(line => line.trim()).find(line => line.startsWith("#"))?.replace(/^#+\s*/, "").trim() || id;
-  return { id, body, description: title, tags: [...new Set(tags)] };
+  return { id, body, description: title, summary: summary || title };
 }
 
-function skillPurpose(repoRoot: string, id: string): { tags: string[]; purpose: string } {
+function skillInfo(repoRoot: string, id: string): { summary: string; purpose: string } {
   const skill = readSkill(repoRoot, id);
   const purpose = skill.description.split(/[。\n]/, 1)[0]!.trim() || id;
-  return { tags: skill.tags, purpose };
+  return { summary: skill.summary, purpose };
 }
 
 /** 常驻技能正文装配进 System <systemSkill>；动态技能只出现在 skill.list 与已加载的 User <skill>。 */
-export function skillCatalog(repoRoot: string, tag?: string): { id: string; tags: string[]; purpose: string }[] {
+export function skillCatalog(repoRoot: string, keyword?: string): { id: string; summary: string; purpose: string }[] {
   const items = loadSkillManifest(repoRoot).dynamicSkillIds.map(id => ({
     id,
-    ...skillPurpose(repoRoot, id),
+    ...skillInfo(repoRoot, id),
   }));
-  if (!tag) return items;
-  const want = tag.trim().toLowerCase();
-  return items.filter(item => item.tags.some(t => t.toLowerCase() === want));
+  const want = keyword?.trim().toLowerCase();
+  if (!want) return items;
+  return items.filter(item => `${item.id} ${item.summary}`.toLowerCase().includes(want));
 }
 
 export function skillGuide(repoRoot: string): string {
@@ -84,8 +77,8 @@ export function skillGuide(repoRoot: string): string {
   if (!dynamicSkillIds.length) parts.push("—");
   else {
     for (const id of dynamicSkillIds) {
-      const { tags, purpose } = skillPurpose(repoRoot, id);
-      parts.push(`- ${id}｜${tags.length ? tags.join("/") : "—"}｜${purpose}。`);
+      const { summary } = skillInfo(repoRoot, id);
+      parts.push(`- ${id}｜${summary}`);
     }
   }
   return parts.join("\n");

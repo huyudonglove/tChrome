@@ -1,8 +1,4 @@
-TAGS:
-- chrome
-- 配置
-- 宿主
-- 只读
+SUMMARY: 感知 Chrome 本机宿主环境：核心配置文件路径与关键排查字段。
 # Chrome 本机宿主环境感知 (Host Environment)
 
 扩展沙箱限制访问 `chrome://settings` 或受特权页面隔离时，切换宿主物理视角，用 `local.fs_read`（需 `catalog.add`）读取磁盘上的 Chrome 配置。调用时把下表 `~` 展开为本机主目录绝对路径；分析产物写在服务数据目录（见 `<overview>`）。

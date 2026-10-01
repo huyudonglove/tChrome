@@ -127,13 +127,13 @@ export function loadCapabilityCatalog(repoRoot: string, source: ToolSource): Cap
       const skill = readSkill(repoRoot, id);
       const override = metadata.skills[id] ?? {};
       const purpose = override.purpose ?? firstSentence(skill.description, id);
-      const tags = skill.tags;
+      
       records.push({
         id,
         kind,
         name: id,
         purpose,
-        triggers: override.triggers ?? tags,
+        triggers: override.triggers ?? [skill.summary],
         inputs: [],
         outputs: override.outputs ?? [],
         preconditions: override.preconditions ?? [],

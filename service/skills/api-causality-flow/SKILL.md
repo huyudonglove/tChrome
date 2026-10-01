@@ -1,9 +1,4 @@
-TAGS:
-- http
-- api
-- 网络
-- 签名
-- 下载
+SUMMARY: 等待接口返回而非固定延时、直接提取响应数据，并处理异步长耗时任务。
 # 接口请求与异步任务处理 (API & Async Tasks)
 
 前端数据与状态通常由网络接口驱动。自动化操作结合接口返回做等待与取证，比纯 UI 延时更稳定。`page.submit_wait`、`page.assert` 常驻；`wait_response`、`network.grep` 及带 `heartbeatSec` 的长耗时工具按需 `catalog.add`。

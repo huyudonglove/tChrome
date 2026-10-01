@@ -41,8 +41,8 @@ test("capability catalog unifies tools and skills with backward-compatible defau
   const skills = join(root, "service/skills");
   try {
     for (const id of ["resident", "dynamic"]) mkdirSync(join(skills, id), { recursive: true });
-    writeFileSync(join(skills, "resident/SKILL.md"), "TAGS:\n- 页面\n# 常驻技能\nBODY");
-    writeFileSync(join(skills, "dynamic/SKILL.md"), "TAGS:\n- 诊断\n# 动态技能\nBODY");
+    writeFileSync(join(skills, "resident/SKILL.md"), "SUMMARY: 页面观察专项技能\n# 常驻技能\nBODY");
+    writeFileSync(join(skills, "dynamic/SKILL.md"), "SUMMARY: 诊断专项技能\n# 动态技能\nBODY");
     writeFileSync(join(root, "service/skills/index.json"), JSON.stringify({ residentSkillIds: ["resident"], dynamicSkillIds: ["dynamic"] }));
 
     const catalog = loadCapabilityCatalog(root, {
@@ -60,7 +60,7 @@ test("capability catalog unifies tools and skills with backward-compatible defau
       inputs: [{ name: "reason", required: true }, { name: "tabId", required: true }], metadataComplete: false,
     });
     expect(catalog.find(item => item.id === "dynamic")).toMatchObject({
-      kind: "skill", purpose: "动态技能", triggers: ["诊断"], availability: "dynamic", source: "service/skills/dynamic/SKILL.md",
+      kind: "skill", purpose: "动态技能", triggers: ["诊断专项技能"], availability: "dynamic", source: "service/skills/dynamic/SKILL.md",
     });
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

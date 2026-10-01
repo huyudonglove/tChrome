@@ -1,7 +1,4 @@
-TAGS:
-- 侧栏
-- markdown
-- 回复
+SUMMARY: 回复格式（本地侧栏）：展示、可点击区块与 iframe 互动组件。
 # 回复格式（本地侧栏）
 
 finishTurn.text 的侧栏渲染约定。同一 text 进入侧栏、后续上下文与压缩链路；扩展 CSP **禁止内联 JS**，`onclick` / `javascript:` 一律不执行（属性会被去掉）。

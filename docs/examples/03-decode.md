@@ -390,7 +390,7 @@ Sample（仅示例）：
 - evidence.search：在已缓存的超量结果中检索或按行读取，一次最多 8 个窗口。类似 local.fs_search/local.fs_grep｜深入 local.fs_read/agent.query
 - catalog.add：为当前会话加载或卸载动态工具，names 为工具名数组。
 - list_browser_tools：列出尚未加载的动态工具名称。
-- skill.list：列出可动态加载的技能：id、tags、首句。
+- skill.list：列出可动态加载的技能：id、summary。
 - skill.load：按 id 加载动态技能正文到本轮 User <skill>，会话内保持。
 - checkContinue：执行预算检查点。
 - reportProgress：向用户侧记录当前进度（做了什么、依据、卡点、下一步）。
@@ -433,15 +433,11 @@ Sample（工具清单格式，仅示例）：
 能力：【System Skills】
 
 详细描述：
-常驻技能正文装配在本模块，一直可用，不经 skill.load。动态技能用 skill.list（可选 tag 过滤）查看，skill.load(id) 将正文载入 User <skill>；加载状态在会话内保持。User <skill> 只含动态加载正文，不重复常驻技能。
+常驻技能正文装配在本模块，一直可用，不经 skill.load。动态技能用 skill.list（可选 keyword 子串过滤）查看，skill.load(id) 将正文载入 User <skill>；加载状态在会话内保持。User <skill> 只含动态加载正文，不重复常驻技能。
 
 ### 常驻技能
 
-TAGS:
-- 页面
-- 截图
-- 观察
-- 表格
+SUMMARY: 网页观察与操作：按区域缩小到控件、交互验收与截图证据。
 # 网页观察与操作
 
 常驻页面操作方法。浏览器主链路工具一直可用；截图、`page.get_by_role`、`wait`、`wait_response` 等按需 `catalog.add`。
@@ -512,12 +508,7 @@ capture_page(mode=som, tabId=…, maxMarks=40, roles=["button","link"])
 操作表格或列表项中的按钮（如编辑、删除、查看）时，严禁全局无差别定位。应先以该行唯一标识文本锚定行容器（tr、li 或卡片节点），再在其子树内查找操作控件；虚拟列表或超出视口的行须先滚动至视口中央再执行交互。
 
 点击保存或提交不等于操作成功。提交后若表单未关闭，先探查页面局部错误提示（如 error-tip、aria-invalid 或红色高亮项）并针对性修正参数；保存成功的判定依据是表单层关闭、成功 Toast 出现或数据列表中渲染出对应项，完成操作后须闭环核验。
-TAGS:
-- 代码
-- 工程
-- 单测
-- 重构
-- 诊断
+SUMMARY: 代码排查与精准重构：结构化定位、手术式修改、单测闭环与安全回滚。
 # 代码工程与精准重构 (Code Engineering & Refactoring)
 
 在宿主环境中进行代码排查、阅读、修改、测试与调试的工程实战规范。核心理念：**高信噪比定位、最小入侵手术式修改、快速单测闭环验证、零破坏安全回滚**。
@@ -566,15 +557,15 @@ TAGS:
 
 ### 动态技能清单
 
-- reply-format｜侧栏/markdown/回复｜回复格式（本地侧栏）。
-- chrome-host-environment｜chrome/配置/宿主/只读｜Chrome 本机宿主环境感知 (Host Environment)。
-- host-browser-coordination｜宿主/浏览器/local/协同｜宿主与浏览器协作 (Host-Browser Coordination)。
-- spa-state-sync｜spa/表单/前端/事件｜单页应用 (SPA) 状态与交互处理。
-- api-causality-flow｜http/api/网络/签名/下载｜接口请求与异步任务处理 (API & Async Tasks)。
-- canvas-webgl-probing｜canvas/webgl/富图形/存储穿透｜Canvas 与 WebGL 应用操作 (Canvas & WebGL)。
-- network-state-troubleshooting｜故障排查/网络/状态机/死循环/因果链｜网络与异步状态机故障排查 (Network & State Troubleshooting)。
-- repo-browser-dual-audit｜联动测试/代码/浏览器/真实浏览器/交互/取证/边界｜真实浏览器 + 代码双轨验证 (Real-Browser + Code Dual-Track Verification)。
-- hypothesis-testing｜故障排查/科学归纳/假说证伪/因果链/根因分析｜假说生成与证伪排查法 (Hypothesis-Testing Troubleshooting)。
+- reply-format｜回复格式（本地侧栏）：展示、可点击区块与 iframe 互动组件。
+- chrome-host-environment｜感知 Chrome 本机宿主环境：核心配置文件路径与关键排查字段。
+- host-browser-coordination｜宿主与浏览器协同：受限网络与计算、系统级录屏、本地服务联调。
+- spa-state-sync｜单页应用（SPA）状态与交互处理：表单事件、虚拟列表与浮层定位。
+- api-causality-flow｜等待接口返回而非固定延时、直接提取响应数据，并处理异步长耗时任务。
+- canvas-webgl-probing｜对 Canvas/WebGL 应用做底层数据探测、脚本注入与视觉标注操作。
+- network-state-troubleshooting｜网络与异步状态机故障排查：红绿灯普查、双向采样与闭环因果归因。
+- repo-browser-dual-audit｜真实浏览器 + 代码双轨验证：先形成源码预期，再像人一样操作取证。
+- hypothesis-testing｜假说生成与证伪排查法：现象基线、正交假说矩阵、最低成本探针与回归闭环。
 
 Sample（动态清单格式，仅示例）：
 
@@ -592,10 +583,7 @@ Sample（动态清单格式，仅示例）：
 本会话已加载的动态技能正文。常驻技能在 <systemSkill>，不在本栏重复。尚未加载动态技能时本栏为空；先 skill.list 再 skill.load(id)。加载后正文整段保留，不参与压缩。
 
 内容：
-TAGS:
-- 侧栏
-- markdown
-- 回复
+SUMMARY: 回复格式（本地侧栏）：展示、可点击区块与 iframe 互动组件。
 # 回复格式（本地侧栏）
 
 finishTurn.text 的侧栏渲染约定。同一 text 进入侧栏、后续上下文与压缩链路；扩展 CSP **禁止内联 JS**，`onclick` / `javascript:` 一律不执行（属性会被去掉）。
@@ -650,11 +638,7 @@ finishTurn.text 的侧栏渲染约定。同一 text 进入侧栏、后续上下�
 
 轻量动作仍可用 `data-action` / `data-copy`，不必进 iframe。
 
-TAGS:
-- chrome
-- 配置
-- 宿主
-- 只读
+SUMMARY: 感知 Chrome 本机宿主环境：核心配置文件路径与关键排查字段。
 # Chrome 本机宿主环境感知 (Host Environment)
 
 扩展沙箱限制访问 `chrome://settings` 或受特权页面隔离时，切换宿主物理视角，用 `local.fs_read`（需 `catalog.add`）读取磁盘上的 Chrome 配置。调用时把下表 `~` 展开为本机主目录绝对路径；分析产物写在服务数据目录（见 `<overview>`）。
@@ -685,11 +669,7 @@ TAGS:
 - 排查笔记、导出副本放在服务数据目录，不落在代码仓库。
 - **只读探测为准**：Chrome 运行时常驻内存，退出或特定事件时会覆写磁盘文件，且部分安全字段含 HMAC 校验。严禁在浏览器运行期间直接篡改磁盘 JSON；环境调整优先提示用户在浏览器界面或启动参数中设置。
 
-TAGS:
-- 宿主
-- 浏览器
-- local
-- 协同
+SUMMARY: 宿主与浏览器协同：受限网络与计算、系统级录屏、本地服务联调。
 # 宿主与浏览器协作 (Host-Browser Coordination)
 
 浏览器遇到沙箱限制（CSP、特权页隔离、跨域、缺少本地读写等）或需要系统级资源时，用浏览器操作与本地服务（`local.*` / 本地命令，按需 `catalog.add`）配合完成任务。`open_url` 常驻；`local.run`、`video.record`、`network.grep`、`wait_response` 等按需加载。
@@ -727,11 +707,7 @@ Canvas 或复杂组件没有完整无障碍节点时，读取本地存储（`loc
 - **清理进程**：本地启动的常驻任务（HTTP 服务、录屏进程等）在任务结束或异常时停止，释放端口与进程。
 - **状态同步**：本地进程与浏览器配合时，优先通过标志文件或确定性接口等待就绪，不用固定 sleep 猜就绪时间。
 
-TAGS:
-- spa
-- 表单
-- 前端
-- 事件
+SUMMARY: 单页应用（SPA）状态与交互处理：表单事件、虚拟列表与浮层定位。
 # 单页应用 (SPA) 状态与交互处理
 
 React、Vue、Angular 等单页应用中，输入框和组件由框架内部状态管理。直接改 DOM 属性（如 `input.value = "..."`）不会触发框架状态更新，容易导致提交时数据丢失。优先用常驻输入工具 `page.fill_role` / `page.type`（CDP 真实键入，可触发响应式更新）；`wait` 等动态工具按需 `catalog.add`。
@@ -774,12 +750,7 @@ Select、日期选择器、模态弹窗通常直接挂载在 `document.body` 下
 
 普通 `querySelector` 无法直接穿透 `shadowRoot`。页面使用 Web Components 时，访问 `el.shadowRoot`，或优先用基于无障碍树（A11y）的定位工具直接操作。
 
-TAGS:
-- http
-- api
-- 网络
-- 签名
-- 下载
+SUMMARY: 等待接口返回而非固定延时、直接提取响应数据，并处理异步长耗时任务。
 # 接口请求与异步任务处理 (API & Async Tasks)
 
 前端数据与状态通常由网络接口驱动。自动化操作结合接口返回做等待与取证，比纯 UI 延时更稳定。`page.submit_wait`、`page.assert` 常驻；`wait_response`、`network.grep` 及带 `heartbeatSec` 的长耗时工具按需 `catalog.add`。
@@ -817,11 +788,7 @@ TAGS:
 2. 由本地命令（如 Python 脚本）执行批量拉取与数据清洗
 3. 处理后的文件保存在服务数据目录绝对路径下
 
-TAGS:
-- canvas
-- webgl
-- 富图形
-- 存储穿透
+SUMMARY: 对 Canvas/WebGL 应用做底层数据探测、脚本注入与视觉标注操作。
 # Canvas 与 WebGL 应用操作 (Canvas & WebGL)
 
 Canvas 2D、WebGL 等页面（在线绘图、看板、小游戏）将内容直接画在像素画布上，缺少常规 DOM 节点和无障碍树，无法用元素 ID 或角色定位。优先穿透数据模型；画面证据用截图。`execute_javascript`、`capture_page`、`press` 等按需 `catalog.add`。
@@ -868,12 +835,7 @@ CanvasRenderingContext2D.prototype.fillText = function(text, x, y) {
 
 操作后结合截图与任务完成条件验证；证据不足时继续核实，不宣称成功。
 
-TAGS:
-- 故障排查
-- 网络
-- 状态机
-- 死循环
-- 因果链
+SUMMARY: 网络与异步状态机故障排查：红绿灯普查、双向采样与闭环因果归因。
 # 网络与异步状态机故障排查 (Network & State Troubleshooting)
 
 当遇到“接口反复请求、死循环、翻页跳动、状态抖动或数据异常倒退”等复杂异步问题时，必须严格执行本协议，严禁自由猜想与局部采样。
@@ -906,14 +868,7 @@ TAGS:
 1. **翻页失败熔断**：翻页请求失败严禁倒退或清空主列表游标，只允许展示重试占位或停止监听。
 2. **异常分支验证**：验证修复不仅要验证“正常请求下网络平息”，必须通过 Mock 4xx/5xx 验证“接口报错时系统不会发生连锁震荡”。
 
-TAGS:
-- 联动测试
-- 代码
-- 浏览器
-- 真实浏览器
-- 交互
-- 取证
-- 边界
+SUMMARY: 真实浏览器 + 代码双轨验证：先形成源码预期，再像人一样操作取证。
 # 真实浏览器 + 代码双轨验证 (Real-Browser + Code Dual-Track Verification)
 
 在**用户真实 Chrome 标签**（带登录态、扩展、真实 profile、真实渲染能力）里像人一样操作页面，同时读本地源码做双向核对。适用于功能验收、表单与登录流程、上传下载、边界与报错页、空态与异步竞态、渲染与性能、Console 错误、跨页状态保持等场景。
@@ -978,12 +933,7 @@ TAGS:
 
 关键观察（页面状态、脚本结论、截图发现）用 `observation.write` 固化，避免后续压缩后丢失证据。
 
-TAGS:
-- 故障排查
-- 科学归纳
-- 假说证伪
-- 因果链
-- 根因分析
+SUMMARY: 假说生成与证伪排查法：现象基线、正交假说矩阵、最低成本探针与回归闭环。
 # 假说生成与证伪排查法 (Hypothesis-Testing Troubleshooting)
 
 当面对疑难、偶发、隐蔽或跨系统（前端/后端/环境）的复杂缺陷时，严禁漫无目的的“改一行试试”线性盲目试错。必须严格执行科学归纳与假说证伪标准作业程序（SOP）。

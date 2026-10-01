@@ -8,12 +8,10 @@
 
 常驻技能与 baseTools 同理，System 一直携带完整正文，不需 skill.load。动态技能由常驻工具 `skill.list` / `skill.load` 管理，`ledger.loadedSkillIds` 持久化；正文只出现在 User `<skill>`。
 
-新增技能：建 `service/skills/<id>/SKILL.md`，文件最外层写标签块（在标题之前），并按装配方式登记进 `index.json` 的 `residentSkillIds` 或 `dynamicSkillIds`：
+新增技能：建 `service/skills/<id>/SKILL.md`，文件最外层写一行 `SUMMARY:` 摘要（在标题之前，缺省回退标题），并按装配方式登记进 `index.json` 的 `residentSkillIds` 或 `dynamicSkillIds`：
 
 ```text
-TAGS:
-- 浏览器
-- 截图
+SUMMARY: 网页观察与操作：按区域缩小到控件、交互验收与截图证据。
 # Web observation
 正文…
 ```

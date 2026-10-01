@@ -1,8 +1,4 @@
-TAGS:
-- 宿主
-- 浏览器
-- local
-- 协同
+SUMMARY: 宿主与浏览器协同：受限网络与计算、系统级录屏、本地服务联调。
 # 宿主与浏览器协作 (Host-Browser Coordination)
 
 浏览器遇到沙箱限制（CSP、特权页隔离、跨域、缺少本地读写等）或需要系统级资源时，用浏览器操作与本地服务（`local.*` / 本地命令，按需 `catalog.add`）配合完成任务。`open_url` 常驻；`local.run`、`video.record`、`network.grep`、`wait_response` 等按需加载。

@@ -1,8 +1,4 @@
-TAGS:
-- spa
-- 表单
-- 前端
-- 事件
+SUMMARY: 单页应用（SPA）状态与交互处理：表单事件、虚拟列表与浮层定位。
 # 单页应用 (SPA) 状态与交互处理
 
 React、Vue、Angular 等单页应用中，输入框和组件由框架内部状态管理。直接改 DOM 属性（如 `input.value = "..."`）不会触发框架状态更新，容易导致提交时数据丢失。优先用常驻输入工具 `page.fill_role` / `page.type`（CDP 真实键入，可触发响应式更新）；`wait` 等动态工具按需 `catalog.add`。
