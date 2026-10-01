@@ -24,7 +24,11 @@
               },
               "status": {
                 "type": "string",
-                "enum": ["todo", "doing", "done"]
+                "enum": [
+                  "todo",
+                  "doing",
+                  "done"
+                ]
               },
               "expectedEffect": {
                 "type": "string",
@@ -35,12 +39,17 @@
                 "description": "完成判据"
               }
             },
-            "required": ["text"],
+            "required": [
+              "text"
+            ],
             "additionalProperties": false
           }
         }
       },
-      "required": ["reason", "items"],
+      "required": [
+        "reason",
+        "items"
+      ],
       "additionalProperties": false
     }
   },

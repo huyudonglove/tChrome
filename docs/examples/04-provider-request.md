@@ -1444,7 +1444,7 @@ undefined
           },
           "tabId": {
             "type": "integer",
-            "description": "目标标签编号；从 tabs.current、list_tabs、open_url、page.* 等返回里的 tabId 取得。必须显式指定，不随前台切换；目标失效时返回错误。"
+            "description": "目标标签编号（必填；从 tabs.current 等返回取得，不随前台切换）。"
           },
           "expected": {
             "type": "string",
@@ -1486,7 +1486,7 @@ undefined
           },
           "tabId": {
             "type": "integer",
-            "description": "目标标签编号；从 tabs.current、list_tabs、open_url、page.* 等返回里的 tabId 取得。必须显式指定，不随前台切换；目标失效时返回错误。"
+            "description": "目标标签编号（必填；从 tabs.current 等返回取得，不随前台切换）。"
           },
           "expected": {
             "type": "string",

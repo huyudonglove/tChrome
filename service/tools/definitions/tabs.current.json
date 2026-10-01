@@ -10,7 +10,9 @@
           "type": "string"
         }
       },
-      "required": ["reason"]
+      "required": [
+        "reason"
+      ]
     }
   },
   "execution": "parallel"

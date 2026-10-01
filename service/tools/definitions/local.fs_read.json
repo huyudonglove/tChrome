@@ -62,6 +62,9 @@
   },
   "execution": "parallel",
   "mutex": [
-    ["offset", "startLine"]
+    [
+      "offset",
+      "startLine"
+    ]
   ]
 }

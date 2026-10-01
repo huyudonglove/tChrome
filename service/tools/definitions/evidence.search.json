@@ -65,6 +65,9 @@
   },
   "execution": "parallel",
   "mutex": [
-    ["callId", "pageId"]
+    [
+      "callId",
+      "pageId"
+    ]
   ]
 }
