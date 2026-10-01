@@ -370,3 +370,39 @@ test("fs_grep accepts a single file path and searches only that file", async () 
   const missing = await run("local.fs_grep", { path: join(nested, "nope.ts"), query: "alpha" });
   expect(missing.ok).toBe(false);
 });
+test("fs_read ENOENT suggests nearest existing paths", async () => {
+  const nested = join(root, "nested");
+  await mkdir(nested);
+  await writeFile(join(nested, "registry.ts"), "export const a = 1;\n");
+
+  // Aggregation keeps per-item faults inside results[], so assert on the row.
+  const result = await run("local.fs_read", { items: [{ path: join(nested, "regstry.ts") }] }) as {
+    ok: boolean;
+    results: { ok: boolean; faultCode?: string; candidates?: string[] }[];
+  };
+  expect(result.ok).toBe(false);
+  expect(result.results[0]!.faultCode).toBe("file_not_found");
+  expect(result.results[0]!.candidates).toContain(join(nested, "registry.ts"));
+
+  // Successful reads keep their shape: no candidates field leaks in.
+  const hit = await run("local.fs_read", { items: [{ path: join(nested, "registry.ts") }] }) as {
+    ok: boolean;
+    results: { ok: boolean; candidates?: string[] }[];
+  };
+  expect(hit.ok).toBe(true);
+  expect(hit.results[0]!.candidates).toBeUndefined();
+});
+
+test("fs_search ENOENT suggests the nearest existing directory", async () => {
+  const nested = join(root, "nested");
+  await mkdir(nested);
+  await writeFile(join(nested, "registry.ts"), "export const a = 1;\n");
+
+  const result = await run("local.fs_search", { items: [{ path: join(nested, "regstry.ts"), query: "registry" }] }) as {
+    ok: boolean;
+    results: { ok: boolean; faultCode?: string; candidates?: string[] }[];
+  };
+  expect(result.ok).toBe(false);
+  expect(result.results[0]!.faultCode).toBe("file_not_found");
+  expect(result.results[0]!.candidates).toContain(join(nested, "registry.ts"));
+});

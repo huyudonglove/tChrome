@@ -1,6 +1,6 @@
 import { errorInfo } from "../../shared/errors.ts";
 import { constants } from "node:fs";
-import { cp, lstat, mkdir, open, opendir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { cp, lstat, mkdir, open, opendir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { isAbsolute, join, resolve, sep } from "node:path";
 
 export const LOCAL_FILE_TOOL_NAMES = [
@@ -28,6 +28,41 @@ function flag(input: Record<string, unknown>, key: string) {
 }
 function typeOf(value: { isSymbolicLink(): boolean; isDirectory(): boolean; isFile(): boolean }) {
   return value.isSymbolicLink() ? "symlink" : value.isDirectory() ? "directory" : value.isFile() ? "file" : "other";
+}
+function commonPrefixLength(a: string, b: string): number {
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  return i;
+}
+const stripExt = (name: string) => name.replace(/\.[^.]+$/, "");
+/** On ENOENT, look a few levels up for entries resembling the missing basename. */
+async function nearestPathCandidates(path: string): Promise<string[]> {
+  const segments = path.split(sep).filter(Boolean);
+  const base = segments[segments.length - 1] ?? "";
+  if (!base) return [];
+  const scored: { candidate: string; score: number }[] = [];
+  for (let cut = 1; cut <= 3 && cut < segments.length; cut++) {
+    const parent = sep + segments.slice(0, segments.length - cut).join(sep);
+    let entries: string[];
+    try {
+      entries = await readdir(parent);
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (entry.startsWith(".")) continue;
+      const score = Math.max(commonPrefixLength(entry, base), commonPrefixLength(stripExt(entry), stripExt(base)));
+      if (score >= 3) scored.push({ candidate: join(parent, entry), score });
+    }
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return [...new Set(scored.map((item) => item.candidate))].slice(0, 3);
+}
+/** Attach nearest-existing-path candidates to a failed result so callers can self-correct without guessing. */
+async function withCandidates<T extends Record<string, unknown>>(result: T, path: unknown): Promise<T> {
+  if (result.faultCode !== "file_not_found" || typeof path !== "string" || !path) return result;
+  const candidates = await nearestPathCandidates(path);
+  return candidates.length ? { ...result, candidates } : result;
 }
 
 async function searchOneDir(input: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -61,7 +96,7 @@ async function searchOneDir(input: Record<string, unknown>): Promise<Record<stri
     return { ok: true, path, matches, scanned, truncated, errors };
   } catch (error) {
     const { faultCode, detail } = errorInfo(error, "tool_execution_failed");
-    return { ok: false, path: typeof input.path === "string" ? input.path : undefined, faultCode, error: detail };
+    return withCandidates({ ok: false, path: typeof input.path === "string" ? input.path : undefined, faultCode, error: detail }, input.path);
   }
 }
 
@@ -110,7 +145,7 @@ async function readOneFile(input: Record<string, unknown>): Promise<Record<strin
     } finally { await file.close(); }
   } catch (error) {
     const { faultCode, detail } = errorInfo(error, "tool_execution_failed");
-    return { ok: false, faultCode, error: detail };
+    return withCandidates({ ok: false, faultCode, error: detail }, input.path);
   }
 }
 
@@ -343,6 +378,6 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
       default: throw new Error(`Unknown local file tool: ${name}`);
     }
   } catch (error) {
-    return { ok: false, ...errorInfo(error), error: error instanceof Error ? error.message : String(error) };
+    return withCandidates({ ok: false, ...errorInfo(error), error: error instanceof Error ? error.message : String(error) }, input.path);
   }
 }

@@ -51,7 +51,7 @@
   "asset_not_found": "找不到资产 {assetId}",
   "local_missing_session": "本地工具缺少会话标识",
   "browser_bridge_missing": "{name} 没有浏览器桥",
-  "tool_unwired": "{name} 未接",
+  "tool_unwired": "{name} 未接。若该工具是本次会话服务启动后新增的，schema 每轮重读所以看得见，但执行器需重启服务才生效。",
   "task_single_doing_conflict": "同一 Task 最多一个 doing 项，当前冲突：{ids}",
   "task_not_found": "Task {id} 不存在",
   "task_item_text_empty": "items[{index}].text 不能为空",
