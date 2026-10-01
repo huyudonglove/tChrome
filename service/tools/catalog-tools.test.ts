@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { join } from "node:path";
 import { readFileSync } from "node:fs";
-import { loadToolRegistry, toolSchemas } from "./registry.ts";
+import { loadToolRegistry, toolSchemas, coreToolIds, dynamicToolIds, zeroCallToolNote } from "./registry.ts";
 import { LOCAL_TOOL_NAMES } from "./local-tools.ts";
 import { SERVICE_TOOL_NAMES } from "./service-tools.ts";
 import { COMPOUND_TOOL_NAMES } from "./compound-tools.ts";
@@ -225,4 +225,21 @@ test("service 数组不含已由浏览器通道实现的工具名", () => {
   );
   const misplaced = registry.index.service.filter((name) => implemented.has(name) && !registry.index.browser.includes(name));
   expect(misplaced).toEqual([]);
+});
+
+test("zeroCallToolNote 只列本会话零调用的已加载动态工具", () => {
+  const registry = loadToolRegistry(repoRoot);
+  const dynamic = dynamicToolIds(registry).slice(0, 2);
+  const core = coreToolIds(registry).slice(0, 2);
+  expect(dynamic.length).toBe(2);
+  const loaded = [...dynamic, ...core];
+
+  // 全被调用过、或根本没加载任何工具时都不出提示。
+  expect(zeroCallToolNote(registry, loaded, dynamic.map((name) => ({ name })))).toBe("");
+  expect(zeroCallToolNote(registry, [], [])).toBe("");
+
+  // 同名调用重复出现（amend 行）只算「已调用」一次；常驻工具即使零调用也不该出现在清单里。
+  const note = zeroCallToolNote(registry, loaded, [{ name: dynamic[0]! }, { name: dynamic[0]! }]);
+  expect(note).toBe(`已加载动态工具 2 个，本会话零调用 1 个：${dynamic[1]}。`);
+  for (const id of core) expect(note).not.toContain(id);
 });

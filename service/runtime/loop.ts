@@ -16,7 +16,7 @@ import { ContextBudgetError } from "../context/overflow.ts";
 import { beginExecution } from "./execution.ts";
 import { skillGuide, loadedSkillText } from "../skills/loader.ts";
 import { loadContextModules, type ContextModules } from "../context/modules.ts";
-import { loadToolRegistry, coreToolIds, dynamicToolIds, toolSchemas, toolGuideFor, type ToolRegistry } from "../tools/registry.ts";
+import { loadToolRegistry, coreToolIds, dynamicToolIds, toolSchemas, toolGuideFor, zeroCallToolNote, type ToolRegistry } from "../tools/registry.ts";
 import { executeTool } from "../tools/execute.ts";
 
 // Observation nudge: counted on evidence-producing tool calls (not model sends), so a turn
@@ -154,6 +154,8 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
   // evidence-based (paths in the recent tool calls), never a declared guess.
   const activeScopes = deriveActiveScopes(ledger.toolIO);
   const scopeNote = renderScopeIndex(memories, activeScopes);
+  // Zero-call loaded tools are a fact the model cannot derive from impression; retire on that basis.
+  const idleToolNote = zeroCallToolNote(toolRegistry, ledger.loadedToolIds, ledger.toolIO);
   return [
     { role: "system", content: system },
     { role: "user", content: userText({
@@ -162,7 +164,7 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
       toolGuide: toolGuideFor(toolRegistry, turn.assembled.toolIds),
       dataDir: historyDataDir ?? dataDir,
       ...(dataDir ? { inlineBudget: { dataDir, system } } : {}),
-    }) + [scopeNote, imageNote].filter(Boolean).map((note) => `\n\n${note}`).join(""), images: [...inline, ...thumbs] },
+    }) + [scopeNote, idleToolNote, imageNote].filter(Boolean).map((note) => `\n\n${note}`).join(""), images: [...inline, ...thumbs] },
   ];
 };
 
