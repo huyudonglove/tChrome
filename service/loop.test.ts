@@ -1,3 +1,9 @@
+import { runtimeConfig } from "./config/runtime.ts";
+
+// Observation-nudge gates are configuration, not test-local constants.
+const OBS_FIRST = runtimeConfig.context.observationNudgeFirstGate;
+const OBS_GATE_2 = Math.max(runtimeConfig.context.observationNudgeMinGate, OBS_FIRST - runtimeConfig.context.observationNudgeStep);
+const OBS_MIN = runtimeConfig.context.observationNudgeMinGate;
 import { loadContextRecord } from "./runtime/records.ts";
 import { loadMemories, loadMemory, saveMemory } from "./memory/store.ts";
 import { expect, test } from "bun:test";
@@ -755,7 +761,7 @@ test("stop 没有 tool_calls 就写 needFinishTurn 再出网", async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("观察提醒按证据类工具调用计数：累计 30 次证据类调用才提示", async () => {
+test(`观察提醒按证据类工具调用计数：累计 ${OBS_FIRST} 次证据类调用才提示`, async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-obs-nudge-evidence-"));
   primeActiveTask(dir);
   try {
@@ -763,17 +769,17 @@ test("观察提醒按证据类工具调用计数：累计 30 次证据类调用�
     const provider: Provider = { complete: async input => {
       step++;
       const body = input.messages[1]!.content;
-      if (step <= 30) {
+      if (step <= OBS_FIRST) {
         expect(body).not.toContain("建议用 observation.write");
-        // 每步只发 1 个证据类调用，避免 60 次硬收口；bookkeeping 不计数的断言见下一个用例
+        // 每步只发 1 个证据类调用，避免硬收口；bookkeeping 不计数的断言见下一个用例
         return ok({ finish: "tool_calls", toolCalls: [
           { id: `e_${step}`, name: "page.get_summary", arguments: { tabId: 12 } },
         ] });
       }
       expect(body).toContain("建议用 observation.write");
-      expect(body).toContain("page.get_summary×30");
+      expect(body).toContain(`page.get_summary×${OBS_FIRST}`);
       expect(body).toContain("次产出证据的工具调用");
-      expect(body).toContain("下次提示门槛收紧到 20 次");
+      expect(body).toContain(`下次提示门槛收紧到 ${OBS_GATE_2} 次`);
       return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
     } };
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "连续取证", submittedAt: "now" });
@@ -781,29 +787,31 @@ test("观察提醒按证据类工具调用计数：累计 30 次证据类调用�
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("观察提醒门槛在同一轮内 30 → 20 → 10 逐次收紧", async () => {
+test(`观察提醒门槛在同一轮内 ${OBS_FIRST} → ${OBS_GATE_2} → ${OBS_MIN} 逐次收紧`, async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-obs-nudge-tighten-"));
   primeActiveTask(dir);
   try {
     let step = 0;
+    const firstNudge = OBS_FIRST + 1;
+    const secondNudge = firstNudge + OBS_GATE_2;
     const provider: Provider = { complete: async input => {
       step++;
       const body = input.messages[1]!.content;
-      if (step === 31) {
-        // 第 30 次证据类调用后已提示一次，门槛收紧到 20
+      if (step === firstNudge) {
+        // 第 OBS_FIRST 次证据类调用后已提示一次，门槛收紧到 OBS_GATE_2
         expect(body).toContain("建议用 observation.write");
-        expect(body).toContain("下次提示门槛收紧到 20 次");
+        expect(body).toContain(`下次提示门槛收紧到 ${OBS_GATE_2} 次`);
       }
-      if (step >= 32 && step <= 50) {
-        // 门槛已是 20，这 19 次内不应再提示
+      if (step > firstNudge && step < secondNudge) {
+        // 门槛已是 OBS_GATE_2，这段区间内不应再提示
         expect(body).not.toContain("建议用 observation.write");
       }
-      if (step === 51) {
-        // 累计 50 次，门槛收紧到 10 并再次提示
+      if (step === secondNudge) {
+        // 门槛收紧到下限 OBS_MIN 并再次提示
         expect(body).toContain("建议用 observation.write");
-        expect(body).toContain("下次提示门槛收紧到 10 次");
+        expect(body).toContain(`下次提示门槛收紧到 ${OBS_MIN} 次`);
       }
-      if (step <= 50) {
+      if (step <= secondNudge) {
         return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "page.get_summary", arguments: { tabId: 12 } }] });
       }
       return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
@@ -813,25 +821,26 @@ test("观察提醒门槛在同一轮内 30 → 20 → 10 逐次收紧", async ()
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("写一次 observation.write 后计数与门槛重置回 30", async () => {
+test(`写一次 observation.write 后计数与门槛重置回 ${OBS_FIRST}`, async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-obs-nudge-reset-"));
   primeActiveTask(dir);
   try {
     let step = 0;
+    const firstNudge = OBS_FIRST + 1;
     const provider: Provider = { complete: async input => {
       step++;
       const body = input.messages[1]!.content;
-      if (step === 31) {
+      if (step === firstNudge) {
         expect(body).toContain("建议用 observation.write");
-        expect(body).toContain("下次提示门槛收紧到 20 次");
+        expect(body).toContain(`下次提示门槛收紧到 ${OBS_GATE_2} 次`);
         return ok({ finish: "tool_calls", toolCalls: [{ id: "w", name: "observation.write", arguments: { reason: "固化", type: "code", result: "状态" } }] });
       }
-      if (step >= 32 && step <= 56) {
-        // 写观察后门槛重置回 30，这 25 次内不应再提示
+      if (step > firstNudge && step <= firstNudge + OBS_FIRST) {
+        // 写观察后门槛重置回 OBS_FIRST，这段区间内不应再提示
         expect(body).not.toContain("建议用 observation.write");
         return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "page.get_summary", arguments: { tabId: 12 } }] });
       }
-      if (step <= 30) {
+      if (step <= OBS_FIRST) {
         return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "page.get_summary", arguments: { tabId: 12 } }] });
       }
       return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });

@@ -40,7 +40,7 @@
     "repeatDuplicateSignatures": { "fixed": 2 },
     "repeatFaultLimit": { "fixed": 2 },
     "actionsNudgeEvery": { "fixed": 5 },
-    "observationNudgeFirstGate": { "fixed": 30 },
+    "observationNudgeFirstGate": { "fixed": 20 },
     "observationNudgeMinGate": { "fixed": 10 },
     "observationNudgeStep": { "fixed": 10 },
     "compressNudgeHeadroom": { "follow": "contextWindowChars", "ratio": 0.1, "floor": 1000 }

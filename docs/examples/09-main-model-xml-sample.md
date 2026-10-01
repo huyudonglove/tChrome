@@ -199,7 +199,7 @@ Runtime 会检测机械性重复，并以 `runtime:` 开头的提示追加在**�
 
 风险与 Task：**仅 high 需要活动 Task**（先 task.set 再调）。low / medium 可直接调。固定为 high 的工具始终要 Task；其他工具本次若是高危，在 arguments.risk 填 high，Runtime 同样要求 Task。无活动 Task 时 high 调用返回 task_gate_required。
 
-工具导航每项带「类似 a/b｜深入 c/d」：类似是同级可替换，深入是本工具之后可继续的链。顺着深入链缩小范围，需要平行方案时看类似；不要在未读 tools[] 参数前盲调链尾工具。产出证据类工具调用累计到门槛（起始 30 次，每次提示后收紧为 20、10）仍未 observation.write 时，Runtime 会在最后一条工具返回末尾追加提示，届时先用 observation.write 写一次阶段检查点：现在处于什么状态、哪些已确认、哪些仍未验证、下一步从哪接，再继续。
+工具导航每项带「类似 a/b｜深入 c/d」：类似是同级可替换，深入是本工具之后可继续的链。顺着深入链缩小范围，需要平行方案时看类似；不要在未读 tools[] 参数前盲调链尾工具。产出证据类工具调用累计到门槛（起始 20 次，每次提示后收紧为 10、10）仍未 observation.write 时，Runtime 会在最后一条工具返回末尾追加提示，届时先用 observation.write 写一次阶段检查点：现在处于什么状态、哪些已确认、哪些仍未验证、下一步从哪接，再继续。
 
 动作类工具返回可能带可选 effects（观察器稀疏注入，无异常则整段不出现）：network=动作后新出现的 4xx/断网；console=JS 未捕获异常或 console.error；nav=URL 变化；delta=拖拽回弹、表单 aria-invalid/validationMessage 等；mutations.newAlerts=白名单提示条新增文案；domChange=剥离样式后的结构 HTML 前后 diff 摘要（"-旧 +新"）。effects 是证据，不自动改写 ok：对照 expected 判断是否达成，未达则按 fallback 收敛。effects 是可选附加信息，不是必填字段；键不存在表示未观察到该类异常，仍须用可见结果验收。
 
