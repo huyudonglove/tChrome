@@ -141,6 +141,23 @@ test("agent.compress invokes the Compression Agent with the selected phase", asy
   });
 });
 
+test("agent.compress passes through the measured windowChars before and after", async () => {
+  const execution = await executeTool({
+    name: "agent.compress",
+    arguments: { reason: "确认压缩前后窗口变化可见" },
+    dataDir: "",
+    browserNames: [],
+    compressContext: async () => ({
+      status: "completed",
+      committedTurnIds: ["tn_01"],
+      totalTurns: 1,
+      windowChars: { before: 182000, after: 96000 },
+    }),
+    lookup: { unusedTools: [], knownTools: [], enabledTools: [] },
+  });
+  expect(JSON.parse(execution.text).windowChars).toEqual({ before: 182000, after: 96000 });
+});
+
 test("agent.compress reports unavailable runtime support", async () => {
   const execution = await executeTool({
     name: "agent.compress",

@@ -16,6 +16,8 @@ export type CompressOutcome = {
   committedTurnIds: string[];
   failedTurnId?: string;
   totalTurns: number;
+  // Measured by the caller (Runtime knows the assembled view); null means "could not measure".
+  windowChars?: { before: number | null; after: number | null };
 };
 
 export type CompressProgress =

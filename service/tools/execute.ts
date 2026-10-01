@@ -73,6 +73,7 @@ export type ExecuteInput = {
     committedTurnIds: string[];
     failedTurnId?: string;
     totalTurns: number;
+    windowChars?: { before: number | null; after: number | null };
   }>;
   lookup: {
     unusedTools: string[];

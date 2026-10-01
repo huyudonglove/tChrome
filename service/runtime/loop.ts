@@ -168,6 +168,39 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
   ];
 };
 
+// Manual compress reports what it bought: re-assemble the post-compression view and measure it.
+// Best-effort by design — a measurement failure must never break the tool call.
+const windowMeasurer = (
+  dataDir: string,
+  repoRoot: string,
+  contextModules: ContextModules,
+  toolRegistry: ToolRegistry,
+  ledger: Ledger,
+  turn: Turn,
+  memories: ReturnType<typeof loadMemories>,
+  images: ChatMessage["images"],
+  skillNav: string,
+): (() => number | null) => () => {
+  try {
+    const state = contextState(dataDir, ledger, turn, memories);
+    const view = messagesOf(
+      contextModules,
+      toolRegistry,
+      state.ledger,
+      state.turn,
+      state.memories,
+      loadedSkillText(repoRoot, ledger.loadedSkillIds ?? []),
+      images,
+      state.summaries,
+      dataDir,
+      skillNav,
+    );
+    return windowChars(view[0]!.content, view[1]!.content);
+  } catch {
+    return null;
+  }
+};
+
 // Every provider result crosses the same policy boundary before execution.
 // Providers parse transport data; only runtime decides which tools may run.
 const validateCompletion = (
@@ -237,6 +270,7 @@ const runQueue = async (input: {
   provider: Provider;
   repoRoot: string;
   signal?: AbortSignal;
+  measureWindow?: () => number | null;
 }): Promise<TurnStopReason | null> => {
   const { dataDir, ledger, turn, toolRegistry, host, browserNames } = input;
   // Microtask/macrotask schedule over the batch: parallel joins the current wave;
@@ -298,12 +332,17 @@ const runQueue = async (input: {
             observationIds: turn.assembled.observations.map((row) => row.id),
             defaultTabId: ledger.contextTab?.tabId ?? null,
             queryContext: args => queryContext({ dataDir, conversationId: ledger.conversationId, repoRoot: input.repoRoot, provider: input.provider, ...args, isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId) }),
-            compressContext: ({ phase }) => compressContext({ dataDir, repoRoot: input.repoRoot, provider: input.provider, ledger, turn,
-              memories: loadMemories(dataDir, ledger.conversationId, ledger.memoryIds),
-              isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId),
-              onStart: () => appendEvent(dataDir, ledger.conversationId, { kind: "compress-start", turnId: turn.turnId, data: { source: "agent", phase } }),
-              onProgress: (progress) => appendEvent(dataDir, ledger.conversationId, { kind: "compress-progress", turnId: turn.turnId, data: { source: "agent", ...progress } }),
-            }, phase),
+            // Manual compress answers a question the outcome alone cannot: did it actually shrink the window?
+            compressContext: async ({ phase }) => {
+              const before = input.measureWindow?.() ?? null;
+              const outcome = await compressContext({ dataDir, repoRoot: input.repoRoot, provider: input.provider, ledger, turn,
+                memories: loadMemories(dataDir, ledger.conversationId, ledger.memoryIds),
+                isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId),
+                onStart: () => appendEvent(dataDir, ledger.conversationId, { kind: "compress-start", turnId: turn.turnId, data: { source: "agent", phase } }),
+                onProgress: (progress) => appendEvent(dataDir, ledger.conversationId, { kind: "compress-progress", turnId: turn.turnId, data: { source: "agent", ...progress } }),
+              }, phase);
+              return { ...outcome, windowChars: { before, after: input.measureWindow?.() ?? null } };
+            },
             lookup: {
               knownTools: Object.keys(toolRegistry.tools),
               enabledTools: [...turn.assembled.toolIds, ...toolRegistry.toolGroups.baseToolsIds],
@@ -836,6 +875,7 @@ export async function handleTurn(
             provider: deps.provider, repoRoot: deps.repoRoot, signal: deps.signal,
             browserNames: toolRegistry.index.browser,
             host,
+            measureWindow: windowMeasurer(deps.dataDir, deps.repoRoot, contextModules, toolRegistry, ledger, turn, memories, images, skillNav),
           });
           if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId, ledger.status)) {
           return stoppedReply(ledger, turn);
@@ -907,6 +947,7 @@ export async function handleTurn(
             provider: deps.provider, repoRoot: deps.repoRoot, signal: deps.signal,
             browserNames: toolRegistry.index.browser,
             host,
+            measureWindow: windowMeasurer(deps.dataDir, deps.repoRoot, contextModules, toolRegistry, ledger, turn, memories, images, skillNav),
           });
           saveTurn(deps.dataDir, turn);
           saveLedger(deps.dataDir, ledger);
@@ -962,6 +1003,7 @@ export async function handleTurn(
         provider: deps.provider, repoRoot: deps.repoRoot, signal: deps.signal,
         browserNames: toolRegistry.index.browser,
         host,
+        measureWindow: windowMeasurer(deps.dataDir, deps.repoRoot, contextModules, toolRegistry, ledger, turn, memories, images, skillNav),
       });
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId, ledger.status)) {
           return stoppedReply(ledger, turn);

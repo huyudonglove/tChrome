@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "agent.compress",
-    "description": "主动调用 Compression Agent 压缩当前会话的历史上下文。适用于长任务中可预判还会产生大量工具返回、且较早轮次原文暂时不再需要的情况。默认只压缩已结束轮次；仅当当前工具结果已确认无需回查时才选择 current。Runtime 达到压缩阈值时仍会自动压缩。",
+    "description": "主动调用 Compression Agent 压缩当前会话的历史上下文。适用于长任务中可预判还会产生大量工具返回、且较早轮次原文暂时不再需要的情况。默认只压缩已结束轮次；仅当当前工具结果已确认无需回查时才选择 current。Runtime 达到压缩阈值时仍会自动压缩。返回体带 windowChars = {before, after}（压缩前后的窗口字符数），null 表示本次未能测得；用它当场判断这次压缩值不值、有没有压掉仍要的东西。",
     "parameters": {
       "type": "object",
       "properties": {
