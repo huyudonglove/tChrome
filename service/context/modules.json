@@ -14,18 +14,18 @@
     { "id": "baseTools", "role": "system", "order": 10, "file": "system/baseTools.md", "consumers": ["main"], "description": "Resident Tools, Task Management" },
     { "id": "systemSkill", "role": "system", "order": 11, "file": "system/systemSkill.md", "consumers": ["main"], "inject": ["skillCatalogLimit"], "description": "System Skill Index" },
 
-    { "id": "skill", "role": "user", "order": 1, "file": "user/skill.md", "consumers": ["main"], "compress": false, "description": "Skills" },
-    { "id": "projectMemory", "role": "user", "order": 2, "file": "user/projectMemory.md", "consumers": ["main"], "compress": false, "description": "Long-Term Memory" },
-    { "id": "tools", "role": "user", "order": 3, "file": "user/tools.md", "consumers": ["main"], "compress": false, "description": "Loaded Tools" },
-    { "id": "conversation", "role": "user", "order": 4, "file": "user/conversation.md", "consumers": ["main"], "compress": false, "description": "Conversation Timeline By Turn" },
+    { "id": "skill", "role": "user", "order": 1, "file": "user/skill.md", "consumers": ["main"], "description": "Skills" },
+    { "id": "projectMemory", "role": "user", "order": 2, "file": "user/projectMemory.md", "consumers": ["main"], "description": "Long-Term Memory" },
+    { "id": "tools", "role": "user", "order": 3, "file": "user/tools.md", "consumers": ["main"], "description": "Loaded Tools" },
+    { "id": "conversation", "role": "user", "order": 4, "file": "user/conversation.md", "consumers": ["main"], "description": "Conversation Timeline By Turn" },
 
-    { "id": "userInput", "role": "archive", "order": 1, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "userInput", "coverage": "turn", "description": "Turn user input" },
-    { "id": "toolIO", "role": "archive", "order": 3, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "toolIO", "coverage": "batch", "description": "Tool IO" },
-    { "id": "observations", "role": "archive", "order": 4, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "observations", "coverage": "callId", "description": "Observations" },
-    { "id": "memoryWrites", "role": "archive", "order": 5, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "memoryWrites", "coverage": "sourceCallId", "description": "Conversation memory writes" },
-    { "id": "reflection", "role": "archive", "order": 6, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "reflection", "coverage": "turn", "description": "Turn reflection" },
-    { "id": "queryHistory", "role": "archive", "order": 8, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "queryHistory", "coverage": "queryId", "description": "Query History" },
-    { "id": "turnOutput", "role": "archive", "order": 9, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "stopReason", "coverage": "settledTurnOnly", "description": "Turn closing output", "inputSemantics": "对象或 null。`{kind:\"reply\", text}` 为最终回复正文；`{kind:\"ask\", question}` / `{kind:\"error\", faultCode, causeCode?, toolName?, detail?}` / `{kind:\"tool\", name, callId}`。null 表示暂无收尾。" },
-    { "id": "actions", "role": "archive", "order": 10, "file": null, "consumers": ["compression"], "compress": true, "archiveField": "actions", "coverage": "turn", "description": "Model-written per-turn tool action log" }
+    { "id": "userInput", "role": "archive", "order": 1, "file": null, "consumers": ["compression"], "archiveField": "userInput", "description": "Turn user input" },
+    { "id": "toolIO", "role": "archive", "order": 3, "file": null, "consumers": ["compression"], "archiveField": "toolIO", "description": "Tool IO" },
+    { "id": "observations", "role": "archive", "order": 4, "file": null, "consumers": ["compression"], "archiveField": "observations", "description": "Observations" },
+    { "id": "memoryWrites", "role": "archive", "order": 5, "file": null, "consumers": ["compression"], "archiveField": "memoryWrites", "description": "Conversation memory writes" },
+    { "id": "reflection", "role": "archive", "order": 6, "file": null, "consumers": ["compression"], "archiveField": "reflection", "description": "Turn reflection" },
+    { "id": "queryHistory", "role": "archive", "order": 8, "file": null, "consumers": ["compression"], "archiveField": "queryHistory", "description": "Query History" },
+    { "id": "turnOutput", "role": "archive", "order": 9, "file": null, "consumers": ["compression"], "archiveField": "stopReason", "description": "Turn closing output", "inputSemantics": "对象或 null。`{kind:\"reply\", text}` 为最终回复正文；`{kind:\"ask\", question}` / `{kind:\"error\", faultCode, causeCode?, toolName?, detail?}` / `{kind:\"tool\", name, callId}`。null 表示暂无收尾。" },
+    { "id": "actions", "role": "archive", "order": 10, "file": null, "consumers": ["compression"], "archiveField": "actions", "description": "Model-written per-turn tool action log" }
   ]
 }

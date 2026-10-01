@@ -86,7 +86,7 @@ type CompressionInput = { dataDir: string; repoRoot: string; provider: Provider;
 
 type Coverage = ReturnType<typeof sourceCoverage>;
 
-/** Build archive turn/segment content only from inventory compress:true fields. */
+/** Build archive turn/segment content only from inventory entries that carry an archiveField. */
 function archiveContentFromInventory(
   repoRoot: string,
   history: TurnHistoryRecord,

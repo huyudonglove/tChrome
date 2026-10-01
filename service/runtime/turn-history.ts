@@ -26,7 +26,7 @@ export type TurnHistoryRecord = {
 
 type ProjectContext = { ledger: Ledger; turn: Turn; memories: Memories };
 
-/** projectors keyed by inventory archiveField; assemble only what the inventory marks compress:true. */
+/** projectors keyed by inventory archiveField; assemble only the fields the inventory declares. */
 const projectors: Record<string, (ctx: ProjectContext) => unknown> = {
   userInput: ({ turn }) => inputRecord(turn),
   toolIO: ({ ledger, turn }) => ledger.toolIO.filter(item => item.turnId === turn.turnId),

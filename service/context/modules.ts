@@ -13,9 +13,7 @@ export type ModuleRegistryEntry = {
   file: string | null;
   consumers: ModuleConsumer[];
   description?: string;
-  compress?: boolean;
   archiveField?: string | null;
-  coverage?: string;
   inputSemantics?: string;
   /** Placeholder names filled from promptNumberSlots() when loading the module body. */
   inject?: string[];
@@ -58,9 +56,6 @@ export function loadModuleRegistry(root: string): ModuleRegistry {
   const ids = new Set(raw.modules.map(row => row.id));
   if (ids.size !== raw.modules.length) throw new Error("duplicate module registry id");
   for (const row of raw.modules) {
-    if (row.compress && !row.archiveField && row.role !== "archive") {
-      // archive-only rows may use archiveField without a context file
-    }
     if (row.role !== "archive" && !row.file) throw new Error(`module missing file: ${row.id}`);
   }
   return raw;
@@ -75,7 +70,7 @@ export function registryModules(registry: ModuleRegistry, opts: { role?: ModuleR
 
 export function compressedArchiveFields(registry: ModuleRegistry): string[] {
   return registry.modules
-    .filter(row => row.compress && row.archiveField)
+    .filter(row => row.archiveField)
     .map(row => row.archiveField!);
 }
 
@@ -87,7 +82,7 @@ export function archiveFieldSemantics(entry: ModuleRegistryEntry): string {
 export function compressionArchiveFieldsMarkdown(root: string): string {
   const registry = loadModuleRegistry(root);
   const lines = registry.modules
-    .filter(row => row.compress && row.archiveField)
+    .filter(row => row.archiveField)
     .map(row => `- ${row.archiveField}: ${archiveFieldSemantics(row)}`);
   return lines.join("\n");
 }

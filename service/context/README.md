@@ -1,6 +1,6 @@
 # 上下文模块
 
-模块的**唯一注册表**是 [modules.json](modules.json)：顺序、XML 文件路径、给谁用（`consumers`）、是否进压缩（`compress` / `archiveField`）。主 Agent 的归档字段与压缩岗共用这张表。
+模块的**唯一注册表**是 [modules.json](modules.json)：顺序、XML 文件路径、给谁用（`consumers`）、是否进压缩（带 `archiveField` 即进）。主 Agent 的归档字段与压缩岗共用这张表。
 
 三套 `modules.json` 各自独立、互不共用：主 Agent 在 `service/context/`，压缩 Agent 在 `service/agents/compression/context/`，查询 Agent 在 `service/agents/query/context/`。改哪一岗就改哪一份，不要把字段从一份复制到另一份。
 
@@ -8,7 +8,7 @@
 
 | 入口 | 职责 |
 |---|---|
-| [modules.json](modules.json) | 注册表：id、role、order、file、consumers、compress、archiveField |
+| [modules.json](modules.json) | 注册表：id、role、order、file、consumers、archiveField |
 | [system/overview.md](system/overview.md) | `<overview>`：Agent loop、装配顺序、模块粗览与日期 |
 | [system/](system/) | 主 Agent System 模块 XML 正文 |
 | [user/](user/) | 主 Agent User 模块 XML 正文 + `{{data}}` |
@@ -40,29 +40,29 @@
 
 ### User · 主 Agent
 
-| order | id | compress | 压缩归档字段 | coverage | consumers |
-|---:|---|---|---|---|---|
-| 1 | skill | 否 | — | — | main |
-| 2 | projectMemory | 否 | — | — | main |
-| 3 | tools | 否 | — | — | main |
-| 4 | conversation | 否 | — | — | main |
+| order | id | 压缩归档字段 | consumers |
+|---:|---|---|---|
+| 1 | skill | — | main |
+| 2 | projectMemory | — | main |
+| 3 | tools | — | main |
+| 4 | conversation | — | main |
 
 `<conversation>` 内为会话级 `<conversationMemory>`、`<conversationHistorySummary>` 与按 turnId 嵌套的 `<tn_xx>` 轮次切片（userInput / task / callRange / actions / observations / notes / reflection / query / stopReason）；外层底部为全会话公用 toolRange + toolIO（最近 10 次详情滚动池）；被压缩覆盖的轮次整块删除。
 
 ### Archive · 仅压缩
 
-| id | compress | 归档字段 | 说明 |
-|---|---|---|---|
-| userInput | 是 | userInput | 轮次用户输入 |
-| actions | 是 | actions | 模型维护的工具调用流水 |
-| toolIO | 是 | toolIO | 底部公用池：最近 10 次调用详情（轮内只留 callRange） |
-| observations | 是 | observations | 观察（页面/代码等） |
-| memoryWrites | 是 | memoryWrites | 会话记忆写入 |
-| reflection | 是 | reflection | 轮次反思 |
-| queryHistory | 是 | queryHistory | 查询记录 |
-| turnOutput | 是 | stopReason | 轮次收口 |
+| id | 归档字段 | 说明 |
+|---|---|---|
+| userInput | userInput | 轮次用户输入 |
+| actions | actions | 模型维护的工具调用流水 |
+| toolIO | toolIO | 底部公用池：最近 10 次调用详情（轮内只留 callRange） |
+| observations | observations | 观察（页面/代码等） |
+| memoryWrites | memoryWrites | 会话记忆写入 |
+| reflection | reflection | 轮次反思 |
+| queryHistory | queryHistory | 查询记录 |
+| turnOutput | stopReason | 轮次收口 |
 
-压缩 Agent 提示词在 `service/agents/compression/context/`，字段列表由注册表 `compress=true` 生成注入，**不**把主 Agent 全套模块塞给压缩模型。
+压缩 Agent 提示词在 `service/agents/compression/context/`，字段列表由注册表中带 `archiveField` 的条目生成注入，**不**把主 Agent 全套模块塞给压缩模型。
 
 ## 模型可见格式（B + XML）
 
@@ -97,7 +97,7 @@ User 模块（含数据）：
 
 ## 加模块时改哪里
 
-1. `modules.json`：加一项（`consumers` / `compress` / `archiveField`）  
+1. `modules.json`：加一项（`consumers` / `archiveField`）  
 2. `system/` 或 `user/`：对应 XML 正文文件  
 3. `system/overview.md`（及压缩/查询岗各自的 overview）模块粗览：补一行 `- <id>：…`，与注册表 `consumers∋main`（或该岗）集合保持一致  
 4. 需进压缩：同一 `archiveField` 要在 `service/runtime/turn-history.ts` 的 `projectors` 提供取数函数，并在 `modules.ts` 的 `DEFAULT_SEMANTICS`（或该项 `inputSemantics`）写清材料形状；缺 projector 时装配归档会抛错  

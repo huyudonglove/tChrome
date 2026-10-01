@@ -18,7 +18,7 @@ const sectionTableIds = (markdown: string, section: string, next: string) => {
   return [...chunk.matchAll(/^\| \d+ \| ([A-Za-z][A-Za-z0-9]*) \|/gm)].map(m => m[1]!);
 };
 
-test("module registry owns consumers, compress flags and archive fields", () => {
+test("module registry owns consumers and archive fields", () => {
   const registry = loadModuleRegistry(root);
   expect(compressedArchiveFields(registry)).toEqual([
     "userInput",
