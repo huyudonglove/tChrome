@@ -36,6 +36,3 @@ jobs:
 
       - name: Build extension
         run: bun run scripts/build-extension.ts
-
-      - name: Context examples in sync
-        run: bun run scripts/sync-context-examples.ts --check

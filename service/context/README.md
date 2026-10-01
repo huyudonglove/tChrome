@@ -104,7 +104,7 @@ User 模块（含数据）：
 5. 压缩 Agent 岗措辞：只动 `agents/compression/context/`（字段说明由主注册表生成）  
 6. 窗口投影：主 Agent User 槽位在 `context/projections/` 与 `window.ts`；与 turn-history 的 archiveField 是同一数据的两种视图
 7. 数字阈值：`service/config/runtime.json` 的 `context` / `results`；System 用 `{{compressAt}}` 等占位，由 `modules.json` 的 `inject` 与 `prompt-numbers.ts` 注入
-8. 本 README 模块总表与 `docs/prompt-hierarchy.md` 中的样例标签：保持与注册表一致（测试会校验）
+
 
 共用措辞见 `templates.ts`；字段语义在 `modules.ts` 的 `DEFAULT_SEMANTICS`。
 

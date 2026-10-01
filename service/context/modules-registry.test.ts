@@ -65,15 +65,5 @@ test("overview skims and README tables match registries; hierarchy tags stay in 
   expect(new Set(sectionTableIds(readme, "### System", "### User"))).toEqual(new Set(mainSystem));
   expect(new Set(sectionTableIds(readme, "### User", "### Archive"))).toEqual(new Set(mainUser));
 
-  const hierarchy = readFileSync(resolve(root, "docs/prompt-hierarchy.md"), "utf8");
-  const hierarchyTags = new Set([
-    ...[...hierarchy.matchAll(/<\/([A-Za-z][A-Za-z0-9]*)>/g)].map(m => m[1]!),
-    ...[...hierarchy.matchAll(/^- <([A-Za-z][A-Za-z0-9]*)>/gm)].map(m => m[1]!),
-    ...[...hierarchy.matchAll(/`<([A-Za-z][A-Za-z0-9]*)>`/g)].map(m => m[1]!),
-  ]);
-  const nestedTurnTags = ["conversationMemory", "conversationHistorySummary", "userInput", "task", "toolIO", "callRange", "toolRange", "actions", "observations", "notes", "reflection", "query", "stopReason"];
-  const known = new Set([...mainModules, ...compressionIds, ...queryIds, "turnOutput", ...nestedTurnTags]);
-  for (const tag of hierarchyTags) expect(known.has(tag)).toBe(true);
-  const hierarchyOverview = hierarchy.split("### overview")[1]?.split("### identity")[0] ?? "";
-  expect(new Set(skimTags(hierarchyOverview))).toEqual(new Set(mainSkim));
+  
 });

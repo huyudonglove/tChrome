@@ -174,8 +174,7 @@ tChrome/
 │   ├── library/           # Local persistent structured asset store
 │   └── provider/          # LLM protocol adapters (OpenAI-compatible, etc.)
 ├── shared/                # Shared error catalog and types
-├── scripts/               # Extension build and docs example sync
-├── docs/                  # Protocol specifications and data architecture docs
+├── scripts/               # Extension build scripts
 ├── dist/                  # Build output; Chrome load-unpacked target
 ├── package.json
 └── tsconfig.json

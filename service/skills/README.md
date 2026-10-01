@@ -16,4 +16,4 @@ SUMMARY: 网页观察与操作：按区域缩小到控件、交互验收与截�
 正文…
 ```
 
-修改后运行 `bun run scripts/sync-context-examples.ts` 与 `bun run check`。
+修改后运行 `bun run check`。

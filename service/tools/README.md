@@ -20,7 +20,7 @@
 
 `tavily_search` 属于动态服务工具，默认不加载，通过 `catalog.add` 启用。服务环境需配置 `TAVILY_API_KEY`（空配置示例见 `service/.env.example`）。搜索固定为 advanced，query 去除首尾空白，maxResults 默认 5、范围 1 至 10；每条 content 最多 4000 字符，截断标注 truncated。结果包含 query、searchDepth、results 和 urls；失败使用下述统一错误格式。
 
-新增工具时维护定义、分类和必要的分组，并在对应执行端实现。修改说明后运行 `bun run scripts/sync-context-examples.ts` 更新示例，再运行 `bun run check`。
+新增工具时维护定义、分类和必要的分组，并在对应执行端实现。修改后运行 `bun run check`。
 
 ## 本机工具
 

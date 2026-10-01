@@ -174,8 +174,7 @@ tChrome/
 │   ├── library/           # 本地持久化结构化资料库
 │   └── provider/          # 多模型协议适配器
 ├── shared/                # 扩展与服务共用的错误码等
-├── scripts/               # 构建扩展、同步文档示例
-├── docs/                  # 协议与数据设计文档
+├── scripts/               # 构建扩展等脚本
 ├── dist/                  # 构建产物；Chrome load unpacked 加载此目录
 ├── package.json
 └── tsconfig.json
