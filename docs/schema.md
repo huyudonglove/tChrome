@@ -59,9 +59,6 @@ session.json
 conversations/<cvId>/ledger.json
 conversations/<cvId>/events.jsonl
 conversations/<cvId>/events.NN.jsonl
-conversations/<cvId>/provider.md
-conversations/<cvId>/provider.NN.md
-conversations/<cvId>/provider-system.md
 conversations/<cvId>/turns/<turnId>.json
 conversations/<cvId>/memory/<memoryId>.json
 conversations/<cvId>/context-records/<kind>/<id>.json
@@ -96,25 +93,6 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。`returns/<ca
 `kind=compress` 的 data 为 beforeChars、afterChars；compress-start 记录压缩前 windowChars，compress-error 记录失败 detail。每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。已有摘要的轮次仅当 conversationHistorySummary 的 active 条数超过 30 时才再进入合并/升档压缩；≤30 跳过重压（独立的 query 原文仍可首次归档）。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 以正文或文件引用保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
 `kind=turn-stop-reason` 的 `data`：`stopReason`。
 `kind=session` 的 `data`：`conversationId`，可选 `action`=`new`/`open`。
-
-## provider.md / provider-system.md
-
-每次出网追加一节到当前 `provider.md`。单个 `provider.md` 超过 3MB 时，先改名为 `provider.NN.md`（NN 自增），再开新的 `provider.md`。`loadProviderLog` 按 `provider.01.md`…再到 `provider.md` 的顺序读取全部节。
-
-主日志记录 user 窗口与模型返回。system 全文写入 `provider-system.md`：按正文 sha256 前 16 位分块，`## system <hash>` 首次出现或哈希变化时各记一次；exchange 的 json 围栏用 `systemHash` 引用。
-
-标题 `## tn_01 / 1`。json 围栏只放元数据。user / content / tool_calls 小节用普通围栏，正文真换行。
-
-| 字段 | 怎么填 |
-|---|---|
-| 标题 `## tn_ / outbound` | 本 Turn 第几次出网 |
-| json 围栏 | 元数据：`at` `systemHash` `toolIds` `finish` `toolCalls` `faultCode` |
-| `### user` | 发给模型的 User 窗口，真换行 |
-| `### content` | 模型 content，真换行 |
-| `### tool_calls` | 模型交的工具，一行一个 |
-| `provider-system.md` | 每个 `systemHash` 对应一份 System 全文 |
-
-`events.jsonl` 的 `provider-request` / `provider-response` 仍只记元数据。User 全文看 `provider.md`，System 全文看 `provider-system.md`。
 
 ## session.json
 

@@ -242,29 +242,6 @@ export type ChatMessage = {
   images?: (ImageReference & { callId?: string })[];
 };
 
-export type ProviderExchange = {
-  at: string;
-  turnId: string;
-  outbound: number;
-  /** Content hash of the system window used for this exchange; full text lives in provider-system.md. */
-  systemHash?: string;
-  request: {
-    toolIds: string[];
-  };
-  response: {
-    providerCallIds?: Record<string, string>;
-    finish: CompletionResult["finish"];
-    toolCalls: ToolCall[];
-    attempts: number;
-    parseOk: boolean;
-    schemaOk: boolean;
-    faultCode: string | null;
-    missing: string[];
-    badName?: string;
-    detail?: string;
-  };
-};
-
 export type ExecutionMode = "parallel" | "serial";
 
 export type ChatTool = {

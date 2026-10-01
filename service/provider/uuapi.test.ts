@@ -6,7 +6,7 @@ import { createProvider } from "./uuapi.ts";
 import { sseResponse } from "./sse.ts";
 import { runtimeConfig } from "../config/runtime.ts";
 import { handleTurn } from "../runtime/loop.ts";
-import { loadLedger, loadProviderLog } from "../runtime/store.ts";
+import { loadLedger } from "../runtime/store.ts";
 
 const input = { messages: [], tools: [] };
 const providerFor = (port: number) => createProvider({ apiKey: "local-test", baseURL: `http://127.0.0.1:${port}/v1`, proxy: "" });
@@ -143,7 +143,6 @@ test("真实 Provider 到 Runtime：多个坏调用留账，合法兄弟照跑",
     const ledger = loadLedger(dir, "cv_01");
     expect(ledger.notes.kept).toBe("yes");
     expect(ledger.toolIO.map((item) => item.callId)).toEqual(["call_03", "call_04", "call_01", "call_02", "call_05"]);
-    expect(loadProviderLog(dir, "cv_01")[0]!.response.providerCallIds).toEqual({ call_01: "missing", call_02: "valid", call_03: "broken_1", call_04: "broken_2" });
     expect(requests).toBe(2);
   } finally { server.stop(true); rmSync(dir, { recursive: true, force: true }); }
 });

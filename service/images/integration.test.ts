@@ -101,7 +101,6 @@ test("截图按调用批次发送，历史仅保留路径，删除会话清理�
     const imageFiles = storedFiles.filter((path) => path.endsWith(".png"));
     expect(imageFiles).toHaveLength(2);
     expect(readFileSync(join(paths(dataDir, conversationId).conv, screenshots[0]!.images![0]!.path))).toEqual(Buffer.from(png, "base64"));
-    expect(storedFiles.some((path) => path.endsWith("provider.md"))).toBe(true);
     expect(storedFiles.some((path) => path.endsWith("events.jsonl"))).toBe(true);
     expect(storedFiles.some((path) => path.includes("/returns/"))).toBe(true);
     for (const path of storedFiles.filter((path) => !imageFiles.includes(path))) {

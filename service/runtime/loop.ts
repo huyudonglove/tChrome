@@ -93,7 +93,6 @@ import {
   saveLedger,
   saveTurn,
   appendEvent,
-  appendProviderExchange,
 } from "./store.ts";
 import { autoCompleteActiveTask, executionContext } from "./tasks.ts";
 
@@ -754,25 +753,6 @@ export async function handleTurn(
       const { result, batch: batchCheck, checks, validCalls } = validateCompletion(
         rawResult, tools, turn.assembled.baseToolsIds, turn.assembled.toolIds, toolRegistry.mutex,
       );
-      const toolIds = [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds];
-      appendProviderExchange(deps.dataDir, ledger.conversationId, {
-        turnId,
-        messages,
-        content: result.content,
-        request: { toolIds },
-        response: {
-          providerCallIds,
-          finish: result.finish,
-          toolCalls: result.toolCalls,
-          attempts: result.attempts,
-          parseOk: result.parseOk,
-          schemaOk: result.schemaOk,
-          faultCode: result.faultCode,
-          missing: result.missing,
-          badName: result.badName,
-          detail: result.detail ?? "",
-        },
-      });
       appendEvent(deps.dataDir, ledger.conversationId, {
         kind: "provider-response",
         turnId,
