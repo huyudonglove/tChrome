@@ -111,7 +111,8 @@ const context = {
   // "how many rows / how many calls" threshold has one source, same as the char budgets above.
   repeatWindow: resolveGate("repeatWindow"),
   repeatCallLimit: resolveGate("repeatCallLimit"),
-  repeatToolLimit: resolveGate("repeatToolLimit"),
+  repeatDuplicateCalls: resolveGate("repeatDuplicateCalls"),
+  repeatDuplicateSignatures: resolveGate("repeatDuplicateSignatures"),
   repeatFaultLimit: resolveGate("repeatFaultLimit"),
   actionsNudgeEvery: resolveGate("actionsNudgeEvery"),
   observationNudgeFirstGate: resolveGate("observationNudgeFirstGate"),

@@ -10,8 +10,14 @@ const g = runtimeConfig.context;
 export const REPEAT_WINDOW = g.repeatWindow;
 /** Equivalent-argument repeats of one tool inside the window (hint only, never blocks). */
 export const REPEAT_CALL_LIMIT = g.repeatCallLimit;
-/** Same tool called this many times inside the window, whatever the arguments. */
-export const REPEAT_TOOL_LIMIT = g.repeatToolLimit;
+/**
+ * Same tool called this many times inside the window *while returning the same thing*.
+ * The bare count is not evidence: a run of file reads or greps is normal work, so the rule
+ * also requires the distinct return signatures in the window to collapse.
+ */
+export const REPEAT_DUPLICATE_CALLS = g.repeatDuplicateCalls;
+/** Distinct return signatures at or below this many means the retries learned nothing. */
+export const REPEAT_DUPLICATE_SIGNATURES = g.repeatDuplicateSignatures;
 /** Same faultCode this many times inside the window. The message is deliberately ignored. */
 export const REPEAT_FAULT_LIMIT = g.repeatFaultLimit;
 /** Framing arguments differ between two attempts at the same action, so they do not count. */
@@ -66,6 +72,23 @@ export function faultCodeOf(row: ToolIOItem): string | undefined {
   return failureSignature(row)?.split("::")[0];
 }
 
+/**
+ * Short stable signature of what a call returned, so "did this retry learn
+ * anything?" can be answered without holding whole returns around. Externalized
+ * returns collapse to their pointer and rows with no text yield no signature at
+ * all: neither is evidence of a replay, so neither counts toward the rule.
+ */
+function returnSignature(row: ToolIOItem): string | undefined {
+  const text = row.return?.text;
+  if (typeof text !== "string" || !text) return undefined;
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${text.length}:${(hash >>> 0).toString(36)}`;
+}
+
 /** Clip a restated failure string so the hint stays one readable line. */
 function clip(text: string, max = 200): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
@@ -104,9 +127,17 @@ export function failureDetail(row: ToolIOItem): string | undefined {
  * each firing at most once per turn (a fired marker is already in some row):
  * 1. call: the same tool appears REPEAT_CALL_LIMIT times with equivalent arguments
  *    (framing keys such as x/y/width/height are ignored, so re-cropping the same
- *    region counts as a replay rather than a new attempt);
- * 2. tool: the same tool appears REPEAT_TOOL_LIMIT times with any arguments;
- * 3. fault: the same faultCode shows up REPEAT_FAULT_LIMIT times in the window.
+ *    region counts as a replay rather than a new attempt). The wording branches on
+ *    whether the retry returned anything new: an identical return means the retry
+ *    learned nothing, a different one means the cause was environmental and an
+ *    equivalent retry was legitimate;
+ * 2. tool: the same tool appears REPEAT_DUPLICATE_CALLS times in the window *while*
+ *    the distinct return signatures collapse to REPEAT_DUPLICATE_SIGNATURES or fewer.
+ *    A bare call count is not evidence — a run of file reads or greps is normal work —
+ *    so the collapse, not the count, is what makes this a repeat;
+ * 3. fault: the same tool reports the same faultCode REPEAT_FAULT_LIMIT times in the
+ *    window. Requiring the same tool keeps "you already moved on to something else"
+ *    from being nagged about an error it no longer retries.
  */
 export function repeatHint(rows: ToolIOItem[], history: ToolIOItem[] = rows): string | undefined {
   const current = rows[rows.length - 1];
@@ -130,18 +161,34 @@ export function repeatHint(rows: ToolIOItem[], history: ToolIOItem[] = rows): st
 
   const byTool = window.filter((row) => row.name === current.name);
   if (!alreadyFired(RULE_MARKERS.call)) {
-    const equivalent = byTool.filter((row) => fingerprint(row.arguments, true) === fingerprint(current.arguments, true));
+    const currentPrint = fingerprint(current.arguments, true);
+    const equivalent = byTool.filter((row) => fingerprint(row.arguments, true) === currentPrint);
     if (equivalent.length >= REPEAT_CALL_LIMIT) {
-      return `${RULE_MARKERS.call} runtime: 最近 ${window.length} 次调用中已第 ${equivalent.length} 次以等价参数调用 ${current.name}。先确认上一次是否已生效；若要换路径就改参数或换方法，不要原样重放。`;
+      // Same parameters, but two different outcomes mean the parameters were never the
+      // problem — the environment was. Telling the model to stop replaying there would
+      // push it off a path that is about to work.
+      const previous = equivalent[equivalent.length - 1];
+      const learned = previous?.return?.text !== current.return?.text;
+      const advice = learned
+        ? "本次返回与上一次等价调用不同 → 上次失败的原因在环境或服务侧，等价重试是合理的：先读上一次返回里的 recovery，而不是换方法。"
+        : "本次返回与上一次等价调用完全相同 → 零信息增量：先确认上一次是否已生效，要换路径就改参数或换方法，不要原样重放。";
+      return `${RULE_MARKERS.call} runtime: 最近 ${window.length} 次调用中已第 ${equivalent.length} 次以等价参数调用 ${current.name}。${advice}`;
     }
   }
-  if (!alreadyFired(RULE_MARKERS.tool) && byTool.length >= REPEAT_TOOL_LIMIT) {
-    return `${RULE_MARKERS.tool} runtime: 最近 ${window.length} 次调用中 ${current.name} 已连续/累计出现 ${byTool.length} 次。若仍在原地重试同一路径，请先换方法或向用户说明卡点。`;
+  if (!alreadyFired(RULE_MARKERS.tool) && byTool.length >= REPEAT_DUPLICATE_CALLS) {
+    // A run of the same tool is normal work (file reads, greps); only a collapse of the
+    // distinct returns says the retries stopped producing anything new.
+    const signatures = new Set(byTool.map(returnSignature).filter((value) => value !== undefined));
+    if (signatures.size <= REPEAT_DUPLICATE_SIGNATURES) {
+      return `${RULE_MARKERS.tool} runtime: 最近 ${window.length} 次调用中 ${current.name} 已出现 ${byTool.length} 次，而返回只有 ${signatures.size} 种（重复尝试没有带来新信息）。若仍在原地重试同一路径，请先换方法或向用户说明卡点。`;
+    }
   }
   if (!alreadyFired(RULE_MARKERS.fault)) {
     const currentFault = faultCodeOf(current);
     if (currentFault) {
-      const faults = window.filter((row) => faultCodeOf(row) === currentFault);
+      // Same tool only: once the model switched tools, the old fault is background noise,
+    // and the environment-fault memory rule is what tracks a code across tools.
+    const faults = byTool.filter((row) => faultCodeOf(row) === currentFault);
       if (faults.length >= REPEAT_FAULT_LIMIT) {
         // Restate the previous failure instead of only naming the code: knowing it is
         // "the same error" is not actionable, knowing what it said last time is.

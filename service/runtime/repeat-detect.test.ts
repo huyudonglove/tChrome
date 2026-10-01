@@ -1,5 +1,12 @@
 import { expect, test } from "bun:test";
-import { failureSignature, repeatHint, REPEAT_CALL_LIMIT, REPEAT_TOOL_LIMIT, REPEAT_WINDOW } from "./repeat-detect.ts";
+import {
+  failureSignature,
+  repeatHint,
+  REPEAT_CALL_LIMIT,
+  REPEAT_DUPLICATE_CALLS,
+  REPEAT_DUPLICATE_SIGNATURES,
+  REPEAT_WINDOW,
+} from "./repeat-detect.ts";
 import type { ToolIOItem } from "../types.ts";
 import { runtimeConfig } from "../config/runtime.ts";
 
@@ -122,20 +129,39 @@ test("re-cropping the same region counts as a replay because framing keys are ig
   expect(hint).toContain("等价参数");
 });
 
-test("one tool called many times in the window is flagged even with different arguments", () => {
-  // Non-framing arguments differ (mode), so the call rule stays quiet and the tool rule fires.
-  // Built from the configured thresholds: the rule counts the tool inside the last
-  // REPEAT_WINDOW rows only, so the padding has to fit both numbers.
-  // The rule only looks at the last REPEAT_WINDOW rows, so the REPEAT_TOOL_LIMIT
+test("the same tool called many times with identical returns is flagged as zero information gain", () => {
+  // The tool rule no longer counts calls: a run of the same tool is normal work
+  // (file reads, greps). It fires only when the returns collapse, so every shot
+  // below carries a different mode (arguments) but the same return text.
+  // The rule looks at the last REPEAT_WINDOW rows only, so the REPEAT_DUPLICATE_CALLS
   // shots have to sit at the very end of the array to be counted at all.
-  const pads = Math.max(0, REPEAT_WINDOW - REPEAT_TOOL_LIMIT);
+  const pads = Math.max(0, REPEAT_WINDOW - REPEAT_DUPLICATE_CALLS);
   const filler = (i: number) => row(`tool.filler${i}`, { tabId: 7 });
-  const shots = Array.from({ length: REPEAT_TOOL_LIMIT }, (_, i) =>
-    row("capture_page", { tabId: 7, mode: `mode${i}` }),
+  const shots = Array.from({ length: REPEAT_DUPLICATE_CALLS }, (_, i) =>
+    row("capture_page", { tabId: 7, mode: `mode${i}` }, '{"ok":false}'),
   );
   const hint = repeatHint([...Array.from({ length: pads }, (_, i) => filler(100 + i)), ...shots]);
   expect(hint).toContain("capture_page");
   expect(hint).toContain("runtime[repeat:tool]");
+});
+
+test("many calls to one tool with distinct returns are not flagged", () => {
+  // Same tool, same count, but every call produced something new: that is normal
+  // exploration, not a mechanical replay.
+  const shots = Array.from({ length: REPEAT_DUPLICATE_CALLS }, (_, i) =>
+    row("local.fs_grep", { path: `/p${i}` }, `{"ok":true,"matches":${i}}`),
+  );
+  expect(repeatHint(shots)).toBeUndefined();
+});
+
+test("the tool rule stays quiet when the duplicate return count exceeds the threshold", () => {
+  const distinct = Array.from({ length: REPEAT_DUPLICATE_SIGNATURES + 1 }, (_, i) =>
+    row("local.fs_read", { path: `/p${i}` }, `{"ok":true,"chars":${i * 100}}`),
+  );
+  const shots = Array.from({ length: REPEAT_DUPLICATE_CALLS }, (_, i) =>
+    row("capture_page", { tabId: 7, mode: `mode${i}` }, `{"ok":true,"variant":${i}}`),
+  );
+  expect(repeatHint([...distinct, ...shots])).toBeUndefined();
 });
 
 test("a rule fires at most once per turn", () => {
@@ -183,5 +209,6 @@ test("the call rule fires before the error rule for the same pair", () => {
   expect(hint).not.toContain("faultCode=");
   expect(String(REPEAT_CALL_LIMIT)).toBe("2");
   expect(String(REPEAT_WINDOW)).toBe("8");
-  expect(String(REPEAT_TOOL_LIMIT)).toBe(String(runtimeConfig.context.repeatToolLimit));
+  expect(String(REPEAT_DUPLICATE_CALLS)).toBe(String(runtimeConfig.context.repeatDuplicateCalls));
+  expect(String(REPEAT_DUPLICATE_SIGNATURES)).toBe(String(runtimeConfig.context.repeatDuplicateSignatures));
 });
