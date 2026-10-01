@@ -59,8 +59,8 @@ session.json
 conversations/<cvId>/ledger.json
 conversations/<cvId>/events.jsonl
 conversations/<cvId>/events.NN.jsonl
-conversations/<cvId>/toolio.jsonl
-conversations/<cvId>/toolio.NN.jsonl
+conversations/<cvId>/toolio/toolio.jsonl
+conversations/<cvId>/toolio/toolio.NN.jsonl
 conversations/<cvId>/turns/<turnId>.json
 conversations/<cvId>/memory/<memoryId>.json
 conversations/<cvId>/context-records/<kind>/<id>.json
@@ -82,7 +82,7 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。`returns/<ca
 | 字段 | 类型 | 怎么填 |
 |---|---|---|
 | `at` | string | ISO-8601 |
-| `kind` | string | `session` 建会话 / `normalize` 用户输入开 Turn / `assemble` 装配 / `provider-request` 出网前 / `provider-response` 模型交口 / `tool` 工具跑完 / `memory` 落下一条记忆 / `compress` 压缩 / `turn-stop-reason` 本 Turn 收口 |
+| `kind` | string | `session` 建会话 / `normalize` 用户输入开 Turn / `assemble` 装配 / `provider-request` 出网前 / `provider-response` 模型交口 / `memory` 落下一条记忆 / `compress` 压缩 / `turn-stop-reason` 本 Turn 收口 |
 | `turnId` | string | 有回合就写 `tn_`；建会话没有 |
 | `data` | object | 这一次产出的正文 |
 
@@ -90,15 +90,14 @@ JSON 快照覆盖写。流水只追加，不改已经写下的行。`returns/<ca
 `kind=assemble` 的 `data`：`assembled`。
 `kind=provider-request` 的 `data`：`windowChars` `toolIds`。
 `kind=provider-response` 的 `data`：`finish` `content` `toolCalls` `attempts` `parseOk` `schemaOk` `faultCode` `missing`。
-`kind=tool` 的 `data`：`callId` `name` `arguments` `return`。
 `kind=memory` 的 `data`：`memoryId` `layer` `sourceCallId`。
 `kind=compress` 的 data 为 beforeChars、afterChars；compress-start 记录压缩前 windowChars，compress-error 记录失败 detail。每次发送主模型前，Runtime 检测 System + User 文本长度；达到 200,000 字符才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 tag、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 2 个完整工具批次。已有摘要的轮次仅当 conversationHistorySummary 的 active 条数超过 30 时才再进入合并/升档压缩；≤30 跳过重压（独立的 query 原文仍可首次归档）。当前输入、目标、当前页面、notes、长期记忆和 currentQuery 以正文或文件引用保持可见；currentQuery 计入总窗口但不参与压缩，queryHistory 作为取证参考，结论合入 result。摘要保持每轮独立。
 `kind=turn-stop-reason` 的 `data`：`stopReason`。
 `kind=session` 的 `data`：`conversationId`，可选 `action`=`new`/`open`。
 
-## toolio.jsonl
+## toolio/toolio.jsonl
 
-`ledger.json` 的 `toolIO` 独立成文件，与 `events.jsonl` 同为只追加、超 3MB 轮转为 `toolio.NN.jsonl`（NN 自增），读时按 `toolio.01.jsonl`…再到 `toolio.jsonl` 合并。一行一个 JSON 对象，两种形态：
+`ledger.json` 的 `toolIO` 独立成文件，放在会话目录的 `toolio/` 子目录下（`toolio/toolio.jsonl` 为活动文件），与 `events.jsonl` 同为只追加、超 3MB 轮转为 `toolio/toolio.NN.jsonl`（NN 自增），读时按 `toolio.01.jsonl`…再到 `toolio.jsonl` 合并。子目录建立之前写入的平铺归档文件仍会被读到，同序号以子目录内为准。工具调用只在这里落一份，`events.jsonl` 不再写 `kind=tool`。一行一个 JSON 对象，两种形态：
 
 | `k` | 其余字段 | 什么时候写 |
 |---|---|---|

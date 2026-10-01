@@ -38,7 +38,10 @@ export const paths = (dataDir: string, cvId?: string) => {
     conv,
     ledger: join(conv, "ledger.json"),
     events: join(conv, "events.jsonl"),
-    toolio: join(conv, "toolio.jsonl"),
+    // toolio logs live in their own subdirectory so the conversation root stays flat-free:
+    // toolio/toolio.jsonl (active) + toolio/toolio.NN.jsonl (rotation archives).
+    toolioDir: join(conv, "toolio"),
+    toolio: join(conv, "toolio", "toolio.jsonl"),
     turns: join(conv, "turns"),
     returns: join(conv, "returns"),
   };
@@ -310,14 +313,21 @@ function toolRowCache(dataDir: string, cvId: string): ToolRowCache {
   const key = `${dataDir}::${cvId}`;
   const hit = toolRowCaches.get(key);
   if (hit) return hit;
-  const conv = paths(dataDir, cvId).conv;
-  const active = paths(dataDir, cvId).toolio;
-  const archives = existsSync(conv)
-    ? readdirSync(conv)
-        .filter((name) => /^toolio\.\d+\.jsonl$/.test(name))
-        .sort()
-        .map((name) => join(conv, name))
-    : [];
+  const { conv, toolioDir, toolio: active } = paths(dataDir, cvId);
+  // Rotation archives may sit in the toolio/ subdirectory or, for conversations written
+  // before that existed, flat in the conversation root. Merge both by NN index: the
+  // subdirectory copy wins when the same index shows up twice.
+  const byIndex = new Map<string, { index: number; path: string }>();
+  for (const dir of [conv, toolioDir]) {
+    if (!existsSync(dir)) continue;
+    for (const name of readdirSync(dir)) {
+      const matched = /^toolio\.(\d+)\.jsonl$/.exec(name);
+      const rotation = matched?.[1];
+      if (!rotation) continue;
+      byIndex.set(rotation, { index: Number(rotation), path: join(dir, name) });
+    }
+  }
+  const archives = [...byIndex.values()].sort((a, b) => a.index - b.index).map((entry) => entry.path);
   const cache: ToolRowCache = { rows: [], byCallId: new Map(), persistedCount: 0, persistedReturn: new Map() };
   for (const path of [...archives, active]) {
     if (!existsSync(path)) continue;

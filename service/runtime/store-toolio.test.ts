@@ -18,10 +18,16 @@ const newCv = (dataDir: string): string => newConversation(dataDir).conversation
 
 /** Copy a conversation's toolio files into a fresh dataDir so the read path starts from disk. */
 const cloneForRead = (source: string, dataDir: string, cvId: string): void => {
+  const src = paths(source, cvId);
   const dir = join(dataDir, "conversations", cvId);
   mkdirSync(dir, { recursive: true });
-  for (const name of readdirSync(paths(source, cvId).conv)) {
-    if (name.startsWith("toolio") && name.endsWith(".jsonl")) copyFileSync(join(paths(source, cvId).conv, name), join(dir, name));
+  // Archives written before the toolio/ subdirectory existed still sit flat in the root.
+  for (const name of readdirSync(src.conv)) {
+    if (name.startsWith("toolio") && name.endsWith(".jsonl")) copyFileSync(join(src.conv, name), join(dir, name));
+  }
+  if (existsSync(src.toolioDir)) {
+    mkdirSync(join(dir, "toolio"), { recursive: true });
+    for (const name of readdirSync(src.toolioDir)) copyFileSync(join(src.toolioDir, name), join(dir, "toolio", name));
   }
 };
 
@@ -90,7 +96,7 @@ test("rotation moves the active file aside and the read path merges archive + ac
     if (!row) throw new Error("row missing");
     row.return = { stage: "complete", totalChars: 9, text: "B".repeat(9) };
     saveLedger(source, again);
-    expect(existsSync(join(paths(source, cvId).conv, "toolio.01.jsonl"))).toBe(true);
+    expect(existsSync(join(paths(source, cvId).toolioDir, "toolio.01.jsonl"))).toBe(true);
 
     cloneForRead(source, fresh, cvId);
     const rows = loadToolRows(fresh, cvId);
@@ -107,8 +113,7 @@ test("a torn trailing line is skipped instead of failing the whole read", () => 
   const fresh = mkdtempSync(join(tmpdir(), "tchrome-toolio-torn-read-"));
   try {
     const cvId = newCv(source);
-    const conv = paths(source, cvId).conv;
-    mkdirSync(conv, { recursive: true });
+    mkdirSync(paths(source, cvId).toolioDir, { recursive: true });
     writeFileSync(
       paths(source, cvId).toolio,
       `${JSON.stringify({ k: "row", row: makeRow("call_01", "ok") })}\n{"k":"row","row":{"callId":"call_02"`,
