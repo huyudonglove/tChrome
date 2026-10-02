@@ -161,7 +161,7 @@ test("individually small notes are externalized when their combined context exce
   const conversationId = newConversation(dataDir).conversationId!;
     primeActiveTask(dataDir);
   const ledger = loadLedger(dataDir, conversationId);
-  ledger.notes = Object.fromEntries(Array.from({ length: 4 }, (_, index) => [`note${index}`, String(index).repeat(70_000)]));
+  ledger.notes = Object.fromEntries(Array.from({ length: 4 }, (_, index) => [`note${index}`, String(index).repeat(85_000)]));
   saveLedger(dataDir, ledger);
   let calls = 0;
   const reply = await handleTurn({ dataDir, repoRoot, host, provider: provider(user => {
@@ -179,7 +179,7 @@ test("context storage failure stops before sending a broken reference to the mod
   const conversationId = newConversation(dataDir).conversationId!;
     primeActiveTask(dataDir);
   const ledger = loadLedger(dataDir, conversationId);
-  ledger.notes.large = "X".repeat(260_000);
+  ledger.notes.large = "X".repeat(320_000);
   saveLedger(dataDir, ledger);
   writeFileSync(join(dataDir, "context-files"), "blocked directory");
   let calls = 0;
@@ -191,11 +191,11 @@ test("context storage failure stops before sending a broken reference to the mod
 }));
 
 
-test("uncompressible notes between 200K and 250K remain inline and allow the main model to run", () => withDir(async dataDir => {
+test("uncompressible notes between 250K and 312.5K remain inline and allow the main model to run", () => withDir(async dataDir => {
   const conversationId = newConversation(dataDir).conversationId!;
     primeActiveTask(dataDir);
   const ledger = loadLedger(dataDir, conversationId);
-  ledger.notes.draft = "N".repeat(210_000);
+  ledger.notes.draft = "N".repeat(260_000);
   saveLedger(dataDir, ledger);
   let calls = 0;
   const base = provider(user => {

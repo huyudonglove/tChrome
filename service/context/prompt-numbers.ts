@@ -31,7 +31,9 @@ export function promptNumberSlots(): Record<string, string> {
 /** Runtime system text must contain every configured prompt number. */
 export function assertPromptNumbersMatchRuntime(systemText: string): void {
   const slots = promptNumberSlots();
-  for (const [key, value] of Object.entries(slots)) {
+  // intentMaxChars is injected into tool schemas (query tools), not systemText modules
+  const { intentMaxChars: _, ...systemSlots } = slots;
+  for (const [key, value] of Object.entries(systemSlots)) {
     if (!systemText.includes(value)) {
       throw new Error(`system prompt missing runtime number ${key}=${value}`);
     }

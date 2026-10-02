@@ -11,12 +11,12 @@
     "timeoutMs": 8000
   },
   "scale": {
-    "contextWindowChars": 200000
+    "contextWindowChars": 250000
   },
   "gates": {
     "compressAtChars": { "follow": "contextWindowChars", "ratio": 1.0 },
     "externalizeAtChars": { "follow": "contextWindowChars", "ratio": 1.25 },
-    "inlineChars": { "follow": "contextWindowChars", "ratio": 0.02, "cap": 4000 },
+    "inlineChars": { "follow": "contextWindowChars", "ratio": 0.024, "cap": 6000 },
     "searchContextChars": { "follow": "contextWindowChars", "ratio": 0.01, "cap": 2000 },
     "intentMaxChars": { "follow": "contextWindowChars", "ratio": 0.02, "cap": 4000 },
     "previewChars": { "follow": "inlineChars", "ratio": 0.1, "floor": 200 },

@@ -25,7 +25,8 @@ test("registry loads XML modules and system text uses angle-bracket tags", () =>
   expect(system).toContain("操作系统：macOS (darwin/arm64)");
   expect(SUMMARY_RECOMPRESS_MIN_ACTIVE).toBe(runtimeConfig.context.summaryRecompressMinActive);
   const slots = promptNumberSlots();
-  for (const value of Object.values(slots)) expect(system).toContain(value);
+  const { intentMaxChars: _, ...systemSlots } = slots;
+  for (const value of Object.values(systemSlots)) expect(system).toContain(value);
   expect(() => assertPromptNumbersMatchRuntime(system)).not.toThrow();
   expect(system).toContain("<systemSkill>");
   expect(system).toContain("skill.load");

@@ -113,8 +113,10 @@ test("task persists, single doing, history append-only", async () => {
 
     const step = await fx.execute("task.update", {
       reason: "推进",
-      items: [{ id: "item_02", status: "done" }, { id: "item_03", status: "doing" }],
+      items: [{ id: "item_02", status: "done" }, { id: "item_03", status: "doing", blockedReason: "网络超时" }],
     });
+    const parsedStep = JSON.parse(step.text);
+    expect(parsedStep.hint).toContain("reflect.write");
     fx.apply(step, "c3", "task.update");
     const active = fx.ledger.tasks[1]!;
     expect(active.items[0]).toMatchObject({ status: "done" });

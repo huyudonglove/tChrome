@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "task.set",
-    "description": "创建或替换持久化执行任务（Task）。Goal 与 Task 弱关联：有 currentGoal 时自动挂接，无 Goal 也可独立创建 Task。\n参数：必填 items（非空）；可选 title。每项 text 必填，status 可选 todo|doing|done（默认 todo），可带 expectedEffect、verification。\n同一 Task 至多一个 doing。替换当前活动 Task 时旧 Task 记为 cancelled(reason=replaced)。Task 跨 turn 持久。工具按风险分级调度：仅 high 风险操作须先有活动 Task（task.set），low 与 medium 可直接调。\n是否建 Task 按难度分级（锚点全为可数事实，任一命中即属该级）：0 解释/查询（只读代码、答架构问题、给方案建议，不写任何文件）→ 不建；1 单闭环短操作（1 轮内改完 1 个文件、读一次即收工）→ 不建，由 reason 承担；2 多步有验收（改 ≥2 个文件、需跑测试才算完成、步骤间有前后依赖）→ 建；3 跨轮或高危（需下一轮接着做、用户会中途回来、high 风险不可逆动作）→ 必须建。\n返回：ok、count、taskId。",
+    "description": "创建或替换持久化执行任务（Task）。Goal 与 Task 弱关联：有 currentGoal 时自动挂接，无 Goal 也可独立创建 Task。\n参数：必填 items（非空）；可选 title。每项 text 必填，status 可选 todo|doing|done（默认 todo），可带 expectedEffect、verification。\n同一 Task 至多一个 doing。替换当前活动 Task 时旧 Task 记为 cancelled(reason=replaced)。Task 跨 turn 持久。工具按风险分级调度：仅 high 风险操作须先有活动 Task（task.set），low 与 medium 可直接调。\n是否建 Task 按难度分级（锚点全为可数事实，任一命中即属该级）：0 解释/查询（只读代码、答架构问题、给方案建议，不写任何文件）→ 不建；1 单闭环短操作（1 轮内收工，即便涉及 2~3 个文件但改动直接明确、无强序时依赖）→ 不建，由 reason 承担；2 多步有验收（探索性强、跨模块重构、步骤间有前后依赖）→ 建；3 跨轮或高危（需下一轮接着做、用户会中途回来、high 风险不可逆动作）→ 必须建。\n返回：ok、count、taskId。",
     "parameters": {
       "type": "object",
       "properties": {

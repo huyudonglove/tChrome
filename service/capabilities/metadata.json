@@ -1198,6 +1198,33 @@
         "capture_viewport"
       ]
     },
+    "solve_slider": {
+      "purpose": "求解并拖动滑块拼图验证码",
+      "triggers": [
+        "solve_slider",
+        "页面遇到滑块人机验证"
+      ],
+      "outputs": [
+        "验证码求解状态与拖动结果"
+      ],
+      "preconditions": [
+        "目标 tabId 有效",
+        "滑块元素可见"
+      ],
+      "risk": "high",
+      "verification": [
+        "使用页面断言或重新观察确认验证码弹窗消失"
+      ],
+      "alternatives": [
+        "drag",
+        "用户手动拖动"
+      ],
+      "composesWith": [
+        "wait",
+        "page.assert",
+        "capture_page"
+      ]
+    },
     "duplicate_tab": {
       "purpose": "使用 Chrome 原生复制创建指定标签的副本，保留原生复制语义；浏览器会激活副本",
       "triggers": [

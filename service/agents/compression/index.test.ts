@@ -130,7 +130,7 @@ test("cancellation before any success commits nothing", async () => {
 test("oversized string is sent whole in one request and archived unchanged", async () => {
   const calls: CompressionTurn[][] = [];
   const args = setup(model(turns => calls.push(turns)));
-  const original = source("tn_01", "large", "起" + "\"\\\n文".repeat(60000) + "结束");
+  const original = source("tn_01", "large", "起" + "\"\\\n文".repeat(70000) + "结束");
   expect(original.content.userInput.userInput.length).toBeGreaterThan(runtimeConfig.context.compressAtChars);
   await compressRecords({ ...args, records: [original] });
   expect(calls).toEqual([[original.content]]);

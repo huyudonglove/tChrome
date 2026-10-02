@@ -270,8 +270,13 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     }).filter((row) => row.id && (row.status !== undefined || row.text !== undefined || row.expectedEffect !== undefined || row.verification !== undefined || row.blockedReason !== undefined));
     if (!updates.length) return failedTool(errorDetail("task_update_patch"), "invalid_arguments");
     const taskId = typeof args.taskId === "string" && args.taskId.trim() ? args.taskId.trim() : undefined;
-    return result(JSON.stringify({ ok: true, updated: updates.length, ...(taskId ? { taskId } : {}) }),
-      [{ type: "task.update", ...(taskId ? { taskId } : {}), items: updates }]);
+    const hasBlocked = updates.some((row) => Boolean(row.blockedReason));
+    return result(JSON.stringify({
+      ok: true,
+      updated: updates.length,
+      ...(taskId ? { taskId } : {}),
+      ...(hasBlocked ? { hint: "runtime: 任务步骤已记录 blockedReason。若确认原方案不可行或认知发生转折，建议调用 reflect.write 沉淀判断变化或放弃理由。" } : {}),
+    }), [{ type: "task.update", ...(taskId ? { taskId } : {}), items: updates }]);
   }
   if (name === "task.complete") {
     const taskId = typeof args.taskId === "string" && args.taskId.trim() ? args.taskId.trim() : undefined;

@@ -5,7 +5,7 @@ import { runtimeConfig } from "./config/runtime.ts";
 test("admitText inlines small text and degrades large text with a precise-fetch hint", () => {
   const small = admitText("hello", { callId: "call_01", path: "/tmp/a.txt" });
   expect(small).toEqual({ mode: "inline", text: "hello" });
-  const large = admitText("x".repeat(5000), { callId: "call_01", path: "/tmp/a.txt", name: "demo" });
+  const large = admitText("x".repeat(8000), { callId: "call_01", path: "/tmp/a.txt", name: "demo" });
   expect(large.mode).toBe("preview");
   if (large.mode !== "preview") throw new Error("mode");
   expect(large.payload.externalized).toBe(true);
@@ -20,8 +20,8 @@ test("admitText turns an oversized JSON payload into a structured summary instea
   const payload = {
     ok: true,
     results: [
-      { ok: true, path: "/tmp/a.ts", content: "y".repeat(5000), startLine: 1, endLine: 40, totalLines: 400 },
-      { ok: true, path: "/tmp/b.ts", content: "z".repeat(5000), startLine: 10, endLine: 20, totalLines: 90 },
+      { ok: true, path: "/tmp/a.ts", content: "y".repeat(8000), startLine: 1, endLine: 40, totalLines: 400 },
+      { ok: true, path: "/tmp/b.ts", content: "z".repeat(8000), startLine: 10, endLine: 20, totalLines: 90 },
     ],
   };
   const admitted = admitText(JSON.stringify(payload), { callId: "call_02", path: "/tmp/returns/call_02.txt", name: "local.fs_read" });
@@ -46,7 +46,7 @@ test("summarizePayload reports failures and keeps non-JSON payloads on the raw h
   expect(summarizePayload(failed)).toContain("faultCode=tool_execution_failed");
   expect(summarizePayload(failed)).toContain("path must be a directory");
   expect(summarizePayload("not json at all")).toBe("");
-  const plain = admitText("q".repeat(5000), { callId: "call_03", path: "/tmp/a.txt" });
+  const plain = admitText("q".repeat(8000), { callId: "call_03", path: "/tmp/a.txt" });
   if (plain.mode !== "preview") throw new Error("mode");
   expect(plain.payload.summary).toBeUndefined();
   expect(plain.payload.head).toBe("q".repeat(runtimeConfig.results.previewChars));
@@ -285,11 +285,11 @@ test("indexTree builds a tree for oversized payloads and returns null when no fa
     ok: true,
     toolName: "local.fs_grep",
     filler: "x".repeat(50_000),
-    matches: Array.from({ length: 200 }, (_, i) => ({ path: "/repo/src/mod.ts", line: i + 1, column: 1, before: "", hit: "kw", after: "y".repeat(30) })),
+    matches: Array.from({ length: 300 }, (_, i) => ({ path: "/repo/src/mod.ts", line: i + 1, column: 1, before: "", hit: "kw", after: "y".repeat(60) })),
   });
   const tree = indexTree(payload);
   expect(tree).not.toBeNull();
-  expect(tree!.head).toContain("matches×200");
+  expect(tree!.head).toContain("matches×300");
   expect(tree!.levels[0]!.chunks.length).toBeGreaterThan(1);
   // 纯文本没有可抽事实 → null，调用方回退原文切片
   expect(indexTree("just a plain sentence without any structured facts")).toBeNull();
@@ -300,7 +300,7 @@ test("admitText puts per-layer addressable chunk ids into the pointer payload", 
     ok: true,
     toolName: "local.fs_grep",
     filler: "x".repeat(50_000),
-    matches: Array.from({ length: 200 }, (_, i) => ({ path: "/repo/src/mod.ts", line: i + 1, column: 1, before: "", hit: "kw", after: "y".repeat(30) })),
+    matches: Array.from({ length: 300 }, (_, i) => ({ path: "/repo/src/mod.ts", line: i + 1, column: 1, before: "", hit: "kw", after: "y".repeat(60) })),
   });
   const admitted = admitText(payload, { callId: "call_01", path: "/tmp/a.txt", name: "local.fs_grep", indexPath: "/tmp/a.index.json" });
   expect(admitted.mode).toBe("preview");
@@ -310,7 +310,7 @@ test("admitText puts per-layer addressable chunk ids into the pointer payload", 
   const l1 = layers.find((level) => level.id === "L1")!;
   expect(l1).toBeDefined();
   expect(l1.name).toBe("L1明细");
-  expect(l1.total).toBe(200);
+  expect(l1.total).toBe(300);
   expect(l1.chunks.length).toBeGreaterThan(1);
   // 块 id 可直接喂给 evidence.search 的 levelId，且每块在门禁内
   for (const chunk of l1.chunks) {
@@ -325,7 +325,7 @@ test("admitText puts per-layer addressable chunk ids into the pointer payload", 
   expect(hint).toContain(`startLine=${l1.chunks[0]?.from}`);
   expect(hint).toContain(`共 ${l1.total} 块`);
   // 纯文本载荷抽不出层级 → 不带 layers
-  const plain = admitText("z".repeat(5000), { callId: "call_02", path: "/tmp/b.txt" });
+  const plain = admitText("z".repeat(8000), { callId: "call_02", path: "/tmp/b.txt" });
   if (plain.mode !== "preview") throw new Error("mode");
   expect(plain.payload.layers).toBeUndefined();
 });
@@ -352,7 +352,7 @@ test("summarizePayload keeps a stub for every chunk and never drops a whole leve
 });
 
 test("buildLevels halves the chunk count per level and keeps both halves in the parent block", () => {
-  const labels = Array.from({ length: 200 }, (_, i) => `mod${i}.ts:${i + 1} "${"x".repeat(60)}kw${i}"`);
+  const labels = Array.from({ length: 320 }, (_, i) => `mod${i}.ts:${i + 1} "${"x".repeat(60)}kw${i}"`);
   const tree = buildLevels("counts: x", labels);
   const l1 = tree.levels[0]!;
   // 标签够长才会切出 8 块，才能看出 8 → 4 → 2 的金字塔

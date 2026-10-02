@@ -29,7 +29,7 @@ test(`${INLINE} characters remain inline, larger content is stored whole with ab
   expect(measure(result)).toBeLessThanOrEqual(CONTEXT_INLINE_CHARS);
 }));
 test('cumulative small slots respect the budget, retain tools and prefer retaining user input', () => temporary(dataDir => {
-  const slots = {'#tools': 't'.repeat(10000), '#notes': 'n'.repeat(70000), '#memory': 'm'.repeat(170000), '#userInput': 'u'.repeat(100000)};
+  const slots = {'#tools': 't'.repeat(10000), '#notes': 'n'.repeat(90000), '#memory': 'm'.repeat(220000), '#userInput': 'u'.repeat(100000)};
   const result = externalizeContext({dataDir, slots, measure});
   expect(result['#tools']).toBe(slots['#tools']);
   expect(result['#userInput']).toBe(slots['#userInput']);
@@ -38,7 +38,7 @@ test('cumulative small slots respect the budget, retain tools and prefer retaini
   expect(measure(result)).toBeLessThanOrEqual(CONTEXT_INLINE_CHARS);
 }));
 test('skill stays verbatim while repeated projections reuse externalized data', () => temporary(dataDir => {
-  const slots = {'#skill': 'instructions '.repeat(15000), '#notes': JSON.stringify({draft: 'n'.repeat(90000)})};
+  const slots = {'#skill': 'instructions '.repeat(18000), '#notes': JSON.stringify({draft: 'n'.repeat(90000)})};
   const first = externalizeContext({dataDir, slots, measure});
   expect(first['#skill']).toBe(slots['#skill']);
   expect(externalizeContext({dataDir, slots, measure})).toEqual(first);
@@ -48,7 +48,7 @@ test('skill stays verbatim while repeated projections reuse externalized data', 
   expect(readFileSync(ref.path, 'utf8')).toBe(slots['#notes']);
 }));
 test('large array records are externalized while small pagination results remain visible', () => temporary(dataDir => {
-  const huge = {result: 'x'.repeat(300000)};
+  const huge = {result: 'x'.repeat(350000)};
   const page = {result: 'small page', offset: 100};
   const result = externalizeContext({dataDir, slots: {'#toolIO': JSON.stringify([huge, page])}, measure});
   const items = JSON.parse(result['#toolIO']!);
@@ -62,7 +62,7 @@ test('unmovable skill, tools or fixed rendering overhead produce an explicit bud
   expect(() => externalizeContext({dataDir, slots: {'#notes': 'small'}, measure: () => INLINE + 1})).toThrow(String(INLINE));
 }));
 test('stored conflicts and symlinks are refused without replacing existing contents', () => temporary(dataDir => {
-  const content = 'x'.repeat(250001);
+  const content = 'x'.repeat(INLINE + 1);
   const root = join(dataDir, 'context-files');
   const outside = join(dataDir, 'outside');
   mkdirSync(outside);
@@ -83,7 +83,7 @@ test('stored conflicts and symlinks are refused without replacing existing conte
 }));
 
 test('notes are externalized before a larger tool result when that alone meets the budget', () => temporary(dataDir => {
-  const slots = {'#notes': JSON.stringify({draft: 'n'.repeat(80000)}), '#toolIO': JSON.stringify([{result: 't'.repeat(190000)}])};
+  const slots = {'#notes': JSON.stringify({draft: 'n'.repeat(100000)}), '#toolIO': JSON.stringify([{result: 't'.repeat(230000)}])};
   const result = externalizeContext({dataDir, slots, measure});
   const ref = JSON.parse(result['#notes']!).contextFile;
   expect(readFileSync(ref.path, 'utf8')).toBe(slots['#notes']);
