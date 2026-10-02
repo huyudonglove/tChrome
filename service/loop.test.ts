@@ -422,7 +422,7 @@ test("GET /session 还原消息，切会话改 session.json", async () => {
   expect(session.conversationId).toBe("cv_01");
   expect(session.messages).toEqual([
     { turnId: "tn_01", role: "user", text: "你好" },
-    { turnId: "tn_01", role: "assistant", text: "你好" },
+    { turnId: "tn_01", role: "assistant", text: "你好", durationMs: expect.any(Number) },
   ]);
   const created = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations/new", { method: "POST" }))).json();
   expect(created.conversationId).toBe("cv_02");

@@ -21,6 +21,7 @@ export type SessionMessage = {
   text: string;
   name?: string;
   live?: boolean;
+  durationMs?: number;
 };
 
 export type SessionView = {
@@ -139,8 +140,11 @@ export function projectSessionView({ ledger, events, turns }: {
       }
     }
     pushLiveTools({ messages, ledger, turnId });
+    const durationMs = turn.completedAt
+      ? Math.max(0, new Date(turn.completedAt).getTime() - new Date(turn.createdAt).getTime())
+      : undefined;
     if (turn.stopReason && turn.stopReason.kind !== "tool") {
-      messages.push({ turnId, role: "assistant", text: stopReasonText(turn.stopReason) });
+      messages.push({ turnId, role: "assistant", text: stopReasonText(turn.stopReason), durationMs });
     }
   }
   let pendingAsk: SessionView["pendingAsk"] = null;

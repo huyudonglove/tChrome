@@ -10,7 +10,24 @@ type Output =
   | { kind: "error"; faultCode: string }
   | { kind: "tool"; name: string; callId: string };
 
-type Message = { turnId?: string; role: "user" | "assistant" | "tool"; text: string; name?: string; live?: boolean };
+type Message = {
+  turnId?: string;
+  role: "user" | "assistant" | "tool";
+  text: string;
+  name?: string;
+  live?: boolean;
+  durationMs?: number;
+};
+
+function formatDuration(ms?: number): string {
+  if (ms == null || ms <= 0) return "";
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  const sec = ms / 1000;
+  if (sec < 60) return `${sec.toFixed(1)}s`;
+  const min = Math.floor(sec / 60);
+  const remSec = Math.round(sec % 60);
+  return `${min}m ${remSec}s`;
+}
 
 type SessionView = {
   conversationId: string | null;
@@ -792,7 +809,22 @@ export function App() {
                             {message.live ? " …" : ""}
                           </p>
                         ) : message.role === "assistant" && message.text
-                          ? <MdContent text={message.text} />
+                          ? (
+                            <>
+                              <MdContent text={message.text} />
+                              {message.durationMs ? (
+                                <div className="message-meta-footer">
+                                  <span className="duration-badge" title={`该轮次执行耗时: ${formatDuration(message.durationMs)}`}>
+                                    <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                      <circle cx="12" cy="12" r="10" />
+                                      <polyline points="12 6 12 12 16 14" />
+                                    </svg>
+                                    <span>{formatDuration(message.durationMs)}</span>
+                                  </span>
+                                </div>
+                              ) : null}
+                            </>
+                          )
                           : message.text ? <p>{message.text}</p> : null}
                       </div>
                     </article>
