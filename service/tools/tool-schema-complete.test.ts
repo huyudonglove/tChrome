@@ -40,3 +40,33 @@ test("download still requires url", () => {
   }], tools, [], ["download"]);
   expect(result.schemaOk).toBe(false);
 });
+
+test("all tool definition properties must declare explicit valid type", () => {
+  const definitions = registry.definitions;
+  const issues: string[] = [];
+
+  function validateProperties(props: Record<string, any> | undefined, toolName: string, prefix = "") {
+    if (!props || typeof props !== "object") return;
+    for (const [key, prop] of Object.entries(props)) {
+      const fullPath = prefix ? `${prefix}.${key}` : key;
+      if (!prop || typeof prop !== "object") continue;
+      if (!prop.type && !prop.$ref && !prop.anyOf && !prop.oneOf) {
+        issues.push(`Tool '${toolName}' property '${fullPath}' is missing 'type' declaration`);
+      }
+      if (prop.properties) {
+        validateProperties(prop.properties, toolName, fullPath);
+      }
+      if (prop.items && prop.items.properties) {
+        validateProperties(prop.items.properties, toolName, `${fullPath}[]`);
+      }
+    }
+  }
+
+  for (const [name, tool] of Object.entries(registry.tools)) {
+    const fn = (tool as any).function || tool;
+    validateProperties(fn.parameters?.properties, name);
+  }
+
+  expect(issues).toEqual([]);
+});
+

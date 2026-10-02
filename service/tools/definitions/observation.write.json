@@ -14,6 +14,14 @@
           "description": "观察来源类型，如 page.get_summary、execute_javascript、screenshot、code、network"
         },
         "result": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object"
+            }
+          ],
           "description": "观察正文：对象或字符串"
         },
         "tabId": {
