@@ -21,7 +21,6 @@
   <tn_01>
     <userInput>…</userInput>
     <callRange>call_01–call_12</callRange>
-    <actions>…</actions>
     <observations>…</observations>
     <notes>…</notes>
     <reflection>…</reflection>
@@ -40,14 +39,13 @@
 | `userInput` | `{id, turnId, userInput}` | `id` |
 | `callRange` | string \| null | 本段工具调用 ID 首尾（如 `call_01–call_12`；单次调用只一个 id） |
 | `toolIO` | 数组 | conversation 底部全会话公用池：仅最近 10 次调用保留详情，更早按各轮 callRange 用 evidence.search(callId) 取回 |
-| `actions` | `[{id, text, at}]` 或 null；actions.write 追加的本轮流水 | `id` |
 | `observations` | `[{id, turnId, callId, batchId?, tabId, type, result}]` | `id` |
 | `notes` | `{key:text}` 本轮草稿 | turnId + key |
 | `reflection` | `{turnId, items:[{id,text,focus?}]}` 或 null | rf_ |
 | `query` | 查询记录数组；`currentQuery:true` 标记当前查询 | `queryId` |
 | `stopReason` | 轮次收口对象或 null | — |
 
-被压缩覆盖的 `<tn_xx>` 整块删除，只在 `conversationHistorySummary` 留摘要。任务记录 `Task` 可独立存在，items 用 `item_` 编号；events 只追加。查询记录为 `{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}`。
+被压缩覆盖的 `<tn_xx>` 整块删除，只在 `conversationHistorySummary` 留摘要。任务记录 `Task` 为会话级唯一实体，items 用 `item_` 编号。查询记录为 `{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}`。
 
 工具投影的 `return` 为 `{stage, result}`；result 与 observations 中同一 callId 的观察对应时，只保留 `{ok, observationId}`。context.query 的 result 为 `{ok, status, sumId, module, intent, currentQuery:true, recordCount}`。归档原文使用 `{stage, totalChars, text}`，只出现在压缩/查询候选里，不进主模型窗口。finishTurn / askUser 在 toolIO 只存指针 `{output:"reply"|"ask"}`，正文在本轮 stopReason。
 
