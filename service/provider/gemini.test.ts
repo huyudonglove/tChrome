@@ -15,7 +15,7 @@ const messages = [
 const tools = [{
   type: "function" as const,
   function: {
-    name: "notes.write",
+    name: "notes_write",
     description: "保存工作笔记。",
     parameters: {
       type: "object",
@@ -47,7 +47,7 @@ test("请求体包含 systemInstruction、google_search 与 functionDeclarations
     expect(captured.body.systemInstruction.parts[0].text).toBe("SYSTEM_RULES");
     expect(captured.body.contents).toEqual([{ role: "user", parts: [{ text: "帮我查一下" }] }]);
     expect(captured.body.tools[0]).toEqual({ google_search: {} });
-    expect(captured.body.tools[1].functionDeclarations[0].name).toBe("notes.write");
+    expect(captured.body.tools[1].functionDeclarations[0].name).toBe("notes_write");
     expect(captured.body.toolConfig).toEqual({ functionCallingConfig: { mode: "AUTO" } });
   } finally { server.stop(true); }
 });
@@ -58,8 +58,8 @@ test("functionCall 生成稳定 call id 并解析参数", async () => {
       finishReason: "STOP",
       content: { parts: [
         { text: "先记一笔" },
-        { functionCall: { name: "notes.write", args: { reason: "记录", key: "k", value: "v" } } },
-        { functionCall: { name: "notes.write", args: { reason: "再记", key: "k2", value: "v2" } } },
+        { functionCall: { name: "notes_write", args: { reason: "记录", key: "k", value: "v" } } },
+        { functionCall: { name: "notes_write", args: { reason: "再记", key: "k2", value: "v2" } } },
       ] },
     }],
   }) });
@@ -68,7 +68,7 @@ test("functionCall 生成稳定 call id 并解析参数", async () => {
     expect(result.finish).toBe("tool_calls");
     expect(result.toolCalls.map((call) => call.id)).toEqual(["gem_call_01", "gem_call_02"]);
     expect(result.toolCalls[0]).toEqual({
-      id: "gem_call_01", name: "notes.write",
+      id: "gem_call_01", name: "notes_write",
       arguments: { reason: "记录", key: "k", value: "v" },
     });
     expect(result.content).toBe("先记一笔");
@@ -80,7 +80,7 @@ test("缺 args 的 functionCall 解析为空对象并保留调用", async () => 
     candidates: [{
       finishReason: "STOP",
       content: { parts: [
-        { functionCall: { name: "notes.write", args: { reason: "ok", key: "k", value: "v" } } },
+        { functionCall: { name: "notes_write", args: { reason: "ok", key: "k", value: "v" } } },
         { functionCall: { name: "broken", args: undefined } },
       ] },
     }],
@@ -89,7 +89,7 @@ test("缺 args 的 functionCall 解析为空对象并保留调用", async () => 
     // args undefined → "{}" via JSON.stringify; use a name that still parses as object.
     const result = await providerFor(server.port!).complete({ messages, tools });
     expect(result.parseOk).toBe(true);
-    expect(result.toolCalls.map((call) => call.name)).toEqual(["notes.write", "broken"]);
+    expect(result.toolCalls.map((call) => call.name)).toEqual(["notes_write", "broken"]);
   } finally { server.stop(true); }
 });
 
@@ -186,7 +186,7 @@ test("toolChoice required 映射为 ANY，被拒后降级 AUTO", async () => {
 
 test("providerOptions registers all gateways with key env mapping", () => {
   expect(providerOptions.map((item) => item.id)).toEqual([
-    "uuapi", "shiningspace", "gemini", "deepseek", "caicai", "deepseek-official", "xcode", "openrouter", "a6api",
+    "uuapi", "shiningspace", "gemini", "deepseek", "caicai", "deepseek-official", "xcode", "openrouter", "a6api", "openai",
   ]);
   expect(providerApiKeyEnv.gemini).toBe("GEMINI_API_KEY");
   expect(providerApiKeyEnv.deepseek).toBe("DEEPSEEK_API_KEY");
@@ -195,4 +195,5 @@ test("providerOptions registers all gateways with key env mapping", () => {
   expect(providerApiKeyEnv.xcode).toBe("XCODE_API_KEY");
   expect(providerApiKeyEnv.openrouter).toBe("OPENROUTER_API_KEY");
   expect(providerApiKeyEnv.a6api).toBe("A6API_API_KEY");
+  expect(providerApiKeyEnv.openai).toBe("OPENAI_API_KEY");
 });

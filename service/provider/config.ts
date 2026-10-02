@@ -25,6 +25,7 @@ export const providers: readonly ProviderRow[] = [
   { id: "xcode", label: "Xcode.best", model: "grok-4.7", baseURL: "https://xcode.best/v1", apiKeyEnv: "XCODE_API_KEY", modelEnv: "XCODE_MODEL", baseUrlEnv: "XCODE_BASE_URL", effortEnv: "XCODE_REASONING_EFFORT", kind: "openai", sanitizeToolNames: true },
   { id: "openrouter", label: "OpenRouter", model: "stealth/space-bunny-alpha", baseURL: "https://openrouter.ai/api/v1", apiKeyEnv: "OPENROUTER_API_KEY", modelEnv: "OPENROUTER_MODEL", baseUrlEnv: "OPENROUTER_BASE_URL", effortEnv: "OPENROUTER_REASONING_EFFORT", kind: "openai", sanitizeToolNames: true },
   { id: "a6api", label: "A6API", model: "gemini-3.8-flash", baseURL: "https://a6api.com/v1", apiKeyEnv: "A6API_API_KEY", modelEnv: "A6API_MODEL", baseUrlEnv: "A6API_BASE_URL", effortEnv: "A6API_REASONING_EFFORT", kind: "openai", sanitizeToolNames: true },
+  { id: "openai", label: "OpenAI", model: "gpt-6-sol", baseURL: "https://uuapi.io/v1", apiKeyEnv: "OPENAI_API_KEY", modelEnv: "OPENAI_MODEL", baseUrlEnv: "OPENAI_BASE_URL", effortEnv: "OPENAI_REASONING_EFFORT", kind: "responses" },
 ] as const;
 
 export const providerOptions = providers.map(({ id, label, model }) => ({ id, label, model }));
