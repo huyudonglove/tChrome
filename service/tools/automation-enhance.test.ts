@@ -6,15 +6,15 @@ const root = new URL("../../", import.meta.url).pathname;
 const registry = loadToolRegistry(root);
 
 test("new automation tools are registered and accept documented arguments", () => {
-  expect(registry.toolGroups.coreToolIds).toContain("page.get_by_role");
+  expect(registry.toolGroups.coreToolIds).toContain("page_get_by_role");
   expect(registry.toolGroups.coreToolIds).toContain("wait_response");
-  const names = ["wait", "wait_response", "page.get_by_role", "capture_network_traffic"] as const;
+  const names = ["wait", "wait_response", "page_get_by_role", "capture_network_traffic"] as const;
   const tools = toolSchemas(registry, [...names]);
   const result = checkToolCalls([
     { id: "c1", name: "wait", arguments: { reason: "等按钮", tabId: 12, id: "e_05", visible: true, enabled: true } },
     { id: "c2", name: "wait", arguments: { reason: "等选择器", tabId: 12, selector: "input[type=file]" } },
     { id: "c3", name: "wait_response", arguments: { reason: "等接口", tabId: 12, urlContains: "/api/upload", status: 200 } },
-    { id: "c4", name: "page.get_by_role", arguments: { reason: "找按钮", tabId: 12, role: "button", name: "上传" } },
+    { id: "c4", name: "page_get_by_role", arguments: { reason: "找按钮", tabId: 12, role: "button", name: "上传" } },
     { id: "c5", name: "capture_network_traffic", arguments: { reason: "过滤资源", tabId: 12, urlContains: "/static/" } },
   ], tools, registry.toolGroups.coreToolIds, [...names]);
   expect(result.schemaOk).toBe(true);

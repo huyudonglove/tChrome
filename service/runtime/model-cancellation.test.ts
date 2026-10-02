@@ -72,7 +72,7 @@ test("query uses the main request's signal and cancellation cannot install query
     const provider: Provider = { complete: async input => {
       if (input.tools[0]?.function.name === "submitMatches") { expect(input.signal).toBe(mainSignal); entered.resolve(input.signal); return aborted(input.signal); }
       mainCalls++; mainSignal = input.signal;
-      return completion([{ id: "query", name: "context.query", arguments: { reason: "核对历史", sumId: summary.id, module: "userInput", intent: "读取要求" } }]);
+      return completion([{ id: "query", name: "context_query", arguments: { reason: "核对历史", sumId: summary.id, module: "userInput", intent: "读取要求" } }]);
     } };
     const running = handleTurn({ dataDir, repoRoot, provider }, body), signal = await within(entered.promise);
     stopTurn(dataDir); expect(signal?.aborted).toBe(true);

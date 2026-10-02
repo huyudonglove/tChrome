@@ -1,0 +1,25 @@
+{
+  "type": "function",
+  "function": {
+    "name": "local_fs_stat",
+    "description": "读取文件/目录/符号链接元数据，返回type、size字节数、modifiedAt和mode。不跟随符号链接。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "绝对路径"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "execution": "parallel"
+}

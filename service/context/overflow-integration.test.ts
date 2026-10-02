@@ -81,14 +81,14 @@ test("oversized notes stay durable, can be deleted by the model, and do not bloc
     primeActiveTask(dataDir);
   let step = 0;
   const reply = await handleTurn({ dataDir, repoRoot, host, provider: provider(user => {
-    if (++step === 1) return response(call("notes.write", { key: "large", value }));
+    if (++step === 1) return response(call("notes_write", { key: "large", value }));
     if (step === 2) {
       const refs = conversationReferences(user);
       expect(refs.length).toBeGreaterThan(0);
       expect(readFileSync(refs[0]!.path, "utf8")).toContain(value);
       const ledger = loadLedger(dataDir, conversationId);
       expect(ledger.notes.large).toBe(value);
-      return response(call("notes.delete", { key: "large" }));
+      return response(call("notes_delete", { key: "large" }));
     }
     expect(slot(user, "#notes")).toEqual({});
     return finish();
@@ -106,7 +106,7 @@ test("oversized project memory is referenced in a new conversation without losin
   const text = "P".repeat(305_000);
   let step = 0;
   const original = await handleTurn({ dataDir, repoRoot, host, provider: provider(() => ++step === 1
-    ? response(call("memory.writeProject", { scope: "tChrome", projectMemory: [text] })) : finish()) }, { userInput: "保存长期记忆", submittedAt: "now" });
+    ? response(call("memory_writeProject", { scope: "tChrome", projectMemory: [text] })) : finish()) }, { userInput: "保存长期记忆", submittedAt: "now" });
   expect(original.stopReason.kind).toBe("reply");
   const fresh = newConversation(dataDir).conversationId!;
     primeActiveTask(dataDir);
@@ -124,13 +124,13 @@ test("oversized project memory is referenced in a new conversation without losin
   expect(loadMemories(dataDir, fresh, { conversation: [], project: [] }).project[0]!.text).toBe(text);
 }));
 
-test("large script results use evidence.search while small follow-up pages stay inline", () => withDir(async dataDir => {
+test("large script results use evidence_search while small follow-up pages stay inline", () => withDir(async dataDir => {
   const code = "//PAGE_SENTINEL\n" + "x".repeat(305_000);
   mkdirSync(join(dataDir, "scripts"));
   writeFileSync(join(dataDir, "scripts", "large.js"), code);
   let step = 0;
   const reply = await handleTurn({ dataDir, repoRoot, host, provider: provider(user => {
-    if (++step === 1) return response(call("catalog.add", { names: ["script_read", "evidence.search"] }));
+    if (++step === 1) return response(call("catalog_add", { names: ["script_read", "evidence_search"] }));
     if (step === 2) return response(call("script_read", { filename: "large.js" }));
     if (step === 3) {
       const toolIO = slot(user, "#toolIO");
@@ -140,10 +140,10 @@ test("large script results use evidence.search while small follow-up pages stay 
       expect(stub.externalized).toBe(true);
       expect(String(stub.head ?? stub.summary).length).toBeGreaterThan(0);
       expect(String(stub.path)).toContain("returns");
-      return response(call("evidence.search", { windows: [{ callId: row.callId, keyword: "PAGE_SENTINEL", contextChars: 20 }] }));
+      return response(call("evidence_search", { windows: [{ callId: row.callId, keyword: "PAGE_SENTINEL", contextChars: 20 }] }));
     }
     const toolIO = slot(user, "#toolIO");
-    const search = toolIO.find((row: any) => row.name === "evidence.search");
+    const search = toolIO.find((row: any) => row.name === "evidence_search");
     expect(search).toBeDefined();
     const parsed = typeof search.return.result === "string" ? JSON.parse(search.return.result) : search.return.result;
     const hit = parsed.results[0];

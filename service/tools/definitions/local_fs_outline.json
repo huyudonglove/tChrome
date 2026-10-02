@@ -1,0 +1,39 @@
+{
+  "type": "function",
+  "function": {
+    "name": "local_fs_outline",
+    "description": "提取文件大纲，便于在读取正文前先掌握结构。代码文件（.ts/.tsx/.js/.jsx/.mjs/.cjs）用 TS AST 收集顶层声明，返回 symbols[]（kind/name/startLine/endLine），行号区间可直接配合 local_fs_read(startLine, endLine) 精确取回正文；其余文件无结构化数据，按 blockChars 字符数切块返回 blocks[]（index/startOffset/startLine/chars/preview），startLine 按 100 字折行口径换算以便对接 evidence_search。maxFileBytes 默认 1048576，blockChars 默认 {{inlineChars}}/10。输出远小于 {{inlineChars}} 字符门禁。\n",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "绝对路径"
+        },
+        "maxFileBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1048576,
+          "default": 1048576,
+          "description": "文件大小上限，超出直接报错"
+        },
+        "blockChars": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1048576,
+          "default": 0,
+          "description": "无结构化数据时的切块粒度（字符数）；0 表示按门禁自动取值"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "execution": "parallel"
+}

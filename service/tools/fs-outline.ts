@@ -68,7 +68,7 @@ function groupSymbols(symbols: SymbolEntry[], budget: number): { groups: Record<
 
 /**
  * 无结构化数据时的兜底：按固定字符数切块。
- * startOffset 为字符偏移，startLine 按 100 字折行口径换算（与 evidence.search 对齐）。
+ * startOffset 为字符偏移，startLine 按 100 字折行口径换算（与 evidence_search 对齐）。
  */
 function buildBlocks(text: string, lineWidth: number, blockChars: number): BlockEntry[] {
   const blocks: BlockEntry[] = [];

@@ -2,26 +2,26 @@
 能力：【Context Assembly, Compression, Images】
 
 详细描述：
-Runtime 在每次请求我之前装配上下文，并管理发送预算。System 与 User 合计达到 {{compressAt}} 字符时，将选中的已结束轮次或当前轮较早工具批次整理到 <conversationHistorySummary>（同一 turnId 可有多条摘要），原文保存在本地；被覆盖的 <tn_xx> 轮次整块删除，只留摘要。当前轮保留最近 {{keepBatches}} 个完整工具批次。未覆盖原文会 L1 首压；摘要折叠没有全局门槛，按层独立判断：每一层自己超过 {{summaryFoldMin}} 条才折升级，不足则整层保持原样。先按 L1+L1 合并（同 turnId 仍为 L1，不同 turnId 才升 L2），L2 及以上再按同层递进升级（L2→L3、L3→L4，最高到 L6），各层互不混用、每次折叠保留各层最新一条，因此越早的摘要层级越高。摘要不足以支持当前判断、关键工具返回被外置、操作失败或需要核对历史约定时，主动用 agent.query 按 sumId、module 和 intent 回查原文，再继续执行或答复；context.query 保留为兼容入口。回查前先分清两条通道：按内容关键词定位某一次调用的返回片段用 evidence.search（windows 带 callId）；按「我当时为什么这么判断」回看某轮原文或某条摘要的来源用 agent.query。长任务中若可预判当前轮还会产生大量工具返回，且历史工具记录明显占据主要预算，可主动调用 agent.compress 压缩已结束轮次（phase=history）；只有当前工具结果已确认不再需要原文时才使用 phase=current。压缩阈值由 Runtime 把握，自动压缩作为兜底。压缩后仍超过 {{externalizeAt}} 字符时，优先把 <conversation> 内大块正文写入本地文件，用引用替换内联正文。<skill> 始终保留全文，不参与压缩或裁剪；<baseTools>、<tools> 和编号规则保持内联。
+Runtime 在每次请求我之前装配上下文，并管理发送预算。System 与 User 合计达到 {{compressAt}} 字符时，将选中的已结束轮次或当前轮较早工具批次整理到 <conversationHistorySummary>（同一 turnId 可有多条摘要），原文保存在本地；被覆盖的 <tn_xx> 轮次整块删除，只留摘要。当前轮保留最近 {{keepBatches}} 个完整工具批次。未覆盖原文会 L1 首压；摘要折叠没有全局门槛，按层独立判断：每一层自己超过 {{summaryFoldMin}} 条才折升级，不足则整层保持原样。先按 L1+L1 合并（同 turnId 仍为 L1，不同 turnId 才升 L2），L2 及以上再按同层递进升级（L2→L3、L3→L4，最高到 L6），各层互不混用、每次折叠保留各层最新一条，因此越早的摘要层级越高。摘要不足以支持当前判断、关键工具返回被外置、操作失败或需要核对历史约定时，主动用 agent_query 按 sumId、module 和 intent 回查原文，再继续执行或答复；context_query 保留为兼容入口。回查前先分清两条通道：按内容关键词定位某一次调用的返回片段用 evidence_search（windows 带 callId）；按「我当时为什么这么判断」回看某轮原文或某条摘要的来源用 agent_query。长任务中若可预判当前轮还会产生大量工具返回，且历史工具记录明显占据主要预算，可主动调用 agent_compress 压缩已结束轮次（phase=history）；只有当前工具结果已确认不再需要原文时才使用 phase=current。压缩阈值由 Runtime 把握，自动压缩作为兜底。压缩后仍超过 {{externalizeAt}} 字符时，优先把 <conversation> 内大块正文写入本地文件，用引用替换内联正文。<skill> 始终保留全文，不参与压缩或裁剪；<baseTools>、<tools> 和编号规则保持内联。
 
 内容过多时 Runtime 有三种加载方式，可逆性不同，先按这条总览判断走哪条，细则见各自段落：
 
-- 分层摘要（不可逆）：已结束轮次或当前轮较早批次被整理进 <conversationHistorySummary>，同层超过 {{summaryFoldMin}} 条才折升级、越早的轮次层级越高。窗口里只剩摘要，原文归档在本地，要细节用 agent.query 按 sumId + module + intent 回查（要的是某次调用的返回片段则走 evidence.search，见上）；金字塔层级语义见 <conversation>。
-- 分页与限量（可逆）：内容按数量截断而非折叠，被截断的部分仍完整保留，用工具自身的分页参数取回——skill.list 的 offset/limit（不传则全量，见 systemSkill）、local.fs_read 的 offset/startLine/limit；按归属过滤的条目（如记忆 scope）也走这条，目录与取正文路径见 <projectMemory>。
-- 外置降级（可逆）：单次返回过大时按固定行宽折行落盘，窗口只留结构化摘要与本地 path，用 evidence.search 取回（keyword 全文检索 / startLine 按行读 / levelId 直取某一块），下一段展开。
+- 分层摘要（不可逆）：已结束轮次或当前轮较早批次被整理进 <conversationHistorySummary>，同层超过 {{summaryFoldMin}} 条才折升级、越早的轮次层级越高。窗口里只剩摘要，原文归档在本地，要细节用 agent_query 按 sumId + module + intent 回查（要的是某次调用的返回片段则走 evidence_search，见上）；金字塔层级语义见 <conversation>。
+- 分页与限量（可逆）：内容按数量截断而非折叠，被截断的部分仍完整保留，用工具自身的分页参数取回——skill_list 的 offset/limit（不传则全量，见 systemSkill）、local_fs_read 的 offset/startLine/limit；按归属过滤的条目（如记忆 scope）也走这条，目录与取正文路径见 <projectMemory>。
+- 外置降级（可逆）：单次返回过大时按固定行宽折行落盘，窗口只留结构化摘要与本地 path，用 evidence_search 取回（keyword 全文检索 / startLine 按行读 / levelId 直取某一块），下一段展开。
 
 三者只在能接受多少信息损失上不同：分层摘要会丢掉细节，分页与外置都不丢原文。
 
 超量结果有两种读法，按窗口里实际出现的形状选用：
 
-- 单次工具返回或页面观察 result 超过内联门禁（{{inlineChars}} 字符）时，窗口只保留 externalized 摘要（含 totalChars、totalLines、lineWidth、本地 path；summary 为结构化摘要（列出可定位事实：文件路径与行号区间、列表条目数与前几项标签、faultCode/message、scannedFiles/truncated 等，长度上限 {{summaryChars}} 字符），无法从 JSON 抽出事实时才改给 head（原文前 {{previewChars}} 字符））。全文按固定行宽拆行（{{lineWidth}} 字/行）。读这类结果用 evidence.search(windows=[{callId|pageId, keyword?, startLine?, paddingLines?, contextChars?}])：仅 keyword=全文检索（允许关键字跨折行）；仅 startLine=按行读（paddingLines 可向前回溯并标 isTarget）；二者同传=以 startLine 为锚的区域检索；带 levelId（与 callId 同用，如 {callId, levelId:"L1.2"}）直接取回该层某一块的正文，不带关键词。可选 contextChars（默认 {{searchContextChars}}，指本次调用的总额预算）。一次最多 8 项，返回 results[] 逐项。所有工具返回共用这一套门禁。
-- 整块模块或单条记录因发送预算被外置时，窗口变成 contextFile：path 是绝对路径，chars 是原文字符数，format 是 json 或 text。读这类引用先用 catalog.add 加载 local.fs_read，再用 items=[{path, offset?, limit?}] 按字节读取（一次最多 8 项），根据各项 nextOffset 继续。
+- 单次工具返回或页面观察 result 超过内联门禁（{{inlineChars}} 字符）时，窗口只保留 externalized 摘要（含 totalChars、totalLines、lineWidth、本地 path；summary 为结构化摘要（列出可定位事实：文件路径与行号区间、列表条目数与前几项标签、faultCode/message、scannedFiles/truncated 等，长度上限 {{summaryChars}} 字符），无法从 JSON 抽出事实时才改给 head（原文前 {{previewChars}} 字符））。全文按固定行宽拆行（{{lineWidth}} 字/行）。读这类结果用 evidence_search(windows=[{callId|pageId, keyword?, startLine?, paddingLines?, contextChars?}])：仅 keyword=全文检索（允许关键字跨折行）；仅 startLine=按行读（paddingLines 可向前回溯并标 isTarget）；二者同传=以 startLine 为锚的区域检索；带 levelId（与 callId 同用，如 {callId, levelId:"L1.2"}）直接取回该层某一块的正文，不带关键词。可选 contextChars（默认 {{searchContextChars}}，指本次调用的总额预算）。一次最多 8 项，返回 results[] 逐项。所有工具返回共用这一套门禁。
+- 整块模块或单条记录因发送预算被外置时，窗口变成 contextFile：path 是绝对路径，chars 是原文字符数，format 是 json 或 text。读这类引用先用 catalog_add 加载 local_fs_read，再用 items=[{path, offset?, limit?}] 按字节读取（一次最多 8 项），根据各项 nextOffset 继续。
 
-contextFile 用 local.fs_read 按字节读取；externalized 摘要用 evidence.search 取片段。
+contextFile 用 local_fs_read 按字节读取；externalized 摘要用 evidence_search 取片段。
 
-入窗门禁分两类：**产出型**（页面观察、代码执行、截图等）的返回会被降级，且再取、再裁、重截仍会经过同一门禁，仍大则继续降级——降级视图的 message 会要求更精准（更窄关键字、更小矩形、mode=element|rect、image.crop），并在有分层索引时直接给出可用的建议 startLine 锚点与块区间，按提示收窄后再取；**取回型**（evidence.search、asset.read）已按检索预算自行裁剪并直接内联，不做二次降级，只在返回里用 truncated/droppedWindows 表达主动裁剪（这不是失败）。
+入窗门禁分两类：**产出型**（页面观察、代码执行、截图等）的返回会被降级，且再取、再裁、重截仍会经过同一门禁，仍大则继续降级——降级视图的 message 会要求更精准（更窄关键字、更小矩形、mode=element|rect、image_crop），并在有分层索引时直接给出可用的建议 startLine 锚点与块区间，按提示收窄后再取；**取回型**（evidence_search、asset_read）已按检索预算自行裁剪并直接内联，不做二次降级，只在返回里用 truncated/droppedWindows 表达主动裁剪（这不是失败）。
 
-归档资产用 asset.list 看 L1（assetId、名称、大小、摘要），asset.read 统一取用：文本按 keyword/startLine 读片段，图片按矩形裁切；也可直接 image.crop 或 capture_rect 按坐标取区域。
+归档资产用 asset_list 看 L1（assetId、名称、大小、摘要），asset_read 统一取用：文本按 keyword/startLine 读片段，图片按矩形裁切；也可直接 image_crop 或 capture_rect 按坐标取区域。
 
 截图工具返回图片 ID 和本地路径。最近一次工具批次中的图片附到下一次请求，并标注调用 ID 与图片 ID；更早批次只保留路径。单张图片超过入窗门槛（{{imageInlineBytes}} 字节）时不附像素，只在窗口保留 id、宽高、path 与降级提示；若有缩略图则附缩略图。本次没有产生图片时不附带历史图片。只有附带的图片可供观察；需要确认当前画面时重新截图。看清单个控件时用 capture_element(ref|selector)，局部切片即可。
 </runtime>

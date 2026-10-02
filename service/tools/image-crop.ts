@@ -4,7 +4,7 @@ import { readImageDataUrl, saveImage, type ImageReference } from "../images/stor
 import { loadLedger } from "../runtime/store.ts";
 import type { BrowserHost } from "../types.ts";
 
-export const IMAGE_TOOL_NAMES = ["image.crop"] as const;
+export const IMAGE_TOOL_NAMES = ["image_crop"] as const;
 
 export async function runImageTool(
   name: string,
@@ -13,9 +13,9 @@ export async function runImageTool(
   dataDir: string,
   conversationId: string | undefined,
 ): Promise<Record<string, unknown>> {
-  if (name !== "image.crop") return { ok: false, error: "unknown image tool" };
-  if (!conversationId) return { ok: false, error: "image.crop 缺少会话标识" };
-  if (!host) return { ok: false, error: "image.crop 需要浏览器桥" };
+  if (name !== "image_crop") return { ok: false, error: "unknown image tool" };
+  if (!conversationId) return { ok: false, error: "image_crop 缺少会话标识" };
+  if (!host) return { ok: false, error: "image_crop 需要浏览器桥" };
   try {
     const imageId = String(input.imageId ?? "").trim();
     const x = Number(input.x), y = Number(input.y), width = Number(input.width), height = Number(input.height);
@@ -29,13 +29,13 @@ export async function runImageTool(
       return { ok: false, error: `矩形超出原图 ${source.width}×${source.height}` };
     }
     const dataUrl = readImageDataUrl(dataDir, conversationId, source);
-    const result = await host.execute("image.crop_pixels", {
+    const result = await host.execute("image_crop_pixels", {
       dataUrl, x, y, width, height,
     }) as { ok?: boolean; dataUrl?: string; error?: string };
     if (!result?.ok || typeof result.dataUrl !== "string") {
       return { ok: false, error: String(result?.error ?? "裁切失败") };
     }
-    const saved = saveImage(dataDir, conversationId, result.dataUrl, { tool: "image.crop" });
+    const saved = saveImage(dataDir, conversationId, result.dataUrl, { tool: "image_crop" });
     const view = admitImage(saved);
     return {
       ok: true,

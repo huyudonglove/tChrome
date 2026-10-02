@@ -21,13 +21,13 @@ const turn = (): Turn => ({
   stopReason: null,
 });
 
-test("reflect.write allocates rf_ ids and reflect.delete removes by id", async () => {
+test("reflect_write allocates rf_ ids and reflect_delete removes by id", async () => {
   const registry = loadToolRegistry(repoRoot);
-  expect(registry.tools["reflect.write"]).toBeTruthy();
-  expect(registry.tools["reflect.delete"]).toBeTruthy();
-  expect(registry.toolGroups.baseToolsIds).toContain("reflect.write");
-  // reflect.delete 是低频工具，已下沉为动态工具，只保证可被 catalog.add 加载。
-  expect(registry.index.service).toContain("reflect.delete");
+  expect(registry.tools["reflect_write"]).toBeTruthy();
+  expect(registry.tools["reflect_delete"]).toBeTruthy();
+  expect(registry.toolGroups.baseToolsIds).toContain("reflect_write");
+  // reflect_delete 是低频工具，已下沉为动态工具，只保证可被 catalog_add 加载。
+  expect(registry.index.service).toContain("reflect_delete");
 
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-reflect-"));
   try {
@@ -40,53 +40,53 @@ test("reflect.write allocates rf_ ids and reflect.delete removes by id", async (
     });
 
     const first = await executeTool({
-      name: "reflect.write",
+      name: "reflect_write",
       arguments: { reason: "收口前反思", text: "先记一次", focus: "证据" },
       dataDir,
       conversationId: ledger.conversationId,
       browserNames: [],
-      lookup: { unusedTools: [], knownTools: ["reflect.write"], enabledTools: ["reflect.write"] },
+      lookup: { unusedTools: [], knownTools: ["reflect_write"], enabledTools: ["reflect_write"] },
     });
     const firstBody = JSON.parse(first.text) as { ok: boolean; id: string };
     expect(firstBody.ok).toBe(true);
     expect(firstBody.id).toMatch(/^rf_[0-9]{2,}$/);
-    applyToolEffects({ dataDir, ledger, turn: current, call: call("call_01", "reflect.write"), effects: first.effects });
+    applyToolEffects({ dataDir, ledger, turn: current, call: call("call_01", "reflect_write"), effects: first.effects });
     expect(current.reflect).toEqual([{ id: firstBody.id, text: "先记一次", focus: "证据" }]);
 
     const second = await executeTool({
-      name: "reflect.write",
+      name: "reflect_write",
       arguments: { reason: "再记一条", text: "第二条" },
       dataDir,
       conversationId: ledger.conversationId,
       browserNames: [],
-      lookup: { unusedTools: [], knownTools: ["reflect.write"], enabledTools: ["reflect.write"] },
+      lookup: { unusedTools: [], knownTools: ["reflect_write"], enabledTools: ["reflect_write"] },
     });
     const secondBody = JSON.parse(second.text) as { id: string };
     expect(secondBody.id).not.toBe(firstBody.id);
-    applyToolEffects({ dataDir, ledger, turn: current, call: call("call_02", "reflect.write"), effects: second.effects });
+    applyToolEffects({ dataDir, ledger, turn: current, call: call("call_02", "reflect_write"), effects: second.effects });
     expect(current.reflect).toHaveLength(2);
 
     const updated = await executeTool({
-      name: "reflect.write",
+      name: "reflect_write",
       arguments: { reason: "更新第一条", id: firstBody.id, text: "修订正文" },
       dataDir,
       conversationId: ledger.conversationId,
       browserNames: [],
-      lookup: { unusedTools: [], knownTools: ["reflect.write"], enabledTools: ["reflect.write"] },
+      lookup: { unusedTools: [], knownTools: ["reflect_write"], enabledTools: ["reflect_write"] },
     });
-    applyToolEffects({ dataDir, ledger, turn: current, call: call("call_03", "reflect.write"), effects: updated.effects });
+    applyToolEffects({ dataDir, ledger, turn: current, call: call("call_03", "reflect_write"), effects: updated.effects });
     expect(current.reflect?.find(item => item.id === firstBody.id)).toEqual({ id: firstBody.id, text: "修订正文" });
 
     const removed = await executeTool({
-      name: "reflect.delete",
+      name: "reflect_delete",
       arguments: { reason: "删除一条", id: secondBody.id },
       dataDir,
       conversationId: ledger.conversationId,
       browserNames: [],
-      lookup: { unusedTools: [], knownTools: ["reflect.delete"], enabledTools: ["reflect.delete"] },
+      lookup: { unusedTools: [], knownTools: ["reflect_delete"], enabledTools: ["reflect_delete"] },
     });
     expect(JSON.parse(removed.text)).toMatchObject({ ok: true, id: secondBody.id, deleted: true });
-    applyToolEffects({ dataDir, ledger, turn: current, call: call("call_04", "reflect.delete"), effects: removed.effects });
+    applyToolEffects({ dataDir, ledger, turn: current, call: call("call_04", "reflect_delete"), effects: removed.effects });
     expect(current.reflect?.map(item => item.id)).toEqual([firstBody.id]);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });

@@ -105,7 +105,7 @@ const context = {
   keepToolBatches: resolveGate("keepToolBatches"),
   toolioRingSize: resolveGate("toolioRingSize"),
   // How many dynamic skills the System-side catalog lists by default; the rest stay
-  // reachable through skill.list (which pages over the full set).
+  // reachable through skill_list (which pages over the full set).
   skillCatalogLimit: resolveGate("skillCatalogLimit"),
   // How many process-output/<procId> directories to keep; older ones are pruned on each new process.
   processOutputRetain: resolveGate("processOutputRetain"),

@@ -12,7 +12,7 @@ test("public boundary preserves missing-file diagnostics", async () => {
 
 test("browser timeout preserves tabId and advises inspection without replay", async () => {
   let calls = 0;
-  const execution = await executeTool({ ...input, name: "page.click", arguments: {}, browserNames: ["page.click"], host: { execute: async () => { calls++; return { ok: false, faultCode: "tool_timeout", tabId: 7, error: "diagnostic" }; } } });
+  const execution = await executeTool({ ...input, name: "page_click", arguments: {}, browserNames: ["page_click"], host: { execute: async () => { calls++; return { ok: false, faultCode: "tool_timeout", tabId: 7, error: "diagnostic" }; } } });
   expect(JSON.parse(execution.text)).toMatchObject({ ok: false, faultCode: "tool_timeout", recovery: "inspect_state", tabId: 7, details: { reason: "diagnostic" } });
   expect(calls).toBe(1);
   // Failed tab-targeted calls still log a page observation.

@@ -67,13 +67,13 @@ test("调度说明由 execution 字段派生：定义文件不得再手抄", () 
 
 test("缺字段和类型错走 Ajv，不补齐", () => {
   const registry = loadToolRegistry(repoRoot);
-  const ids = ["page.type", "finishTurn"];
+  const ids = ["page_type", "finishTurn"];
   const tools = toolSchemas(registry, ids);
   const parsed = parseToolArguments('{"id":"e1","text":"a@b.com"}');
   expect(parsed.ok).toBe(true);
   if (!parsed.ok) return;
   const missing = checkToolCalls(
-    [{ id: "call_01", name: "page.type", arguments: parsed.value }],
+    [{ id: "call_01", name: "page_type", arguments: parsed.value }],
     tools,
     registry.toolGroups.baseToolsIds,
     ids,
@@ -83,11 +83,11 @@ test("缺字段和类型错走 Ajv，不补齐", () => {
     schemaOk: false,
     faultCode: "missing_required",
     missing: expect.arrayContaining(["reason"]),
-    badName: "page.type",
-    detail: "page.type missing required: reason, tabId",
+    badName: "page_type",
+    detail: "page_type missing required: reason, tabId",
   });
   const wrong = checkToolCalls(
-    [{ id: "call_02", name: "page.type", arguments: { tabId: 1, reason: "填", id: "e1", text: 12 as unknown as string } }],
+    [{ id: "call_02", name: "page_type", arguments: { tabId: 1, reason: "填", id: "e1", text: 12 as unknown as string } }],
     tools,
     registry.toolGroups.baseToolsIds,
     ids,
@@ -96,21 +96,21 @@ test("缺字段和类型错走 Ajv，不补齐", () => {
   expect(wrong.schemaOk).toBe(false);
 });
 
-test("catalog.add drops model-submitted execution; schedule stays Runtime-owned", () => {
+test("catalog_add drops model-submitted execution; schedule stays Runtime-owned", () => {
   const registry = loadToolRegistry(repoRoot);
-  const tools = toolSchemas(registry, ["catalog.add"]);
-  const call = { id: "load-script", name: "catalog.add", arguments: { names: ["execute_javascript"], reason: "加载脚本工具", execution: "parallel" } as Record<string, unknown> };
-  expect(checkToolCalls([call], tools, [], ["catalog.add"]).schemaOk).toBe(true);
+  const tools = toolSchemas(registry, ["catalog_add"]);
+  const call = { id: "load-script", name: "catalog_add", arguments: { names: ["execute_javascript"], reason: "加载脚本工具", execution: "parallel" } as Record<string, unknown> };
+  expect(checkToolCalls([call], tools, [], ["catalog_add"]).schemaOk).toBe(true);
   expect(call.arguments.execution).toBeUndefined();
-  expect(checkToolCalls([{ id: "x", name: "catalog.add", arguments: {} }], tools, [], ["catalog.add"]).schemaOk).toBe(false);
+  expect(checkToolCalls([{ id: "x", name: "catalog_add", arguments: {} }], tools, [], ["catalog_add"]).schemaOk).toBe(false);
 });
 
 test("tool calls normalize explicit boolean and numeric strings before execution", () => {
   const registry = loadToolRegistry(repoRoot);
-  const ids = ["catalog.add", "page.type"];
+  const ids = ["catalog_add", "page_type"];
   const calls: ToolCall[] = JSON.parse(JSON.stringify([
-    { id: "call_01", name: "catalog.add", arguments: { reason: "加载", names: ["execute_javascript"]} },
-    { id: "call_02", name: "page.type", arguments: { reason: "填写", tabId: "1502828910", id: "e1", text: "false" } },
+    { id: "call_01", name: "catalog_add", arguments: { reason: "加载", names: ["execute_javascript"]} },
+    { id: "call_02", name: "page_type", arguments: { reason: "填写", tabId: "1502828910", id: "e1", text: "false" } },
   ]));
   expect(checkToolCalls(calls, toolSchemas(registry, ids), [], ids).schemaOk).toBe(true);
   expect(calls[1]!.arguments).toEqual({ reason: "填写", tabId: 1502828910, id: "e1", text: "false" });
@@ -121,9 +121,9 @@ test("normalization preserves schema constraints and rejects ambiguous values", 
   const check = (name: string, args: Record<string, unknown>) => checkToolCalls(
     [{ id: "call_01", name, arguments: args }], toolSchemas(registry, [name]), [], [name],
   ).schemaOk;
-  expect(check("catalog.add", { reason: "加载", names: "execute_javascript"})).toBe(false);
+  expect(check("catalog_add", { reason: "加载", names: "execute_javascript"})).toBe(false);
   for (const tabId of ["", " ", "0x10", "12px", "Infinity", "1e999", "9007199254740993"]) {
-    expect(check("page.type", { reason: "填写", tabId, id: "e1", text: "12" })).toBe(false);
+    expect(check("page_type", { reason: "填写", tabId, id: "e1", text: "12" })).toBe(false);
   }
 });
 
@@ -226,7 +226,7 @@ test("index.json 登记的每个工具都能被 execute.ts 的分派路径命中
 
 test("service 数组不含已由浏览器通道实现的工具名", () => {
   const registry = loadToolRegistry(repoRoot);
-  // page.get_by_role / wait_response 曾误登记在 service 数组，实际实现方是 extension/tools/browser-tools.js。
+  // page_get_by_role / wait_response 曾误登记在 service 数组，实际实现方是 extension/tools/browser-tools.js。
   const extensionSource = readFileSync(join(repoRoot, "extension/tools/browser-tools.js"), "utf8");
   const implemented = new Set(
     [...extensionSource.matchAll(/['"]([a-z][a-z0-9_]*(?:\.[a-z0-9_]+)*)['"]/g)].map((row) => row[1]!),

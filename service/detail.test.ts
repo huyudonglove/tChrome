@@ -41,7 +41,7 @@ function fixture(dataDir: string, text = "精确证据".repeat(250)) {
   const turns = Array.from({ length: 6 }, (_, i): Turn => ({ conversationId: cv, turnId: allocateRecordId(dataDir, cv, "turn"), status: "completed", createdAt: "2026-09-12", completedAt: "2026-09-12", input: { id: allocateRecordId(dataDir, cv, "input"), text: `要求${i}`, submittedAt: "2026-09-12" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [] }, stopReason: { kind: "reply", text: "完成" } }));
   ledger.turnIds = turns.map(row => row.turnId); ledger.userInputHistory = turns.slice(0, -1).map(inputRecord);
   turns.forEach(turn => saveTurn(dataDir, turn));
-  const tool = { callId: allocateRecordId(dataDir, cv, "call"), turnId: "tn_01", batchId: allocateRecordId(dataDir, cv, "batch"), name: "page.get_summary", arguments: {}, return: { stage: "complete", totalChars: text.length, text } };
+  const tool = { callId: allocateRecordId(dataDir, cv, "call"), turnId: "tn_01", batchId: allocateRecordId(dataDir, cv, "batch"), name: "page_get_summary", arguments: {}, return: { stage: "complete", totalChars: text.length, text } };
   const sumId = allocateRecordId(dataDir, cv, "sum");
   const sourceId = allocateRecordId(dataDir, cv, "source");
   const summary = { id: sumId, module: "conversationHistory" as const, level: 1, turnId: "tn_01", tag: "详情", userRequest: "读取详情", actions: "读取页面", result: "已取得证据", sourceIds: [sourceId], createdAt: "2026-09-12" };
@@ -50,7 +50,7 @@ function fixture(dataDir: string, text = "精确证据".repeat(250)) {
   saveLedger(dataDir, ledger);
   return { cv, ledger, turns, sumId, tool };
 }
-const queryCall = (sumId: string, module = "toolIO") => reply([{ id: "query", name: "context.query", arguments: { reason: "查原文", sumId, module, intent: "读取详细证据" } }]);
+const queryCall = (sumId: string, module = "toolIO") => reply([{ id: "query", name: "context_query", arguments: { reason: "查原文", sumId, module, intent: "读取详细证据" } }]);
 
 test("query insertion triggers the 200K gate, protects current evidence, rotates and persists history", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "query-loop-"));
@@ -89,7 +89,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
         expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
         const current = section(input.messages[1]!.content, "currentQuery");
         if (current.externalized) {
-          expect(current.search).toBe("evidence.search");
+          expect(current.search).toBe("evidence_search");
           expect(String(current.head ?? current.summary).length).toBeGreaterThan(0);
         } else {
           expect(current.records).toEqual([f.tool]);
@@ -100,7 +100,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
         expect(compressed).toBeGreaterThan(0);
         expect(sessionView(dataDir, f.cv).activity).toBeNull();
         const toolIO = section(input.messages[1]!.content, "toolIO");
-        const queryRow = toolIO.find((row: any) => row.name === "context.query");
+        const queryRow = toolIO.find((row: any) => row.name === "context_query");
         const result = queryRow?.return?.result;
         if (typeof result === "string") expect(result).toContain("currentQuery");
         else expect(result).toMatchObject({ currentQuery: true });
@@ -138,7 +138,7 @@ test("unified gate externalizes large currentQuery and cancellation preserves th
       if (main === 1) return queryCall(f.sumId);
       const current = section(input.messages[1]!.content, "currentQuery");
       expect(current.externalized).toBe(true);
-      expect(current.search).toBe("evidence.search");
+      expect(current.search).toBe("evidence_search");
       expect(current.head ?? current.summary).toBeDefined();
       expect(current.records).toEqual([]);
       return queryCall(f.sumId, "userInput");

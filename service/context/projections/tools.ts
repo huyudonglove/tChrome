@@ -8,27 +8,27 @@ function resultView(text: string): unknown {
 const MODULE_POINTERS: Record<string, (args: Record<string, unknown>, result: unknown) => { args: Record<string, unknown>; result: unknown }> = {
   finishTurn: () => ({ args: { output: "reply" }, result: { ok: true, output: "reply" } }),
   askUser: () => ({ args: { output: "ask" }, result: { ok: true, output: "ask" } }),
-  "notes.write": (args) => {
+  "notes_write": (args) => {
     const key = String(args.key ?? "");
     return { args: { notes: key }, result: { ok: true, note: key } };
   },
-  "notes.delete": (args) => {
+  "notes_delete": (args) => {
     const key = String(args.key ?? "");
     return { args: { notes: key, deleted: true }, result: { ok: true, note: key, deleted: true } };
   },
-  "memory.writeConversation": () => ({ args: { memory: true }, result: { ok: true, memory: true } }),
-  "memory.writeProject": () => ({ args: { memory: true }, result: { ok: true, memory: true } }),
-  "memory.update": (args) => ({ args: { memory: args.memoryId ?? true }, result: { ok: true, memoryId: args.memoryId ?? null } }),
-  "memory.delete": (args) => ({ args: { memory: args.memoryId ?? true, deleted: true }, result: { ok: true, memoryId: args.memoryId ?? null, deleted: true } }),
-  "reflect.write": (_args, result) => {
+  "memory_writeConversation": () => ({ args: { memory: true }, result: { ok: true, memory: true } }),
+  "memory_writeProject": () => ({ args: { memory: true }, result: { ok: true, memory: true } }),
+  "memory_update": (args) => ({ args: { memory: args.memoryId ?? true }, result: { ok: true, memoryId: args.memoryId ?? null } }),
+  "memory_delete": (args) => ({ args: { memory: args.memoryId ?? true, deleted: true }, result: { ok: true, memoryId: args.memoryId ?? null, deleted: true } }),
+  "reflect_write": (_args, result) => {
     const id = (result as { id?: string } | undefined)?.id;
     return { args: { reflect: id ?? true }, result: { ok: true, reflectId: id ?? null } };
   },
-  "reflect.delete": (args) => ({ args: { reflect: args.id ?? true, deleted: true }, result: { ok: true, reflectId: args.id ?? null, deleted: true } }),
-  "task.set": () => ({ args: { task: true }, result: { ok: true, task: true } }),
-  "task.update": (args) => ({ args: { task: args.taskId ?? true }, result: { ok: true, taskId: args.taskId ?? null } }),
-  "task.complete": (args) => ({ args: { task: args.taskId ?? true }, result: { ok: true, taskId: args.taskId ?? null, completed: true } }),
-  "observation.write": (args) => ({ args: { observations: args.type ?? true }, result: { ok: true, observation: args.type ?? true } }),
+  "reflect_delete": (args) => ({ args: { reflect: args.id ?? true, deleted: true }, result: { ok: true, reflectId: args.id ?? null, deleted: true } }),
+  "task_set": () => ({ args: { task: true }, result: { ok: true, task: true } }),
+  "task_update": (args) => ({ args: { task: args.taskId ?? true }, result: { ok: true, taskId: args.taskId ?? null } }),
+  "task_complete": (args) => ({ args: { task: args.taskId ?? true }, result: { ok: true, taskId: args.taskId ?? null, completed: true } }),
+  "observation_write": (args) => ({ args: { observations: args.type ?? true }, result: { ok: true, observation: args.type ?? true } }),
 };
 
 /** Page observation payloads live in <observations>; toolIO keeps a pointer only. */
@@ -59,7 +59,7 @@ export function toolHistoryView(records: ToolIOItem[], observations: Observation
       } else {
         result = { ok: true, observationId: observation.id };
       }
-    } else if (record.name === "context.query" && record.return.stage === "complete"
+    } else if (record.name === "context_query" && record.return.stage === "complete"
       && result && typeof result === "object" && !Array.isArray(result)) {
       // Query originals live in <query>; keep toolIO as a pointer like page observations.
       const query = result as Record<string, unknown>;

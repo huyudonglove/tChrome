@@ -1,7 +1,7 @@
 import { existsSync, statSync } from "node:fs";
 import { buildRepoMap, type RepoMapOptions, type FileSymbols } from "../runtime/repo-map.ts";
 
-export const LOCAL_REPO_MAP_TOOL_NAMES = ["local.repo_map"] as const;
+export const LOCAL_REPO_MAP_TOOL_NAMES = ["local_repo_map"] as const;
 
 const DEFAULTS = {
   depth: 2,
@@ -98,7 +98,7 @@ export async function runRepoMap(input: Record<string, unknown>) {
       ok: false,
       path,
       error: `路径不存在或不是目录：${path}`,
-      ...(mode === "map" ? { note: "path 必须是仓库或目录的绝对路径；单个文件请改用 local.fs_outline。" } : {}),
+      ...(mode === "map" ? { note: "path 必须是仓库或目录的绝对路径；单个文件请改用 local_fs_outline。" } : {}),
     };
   }
 
@@ -116,7 +116,7 @@ export async function runRepoMap(input: Record<string, unknown>) {
       ok: false,
       path,
       error: `扫描失败：${error instanceof Error ? error.message : String(error)}`,
-      ...(mode === "map" ? { note: "确认 path 是存在的目录；单文件请改用 local.fs_outline。" } : {}),
+      ...(mode === "map" ? { note: "确认 path 是存在的目录；单文件请改用 local_fs_outline。" } : {}),
     };
   }
 

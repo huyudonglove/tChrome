@@ -13,7 +13,7 @@ test("admitText inlines small text and degrades large text with a precise-fetch 
   expect(large.payload.externalized).toBe(true);
   expect(large.payload.head).toBe("x".repeat(runtimeConfig.results.previewChars));
   expect(String(large.payload.message)).toContain("更精准");
-  expect(String(large.payload.message)).toContain("evidence.search(windows=[{callId=call_01");
+  expect(String(large.payload.message)).toContain("evidence_search(windows=[{callId=call_01");
   // 降级提示必须可直接操作：没有层级时也要给出建议的 startLine 锚点。
   expect(String(large.payload.message)).toContain("startLine=1");
 });
@@ -26,7 +26,7 @@ test("admitText turns an oversized JSON payload into a structured summary instea
       { ok: true, path: "/tmp/b.ts", content: "z".repeat(overInline), startLine: 10, endLine: 20, totalLines: 90 },
     ],
   };
-  const admitted = admitText(JSON.stringify(payload), { callId: "call_02", path: "/tmp/returns/call_02.txt", name: "local.fs_read" });
+  const admitted = admitText(JSON.stringify(payload), { callId: "call_02", path: "/tmp/returns/call_02.txt", name: "local_fs_read" });
   expect(admitted.mode).toBe("preview");
   if (admitted.mode !== "preview") throw new Error("mode");
   const summary = String(admitted.payload.summary);
@@ -44,7 +44,7 @@ test("admitText turns an oversized JSON payload into a structured summary instea
 });
 
 test("summarizePayload reports failures and keeps non-JSON payloads on the raw head slice", () => {
-  const failed = JSON.stringify({ toolName: "local.fs_grep", ok: false, faultCode: "tool_execution_failed", message: "path must be a directory" });
+  const failed = JSON.stringify({ toolName: "local_fs_grep", ok: false, faultCode: "tool_execution_failed", message: "path must be a directory" });
   expect(summarizePayload(failed)).toContain("faultCode=tool_execution_failed");
   expect(summarizePayload(failed)).toContain("path must be a directory");
   expect(summarizePayload("not json at all")).toBe("");
@@ -100,8 +100,8 @@ test("summarizePayload groups repeated grep hits by file and keeps the hit keywo
     hit: "wrapCache",
     after: "",
   }));
-  const summary = summarizePayload(JSON.stringify({ ok: true, toolName: "local.fs_grep", matches, scannedFiles: 120 }));
-  expect(summary).toContain("tool=local.fs_grep");
+  const summary = summarizePayload(JSON.stringify({ ok: true, toolName: "local_fs_grep", matches, scannedFiles: 120 }));
+  expect(summary).toContain("tool=local_fs_grep");
   expect(summary).toContain("matches×8");
   // 分层索引树里 L1 是全量明细，不再按文件折叠成一条，聚类只喂落盘清单。
   expect(summary).toContain("L1明细(共8条");
@@ -114,7 +114,7 @@ test("summarizePayload scales index lines with payload size and keeps every line
   const gate = runtimeConfig.results.inlineChars;
   const base = (count: number) => ({
     ok: true,
-    toolName: "local.fs_grep",
+    toolName: "local_fs_grep",
     scannedFiles: 200,
     matches: Array.from({ length: count }, (_, i) => ({ path: `/repo/src/mod${i}.ts`, line: i + 1, column: 1, before: "", hit: `kw${i}`, after: "" })),
   });
@@ -162,7 +162,7 @@ test("summarizePayload caps index lines for huge payloads instead of growing wit
   const gate = runtimeConfig.results.inlineChars;
   const full = JSON.stringify({
     ok: true,
-    toolName: "local.fs_grep",
+    toolName: "local_fs_grep",
     filler: "x".repeat(1_000_000),
     matches: Array.from({ length: 200 }, (_, i) => ({ path: `/repo/src/mod${i}.ts`, line: i + 1, column: 1, before: "", hit: `kw${i}`, after: "" })),
   });
@@ -179,7 +179,7 @@ test("summarizePayload caps index lines for huge payloads instead of growing wit
 test("summarizePayload writes a full unabridged index for landing on disk", () => {
   const payload = JSON.stringify({
     ok: true,
-    toolName: "local.fs_grep",
+    toolName: "local_fs_grep",
     filler: "x".repeat(1_000_000),
     matches: Array.from({ length: 200 }, (_, i) => ({ path: `/repo/src/mod${i}.ts`, line: i + 1, column: 1, before: "", hit: `kw${i}`, after: "" })),
   });
@@ -197,7 +197,7 @@ test("summarizePayload indexes fs_outline blocks by block number, line and previ
     { index: 1, startOffset: 400, startLine: 5, chars: 400, preview: "service/definitions/tool" },
     { index: 2, startOffset: 800, startLine: 9, chars: 400, preview: "## 栏目映射" },
   ];
-  const summary = summarizePayload(JSON.stringify({ ok: true, toolName: "local.fs_outline", mode: "blocks", blocks }));
+  const summary = summarizePayload(JSON.stringify({ ok: true, toolName: "local_fs_outline", mode: "blocks", blocks }));
   expect(summary).toContain("blocks×3");
   expect(summary).toContain("block0 p.1");
   expect(summary).toContain("block2 p.9");
@@ -208,7 +208,7 @@ test("summarizePayload expands an oversized fs_read content into per-line labels
   const longLine = "const payload = { ".padEnd(450, "x") + "};";
   const content = ["import x from \"y\";", longLine, "return null;"].join("\n");
   const summary = summarizePayload(
-    JSON.stringify({ ok: true, toolName: "local.fs_read", results: [{ path: "/repo/src/mod.ts", content, startLine: 10, endLine: 12, totalLines: 40 }] }),
+    JSON.stringify({ ok: true, toolName: "local_fs_read", results: [{ path: "/repo/src/mod.ts", content, startLine: 10, endLine: 12, totalLines: 40 }] }),
   );
   expect(summary).toContain("results×1");
   expect(summary).toContain("mod.ts:10");
@@ -222,7 +222,7 @@ test("summarizePayload splits long CJK lines on code point boundaries", () => {
   const longLine = "中".repeat(460);
   const content = [longLine].join("\n");
   const summary = summarizePayload(
-    JSON.stringify({ ok: true, toolName: "local.fs_read", results: [{ path: "/repo/src/cn.ts", content, startLine: 3, endLine: 3, totalLines: 5 }] }),
+    JSON.stringify({ ok: true, toolName: "local_fs_read", results: [{ path: "/repo/src/cn.ts", content, startLine: 3, endLine: 3, totalLines: 5 }] }),
   );
   // 段数按码点算：460 字 / 200 = 3 段；用 UTF-16 切会切出 4 段（含半个代理对）
   expect(summary).toContain("cn.ts:3.1");
@@ -236,7 +236,7 @@ test("summarizePayload splits long CJK lines on code point boundaries", () => {
 test("payloadIndex keeps every hit in fullLabels while L1 clusters them", () => {
   const payload = JSON.stringify({
     ok: true,
-    toolName: "local.fs_grep",
+    toolName: "local_fs_grep",
     filler: "x".repeat(1_000_000),
     matches: Array.from({ length: 200 }, (_, i) => ({ path: "/repo/src/mod.ts", line: i + 1, column: 1, before: "", hit: "kw", after: "" })),
   });
@@ -285,7 +285,7 @@ test("buildLevels keeps every label addressable: L1 is the full detail, L2 wraps
 test("indexTree builds a tree for oversized payloads and returns null when no facts can be extracted", () => {
   const payload = JSON.stringify({
     ok: true,
-    toolName: "local.fs_grep",
+    toolName: "local_fs_grep",
     filler: "x".repeat(50_000),
     matches: Array.from({ length: 300 }, (_, i) => ({ path: "/repo/src/mod.ts", line: i + 1, column: 1, before: "", hit: "kw", after: "y".repeat(60) })),
   });
@@ -300,11 +300,11 @@ test("indexTree builds a tree for oversized payloads and returns null when no fa
 test("admitText puts per-layer addressable chunk ids into the pointer payload", () => {
   const payload = JSON.stringify({
     ok: true,
-    toolName: "local.fs_grep",
+    toolName: "local_fs_grep",
     filler: "x".repeat(50_000),
     matches: Array.from({ length: 300 }, (_, i) => ({ path: "/repo/src/mod.ts", line: i + 1, column: 1, before: "", hit: "kw", after: "y".repeat(60) })),
   });
-  const admitted = admitText(payload, { callId: "call_01", path: "/tmp/a.txt", name: "local.fs_grep", indexPath: "/tmp/a.index.json" });
+  const admitted = admitText(payload, { callId: "call_01", path: "/tmp/a.txt", name: "local_fs_grep", indexPath: "/tmp/a.index.json" });
   expect(admitted.mode).toBe("preview");
   if (admitted.mode !== "preview") throw new Error("mode");
   const layers = admitted.payload.layers as { id: string; name: string; total: number; chunks: { id: string; from: number; to: number; chars: number }[] }[];
@@ -314,7 +314,7 @@ test("admitText puts per-layer addressable chunk ids into the pointer payload", 
   expect(l1.name).toBe("L1明细");
   expect(l1.total).toBe(300);
   expect(l1.chunks.length).toBeGreaterThan(1);
-  // 块 id 可直接喂给 evidence.search 的 levelId，且每块在门禁内
+  // 块 id 可直接喂给 evidence_search 的 levelId，且每块在门禁内
   for (const chunk of l1.chunks) {
     expect(chunk.id).toMatch(/^L1\.\d+$/);
     expect(chunk.to).toBeGreaterThanOrEqual(chunk.from);
@@ -336,7 +336,7 @@ test("summarizePayload keeps a stub for every chunk and never drops a whole leve
   const gate = runtimeConfig.results.inlineChars;
   const full = JSON.stringify({
     ok: true,
-    toolName: "local.fs_grep",
+    toolName: "local_fs_grep",
     scannedFiles: 200,
     filler: "x".repeat(60_000),
     matches: Array.from({ length: 200 }, (_, i) => ({ path: `/repo/src/mod${i}.ts`, line: i + 1, column: 1, before: "", hit: `kw${i}`, after: "" })),
@@ -391,7 +391,7 @@ test("retrieval window shares the inline gate instead of a separate retrieval li
 test("indexTree labels nested entries with the parent file name", () => {
   const full = JSON.stringify({
     ok: true,
-    toolName: "evidence.search",
+    toolName: "evidence_search",
     results: [
       {
         ok: true,
@@ -399,7 +399,7 @@ test("indexTree labels nested entries with the parent file name", () => {
         path: "/tmp/call_817.txt",
         mode: "search",
         matches: [
-          { offset: 10, lineStart: 42, lineEnd: 42, before: "", hit: "notes.write", after: " tail" },
+          { offset: 10, lineStart: 42, lineEnd: 42, before: "", hit: "notes_write", after: " tail" },
           { offset: 30, lineStart: 87, lineEnd: 87, before: "", hit: "memory.write", after: " tail" },
         ],
       },
@@ -411,12 +411,12 @@ test("indexTree labels nested entries with the parent file name", () => {
   const rendered = tree!.levels.flatMap((level) => level.chunks.map((chunk) => chunk.text)).join("\n");
   // 内层 matches[] 没有 path，行号与命中词要靠外层文件名才定位得到。
   expect(rendered).toContain("call_817.txt:42");
-  expect(rendered).toContain("notes.write");
+  expect(rendered).toContain("notes_write");
   expect(rendered).toContain("call_817.txt:87");
 });
 
 test("admitExecution inlines a retrieval return that the tool already budgeted", () => {
-  // 取回型返回（evidence.search / asset.read）自带 admitted 标记：即使超过入窗门禁也不二次外置，
+  // 取回型返回（evidence_search / asset_read）自带 admitted 标记：即使超过入窗门禁也不二次外置，
   // 否则「取回→外置→再取回」会形成死循环。
   const full = JSON.stringify({ ok: true, results: [], filler: "x".repeat(runtimeConfig.results.inlineChars * 3) });
   const admitted = admitExecution(full, true, { callId: "call_01", path: "/tmp/call_01.txt" });

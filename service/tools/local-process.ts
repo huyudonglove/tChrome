@@ -42,7 +42,7 @@ export function pruneProcessOutputs(dataDir: string, retain = runtimeConfig.cont
   }
 }
 
-export const LOCAL_PROCESS_TOOL_NAMES = ["local.run", "local.process_start", "local.process_status", "local.process_write", "local.process_stop", "local.open", "local.capabilities"] as const;
+export const LOCAL_PROCESS_TOOL_NAMES = ["local_run", "local_process_start", "local_process_status", "local_process_write", "local_process_stop", "local_open", "local_capabilities"] as const;
 type Status = "running" | "exited" | "error" | "timeout" | "stopped";
 interface Entry {
   processId: string;
@@ -110,7 +110,7 @@ async function start(input: Record<string, unknown>, scope: string, token: { can
       path = requiredString(input, "path");
       if (!isAbsolute(path)) throw new Error("path must be absolute");
       await stat(path);
-      if (process.platform !== "darwin" && process.platform !== "linux") throw new Error("local.open supports macOS and Linux");
+      if (process.platform !== "darwin" && process.platform !== "linux") throw new Error("local_open supports macOS and Linux");
       executable = process.platform === "darwin" ? "/usr/bin/open" : "xdg-open";
       argv = [path];
     } else {
@@ -198,17 +198,17 @@ export function abortAllLocalProcesses(): void {
 async function execute(name: string, rawInput: unknown, scope: string, dataDir: string): Promise<Record<string, unknown>> {
   if (!scope) throw new Error("Local tools require a conversation scope");
   const input = (rawInput && typeof rawInput === "object" && !Array.isArray(rawInput) ? rawInput : {}) as Record<string, unknown>;
-  if (name === "local.capabilities") return { ok: true, platform: process.platform, home: homedir(), scriptExtensions: [".sh", ".py", ".js", ".mjs", ".cjs"], scriptExecution: "Save scripts under scripts/ (script_patch, script_write or local.fs_write), then execute by filename. Each run uses an immutable private snapshot. Arguments are passed as literal strings.", outputRetention: "Complete stdout and stderr are retained and persisted in stdoutPath/stderrPath; process_status returns the complete cumulative output.", processLifetime: "No default timeout. An explicit timeoutMs, process_stop, conversation cancellation/deletion, or service shutdown terminates the process group. Parent exit does not terminate its children. local.run may pass heartbeatSec: when the process is still running after that many seconds, the call returns heartbeat=true with processId and previews instead of waiting; poll local.process_status until exit.", heartbeatNote: "heartbeatSec is seconds, positive integer; on successful exit the heartbeat ends with the process." };
-  if (name === "local.run" || name === "local.process_start" || name === "local.open") {
+  if (name === "local_capabilities") return { ok: true, platform: process.platform, home: homedir(), scriptExtensions: [".sh", ".py", ".js", ".mjs", ".cjs"], scriptExecution: "Save scripts under scripts/ (script_patch, script_write or local_fs_write), then execute by filename. Each run uses an immutable private snapshot. Arguments are passed as literal strings.", outputRetention: "Complete stdout and stderr are retained and persisted in stdoutPath/stderrPath; process_status returns the complete cumulative output.", processLifetime: "No default timeout. An explicit timeoutMs, process_stop, conversation cancellation/deletion, or service shutdown terminates the process group. Parent exit does not terminate its children. local_run may pass heartbeatSec: when the process is still running after that many seconds, the call returns heartbeat=true with processId and previews instead of waiting; poll local_process_status until exit.", heartbeatNote: "heartbeatSec is seconds, positive integer; on successful exit the heartbeat ends with the process." };
+  if (name === "local_run" || name === "local_process_start" || name === "local_open") {
     const token = { scope, cancelled: false };
     pendingStarts.add(token);
     try {
-      const entry = await start(input, scope, token, dataDir, name === "local.open");
+      const entry = await start(input, scope, token, dataDir, name === "local_open");
       pendingStarts.delete(token);
-      if (name !== "local.process_start") {
+      if (name !== "local_process_start") {
         entry.child.stdin.end();
         const heartbeatSec = input.heartbeatSec;
-        if (name === "local.run" && heartbeatSec !== undefined) {
+        if (name === "local_run" && heartbeatSec !== undefined) {
           if (typeof heartbeatSec !== "number" || !Number.isSafeInteger(heartbeatSec) || heartbeatSec < 1) {
             throw new Error("heartbeatSec must be a positive integer number of seconds");
           }
@@ -234,7 +234,7 @@ async function execute(name: string, rawInput: unknown, scope: string, dataDir: 
               elapsedMs,
               stdoutPreview: tail(entry.stdout),
               stderrPreview: tail(entry.stderr),
-              note: `仍在执行（已过 ${heartbeatSec}s）。processId=${entry.processId}。用 local.process_status 查询累计输出，用 local.process_stop 结束；进程退出后本心跳销毁。`,
+              note: `仍在执行（已过 ${heartbeatSec}s）。processId=${entry.processId}。用 local_process_status 查询累计输出，用 local_process_stop 结束；进程退出后本心跳销毁。`,
             };
           }
         }
@@ -243,14 +243,14 @@ async function execute(name: string, rawInput: unknown, scope: string, dataDir: 
       return snapshot(entry);
     } finally { pendingStarts.delete(token); }
   }
-  if (name === "local.process_status") return snapshot(lookup(input, scope));
-  if (name === "local.process_stop") {
+  if (name === "local_process_status") return snapshot(lookup(input, scope));
+  if (name === "local_process_stop") {
     const entry = lookup(input, scope);
     stop(entry, "stopped");
     await entry.finished;
     return snapshot(entry);
   }
-  if (name === "local.process_write") {
+  if (name === "local_process_write") {
     const entry = lookup(input, scope);
     if (entry.status !== "running" || entry.child.stdin.destroyed || entry.child.stdin.writableEnded) throw new Error("Process stdin is closed");
     if (typeof input.text !== "string") throw new Error("text must be a string");

@@ -1,0 +1,64 @@
+{
+  "type": "function",
+  "function": {
+    "name": "local_code_refs",
+    "description": "按标识符本身做代码检索：一次返回该符号的「定义点」（文件+行号+kind）与「引用点」，用于改某函数前先看清它定义在哪、被谁调用。纯词法判定，不引入 TypeScript 编译器，只认函数/类/接口/type/enum/const 等声明行，字符串里的同名字面量算引用不算定义。path 可给目录（递归，跳过 node_modules/.git/dist 等）或单个文件。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "绝对路径；目录会递归扫描"
+        },
+        "symbol": {
+          "type": "string",
+          "description": "要查的标识符名（不含括号，如 admitText）"
+        },
+        "kind": {
+          "type": "string",
+          "description": "可选；只保留该类定义（function/class/interface/type/enum/const），不填则全收"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "description": "定义与引用各自的条数上限，默认 80"
+        },
+        "maxFiles": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5000,
+          "description": "最多读取的代码文件数，默认 3000"
+        },
+        "maxEntries": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000,
+          "description": "最多扫描的目录项数，默认 20000"
+        },
+        "maxFileBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1048576,
+          "description": "单文件读取上限字节，超过记为 skipped，默认 1048576"
+        },
+        "snippetChars": {
+          "type": "integer",
+          "minimum": 20,
+          "maximum": 500,
+          "description": "命中行摘要截断长度，默认 160"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "symbol",
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "execution": "parallel"
+}

@@ -122,7 +122,7 @@ test("扩展构建握手阻止旧工具执行并报告重载指引", async () =>
 });
 
 
-test("tabs.current 走扩展桥；停止释放桥接等待", async () => {
+test("tabs_current 走扩展桥；停止释放桥接等待", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-open-tabs-bridge-"));
   const repoRoot = join(import.meta.dir, "..");
   let calls = 0;
@@ -131,7 +131,7 @@ test("tabs.current 走扩展桥；停止释放桥接等待", async () => {
     calls++;
     if (wantTabs) {
       wantTabs = false;
-      return {finish: "tool_calls", content: "", toolCalls: [{id: "tabs", name: "tabs.current", arguments: {reason: "查标签"}}], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: []};
+      return {finish: "tool_calls", content: "", toolCalls: [{id: "tabs", name: "tabs_current", arguments: {reason: "查标签"}}], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: []};
     }
     wantTabs = true;
     return {finish: "tool_calls", content: "", toolCalls: [{id: "reply", name: "finishTurn", arguments: {text: "完成"}}], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: []};
@@ -175,21 +175,21 @@ test("/browser-batch 校验任务、要求扩展在线，并经扩展桥在真�
     expect(bridge.list()).toEqual([]);
 
     await server.fetch(new Request(`${base}/tool-request?executorVersion=${version}`));
-    const pending = post({ tasks: [{ name: "see_page", input: { tabId: 1 } }, { name: "tabs.current" }] });
+    const pending = post({ tasks: [{ name: "see_page", input: { tabId: 1 } }, { name: "tabs_current" }] });
     let queued = bridge.list();
     for (let i = 0; i < 50 && queued.length < 2; i++) {
       await Bun.sleep(1);
       queued = bridge.list();
     }
-    expect(queued.map((item) => item.name)).toEqual(["see_page", "tabs.current"]);
+    expect(queued.map((item) => item.name)).toEqual(["see_page", "tabs_current"]);
     // marker 只是本用例自定义的透传标记，不在 BrowserResult 内，故按 resolve 签名断言一次。
     for (const item of queued) bridge.resolve(item.id, { ok: true, marker: item.name } as Parameters<typeof bridge.resolve>[1]);
 
     const body = await (await pending).json() as { ok: boolean; count: number; results: { name: string; result: { marker?: string } }[] };
     expect(body.ok).toBe(true);
     expect(body.count).toBe(2);
-    expect(body.results.map((item) => item.name)).toEqual(["see_page", "tabs.current"]);
-    expect(body.results.map((item) => item.result.marker)).toEqual(["see_page", "tabs.current"]);
+    expect(body.results.map((item) => item.name)).toEqual(["see_page", "tabs_current"]);
+    expect(body.results.map((item) => item.result.marker)).toEqual(["see_page", "tabs_current"]);
   } finally {
     bridge.abort();
     rmSync(dir, { recursive: true, force: true });

@@ -1,17 +1,17 @@
 SUMMARY: 宿主与浏览器协同：受限网络与计算、系统级录屏、本地服务联调。
 # 宿主与浏览器协作 (Host-Browser Coordination)
 
-浏览器遇到沙箱限制（CSP、特权页隔离、跨域、缺少本地读写等）或需要系统级资源时，用浏览器操作与本地服务（`local.*` / 本地命令，按需 `catalog.add`）配合完成任务。`open_url` 常驻；`local.run`、`video.record`、`network.grep`、`wait_response` 等按需加载。
+浏览器遇到沙箱限制（CSP、特权页隔离、跨域、缺少本地读写等）或需要系统级资源时，用浏览器操作与本地服务（`local.*` / 本地命令，按需 `catalog_add`）配合完成任务。`open_url` 常驻；`local_run`、`video_record`、`network_grep`、`wait_response` 等按需加载。
 
 ## 常见场景
 
 ### 受限网络与计算
 
-页面 CSP 禁止注入复杂脚本，或跨域限制阻碍抓取时，将网络请求与计算交由本地服务（`local.run`、Python、Bun 等）执行，结果返回或写入存储后再继续。
+页面 CSP 禁止注入复杂脚本，或跨域限制阻碍抓取时，将网络请求与计算交由本地服务（`local_run`、Python、Bun 等）执行，结果返回或写入存储后再继续。
 
 ### 系统级录屏
 
-CDP 视口录制（`video.record`）只能录网页内部，无法录标签栏和操作界面。
+CDP 视口录制（`video_record`）只能录网页内部，无法录标签栏和操作界面。
 
 调度系统原生工具（如 macOS `screencapture`）时：
 
@@ -22,7 +22,7 @@ CDP 视口录制（`video.record`）只能录网页内部，无法录标签栏�
 
 ### 本地服务联调
 
-1. 抓取或分析线上接口格式（`network.grep` / `wait_response`）
+1. 抓取或分析线上接口格式（`network_grep` / `wait_response`）
 2. 本地启动测试服务（API Mock、前端服务等）
 3. 浏览器 `open_url` 打开 `http://localhost:<port>` 操作与验证
 

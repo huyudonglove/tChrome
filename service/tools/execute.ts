@@ -178,7 +178,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     const question = questionWithChoices(text, asStringArray(args.choice));
     return result(question, [{ type: "turn.ask", question }]);
   }
-  if (name === "reflect.write") {
+  if (name === "reflect_write") {
     const text = typeof args.text === "string" ? args.text.trim() : "";
     if (!text) return failedTool(errorDetail("reflect_empty_text"), "invalid_arguments", { toolName: name });
     if (!input.conversationId) return failedTool(errorDetail("reflect_missing_session"), "invalid_arguments", { toolName: name });
@@ -186,23 +186,23 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     const replaceId = typeof args.id === "string" && args.id.trim() ? args.id.trim() : undefined;
     const id = replaceId ?? allocateRecordId(dataDir, input.conversationId, "reflect");
     return result(JSON.stringify({ ok: true, id, text, ...(focus ? { focus } : {}) }),
-      [{ type: "reflect.write", id, text, ...(focus ? { focus } : {}), ...(replaceId ? { replace: true } : {}) }]);
+      [{ type: "reflect_write", id, text, ...(focus ? { focus } : {}), ...(replaceId ? { replace: true } : {}) }]);
   }
-  if (name === "reflect.delete") {
+  if (name === "reflect_delete") {
     const id = typeof args.id === "string" ? args.id.trim() : "";
     if (!/^rf_[0-9]{2,}$/.test(id)) return failedTool(errorDetail("reflect_bad_id"), "invalid_arguments", { toolName: name });
-    return result(JSON.stringify({ ok: true, id, deleted: true }), [{ type: "reflect.delete", id }]);
+    return result(JSON.stringify({ ok: true, id, deleted: true }), [{ type: "reflect_delete", id }]);
   }
-  if (name === "notes.write") {
+  if (name === "notes_write") {
     const key = String(args.key ?? "").trim();
     const value = String(args.value ?? "");
     return key ? result(`notes[${key}]=${value}`, [{ type: "note.write", key, value }]) : failedTool(errorDetail("notes_key_empty"), "invalid_arguments");
   }
-  if (name === "notes.delete") {
+  if (name === "notes_delete") {
     const key = String(args.key ?? "").trim();
     return key ? result(`deleted notes[${key}]`, [{ type: "note.delete", key }]) : failedTool(errorDetail("notes_key_empty"), "invalid_arguments");
   }
-  if (name === "observation.write") {
+  if (name === "observation_write") {
     const observationType = String(args.type ?? "").trim();
     if (!observationType) return failedTool(errorDetail("observation_type_empty"), "invalid_arguments");
     if (args.result === undefined || args.result === null) return failedTool(errorDetail("observation_result_empty"), "invalid_arguments");
@@ -216,23 +216,23 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       ? args.refresh.trim()
       : undefined;
     return result(JSON.stringify({ ok: true, type: observationType, ...(tabId !== undefined ? { tabId } : {}) }),
-      [{ type: "observation.write", observationType, result: args.result, ...(tabId !== undefined ? { tabId } : {}), ...(validForTurns !== undefined ? { validForTurns } : {}), ...(refresh !== undefined ? { refresh } : {}) }]);
+      [{ type: "observation_write", observationType, result: args.result, ...(tabId !== undefined ? { tabId } : {}), ...(validForTurns !== undefined ? { validForTurns } : {}), ...(refresh !== undefined ? { refresh } : {}) }]);
   }
-  if (name === "tabs.current") {
+  if (name === "tabs_current") {
     if (!host?.readCurrentTabs) return failedTool(errorDetail("browser_not_connected"), "browser_unavailable");
     const tabs = await host.readCurrentTabs();
     return result(JSON.stringify(tabs));
   }
-  if (name === "page.clear_result") {
+  if (name === "page_clear_result") {
     const pageId = String(args.pageId ?? "").trim();
     if (!pageId) return failedTool("pageId 空着", "invalid_arguments");
     if (input.observationIds && !input.observationIds.includes(pageId)) {
       return failedTool(errorDetail("page_clear_missing_obs", { pageId }), "invalid_arguments");
     }
     return result(JSON.stringify({ ok: true, pageId, cleared: true }),
-      [{ type: "page.clear_result", pageId }]);
+      [{ type: "page_clear_result", pageId }]);
   }
-  if (name === "task.set") {
+  if (name === "task_set") {
     const rawItems = Array.isArray(args.items) ? args.items : [];
     const items = rawItems.map((item: unknown) => {
       const row = (item ?? {}) as Record<string, unknown>;
@@ -248,9 +248,9 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     if (!items.length) return failedTool(errorDetail("task_set_empty_items"), "invalid_arguments");
     const title = typeof args.title === "string" && args.title.trim() ? args.title.trim() : undefined;
     return result(JSON.stringify({ ok: true, count: items.length, ...(title ? { title } : {}) }),
-      [{ type: "task.set", ...(title ? { title } : {}), items }]);
+      [{ type: "task_set", ...(title ? { title } : {}), items }]);
   }
-  if (name === "task.update") {
+  if (name === "task_update") {
     const rawItems = Array.isArray(args.items) ? args.items : [];
     const updates = rawItems.map((item: unknown) => {
       const row = (item ?? {}) as Record<string, unknown>;
@@ -271,24 +271,24 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       ok: true,
       updated: updates.length,
       ...(taskId ? { taskId } : {}),
-      ...(hasBlocked ? { hint: "runtime: 任务步骤已记录 blockedReason。若确认原方案不可行或认知发生转折，建议调用 reflect.write 沉淀判断变化或放弃理由。" } : {}),
-    }), [{ type: "task.update", ...(taskId ? { taskId } : {}), items: updates }]);
+      ...(hasBlocked ? { hint: "runtime: 任务步骤已记录 blockedReason。若确认原方案不可行或认知发生转折，建议调用 reflect_write 沉淀判断变化或放弃理由。" } : {}),
+    }), [{ type: "task_update", ...(taskId ? { taskId } : {}), items: updates }]);
   }
-  if (name === "task.complete") {
+  if (name === "task_complete") {
     const taskId = typeof args.taskId === "string" && args.taskId.trim() ? args.taskId.trim() : undefined;
     const reason = typeof args.reason === "string" && args.reason.trim() ? args.reason.trim() : undefined;
     return result(JSON.stringify({ ok: true, ...(taskId ? { taskId } : {}) }),
-      [{ type: "task.complete", ...(taskId ? { taskId } : {}), ...(reason ? { reason } : {}) }]);
+      [{ type: "task_complete", ...(taskId ? { taskId } : {}), ...(reason ? { reason } : {}) }]);
   }
-  if (name === "tab.context") {
+  if (name === "tab_context") {
     const action = String(args.action ?? "get");
     if (action === "set") {
       const tabId = Number(args.tabId);
       if (!Number.isInteger(tabId) || tabId < 0) return failedTool(errorDetail("tab_context_set_tab"), "invalid_arguments");
-      return result(JSON.stringify({ ok: true, action, tabId }), [{ type: "tab.context.set", tabId }]);
+      return result(JSON.stringify({ ok: true, action, tabId }), [{ type: "tab_context.set", tabId }]);
     }
     if (action === "clear") {
-      return result(JSON.stringify({ ok: true, action }), [{ type: "tab.context.clear" }]);
+      return result(JSON.stringify({ ok: true, action }), [{ type: "tab_context.clear" }]);
     }
     return result(JSON.stringify({
       ok: true,
@@ -296,7 +296,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       tabId: input.defaultTabId ?? null,
     }));
   }
-  if (name === "evidence.search") {
+  if (name === "evidence_search") {
     if (!input.conversationId) return failedTool(errorDetail("evidence_missing_session"), "invalid_arguments");
     const windows = Array.isArray(args.windows) ? args.windows as Record<string, unknown>[] : [];
     if (windows.length < 1 || windows.length > 8) return failedTool(errorDetail("evidence_windows_range"), "invalid_arguments");
@@ -599,14 +599,14 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     // 再过一次 admitReturn 只可能把它降级成目录，形成「取回→外置→再取回」死循环。
     return result(serialize(results, droppedWindows), [], true);
   }
-  if (name === "skill.list") {
+  if (name === "skill_list") {
     const keyword = typeof args.keyword === "string" && args.keyword.trim() ? args.keyword.trim() : undefined;
     const numArg = (value: unknown): number | undefined =>
       typeof value === "number" && Number.isFinite(value) ? value : undefined;
     const page = skillCatalogPage(repoRoot, { keyword, offset: numArg(args.offset), limit: numArg(args.limit) });
     return result(JSON.stringify({ ok: true, ...page }));
   }
-  if (name === "skill.load") {
+  if (name === "skill_load") {
     const id = typeof args.id === "string" ? args.id.trim() : "";
     if (!id) return failedTool(errorDetail("skill_load_empty_id"), "invalid_arguments", { toolName: name });
     if (loadSkillManifest(repoRoot).residentSkillIds.includes(id)) {
@@ -614,9 +614,9 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     }
     const hit = skillCatalog(repoRoot).find(item => item.id === id);
     if (!hit) return failedTool(errorDetail("skill_unknown", { id }), "invalid_arguments", { toolName: name });
-    return result(JSON.stringify({ ok: true, id: hit.id, summary: hit.summary, purpose: hit.purpose }), [{ type: "skill.load", id }]);
+    return result(JSON.stringify({ ok: true, id: hit.id, summary: hit.summary, purpose: hit.purpose }), [{ type: "skill_load", id }]);
   }
-  if (name === "catalog.add") {
+  if (name === "catalog_add") {
     const names = [...new Set(asStringArray(args.names))];
     const mode = args.mode === "remove" ? "remove" : "add";
     if (mode === "remove") {
@@ -636,14 +636,14 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   if (name === "list_browser_tools") {
     return result(JSON.stringify({ ok: true, tools: lookup.unusedTools }));
   }
-  if (name === "memory.writeConversation") {
+  if (name === "memory_writeConversation") {
     const entries = asStringArray(args.conversationMemory).map((text) => ({
       layer: "conversation" as const, text,
     }));
     const effects: ToolEffect[] = entries.length ? [{ type: "memory.append", entries }] : [];
     return result(`落下 conversation=${entries.length} project=0`, effects);
   }
-  if (name === "memory.writeProject") {
+  if (name === "memory_writeProject") {
     const texts = asStringArray(args.projectMemory);
     const summaries = asStringArray(args.summary);
     if (summaries.length > 0 && summaries.length !== texts.length) {
@@ -664,7 +664,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     const withSummary = entries.filter((entry) => entry.summary).length;
     return result(`落下 conversation=0 project=${entries.length} scope=${scope || "(空)"} summary=${withSummary}`, effects);
   }
-  if (name === "memory.update") {
+  if (name === "memory_update") {
     const memoryId = String(args.memoryId ?? "").trim();
     const text = String(args.text ?? "").trim();
     if (!/^(?:mm|lm)_[0-9]{2,}$/.test(memoryId)) {
@@ -677,9 +677,9 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       memoryId,
       layer: memoryId.startsWith("lm_") ? "project" : "conversation",
       text,
-    }), [{ type: "memory.update", memoryId, text }]);
+    }), [{ type: "memory_update", memoryId, text }]);
   }
-  if (name === "memory.delete") {
+  if (name === "memory_delete") {
     const memoryId = String(args.memoryId ?? "").trim();
     if (!/^(?:mm|lm)_[0-9]{2,}$/.test(memoryId)) {
       return failedTool(errorDetail("memory_id_pattern"), "invalid_arguments", { toolName: name });
@@ -688,9 +688,9 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       ok: true,
       memoryId,
       layer: memoryId.startsWith("lm_") ? "project" : "conversation",
-    }), [{ type: "memory.delete", memoryId }]);
+    }), [{ type: "memory_delete", memoryId }]);
   }
-  if (name === "context.query" || name === "agent.query") {
+  if (name === "context_query" || name === "agent_query") {
     if (!input.queryContext) return failedTool("query_agent_unavailable", "query_failed");
     const queried = await input.queryContext({ sumId: String(args.sumId), module: args.module as QueryModule,
       intent: String(args.intent) });
@@ -712,7 +712,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       detail: query.detail,
     }), [{ type: "query.set", query }]);
   }
-  if (name === "agent.compress") {
+  if (name === "agent_compress") {
     if (!input.compressContext) return failedTool("compression_agent_unavailable", "compress_failed");
     const phase = args.phase === "current" ? "current" : "history";
     const outcome = await input.compressContext({ phase });
@@ -728,7 +728,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   if ((IMAGE_TOOL_NAMES as readonly string[]).includes(name)) {
     return externalResult(await runImageTool(name, hostArgs(args), host, dataDir, input.conversationId));
   }
-  if (name === "asset.list") {
+  if (name === "asset_list") {
     if (!input.conversationId) return failedTool(errorDetail("asset_list_missing_session"), "invalid_arguments");
     const assets = loadAssets(dataDir, input.conversationId).filter((item) => {
       if (typeof args.kind === "string" && args.kind && item.kind !== args.kind) return false;
@@ -737,7 +737,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     });
     return result(JSON.stringify({ ok: true, assets }));
   }
-  if (name === "asset.read") {
+  if (name === "asset_read") {
     if (!input.conversationId) return failedTool(errorDetail("asset_read_missing_session"), "invalid_arguments");
     const assetId = String(args.assetId ?? "").trim();
     const asset = loadAssets(dataDir, input.conversationId).find((item) => item.assetId === assetId);
@@ -746,13 +746,13 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       const imageId = asset.name.replace(/\.[^.]+$/, "");
       const rect = { x: args.x, y: args.y, width: args.width, height: args.height };
       if (Object.values(rect).every((n) => typeof n === "number")) {
-        return externalResult(await runImageTool("image.crop", { imageId, ...rect }, host, dataDir, input.conversationId));
+        return externalResult(await runImageTool("image_crop", { imageId, ...rect }, host, dataDir, input.conversationId));
       }
-      return result(JSON.stringify({ ok: true, asset, fetchHint: "要像素请传 x/y/width/height 走 image.crop，或 capture_page(mode=element|rect)" }));
+      return result(JSON.stringify({ ok: true, asset, fetchHint: "要像素请传 x/y/width/height 走 image_crop，或 capture_page(mode=element|rect)" }));
     }
     if (!asset.source.callId) {
       const full = readFileSync(join(dataDir, "conversations", input.conversationId, asset.path), "utf8");
-      // 取回窗口按 retrievalWindowChars 留位（与 evidence.search 同源），而不是按 inlineChars：
+      // 取回窗口按 retrievalWindowChars 留位（与 evidence_search 同源），而不是按 inlineChars：
       // 外层还要 JSON.stringify 包 asset 元数据，按入窗门禁裁剪仍会被顶破。
       const fetchBudget = retrievalWindowChars();
       const window = args.startLine
@@ -763,16 +763,16 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       const admitted = admitReturn(window, { path: asset.path, name: asset.name });
       // window 已由 admitReturn 按取回门禁裁过（或本就是短片段），不再二次外置。
       // 外层还要 JSON.stringify 包 asset 元数据，故片段本体按 retrievalWindowChars 留位，
-      // 与 evidence.search 取回同源，避免「已裁剪的取回型返回」再被顶破外置。
+      // 与 evidence_search 取回同源，避免「已裁剪的取回型返回」再被顶破外置。
       return admitted.mode === "inline"
         ? result(JSON.stringify({ ok: true, asset, window: admitted.text, flavor: textFlavor(window) }), [], true)
         : result(JSON.stringify({ ok: true, asset, ...((admitted as { payload?: Record<string, unknown> }).payload ?? {}), flavor: textFlavor(window) }), [], true);
     }
     return await executeTool({
       ...input,
-      name: "evidence.search",
+      name: "evidence_search",
       arguments: {
-        reason: typeof args.reason === "string" ? args.reason : "asset.read",
+        reason: typeof args.reason === "string" ? args.reason : "asset_read",
         windows: [{
           callId: asset.source.callId ?? asset.name.replace(/\.txt$/, ""),
           ...(typeof args.keyword === "string" && args.keyword ? { keyword: args.keyword } : {}),

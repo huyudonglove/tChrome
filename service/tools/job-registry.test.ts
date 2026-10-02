@@ -21,7 +21,7 @@ afterEach(() => {
   rmSync(dataDir, { recursive: true, force: true });
 });
 
-test("HTTP heartbeat returns jobId and job.status later delivers the full result", async () => {
+test("HTTP heartbeat returns jobId and job_status later delivers the full result", async () => {
   let release!: () => void;
   const gate = new Promise<void>((resolve) => { release = resolve; });
   const mock = spyOn(globalThis, "fetch").mockImplementation((async () => {
@@ -38,17 +38,17 @@ test("HTTP heartbeat returns jobId and job.status later delivers the full result
     expect(beat).toMatchObject({ ok: true, heartbeat: true, status: "running", toolName: "send_http" });
     const jobId = String((beat as { jobId: string }).jobId);
     expect(jobId).toMatch(/^job_[0-9]{2,}$/);
-    const running = await runJobTool("job.status", { jobId }, jobScope(dataDir, conversationId));
+    const running = await runJobTool("job_status", { jobId }, jobScope(dataDir, conversationId));
     expect(running).toMatchObject({ ok: true, jobId, status: "running" });
     release();
     await Bun.sleep(20);
-    const done = await runJobTool("job.status", { jobId }, jobScope(dataDir, conversationId));
+    const done = await runJobTool("job_status", { jobId }, jobScope(dataDir, conversationId));
     expect(done).toMatchObject({ ok: true, status: "completed" });
     expect(JSON.stringify((done as { result: { text: string } }).result)).toContain("payload");
   } finally { mock.mockRestore(); }
 });
 
-test("job.stop cancels an in-flight HTTP heartbeat request", async () => {
+test("job_stop cancels an in-flight HTTP heartbeat request", async () => {
   let seenAbort = false;
   const mock = spyOn(globalThis, "fetch").mockImplementation((async (_url: RequestInfo | URL, init?: RequestInit) => {
     await new Promise<void>((_resolve, reject) => {
@@ -65,7 +65,7 @@ test("job.stop cancels an in-flight HTTP heartbeat request", async () => {
       reason: "取消",
     }, undefined, conversationId);
     const jobId = String((beat as { jobId: string }).jobId);
-    const stopped = await runJobTool("job.stop", { jobId }, jobScope(dataDir, conversationId));
+    const stopped = await runJobTool("job_stop", { jobId }, jobScope(dataDir, conversationId));
     expect(stopped).toMatchObject({ ok: true, jobId, status: "stopped" });
     await Bun.sleep(20);
     expect(seenAbort).toBe(true);
@@ -93,18 +93,18 @@ test("job tools reject foreign conversation scopes", async () => {
     start: async () => { await Bun.sleep(50); return { ok: true }; },
   });
   const jobId = String((beat as { jobId: string }).jobId);
-  const foreign = await runJobTool("job.status", { jobId }, jobScope(dataDir, "cv_other"));
+  const foreign = await runJobTool("job_status", { jobId }, jobScope(dataDir, "cv_other"));
   expect(foreign).toMatchObject({ ok: false });
 });
 
-test("execute_javascript heartbeat uses job.status and forwards the eventual script result", async () => {
+test("execute_javascript heartbeat uses job_status and forwards the eventual script result", async () => {
   const repoRoot = join(import.meta.dir, "../..");
   const tools = loadToolRegistry(repoRoot);
-  expect(tools.tools["job.status"]).toBeTruthy();
-  expect(tools.tools["job.stop"]).toBeTruthy();
-  expect(tools.toolGroups.baseToolsIds).toContain("job.status");
-  // job.stop 是低频工具，已下沉为动态工具，只保证可被 catalog.add 加载。
-  expect(tools.index.service).toContain("job.stop");
+  expect(tools.tools["job_status"]).toBeTruthy();
+  expect(tools.tools["job_stop"]).toBeTruthy();
+  expect(tools.toolGroups.baseToolsIds).toContain("job_status");
+  // job_stop 是低频工具，已下沉为动态工具，只保证可被 catalog_add 加载。
+  expect(tools.index.service).toContain("job_stop");
   const filename = "beat.js";
   expect(await patchScript(dataDir, {
     filename,
@@ -125,7 +125,7 @@ test("execute_javascript heartbeat uses job.status and forwards the eventual scr
     conversationId,
     browserNames: ["execute_javascript"],
     host,
-    lookup: { unusedTools: [], knownTools: ["execute_javascript", "job.status", "job.stop"], enabledTools: ["execute_javascript", "job.status", "job.stop"] },
+    lookup: { unusedTools: [], knownTools: ["execute_javascript", "job_status", "job_stop"], enabledTools: ["execute_javascript", "job_status", "job_stop"] },
   });
   const beat = JSON.parse((await pending).text) as Record<string, unknown>;
   expect(beat).toMatchObject({ ok: true, heartbeat: true, toolName: "execute_javascript" });
@@ -133,12 +133,12 @@ test("execute_javascript heartbeat uses job.status and forwards the eventual scr
   release({ ok: true, type: "number", value: 2, tabId: 1 });
   await Bun.sleep(20);
   const status = await executeTool({
-    name: "job.status",
+    name: "job_status",
     arguments: { jobId, reason: "查询" },
     dataDir,
     conversationId,
     browserNames: [],
-    lookup: { unusedTools: [], knownTools: ["job.status"], enabledTools: ["job.status"] },
+    lookup: { unusedTools: [], knownTools: ["job_status"], enabledTools: ["job_status"] },
   });
   const viewed = JSON.parse(status.text) as Record<string, unknown>;
   expect(viewed).toMatchObject({ ok: true, status: "completed" });

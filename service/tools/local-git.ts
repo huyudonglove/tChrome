@@ -6,8 +6,8 @@ import { errorInfo } from "../../shared/errors.ts";
 const execFileAsync = promisify(execFile);
 
 export const LOCAL_GIT_TOOL_NAMES = [
-  "local.git_status",
-  "local.git_diff",
+  "local_git_status",
+  "local_git_diff",
 ] as const;
 
 export type LocalGitToolName = (typeof LOCAL_GIT_TOOL_NAMES)[number];
@@ -163,9 +163,9 @@ export async function runGitDiff(input: Record<string, unknown>): Promise<GitDif
 export async function runLocalGitTool(name: string, input: Record<string, unknown>) {
   try {
     switch (name) {
-      case "local.git_status":
+      case "local_git_status":
         return await runGitStatus(input);
-      case "local.git_diff":
+      case "local_git_diff":
         return await runGitDiff(input);
       default:
         throw new Error(`unknown local git tool ${name}`);

@@ -153,7 +153,7 @@ export function repeatHint(rows: ToolIOItem[], history: ToolIOItem[] = rows): st
     // by callId rather than object identity: the same row object can legitimately appear twice.
     const seenBefore = (code: string): boolean => history.some((row) => row.callId !== current.callId && faultCodeOf(row) === code);
     if (fault && DIAGNOSABLE_FAULTS.has(fault) && !seenBefore(fault)) {
-      return `${RULE_MARKERS.faultMemory} runtime: 本轮首次遇到故障 ${fault}。这类故障的根因不在这次调用里（宿主环境、扩展构建、服务版本或桥接），处置经验不会自己出现在记忆中——下次症状可能相似、根因和动作却相反，所以那时不会去翻其他故障的处置。如果你已经定位清楚根因，请用 memory.writeProject 写一条 projectMemory，把三段记清楚：症状（怎么发现的、表现是什么）→ 根因（真实原因、代码位置）→ 处置（怎么修的、下次先做什么）。没定位清楚就不要写。这只是提示，不阻断排查。`;
+      return `${RULE_MARKERS.faultMemory} runtime: 本轮首次遇到故障 ${fault}。这类故障的根因不在这次调用里（宿主环境、扩展构建、服务版本或桥接），处置经验不会自己出现在记忆中——下次症状可能相似、根因和动作却相反，所以那时不会去翻其他故障的处置。如果你已经定位清楚根因，请用 memory_writeProject 写一条 projectMemory，把三段记清楚：症状（怎么发现的、表现是什么）→ 根因（真实原因、代码位置）→ 处置（怎么修的、下次先做什么）。没定位清楚就不要写。这只是提示，不阻断排查。`;
     }
   }
   if (rows.length < REPEAT_CALL_LIMIT) return undefined;
@@ -180,7 +180,7 @@ export function repeatHint(rows: ToolIOItem[], history: ToolIOItem[] = rows): st
     // distinct returns says the retries stopped producing anything new.
     const signatures = new Set(byTool.map(returnSignature).filter((value) => value !== undefined));
     if (signatures.size <= REPEAT_DUPLICATE_SIGNATURES) {
-      return `${RULE_MARKERS.tool} runtime: 最近 ${window.length} 次调用中 ${current.name} 已出现 ${byTool.length} 次，而返回只有 ${signatures.size} 种（重复尝试没有带来新信息）。若仍在原地重试同一路径，请先换方法或向用户说明卡点。原路径受阻或方案被证伪时，建议调用 reflect.write 记录判断变化或踩坑。`;
+      return `${RULE_MARKERS.tool} runtime: 最近 ${window.length} 次调用中 ${current.name} 已出现 ${byTool.length} 次，而返回只有 ${signatures.size} 种（重复尝试没有带来新信息）。若仍在原地重试同一路径，请先换方法或向用户说明卡点。原路径受阻或方案被证伪时，建议调用 reflect_write 记录判断变化或踩坑。`;
     }
   }
   if (!alreadyFired(RULE_MARKERS.fault)) {
@@ -195,7 +195,7 @@ export function repeatHint(rows: ToolIOItem[], history: ToolIOItem[] = rows): st
         const previous = faults[faults.length > 1 ? faults.length - 2 : 0];
         const detail = previous ? failureDetail(previous) : undefined;
         const recap = detail ? `上一次同样失败时错误写的是：${detail}。` : "";
-        return `${RULE_MARKERS.fault} runtime: 最近 ${window.length} 次调用中已第 ${faults.length} 次收到同一个错误（faultCode=${currentFault}）。${recap}先确认上一次是否已生效；要继续就改参数或换方法，不要原样重放——同参重放已连续失败 ${faults.length} 次。若上面写的处置方向指向环境或服务侧（例如扩展构建、桥接、服务版本），重复调用同一个工具不会变好，改走宿主侧探针或直接向用户说明卡点；若方案不可行或认知发生转折，建议调用 reflect.write 记录原因。`;
+        return `${RULE_MARKERS.fault} runtime: 最近 ${window.length} 次调用中已第 ${faults.length} 次收到同一个错误（faultCode=${currentFault}）。${recap}先确认上一次是否已生效；要继续就改参数或换方法，不要原样重放——同参重放已连续失败 ${faults.length} 次。若上面写的处置方向指向环境或服务侧（例如扩展构建、桥接、服务版本），重复调用同一个工具不会变好，改走宿主侧探针或直接向用户说明卡点；若方案不可行或认知发生转折，建议调用 reflect_write 记录原因。`;
       }
     }
   }

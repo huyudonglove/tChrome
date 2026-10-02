@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "select",
-    "description": "（兼容入口，优先用 combo.select）在下拉框选择精确 value。\ncombo.select 支持 value 或选项文字，并接受 e_ 编号。\n本工具要求精确 value；缺少 ref/value 或选项不存在时失败。返回 ok、value。",
+    "description": "（兼容入口，优先用 combo_select）在下拉框选择精确 value。\ncombo_select 支持 value 或选项文字，并接受 e_ 编号。\n本工具要求精确 value；缺少 ref/value 或选项不存在时失败。返回 ok、value。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -12,7 +12,7 @@
         },
         "tabId": {
           "type": "integer",
-          "description": "目标标签编号（必填；从 tabs.current 等返回取得，不随前台切换）。"
+          "description": "目标标签编号（必填；从 tabs_current 等返回取得，不随前台切换）。"
         },
         "reason": {
           "type": "string"

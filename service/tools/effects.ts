@@ -7,21 +7,21 @@ export type ToolEffect =
   | { type: "note.write"; key: string; value: string }
   | { type: "note.delete"; key: string }
   | { type: "memory.append"; entries: { layer: MemoryLayer; scope?: string; summary?: string; text: string }[] }
-  | { type: "memory.update"; memoryId: string; text: string }
-  | { type: "memory.delete"; memoryId: string }
+  | { type: "memory_update"; memoryId: string; text: string }
+  | { type: "memory_delete"; memoryId: string }
   | { type: "tools.enable"; names: string[] }
   | { type: "tools.disable"; names: string[] }
-  | { type: "skill.load"; id: string }
+  | { type: "skill_load"; id: string }
   | { type: "page.set"; page: CurrentPage; result: Record<string, unknown> }
-  | { type: "observation.write"; observationType: string; result: unknown; tabId?: number; validForTurns?: number; refresh?: string }
-  | { type: "page.clear_result"; pageId: string }
-  | { type: "task.set"; title?: string; items: { text: string; status?: "todo" | "doing" | "done"; expectedEffect?: string; verification?: string }[] }
-  | { type: "task.update"; taskId?: string; items: { id: string; status?: "todo" | "doing" | "done"; text?: string; expectedEffect?: string; verification?: string; blockedReason?: string }[] }
-  | { type: "task.complete"; taskId?: string; reason?: string }
-  | { type: "reflect.write"; id: string; text: string; focus?: string; replace?: boolean }
-  | { type: "reflect.delete"; id: string }
-  | { type: "tab.context.set"; tabId: number }
-  | { type: "tab.context.clear" }
+  | { type: "observation_write"; observationType: string; result: unknown; tabId?: number; validForTurns?: number; refresh?: string }
+  | { type: "page_clear_result"; pageId: string }
+  | { type: "task_set"; title?: string; items: { text: string; status?: "todo" | "doing" | "done"; expectedEffect?: string; verification?: string }[] }
+  | { type: "task_update"; taskId?: string; items: { id: string; status?: "todo" | "doing" | "done"; text?: string; expectedEffect?: string; verification?: string; blockedReason?: string }[] }
+  | { type: "task_complete"; taskId?: string; reason?: string }
+  | { type: "reflect_write"; id: string; text: string; focus?: string; replace?: boolean }
+  | { type: "reflect_delete"; id: string }
+  | { type: "tab_context.set"; tabId: number }
+  | { type: "tab_context.clear" }
   | { type: "turn.ask"; question: string }
   | { type: "turn.reply"; text: string }
   | { type: "queue.clear" };

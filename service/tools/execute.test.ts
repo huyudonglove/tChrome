@@ -90,8 +90,8 @@ test("JavaScript values with a target tabId are recorded as page observations", 
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
-test("agent.query reuses the Query Agent and emits query.set", async () => {
-  const records = [{ id: "call_01", turnId: "tn_01", name: "local.run" }];
+test("agent_query reuses the Query Agent and emits query.set", async () => {
+  const records = [{ id: "call_01", turnId: "tn_01", name: "local_run" }];
   const queryContext = async () => ({
     ok: true as const,
     status: "complete" as const,
@@ -101,7 +101,7 @@ test("agent.query reuses the Query Agent and emits query.set", async () => {
     records,
   });
   const execution = await executeTool({
-    name: "agent.query",
+    name: "agent_query",
     arguments: { reason: "核对历史", sumId: "sum_01", module: "toolIO", intent: "核对历史调用参数" },
     dataDir: "",
     browserNames: [],
@@ -119,10 +119,10 @@ test("agent.query reuses the Query Agent and emits query.set", async () => {
 
 
 
-test("agent.compress invokes the Compression Agent with the selected phase", async () => {
+test("agent_compress invokes the Compression Agent with the selected phase", async () => {
   const calls: Array<{ phase: "history" | "current" }> = [];
   const execution = await executeTool({
-    name: "agent.compress",
+    name: "agent_compress",
     arguments: { reason: "长任务主动降低历史上下文", phase: "current" },
     dataDir: "",
     browserNames: [],
@@ -141,9 +141,9 @@ test("agent.compress invokes the Compression Agent with the selected phase", asy
   });
 });
 
-test("agent.compress passes through the measured windowChars before and after", async () => {
+test("agent_compress passes through the measured windowChars before and after", async () => {
   const execution = await executeTool({
-    name: "agent.compress",
+    name: "agent_compress",
     arguments: { reason: "确认压缩前后窗口变化可见" },
     dataDir: "",
     browserNames: [],
@@ -158,9 +158,9 @@ test("agent.compress passes through the measured windowChars before and after", 
   expect(JSON.parse(execution.text).windowChars).toEqual({ before: 182000, after: 96000 });
 });
 
-test("agent.compress reports unavailable runtime support", async () => {
+test("agent_compress reports unavailable runtime support", async () => {
   const execution = await executeTool({
-    name: "agent.compress",
+    name: "agent_compress",
     arguments: { reason: "验证降级" },
     dataDir: "",
     browserNames: [],

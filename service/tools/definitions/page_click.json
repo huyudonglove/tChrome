@@ -1,0 +1,29 @@
+{
+  "type": "function",
+  "function": {
+    "name": "page_click",
+    "description": "按元素编号点击控件。\n先从 page_list_interactive_elements 或 snapshot_page 取得 e_01 格式编号，再传入 id；不接受目标文字。\n必填 tabId。返回：ok、clicked、id。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "description": "本次调用的行动说明，一两句话说明要做什么、为什么；本工具为 high 档，必填，不用于定位控件。"
+        },
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号（必填；从 tabs_current 等返回取得，不随前台切换）。"
+        },
+        "id": {
+          "type": "string",
+          "description": "page.* 返回的 e_01 格式元素编号，原样传入。"
+        }
+      },
+      "required": [
+        "id",
+        "tabId"
+      ]
+    }
+  },
+  "execution": "serial"
+}

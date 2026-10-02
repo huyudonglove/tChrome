@@ -1,0 +1,28 @@
+{
+  "type": "function",
+  "function": {
+    "name": "local_fs_delete",
+    "description": "删除文件或目录，recursive=true才递归删除非空目录；删除不可从工具内撤销。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "绝对路径"
+        },
+        "recursive": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "execution": "serial"
+}

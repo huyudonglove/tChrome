@@ -83,14 +83,14 @@ test.each(outputs)("session uses authoritative $stopReason.kind and preserves di
       content: "seen\nINTERNAL_PAGE_DATA\nreason\nINTERNAL_REASON\naction\nINTERMEDIATE_ACTION",
     } });
     appendEvent(dir, "cv_01", { kind: "tool", turnId: "tn_01", data: {
-      name: "page.get_summary", arguments: { reason: "读取页面摘要" },
+      name: "page_get_summary", arguments: { reason: "读取页面摘要" },
       return: { text: '{"secret":"RAW_TOOL_RETURN"}' },
     } });
     const eventsBefore = loadEvents(dir, "cv_01");
     const view = sessionView(dir, "cv_01");
     expect(view.messages).toEqual([
       { turnId: "tn_01", role: "user", text: "查看当前页面" },
-      { turnId: "tn_01", role: "tool", name: "page.get_summary", text: "读取页面摘要" },
+      { turnId: "tn_01", role: "tool", name: "page_get_summary", text: "读取页面摘要" },
       { turnId: "tn_01", role: "assistant", text: expected },
     ]);
     expect(JSON.stringify(view)).not.toContain("INTERNAL_PAGE_DATA");
@@ -108,17 +108,17 @@ test("running toolIO and live queue retain reasons without raw returns", () => {
     ledger.turnIds = ["tn_01"];
     ledger.status = "running";
     ledger.active = { turnId: "tn_01" };
-    ledger.toolIO = [{ turnId: "tn_01", callId: "old", name: "page.get_summary", arguments: {},
+    ledger.toolIO = [{ turnId: "tn_01", callId: "old", name: "page_get_summary", arguments: {},
       return: { stage: "complete", totalChars: 18, text: '{"data":"PRIVATE"}' } }];
-    ledger.liveTools = [{ callId: "live", name: "page.click", reason: "点击提交按钮" }];
-    ledger.toolQueue = [{ callId: "queued", name: "page.type", arguments: { reason: "很长的进度说明".repeat(30) } }];
+    ledger.liveTools = [{ callId: "live", name: "page_click", reason: "点击提交按钮" }];
+    ledger.toolQueue = [{ callId: "queued", name: "page_type", arguments: { reason: "很长的进度说明".repeat(30) } }];
     saveLedger(dir, ledger);
     saveTurn(dir, makeTurn(null));
     appendEvent(dir, "cv_01", { kind: "provider-response", turnId: "tn_01", data: { content: "seen\nPRIVATE" } });
     const view = sessionView(dir, "cv_01");
     expect(view.messages.map((row) => row.role)).toEqual(["user", "tool", "tool", "tool"]);
     expect(view.messages[1]?.text).toBe("工具调用已结束");
-    expect(view.messages[2]).toMatchObject({ name: "page.click", text: "点击提交按钮", live: true });
+    expect(view.messages[2]).toMatchObject({ name: "page_click", text: "点击提交按钮", live: true });
     expect(view.messages[3]?.text).toBe("很长的进度说明".repeat(30));
     expect(JSON.stringify(view)).not.toContain("PRIVATE");
   } finally { rmSync(dir, { recursive: true, force: true }); }
@@ -128,14 +128,14 @@ test("tool messages fall back to ledger.toolIO when events carry no tool rows", 
   try {
     const ledger = emptyLedger("cv_01");
     ledger.turnIds = ["tn_01"];
-    ledger.toolIO = [{ turnId: "tn_01", callId: "call_01", name: "page.get_summary", arguments: { reason: "读取页面摘要" },
+    ledger.toolIO = [{ turnId: "tn_01", callId: "call_01", name: "page_get_summary", arguments: { reason: "读取页面摘要" },
       return: { stage: "complete", totalChars: 26, text: '{"data":"RAW_TOOL_RETURN"}' } }];
     saveLedger(dir, ledger);
     saveTurn(dir, makeTurn({ kind: "reply", text: "完成" }));
     const view = sessionView(dir, "cv_01");
     expect(view.messages).toEqual([
       { turnId: "tn_01", role: "user", text: "查看当前页面" },
-      { turnId: "tn_01", role: "tool", name: "page.get_summary", text: "读取页面摘要" },
+      { turnId: "tn_01", role: "tool", name: "page_get_summary", text: "读取页面摘要" },
       { turnId: "tn_01", role: "assistant", text: "完成" },
     ]);
     expect(JSON.stringify(view)).not.toContain("RAW_TOOL_RETURN");

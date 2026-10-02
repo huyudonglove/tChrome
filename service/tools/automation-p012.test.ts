@@ -11,40 +11,40 @@ const registry = loadToolRegistry(root);
 
 test("P0-P2 automation tools are registered with schemas", () => {
   const core = [
-    "page.recheck", "page.assert", "page.drag_to_id", "frame.list",
-    "wait", "wait_response", "network.grep", "dialog.wait",
-    "combo.select", "date.select",
+    "page_recheck", "page_assert", "page_drag_to_id", "frame_list",
+    "wait", "wait_response", "network_grep", "dialog_wait",
+    "combo_select", "date_select",
   ] as const;
   for (const name of core) {
     expect(registry.tools[name], name).toBeTruthy();
     expect(registry.toolGroups.baseToolsIds.includes(name) || registry.toolGroups.coreToolIds.includes(name) || name.includes(".") || true, name).toBe(true);
   }
-  expect(registry.toolGroups.baseToolsIds).toContain("page.recheck");
-  expect(registry.toolGroups.baseToolsIds).toContain("page.assert");
-  expect(registry.toolGroups.baseToolsIds).toContain("tab.context");
-  expect(registry.toolGroups.coreToolIds).toContain("frame.list");
+  expect(registry.toolGroups.baseToolsIds).toContain("page_recheck");
+  expect(registry.toolGroups.baseToolsIds).toContain("page_assert");
+  expect(registry.toolGroups.baseToolsIds).toContain("tab_context");
+  expect(registry.toolGroups.coreToolIds).toContain("frame_list");
   const tools = toolSchemas(registry, [
-    "page.assert", "page.drag_to_id", "frame.list", "network.grep", "dialog.wait",
-    "combo.select", "date.select", "tab.context", "clipboard.page_write", "clipboard.page_read",
+    "page_assert", "page_drag_to_id", "frame_list", "network_grep", "dialog_wait",
+    "combo_select", "date_select", "tab_context", "clipboard_page_write", "clipboard_page_read",
   ]);
   expect(checkToolCalls([
-    { id: "c1", name: "page.assert", arguments: { reason: "核验", tabId: 12, text: "上传成功", urlContains: "/upload" } },
-    { id: "c2", name: "page.drag_to_id", arguments: { reason: "拖拽", tabId: 12, sourceId: "e_01", targetId: "e_02" } },
-    { id: "c3", name: "frame.list", arguments: { reason: "列 frame", tabId: 12 } },
-    { id: "c4", name: "network.grep", arguments: { reason: "搜响应", tabId: 12, urlContains: "/api/", keyword: "ok" } },
-    { id: "c5", name: "dialog.wait", arguments: { reason: "等弹窗", tabId: 12, timeoutMs: 3000 } },
-    { id: "c6", name: "combo.select", arguments: { reason: "选下拉", tabId: 12, id: "e_03", value: "stl" } },
-    { id: "c7", name: "date.select", arguments: { reason: "选日期", tabId: 12, id: "e_04", value: "2026-01-02" } },
-    { id: "c8", name: "tab.context", arguments: { reason: "绑定标签", action: "set", tabId: 12 } },
-    { id: "c9", name: "clipboard.page_write", arguments: { reason: "写剪贴板", tabId: 12, text: "hello" } },
-    { id: "c10", name: "clipboard.page_read", arguments: { reason: "读剪贴板", tabId: 12 } },
+    { id: "c1", name: "page_assert", arguments: { reason: "核验", tabId: 12, text: "上传成功", urlContains: "/upload" } },
+    { id: "c2", name: "page_drag_to_id", arguments: { reason: "拖拽", tabId: 12, sourceId: "e_01", targetId: "e_02" } },
+    { id: "c3", name: "frame_list", arguments: { reason: "列 frame", tabId: 12 } },
+    { id: "c4", name: "network_grep", arguments: { reason: "搜响应", tabId: 12, urlContains: "/api/", keyword: "ok" } },
+    { id: "c5", name: "dialog_wait", arguments: { reason: "等弹窗", tabId: 12, timeoutMs: 3000 } },
+    { id: "c6", name: "combo_select", arguments: { reason: "选下拉", tabId: 12, id: "e_03", value: "stl" } },
+    { id: "c7", name: "date_select", arguments: { reason: "选日期", tabId: 12, id: "e_04", value: "2026-01-02" } },
+    { id: "c8", name: "tab_context", arguments: { reason: "绑定标签", action: "set", tabId: 12 } },
+    { id: "c9", name: "clipboard_page_write", arguments: { reason: "写剪贴板", tabId: 12, text: "hello" } },
+    { id: "c10", name: "clipboard_page_read", arguments: { reason: "读剪贴板", tabId: 12 } },
   ], tools, registry.toolGroups.coreToolIds, [
-    "page.assert", "page.drag_to_id", "frame.list", "network.grep", "dialog.wait",
-    "combo.select", "date.select", "tab.context", "clipboard.page_write", "clipboard.page_read",
+    "page_assert", "page_drag_to_id", "frame_list", "network_grep", "dialog_wait",
+    "combo_select", "date_select", "tab_context", "clipboard_page_write", "clipboard_page_read",
   ]).schemaOk).toBe(true);
 });
 
-test("tab.context sets default tab and fills later browser calls", async () => {
+test("tab_context sets default tab and fills later browser calls", async () => {
   const dataDir = "/tmp";
   const ledger = emptyLedger("cv_ctx");
   ledger.status = "running";
@@ -59,23 +59,23 @@ test("tab.context sets default tab and fills later browser calls", async () => {
   };
   const exec = executeTool;
   const set = await exec({
-    name: "tab.context",
+    name: "tab_context",
     arguments: { reason: "绑定", action: "set", tabId: 42 },
     dataDir,
     browserNames: [],
     defaultTabId: ledger.contextTab?.tabId ?? null,
-    lookup: { knownTools: ["tab.context"], enabledTools: ["tab.context"], unusedTools: [] },
+    lookup: { knownTools: ["tab_context"], enabledTools: ["tab_context"], unusedTools: [] },
   });
   expect(JSON.parse(set.text)).toMatchObject({ ok: true, tabId: 42 });
-  applyToolEffects({ dataDir, ledger, turn, call: { callId: "c1", name: "tab.context", arguments: {} }, effects: set.effects });
+  applyToolEffects({ dataDir, ledger, turn, call: { callId: "c1", name: "tab_context", arguments: {} }, effects: set.effects });
   expect(ledger.contextTab?.tabId).toBe(42);
   let seen: any = null;
   const page = await exec({
-    name: "page.recheck",
+    name: "page_recheck",
     arguments: { reason: "复验", urlContains: "example" },
     dataDir,
     defaultTabId: ledger.contextTab?.tabId ?? null,
-    lookup: { knownTools: ["page.recheck"], enabledTools: ["page.recheck"], unusedTools: [] },
+    lookup: { knownTools: ["page_recheck"], enabledTools: ["page_recheck"], unusedTools: [] },
     host: {
       execute: async (_name: string, args: Record<string, unknown>) => {
         seen = args;
@@ -83,14 +83,14 @@ test("tab.context sets default tab and fills later browser calls", async () => {
       },
     },
   } as any);
-  // page.recheck is browser tool - need browserNames
+  // page_recheck is browser tool - need browserNames
   const page2 = await exec({
-    name: "page.recheck",
+    name: "page_recheck",
     arguments: { reason: "复验", urlContains: "example" },
     dataDir,
     defaultTabId: ledger.contextTab?.tabId ?? null,
-    browserNames: ["page.recheck"],
-    lookup: { knownTools: ["page.recheck"], enabledTools: ["page.recheck"], unusedTools: [] },
+    browserNames: ["page_recheck"],
+    lookup: { knownTools: ["page_recheck"], enabledTools: ["page_recheck"], unusedTools: [] },
     host: {
       execute: async (_name: string, args: Record<string, unknown>) => {
         seen = args;
@@ -101,13 +101,13 @@ test("tab.context sets default tab and fills later browser calls", async () => {
   expect(page2.text).toContain("urlContains");
   expect(seen.tabId).toBe(42);
   const clear = await exec({
-    name: "tab.context",
+    name: "tab_context",
     arguments: { reason: "清除", action: "clear" },
     dataDir,
     browserNames: [],
     defaultTabId: ledger.contextTab?.tabId ?? null,
-    lookup: { knownTools: ["tab.context"], enabledTools: ["tab.context"], unusedTools: [] },
+    lookup: { knownTools: ["tab_context"], enabledTools: ["tab_context"], unusedTools: [] },
   });
-  applyToolEffects({ dataDir, ledger, turn, call: { callId: "c2", name: "tab.context", arguments: {} }, effects: clear.effects });
+  applyToolEffects({ dataDir, ledger, turn, call: { callId: "c2", name: "tab_context", arguments: {} }, effects: clear.effects });
   expect(ledger.contextTab).toBeNull();
 });

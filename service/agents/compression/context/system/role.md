@@ -16,7 +16,7 @@ Sample（本轮 submitTurnSummaries 的 arguments，仅示例）：
 
     {
       "tag": "导出页核对",
-      "actions": "open_url 打开导出页；page.get_summary 读概况；未改导出配置",
+      "actions": "open_url 打开导出页；page_get_summary 读概况；未改导出配置",
       "result": "回复：页面支持 CSV 与 Excel"
     }
 </compressionRole>

@@ -8,7 +8,7 @@ const base: Observation = {
   turnId: "tn_05",
   observedAt: "2026-09-29T07:00:00.000Z",
   callId: "call_10",
-  type: "page.get_summary",
+  type: "page_get_summary",
   result: "title: demo",
 };
 
@@ -51,6 +51,6 @@ describe("pageView observation expiry", () => {
     expect(dropped).toBeNull();
     expect(fresh?.result).toBe("title: demo");
     expect(fresh?.callId).toBe("call_10");
-    expect(fresh?.type).toBe("page.get_summary");
+    expect(fresh?.type).toBe("page_get_summary");
   });
 });

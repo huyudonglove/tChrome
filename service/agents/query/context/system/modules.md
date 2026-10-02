@@ -37,7 +37,7 @@ Sample（一次查询含两个候选轮次，仅示例）：
             {
               "callId": "call_02",
               "turnId": "tn_01",
-              "name": "page.get_summary",
+              "name": "page_get_summary",
               "arguments": { "tabId": 12, "reason": "读概况", "affectsPage": false },
               "return": { "stage": "complete", "totalChars": 18, "text": "{\"ok\":true}" }
             }
@@ -49,7 +49,7 @@ Sample（一次查询含两个候选轮次，仅示例）：
             {
               "callId": "call_04",
               "turnId": "tn_02",
-              "name": "memory.writeProject",
+              "name": "memory_writeProject",
               "arguments": { "layer": "conversation", "text": "用户偏好 CSV" },
               "return": { "stage": "complete", "totalChars": 12, "text": "{\"ok\":true}" }
             }

@@ -65,10 +65,10 @@ https://github.com/user-attachments/assets/da4cfcb9-a5be-44cf-80d7-ca6c83620d26
 传统浏览器自动化依赖脆弱的 DOM 选择器、XPath 或高昂的纯视觉坐标点击，极易受样式重构、动态混淆与渲染形变干扰。tChrome 全面转向 Chromium 核心无障碍树（Accessibility Tree）：
 - **物理级脱水过滤**：过滤成千上万无意义的样式 `<div>` 与装饰节点，将界面纯净提炼为 `Role`（职责）、`Name`（意图）与 `States`（状态），上下文信噪比跃升，Token 消耗直降 80% 以上。
 - **全链路严密闭环**：
-  - **感知**：`page.list_interactive_elements` 投影当前视口可交互元素及其细粒度状态（`enabled`, `checked`, `expanded`, `selected` 等）；
+  - **感知**：`page_list_interactive_elements` 投影当前视口可交互元素及其细粒度状态（`enabled`, `checked`, `expanded`, `selected` 等）；
   - **等待**：`wait` 原生支持基于 `role + name + states` 的条件等待，彻底告别盲目固定延时；
-  - **操作**：`page.click_role` / `page.fill_role` / `page.select_role` 一步命中目标；
-  - **验收**：`page.assert` 与 `page.recheck` 提供细粒度状态断言（如等待提交后按钮变为 `expanded=false` 或表单字段 `invalid=false`），形成牢不可破的执行证据链。
+  - **操作**：`page_click_role` / `page_fill_role` / `page_select_role` 一步命中目标；
+  - **验收**：`page_assert` 与 `page_recheck` 提供细粒度状态断言（如等待提交后按钮变为 `expanded=false` 或表单字段 `invalid=false`），形成牢不可破的执行证据链。
 
 ### 3. 宿主与内核双向贯通 (Host Environment Perception)
 当扩展沙箱因特权安全策略被限制访问 `chrome://settings` 等特权页面时，tChrome 能够无缝切换为**宿主机物理视角**：
@@ -83,15 +83,15 @@ https://github.com/user-attachments/assets/da4cfcb9-a5be-44cf-80d7-ca6c83620d26
 
 ### 5. 高频复合原子工具 (Compound Tools)，交互轮次腰斩
 在处理表单录入、下拉选择、点击提交并等待接口响应等长链路时，过去往往需要多次与模型往返。现在，内置的原子级复合工具实现了高内聚流转：
-- `page.click_role` / `page.click_text`：A11y 角色或可见文本精确定位 + 自动点击 + 响应/文本等待，一步完成；
-- `page.fill_role` / `page.select_role`：智能定位后直接输入文本或切换下拉选项；
-- `page.submit_wait` / `page.fill_submit`：支持整表批量填报并挂载网络响应监听（`wait_response`）。
+- `page_click_role` / `page_click_text`：A11y 角色或可见文本精确定位 + 自动点击 + 响应/文本等待，一步完成；
+- `page_fill_role` / `page_select_role`：智能定位后直接输入文本或切换下拉选项；
+- `page_submit_wait` / `page_fill_submit`：支持整表批量填报并挂载网络响应监听（`wait_response`）。
 这不仅将操作延迟和 Token 消耗压缩了 50% 以上，更从协议层彻底消除了页面加载与事件监听的时序竞态（Race Condition）。
 
 ### 6. 确定性状态总线与精细上下文治理 (Context Assembly & 6000 Guardrail)
 系统彻底抛弃了脆弱的单体 Prompt 拼接与简单的线性 message 数组：
 - **分层装配总线**：将不变的 System 语义契约与流动的 User 状态槽位（Task / Notes / Memory / ToolIO）严谨分离，每轮根据任务状态动态组装；
-- **6,000 字符物理内联门禁**：所有单次工具返回与大观察均经过 6,000 字符物理安全检查，超量结果自动外置本地并生成行宽固定的索引，主 Agent 可通过 `evidence.search` 按需检索片段或分行读取，物理级防御上下文撑爆与信噪比退化；
+- **6,000 字符物理内联门禁**：所有单次工具返回与大观察均经过 6,000 字符物理安全检查，超量结果自动外置本地并生成行宽固定的索引，主 Agent 可通过 `evidence_search` 按需检索片段或分行读取，物理级防御上下文撑爆与信噪比退化；
 - **结构化短 ID 与因果时序定锚**：单调自增唯一的 `call_01`、`e_01`、`task_01` 贯穿始终，赋予模型零成本的时间偏序拓扑感知与断裂探测，杜绝模型随机伪造 ID 引发的级联故障。
 
 ### 7. 侧栏可交互小组件与双轨沙箱 (Interactive Widgets)
@@ -106,7 +106,7 @@ https://github.com/user-attachments/assets/da4cfcb9-a5be-44cf-80d7-ca6c83620d26
 ### 9. 分层认知体系与结构化资料库各司其职
 | 存储层级 | 职能定位 | 作用范围 |
 | --- | --- | --- |
-| **持久化 Task (`<task>`)** | 会话顶层跨轮状态机，单槽生命周期保留交付成果（outcome），由新任务顶替 | 跨 turn 持久化；完成态常驻视口直到新 task.set 顶替 |
+| **持久化 Task (`<task>`)** | 会话顶层跨轮状态机，单槽生命周期保留交付成果（outcome），由新任务顶替 | 跨 turn 持久化；完成态常驻视口直到新 task_set 顶替 |
 | **工作笔记 (`<notes>`)** | 任务推进中的临时草稿、候选集与中间过程材料 | 当前会话有效 |
 | **会话记忆 (`<conversationMemory>`)** | 当前任务中已确认的事实、用户偏好与关键决定 | 当前会话跨轮次保留 |
 | **长期记忆 (`<projectMemory>`)** | 跨任务适用的长期知识、系统习惯与背景共识 | 所有会话全局共享 |

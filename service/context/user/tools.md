@@ -2,9 +2,9 @@
 能力：【Loaded Tools】
 
 详细描述：
-本会话已加载的动态工具及用途，随 catalog.add 更新。工具大类见 System <environment>。具体参数和返回见 tools[]。缺少能力时先用 list_browser_tools 查找，再用 catalog.add 加载；收到工具定义后再调用，不与加载放在同一批。加载状态在本会话内跨 turn 持久保留，新会话独立加载；可直接调用已列出的工具。
+本会话已加载的动态工具及用途，随 catalog_add 更新。工具大类见 System <environment>。具体参数和返回见 tools[]。缺少能力时先用 list_browser_tools 查找，再用 catalog_add 加载；收到工具定义后再调用，不与加载放在同一批。加载状态在本会话内跨 turn 持久保留，新会话独立加载；可直接调用已列出的工具。
 
-这份清单是每轮都在花的预算项：确定本会话不会再用的动态工具，我应主动 catalog.add mode=remove 卸载，不等人提醒；判断依据是本会话真实调用计数，不是印象或全量工具表。
+这份清单是每轮都在花的预算项：确定本会话不会再用的动态工具，我应主动 catalog_add mode=remove 卸载，不等人提醒；判断依据是本会话真实调用计数，不是印象或全量工具表。
 
 内容：
 {{data}}

@@ -7,7 +7,7 @@ import { loadLedger, loadToolRows, newConversation, paths, saveLedger } from "./
 
 const makeRow = (callId: string, text: string): ToolIOItem => ({
   callId,
-  name: "local.run",
+  name: "local_run",
   arguments: { reason: "probe", command: "echo hi" },
   turnId: "tn_01",
   return: { stage: "complete", totalChars: text.length, text },

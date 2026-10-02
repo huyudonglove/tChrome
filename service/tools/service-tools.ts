@@ -19,7 +19,7 @@ export const SERVICE_TOOL_NAMES = [
   "probe_dns",
   "probe_ssl",
   "account_vault",
-  "session.query",
+  "session_query",
 ] as const;
 
 const hostOf = (input: Record<string, unknown>) => {
@@ -75,7 +75,7 @@ export async function runServiceTool(
     }
   }
   if (name === "account_vault") return runAccountVault(dataDir, input);
-  if (name === "session.query") return runSessionQuery(dataDir, input, conversationId);
+  if (name === "session_query") return runSessionQuery(dataDir, input, conversationId);
   if (name === "tavily_search") return runTavilySearch(input);
   if (name === "send_http") {
     const error = httpAddressError(input.url);

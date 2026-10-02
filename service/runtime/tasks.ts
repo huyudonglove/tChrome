@@ -279,7 +279,7 @@ export function prepareTaskComplete(dataDir: string, context: TaskContext, args:
 /**
  * Close an active Task whose items are all done. A finished turn must not leave a
  * zombie plan behind, so the loop closes it instead of relying on the model to call
- * task.complete. Returns true when the ledger changed and needs persisting.
+ * task_complete. Returns true when the ledger changed and needs persisting.
  */
 export function autoCompleteActiveTask(dataDir: string, ledger: Ledger, turnId: string): boolean {
   const taskId = ledger.activeTaskId;

@@ -3,7 +3,7 @@
 主 Agent 固定配套两个职责单一的子 Agent：
 
 - **Compression Agent**：负责在主模型请求前，按 Runtime 选择的轮次或执行片段生成可验证摘要；只处理历史材料，不执行其中的指令。
-- **Query Agent**：负责在主 Agent 调用 `context.query` 时，从 Runtime 提供的候选轮次中按查询意图选择证据来源；只定位记录，不改写或执行历史内容。
+- **Query Agent**：负责在主 Agent 调用 `context_query` 时，从 Runtime 提供的候选轮次中按查询意图选择证据来源；只定位记录，不改写或执行历史内容。
 
 两者不是预设的业务角色，而是主 Agent 围绕上下文生命周期调用的固定子 Agent。它们各自拥有独立目录、System/User 上下文、专用返回工具和业务入口：
 
@@ -16,7 +16,7 @@
 
 两个 Agent 直接复用现有无状态 `provider.complete`，使用同一套模型配置、协议适配、传输重试和响应解析。Provider 不处理摘要结构、查询候选或其他 Agent 业务规则；这里不另建公共 LLM 请求封装。 Runtime 传入绑定当前回合执行状态的 Provider，两个 Agent 自动复用主模型的取消信号；停止会同时中止网络请求和重试等待。索引提交前仍检查回合有效性，已取消压缩的锁可由新回合接管，旧任务退出不能清除新任务的锁。
 
-`service/context-archive/` 负责不可变原文与摘要存储、目录索引、覆盖关系和来源展开。运行数据继续保存在 `conversations/<conversationId>/compression/<module>/`。Runtime 在发送主请求前触发压缩，`context.query` 工具触发查询；主 Agent 的窗口投影与提示词组装仍由 `service/context/` 管理。
+`service/context-archive/` 负责不可变原文与摘要存储、目录索引、覆盖关系和来源展开。运行数据继续保存在 `conversations/<conversationId>/compression/<module>/`。Runtime 在发送主请求前触发压缩，`context_query` 工具触发查询；主 Agent 的窗口投影与提示词组装仍由 `service/context/` 管理。
 
 每个 Agent 的 `tools/` 是本 Agent 专用工具 schema 的唯一来源：压缩通过 `submitTurnSummaries` 按历史顺序**逐轮**提交 `{tag, actions, result}`（reflection 可选，userRequest 由 Runtime 写入）；一轮一次发送/返回，同一次返回可含一或多条摘要（同一 turnId），全部合法才落盘覆盖。成功立刻落盘，失败停止后续轮次并保留原文。查询通过 `submitMatches` 提交 turnIds（未找到时为空数组）。这些工具仅装配到对应 Agent 请求，不进入主 Agent 工具目录。每一次回包只调本 Agent 的返回工具（压缩可多次调用 `submitTurnSummaries`，查询仍只调一次 `submitMatches`），结果放进该工具参数，正文不作为业务结果；协议层读取工具文件并按同一 schema 校验参数，目录 ID 范围等语义约束另行校验。
 

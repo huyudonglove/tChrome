@@ -126,7 +126,7 @@ test("long current turn archives older complete batches and keeps input, current
   try {
     const ledger = emptyLedger("cv_test"), current = makeTurn(ledger.conversationId, "tn_01");
     current.status = "inferring"; current.stopReason = null; current.completedAt = null; ledger.turnIds = [current.turnId]; ledger.active = { turnId: current.turnId };
-    ledger.toolIO = Array.from({ length: KEEP * 2 + 2 }, (_, i) => ({ callId: `call_${i}`, turnId: current.turnId, batchId: `b_${Math.floor(i / 2)}`, name: "page.get_summary", arguments: {}, return: { stage: "complete" as const, text: "结果", totalChars: 2 } }));
+    ledger.toolIO = Array.from({ length: KEEP * 2 + 2 }, (_, i) => ({ callId: `call_${i}`, turnId: current.turnId, batchId: `b_${Math.floor(i / 2)}`, name: "page_get_summary", arguments: {}, return: { stage: "complete" as const, text: "结果", totalChars: 2 } }));
     current.assembled.observations = ledger.toolIO.map((row, i) => ({ id: `p_${i}`, turnId: current.turnId, callId: row.callId, observedAt: "2026-09-11", type: row.name, result: { ok: true, tabId: 1, url: "https://example.com", title: "页面", state: `状态${i}` } }));
     current.assembled.currentPage = { tabId: 1, url: "https://example.com", title: "页面", description: "状态5" };
     const memories: Memories = { project: [], conversation: [] }, provider: Provider = { complete: async input => summaryResponse(input.messages) };
@@ -147,7 +147,7 @@ test("segmented turn later closes into one active summary without rearchiving co
     const ledger = emptyLedger("cv_test"), first = makeTurn(ledger.conversationId, "tn_01");
     ledger.turnIds = [first.turnId]; ledger.active = { turnId: first.turnId };
     first.status = "inferring"; first.completedAt = null; first.stopReason = null;
-    ledger.toolIO = Array.from({ length: KEEP + 1 }, (_, i) => ({ callId: `call_${i}`, turnId: first.turnId, batchId: `batch_${i}`, name: "page.get_summary", arguments: {}, return: { stage: "complete" as const, text: `结果${i}`, totalChars: 3 } }));
+    ledger.toolIO = Array.from({ length: KEEP + 1 }, (_, i) => ({ callId: `call_${i}`, turnId: first.turnId, batchId: `batch_${i}`, name: "page_get_summary", arguments: {}, return: { stage: "complete" as const, text: `结果${i}`, totalChars: 3 } }));
     const memories: Memories = { project: [], conversation: [{ memoryId: "mm_1", turnId: first.turnId, layer: "conversation", text: "只改负责人", sourceCallId: "call_0", createdAt: "2026-09-11" }] };
     const provider: Provider = { complete: async input => summaryResponse(input.messages) };
     await compressContext({ dataDir, repoRoot, provider, ledger, turn: first, memories, isCancelled: () => false }, "current");
@@ -197,7 +197,7 @@ test("200K during a live tool loop compresses older batches before the next main
       return result({ toolCalls: main <= KEEP + 1
         ? [
             ...(main > 1 ? [{ id: `c${main}`, name: "checkContinue", arguments: { reason: "继续", cont: true } }] : []),
-            ...Array.from({ length: main > 1 ? 19 : 20 }, (_, i) => ({ id: `p${main}_${i}`, name: "page.get_summary", arguments: { reason: "读取", tabId: 1 } })),
+            ...Array.from({ length: main > 1 ? 19 : 20 }, (_, i) => ({ id: `p${main}_${i}`, name: "page_get_summary", arguments: { reason: "读取", tabId: 1 } })),
           ]
         : [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", text: "完成"} }] });
     } };
@@ -218,7 +218,7 @@ test("retired query evidence is archived independently of an already-covered too
     const ledger = emptyLedger("cv_test"), current = makeTurn(ledger.conversationId, "tn_01");
     ledger.turnIds = [current.turnId]; ledger.active = { turnId: current.turnId };
     current.status = "inferring"; current.completedAt = null; current.stopReason = null;
-    ledger.toolIO = Array.from({ length: KEEP + 1 }, (_, i) => ({ callId: `call_0${i + 1}`, turnId: current.turnId, batchId: `batch_0${i + 1}`, name: "context.query", arguments: {}, return: { stage: "complete" as const, text: "查询成功", totalChars: 4 } }));
+    ledger.toolIO = Array.from({ length: KEEP + 1 }, (_, i) => ({ callId: `call_0${i + 1}`, turnId: current.turnId, batchId: `batch_0${i + 1}`, name: "context_query", arguments: {}, return: { stage: "complete" as const, text: "查询成功", totalChars: 4 } }));
     ledger.currentQuery = { queryId: "query_01", turnId: current.turnId, sourceCallId: "call_01", sumId: "sum_01", module: "toolIO", intent: "核对历史", status: "complete", records: [{ callId: "call_old", turnId: "tn_old", text: "受保护原文" }] };
     const memories: Memories = { project: [], conversation: [] };
     let requests = 0;

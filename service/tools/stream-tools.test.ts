@@ -9,7 +9,7 @@ import type { BrowserHost } from "../types.ts";
 
 const temp = () => mkdtempSync(join(tmpdir(), "tchrome-stream-tool-"));
 
-test("stream.pull writes browser bytes through the pipe and stream.push uploads a host file", async () => {
+test("stream_pull writes browser bytes through the pipe and stream_push uploads a host file", async () => {
   const dir = temp();
   try {
     const hub = createStreamHub();
@@ -54,7 +54,7 @@ test("stream.pull writes browser bytes through the pipe and stream.push uploads 
       },
     };
     const dest = join(dir, "pulled.txt");
-    const pull = await runStreamTool("stream.pull", {
+    const pull = await runStreamTool("stream_pull", {
       source: { kind: "http", url: "https://example.com/a" },
       path: dest,
     }, sharedHost, dir, "cv_01");
@@ -63,7 +63,7 @@ test("stream.pull writes browser bytes through the pipe and stream.push uploads 
 
     const source = join(dir, "push.bin");
     writeFileSync(source, "abc");
-    const push = await runStreamTool("stream.push", {
+    const push = await runStreamTool("stream_push", {
       path: source,
       target: { kind: "http", url: "https://example.com/upload" },
     }, sharedHost, dir, "cv_01");
@@ -74,9 +74,9 @@ test("stream.pull writes browser bytes through the pipe and stream.push uploads 
 test("stream tools require absolute host path and a browser bridge", async () => {
   const dir = temp();
   try {
-    await expect(runStreamTool("stream.pull", { source: { kind: "dom" }, path: "relative" }, { readCurrentTabs: async () => ({ ok: true, windows: [] }), execute: async () => ({ ok: true }) }, dir, "cv_01"))
+    await expect(runStreamTool("stream_pull", { source: { kind: "dom" }, path: "relative" }, { readCurrentTabs: async () => ({ ok: true, windows: [] }), execute: async () => ({ ok: true }) }, dir, "cv_01"))
       .resolves.toMatchObject({ ok: false });
-    await expect(runStreamTool("stream.pull", { source: { kind: "dom" }, path: "/tmp/x" }, undefined, dir, "cv_01"))
+    await expect(runStreamTool("stream_pull", { source: { kind: "dom" }, path: "/tmp/x" }, undefined, dir, "cv_01"))
       .resolves.toMatchObject({ ok: false });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

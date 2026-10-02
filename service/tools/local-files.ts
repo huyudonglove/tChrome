@@ -4,8 +4,8 @@ import { cp, lstat, mkdir, open, opendir, readFile, readdir, rename, rm, writeFi
 import { isAbsolute, join, resolve, sep } from "node:path";
 
 export const LOCAL_FILE_TOOL_NAMES = [
-  "local.fs_list", "local.fs_stat", "local.fs_read", "local.fs_write", "local.fs_mkdir",
-  "local.fs_copy", "local.fs_move", "local.fs_delete", "local.fs_search", "local.fs_grep", "local.replace_block",
+  "local_fs_list", "local_fs_stat", "local_fs_read", "local_fs_write", "local_fs_mkdir",
+  "local_fs_copy", "local_fs_move", "local_fs_delete", "local_fs_search", "local_fs_grep", "local_replace_block",
 ] as const;
 
 export function pathArg(input: Record<string, unknown>, key = "path") {
@@ -71,7 +71,7 @@ async function searchOneDir(input: Record<string, unknown>): Promise<Record<stri
     if (typeof input.query !== "string" || !input.query.length) throw new Error("query must be a non-empty filename substring");
     const limit = integer(input, "limit", 100, 1, 1000);
     const maxEntries = integer(input, "maxEntries", 10000, 1, 100000);
-    if (!(await lstat(path)).isDirectory()) throw new Error("path must be a directory, not a file or symlink; pass the containing directory, or use local.fs_stat/local.fs_read for a file path");
+    if (!(await lstat(path)).isDirectory()) throw new Error("path must be a directory, not a file or symlink; pass the containing directory, or use local_fs_stat/local_fs_read for a file path");
     const pending = [path];
     const matches: Record<string, unknown>[] = [];
     let scanned = 0;
@@ -151,7 +151,7 @@ async function readOneFile(input: Record<string, unknown>): Promise<Record<strin
 
 export async function runLocalFileTool(name: string, input: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
   try {
-    if (name === "local.fs_read") {
+    if (name === "local_fs_read") {
       const items = input.items;
       if (!Array.isArray(items) || items.length < 1 || items.length > 8) {
         throw new Error("items must be an array of 1..8 {path, offset?, limit?, startLine?, endLine?}");
@@ -197,7 +197,7 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
       }
       return { ok, results };
     }
-    if (name === "local.fs_search") {
+    if (name === "local_fs_search") {
       const items = input.items;
       if (!Array.isArray(items) || items.length < 1 || items.length > 8) {
         throw new Error("items must be an array of 1..8 {path, query, limit?, maxEntries?}");
@@ -208,7 +208,7 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
       }));
       return { ok: results.every((row) => row.ok), results };
     }
-    if (name === "local.fs_copy" || name === "local.fs_move") {
+    if (name === "local_fs_copy" || name === "local_fs_move") {
       const source = pathArg(input, "source");
       const destination = pathArg(input, "destination");
       const overwrite = flag(input, "overwrite");
@@ -221,27 +221,27 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
           if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
         }
       }
-      if (name === "local.fs_move" && overwrite) {
+      if (name === "local_fs_move" && overwrite) {
         await rename(source, destination);
       } else {
         // cp's exclusive mode also protects against destinations created after validation.
         await cp(source, destination, { recursive: true, force: overwrite, errorOnExist: !overwrite, dereference: false, verbatimSymlinks: true });
-        if (name === "local.fs_move") await rm(source, { recursive: true });
+        if (name === "local_fs_move") await rm(source, { recursive: true });
       }
       return { ok: true, source, destination };
     }
     const path = pathArg(input);
     switch (name) {
-      case "local.fs_stat": {
+      case "local_fs_stat": {
         const stat = await lstat(path);
         return { ok: true, path, type: typeOf(stat), size: stat.size, modifiedAt: stat.mtime.toISOString(), mode: stat.mode };
       }
-      case "local.fs_list": {
+      case "local_fs_list": {
         const limit = integer(input, "limit", 200, 1, 1000);
         const entries: Record<string, unknown>[] = [];
         let truncated = false;
         if (!(await lstat(path)).isDirectory()) {
-          throw new Error("path must be a directory, not a file or symlink; pass the containing directory, or use local.fs_stat/local.fs_read for a file path");
+          throw new Error("path must be a directory, not a file or symlink; pass the containing directory, or use local_fs_stat/local_fs_read for a file path");
         }
         for await (const entry of await opendir(path)) {
           if (entries.length >= limit) { truncated = true; break; }
@@ -249,7 +249,7 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
         }
         return { ok: true, path, entries, truncated };
       }
-      case "local.replace_block": {
+      case "local_replace_block": {
         if (typeof input.search !== "string" || !input.search.length) throw new Error("search must be a non-empty string");
         if (typeof input.replace !== "string") throw new Error("replace must be a string");
         const expectedMatches = integer(input, "expectedMatches", 1, 1, 1000);
@@ -269,7 +269,7 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
         await writeFile(path, updated, "utf8");
         return { ok: true, path, matches: count, bytesWritten: Buffer.byteLength(updated) };
       }
-      case "local.fs_write": {
+      case "local_fs_write": {
         if (typeof input.content !== "string") throw new Error("content must be a string");
         const append = flag(input, "append");
         await mkdir(resolve(path, ".."), { recursive: true });
@@ -281,14 +281,14 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
         } finally { await file.close(); }
         return { ok: true, path, bytesWritten: Buffer.byteLength(input.content), append };
       }
-      case "local.fs_mkdir":
+      case "local_fs_mkdir":
         await mkdir(path, { recursive: flag(input, "recursive") });
         return { ok: true, path };
-      case "local.fs_delete":
+      case "local_fs_delete":
         if (path === resolve(path, "..")) throw new Error("cannot delete filesystem root");
         await rm(path, { recursive: flag(input, "recursive"), force: false });
         return { ok: true, path };
-      case "local.fs_grep": {
+      case "local_fs_grep": {
         if (typeof input.query !== "string" || !input.query.length || input.query.length > 500) {
           throw new Error("query must be a literal substring or regex of 1 to 500 characters");
         }

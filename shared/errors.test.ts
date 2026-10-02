@@ -57,8 +57,8 @@ describe("shared errors", () => {
 test("errorDetail dispatches static templates and fills placeholders", async () => {
   const { errorDetail } = await import("./error-details.ts");
   expect(errorDetail("arguments_json_concat")).toContain("正确写法示例");
-  expect(errorDetail("arguments_json_concat")).toContain("local.fs_search");
-  expect(errorDetail("task_set_empty_items")).toBe("task.set 需要非空 items");
+  expect(errorDetail("arguments_json_concat")).toContain("local_fs_search");
+  expect(errorDetail("task_set_empty_items")).toBe("task_set 需要非空 items");
   expect(errorDetail("skill_unknown", { id: "foo" })).toBe("未知技能 foo");
   expect(errorDetail("task_not_found", { id: "plan_09" })).toBe("Task plan_09 不存在");
   expect(errorDetail("missing_detail_key")).toBe("detail:missing_detail_key");

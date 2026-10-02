@@ -101,7 +101,7 @@ function heartbeatReturn(entry: JobEntry): Record<string, unknown> {
     toolName: entry.toolName,
     heartbeatSec: entry.heartbeatSec,
     elapsedMs: Date.now() - Date.parse(entry.startedAt),
-    note: `仍在执行（已过 ${entry.heartbeatSec}s）。jobId=${entry.jobId}。用 job.status 查询，用 job.stop 结束；任务结束后心跳销毁。`,
+    note: `仍在执行（已过 ${entry.heartbeatSec}s）。jobId=${entry.jobId}。用 job_status 查询，用 job_stop 结束；任务结束后心跳销毁。`,
   };
 }
 
@@ -167,14 +167,14 @@ export async function withJobHeartbeat(options: {
   }
 }
 
-export const JOB_TOOL_NAMES = ["job.status", "job.stop"] as const;
+export const JOB_TOOL_NAMES = ["job_status", "job_stop"] as const;
 
 export async function runJobTool(name: string, rawInput: unknown, scope: string): Promise<Record<string, unknown>> {
   try {
     if (!scope) throw new Error("Job tools require a conversation scope");
     const input = (rawInput && typeof rawInput === "object" && !Array.isArray(rawInput) ? rawInput : {}) as Record<string, unknown>;
-    if (name === "job.status") return runJobStatus(input, scope);
-    if (name === "job.stop") return runJobStop(input, scope);
+    if (name === "job_status") return runJobStatus(input, scope);
+    if (name === "job_stop") return runJobStop(input, scope);
     throw new Error(`Unknown job tool: ${name}`);
   } catch (error) {
     return { ok: false, ...errorInfo(error), error: error instanceof Error ? error.message : String(error) };

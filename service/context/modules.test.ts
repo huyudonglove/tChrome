@@ -29,7 +29,7 @@ test("registry loads XML modules and system text uses angle-bracket tags", () =>
   for (const value of Object.values(systemSlots)) expect(system).toContain(value);
   expect(() => assertPromptNumbersMatchRuntime(system)).not.toThrow();
   expect(system).toContain("<systemSkill>");
-  expect(system).toContain("skill.load");
+  expect(system).toContain("skill_load");
   expect(system).toContain("- web-observation：观察页面。");
   expect(system).toContain("<identity>");
   expect(system).toContain("</identity>");

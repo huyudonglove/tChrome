@@ -215,7 +215,7 @@
     "recovery": "correct_arguments"
   },
   "result_externalized": {
-    "model": "单次结果超过内联门禁，全文已缓存本地。用 evidence.search 按 callId 或 pageId 与 keyword 取关键字附近上下文；窗口内只有摘要与 path。",
+    "model": "单次结果超过内联门禁，全文已缓存本地。用 evidence_search 按 callId 或 pageId 与 keyword 取关键字附近上下文；窗口内只有摘要与 path。",
     "user": "工具结果过大，已保存在本地，模型将改为检索关键片段。",
     "recovery": "correct_arguments"
   },

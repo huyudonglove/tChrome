@@ -1,17 +1,17 @@
 SUMMARY: 网页观察与操作：按区域缩小到控件、交互验收与截图证据。
 # 网页观察与操作
 
-常驻页面操作方法。浏览器主链路工具一直可用；截图、`page.get_by_role`、`wait`、`wait_response` 等按需 `catalog.add`。
+常驻页面操作方法。浏览器主链路工具一直可用；截图、`page_get_by_role`、`wait`、`wait_response` 等按需 `catalog_add`。
 
 ## 观察推进
 
 按下一步需要，从页面概况缩小到相关区域或控件；目标明确、证据足够时直接操作。
 
-1. `open_url` 打开或跳转后，用 `page.get_summary` 读标题、地址、区域与可交互规模。
-2. 需要定位控件时用 `page.list_interactive_elements`；需要区域结构时再加载 `page.list_regions` / `page.inspect_region`。
+1. `open_url` 打开或跳转后，用 `page_get_summary` 读标题、地址、区域与可交互规模。
+2. 需要定位控件时用 `page_list_interactive_elements`；需要区域结构时再加载 `page_list_regions` / `page_inspect_region`。
 3. 取元素 id、regionId 时看本轮 `<toolIO>` / `<observations>` 中对应项的 result，不要凭空猜测编号。
 
-带 tabId 的操作（`page.*`、`open_url`、截图、标签内脚本等）返回完整落在本轮 `<toolIO>`。需要固化的页面状态、脚本结论或截图发现，用 `observation.write(type, result, tabId?)` 记入本轮 `<observations>`；Runtime 不自动摘录。产出证据类工具调用累计到门槛（30 次起，每次提示后收紧为 20、10）未记录时会提示。工具导航里的「类似 / 深入」给出同级替换与后续链路，如 `page.get_summary` 深入 `page.list_interactive_elements`。
+带 tabId 的操作（`page.*`、`open_url`、截图、标签内脚本等）返回完整落在本轮 `<toolIO>`。需要固化的页面状态、脚本结论或截图发现，用 `observation_write(type, result, tabId?)` 记入本轮 `<observations>`；Runtime 不自动摘录。产出证据类工具调用累计到门槛（30 次起，每次提示后收紧为 20、10）未记录时会提示。工具导航里的「类似 / 深入」给出同级替换与后续链路，如 `page_get_summary` 深入 `page_list_interactive_elements`。
 
 ## 元素编号与标签
 
@@ -19,15 +19,15 @@ SUMMARY: 网页观察与操作：按区域缩小到控件、交互验收与截�
 
 ## 交互与验收
 
-优先用常驻复合工具一次完成定位+操作：`page.click_role` / `page.fill_role` / `page.submit_wait` / `page.select_role` / `page.click_text` / `page.fill_submit`。role/name 多匹配时必须 `matchIndex`，或收窄 name；无 name 且 total>1 时不猜测。
+优先用常驻复合工具一次完成定位+操作：`page_click_role` / `page_fill_role` / `page_submit_wait` / `page_select_role` / `page_click_text` / `page_fill_submit`。role/name 多匹配时必须 `matchIndex`，或收窄 name；无 name 且 total>1 时不猜测。
 
-复杂交互：加载 `page.get_by_role` 按 role+name 取 `e_` 编号；提交后用 `wait_response(urlContains)` 等接口；用 `wait`（id/selector，visible/enabled）确认可操作再点。
+复杂交互：加载 `page_get_by_role` 按 role+name 取 `e_` 编号；提交后用 `wait_response(urlContains)` 等接口；用 `wait`（id/selector，visible/enabled）确认可操作再点。
 
-**动态 A11y**：`wait(role, name, states={enabled:true|checked:true|expanded:true|attached:true})`；验收用 `page.assert(role, name, states)`。`page.list_interactive_elements` 每条带 states。
+**动态 A11y**：`wait(role, name, states={enabled:true|checked:true|expanded:true|attached:true})`；验收用 `page_assert(role, name, states)`。`page_list_interactive_elements` 每条带 states。
 
 ## 观察清理
 
-已完成分析、抽出关键信息、后面不用再对照的大体积观察（整页 DOM、大列表、密集区域快照），用 `page.clear_result` 清空对应 pageId 的 result 正文，保留身份与链路字段，避免历史观察挤占上下文。
+已完成分析、抽出关键信息、后面不用再对照的大体积观察（整页 DOM、大列表、密集区域快照），用 `page_clear_result` 清空对应 pageId 的 result 正文，保留身份与链路字段，避免历史观察挤占上下文。
 
 ## 截图证据
 
@@ -38,11 +38,11 @@ Canvas、WebGL、游戏等结果依赖画面的任务，JS 探针用于辅助定
 大分辨率下小控件在整页图里容易糊，且整图更贵。需要看清某个元素/控件时，优先：
 
 ```text
-catalog.add → capture_page
+catalog_add → capture_page
 capture_page(mode=element, tabId=…, ref=e_03)   # 或 selector="#submit"
 ```
 
-- `ref`：`page.*` / snapshot / `page.get_by_role` 返回的 `e_` / `r_` 编号
+- `ref`：`page.*` / snapshot / `page_get_by_role` 返回的 `e_` / `r_` 编号
 - `selector`：唯一 CSS；与 `ref` **二选一**
 - 返回本地 `image` 引用 + `element_rect`/`capture_rect`；只观察该切片，不要为小控件先截整页
 - 验证整页布局、导航前后对比时才用 `viewport` / `full_page`
@@ -56,7 +56,7 @@ capture_page(mode=som, tabId=…, maxMarks=40, roles=["button","link"])
 ```
 
 - 图上红色角标 = 可交互控件；同时返回 `marks[{badge,id,x,y,…}]`
-- 看图选定 badge → `page.click(id=marks[i].id)`（即 `e_` 编号）
+- 看图选定 badge → `page_click(id=marks[i].id)`（即 `e_` 编号）
 - `marks` 为视口 CSS 像素；`devicePixelRatio` 仅作对照
 - 截图后角标层自动清理；默认最多 40 个，可用 `roles` 降噪
 

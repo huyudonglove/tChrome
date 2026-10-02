@@ -40,7 +40,7 @@ const CAUSAL_BACKFILL = {
   risk: {
     type: "string",
     enum: ["low", "medium", "high"],
-    description: "风险等级；high 需先 task.set。可选。",
+    description: "风险等级；high 需先 task_set。可选。",
   },
 } as const;
 

@@ -97,5 +97,5 @@ test("missing path and unresolvable path fail with actionable notes", async () =
     note: string;
   };
   expect(bad.ok).toBe(false);
-  expect(bad.note).toContain("local.fs_outline");
+  expect(bad.note).toContain("local_fs_outline");
 });

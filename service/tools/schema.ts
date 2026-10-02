@@ -161,7 +161,7 @@ export function checkToolCalls(
   const names = allowed(baseToolsIds, toolIds);
   const byName = new Map(tools.map((tool) => [tool.function.name, tool]));
   if (toolCalls.some(call => call.name === "script_patch")
-    && toolCalls.some(call => ["execute_javascript", "local.run", "local.process_start"].includes(call.name))) {
+    && toolCalls.some(call => ["execute_javascript", "local_run", "local_process_start"].includes(call.name))) {
     return { parseOk: true, schemaOk: false, faultCode: "script_steps_separate", missing: [],
       badName: "script_patch", detail: errorDetail("script_steps_separate") };
   }

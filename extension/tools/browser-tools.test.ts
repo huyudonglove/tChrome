@@ -127,25 +127,25 @@ test("execute_javascript evaluates in the page through CDP and awaits structured
   expect(attachments).toHaveLength(1);
 });
 
-test("page.eval_expr routes through CDP before page.* dispatch and evaluates inline expr", async () => {
+test("page_eval_expr routes through CDP before page.* dispatch and evaluates inline expr", async () => {
   let request: any[] = [];
   const tab = mockJavascript(async (...args) => {
     request = args;
     return { result: { type: "string", value: "中文标题" } };
   });
-  expect(await runBrowserTool("page.eval_expr", { tabId: tab, expr: "document.title" })).toEqual({
+  expect(await runBrowserTool("page_eval_expr", { tabId: tab, expr: "document.title" })).toEqual({
     ok: true, tabId: tab, type: "string", value: "中文标题",
   });
   expect(request[1]).toBe("Runtime.evaluate");
   expect(request[2]).toMatchObject({
     expression: "document.title", awaitPromise: true, returnByValue: true, allowUnsafeEvalBlockedByCSP: true,
   });
-  expect(await runBrowserTool("page.eval_expr", { tabId: tab, expr: "  " })).toMatchObject({
+  expect(await runBrowserTool("page_eval_expr", { tabId: tab, expr: "  " })).toMatchObject({
     ok: false, error: expect.stringContaining("缺 expr"),
   });
 });
 
-test("page.eval_expr reports line/column and the offending source line on syntax errors", async () => {
+test("page_eval_expr reports line/column and the offending source line on syntax errors", async () => {
   const tab = mockJavascript(async () => ({
     exceptionDetails: {
       text: "Uncaught",
@@ -155,7 +155,7 @@ test("page.eval_expr reports line/column and the offending source line on syntax
     },
   }));
   const expr = "(() => { return 1; }())";
-  const out = await runBrowserTool("page.eval_expr", { tabId: tab, expr });
+  const out = await runBrowserTool("page_eval_expr", { tabId: tab, expr });
   expect(out).toMatchObject({
     ok: false,
     lineNumber: 0,
@@ -441,20 +441,20 @@ test('page element IDs survive reorder and never target replacement nodes', asyn
       tabs: {get: async () => {if (closedAfterClick) {closedAfterClick = false; return null;} return {id: 1, url: 'https://example.com'};}},
       scripting: {executeScript: async ({func, args}: any) => {
         const result = args ? await func(...args) : {title: 'Example', url: 'https://example.com'};
-        if (args?.[0] === 'page.click' && result.ok) closedAfterClick = true;
+        if (args?.[0] === 'page_click' && result.ok) closedAfterClick = true;
         return [{result}];
       }},
     };
-    const observed = await runBrowserTool('page.list_interactive_elements', {tabId: 1});
+    const observed = await runBrowserTool('page_list_interactive_elements', {tabId: 1});
     expect(observed.elements.map((el: any) => el.id)).toEqual(['e_01', 'e_02']);
     nodes.reverse();
-    expect((await runBrowserTool('page.click', {tabId: 1, id: 'e_01'})).ok).toBe(true);
+    expect((await runBrowserTool('page_click', {tabId: 1, id: 'e_01'})).ok).toBe(true);
     expect(first.clicks).toBe(1);
     expect(second.clicks).toBe(0);
     first.isConnected = false;
     nodes = [new Node('replacement'), second];
-    expect((await runBrowserTool('page.click', {tabId: 1, id: 'e_01'})).ok).toBe(false);
-    const replacement = await runBrowserTool('page.list_interactive_elements', {tabId: 1});
+    expect((await runBrowserTool('page_click', {tabId: 1, id: 'e_01'})).ok).toBe(false);
+    const replacement = await runBrowserTool('page_list_interactive_elements', {tabId: 1});
     expect(replacement.elements.map((el: any) => el.id)).toEqual(['e_03', 'e_02']);
     expect(replacement.elements[0].regionId).toBe('r_01');
   } finally {
@@ -584,7 +584,7 @@ test("wait A11y states probe uses role/name/states via page.wait_a11y", async ()
   expect(seen[0]).toMatchObject({role: 'button', name: '下一步', states: {enabled: true}});
 });
 
-test("network.mock manages rules and handles CDP Fetch events correctly", async () => {
+test("network_mock manages rules and handles CDP Fetch events correctly", async () => {
   const sentCommands: Array<{ method: string; params: any }> = [];
   const eventListeners: Array<(source: any, method: string, params: any) => void> = [];
 
@@ -609,7 +609,7 @@ test("network.mock manages rules and handles CDP Fetch events correctly", async 
   };
 
   // 1. set mock rule
-  const setResult = await runBrowserTool('network.mock', {
+  const setResult = await runBrowserTool('network_mock', {
     tabId: 501,
     reason: 'Mock user api',
     action: 'set',
@@ -634,7 +634,7 @@ test("network.mock manages rules and handles CDP Fetch events correctly", async 
   expect(sentCommands.some((c) => c.method === 'Fetch.enable')).toBe(true);
 
   // 2. list rules
-  const listResult = await runBrowserTool('network.mock', {
+  const listResult = await runBrowserTool('network_mock', {
     tabId: 501,
     reason: 'List rules',
     action: 'list',
@@ -671,7 +671,7 @@ test("network.mock manages rules and handles CDP Fetch events correctly", async 
   expect(sentCommands.some((c) => c.method === 'Fetch.continueRequest' && c.params.requestId === 'req_02')).toBe(true);
 
   // 5. clear rules
-  const clearResult = await runBrowserTool('network.mock', {
+  const clearResult = await runBrowserTool('network_mock', {
     tabId: 501,
     reason: 'Clear all rules',
     action: 'clear',

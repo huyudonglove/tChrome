@@ -31,7 +31,7 @@ export type Observation = {
   callId: string;
   batchId?: string;
   tabId?: number;
-  /** Tool name that produced this observation, e.g. page.get_summary or execute_javascript. */
+  /** Tool name that produced this observation, e.g. page_get_summary or execute_javascript. */
   type: string;
   /** Full tool return for this observation call. */
   result: unknown;
@@ -282,7 +282,7 @@ export type BrowserResult = {
 export type BrowserHost = {
   readCurrentTabs?(): Promise<CurrentTabs>;
   execute(name: string, input: Record<string, unknown>): Promise<BrowserResult>;
-  /** Optional tracked dispatch for heartbeat: exposes the bridge request id so job.stop can abort it. */
+  /** Optional tracked dispatch for heartbeat: exposes the bridge request id so job_stop can abort it. */
   executeTracked?(name: string, input: Record<string, unknown>): { id: string; result: Promise<BrowserResult> };
   abort?(scope?: string): void;
   abortById?(id: string): boolean;

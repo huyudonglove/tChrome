@@ -31,32 +31,32 @@ test("a single call never triggers a repeat hint", () => {
 
 test("identical tool and identical arguments in a row produces a hint", () => {
   const hint = repeatHint([
-    row("local.fs_list", { path: "/tmp" }),
-    row("local.fs_list", { path: "/tmp" }),
+    row("local_fs_list", { path: "/tmp" }),
+    row("local_fs_list", { path: "/tmp" }),
   ]);
-  expect(hint).toContain("local.fs_list");
+  expect(hint).toContain("local_fs_list");
   expect(hint).toContain("原样重放");
 });
 
 test("argument key order does not defeat the fingerprint", () => {
   const hint = repeatHint([
-    row("page.recheck", { tabId: 1, text: "hi" }),
-    row("page.recheck", { text: "hi", tabId: 1 }),
+    row("page_recheck", { tabId: 1, text: "hi" }),
+    row("page_recheck", { text: "hi", tabId: 1 }),
   ]);
   expect(hint).toBeTruthy();
 });
 
 test("different arguments are not treated as a repeat", () => {
   expect(repeatHint([
-    row("local.fs_list", { path: "/tmp" }),
-    row("local.fs_list", { path: "/var" }),
+    row("local_fs_list", { path: "/tmp" }),
+    row("local_fs_list", { path: "/var" }),
   ])).toBeUndefined();
 });
 
 test("same tool with different arguments is not flagged by the call rule", () => {
   expect(repeatHint([
-    row("local.run", { filename: "a.sh" }),
-    row("local.run", { filename: "b.sh" }),
+    row("local_run", { filename: "a.sh" }),
+    row("local_run", { filename: "b.sh" }),
   ])).toBeUndefined();
 });
 
@@ -108,7 +108,7 @@ test("the repeated-fault hint restates the previous failure and names a next ste
   });
   // Different arguments on purpose: identical ones would be claimed by the call rule
   // first, and this case is about the fault rule restating the previous failure.
-  const hint = repeatHint([row("local.run", { filename: "a.sh" }, first), row("local.run", { filename: "b.sh" }, first)]);
+  const hint = repeatHint([row("local_run", { filename: "a.sh" }, first), row("local_run", { filename: "b.sh" }, first)]);
   expect(hint).toContain("file_not_found");
   expect(hint).toContain("script a.sh not found");
   expect(hint).toContain("correct_arguments");
@@ -149,14 +149,14 @@ test("many calls to one tool with distinct returns are not flagged", () => {
   // Same tool, same count, but every call produced something new: that is normal
   // exploration, not a mechanical replay.
   const shots = Array.from({ length: REPEAT_DUPLICATE_CALLS }, (_, i) =>
-    row("local.fs_grep", { path: `/p${i}` }, `{"ok":true,"matches":${i}}`),
+    row("local_fs_grep", { path: `/p${i}` }, `{"ok":true,"matches":${i}}`),
   );
   expect(repeatHint(shots)).toBeUndefined();
 });
 
 test("the tool rule stays quiet when the duplicate return count exceeds the threshold", () => {
   const distinct = Array.from({ length: REPEAT_DUPLICATE_SIGNATURES + 1 }, (_, i) =>
-    row("local.fs_read", { path: `/p${i}` }, `{"ok":true,"chars":${i * 100}}`),
+    row("local_fs_read", { path: `/p${i}` }, `{"ok":true,"chars":${i * 100}}`),
   );
   const shots = Array.from({ length: REPEAT_DUPLICATE_CALLS }, (_, i) =>
     row("capture_page", { tabId: 7, mode: `mode${i}` }, `{"ok":true,"variant":${i}}`),
@@ -197,7 +197,7 @@ test("a diagnosable fault never seen in history asks to be written down once", (
   const earlier = row("capture_page", { tabId: 2 }, failure("executor_version_mismatch", "版本不一致"));
   expect(repeatHint([failed], [earlier, failed])).toBeUndefined();
   // design-internal failures are not diagnosable and must not nag
-  const gate = row("page.type", { tabId: 1 }, failure("task_gate_required", "需要活动 Task"));
+  const gate = row("page_type", { tabId: 1 }, failure("task_gate_required", "需要活动 Task"));
   expect(repeatHint([gate])).toBeUndefined();
 });
 

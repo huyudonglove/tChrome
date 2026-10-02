@@ -20,12 +20,12 @@ Sample（一次请求只含一个完整轮次的骨架，仅示例）：
           "completedAt": "...",
           "userInput": { "id": "input_01", "turnId": "tn_01", "userInput": "打开导出页", "submittedAt": "..." },
           "toolIO": [
-            { "callId": "call_02", "turnId": "tn_01", "name": "page.get_summary",
+            { "callId": "call_02", "turnId": "tn_01", "name": "page_get_summary",
               "arguments": { "tabId": 12, "reason": "读概况" },
               "return": { "stage": "complete", "totalChars": 18, "text": "{\"ok\":true}" } }
           ],
           "observations": [
-            { "id": "page_01", "turnId": "tn_01", "callId": "call_02", "tabId": 12, "type": "page.get_summary",
+            { "id": "page_01", "turnId": "tn_01", "callId": "call_02", "tabId": 12, "type": "page_get_summary",
               "result": { "ok": true, "description": "支持 CSV" } }
           ],
           "memoryWrites": [],
@@ -45,7 +45,7 @@ Sample（一次请求只含一个完整轮次的骨架，仅示例）：
         {
           "turnId": "tn_03",
           "segments": [
-            { "conversationId": "cv_01", "turnId": "tn_03", "status": "completed", "toolIO": [], "reflection": null, "stopReason": { "kind": "tool", "name": "page.click", "callId": "call_08" } }
+            { "conversationId": "cv_01", "turnId": "tn_03", "status": "completed", "toolIO": [], "reflection": null, "stopReason": { "kind": "tool", "name": "page_click", "callId": "call_08" } }
           ],
           "summaries": [{ "tag": "导出", "userRequest": "导出本月报表", "actions": "打开导出页", "result": "页面支持 CSV" }]
         }

@@ -16,7 +16,7 @@ afterEach(async () => {
   abortAllLocalProcesses();
   await rm(cwd, { recursive: true, force: true });
 });
-const call = (name: string, input: Record<string, unknown> = {}, owner = scope) => runLocalProcessTool(`local.${name}`, input, owner, cwd);
+const call = (name: string, input: Record<string, unknown> = {}, owner = scope) => runLocalProcessTool(`local_${name}`, input, owner, cwd);
 let scriptId = 0;
 async function script(code: string, extension = "sh") {
   const filename = `test-${++scriptId}.${extension}`;

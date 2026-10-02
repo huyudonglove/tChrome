@@ -22,7 +22,7 @@ function setup() {
     turnId: "tn_effects", conversationId: ledger.conversationId, status: "inferring",
     createdAt: new Date().toISOString(), completedAt: null, input: { id: "input_fixture", text: "检查", submittedAt: "now" },
     stopReason: null, assembled: {
-      baseToolsIds: ["finishTurn"], toolIds: ["page.click"],
+      baseToolsIds: ["finishTurn"], toolIds: ["page_click"],
       conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, currentTabs: { ok: true, windows: [] },
       observations: [],
     },
@@ -31,8 +31,8 @@ function setup() {
     name, arguments: args, dataDir, browserNames: [], conversationId: ledger.conversationId,
     lookup: {
       unusedTools: ["capture_page"],
-      knownTools: ["finishTurn", "page.click", "capture_page", "actions.write"],
-      enabledTools: [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds, "actions.write"],
+      knownTools: ["finishTurn", "page_click", "capture_page", "actions_write"],
+      enabledTools: [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds, "actions_write"],
       protectedTools: [...turn.assembled.baseToolsIds],
     },
     ...options,
@@ -42,51 +42,51 @@ function setup() {
   return { dataDir, ledger, turn, execute, apply };
 }
 
-test("catalog.add reports only enabled names and distinguishes duplicates and unknown tools", async () => {
+test("catalog_add reports only enabled names and distinguishes duplicates and unknown tools", async () => {
   const fixture = setup();
-  const execution = await fixture.execute("catalog.add", { names: ["capture_page", "capture_page", "page.click", "finishTurn", "missing"] });
-  expect(JSON.parse(execution.text)).toEqual({ ok: false, faultCode: "unknown_tool", message: errorMessage("unknown_tool", "model"), recovery: "correct_arguments", details: {}, toolName: "catalog.add", added: ["capture_page"], alreadyEnabled: ["page.click", "finishTurn"], unknown: ["missing"] });
-  expect(fixture.turn.assembled.toolIds).toEqual(["page.click"]);
+  const execution = await fixture.execute("catalog_add", { names: ["capture_page", "capture_page", "page_click", "finishTurn", "missing"] });
+  expect(JSON.parse(execution.text)).toEqual({ ok: false, faultCode: "unknown_tool", message: errorMessage("unknown_tool", "model"), recovery: "correct_arguments", details: {}, toolName: "catalog_add", added: ["capture_page"], alreadyEnabled: ["page_click", "finishTurn"], unknown: ["missing"] });
+  expect(fixture.turn.assembled.toolIds).toEqual(["page_click"]);
   fixture.apply(execution);
-  expect(loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId).assembled.toolIds).toEqual(["page.click", "capture_page"]);
-  const repeated = await fixture.execute("catalog.add", { names: ["capture_page"] });
+  expect(loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId).assembled.toolIds).toEqual(["page_click", "capture_page"]);
+  const repeated = await fixture.execute("catalog_add", { names: ["capture_page"] });
   expect(JSON.parse(repeated.text)).toEqual({ ok: true, added: [], alreadyEnabled: ["capture_page"], unknown: [] });
   expect(repeated.effects).toEqual([]);
 });
 
-test("catalog.add mode=remove unloads loaded tools and keeps core tools enabled", async () => {
+test("catalog_add mode=remove unloads loaded tools and keeps core tools enabled", async () => {
   const fixture = setup();
-  const added = await fixture.execute("catalog.add", { names: ["capture_page"] });
+  const added = await fixture.execute("catalog_add", { names: ["capture_page"] });
   fixture.apply(added);
-  expect(fixture.turn.assembled.toolIds).toEqual(["page.click", "capture_page"]);
+  expect(fixture.turn.assembled.toolIds).toEqual(["page_click", "capture_page"]);
 
-  const removed = await fixture.execute("catalog.add", { names: ["capture_page", "finishTurn", "not_loaded"], mode: "remove" });
+  const removed = await fixture.execute("catalog_add", { names: ["capture_page", "finishTurn", "not_loaded"], mode: "remove" });
   expect(JSON.parse(removed.text)).toEqual({
     ok: true, mode: "remove", removed: ["capture_page"], notLoaded: ["not_loaded"], protectedKept: ["finishTurn"],
   });
   expect(removed.effects).toEqual([{ type: "tools.disable", names: ["capture_page"] }]);
   fixture.apply(removed);
-  expect(fixture.turn.assembled.toolIds).toEqual(["page.click"]);
+  expect(fixture.turn.assembled.toolIds).toEqual(["page_click"]);
   expect(loadLedger(fixture.dataDir, fixture.ledger.conversationId).loadedToolIds).toEqual([]);
 
-  const again = await fixture.execute("catalog.add", { names: ["capture_page"], mode: "remove" });
+  const again = await fixture.execute("catalog_add", { names: ["capture_page"], mode: "remove" });
   expect(JSON.parse(again.text)).toEqual({ ok: true, mode: "remove", removed: [], notLoaded: ["capture_page"], protectedKept: [] });
   expect(again.effects).toEqual([]);
 });
 
 test("runtime persists notes through effects", async () => {
   const fixture = setup();
-  fixture.apply(await fixture.execute("notes.write", { key: " candidate ", value: "页面 A" }));
+  fixture.apply(await fixture.execute("notes_write", { key: " candidate ", value: "页面 A" }));
   let saved = loadLedger(fixture.dataDir, fixture.ledger.conversationId);
   expect(saved.notes).toEqual({ candidate: "页面 A" });
-  fixture.apply(await fixture.execute("notes.delete", { key: "candidate" }));
+  fixture.apply(await fixture.execute("notes_delete", { key: "candidate" }));
   saved = loadLedger(fixture.dataDir, fixture.ledger.conversationId);
   expect(saved.notes).toEqual({});
 });
 
 test("memory effects contain normalized entries and runtime persists their source and summary", async () => {
   const fixture = setup();
-  const execution = await fixture.execute("memory.writeConversation", {
+  const execution = await fixture.execute("memory_writeConversation", {
     conversationMemory: ["找到按钮", "", null, "用户目标"],
   });
   expect(execution.text).toBe("落下 conversation=2 project=0");
@@ -120,7 +120,7 @@ test("closing effects persist lifecycle changes; empty replies request another i
 test("turn close archives non-empty reflect into reflectHistory once per turn", async () => {
   const fixture = setup();
   expect(fixture.ledger.reflectHistory).toEqual([]);
-  fixture.apply(await fixture.execute("reflect.write", { reason: "记依据", text: "下一步绕过滑块", focus: "意图" }));
+  fixture.apply(await fixture.execute("reflect_write", { reason: "记依据", text: "下一步绕过滑块", focus: "意图" }));
   expect(fixture.turn.reflect).toEqual([{ id: "rf_01", text: "下一步绕过滑块", focus: "意图" }]);
   expect(fixture.ledger.reflectHistory).toEqual([]);
   fixture.apply(await fixture.execute("finishTurn", { text: "收口" }));
@@ -135,53 +135,53 @@ test("turn close archives non-empty reflect into reflectHistory once per turn", 
   expect(history[0]!.items).toEqual([{ id: "rf_02", text: "更新后的承接" }]);
 });
 
-test("page.set only tracks current page; observations require observation.write", async () => {
+test("page.set only tracks current page; observations require observation_write", async () => {
   const fixture = setup();
-  const execution = await fixture.execute("page.click", { reason: "查看详情", tabId: 7 }, {
-    browserNames: ["page.click"], host: { execute: async (_name, args) => {
+  const execution = await fixture.execute("page_click", { reason: "查看详情", tabId: 7 }, {
+    browserNames: ["page_click"], host: { execute: async (_name, args) => {
       expect(args).toEqual({ tabId: 7 });
       return { ok: true, tabId: 7, url: "https://example.test", title: "详情" };
     } },
   });
   fixture.apply(execution);
   expect(loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId).assembled.currentPage?.title).toBe("详情");
-  const failed = await fixture.execute("page.click", { reason: "再点", tabId: 7 }, {
-    browserNames: ["page.click"], host: { execute: async () => ({ ok: false, tabId: 7, error: "closed" }) },
+  const failed = await fixture.execute("page_click", { reason: "再点", tabId: 7 }, {
+    browserNames: ["page_click"], host: { execute: async () => ({ ok: false, tabId: 7, error: "closed" }) },
   });
   applyToolEffects({
     dataDir: fixture.dataDir, ledger: fixture.ledger, turn: fixture.turn,
-    call: { callId: "call_fail", name: "page.click", arguments: {} },
+    call: { callId: "call_fail", name: "page_click", arguments: {} },
     effects: failed.effects,
   });
   const after = loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId);
   expect(after.assembled.observations).toHaveLength(0);
   expect(after.assembled.currentPage?.title).toBe("详情");
-  const recorded = await fixture.execute("observation.write", { reason: "记下失败", type: "page.click", result: { ok: false, tabId: 7, error: "closed" }, tabId: 7 });
+  const recorded = await fixture.execute("observation_write", { reason: "记下失败", type: "page_click", result: { ok: false, tabId: 7, error: "closed" }, tabId: 7 });
   applyToolEffects({
     dataDir: fixture.dataDir, ledger: fixture.ledger, turn: fixture.turn,
-    call: { callId: "call_obs", name: "observation.write", arguments: {} },
+    call: { callId: "call_obs", name: "observation_write", arguments: {} },
     effects: recorded.effects,
   });
   const logged = loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId);
   expect(logged.assembled.observations).toHaveLength(1);
   expect(logged.assembled.observations[0]).toMatchObject({
-    callId: "call_obs", type: "page.click",
+    callId: "call_obs", type: "page_click",
     result: { ok: false, tabId: 7, error: "closed" },
   });
 });
 
-test("observation.write records screenshot without leaking pixels and keeps prior page identity", async () => {
+test("observation_write records screenshot without leaking pixels and keeps prior page identity", async () => {
   const fixture = setup();
   fixture.turn.assembled.currentPage = {
     tabId: 1, url: "https://example.test/input", title: "发话页面", description: "发送消息时的标签快照",
   };
-  const execution = await fixture.execute("observation.write", {
+  const execution = await fixture.execute("observation_write", {
     reason: "截图结论", type: "capture_page", tabId: 1,
     result: { ok: true, tabId: 1, image: { imageId: "img_shot", path: "/tmp/shot.jpg", width: 10, height: 10 }, mime: "image/jpeg", image_size: [10, 10] },
   });
   applyToolEffects({
     dataDir: fixture.dataDir, ledger: fixture.ledger, turn: fixture.turn,
-    call: { callId: "call_shot", name: "observation.write", arguments: {} },
+    call: { callId: "call_shot", name: "observation_write", arguments: {} },
     effects: execution.effects,
   });
   const turn = loadTurn(fixture.dataDir, fixture.ledger.conversationId, fixture.turn.turnId);
@@ -195,7 +195,7 @@ test("observation.write records screenshot without leaking pixels and keeps prio
   });
 });
 
-test("observation.write persists observations in chronological order", () => {
+test("observation_write persists observations in chronological order", () => {
   const fixture = setup();
   fixture.turn.assembled.currentPage = {
     tabId: 1, url: "https://example.test/input", title: "发话页面", description: "发送消息时的标签快照",
@@ -211,15 +211,15 @@ test("observation.write persists observations in chronological order", () => {
     { ok: true, tabId: 3, url: "https://example.test/detail", title: "详情", description: "已打开结果详情", clicked: "打开" },
   ];
   const calls = [
-    { callId: "call_results", name: "observation.write", arguments: {} },
-    { callId: "call_detail", name: "observation.write", arguments: {} },
+    { callId: "call_results", name: "observation_write", arguments: {} },
+    { callId: "call_detail", name: "observation_write", arguments: {} },
   ];
   const startedAt = Date.now();
   for (let index = 0; index < pages.length; index++) {
     applyToolEffects({
       dataDir: fixture.dataDir, ledger: fixture.ledger, turn: fixture.turn,
       call: calls[index]!,
-      effects: [{ type: "observation.write", observationType: index === 0 ? "page.get_summary" : "page.click", result: results[index]!, tabId: pages[index]!.tabId }],
+      effects: [{ type: "observation_write", observationType: index === 0 ? "page_get_summary" : "page_click", result: results[index]!, tabId: pages[index]!.tabId }],
     });
     applyToolEffects({
       dataDir: fixture.dataDir, ledger: fixture.ledger, turn: fixture.turn,
@@ -240,7 +240,7 @@ test("observation.write persists observations in chronological order", () => {
     observedAt: expect.any(String),
     callId: calls[index]!.callId,
     tabId: pages[index]!.tabId,
-    type: index === 0 ? "page.get_summary" : "page.click",
+    type: index === 0 ? "page_get_summary" : "page_click",
     result,
     writtenTurn: fixture.ledger.userInputHistory.length + 1,
   })));

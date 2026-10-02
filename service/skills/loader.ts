@@ -55,7 +55,7 @@ function skillInfo(repoRoot: string, id: string): { summary: string; purpose: st
   return { summary: skill.summary, purpose };
 }
 
-/** 常驻技能正文装配进 System <systemSkill>；动态技能只出现在 skill.list 与已加载的 User <skill>。 */
+/** 常驻技能正文装配进 System <systemSkill>；动态技能只出现在 skill_list 与已加载的 User <skill>。 */
 export function skillCatalog(repoRoot: string, keyword?: string): { id: string; summary: string; purpose: string }[] {
   const items = loadSkillManifest(repoRoot).dynamicSkillIds.map(id => ({
     id,
@@ -79,7 +79,7 @@ export type SkillCatalogPage = {
 };
 
 /**
- * skill.list 的取用形态：keyword 过滤后可选分页。
+ * skill_list 的取用形态：keyword 过滤后可选分页。
  * 不传 offset/limit 时全量返回，保证清单里被限量的技能仍可一次取全。
  */
 export function skillCatalogPage(repoRoot: string, options: { keyword?: string; offset?: number; limit?: number } = {}): SkillCatalogPage {
@@ -101,14 +101,14 @@ export function skillGuide(repoRoot: string): string {
   parts.push("### 动态技能清单", "");
   if (!dynamicSkillIds.length) parts.push("—");
   else {
-    // 清单只列前 skillCatalogLimit 条，其余走 skill.list 全量或分页取回
+    // 清单只列前 skillCatalogLimit 条，其余走 skill_list 全量或分页取回
     const shown = dynamicSkillIds.slice(0, runtimeConfig.context.skillCatalogLimit);
     for (const id of shown) {
       const { summary } = skillInfo(repoRoot, id);
       parts.push(`- ${id}｜${summary}`);
     }
     const hidden = dynamicSkillIds.length - shown.length;
-    if (hidden > 0) parts.push(`- 另有 ${hidden} 条，skill.list 可全量或分页查看。`);
+    if (hidden > 0) parts.push(`- 另有 ${hidden} 条，skill_list 可全量或分页查看。`);
   }
   return parts.join("\n");
 }

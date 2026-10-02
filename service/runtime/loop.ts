@@ -21,7 +21,7 @@ import { executeTool } from "../tools/execute.ts";
 
 // Observation nudge: counted on evidence-producing tool calls (not model sends), so a turn
 // that only reads/threads bookkeeping stays quiet while a long取证 turn gets asked to checkpoint.
-// Gates tighten 30 -> 20 -> 10 within a turn and reset after every observation.write.
+// Gates tighten 30 -> 20 -> 10 within a turn and reset after every observation_write.
 // Marker prefix appended to the last tool return; stripped on the next pass so a nudge never sticks.
 const OBSERVATION_NUDGE_MARKER = "runtime: 本回合已累计";
 
@@ -36,27 +36,27 @@ const OBSERVATION_NUDGE_STEP = runtimeConfig.context.observationNudgeStep;
 const COMPRESS_NUDGE_HEADROOM = runtimeConfig.context.compressNudgeHeadroom;
 // Management / bookkeeping tools: their returns add no new evidence worth checkpointing.
 const OBSERVATION_NUDGE_EXCLUDED = new Set([
-  "observation.write",
-  "reflect.write",
-  "reflect.delete",
-  "notes.write",
-  "notes.delete",
-  "memory.writeConversation",
-  "memory.writeProject",
-  "memory.update",
-  "memory.delete",
-  "task.set",
-  "task.update",
-  "task.complete",
-  "evidence.search",
-  "page.clear_result",
-  "image.crop",
-  "catalog.add",
-  "skill.load",
+  "observation_write",
+  "reflect_write",
+  "reflect_delete",
+  "notes_write",
+  "notes_delete",
+  "memory_writeConversation",
+  "memory_writeProject",
+  "memory_update",
+  "memory_delete",
+  "task_set",
+  "task_update",
+  "task_complete",
+  "evidence_search",
+  "page_clear_result",
+  "image_crop",
+  "catalog_add",
+  "skill_load",
   "skill_list",
-  "tab.context",
-  "agent.compress",
-  "agent.query",
+  "tab_context",
+  "agent_compress",
+  "agent_query",
   "context_query",
   "checkContinue",
   "reportProgress",
@@ -151,7 +151,7 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
       if (thumb) thumbs.push({ ...thumb, ...("callId" in image ? { callId: (image as { callId?: string }).callId } : {}) });
     }
   }
-  const imageNote = deferredImageNote(deferred) + (thumbs.length ? " 已附缩略图，细节仍需 image.crop 或 mode=element|rect。" : "");
+  const imageNote = deferredImageNote(deferred) + (thumbs.length ? " 已附缩略图，细节仍需 image_crop 或 mode=element|rect。" : "");
   // Ownership: the project a turn touches decides which scoped memories are injected. Derivation is
   // evidence-based (paths in the recent tool calls), never a declared guess.
   const activeScopes = deriveActiveScopes(ledger.toolIO);
@@ -393,7 +393,7 @@ const runQueue = async (input: {
       saveFullReturn(dataDir, ledger.conversationId, item.callId, full);
       // 分层索引树：L1/L2 每层都是完整一份，层内按门禁切 chunk、给可寻址 id，整树落盘供按 id 取回。
       // 落盘与指针渲染都交给 admitReturn：目录在这里只算一次，indexPath 也由同一处产生。
-      // 取回型工具（evidence.search / asset.read）已在工具内按门禁预算裁剪并显式声明 admitted，直接内联。
+      // 取回型工具（evidence_search / asset_read）已在工具内按门禁预算裁剪并显式声明 admitted，直接内联。
       // 再过一次 admitReturn 只会把它降级成目录，模型只能再次取回同样的内容，形成「取回→外置→再取回」死循环。
       // 全文仍在上面 saveFullReturn 落盘，需要更细片段仍可按 callId/levelId 取回。
       const admittedText = admitExecution(
@@ -601,15 +601,15 @@ export async function handleTurn(
         if (refAt >= 0) text = text.slice(0, refAt).trimEnd();
         if (text !== row.return.text) row.return = { ...row.return, text };
       }
-      const writeCount = rows.filter((r) => r.name === "observation.write").length;
+      const writeCount = rows.filter((r) => r.name === "observation_write").length;
       if (writeCount > observationWrites) {
         observationWrites = writeCount;
         observationNudgeGate = OBSERVATION_NUDGE_FIRST_GATE;
         nudgedEvidenceCount = 0;
       }
-      // Count only the evidence calls made since the most recent observation.write, so a real
+      // Count only the evidence calls made since the most recent observation_write, so a real
       // checkpoint resets both the counter and the gate instead of just the gate.
-      const lastWriteAt = rows.reduce((acc, r, i) => (r.name === "observation.write" ? i : acc), -1);
+      const lastWriteAt = rows.reduce((acc, r, i) => (r.name === "observation_write" ? i : acc), -1);
       const evidenceRows = rows.slice(lastWriteAt + 1).filter((r) => !OBSERVATION_NUDGE_EXCLUDED.has(r.name));
       evidenceCallsSinceObservation = evidenceRows.length;
       const last = rows.at(-1);
@@ -622,17 +622,17 @@ export async function handleTurn(
           const detail = [...tally.entries()].sort((a, b) => b[1] - a[1]).map(([name, n]) => `${name}×${n}`).join("、");
           last.return = {
             ...last.return,
-            text: `${last.return.text}\n\n${OBSERVATION_NUDGE_MARKER} ${evidenceCallsSinceObservation} 次产出证据的工具调用（${detail}），仍未固化任何观察——这段时间查到的结论只散在工具返回里，跨轮或被压缩后只会剩指针，需要时得重新翻。建议用 observation.write 写一次阶段小结：现在处于什么状态、已确认哪些结论、哪些仍未验证、下一步从哪接，后续轮次就能直接接着推进而不是从头取证；这是给自己留的交接笔记，不是工具流水账。下次提示门槛收紧到 ${observationNudgeGate} 次。`,
+            text: `${last.return.text}\n\n${OBSERVATION_NUDGE_MARKER} ${evidenceCallsSinceObservation} 次产出证据的工具调用（${detail}），仍未固化任何观察——这段时间查到的结论只散在工具返回里，跨轮或被压缩后只会剩指针，需要时得重新翻。建议用 observation_write 写一次阶段小结：现在处于什么状态、已确认哪些结论、哪些仍未验证、下一步从哪接，后续轮次就能直接接着推进而不是从头取证；这是给自己留的交接笔记，不是工具流水账。下次提示门槛收紧到 ${observationNudgeGate} 次。`,
           };
         }
       }
       // Reflect nudge: counted on raw calls for the turn rather than evidence calls, because
       // reflection tracks judgement changes and repeated dead ends, which pure reading also triggers.
-      const reflectWritten = rows.some((row) => row.name === "reflect.write");
+      const reflectWritten = rows.some((row) => row.name === "reflect_write");
       if (last && rows.length >= REFLECT_NUDGE_CALLS && !reflectWritten) {
         last.return = {
           ...last.return,
-          text: `${last.return.text}\n${REFLECT_NUDGE_MARKER}\n本回合已有 ${rows.length} 次工具调用，尚未写 reflect.write。若这轮出现了结论被推翻、同一卡点反复、或一次取舍决策，用 reflect.write 记下当前状态与下一步；纯流水账不必写。`,
+          text: `${last.return.text}\n${REFLECT_NUDGE_MARKER}\n本回合已有 ${rows.length} 次工具调用，尚未写 reflect_write。若这轮出现了结论被推翻、同一卡点反复、或一次取舍决策，用 reflect_write 记下当前状态与下一步；纯流水账不必写。`,
         };
       }
       let state = contextState(deps.dataDir, ledger, turn, memories);
@@ -648,7 +648,7 @@ export async function handleTurn(
         compressNudgeSent = true;
         const last = rows.at(-1);
         if (last) {
-          last.return = { ...last.return, text: `${last.return.text}\n\n${OBSERVATION_NUDGE_MARKER} 上下文即将被压缩（当前窗口 ${initialChars} 字符，阈值 ${ledger.compressAt}）——这一步会把本轮的工具返回压成摘要与指针，而本轮还没有任何 observation 固化，这段时间的结论下一轮就只剩指针了。建议先用 observation.write 写一次阶段小结：现在处于什么状态、已确认哪些结论、哪些仍未验证、下一步从哪接。本轮的下一次循环仍会照常压缩，不会一直推迟。` };
+          last.return = { ...last.return, text: `${last.return.text}\n\n${OBSERVATION_NUDGE_MARKER} 上下文即将被压缩（当前窗口 ${initialChars} 字符，阈值 ${ledger.compressAt}）——这一步会把本轮的工具返回压成摘要与指针，而本轮还没有任何 observation 固化，这段时间的结论下一轮就只剩指针了。建议先用 observation_write 写一次阶段小结：现在处于什么状态、已确认哪些结论、哪些仍未验证、下一步从哪接。本轮的下一次循环仍会照常压缩，不会一直推迟。` };
         }
         state = contextState(deps.dataDir, ledger, turn, memories);
         messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir);

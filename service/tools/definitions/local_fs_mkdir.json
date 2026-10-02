@@ -1,0 +1,28 @@
+{
+  "type": "function",
+  "function": {
+    "name": "local_fs_mkdir",
+    "description": "创建目录，recursive=true可创建缺失的父目录。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "绝对路径"
+        },
+        "recursive": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "execution": "serial"
+}

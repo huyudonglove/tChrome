@@ -2,7 +2,7 @@ import { appendAsset } from "../assets/catalog.ts";
 import { getStreamHub } from "../stream/pipe.ts";
 import type { BrowserHost } from "../types.ts";
 
-export const STREAM_TOOL_NAMES = ["stream.pull", "stream.push"] as const;
+export const STREAM_TOOL_NAMES = ["stream_pull", "stream_push"] as const;
 
 let nextStreamId = 1;
 const allocateStreamId = () => (nextStreamId = (nextStreamId % 0xffff) || 1);
@@ -25,7 +25,7 @@ export async function runStreamTool(
   const hub = getStreamHub();
   const streamId = allocateStreamId();
   try {
-    if (name === "stream.pull") {
+    if (name === "stream_pull") {
       const path = absPath(input.path);
       if (!path) return { ok: false, error: "path 必须是宿主绝对路径" };
       const source = input.source;
@@ -39,8 +39,8 @@ export async function runStreamTool(
         name: path.split("/").pop() || `stream-${streamId}`,
         kind: "binary",
         bytes: streamed.bytes,
-        summary: `stream.pull ${(source as { kind?: string }).kind ?? "data"} · ${streamed.bytes}B`,
-        source: { tool: "stream.pull", ...(typeof (source as { url?: string }).url === "string" ? { url: (source as { url?: string }).url } : {}) },
+        summary: `stream_pull ${(source as { kind?: string }).kind ?? "data"} · ${streamed.bytes}B`,
+        source: { tool: "stream_pull", ...(typeof (source as { url?: string }).url === "string" ? { url: (source as { url?: string }).url } : {}) },
         path,
       });
       return { ok: true, streamId, path: streamed.path, bytes: streamed.bytes };
@@ -58,8 +58,8 @@ export async function runStreamTool(
       name: path.split("/").pop() || `push-${streamId}`,
       kind: "binary",
       bytes: pushed.bytes,
-      summary: `stream.push ${pushed.bytes}B`,
-      source: { tool: "stream.push" },
+      summary: `stream_push ${pushed.bytes}B`,
+      source: { tool: "stream_push" },
       path,
     });
     return { ok: true, streamId, bytes: pushed.bytes, ...(result && typeof result === "object" ? result as Record<string, unknown> : {}) };

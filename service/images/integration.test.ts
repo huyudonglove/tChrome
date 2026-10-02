@@ -25,9 +25,9 @@ test("截图按调用批次发送，历史仅保留路径，删除会话清理�
   const requests: any[] = [];
   const screenshotCall = { name: "capture_page", arguments: { tabId: 1, mode: "viewport", reason: "观察页面" } };
   const calls = [
-    [{ name: "catalog.add", arguments: { names: ["capture_page"], reason: "加载截图" } }],
+    [{ name: "catalog_add", arguments: { names: ["capture_page"], reason: "加载截图" } }],
     [screenshotCall, screenshotCall],
-    [{ name: "notes.write", arguments: { key: "observation", value: "已观察两张截图", reason: "记录" } }],
+    [{ name: "notes_write", arguments: { key: "observation", value: "已观察两张截图", reason: "记录" } }],
     [screenshotCall],
     [{ name: "finishTurn", arguments: { reason: "已观察图片", text: "完成"} }],
   ];

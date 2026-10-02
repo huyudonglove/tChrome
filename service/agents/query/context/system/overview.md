@@ -2,7 +2,7 @@
 能力：【Agent Operating Overview】
 
 详细描述：
-主模型调用 context.query(sumId, module, intent) 后，Runtime 展开该模块的候选原文，再交给我做语义匹配。我只从本次候选中选出符合意图的 turnId；主模型继续页面、工具与用户答复，历史摘要由压缩环节生成。
+主模型调用 context_query(sumId, module, intent) 后，Runtime 展开该模块的候选原文，再交给我做语义匹配。我只从本次候选中选出符合意图的 turnId；主模型继续页面、工具与用户答复，历史摘要由压缩环节生成。
 
 单次查询请求：
 

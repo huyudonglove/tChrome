@@ -50,7 +50,7 @@ test("loop scopes bridge requests so stopping a queued conversation leaves the a
   const bridge = createToolBridge(dataDir);
   let calls = 0;
   const provider: Provider = { complete: async () => calls++ < 2
-    ? { ...completed, toolCalls: [{ id: `page_${calls}`, name: "page.get_summary", arguments: { reason: "读取", tabId: 1 } }] }
+    ? { ...completed, toolCalls: [{ id: `page_${calls}`, name: "page_get_summary", arguments: { reason: "读取", tabId: 1 } }] }
     : completed };
   const deps = { dataDir, repoRoot, provider, host: { ...bridge, forScope: (scope: string) => ({ ...bridge.forScope!(scope), readCurrentTabs: async () => ({ ok: true as const, windows: [] }) }) } };
   try {

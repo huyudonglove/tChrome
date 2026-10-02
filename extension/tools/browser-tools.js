@@ -7,18 +7,18 @@ import { withDebugger, monitorDialogs, dialogState, watchDialog, handleDialog, d
 import { streamCapture, streamReceive, imageShrink } from './stream-pipe.js';
 import { observeAction, initActionObserver } from './action-observer.js';
 export const BROWSER_TOOL_NAMES = [
-  'page.eval_expr',
-  'page.get_summary', 'page.list_regions', 'page.list_interactive_elements',
-  'page.inspect_region', 'page.inspect_element', 'page.get_dom',
-  'page.get_accessibility_tree', 'page.get_element_state',
-  'page.click', 'page.type',
+  'page_eval_expr',
+  'page_get_summary', 'page_list_regions', 'page_list_interactive_elements',
+  'page_inspect_region', 'page_inspect_element', 'page_get_dom',
+  'page_get_accessibility_tree', 'page_get_element_state',
+  'page_click', 'page_type',
   'see_page', 'find_on_page', 'extract_table', 'check_page',
   'snapshot_page', 'watch_page', 'see_page_info',
   'click', 'double_click', 'focus', 'hover',
   'tick', 'select', 'drag', 'calibrate_drag', 'click_xy',
   'type', 'submit', 'press', 'scroll', 'scroll_to',
   'wait', 'wait_network', 'wait_response', 'attach_file', 'clear_file',
-  'page.get_by_role',
+  'page_get_by_role',
   'open_url', 'reload', 'go_history',
   'list_tabs', 'list_windows', 'switch_tab', 'open_tab', 'close_tab',
   'duplicate_tab', 'move_tab', 'update_tab', 'create_window', 'update_window',
@@ -34,14 +34,14 @@ export const BROWSER_TOOL_NAMES = [
   'emulate_device', 'network_throttle', 'set_cookie', 'delete_cookie', 'clear_cookies',
   'set_geolocation', 'page_find', 'long_press',
   'service_worker_list', 'websocket_monitor', 'detach_debugger',
-  'page.recheck', 'page.assert', 'page.drag_to_id',
-  'frame.list', 'network.grep', 'dialog.wait',
-  'clipboard.page_write', 'clipboard.page_read',
-  'combo.select', 'date.select', 'tab.context',
-  'har', 'video.capture_sequence', 'video.record',
-  'fingerprint.read', 'fingerprint.apply',
-  'network.mock',
-  'stream.capture', 'stream.receive', 'image.crop_pixels', 'image.shrink',
+  'page_recheck', 'page_assert', 'page_drag_to_id',
+  'frame_list', 'network_grep', 'dialog_wait',
+  'clipboard_page_write', 'clipboard_page_read',
+  'combo_select', 'date_select', 'tab_context',
+  'har', 'video_capture_sequence', 'video_record',
+  'fingerprint_read', 'fingerprint_apply',
+  'network_mock',
+  'stream.capture', 'stream.receive', 'image_crop_pixels', 'image.shrink',
 ];
 
 // Network is shared with network_throttle; stop removes only this monitor's
@@ -769,7 +769,7 @@ const runPageTool = async (name, input = {}) => {
   const tabId = input.tabId;
   const tab = await inspectTab(tabId);
   if (!tab.ok) return tab;
-  const isAction = ['page.click', 'page.type', 'page.press', 'page.scroll_to'].includes(name);
+  const isAction = ['page_click', 'page_type', 'page.press', 'page.scroll_to'].includes(name);
   const exec = async () => {
   try {
     const [{result}] = await chrome.scripting.executeScript({
@@ -930,7 +930,7 @@ const runPageTool = async (name, input = {}) => {
         };
         const stripStates = (item) => ({ id: item.id, regionId: item.regionId, role: item.role, tag: item.tag, name: item.name, inView: item.inView, disabled: item.disabled, states: item.states || {} });
         const id = payload.id;
-        if (toolName === 'page.get_summary') {
+        if (toolName === 'page_get_summary') {
           const headings = [...document.querySelectorAll('h1,h2,h3,[role="heading"]')].slice(0, 8)
             .map((node) => clip(node.innerText, 80)).filter(Boolean);
           return {
@@ -944,7 +944,7 @@ const runPageTool = async (name, input = {}) => {
             landmarkNames: regions.slice(0, 8).map((item) => `${item.id} ${item.role} ${item.name}`.trim()),
           };
         }
-        if (toolName === 'page.list_regions') {
+        if (toolName === 'page_list_regions') {
           return {
             ok: true,
             regions: regions.map((item) => ({
@@ -956,7 +956,7 @@ const runPageTool = async (name, input = {}) => {
             })),
           };
         }
-        if (toolName === 'page.list_interactive_elements') {
+        if (toolName === 'page_list_interactive_elements') {
           const rid = payload.regionId || id;
           const rows = elements.filter((item) => !rid || item.regionId === rid || item.id === rid);
           return {
@@ -989,8 +989,8 @@ const runPageTool = async (name, input = {}) => {
           const hit = hits[index];
           return { ok: true, id: hit.id, role: hit.role, name: hit.name, states: hit.states || {}, inView: hit.inView, total: hits.length, matchIndex: index };
         }
-        if (toolName === 'page.inspect_region') {
-          if (!id) return {ok: false, error: 'page.inspect_region 需要 id'};
+        if (toolName === 'page_inspect_region') {
+          if (!id) return {ok: false, error: 'page_inspect_region 需要 id'};
           const region = findRegion(id);
           if (!region) return {ok: false, error: `没有区域 ${id}`};
           const kids = elements.filter((item) => item.regionId === id).slice(0, 20);
@@ -1001,28 +1001,28 @@ const runPageTool = async (name, input = {}) => {
             text: clip(region.node.innerText, 400),
           };
         }
-        if (toolName === 'page.inspect_element') {
-          if (!id) return {ok: false, error: 'page.inspect_element 需要 id'};
+        if (toolName === 'page_inspect_element') {
+          if (!id) return {ok: false, error: 'page_inspect_element 需要 id'};
           const el = findElement(id);
           if (!el) return {ok: false, error: `没有元素 ${id}`};
           return {ok: true, element: strip(el)};
         }
-        if (toolName === 'page.get_dom') {
-          if (!id) return {ok: false, error: 'page.get_dom 需要 id'};
+        if (toolName === 'page_get_dom') {
+          if (!id) return {ok: false, error: 'page_get_dom 需要 id'};
           const hit = findElement(id) || findRegion(id);
           if (!hit) return {ok: false, error: `没有 ${id}`};
           const html = hit.node.outerHTML || '';
           // Return full HTML; Runtime inline gate (4000) externalizes oversized results.
           return {ok: true, id, tag: hit.tag, totalChars: html.length, html};
         }
-        if (toolName === 'page.get_accessibility_tree') {
-          if (!id) return {ok: false, error: 'page.get_accessibility_tree 需要 id'};
+        if (toolName === 'page_get_accessibility_tree') {
+          if (!id) return {ok: false, error: 'page_get_accessibility_tree 需要 id'};
           const hit = findElement(id) || findRegion(id);
           if (!hit) return {ok: false, error: `没有 ${id}`};
           return {ok: true, id, tree: axNode(hit.node, 0)};
         }
-        if (toolName === 'page.get_element_state') {
-          if (!id) return {ok: false, error: 'page.get_element_state 需要 id'};
+        if (toolName === 'page_get_element_state') {
+          if (!id) return {ok: false, error: 'page_get_element_state 需要 id'};
           const el = findElement(id);
           if (!el) return {ok: false, error: `没有元素 ${id}`};
           const node = el.node;
@@ -1038,16 +1038,16 @@ const runPageTool = async (name, input = {}) => {
             rect: el.rect,
           };
         }
-        if (toolName === 'page.click') {
-          if (!id) return {ok: false, error: 'page.click 需要 id'};
+        if (toolName === 'page_click') {
+          if (!id) return {ok: false, error: 'page_click 需要 id'};
           const el = findElement(id);
           if (!el) return {ok: false, error: `没有元素 ${id}`};
           if (el.disabled) return {ok: false, error: `${id} 不可点`};
           el.node.click();
           return {ok: true, clicked: el.name || id, id};
         }
-        if (toolName === 'page.type') {
-          if (!id) return {ok: false, error: 'page.type 需要 id'};
+        if (toolName === 'page_type') {
+          if (!id) return {ok: false, error: 'page_type 需要 id'};
           const el = findElement(id);
           if (!el) return {ok: false, error: `没有元素 ${id}`};
           const node = el.node;
@@ -1131,10 +1131,10 @@ const runPageTool = async (name, input = {}) => {
             stable: runningAnims === 0, runningAnimations: runningAnims,
             ...(ok ? {} : {faultCode: 'wait_condition_pending', error: '元素存在但不满足 visible/enabled/text/stable 条件'})};
         }
-        if (toolName === 'page.get_by_role') {
+        if (toolName === 'page_get_by_role') {
           const wantRole = (payload.role || '').trim().toLowerCase();
           const wantName = (payload.name || '').trim();
-          if (!wantRole) return {ok: false, error: 'page.get_by_role 需要 role'};
+          if (!wantRole) return {ok: false, error: 'page_get_by_role 需要 role'};
           const regionHits = regions.filter((item) => item.role === wantRole
             && (!wantName || (item.name || '').includes(wantName) || (item.heading || '').includes(wantName)));
           const hits = elements.filter((item) => item.role === wantRole
@@ -1150,7 +1150,7 @@ const runPageTool = async (name, input = {}) => {
             regions: regionHits.slice(0, limit).map(strip),
           };
         }
-        if (toolName === 'page.recheck' || toolName === 'page.assert') {
+        if (toolName === 'page_recheck' || toolName === 'page_assert') {
           const checks = [];
           const add = (name, ok, detail) => checks.push({ name, ok: Boolean(ok), detail });
           if (payload.urlContains) add('urlContains', location.href.includes(payload.urlContains), location.href);
@@ -1175,10 +1175,10 @@ const runPageTool = async (name, input = {}) => {
           }
           const ok = checks.length > 0 && checks.every((row) => row.ok);
           return { ok, tool: toolName, url: location.href, title: document.title, checks,
-            ...(ok ? {} : { faultCode: toolName === 'page.assert' ? 'assertion_failed' : 'recheck_failed',
+            ...(ok ? {} : { faultCode: toolName === 'page_assert' ? 'assertion_failed' : 'recheck_failed',
               error: '未满足：' + checks.filter((row) => !row.ok).map((row) => row.name).join(', ') }) };
         }
-        if (toolName === 'page.drag_to_id') {
+        if (toolName === 'page_drag_to_id') {
           const src = findElement(payload.sourceId) || findRegion(payload.sourceId);
           const dst = findElement(payload.targetId) || findRegion(payload.targetId);
           if (!src) return {ok: false, error: `没有源元素 ${payload.sourceId}`};
@@ -1193,7 +1193,7 @@ const runPageTool = async (name, input = {}) => {
             to: { x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2) },
           };
         }
-        if (toolName === 'combo.select') {
+        if (toolName === 'combo_select') {
           const el = findElement(id);
           if (!el) return {ok: false, error: `没有元素 ${id}`};
           const node = el.node;
@@ -1210,7 +1210,7 @@ const runPageTool = async (name, input = {}) => {
           node.dispatchEvent(new Event('change', {bubbles: true}));
           return {ok: true, id, value: node.value, text: hit.text};
         }
-        if (toolName === 'date.select') {
+        if (toolName === 'date_select') {
           const el = findElement(id);
           if (!el) return {ok: false, error: `没有元素 ${id}`};
           const node = el.node;
@@ -1231,7 +1231,7 @@ const runPageTool = async (name, input = {}) => {
       },
     });
     const out = {tabId: tab.tabId, title: tab.title, url: tab.url, ...result};
-    if (out.ok && (name === 'page.click' || name === 'page.type' || name === 'page.press' || name === 'page.scroll_to')) await afterPageAction(tabId);
+    if (out.ok && (name === 'page_click' || name === 'page_type' || name === 'page.press' || name === 'page.scroll_to')) await afterPageAction(tabId);
     return out;
   } catch (error) {
     return {ok: false, tabId: tab.tabId, error: error instanceof Error ? error.message : String(error)};
@@ -1328,8 +1328,8 @@ const capturePage = async (input) => {
 
 const executeBrowserTool = async (name, input = {}) => {
   const tabId = input.tabId;
-  // page.eval_expr must run before the generic page.* → runPageTool routing.
-  if (name === 'page.eval_expr') {
+  // page_eval_expr must run before the generic page.* → runPageTool routing.
+  if (name === 'page_eval_expr') {
     const expr = typeof input.expr === 'string' ? input.expr.trim() : '';
     if (!expr) return {ok: false, tabId, error: '缺 expr（表达式字符串）'};
     const tab = await getTab(tabId);
@@ -1378,7 +1378,7 @@ const executeBrowserTool = async (name, input = {}) => {
       return {ok: false, tabId: tab.id, error: `执行表达式失败：${e instanceof Error ? e.message : String(e)}`};
     }
   }
-  if (name.startsWith('page.')) return runPageTool(name, input);
+  if (name.startsWith('page_')) return runPageTool(name, input);
   if (name === 'see_page' || name === 'watch_page') return inspectTab(tabId);
   if (['snapshot_page', 'find_on_page', 'click', 'double_click', 'focus', 'hover', 'type', 'select'].includes(name)) {
     const tab = await getTab(tabId);
@@ -1477,10 +1477,10 @@ const executeBrowserTool = async (name, input = {}) => {
       return {ok: true};
     });
   }
-  if (name === 'page.get_by_role' || name === 'page.recheck' || name === 'page.assert'
-    || name === 'combo.select' || name === 'date.select') return runPageTool(name, input);
-  if (name === 'page.drag_to_id') {
-    const points = await runPageTool('page.drag_to_id', input);
+  if (name === 'page_get_by_role' || name === 'page_recheck' || name === 'page_assert'
+    || name === 'combo_select' || name === 'date_select') return runPageTool(name, input);
+  if (name === 'page_drag_to_id') {
+    const points = await runPageTool('page_drag_to_id', input);
     if (!points.ok) return points;
     return executeBrowserTool('drag', {
       ...input,
@@ -1488,7 +1488,7 @@ const executeBrowserTool = async (name, input = {}) => {
       point2: [points.to.x, points.to.y],
     });
   }
-  if (name === 'frame.list') {
+  if (name === 'frame_list') {
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, tabId, error: '没有可读取的普通网页标签'};
     try {
@@ -1507,14 +1507,14 @@ const executeBrowserTool = async (name, input = {}) => {
       return {ok: false, tabId: tab.id, error: error instanceof Error ? error.message : String(error)};
     }
   }
-  if (name === 'network.grep') {
+  if (name === 'network_grep') {
     const waited = await executeBrowserTool('wait_response', input);
     if (!waited.ok) return waited;
     const requestId = waited.requestId;
     const tab = await getTab(tabId);
     if (!tab?.id || !requestId) return {ok: false, tabId, error: '未取得 requestId'};
     const keyword = String(input.keyword || '').trim();
-    if (!keyword) return {ok: false, tabId, error: 'network.grep 需要 keyword'};
+    if (!keyword) return {ok: false, tabId, error: 'network_grep 需要 keyword'};
     const contextChars = Math.min(400, Math.max(20, Number(input.contextChars) || 400));
     try {
       return await withDebugger(tab.id, async () => {
@@ -1553,7 +1553,7 @@ const executeBrowserTool = async (name, input = {}) => {
       return {ok: false, tabId: tab.id, requestId, error: error instanceof Error ? error.message : String(error)};
     }
   }
-  if (name === 'dialog.wait') {
+  if (name === 'dialog_wait') {
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, tabId, error: '没有可等待弹窗的普通网页标签'};
     const timeoutMs = Math.min(Math.max(Number(input.timeoutMs ?? input.ms) || 5000, 300), 12000);
@@ -1573,7 +1573,7 @@ const executeBrowserTool = async (name, input = {}) => {
       return {ok: false, tabId: tab.id, error: error instanceof Error ? error.message : String(error)};
     }
   }
-  if (name === 'clipboard.page_write') {
+  if (name === 'clipboard_page_write') {
     return runOnTab(tabId, [String(input.text ?? '')], async (text) => {
       try {
         if (!navigator.clipboard?.writeText) return {ok: false, error: '页面环境不支持 clipboard.writeText'};
@@ -1584,7 +1584,7 @@ const executeBrowserTool = async (name, input = {}) => {
       }
     });
   }
-  if (name === 'clipboard.page_read') {
+  if (name === 'clipboard_page_read') {
     return runOnTab(tabId, [], async () => {
       try {
         if (!navigator.clipboard?.readText) return {ok: false, error: '页面环境不支持 clipboard.readText'};
@@ -1595,8 +1595,8 @@ const executeBrowserTool = async (name, input = {}) => {
       }
     });
   }
-  if (name === 'tab.context') {
-    return {ok: false, tabId, error: 'tab.context 由 Runtime 处理，不应进入扩展'};
+  if (name === 'tab_context') {
+    return {ok: false, tabId, error: 'tab_context 由 Runtime 处理，不应进入扩展'};
   }
   if (name === 'har') {
     const action = input.action || 'read';
@@ -1685,7 +1685,7 @@ const executeBrowserTool = async (name, input = {}) => {
     }
     return {ok: false, tabId: tab.id, error: 'har 需要 action=start|stop|read'};
   }
-  if (name === 'video.capture_sequence') {
+  if (name === 'video_capture_sequence') {
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, tabId, error: '没有可录屏的普通网页标签'};
     const count = Math.min(Math.max(Number(input.count) || 5, 1), 20);
@@ -1705,7 +1705,7 @@ const executeBrowserTool = async (name, input = {}) => {
       return {ok: false, tabId: tab.id, frames, error: error instanceof Error ? error.message : String(error)};
     }
   }
-  if (name === 'video.record') {
+  if (name === 'video_record') {
     const action = input.action || 'status';
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, tabId, error: '没有可录屏的普通网页标签'};
@@ -1746,9 +1746,9 @@ const executeBrowserTool = async (name, input = {}) => {
       videoRecorders.delete(tab.id);
       return {ok: true, tabId: tab.id, stopped: true, fps: rec.fps, count: rec.frames.length, frames: rec.frames};
     }
-    return {ok: false, tabId: tab.id, error: 'video.record 需要 action=start|stop|status'};
+    return {ok: false, tabId: tab.id, error: 'video_record 需要 action=start|stop|status'};
   }
-  if (name === 'fingerprint.read') {
+  if (name === 'fingerprint_read') {
     return runOnTab(tabId, [], () => ({
       ok: true,
       userAgent: navigator.userAgent,
@@ -1766,7 +1766,7 @@ const executeBrowserTool = async (name, input = {}) => {
       webdriver: navigator.webdriver === true,
     }));
   }
-  if (name === 'fingerprint.apply') {
+  if (name === 'fingerprint_apply') {
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, tabId, error: '没有可应用指纹的普通网页标签'};
     const ua = typeof input.userAgent === 'string' && input.userAgent.trim() ? input.userAgent.trim() : '';
@@ -2732,7 +2732,7 @@ const executeBrowserTool = async (name, input = {}) => {
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可监控的普通网页标签'};
     return monitorWebSockets(tab.id, input.action);
   }
-  if (name === 'network.mock') {
+  if (name === 'network_mock') {
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可操作网络拦截的普通网页标签'};
     return manageNetworkMock(tab.id, input);
@@ -2740,7 +2740,7 @@ const executeBrowserTool = async (name, input = {}) => {
   if (name === 'stream.capture') return streamCapture(input);
   if (name === 'stream.receive') return streamReceive(input);
   if (name === 'image.shrink') return imageShrink(input);
-  if (name === 'image.crop_pixels') {
+  if (name === 'image_crop_pixels') {
     try {
       const x = Number(input.x), y = Number(input.y), width = Number(input.width), height = Number(input.height);
       const blob = await (await fetch(String(input.dataUrl ?? ''))).blob();

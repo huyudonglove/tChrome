@@ -6,11 +6,11 @@ import { execFileSync } from "node:child_process";
 import { runLocalGitTool, LOCAL_GIT_TOOL_NAMES } from "./local-git.ts";
 
 test("LOCAL_GIT_TOOL_NAMES contains expected tools", () => {
-  expect(LOCAL_GIT_TOOL_NAMES).toContain("local.git_status");
-  expect(LOCAL_GIT_TOOL_NAMES).toContain("local.git_diff");
+  expect(LOCAL_GIT_TOOL_NAMES).toContain("local_git_status");
+  expect(LOCAL_GIT_TOOL_NAMES).toContain("local_git_diff");
 });
 
-test("local.git_status and local.git_diff work on clean and modified repo", async () => {
+test("local_git_status and local_git_diff work on clean and modified repo", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-git-test-"));
   try {
     // init git repo
@@ -19,7 +19,7 @@ test("local.git_status and local.git_diff work on clean and modified repo", asyn
     execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: dir });
 
     // Initial status on empty repo
-    const initialStatus = await runLocalGitTool("local.git_status", {
+    const initialStatus = await runLocalGitTool("local_git_status", {
       path: dir,
       reason: "check initial status",
     });
@@ -37,7 +37,7 @@ test("local.git_status and local.git_diff work on clean and modified repo", asyn
     writeFileSync(readme, "# Hello Git\nline 1\nline 2\n", "utf8");
 
     // Status shows untracked
-    const untrackedStatus = await runLocalGitTool("local.git_status", {
+    const untrackedStatus = await runLocalGitTool("local_git_status", {
       path: dir,
       reason: "check untracked status",
     });
@@ -51,7 +51,7 @@ test("local.git_status and local.git_diff work on clean and modified repo", asyn
     execFileSync("git", ["commit", "-m", "init commit"], { cwd: dir });
 
     // After commit, should be clean
-    const committedStatus = await runLocalGitTool("local.git_status", {
+    const committedStatus = await runLocalGitTool("local_git_status", {
       path: dir,
       reason: "check committed status",
     });
@@ -64,7 +64,7 @@ test("local.git_status and local.git_diff work on clean and modified repo", asyn
     writeFileSync(readme, "# Hello Git\nline 1 modified\nline 2\nline 3\n", "utf8");
 
     // Status shows unstaged
-    const modifiedStatus = await runLocalGitTool("local.git_status", {
+    const modifiedStatus = await runLocalGitTool("local_git_status", {
       path: dir,
       reason: "check modified status",
     });
@@ -75,7 +75,7 @@ test("local.git_status and local.git_diff work on clean and modified repo", asyn
     });
 
     // Diff unstaged
-    const unstagedDiff = await runLocalGitTool("local.git_diff", {
+    const unstagedDiff = await runLocalGitTool("local_git_diff", {
       path: dir,
       reason: "check diff unstaged",
     });
@@ -90,7 +90,7 @@ test("local.git_status and local.git_diff work on clean and modified repo", asyn
     execFileSync("git", ["add", "README.md"], { cwd: dir });
 
     // Diff cached
-    const cachedDiff = await runLocalGitTool("local.git_diff", {
+    const cachedDiff = await runLocalGitTool("local_git_diff", {
       path: dir,
       cached: true,
       reason: "check diff cached",

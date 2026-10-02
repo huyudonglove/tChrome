@@ -37,7 +37,7 @@ test("resident and dynamic guides remain separate, persist loaded schemas across
     }
     return { finish: "tool_calls", content: "", attempts: 1, parseOk: true, schemaOk: true,
       faultCode: null, missing: [], toolCalls: requests === 1
-        ? [{ id: "load", name: "catalog.add", arguments: { names: ["send_http"], reason: "读取接口" } }]
+        ? [{ id: "load", name: "catalog_add", arguments: { names: ["send_http"], reason: "读取接口" } }]
         : [{ id: "done", name: "finishTurn", arguments: { text: "完成", reason: "答复"} }] };
   } };
   try {
@@ -55,6 +55,6 @@ test("resident and dynamic guides remain separate, persist loaded schemas across
     openConversation(dataDir, result.conversationId);
     expect((await handleTurn({ dataDir, repoRoot: join(import.meta.dir, ".."), provider }, { userInput: "重新打开", submittedAt: "now" })).stopReason).toEqual({ kind: "reply", text: "完成" });
     expect(requests).toBe(5);
-    expect(loadLedger(dataDir, result.conversationId).toolIO.filter(row => row.name === "catalog.add")).toHaveLength(1);
+    expect(loadLedger(dataDir, result.conversationId).toolIO.filter(row => row.name === "catalog_add")).toHaveLength(1);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });

@@ -41,7 +41,7 @@ export type ModuleRegistry = {
 
 const DEFAULT_SEMANTICS: Record<string, string> = {
   userInput: "对象 `{id, turnId, userInput, submittedAt}`。片段可缺省，不表示用户没输入。",
-  observations: "数组 `[{id, turnId, callId, batchId?, tabId?, type, result, writtenTurn?, validUntilTurn?}]`。type 为产生观察的工具名；result 是该次观察的完整返回。与 toolIO 同 callId 时两份都读。观察跟着轮次走：超过自己声明的 validUntilTurn 后不再注入；跨轮仍要留的结论用 memory.writeConversation 写成会话记忆。",
+  observations: "数组 `[{id, turnId, callId, batchId?, tabId?, type, result, writtenTurn?, validUntilTurn?}]`。type 为产生观察的工具名；result 是该次观察的完整返回。与 toolIO 同 callId 时两份都读。观察跟着轮次走：超过自己声明的 validUntilTurn 后不再注入；跨轮仍要留的结论用 memory_writeConversation 写成会话记忆。",
   memoryWrites: "数组 `[{memoryId, turnId, layer, text, createdAt, sourceCallId}]`。此处只含本轮写入的会话记忆。",
   toolIO: "数组 `[{callId, batchId?, turnId, name, arguments, return:{stage,result}, images?}]`。写模块的调用（finishTurn/askUser/notes/memory/task/reflect/observation）只存指针，正文在对应模块。与 observations 同 callId 的调用 result 为 `{ok, observationId}`。",
   queryHistory: "数组 `[{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}]`。status 为 complete / not_found / error；records 保留原模块记录。结论写入 result。",

@@ -1,0 +1,75 @@
+{
+  "type": "function",
+  "function": {
+    "name": "local_repo_map",
+    "description": "仓库结构导航：按目录聚合出「哪块职责在哪、入口文件是哪个」，一次返回每个目录的文件数、符号数、入口文件与其主要符号，避免靠猜路径翻文件。默认 directories 模式返回目录聚合（体积可控）；mode=map 返回 Aider 风格的完整符号拓扑文本（会较大，被降级时用 evidence_search 取片段）。path 给目录会递归扫描，只读不改动。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "仓库或目录的绝对路径，会递归扫描其下的源文件"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "directories",
+            "map"
+          ],
+          "description": "directories=按目录聚合的概览（默认）；map=完整符号拓扑渲染文本"
+        },
+        "depth": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4,
+          "description": "目录聚合层级，取路径前 N 段作为目录名，默认 2（如 service/runtime）"
+        },
+        "maxDirs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "description": "最多返回的目录数，默认 60，按文件数降序"
+        },
+        "symbolsPerDir": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20,
+          "description": "每个目录最多列出几个入口文件的主要符号，默认 6"
+        },
+        "includeExtensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "可选；要扫描的扩展名，如 [\".ts\",\".tsx\"]，缺省为 .ts/.tsx/.js/.jsx/.mjs/.cjs"
+        },
+        "excludePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "可选；要额外排除的目录名，默认已排除 node_modules/dist/.git/.next/coverage/process-output/returns/turns"
+        },
+        "maxLines": {
+          "type": "integer",
+          "minimum": 20,
+          "maximum": 4000,
+          "description": "仅 mode=map：渲染文本的行数上限，超出末尾标注截断，默认 400"
+        },
+        "verboseSignatures": {
+          "type": "boolean",
+          "description": "仅 mode=map：是否带上函数签名，默认 false 只列符号名"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "execution": "parallel"
+  }
+}

@@ -47,7 +47,7 @@ const mock = (results: CompletionResult[]): Provider => {
   };
 };
 
-test("需要标签时用 tabs.current 查询，观察不被焦点变化覆盖", async () => {
+test("需要标签时用 tabs_current 查询，观察不被焦点变化覆盖", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-tabs-"));
     primeActiveTask(dir);
   try {
@@ -71,11 +71,11 @@ test("需要标签时用 tabs.current 查询，观察不被焦点变化覆盖", 
       expect(body).not.toContain("<currentOpen>");
       if (requests >= 3) expect(body).toContain("已观察原页面");
       return ok({finish: "tool_calls", toolCalls: requests === 1
-        ? [{id: "tabs", name: "tabs.current", arguments: {reason: "查标签"}}]
+        ? [{id: "tabs", name: "tabs_current", arguments: {reason: "查标签"}}]
         : requests === 2
         ? [
-          {id: "read_2", name: "page.get_summary", arguments: {tabId: 12, reason: "查看原页面"}},
-          {id: "obs_2", name: "observation.write", arguments: {reason: "记录观察", type: "page.get_summary", result: {ok: true, note: "已观察原页面"}, tabId: 12}},
+          {id: "read_2", name: "page_get_summary", arguments: {tabId: 12, reason: "查看原页面"}},
+          {id: "obs_2", name: "observation_write", arguments: {reason: "记录观察", type: "page_get_summary", result: {ok: true, note: "已观察原页面"}, tabId: 12}},
         ]
         : [{id: "finish", name: "finishTurn", arguments: {text: "完成"}}]});
     }};
@@ -249,14 +249,14 @@ test("POST /turn 走完 mock 收口", async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("开 Turn 不读页，模型 page.get_summary 后才填 currentPage", async () => {
+test("开 Turn 不读页，模型 page_get_summary 后才填 currentPage", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-page-"));
     primeActiveTask(dir);
   const provider = mock([
     ok({
       finish: "tool_calls",
       content: "",
-      toolCalls: [{ id: "call_01", name: "page.get_summary", arguments: { tabId: 12, reason: "看当前页" } }],
+      toolCalls: [{ id: "call_01", name: "page_get_summary", arguments: { tabId: 12, reason: "看当前页" } }],
     }),
     ok({
       finish: "tool_calls",
@@ -266,7 +266,7 @@ test("开 Turn 不读页，模型 page.get_summary 后才填 currentPage", async
   ]);
   const host = {
     execute: async (name: string) => {
-      if (name !== "page.get_summary") return { ok: false, error: name };
+      if (name !== "page_get_summary") return { ok: false, error: name };
       return {
         ok: true,
         tabId: 12,
@@ -286,11 +286,11 @@ test("开 Turn 不读页，模型 page.get_summary 后才填 currentPage", async
     title: "罗技 MX Master 3S 无线鼠标",
   });
   const ledger = loadLedger(dir, "cv_01");
-  expect(ledger.toolIO[0]?.name).toBe("page.get_summary");
+  expect(ledger.toolIO[0]?.name).toBe("page_get_summary");
   expect(ledger.toolIO[0]?.turnId).toBe(reply.turnId);
   const session = await (await createServer({ dataDir: dir, repoRoot, provider: mock([]) }).fetch(new Request("http://127.0.0.1:18788/session"))).json() as { messages: { role: string; name?: string; text: string }[] };
   expect(session.messages.map((row) => row.role)).toEqual(["user", "tool", "assistant"]);
-  expect(session.messages[1]?.name).toBe("page.get_summary");
+  expect(session.messages[1]?.name).toBe("page_get_summary");
   expect(session.messages[1]?.text).toBe("看当前页");
   expect(session.messages[2]?.text).toBe("在看罗技");
   rmSync(dir, { recursive: true, force: true });
@@ -323,7 +323,7 @@ test("web_search 走服务端执行", async () => {
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "这鼠标官网多少钱", submittedAt: "2026-09-06T00:00:00.000Z" });
     expect(reply.stopReason).toEqual({ kind: "reply", text: "官价 699" });
     const turn = loadTurn(dir, "cv_01", reply.turnId);
-    expect(turn.assembled.baseToolsIds).toContain("page.get_summary");
+    expect(turn.assembled.baseToolsIds).toContain("page_get_summary");
     expect(turn.assembled.toolIds).toContain("web_search");
     expect(turn.assembled.currentPage).toBeNull();
     const ledger = loadLedger(dir, "cv_01");
@@ -463,7 +463,7 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
       toolCalls: [
         {
           id: "call_01",
-          name: "memory.writeConversation",
+          name: "memory_writeConversation",
           arguments: {
             reason: "记下",
             conversationMemory: ["本轮用户要查鼠标价", "用户在核对罗技 MX Master 3S"],
@@ -471,7 +471,7 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
         },
         {
           id: "call_01b",
-          name: "memory.writeProject",
+          name: "memory_writeProject",
           arguments: {
             reason: "记下",
             scope: "tChrome",
@@ -514,9 +514,9 @@ test("记忆效果失败进入 toolIO，同批工具继续，模型收到错误�
     let requests = 0;
     const provider: Provider = { complete: async input => {
       if (++requests === 1) return ok({ finish: "tool_calls", toolCalls: [
-        { id: "memory", name: "memory.writeConversation", arguments: { reason: "记录", conversationMemory: ["本轮已写入"] } },
-        { id: "memoryP", name: "memory.writeProject", arguments: { reason: "记录", scope: "tChrome", projectMemory: ["不能覆盖"] } },
-        { id: "next", name: "notes.write", arguments: { reason: "下一步", key: "next", value: "已执行" } },
+        { id: "memory", name: "memory_writeConversation", arguments: { reason: "记录", conversationMemory: ["本轮已写入"] } },
+        { id: "memoryP", name: "memory_writeProject", arguments: { reason: "记录", scope: "tChrome", projectMemory: ["不能覆盖"] } },
+        { id: "next", name: "notes_write", arguments: { reason: "下一步", key: "next", value: "已执行" } },
       ] });
       expect(input.messages[1]!.content).toContain('"faultCode": "file_exists"');
       expect(input.messages[1]!.content).toContain("本轮已写入");
@@ -530,8 +530,8 @@ test("记忆效果失败进入 toolIO，同批工具继续，模型收到错误�
     expect(ledger).toMatchObject({ status: "idle", active: null, liveTools: [], toolQueue: [], memoryIds: { conversation: ["mm_01"] }, notes: { next: "已执行" } });
     expect(loadMemory(dir, "cv_01", "mm_01").text).toBe("本轮已写入");
     expect(loadMemory(dir, "cv_01", "lm_01").text).toBe("已有记忆");
-    const failedWrite = ledger.toolIO.find((item) => item.name === "memory.writeProject");
-    expect(JSON.parse(failedWrite!.return.text)).toMatchObject({ ok: false, faultCode: "file_exists", toolName: "memory.writeProject" });
+    const failedWrite = ledger.toolIO.find((item) => item.name === "memory_writeProject");
+    expect(JSON.parse(failedWrite!.return.text)).toMatchObject({ ok: false, faultCode: "file_exists", toolName: "memory_writeProject" });
     // tool events are no longer duplicated into events.jsonl; toolio.jsonl is the single source of truth
     expect(loadEvents(dir, "cv_01").some(event => event.kind === "tool")).toBe(false);
     expect(loadTurn(dir, "cv_01", reply.turnId).status).toBe("completed");
@@ -549,7 +549,7 @@ test("同批 parallel 并发、serial 清空后独占，模型提交的 executio
       order.push(`start:${name}`);
       running += 1;
       maxRunning = Math.max(maxRunning, running);
-      await Bun.sleep(name === "page.click" ? 5 : 20);
+      await Bun.sleep(name === "page_click" ? 5 : 20);
       running -= 1;
       order.push(`end:${name}`);
       return { ok: true, tabId: 1, url: "https://example.com", title: "t" };
@@ -557,9 +557,9 @@ test("同批 parallel 并发、serial 清空后独占，模型提交的 executio
   };
   const provider = mock([
     ok({ finish: "tool_calls", toolCalls: [
-      { id: "p1", name: "page.get_summary", arguments: { reason: "并行A", tabId: 1 } },
-      { id: "p2", name: "page.get_summary", arguments: { reason: "并行B", tabId: 2, execution: "serial" } },
-      { id: "s1", name: "page.click", arguments: { reason: "串行", tabId: 1, id: "e_01" } },
+      { id: "p1", name: "page_get_summary", arguments: { reason: "并行A", tabId: 1 } },
+      { id: "p2", name: "page_get_summary", arguments: { reason: "并行B", tabId: 2, execution: "serial" } },
+      { id: "s1", name: "page_click", arguments: { reason: "串行", tabId: 1, id: "e_01" } },
       { id: "fin", name: "finishTurn", arguments: { text: "排程完成" } },
     ] }),
   ]);
@@ -568,12 +568,12 @@ test("同批 parallel 并发、serial 清空后独占，模型提交的 executio
     expect(reply.stopReason).toEqual({ kind: "reply", text: "排程完成" });
     // Both default-parallel reads overlap; the serial click runs alone after they drain.
     expect(maxRunning).toBeGreaterThanOrEqual(2);
-    const clickStart = order.indexOf("start:page.click");
-    const lastParallelEnd = Math.max(order.indexOf("end:page.get_summary"), order.lastIndexOf("end:page.get_summary"));
+    const clickStart = order.indexOf("start:page_click");
+    const lastParallelEnd = Math.max(order.indexOf("end:page_get_summary"), order.lastIndexOf("end:page_get_summary"));
     expect(clickStart).toBeGreaterThan(lastParallelEnd);
     // toolIO stays in tool_calls array order.
     expect(loadLedger(dir, "cv_01").toolIO.map((row) => row.name)).toEqual([
-      "page.get_summary", "page.get_summary", "page.click", "finishTurn",
+      "page_get_summary", "page_get_summary", "page_click", "finishTurn",
     ]);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
@@ -587,7 +587,7 @@ test("队列和正在跑的工具出现在 /session", () => {
   ledger.turnIds = ["tn_01"];
   ledger.liveTools = [{ name: "see_page", callId: "call_01" }];
   ledger.toolQueue = [
-    { callId: "call_01", name: "page.get_summary", arguments: { tabId: 12, reason: "看当前页" } },
+    { callId: "call_01", name: "page_get_summary", arguments: { tabId: 12, reason: "看当前页" } },
     { callId: "call_02", name: "click", arguments: { tabId: 12, reason: "点分类" } },
   ];
   ledger.toolIO = [
@@ -638,7 +638,7 @@ test("POST /stop 把 running 标成 paused", async () => {
     ok({
       finish: "tool_calls",
       content: "",
-      toolCalls: [{ id: "call_01", name: "page.get_summary", arguments: { tabId: 12, reason: "看当前页" } }],
+      toolCalls: [{ id: "call_01", name: "page_get_summary", arguments: { tabId: 12, reason: "看当前页" } }],
     }),
   ]);
   const server = createServer({ dataDir: dir, repoRoot, provider, host });
@@ -668,10 +668,10 @@ test("arguments 不是 JSON 时好的工具照跑，坏的退回再出网", asyn
       parseOk: false,
       schemaOk: false,
       faultCode: "arguments_not_json",
-      detail: "page.type: Unexpected token",
-      badName: "page.type",
+      detail: "page_type: Unexpected token",
+      badName: "page_type",
       content: "",
-      toolCalls: [{ id: "call_01", name: "page.get_summary", arguments: { tabId: 12, reason: "看页" } }],
+      toolCalls: [{ id: "call_01", name: "page_get_summary", arguments: { tabId: 12, reason: "看页" } }],
     }),
     ok({
       finish: "tool_calls",
@@ -681,7 +681,7 @@ test("arguments 不是 JSON 时好的工具照跑，坏的退回再出网", asyn
   ]);
   const host = {
     execute: async (name: string) => {
-      if (name !== "page.get_summary") return { ok: false, error: name };
+      if (name !== "page_get_summary") return { ok: false, error: name };
       return { ok: true, tabId: 1, url: "https://example.com", title: "注册", description: "注册页" };
     },
   };
@@ -689,7 +689,7 @@ test("arguments 不是 JSON 时好的工具照跑，坏的退回再出网", asyn
   expect(reply.stopReason).toEqual({ kind: "reply", text: "注册页在" });
   const ledger = loadLedger(dir, "cv_01");
   expect(ledger.status).toBe("idle");
-  expect(ledger.toolIO.map((row) => row.name)).toEqual(["page.type", "page.get_summary", "finishTurn"]);
+  expect(ledger.toolIO.map((row) => row.name)).toEqual(["page_type", "page_get_summary", "finishTurn"]);
   expect(JSON.parse(ledger.toolIO[0]!.return.text).faultCode).toBe("arguments_not_json");
   rmSync(dir, { recursive: true, force: true });
 });
@@ -704,10 +704,10 @@ test("缺字段写进 toolIO 再出网，不补齐", async () => {
       schemaOk: false,
       faultCode: "missing_required",
       missing: ["reason"],
-      badName: "page.type",
-      detail: "page.type missing required: reason",
+      badName: "page_type",
+      detail: "page_type missing required: reason",
       content: "",
-      toolCalls: [{ id: "call_01", name: "page.type", arguments: { tabId: 12, id: "e1", text: "a@b.com" } }],
+      toolCalls: [{ id: "call_01", name: "page_type", arguments: { tabId: 12, id: "e1", text: "a@b.com" } }],
     }),
     ok({
       finish: "tool_calls",
@@ -719,12 +719,12 @@ test("缺字段写进 toolIO 再出网，不补齐", async () => {
   expect(reply.stopReason).toEqual({ kind: "reply", text: "缺 reason 也能收口" });
   const ledger = loadLedger(dir, "cv_01");
   expect(ledger.status).toBe("idle");
-  expect(ledger.toolIO[0]!.name).toBe("page.type");
+  expect(ledger.toolIO[0]!.name).toBe("page_type");
   expect(JSON.parse(ledger.toolIO[0]!.return.text)).toMatchObject({
     ok: false,
     faultCode: "missing_required",
     missing: ["reason"],
-    toolName: "page.type",
+    toolName: "page_type",
   });
   expect(ledger.toolIO[0]!.arguments).toEqual({ tabId: 12, id: "e1", text: "a@b.com" });
   rmSync(dir, { recursive: true, force: true });
@@ -763,14 +763,14 @@ test(`观察提醒按证据类工具调用计数：累计 ${OBS_FIRST} 次证据
       step++;
       const body = input.messages[1]!.content;
       if (step <= OBS_FIRST) {
-        expect(body).not.toContain("建议用 observation.write");
+        expect(body).not.toContain("建议用 observation_write");
         // 每步只发 1 个证据类调用，避免硬收口；bookkeeping 不计数的断言见下一个用例
         return ok({ finish: "tool_calls", toolCalls: [
-          { id: `e_${step}`, name: "page.get_summary", arguments: { tabId: 12 } },
+          { id: `e_${step}`, name: "page_get_summary", arguments: { tabId: 12 } },
         ] });
       }
-      expect(body).toContain("建议用 observation.write");
-      expect(body).toContain(`page.get_summary×${OBS_FIRST}`);
+      expect(body).toContain("建议用 observation_write");
+      expect(body).toContain(`page_get_summary×${OBS_FIRST}`);
       expect(body).toContain("次产出证据的工具调用");
       expect(body).toContain(`下次提示门槛收紧到 ${OBS_GATE_2} 次`);
       return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
@@ -792,20 +792,20 @@ test(`观察提醒门槛在同一轮内 ${OBS_FIRST} → ${OBS_GATE_2} → ${OBS
       const body = input.messages[1]!.content;
       if (step === firstNudge) {
         // 第 OBS_FIRST 次证据类调用后已提示一次，门槛收紧到 OBS_GATE_2
-        expect(body).toContain("建议用 observation.write");
+        expect(body).toContain("建议用 observation_write");
         expect(body).toContain(`下次提示门槛收紧到 ${OBS_GATE_2} 次`);
       }
       if (step > firstNudge && step < secondNudge) {
         // 门槛已是 OBS_GATE_2，这段区间内不应再提示
-        expect(body).not.toContain("建议用 observation.write");
+        expect(body).not.toContain("建议用 observation_write");
       }
       if (step === secondNudge) {
         // 门槛收紧到下限 OBS_MIN 并再次提示
-        expect(body).toContain("建议用 observation.write");
+        expect(body).toContain("建议用 observation_write");
         expect(body).toContain(`下次提示门槛收紧到 ${OBS_MIN} 次`);
       }
       if (step <= secondNudge) {
-        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "page.get_summary", arguments: { tabId: 12 } }] });
+        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "page_get_summary", arguments: { tabId: 12 } }] });
       }
       return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
     } };
@@ -814,7 +814,7 @@ test(`观察提醒门槛在同一轮内 ${OBS_FIRST} → ${OBS_GATE_2} → ${OBS
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test(`写一次 observation.write 后计数与门槛重置回 ${OBS_FIRST}`, async () => {
+test(`写一次 observation_write 后计数与门槛重置回 ${OBS_FIRST}`, async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-obs-nudge-reset-"));
   primeActiveTask(dir);
   try {
@@ -824,17 +824,17 @@ test(`写一次 observation.write 后计数与门槛重置回 ${OBS_FIRST}`, asy
       step++;
       const body = input.messages[1]!.content;
       if (step === firstNudge) {
-        expect(body).toContain("建议用 observation.write");
+        expect(body).toContain("建议用 observation_write");
         expect(body).toContain(`下次提示门槛收紧到 ${OBS_GATE_2} 次`);
-        return ok({ finish: "tool_calls", toolCalls: [{ id: "w", name: "observation.write", arguments: { reason: "固化", type: "code", result: "状态" } }] });
+        return ok({ finish: "tool_calls", toolCalls: [{ id: "w", name: "observation_write", arguments: { reason: "固化", type: "code", result: "状态" } }] });
       }
       if (step > firstNudge && step <= firstNudge + OBS_FIRST) {
         // 写观察后门槛重置回 OBS_FIRST，这段区间内不应再提示
-        expect(body).not.toContain("建议用 observation.write");
-        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "page.get_summary", arguments: { tabId: 12 } }] });
+        expect(body).not.toContain("建议用 observation_write");
+        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "page_get_summary", arguments: { tabId: 12 } }] });
       }
       if (step <= OBS_FIRST) {
-        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "page.get_summary", arguments: { tabId: 12 } }] });
+        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "page_get_summary", arguments: { tabId: 12 } }] });
       }
       return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
     } };
@@ -852,8 +852,8 @@ test("只有 bookkeeping 工具时观察提醒保持安静", async () => {
       step++;
       const body = input.messages[1]!.content;
       if (step <= 40) {
-        expect(body).not.toContain("建议用 observation.write");
-        return ok({ finish: "tool_calls", toolCalls: [{ id: `n_${step}`, name: "notes.write", arguments: { reason: "草稿", key: `k${step}`, value: "v" } }] });
+        expect(body).not.toContain("建议用 observation_write");
+        return ok({ finish: "tool_calls", toolCalls: [{ id: `n_${step}`, name: "notes_write", arguments: { reason: "草稿", key: `k${step}`, value: "v" } }] });
       }
       return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
     } };
@@ -884,13 +884,13 @@ test("压缩前若无观察则先提示一次，下一轮才压缩", async () =>
       const body = input.messages[1]!.content;
       if (step === 1) {
         expect(body).toContain("上下文即将被压缩");
-        expect(body).toContain("建议用 observation.write");
-        return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "e_1", name: "page.get_summary", arguments: { tabId: 12 } }] });
+        expect(body).toContain("建议用 observation_write");
+        return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "e_1", name: "page_get_summary", arguments: { tabId: 12 } }] });
       }
       if (step === 2) {
         // compressNudgeSent 已置位，这一轮照常压缩
         expect(body).not.toContain("上下文即将被压缩");
-        return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "e_2", name: "page.get_summary", arguments: { tabId: 13 } }] });
+        return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "e_2", name: "page_get_summary", arguments: { tabId: 13 } }] });
       }
       return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
     } };
@@ -900,7 +900,7 @@ test("压缩前若无观察则先提示一次，下一轮才压缩", async () =>
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("本轮写过 observation.write 时压缩前不再提示", async () => {
+test("本轮写过 observation_write 时压缩前不再提示", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-compress-nudge-obs-"));
   primeActiveTask(dir);
   try {
@@ -919,7 +919,7 @@ test("本轮写过 observation.write 时压缩前不再提示", async () => {
       const body = input.messages[1]!.content;
       if (step === 1) {
         expect(body).not.toContain("上下文即将被压缩");
-        return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "o_1", name: "observation.write", arguments: { reason: "固化", type: "code", result: "已确认窗口结构" } }] });
+        return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "o_1", name: "observation_write", arguments: { reason: "固化", type: "code", result: "已确认窗口结构" } }] });
       }
       if (step === 2) {
         expect(body).not.toContain("上下文即将被压缩");
@@ -932,24 +932,24 @@ test("本轮写过 observation.write 时压缩前不再提示", async () => {
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("notes.write 按 key 写入，notes.delete 删除", async () => {
+test("notes_write 按 key 写入，notes_delete 删除", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-notes-"));
     primeActiveTask(dir);
   const provider = mock([
     ok({
       finish: "tool_calls",
       content: "",
-      toolCalls: [{ id: "call_01", name: "notes.write", arguments: { reason: "记下", key: "candidate", value: "罗技 MX Master 3S" } }],
+      toolCalls: [{ id: "call_01", name: "notes_write", arguments: { reason: "记下", key: "candidate", value: "罗技 MX Master 3S" } }],
     }),
     ok({
       finish: "tool_calls",
       content: "",
-      toolCalls: [{ id: "call_02", name: "notes.write", arguments: { reason: "改", key: "candidate", value: "MX Master 3S 黑" } }],
+      toolCalls: [{ id: "call_02", name: "notes_write", arguments: { reason: "改", key: "candidate", value: "MX Master 3S 黑" } }],
     }),
     ok({
       finish: "tool_calls",
       content: "",
-      toolCalls: [{ id: "call_03", name: "notes.delete", arguments: { reason: "删", key: "candidate" } }],
+      toolCalls: [{ id: "call_03", name: "notes_delete", arguments: { reason: "删", key: "candidate" } }],
     }),
     ok({
       finish: "tool_calls",
@@ -961,7 +961,7 @@ test("notes.write 按 key 写入，notes.delete 删除", async () => {
   expect(reply.stopReason).toEqual({ kind: "reply", text: "笔记已删" });
   const ledger = loadLedger(dir, "cv_01");
   expect(ledger.notes).toEqual({});
-  expect(ledger.toolIO.map((row) => row.name)).toEqual(["notes.write", "notes.write", "notes.delete", "finishTurn"]);
+  expect(ledger.toolIO.map((row) => row.name)).toEqual(["notes_write", "notes_write", "notes_delete", "finishTurn"]);
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -979,7 +979,7 @@ test.each(["provider", "provider-reject", "browser", "browser-reject"])("停止�
   const provider: Provider = { complete: () => {
     if (calls++ > 0) return new Promise((resolve) => { releaseNew = resolve; });
     if (waitingOn.startsWith("browser")) return Promise.resolve(ok({ finish: "tool_calls", toolCalls: [
-      { id: "page", name: "page.get_summary", arguments: { tabId: 12, reason: "读取" } },
+      { id: "page", name: "page_get_summary", arguments: { tabId: 12, reason: "读取" } },
     ] }));
     return new Promise((resolve, reject) => { releaseOld = () => waitingOn === "provider-reject" ? reject(new Error("aborted provider")) : resolve(finish); started(); });
   } };
@@ -1008,8 +1008,8 @@ test.each(["provider", "provider-reject", "browser", "browser-reject"])("停止�
 });
 
 test.each([
-  { name: "page.get_dom", arguments: {}, faultCode: "unknown_tool" },
-  { name: "page.select_role", arguments: { tabId: 12,}, faultCode: "missing_required" },
+  { name: "page_get_dom", arguments: {}, faultCode: "unknown_tool" },
+  { name: "page_select_role", arguments: { tabId: 12,}, faultCode: "missing_required" },
 ])("坏 JSON 前缀也校验 $faultCode", async (invalid) => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-prefix-schema-"));
     primeActiveTask(dir);
@@ -1017,7 +1017,7 @@ test.each([
   try {
     const provider = mock([
       ok({ finish: "tool_calls", parseOk: false, schemaOk: false, faultCode: "arguments_not_json",
-        badName: "page.type", toolCalls: [{ id: "bad-prefix", name: invalid.name, arguments: invalid.arguments }] }),
+        badName: "page_type", toolCalls: [{ id: "bad-prefix", name: invalid.name, arguments: invalid.arguments }] }),
       ok({ finish: "tool_calls", content: "", toolCalls: [
         { id: "finish", name: "finishTurn", arguments: { text: "结束", reason: "完成"} },
       ] }),
@@ -1040,7 +1040,7 @@ test("第20次出网 content 为空但 finishTurn.text 有正文时正常结束"
   try {
     const steps = Array.from({ length: 19 }, (_, i) => ok({
       finish: "tool_calls", content: "", toolCalls: [{
-        id: `note_${i}`, name: "notes.write", arguments: { reason: "记录已确认的进展", key: "progress", value: String(i) },
+        id: `note_${i}`, name: "notes_write", arguments: { reason: "记录已确认的进展", key: "progress", value: String(i) },
       }],
     }));
     steps.push(ok({ finish: "tool_calls", content: "", toolCalls: [{
@@ -1074,11 +1074,11 @@ test("工具抛错写入记录，清空执行状态并允许下一次模型请�
   const provider: Provider = { complete: async ({ messages }) => {
     requests += 1;
     if (requests === 1) return ok({ finish: "tool_calls", toolCalls: [
-      { id: "load", name: "catalog.add", arguments: { reason: "测试请求", names: ["send_http"] } },
+      { id: "load", name: "catalog_add", arguments: { reason: "测试请求", names: ["send_http"] } },
     ] });
     if (requests === 2) return ok({ finish: "tool_calls", toolCalls: [
       { id: "http", name: "send_http", arguments: { reason: "读取", url: "https://example.com" } },
-      { id: "note", name: "notes.write", arguments: { reason: "继续", key: "progress", value: "continued" } },
+      { id: "note", name: "notes_write", arguments: { reason: "继续", key: "progress", value: "continued" } },
     ] });
     const ledger = loadLedger(dir, "cv_01");
     expect(ledger.liveTools).toEqual([]);
@@ -1136,7 +1136,7 @@ test("纯文本 content 自动包装为 finishTurn 成功收口", async () => {
 const REFLECT_CALLS = runtimeConfig.context.reflectNudgeCalls;
 const REFLECT_NUDGE_TEXT = "runtime: 本回合尚未落反思";
 // 反思提醒按本轮原始调用数触发：满 REFLECT_CALLS 次调用后才提示（body 在下一次请求里才看得到）
-test(`<reflection> 提醒按本轮调用数触发：满 ${REFLECT_CALLS} 次调用仍未写 reflect.write 才提示`, async () => {
+test(`<reflection> 提醒按本轮调用数触发：满 ${REFLECT_CALLS} 次调用仍未写 reflect_write 才提示`, async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-reflect-nudge-"));
   primeActiveTask(dir);
   try {
@@ -1147,7 +1147,7 @@ test(`<reflection> 提醒按本轮调用数触发：满 ${REFLECT_CALLS} 次调�
       if (step <= REFLECT_CALLS) {
         // 调用数还没到门槛：连打同一工具也不会被提醒
         expect(body).not.toContain(REFLECT_NUDGE_TEXT);
-        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "notes.write", arguments: { reason: "记录取证", key: `k${step}`, value: "v" } }] });
+        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "notes_write", arguments: { reason: "记录取证", key: `k${step}`, value: "v" } }] });
       }
       if (step === REFLECT_CALLS + 1) {
         expect(body.split(REFLECT_NUDGE_TEXT).length - 1).toBe(1);
@@ -1160,7 +1160,7 @@ test(`<reflection> 提醒按本轮调用数触发：满 ${REFLECT_CALLS} 次调�
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test(`本轮写过 reflect.write 就整轮不再提醒（走过 ${REFLECT_CALLS} 次调用也不提示）`, async () => {
+test(`本轮写过 reflect_write 就整轮不再提醒（走过 ${REFLECT_CALLS} 次调用也不提示）`, async () => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-reflect-nudge-skip-"));
   primeActiveTask(dir);
   try {
@@ -1170,10 +1170,10 @@ test(`本轮写过 reflect.write 就整轮不再提醒（走过 ${REFLECT_CALLS}
       const body = input.messages[1]!.content;
       expect(body).not.toContain(REFLECT_NUDGE_TEXT);
       if (step === 3) {
-        return ok({ finish: "tool_calls", toolCalls: [{ id: "rf_01", name: "reflect.write", arguments: { reason: "记录判断变化", text: "取证顺序应先窄读再动手", focus: "证据" } }] });
+        return ok({ finish: "tool_calls", toolCalls: [{ id: "rf_01", name: "reflect_write", arguments: { reason: "记录判断变化", text: "取证顺序应先窄读再动手", focus: "证据" } }] });
       }
       if (step <= REFLECT_CALLS + 1) {
-        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "notes.write", arguments: { reason: "记录取证", key: `k${step}`, value: "v" } }] });
+        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "notes_write", arguments: { reason: "记录取证", key: `k${step}`, value: "v" } }] });
       }
       return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
     } };

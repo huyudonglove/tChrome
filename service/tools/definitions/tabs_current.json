@@ -1,0 +1,19 @@
+{
+  "type": "function",
+  "function": {
+    "name": "tabs_current",
+    "description": "查询当前浏览器窗口与标签列表。需要确认 tabId、窗口焦点或页面是否仍打开时调用；不必每次操作前都查。\n返回：{ok, windows:[{windowId, focused, tabs:[{tabId, url, title, active}]}]}；失败为 {ok:false, error}。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason"
+      ]
+    }
+  },
+  "execution": "parallel"
+}

@@ -1,0 +1,30 @@
+{
+  "type": "function",
+  "function": {
+    "name": "page_get_dom",
+    "description": "取区域或元素的完整 HTML 片段。\n参数：id（页面工具返回的 e_01/r_01），必填 tabId。\n返回：ok、id、tag、totalChars、html。超长结果由 Runtime 统一门禁外置（summary+path），可用 evidence_search 按 callId 检索。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号（从 tabs_current 等返回取得）。"
+        },
+        "id": {
+          "type": "string",
+          "description": "page.* 返回的 e_01/r_01"
+        }
+      },
+      "required": [
+        "reason",
+        "id",
+        "tabId"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "execution": "parallel"
+}

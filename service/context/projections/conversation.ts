@@ -186,7 +186,7 @@ export function conversationXml(payload: ConversationPayload): string {
   }
   // Shared tool pool at the bottom: session range + newest call details only.
   if (payload.toolRange) {
-    parts.push(tag("toolRange", `${payload.toolRange}（全会话工具调用范围；详情仅保留最近 10 次，更早按轮内 callRange 用 evidence.search(callId) 取回）`));
+    parts.push(tag("toolRange", `${payload.toolRange}（全会话工具调用范围；详情仅保留最近 10 次，更早按轮内 callRange 用 evidence_search(callId) 取回）`));
   }
   parts.push(tag("toolIO", payload.toolIO));
   return parts.join("\n");

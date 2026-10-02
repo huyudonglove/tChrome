@@ -28,7 +28,7 @@ test("appendAsset allocates ast ids and persists the catalog", () => {
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
-test("loadAssets filters by kind and name for asset.list", () => {
+test("loadAssets filters by kind and name for asset_list", () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-assets-filter-"));
   try {
     appendAsset(dataDir, "cv_01", { name: "call_01.txt", kind: "text", bytes: 1, summary: "a", source: {}, path: "returns/call_01.txt" });

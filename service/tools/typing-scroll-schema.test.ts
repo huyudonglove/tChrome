@@ -5,11 +5,11 @@ import { checkToolCalls } from "./schema.ts";
 const root = new URL("../../", import.meta.url).pathname;
 const registry = loadToolRegistry(root);
 
-test("page.type accepts clearBeforeType and pressEnter", () => {
-  const tools = toolSchemas(registry, ["page.type"]);
+test("page_type accepts clearBeforeType and pressEnter", () => {
+  const tools = toolSchemas(registry, ["page_type"]);
   const ok = checkToolCalls([{
     id: "c1",
-    name: "page.type",
+    name: "page_type",
     arguments: {
       reason: "搜索",
       tabId: 12,
@@ -18,7 +18,7 @@ test("page.type accepts clearBeforeType and pressEnter", () => {
       clearBeforeType: true,
       pressEnter: true,
     },
-  }], tools, [], ["page.type"]);
+  }], tools, [], ["page_type"]);
   expect(ok.schemaOk).toBe(true);
 });
 

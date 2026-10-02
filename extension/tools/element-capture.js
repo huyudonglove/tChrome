@@ -190,7 +190,7 @@ export async function captureSom(tabId, input) {
         devicePixelRatio: annotate.pixelRatio,
         marks: annotate.marks,
         total: annotate.total,
-        note: 'marks 为视口 CSS 像素；点击用 marks[].id 作为 page.click 的 id/ref',
+        note: 'marks 为视口 CSS 像素；点击用 marks[].id 作为 page_click 的 id/ref',
       };
     }, {retryDetached: false});
   } catch (error) {

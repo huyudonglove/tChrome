@@ -65,21 +65,21 @@ export function applyToolEffects(input: {
       }
       case "note.write": ledger.notes[effect.key] = effect.value; break;
       case "note.delete": delete ledger.notes[effect.key]; break;
-      case "task.set": {
+      case "task_set": {
         prepareTaskSet(dataDir, { ledger, turnId: turn.turnId, sourceCallId: call.callId }, {
           title: effect.title,
           items: effect.items,
         });
         break;
       }
-      case "task.update": {
+      case "task_update": {
         prepareTaskUpdate(dataDir, { ledger, turnId: turn.turnId, sourceCallId: call.callId }, {
           taskId: effect.taskId,
           items: effect.items,
         });
         break;
       }
-      case "task.complete": {
+      case "task_complete": {
         prepareTaskComplete(dataDir, { ledger, turnId: turn.turnId, sourceCallId: call.callId }, {
           taskId: effect.taskId,
           reason: effect.reason,
@@ -103,11 +103,11 @@ export function applyToolEffects(input: {
           });
         }
         break;
-      case "memory.update": {
+      case "memory_update": {
         const memoryId = effect.memoryId;
-        if (!/^(?:mm|lm)_[0-9]{2,}$/.test(memoryId)) throw new Error("memory.update 需要 mm_/lm_ 记忆编号");
+        if (!/^(?:mm|lm)_[0-9]{2,}$/.test(memoryId)) throw new Error("memory_update 需要 mm_/lm_ 记忆编号");
         const text = String(effect.text ?? "").trim();
-        if (!text) throw new Error("memory.update 需要非空 text");
+        if (!text) throw new Error("memory_update 需要非空 text");
         const updated = updateMemory(dataDir, ledger.conversationId, memoryId, text);
         appendEvent(dataDir, ledger.conversationId, {
           kind: "memory", turnId: turn.turnId,
@@ -115,9 +115,9 @@ export function applyToolEffects(input: {
         });
         break;
       }
-      case "memory.delete": {
+      case "memory_delete": {
         const memoryId = effect.memoryId;
-        if (!/^(?:mm|lm)_[0-9]{2,}$/.test(memoryId)) throw new Error("memory.delete 需要 mm_/lm_ 记忆编号");
+        if (!/^(?:mm|lm)_[0-9]{2,}$/.test(memoryId)) throw new Error("memory_delete 需要 mm_/lm_ 记忆编号");
         const removed = deleteMemory(dataDir, ledger.conversationId, memoryId);
         if (!removed.existed) throw new Error(`记忆 ${memoryId} 不存在`);
         ledger.memoryIds.conversation = ledger.memoryIds.conversation.filter((id) => id !== memoryId);
@@ -140,13 +140,13 @@ export function applyToolEffects(input: {
         turn.assembled.toolIds = turn.assembled.toolIds.filter((id) => !drop.has(id));
         break;
       }
-      case "skill.load": {
-        if (!effect.id.trim()) throw new Error("skill.load 需要非空 id");
+      case "skill_load": {
+        if (!effect.id.trim()) throw new Error("skill_load 需要非空 id");
         ledger.loadedSkillIds = [...new Set([...(ledger.loadedSkillIds ?? []), effect.id])];
         break;
       }
       case "page.set": {
-        // Identity only: observations are written explicitly via observation.write.
+        // Identity only: observations are written explicitly via observation_write.
         if (effect.result.ok) {
           const previous = turn.assembled.currentPage;
           turn.assembled.currentPage = {
@@ -158,7 +158,7 @@ export function applyToolEffects(input: {
         }
         break;
       }
-      case "observation.write": {
+      case "observation_write": {
         // 1-based turn number, same numbering as context/projections/conversation.ts (inputs index + 1):
         // the current turn's input is not in userInputHistory yet, so it sits one past the stored ones.
         const currentTurn = ledger.userInputHistory.length + 1;
@@ -197,9 +197,9 @@ export function applyToolEffects(input: {
               ...(summary ? { summary } : { head: previewSource.slice(0, runtimeConfig.results.previewChars) }),
               path: join(paths(dataDir, ledger.conversationId).conv, "context-records", "observation", `${id}.json`),
               message: summary
-                ? `runtime: 观察结果超过 ${inlineLimit} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；summary 为结构化摘要。用 evidence.search(windows=[{pageId:"${id}",keyword|startLine}]) 取片段，可一次带多个窗口。`
-                : `runtime: 观察结果超过 ${inlineLimit} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；head 为原文前 ${runtimeConfig.results.previewChars} 字符。用 evidence.search(windows=[{pageId:"${id}",keyword|startLine}]) 取片段，可一次带多个窗口。`,
-              search: "evidence.search",
+                ? `runtime: 观察结果超过 ${inlineLimit} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；summary 为结构化摘要。用 evidence_search(windows=[{pageId:"${id}",keyword|startLine}]) 取片段，可一次带多个窗口。`
+                : `runtime: 观察结果超过 ${inlineLimit} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；head 为原文前 ${runtimeConfig.results.previewChars} 字符。用 evidence_search(windows=[{pageId:"${id}",keyword|startLine}]) 取片段，可一次带多个窗口。`,
+              search: "evidence_search",
             };
           })()
           : result;
@@ -243,7 +243,7 @@ export function applyToolEffects(input: {
         }
         break;
       }
-      case "page.clear_result": {
+      case "page_clear_result": {
         const index = turn.assembled.observations.findIndex((item) => item.id === effect.pageId);
         if (index === -1) throw new Error(`没有观察 ${effect.pageId}`);
         // Window-only: keep identity fields, mark cleared; local context-records stay intact.
@@ -253,11 +253,11 @@ export function applyToolEffects(input: {
         };
         break;
       }
-      case "tab.context.set": {
+      case "tab_context.set": {
         ledger.contextTab = { tabId: effect.tabId, setAt: nowIso() };
         break;
       }
-      case "tab.context.clear": {
+      case "tab_context.clear": {
         ledger.contextTab = null;
         break;
       }
@@ -282,7 +282,7 @@ export function applyToolEffects(input: {
         archiveTurnReflection(ledger, turn);
         break;
       }
-      case "reflect.write": {
+      case "reflect_write": {
         const list = turn.reflect ?? [];
         const record = { id: effect.id, text: effect.text, ...(effect.focus ? { focus: effect.focus } : {}) };
         if (effect.replace) {
@@ -293,7 +293,7 @@ export function applyToolEffects(input: {
         turn.reflect = list;
         break;
       }
-      case "reflect.delete": {
+      case "reflect_delete": {
         const list = turn.reflect ?? [];
         const next = list.filter(item => item.id !== effect.id);
         if (next.length === list.length) throw new Error(`反思 ${effect.id} 不存在`);

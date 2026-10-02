@@ -61,9 +61,9 @@ export const queryView = (query: QueryEvidence, options: QueryViewOptions = {}) 
     ...(summary ? { summary } : { head: serialized.slice(0, previewChars) }),
     ...(options.path ? { path: options.path } : {}),
     message: summary
-      ? `runtime: 查询结果超过 ${inlineChars} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；summary 为结构化摘要。用 evidence.search(windows=[{callId,keyword|startLine}])，可一次带多个窗口。`
-      : `runtime: 查询结果超过 ${inlineChars} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；head 为原文前 ${previewChars} 字符。用 evidence.search(windows=[{callId,keyword|startLine}])，可一次带多个窗口。`,
-    search: "evidence.search",
+      ? `runtime: 查询结果超过 ${inlineChars} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；summary 为结构化摘要。用 evidence_search(windows=[{callId,keyword|startLine}])，可一次带多个窗口。`
+      : `runtime: 查询结果超过 ${inlineChars} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；head 为原文前 ${previewChars} 字符。用 evidence_search(windows=[{callId,keyword|startLine}])，可一次带多个窗口。`,
+    search: "evidence_search",
     records: [] as QueryRecord[],
   };
 };

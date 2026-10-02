@@ -52,15 +52,15 @@ test("missing discriminators do not activate unrelated conditional requirements"
 
 test("empty optional arguments are omitted while required empties remain invalid", () => {
   const reflection = checkToolCalls(
-    [{ id: "test", name: "reflect.write", arguments: { reason: "记录", text: "结论", focus: "", id: "" } }],
-    toolSchemas(registry, ["reflect.write"]), [], ["reflect.write"],
+    [{ id: "test", name: "reflect_write", arguments: { reason: "记录", text: "结论", focus: "", id: "" } }],
+    toolSchemas(registry, ["reflect_write"]), [], ["reflect_write"],
   );
   expect(reflection.schemaOk).toBe(true);
   expect(reflection.missing).toEqual([]);
 
   const required = checkToolCalls(
-    [{ id: "test", name: "reflect.write", arguments: { reason: "记录", text: "" } }],
-    toolSchemas(registry, ["reflect.write"]), [], ["reflect.write"],
+    [{ id: "test", name: "reflect_write", arguments: { reason: "记录", text: "" } }],
+    toolSchemas(registry, ["reflect_write"]), [], ["reflect_write"],
   );
   expect(required.schemaOk).toBe(false);
   expect(required.detail).toContain("data/text");
@@ -87,7 +87,7 @@ test("unknown fields list the fields the object actually declares", () => {
 });
 
 test("range violations report the declared minimum and maximum", () => {
-  const result = checkRaw("local.fs_list", { path: "/tmp", limit: 5000 });
+  const result = checkRaw("local_fs_list", { path: "/tmp", limit: 5000 });
   expect(result.schemaOk).toBe(false);
   expect(result.detail).toContain("accepted:");
   expect(result.detail).toContain("max=1000");
@@ -95,7 +95,7 @@ test("range violations report the declared minimum and maximum", () => {
 });
 
 test("missing required fields still name every absent argument", () => {
-  const result = checkRaw("local.fs_read", {});
+  const result = checkRaw("local_fs_read", {});
   expect(result.faultCode).toBe("missing_required");
   expect(result.missing).toEqual(["items"]);
   expect(result.detail).toContain("missing required: items");

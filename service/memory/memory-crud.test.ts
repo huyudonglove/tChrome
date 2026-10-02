@@ -16,7 +16,7 @@ const turn = (cv: string): Turn => ({
   stopReason: null,
 });
 
-test("memory.update and memory.delete operate by mm_/lm_ id", async () => {
+test("memory_update and memory_delete operate by mm_/lm_ id", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "memory-crud-"));
   try {
     const conversationId = "cv_01";
@@ -24,11 +24,11 @@ test("memory.update and memory.delete operate by mm_/lm_ id", async () => {
     saveMemory(dataDir, conversationId, { memoryId: "lm_01", turnId: "tn_01", layer: "project", text: "旧长久记忆", createdAt: "now", sourceCallId: "call_00" });
 
     const upd = await executeTool({
-      name: "memory.update",
+      name: "memory_update",
       arguments: { reason: "修正", memoryId: "mm_01", text: "新会话记忆" },
       dataDir, conversationId,
       browserNames: [],
-      lookup: { unusedTools: [], knownTools: ["memory.update"], enabledTools: ["memory.update"] },
+      lookup: { unusedTools: [], knownTools: ["memory_update"], enabledTools: ["memory_update"] },
     });
     expect(JSON.parse(upd.text)).toMatchObject({ ok: true, memoryId: "mm_01", layer: "conversation" });
 
@@ -36,17 +36,17 @@ test("memory.update and memory.delete operate by mm_/lm_ id", async () => {
     ledger.memoryIds.conversation = ["mm_01"];
     ledger.memoryIds.project = ["lm_01"];
     const t = turn(conversationId);
-    applyToolEffects({ dataDir, ledger, turn: t, call: { callId: "call_01", name: "memory.update", arguments: {} }, effects: upd.effects });
+    applyToolEffects({ dataDir, ledger, turn: t, call: { callId: "call_01", name: "memory_update", arguments: {} }, effects: upd.effects });
     expect(loadMemory(dataDir, conversationId, "mm_01").text).toBe("新会话记忆");
 
     const del = await executeTool({
-      name: "memory.delete",
+      name: "memory_delete",
       arguments: { reason: "删除", memoryId: "lm_01" },
       dataDir, conversationId,
       browserNames: [],
-      lookup: { unusedTools: [], knownTools: ["memory.delete"], enabledTools: ["memory.delete"] },
+      lookup: { unusedTools: [], knownTools: ["memory_delete"], enabledTools: ["memory_delete"] },
     });
-    applyToolEffects({ dataDir, ledger, turn: t, call: { callId: "call_02", name: "memory.delete", arguments: {} }, effects: del.effects });
+    applyToolEffects({ dataDir, ledger, turn: t, call: { callId: "call_02", name: "memory_delete", arguments: {} }, effects: del.effects });
     expect(() => loadMemory(dataDir, conversationId, "lm_01")).toThrow();
     expect(ledger.memoryIds.conversation).toEqual(["mm_01"]);
     expect(updateMemory(dataDir, conversationId, "mm_01", "再改").text).toBe("再改");

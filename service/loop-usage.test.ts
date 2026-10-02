@@ -16,7 +16,7 @@ const call = (id: string, name: string, args: Record<string, unknown> = {}): Too
 });
 const finish = () => result({ toolCalls: [call("finish", "finishTurn", { text: "任务完成"})] });
 const invalid = () => result({ schemaOk: false, faultCode: "missing_required", missing: ["reason"],
-  toolCalls: [{ id: "invalid", name: "page.get_summary", arguments: {} }],
+  toolCalls: [{ id: "invalid", name: "page_get_summary", arguments: {} }],
 });
 const emptyReply = () => result({ finish: "stop" });
 
@@ -48,7 +48,7 @@ async function run(results: CompletionResult[], verify: (context: {
 
 test("more than 20 successful tool rounds can finish normally", async () => {
   const steps = Array.from({ length: 25 }, (_, index) => result({
-    toolCalls: [call(`page_${index}`, "page.get_summary", { tabId: 1 })],
+    toolCalls: [call(`page_${index}`, "page_get_summary", { tabId: 1 })],
   }));
   await run([...steps, finish()], ({ reply, turn, ledger, modelRequests, browserCalls }) => {
     expect(reply.stopReason).toEqual({ kind: "reply", text: "任务完成" });
@@ -61,24 +61,24 @@ test("more than 20 successful tool rounds can finish normally", async () => {
 
 test("one model response counts every executed browser, resident and closing tool", async () => {
   await run([result({ toolCalls: [
-    call("page", "page.get_summary", { tabId: 1 }),
-    call("note", "notes.write", { key: "finding", value: "已核实" }),
+    call("page", "page_get_summary", { tabId: 1 }),
+    call("note", "notes_write", { key: "finding", value: "已核实" }),
     call("finish", "finishTurn", { text: "任务完成"}),
   ] })], ({ reply, turn, ledger, modelRequests, browserCalls }) => {
     expect(reply.stopReason).toEqual({ kind: "reply", text: "任务完成" });
     expect(modelRequests).toBe(1);
-    expect(browserCalls).toEqual(["page.get_summary"]);
+    expect(browserCalls).toEqual(["page_get_summary"]);
     expect(ledger.notes.finding).toBe("已核实");
     expect(turn.usage).toEqual({ modelRequests: 1, toolCalls: 3 });
   });
 });
 
 test("a valid tool round resets consecutive invalid submission count", async () => {
-  await run([invalid(), emptyReply(), result({ toolCalls: [call("valid", "page.get_summary", { tabId: 1 })] }),
+  await run([invalid(), emptyReply(), result({ toolCalls: [call("valid", "page_get_summary", { tabId: 1 })] }),
     invalid(), emptyReply(), finish()], ({ reply, turn, modelRequests, browserCalls }) => {
     expect(reply.stopReason).toEqual({ kind: "reply", text: "任务完成" });
     expect(modelRequests).toBe(6);
-    expect(browserCalls).toEqual(["page.get_summary"]);
+    expect(browserCalls).toEqual(["page_get_summary"]);
     expect(turn.usage).toEqual({ modelRequests: 6, toolCalls: 2 });
   });
 });
@@ -106,7 +106,7 @@ test("finishTurn missing required text is rejected before execution three times"
 
 test("mixed missing and type errors reach model feedback and final output", async () => {
   const invalidClick = () => result({ toolCalls: [{ id: "bad_click", name: "click", arguments: { reason: "点击文字", targetText: true } }] });
-  await run([result({ toolCalls: [call("enable", "catalog.add", { names: ["click"] })] }), invalidClick(), invalidClick(), invalidClick()], ({ reply, ledger, browserCalls }) => {
+  await run([result({ toolCalls: [call("enable", "catalog_add", { names: ["click"] })] }), invalidClick(), invalidClick(), invalidClick()], ({ reply, ledger, browserCalls }) => {
     if (reply.stopReason.kind === "error") {
       expect(reply.stopReason.detail).toContain("data/targetText must be string");
       expect(reply.stopReason.detail).toContain("at least one alternative");
@@ -124,13 +124,13 @@ test("mixed missing and type errors reach model feedback and final output", asyn
 });
 
 test("same-name invalid calls retain independent diagnostics and schema before self repair", async () => {
-  const bad = (id: string, args: Record<string, unknown>) => ({ id, name: "page.type", arguments: args });
+  const bad = (id: string, args: Record<string, unknown>) => ({ id, name: "page_type", arguments: args });
   await run([result({ toolCalls: [
     bad("missing", { id: "e1", text: "x" }),
     bad("type", { tabId: 1, id: "e2", text: false, reason: "输入" }),
-  ] }), result({ toolCalls: [call("fixed", "page.type", { tabId: 1, id: "e2", text: "x" })] }), finish()], ({ reply, ledger, browserCalls }) => {
+  ] }), result({ toolCalls: [call("fixed", "page_type", { tabId: 1, id: "e2", text: "x" })] }), finish()], ({ reply, ledger, browserCalls }) => {
     expect(reply.stopReason).toEqual({ kind: "reply", text: "任务完成" });
-    const rows = ledger.toolIO.filter(row => row.name === "page.type");
+    const rows = ledger.toolIO.filter(row => row.name === "page_type");
     expect(rows).toHaveLength(3);
     expect(rows[0]!.callId).not.toBe(rows[1]!.callId);
     const first = JSON.parse(rows[0]!.return.text);
@@ -139,6 +139,6 @@ test("same-name invalid calls retain independent diagnostics and schema before s
     expect(second.faultCode).toBe("wrong_type");
     expect(second.details.parameterSchema.properties.text.type).toBe("string");
     expect(second.recovery).toBe("correct_arguments");
-    expect(browserCalls).toEqual(["page.type"]);
+    expect(browserCalls).toEqual(["page_type"]);
   });
 });

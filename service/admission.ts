@@ -86,7 +86,7 @@ function expandLongContent(item: unknown): string[] {
 }
 
 /** 单条结果的紧凑标签：按可定位性从高到低取（行号区间 / 命中行 → 请求 → id → 名称）。
- * parentPath 是祖先节点上的文件路径：evidence.search 这类载荷把 path 放在外层 results[]、
+ * parentPath 是祖先节点上的文件路径：evidence_search 这类载荷把 path 放在外层 results[]、
  * 行号与命中词放在内层 matches[]，只看本项会丢掉定位信息，故由调用方下钻时带下来。 */
 function labelItem(item: unknown, parentPath = ""): string | null {
   if (typeof item === "string") return item.slice(0, 40);
@@ -99,7 +99,7 @@ function labelItem(item: unknown, parentPath = ""): string | null {
     const total = typeof rec.totalLines === "number" ? `/${rec.totalLines}` : "";
     return `${base}:${range}${total}`;
   }
-  // 内层条目（evidence.search 的 matches 元素）把行号放在 lineStart，path 只挂在外层 results[] 上，
+  // 内层条目（evidence_search 的 matches 元素）把行号放在 lineStart，path 只挂在外层 results[] 上，
   // 故行号也接受 lineStart，并在有祖先路径时带上它，才定位得到具体哪一行。
   const lineNo = typeof rec.line === "number" ? rec.line : typeof rec.lineStart === "number" ? rec.lineStart : null;
   if (lineNo !== null) return base ? `${base}:${lineNo}${hitSnippet(rec)}` : `line ${lineNo}${hitSnippet(rec)}`;
@@ -216,7 +216,7 @@ export function payloadIndex(full: string): { head: string; labels: string[]; fu
       }
       const label = labelItem(item);
       if (label) labels.push(label);
-      // 标签只到文件名时往内层再走一步：evidence.search 这类载荷把 path 放外层、
+      // 标签只到文件名时往内层再走一步：evidence_search 这类载荷把 path 放外层、
       // 行号与命中词放 matches[]，只看本项会退化成「只有文件名」。
       if (label && bareFileLabel(item, label)) {
         const parentPath = (item as Record<string, unknown>).path as string;
@@ -449,7 +449,7 @@ function renderTree(tree: IndexTree, budget: number): string {
       folded += 1;
     }
     if (folded) {
-      const note = `…上列${folded}块只给了 id 与区间，正文按 id 取回（evidence.search windows=[{callId,levelId}]）`;
+      const note = `…上列${folded}块只给了 id 与区间，正文按 id 取回（evidence_search windows=[{callId,levelId}]）`;
       if (used + note.length + 1 <= budget) {
         lines.push(note);
         used += note.length + 1;
@@ -535,9 +535,9 @@ export function admitText(
       path: meta.path,
       ...(meta.indexPath ? { indexPath: meta.indexPath } : {}),
       message: structured
-        ? `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（summary 为分层目录，含 ${levels.join("、") || "L1"}；每层行内自带「本层覆盖/总量」，直接在该层定位或再往上翻一层；全文 ${totalLines} 行${meta.indexPath ? `；完整不截断索引已落盘 ${meta.indexPath}` : ""}）。要细节请更精准：evidence.search(windows=[{${locate},keyword|startLine}])，可一次带多个窗口；${anchorHint}；${RETRIEVAL_INLINE_NOTE}`
-        : `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（head 为原文前 ${previewChars} 字，全文 ${totalLines} 行）。要细节请更精准：evidence.search(windows=[{${locate},keyword|startLine}])，可一次带多个窗口；${anchorHint}；${RETRIEVAL_INLINE_NOTE}`,
-      search: "evidence.search",
+        ? `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（summary 为分层目录，含 ${levels.join("、") || "L1"}；每层行内自带「本层覆盖/总量」，直接在该层定位或再往上翻一层；全文 ${totalLines} 行${meta.indexPath ? `；完整不截断索引已落盘 ${meta.indexPath}` : ""}）。要细节请更精准：evidence_search(windows=[{${locate},keyword|startLine}])，可一次带多个窗口；${anchorHint}；${RETRIEVAL_INLINE_NOTE}`
+        : `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（head 为原文前 ${previewChars} 字，全文 ${totalLines} 行）。要细节请更精准：evidence_search(windows=[{${locate},keyword|startLine}])，可一次带多个窗口；${anchorHint}；${RETRIEVAL_INLINE_NOTE}`,
+      search: "evidence_search",
     },
   };
 }
@@ -558,13 +558,13 @@ export function admitReturn(
   return admitText(full, { ...meta, tree, ...(indexPath ? { indexPath } : {}) });
 }
 
-/** 取回型语义的唯一说明来源：取回型工具（evidence.search / asset.read）经 admitExecution 的
+/** 取回型语义的唯一说明来源：取回型工具（evidence_search / asset_read）经 admitExecution 的
  *  admitted 通道按检索预算直接内联，取回的正文不会再被二次降级；图片裁切/重截不走该通道，
  *  仍按入窗门槛判定。降级 message 里对模型描述这条事实时只引用这里，不另写一份。 */
 const RETRIEVAL_INLINE_NOTE = "取回结果按检索预算内联，不会二次降级。";
 
 /** 门禁编排：工具自报已按预算裁剪过（admitted）时直接内联，否则走 admitReturn。
- *  取回型工具（evidence.search / asset.read）走这条免二次外置通道；
+ *  取回型工具（evidence_search / asset_read）走这条免二次外置通道；
  *  产出型工具不设该标记，行为与此前完全一致。 */
 export function admitExecution(
   full: string,
@@ -594,12 +594,12 @@ export function admitImage(image: ImageReference): { mode: "inline" | "ref"; fet
   if (inline.length) return { mode: "inline", fetchHint: "" };
   return {
     mode: "ref",
-    fetchHint: `信息已降级。要细节请更精准：image.crop 裁更小矩形，或 capture_page(mode=element|rect)；${IMAGE_REFLOW_NOTE}`,
+    fetchHint: `信息已降级。要细节请更精准：image_crop 裁更小矩形，或 capture_page(mode=element|rect)；${IMAGE_REFLOW_NOTE}`,
   };
 }
 
 export function deferredImageNote(deferred: Pick<ImageReference, "id" | "path" | "width" | "height" | "bytes">[]): string {
   if (!deferred.length) return "";
   const rows = deferred.map((image) => `${image.id} ${image.width}x${image.height} ${image.bytes}B`).join(", ");
-  return `runtime: 图片超过入窗门槛未附带像素（${rows}）。要画面请更精准：image.crop 或 capture_page(mode=element|rect) 只取目标区域；${IMAGE_REFLOW_NOTE}`;
+  return `runtime: 图片超过入窗门槛未附带像素（${rows}）。要画面请更精准：image_crop 或 capture_page(mode=element|rect) 只取目标区域；${IMAGE_REFLOW_NOTE}`;
 }

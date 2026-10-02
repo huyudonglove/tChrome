@@ -1,0 +1,43 @@
+{
+  "type": "function",
+  "function": {
+    "name": "video_record",
+    "description": "持续按帧录制视口（start/stop/status）。\n参数：action=start|stop|status；必填 tabId；start 可配 fps（1-5，默认2）、maxFrames（1-60，默认30）。\nstop 返回 frames 数组；超长走统一门禁。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "tabId": {
+          "type": "integer"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "start",
+            "stop",
+            "status"
+          ]
+        },
+        "fps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "maxFrames": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60
+        }
+      },
+      "required": [
+        "reason",
+        "tabId",
+        "action"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "execution": "serial"
+}

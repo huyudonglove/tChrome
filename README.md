@@ -65,10 +65,10 @@ You can watch every click and keystroke in real time, or step in and take over w
 Traditional browser automation relies on fragile DOM CSS selectors, brittle XPath queries, or expensive pure-vision coordinate clicks that break with every UI redesign. tChrome pivots entirely to the Chromium core Accessibility (A11y) tree:
 - **Physical Noise Elimination**: Strips away thousands of unstyled `<div>` tags and decorative clutter, distilling interfaces purely into `Role`, `Name`, and `States`. This boosts context signal-to-noise ratio and slashes token consumption by over 80%.
 - **Rigorous Full-Loop Tooling**:
-  - **Perception**: `page.list_interactive_elements` projects interactive elements in the viewport with normalized roles, accessible names, and fine-grained state flags (`enabled`, `checked`, `expanded`, `selected`, etc.);
+  - **Perception**: `page_list_interactive_elements` projects interactive elements in the viewport with normalized roles, accessible names, and fine-grained state flags (`enabled`, `checked`, `expanded`, `selected`, etc.);
   - **Synchronization**: `wait` natively supports conditional waiting on `role + name + states`, eliminating arbitrary sleep timeouts;
-  - **Interaction**: `page.click_role`, `page.fill_role`, and `page.select_role` hit targets reliably in one trip;
-  - **Verification**: `page.assert` and `page.recheck` verify precise post-action states (e.g. verifying that a modal has closed via `expanded=false` or an input is valid via `invalid=false`), forming an unbroken chain of evidence.
+  - **Interaction**: `page_click_role`, `page_fill_role`, and `page_select_role` hit targets reliably in one trip;
+  - **Verification**: `page_assert` and `page_recheck` verify precise post-action states (e.g. verifying that a modal has closed via `expanded=false` or an input is valid via `invalid=false`), forming an unbroken chain of evidence.
 
 ### 3. Dual-Track Host Environment Perception (Host Environment Perception)
 When the browser extension sandbox restricts access to privileged internal pages like `chrome://settings`, tChrome seamlessly switches to the **host physical machine perspective**:
@@ -83,15 +83,15 @@ Unlike Computer Use architectures that capture and stream full-screen high-res f
 
 ### 5. High-Frequency Compound Tools, Halving Round-Trips
 Interacting with complex web forms previously required multiple model round-trips to click, enter text, submit, and wait for async API responses. tChrome introduces atomic compound tools:
-- `page.click_role` / `page.click_text`: A11y role or visible text targeting + automatic click + expected response/text wait in a single step;
-- `page.fill_role` / `page.select_role`: Smart element targeting followed immediately by text entry or option selection;
-- `page.submit_wait` / `page.fill_submit`: Batch form population combined with network response interception (`wait_response`).
+- `page_click_role` / `page_click_text`: A11y role or visible text targeting + automatic click + expected response/text wait in a single step;
+- `page_fill_role` / `page_select_role`: Smart element targeting followed immediately by text entry or option selection;
+- `page_submit_wait` / `page_fill_submit`: Batch form population combined with network response interception (`wait_response`).
 This cuts interaction latency and token overhead by more than 50% while eliminating race conditions at the protocol level.
 
 ### 6. Deterministic State Bus & 6,000-Character Guardrail (Context Assembly)
 tChrome abandons fragile single-prompt concatenation and generic linear message lists:
 - **Layered Assembly Bus**: Strictly decouples immutable System semantic contracts from dynamic User state slots (Task / Notes / Memory / ToolIO), dynamically assembled per turn;
-- **6,000-Character Inline Safety Guardrail**: All single tool outputs and large page observations pass through a 6,000-character physical inline check. Over-limit content is externalized to disk with fixed line widths, allowing the agent to retrieve exact excerpts or line windows via `evidence.search`, physically preventing prompt pollution and context overflow;
+- **6,000-Character Inline Safety Guardrail**: All single tool outputs and large page observations pass through a 6,000-character physical inline check. Over-limit content is externalized to disk with fixed line widths, allowing the agent to retrieve exact excerpts or line windows via `evidence_search`, physically preventing prompt pollution and context overflow;
 - **Structured Monotonic Short IDs**: Monotonically incrementing identifiers (`call_01`, `e_01`, `task_01`) provide zero-cost topological ordering and gap detection, preventing hallucinated identifiers from breaking execution chains.
 
 ### 7. Interactive Widgets & Dual-Track Sandbox (Interactive Widgets)
@@ -106,7 +106,7 @@ Raw interaction logs and tool arguments remain intact on disk. When deep verific
 ### 9. Tiered Cognitive Architecture & Structured Library
 | Tier | Purpose | Scope |
 | --- | --- | --- |
-| **Persistent Task (`<task>`)** | Root-level cross-turn state machine; retains deliverables (`outcome`) in a single slot until replaced | Survives turn ends; completed state stays in viewport until new `task.set` |
+| **Persistent Task (`<task>`)** | Root-level cross-turn state machine; retains deliverables (`outcome`) in a single slot until replaced | Survives turn ends; completed state stays in viewport until new `task_set` |
 | **Work Notes (`<notes>`)** | Ephemeral drafts, candidates, and working scratchpad | Preserved across turns in current session |
 | **Conversation Memory (`<conversationMemory>`)** | Confirmed facts, user preferences, and key architectural decisions | Preserved across turns in current session |
 | **Long-Term Memory (`<projectMemory>`)** | Shared domain conventions, environmental preferences, and persistent facts | Globally shared across all sessions |

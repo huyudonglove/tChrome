@@ -20,7 +20,7 @@
         },
         "tabId": {
           "type": "integer",
-          "description": "目标标签编号（从 tabs.current 等返回取得）。"
+          "description": "目标标签编号（从 tabs_current 等返回取得）。"
         },
         "reason": {
           "type": "string"

@@ -30,8 +30,8 @@ test("real registry has complete metadata for every tool", () => {
   expect(toolCapabilities.every((item) => item.metadataComplete)).toBe(true);
   expect(skillCapabilities.every((item) => item.metadataComplete)).toBe(true);
   expect(toolCapabilities.find((item) => item.id === "account_vault")?.risk).toBe("high");
-  expect(toolCapabilities.find((item) => item.id === "page.get_summary")?.risk).toBe("low");
-  expect(toolCapabilities.find((item) => item.id === "page.select_role")?.risk).toBe("medium");
+  expect(toolCapabilities.find((item) => item.id === "page_get_summary")?.risk).toBe("low");
+  expect(toolCapabilities.find((item) => item.id === "page_select_role")?.risk).toBe("medium");
   expect(skillCapabilities.find((item) => item.id === "code-engineering")?.risk).toBe("medium");
   expect(skillCapabilities.find((item) => item.id === "reply-format")?.risk).toBe("low");
 });

@@ -7,7 +7,7 @@ import { runtimeConfig } from "../config/runtime.ts";
 /**
  * A return is externalized once its full text no longer fits the inline gate. The inline
  * `return.text` is then a structural summary, so anything reading the body back has to go
- * through evidence.search. Size is the reliable signal here; the flag itself is optional.
+ * through evidence_search. Size is the reliable signal here; the flag itself is optional.
  */
 const INLINE_GATE_CHARS = (): number => runtimeConfig.results.inlineChars;
 
@@ -231,7 +231,7 @@ export function runSessionQuery(
       conversationId: cvId,
       externalizedCalls: externalized.length,
       items,
-      hint: "取全文用 evidence.search(windows=[{callId, keyword|startLine}])",
+      hint: "取全文用 evidence_search(windows=[{callId, keyword|startLine}])",
     };
   }
 

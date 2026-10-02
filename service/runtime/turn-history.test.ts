@@ -10,8 +10,8 @@ test("turn process joins existing records without mixing turns or mutable memory
  const ledger=emptyLedger("cv_test");ledger.turnIds=["tn_01","tn_02"];
  ledger.notes={draft:"当前草稿"};
  const first=turn("tn_01");
- ledger.toolIO=["tn_01","tn_02"].map((turnId,i)=>({turnId,callId:`c${i}`,name:"page.get_summary",arguments:{},return:{stage:"complete",text:"完整结果",totalChars:4}}));
- first.assembled.observations=[{id:"p1",turnId:"tn_01",tabId:1,observedAt:"2026-09-11",callId:"c0",type:"page.get_summary",result:{ok:true}}];
+ ledger.toolIO=["tn_01","tn_02"].map((turnId,i)=>({turnId,callId:`c${i}`,name:"page_get_summary",arguments:{},return:{stage:"complete",text:"完整结果",totalChars:4}}));
+ first.assembled.observations=[{id:"p1",turnId:"tn_01",tabId:1,observedAt:"2026-09-11",callId:"c0",type:"page_get_summary",result:{ok:true}}];
  const snapshot=JSON.stringify({ledger,first}), record=assembleTurnHistory(ledger,first);
  expect(record.toolIO).toHaveLength(1);
  expect(record.observations).toEqual(first.assembled.observations);

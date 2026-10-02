@@ -23,7 +23,7 @@ test("script patch returns status to the model before filename execution reaches
         return { ok: true, type: "number", value: 42, tabId: 12 };
       } }, provider: { complete: async ({ messages }) => {
         step++;
-        if (step === 1) return response([call("catalog.add", { names: ["script_patch", "execute_javascript"] })]);
+        if (step === 1) return response([call("catalog_add", { names: ["script_patch", "execute_javascript"] })]);
         if (step === 2) return response([call("script_patch", { filename: "demo.js", patch })]);
         if (step === 3) {
           expect(executions).toBe(0);
@@ -40,13 +40,13 @@ test("script patch returns status to the model before filename execution reaches
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
-test.each(["execute_javascript", "local.run", "local.process_start"])("patch and %s in one model batch execute neither operation", async name => {
+test.each(["execute_javascript", "local_run", "local_process_start"])("patch and %s in one model batch execute neither operation", async name => {
   const dataDir = mkdtempSync(join(tmpdir(), "script-batch-"));
   let step = 0, executions = 0;
   try {
     const reply = await handleTurn({ dataDir, repoRoot: join(import.meta.dir, "../.."), host: { execute: async () => { executions++; return { ok: true }; } },
       provider: { complete: async () => ++step === 1
-        ? response([call("catalog.add", { names: ["script_patch", name] })])
+        ? response([call("catalog_add", { names: ["script_patch", name] })])
         : response([call("script_patch", { filename: "demo.js", patch }), call(name, { filename: "demo.js", ...(name === "execute_javascript" ? { tabId: 12 } : { cwd: dataDir }) })]) },
     }, { userInput: "执行脚本", submittedAt: "now" });
     expect(reply.stopReason.kind).toBe("error");

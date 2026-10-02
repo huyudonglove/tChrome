@@ -12,7 +12,7 @@ let dataDir = "";
 
 const row = (over: Record<string, unknown>) => ({
   batchId: "batch_01",
-  name: "local.run",
+  name: "local_run",
   arguments: { reason: "probe" },
   return: { stage: "complete", totalChars: 100, text: "ok" },
   ...over,
@@ -32,13 +32,13 @@ beforeAll(async () => {
   await mkdir(paths(dataDir, "cv_02").toolioDir, { recursive: true });
   await writeFile(join(paths(dataDir, "cv_01").turns, "tn_01.json"), "{}", "utf8");
   writeRows("cv_01", [
-    row({ callId: "call_01", turnId: "tn_01", name: "local.run", arguments: { command: "ls" } }),
-    row({ callId: "call_02", turnId: "tn_01", name: "local.run", arguments: { command: "du" } }),
-    row({ callId: "call_03", turnId: "tn_02", name: "local.fs_read", return: { stage: "complete", totalChars: overInline, text: "big" } }),
+    row({ callId: "call_01", turnId: "tn_01", name: "local_run", arguments: { command: "ls" } }),
+    row({ callId: "call_02", turnId: "tn_01", name: "local_run", arguments: { command: "du" } }),
+    row({ callId: "call_03", turnId: "tn_02", name: "local_fs_read", return: { stage: "complete", totalChars: overInline, text: "big" } }),
     row({
       callId: "call_04",
       turnId: "tn_02",
-      name: "evidence.search",
+      name: "evidence_search",
       arguments: { windows: [{ callId: "call_03" }] },
       return: { stage: "complete", totalChars: 300, text: "hit" },
     }),
@@ -77,10 +77,10 @@ test("tools mode ranks by call count and reports argument value distribution", (
     tools: { name: string; calls: number; argumentValues: { value: string; count: number }[] }[];
   };
   expect(result.distinctTools).toBe(3);
-  expect(result.tools[0]!.name).toBe("local.run");
+  expect(result.tools[0]!.name).toBe("local_run");
   expect(result.tools[0]!.calls).toBe(2);
   expect(result.tools[0]!.argumentValues.map((item) => item.value).sort()).toEqual(["du", "ls"]);
-  expect(result.tools.some((tool) => tool.name === "local.fs_read")).toBe(true);
+  expect(result.tools.some((tool) => tool.name === "local_fs_read")).toBe(true);
 });
 
 test("turns mode groups by turn and orders by call volume", () => {
@@ -105,7 +105,7 @@ test("calls mode filters by turn, tool and keyword", () => {
     items: { callId: string; name: string }[];
   };
   expect(byKeyword.matched).toBe(1);
-  expect(byKeyword.items[0]!.name).toBe("evidence.search");
+  expect(byKeyword.items[0]!.name).toBe("evidence_search");
 
   const noHit = runSessionQuery(dataDir, { mode: "calls", keyword: "not-present-anywhere" }, "cv_01") as {
     ok: boolean;
@@ -124,8 +124,8 @@ test("externalized mode lists oversized returns largest first", () => {
     hint: string;
   };
   expect(result.externalizedCalls).toBe(1);
-  expect(result.items[0]).toMatchObject({ callId: "call_03", name: "local.fs_read", totalChars: overInline });
-  expect(result.hint).toContain("evidence.search");
+  expect(result.items[0]).toMatchObject({ callId: "call_03", name: "local_fs_read", totalChars: overInline });
+  expect(result.hint).toContain("evidence_search");
 });
 
 test("conversations mode lists every conversation with turn counts", () => {

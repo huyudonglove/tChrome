@@ -1,0 +1,25 @@
+{
+  "type": "function",
+  "function": {
+    "name": "local_process_stop",
+    "description": "终止本会话指定进程及其进程组。返回进程状态。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "processId": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string",
+          "description": "本次操作的目的"
+        }
+      },
+      "required": [
+        "processId",
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "execution": "serial"
+}
