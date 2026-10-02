@@ -63,11 +63,6 @@ export function applyToolEffects(input: {
           turnId: turn.turnId, sourceCallId: call.callId };
         break;
       }
-      case "actions.append": {
-        turn.actions ??= [];
-        turn.actions.push({ id: allocateRecordId(dataDir, ledger.conversationId, "action"), text: effect.text, at: nowIso() });
-        break;
-      }
       case "note.write": ledger.notes[effect.key] = effect.value; break;
       case "note.delete": delete ledger.notes[effect.key]; break;
       case "task.set": {

@@ -119,8 +119,6 @@ const context = {
   repeatDuplicateCalls: resolveGate("repeatDuplicateCalls"),
   repeatDuplicateSignatures: resolveGate("repeatDuplicateSignatures"),
   repeatFaultLimit: resolveGate("repeatFaultLimit"),
-  actionsNudgeEvicted: resolveGate("actionsNudgeEvicted"),
-  actionsNudgeCap: resolveGate("actionsNudgeCap"),
   observationNudgeFirstGate: resolveGate("observationNudgeFirstGate"),
   observationNudgeMinGate: resolveGate("observationNudgeMinGate"),
   observationNudgeStep: resolveGate("observationNudgeStep"),

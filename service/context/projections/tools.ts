@@ -29,7 +29,6 @@ const MODULE_POINTERS: Record<string, (args: Record<string, unknown>, result: un
   "task.update": (args) => ({ args: { task: args.taskId ?? true }, result: { ok: true, taskId: args.taskId ?? null } }),
   "task.complete": (args) => ({ args: { task: args.taskId ?? true }, result: { ok: true, taskId: args.taskId ?? null, completed: true } }),
   "observation.write": (args) => ({ args: { observations: args.type ?? true }, result: { ok: true, observation: args.type ?? true } }),
-  "actions.write": (args) => ({ args: { actions: true }, result: { ok: true, action: true } }),
 };
 
 /** Page observation payloads live in <observations>; toolIO keeps a pointer only. */

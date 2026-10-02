@@ -61,6 +61,7 @@ export type TaskItem = {
   expectedEffect?: string;
   verification?: string;
   blockedReason?: string;
+  outcome?: string;
   createdAt: string;
   startedAt?: string;
   completedAt?: string;

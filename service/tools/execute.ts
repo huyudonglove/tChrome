@@ -178,11 +178,6 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     const question = questionWithChoices(text, asStringArray(args.choice));
     return result(question, [{ type: "turn.ask", question }]);
   }
-  if (name === "actions.write") {
-    const text = typeof args.text === "string" ? args.text.trim() : "";
-    if (!text) return failedTool(errorDetail("actions_empty_text"), "invalid_arguments", { toolName: name });
-    return result(JSON.stringify({ ok: true }), [{ type: "actions.append", text }]);
-  }
   if (name === "reflect.write") {
     const text = typeof args.text === "string" ? args.text.trim() : "";
     if (!text) return failedTool(errorDetail("reflect_empty_text"), "invalid_arguments", { toolName: name });
@@ -260,14 +255,15 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     const updates = rawItems.map((item: unknown) => {
       const row = (item ?? {}) as Record<string, unknown>;
       const id = typeof row.id === "string" ? row.id.trim() : "";
-      const patch: { id: string; status?: "todo" | "doing" | "done"; text?: string; expectedEffect?: string; verification?: string; blockedReason?: string } = { id };
+      const patch: { id: string; status?: "todo" | "doing" | "done"; text?: string; expectedEffect?: string; verification?: string; blockedReason?: string; outcome?: string } = { id };
       if (row.status === "todo" || row.status === "doing" || row.status === "done") patch.status = row.status;
       if (typeof row.text === "string" && row.text.trim()) patch.text = row.text.trim();
       if (typeof row.expectedEffect === "string" && row.expectedEffect.trim()) patch.expectedEffect = row.expectedEffect.trim();
       if (typeof row.verification === "string" && row.verification.trim()) patch.verification = row.verification.trim();
       if (typeof row.blockedReason === "string" && row.blockedReason.trim()) patch.blockedReason = row.blockedReason.trim();
+      if (typeof row.outcome === "string" && row.outcome.trim()) patch.outcome = row.outcome.trim();
       return patch;
-    }).filter((row) => row.id && (row.status !== undefined || row.text !== undefined || row.expectedEffect !== undefined || row.verification !== undefined || row.blockedReason !== undefined));
+    }).filter((row) => row.id && (row.status !== undefined || row.text !== undefined || row.expectedEffect !== undefined || row.verification !== undefined || row.blockedReason !== undefined || row.outcome !== undefined));
     if (!updates.length) return failedTool(errorDetail("task_update_patch"), "invalid_arguments");
     const taskId = typeof args.taskId === "string" && args.taskId.trim() ? args.taskId.trim() : undefined;
     const hasBlocked = updates.some((row) => Boolean(row.blockedReason));

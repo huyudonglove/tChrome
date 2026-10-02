@@ -231,3 +231,34 @@ test("task.update supports atomic batch transition regardless of item order", as
   }
 });
 
+test("task.update supports recording outcome on done", async () => {
+  const fx = fixture();
+  try {
+    fx.apply(await fx.execute("task.set", {
+      reason: "测试 outcome",
+      items: [
+        { text: "排查核心问题", status: "doing" },
+      ],
+    }), "c1", "task.set");
+
+    const update = await fx.execute("task.update", {
+      reason: "完成并记录产出成果",
+      items: [
+        {
+          id: "item_01",
+          status: "done",
+          outcome: "定位到根因并修复，单测通过",
+        },
+      ],
+    });
+    expect(update.effects.length).toBe(1);
+    fx.apply(update, "c2", "task.update");
+
+    expect(fx.ledger.tasks[0]?.items[0]?.status).toBe("done");
+    expect(fx.ledger.tasks[0]?.items[0]?.outcome).toBe("定位到根因并修复，单测通过");
+  } finally {
+    fx.cleanup();
+  }
+});
+
+

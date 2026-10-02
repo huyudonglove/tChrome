@@ -34,7 +34,6 @@ const projectors: Record<string, (ctx: ProjectContext) => unknown> = {
   memoryWrites: ({ turn, memories }) => memories.conversation.filter(item => item.turnId === turn.turnId),
   queryHistory: ({ ledger, turn }) => ledger.queryHistory.filter(item => item.turnId === turn.turnId),
   reflection: ({ turn }) => (turn.reflect?.length ? { turnId: turn.turnId, items: turn.reflect } : null),
-  actions: ({ turn }) => (turn.actions?.length ? turn.actions : null),
   taskHistory: ({ ledger, turn }) => ledger.taskHistory.filter(item => item.turnId === turn.turnId),
   stopReason: ({ turn }) => {
     const out = turn.stopReason;

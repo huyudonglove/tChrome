@@ -10,7 +10,6 @@
     "memory.update",
     "memory.delete",
     "notes.write",
-    "actions.write",
     "notes.delete",
     "observation.write",
     "tabs.current",

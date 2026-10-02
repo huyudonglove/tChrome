@@ -172,10 +172,13 @@ export function prepareTaskUpdate(dataDir: string, context: TaskContext, args: T
     const blockedReason = typeof row.blockedReason === "string" && row.blockedReason.trim()
       ? row.blockedReason.trim()
       : undefined;
-    if (!status && text === undefined && expectedEffect === undefined && verification === undefined && blockedReason === undefined) {
+    const outcome = typeof row.outcome === "string" && row.outcome.trim()
+      ? row.outcome.trim()
+      : undefined;
+    if (!status && text === undefined && expectedEffect === undefined && verification === undefined && blockedReason === undefined && outcome === undefined) {
       throw new Error(errorDetail("task_update_patch_empty", { index: i }));
     }
-    return { itemId, status, text, expectedEffect, verification, blockedReason };
+    return { itemId, status, text, expectedEffect, verification, blockedReason, outcome };
   });
 
   const working = structuredClone(plan) as Task;
@@ -190,6 +193,7 @@ export function prepareTaskUpdate(dataDir: string, context: TaskContext, args: T
     else if (patch.expectedEffect === undefined && "expectedEffect" in patch) delete item.expectedEffect;
     if (patch.verification !== undefined) item.verification = patch.verification;
     if (patch.blockedReason !== undefined) item.blockedReason = patch.blockedReason;
+    if (patch.outcome !== undefined) item.outcome = patch.outcome;
     if (patch.status !== undefined && patch.status !== item.status) {
       if (item.status === "done" && patch.status !== "done") {
         throw new Error(errorDetail("task_item_done_no_rollback", { id: item.id }));

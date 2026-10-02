@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "task.update",
-    "description": "按稳定 itemId 更新当前 Task 步骤。\n参数：必填 items（每项 id 必填，status/text/expectedEffect/verification/blockedReason 至少一项）；可选 taskId（默认活动 Task）。\nstatus：todo|doing|done。同一 Task 至多一个 doing；多 doing 拒绝。done 不可回退。验证失败时保持 doing 并写 blockedReason。\n工具成功不等于 done，须验证通过后再标 done。不传 taskId 时关联 ID 由 Runtime 注入；传入且不一致会拒绝。\n返回：ok、updated。Task 全部 done 后才可 task.complete；",
+    "description": "按稳定 itemId 更新当前 Task 步骤。\n参数：必填 items（每项 id 必填，status/text/expectedEffect/verification/blockedReason/outcome 至少一项）；可选 taskId（默认活动 Task）。\nstatus：todo|doing|done。同一 Task 至多一个 doing；多 doing 拒绝。done 不可回退。验证失败时保持 doing 并写 blockedReason；完成时可填 outcome 记录关键交付成果与因果结论。\n工具成功不等于 done，须验证通过后再标 done。不传 taskId 时关联 ID 由 Runtime 注入；传入且不一致会拒绝。\n返回：ok、updated。Task 全部 done 后才可 task.complete；",
     "parameters": {
       "type": "object",
       "properties": {
@@ -43,6 +43,10 @@
               "blockedReason": {
                 "type": "string",
                 "description": "doing 时记录失败证据或阻塞原因"
+              },
+              "outcome": {
+                "type": "string",
+                "description": "步骤完成时的交付成果、排查结论或因果事实"
               }
             },
             "required": [

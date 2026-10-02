@@ -17,7 +17,6 @@ export type ConversationTurnSlice = {
   };
   /** First–last callId of this turn (ids are per-conversation sequential). */
   callRange: string | null;
-  actions: { id: string; text: string; at: string }[] | null;
   observations: ReturnType<typeof pageView>[];
   notes: Record<string, string>;
   reflection: { turnId: string; items: { id: string; text: string; focus?: string }[] } | null;
@@ -50,6 +49,7 @@ const taskView = (plan: Task | null | undefined) => {
       ...(item.expectedEffect ? { expectedEffect: item.expectedEffect } : {}),
       ...(item.verification ? { verification: item.verification } : {}),
       ...(item.blockedReason ? { blockedReason: item.blockedReason } : {}),
+      ...(item.outcome ? { outcome: item.outcome } : {}),
     })),
   };
 };
@@ -115,14 +115,6 @@ export function conversationPayload(input: {
           ? toolRows[0]!.callId
           : `${toolRows[0]!.callId}–${toolRows.at(-1)!.callId}`)
         : null,
-      actions: isLive
-        ? (turn.actions ?? null)
-        : (input.dataDir
-          ? (() => {
-            try { return loadTurn(input.dataDir!, ledger.conversationId, row.turnId).actions ?? null; }
-            catch { return null; }
-          })()
-          : null),
       observations: pages.map((page) => pageView(page, currentTurn)).filter((page) => page !== null),
       notes: (isLive ? ledger.notes : notesByTurn[row.turnId]) ?? {},
       reflection: reflectByTurn.get(row.turnId)?.length
@@ -189,7 +181,6 @@ export function conversationXml(payload: ConversationPayload): string {
       tag("userInput", slice.userInput),
       tag("task", slice.task),
       ...(slice.callRange ? [tag("callRange", slice.callRange)] : []),
-      tag("actions", slice.actions),
       tag("observations", slice.observations),
       tag("notes", slice.notes),
       tag("reflection", slice.reflection),
