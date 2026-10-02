@@ -960,86 +960,242 @@ svg.face {
   color: var(--danger);
 }
 
-/* 快捷计划看板 (Plan items) 与状态指示 */
+/* 快捷计划看板 (Plan items) 与状态指示 - 现代卡片与折叠微交互 */
 .plan-panel {
   padding: 10px 12px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  margin: 6px 0;
+  background: linear-gradient(180deg, rgba(22, 23, 38, 0.95) 0%, rgba(18, 19, 30, 0.98) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  margin: 8px 0;
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.plan-panel:hover {
+  border-color: rgba(99, 102, 241, 0.3);
+  box-shadow: 0 6px 20px -2px rgba(0, 0, 0, 0.5), 0 0 16px -4px var(--accent-glow);
 }
 
 .plan-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  border: none;
+  padding: 2px 0 4px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  font-family: inherit;
   font-size: 12px;
+  transition: color 0.15s ease;
+}
+
+.plan-header:hover {
+  color: #fff;
+}
+
+.plan-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.plan-toggle-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 6px;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.plan-toggle-chevron svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2.2;
+}
+
+.plan-toggle-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.plan-meta {
+  font-size: 11px;
+  color: var(--muted-soft);
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 2px 7px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .plan-items {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
   list-style: none;
-  margin: 0;
-  padding: 0;
+  margin: 6px 0 0;
+  padding: 6px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .plan-item {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 9px;
   font-size: 12.5px;
   line-height: 1.45;
+  padding: 4px 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  transition: all 0.16s ease;
+}
+
+.plan-item:hover {
+  background: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.07);
 }
 
 .plan-mark {
-  width: 14px;
-  height: 14px;
-  border-radius: 4px;
-  margin-top: 3px;
-  border: 1px solid var(--line-strong);
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  margin-top: 2px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  line-height: 1;
-  font-size: 10px;
+  transition: all 0.2s ease;
+}
+
+.plan-mark svg {
+  width: 11px;
+  height: 11px;
+  stroke-width: 2.6;
+}
+
+/* 状态标记 - 完成态 */
+.plan-mark.status-done {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
+}
+
+/* 状态标记 - 进行态 */
+.plan-mark.status-doing {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: #fff;
+  box-shadow: 0 0 10px var(--accent-soft);
+}
+
+.plan-spinner {
+  width: 9px;
+  height: 9px;
+  border: 1.8px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: plan-spin 0.8s linear infinite;
+}
+
+@keyframes plan-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 状态标记 - 待办态 */
+.plan-mark.status-todo {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.plan-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.plan-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .plan-text {
-  flex: 1;
-  min-width: 0;
   color: var(--text);
+  word-break: break-word;
 }
 
-.plan-meta {
-  font-size: 11px;
-  color: var(--muted);
+.plan-blocked {
+  color: #f87171;
+  font-size: 11.5px;
+  font-weight: 500;
 }
 
-.plan-status {
-  font-size: 11px;
-  padding: 2px 6px;
+/* Outcome 交付物徽章 */
+.plan-outcome {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 5px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 6px;
+  padding: 3px 6px;
+  margin-top: 2px;
+}
+
+.plan-outcome svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  stroke: #10b981;
+}
+
+/* 状态胶囊标签 */
+.plan-status-badge {
+  font-size: 10.5px;
+  font-weight: 500;
+  padding: 1.5px 6px;
   border-radius: 4px;
-  background: var(--surface-hover);
   flex-shrink: 0;
   align-self: flex-start;
   white-space: nowrap;
-  line-height: 1.45;
+  line-height: 1.4;
 }
 
-.plan-item.status-done .plan-mark {
-  background: var(--success);
-  border-color: var(--success);
-  color: #fff;
+.plan-status-badge.status-done {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
-.plan-item.status-doing .plan-mark {
-  background: var(--accent);
-  border-color: var(--accent);
-  box-shadow: 0 0 8px var(--accent-soft);
+.plan-status-badge.status-doing {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  animation: pulse-badge 2s infinite ease-in-out;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+
+.plan-status-badge.status-todo {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 /* 按钮与交互标签（回复内交互） */

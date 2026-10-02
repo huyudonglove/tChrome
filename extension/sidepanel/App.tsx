@@ -25,7 +25,7 @@ type SessionView = {
       id: string;
       title?: string;
       status: string;
-      items: { id: string; text: string; status: string; blockedReason?: string }[];
+      items: { id: string; text: string; status: string; blockedReason?: string; outcome?: string }[];
     } | null;
   } | null;
   messages: Message[];
@@ -208,6 +208,16 @@ export function App() {
   const [connection, setConnection] = useState<ConnectionView | null>(null);
   const [connectionBusy, setConnectionBusy] = useState(false);
   const [connectionError, setConnectionError] = useState("");
+  const [taskCollapsed, setTaskCollapsed] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const nextHeight = Math.min(Math.max(el.scrollHeight, 44), 180);
+    el.style.height = `${nextHeight}px`;
+  }, [draft]);
   const connectionUpdating = useRef(false);
   const refreshVersion = useRef(0);
   const switching = useRef(false);
@@ -674,30 +684,57 @@ export function App() {
         </div>
       ) : null}
       {session.task?.task && session.task.task.items.length ? (
-        <section className="plan-panel" aria-label="执行任务">
-          <div className="plan-header">
-            <strong>{session.task.task.title || "执行任务"}</strong>
+        <section className={`plan-panel${taskCollapsed ? " collapsed" : ""}`} aria-label="执行任务">
+          <button
+            type="button"
+            className="plan-header"
+            onClick={() => setTaskCollapsed((prev) => !prev)}
+            aria-expanded={!taskCollapsed}
+            title={taskCollapsed ? "展开任务详情" : "收起任务详情"}
+          >
+            <div className="plan-header-left">
+              <span className={`plan-toggle-chevron${taskCollapsed ? " collapsed" : ""}`} aria-hidden="true">
+                <Icon path="M6 9l6 6 6-6" />
+              </span>
+              <strong>{session.task.task.title || "执行任务"}</strong>
+            </div>
             <span className="plan-meta">
               {session.task.task.items.filter((item) => item.status === "done").length}/{session.task.task.items.length}
               {session.task.task.status === "completed" ? " · 已完成" : ""}
             </span>
-          </div>
-          <ul className="plan-items">
-            {session.task.task.items.map((item) => (
-              <li key={item.id} className={`plan-item status-${item.status}`}>
-                <span className="plan-mark" aria-hidden="true">
-                  {item.status === "done" ? "✓" : item.status === "doing" ? "…" : "·"}
-                </span>
-                <span className="plan-text">
-                  {item.text}
-                  {item.blockedReason ? ` · ${item.blockedReason}` : ""}
-                </span>
-                <span className="plan-status">
-                  {item.status === "done" ? "已完成" : item.status === "doing" ? "进行中" : "待办"}
-                </span>
-              </li>
-            ))}
-          </ul>
+          </button>
+          {!taskCollapsed ? (
+            <ul className="plan-items">
+              {session.task.task.items.map((item) => (
+                <li key={item.id} className={`plan-item status-${item.status}`}>
+                  <span className={`plan-mark status-${item.status}`} aria-hidden="true">
+                    {item.status === "done" ? (
+                      <Icon path="M5 13l4 4L19 7" />
+                    ) : item.status === "doing" ? (
+                      <span className="plan-spinner" />
+                    ) : (
+                      <span className="plan-dot" />
+                    )}
+                  </span>
+                  <div className="plan-content">
+                    <span className="plan-text">
+                      {item.text}
+                      {item.blockedReason ? <span className="plan-blocked"> · {item.blockedReason}</span> : null}
+                    </span>
+                    {item.outcome ? (
+                      <div className="plan-outcome">
+                        <Icon path="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                        <span>{item.outcome}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                  <span className={`plan-status-badge status-${item.status}`}>
+                    {item.status === "done" ? "已完成" : item.status === "doing" ? "进行中" : "待办"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </section>
       ) : null}
 
@@ -709,6 +746,7 @@ export function App() {
           }}
         >
           <textarea
+            ref={textareaRef}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
