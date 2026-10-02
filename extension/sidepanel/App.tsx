@@ -109,9 +109,63 @@ const MdContent = ({ text }: { text: string }) => {
       }
     };
     void mountWidgets();
+
+    // 增强所有 pre 代码块：注入语言标与一键复制工具栏
+    const enhanceCodeBlocks = () => {
+      const preNodes = Array.from(el.querySelectorAll("pre"));
+      for (const pre of preNodes) {
+        if (pre.parentElement?.classList.contains("code-block-wrapper")) continue;
+        const code = pre.querySelector("code");
+        const classNames = code?.className || "";
+        const langMatch = classNames.match(/(?:language-|lang-)([a-zA-Z0-9_-]+)/);
+        const lang = langMatch ? langMatch[1] : "code";
+        
+        const wrapper = document.createElement("div");
+        wrapper.className = "code-block-wrapper";
+        
+        const header = document.createElement("div");
+        header.className = "code-block-header";
+        header.innerHTML = `
+          <span class="code-block-lang">${lang}</span>
+          <button type="button" class="code-copy-btn" title="复制代码" aria-label="复制代码">
+            <svg class="copy-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span class="copy-label">复制</span>
+          </button>
+        `;
+        
+        pre.parentNode?.insertBefore(wrapper, pre);
+        wrapper.appendChild(header);
+        wrapper.appendChild(pre);
+      }
+    };
+    enhanceCodeBlocks();
     const onClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
       if (!target?.closest) return;
+      const copyBtn = target.closest(".code-copy-btn") as HTMLButtonElement | null;
+      if (copyBtn) {
+        event.preventDefault();
+        const wrapper = copyBtn.closest(".code-block-wrapper");
+        const preEl = wrapper?.querySelector("pre");
+        const codeText = preEl?.textContent || "";
+        if (codeText) {
+          void navigator.clipboard?.writeText(codeText);
+          const label = copyBtn.querySelector(".copy-label");
+          if (label) {
+            const original = label.textContent;
+            label.textContent = "已复制";
+            copyBtn.classList.add("copied");
+            window.setTimeout(() => {
+              label.textContent = original;
+              copyBtn.classList.remove("copied");
+            }, 1600);
+          }
+        }
+        return;
+      }
       const button = target.closest(
         "button[data-open-url],button[data-href],button[data-copy],button[data-action],[role=button][data-open-url],[role=button][data-href],[role=button][data-copy],[role=button][data-action]",
       ) as HTMLElement | null;
@@ -172,6 +226,59 @@ const MdContent = ({ text }: { text: string }) => {
   }, [text]);
   return <div className="message-content" ref={ref} />;
 };
+
+function ToolGroupDrawer({ messages, startIndex }: { messages: UiMessage[]; startIndex: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasLive = messages.some((m) => m.live);
+  const count = messages.length;
+  const latestText = messages.at(-1)?.text || "处理步骤";
+
+  return (
+    <article className="message-row tool">
+      <div className="message-body" style={{ width: "100%" }}>
+        <div className="tool-group-drawer">
+          <button
+            type="button"
+            className="tool-group-summary"
+            onClick={() => setExpanded((prev) => !prev)}
+            aria-expanded={expanded}
+            title={expanded ? "点击收起详细步骤" : "点击展开详细步骤"}
+          >
+            <span className="tool-group-title">
+              <span className="tool-group-icon">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                </svg>
+              </span>
+              <span>已执行 {count} 个工具步骤{hasLive ? " (处理中…)" : ""}</span>
+            </span>
+            <span className={`tool-group-chevron${expanded ? " expanded" : ""}`}>
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </span>
+          </button>
+          {expanded ? (
+            <div className="tool-group-content">
+              {messages.map((m, idx) => (
+                <p key={`${m.turnId ?? "local"}-${startIndex + idx}`} className={`tool-step${m.live ? " live" : ""}`}>
+                  {m.text || (m.live ? "正在处理" : "处理步骤")}
+                  {m.live ? " …" : ""}
+                </p>
+              ))}
+            </div>
+          ) : (
+            <div style={{ padding: "0 12px 6px 12px" }}>
+              <p className={`tool-step${hasLive ? " live" : ""}`} style={{ margin: 0, fontSize: "11px", opacity: 0.75 }}>
+                最新: {latestText}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
 
 export function App() {
   const [session, setSession] = useState<SessionView>(emptySession());
@@ -625,23 +732,72 @@ export function App() {
             const last = visible.at(-1);
             const waiting = running && !compressing && !session.liveTools?.length
               && (last?.role === "user" || last?.role === "tool" || !last);
+
+            type RenderGroup =
+              | { type: "single"; message: UiMessage; originalIndex: number }
+              | { type: "toolGroup"; messages: UiMessage[]; startIndex: number };
+
+            const groups: RenderGroup[] = [];
+            let currentTools: UiMessage[] = [];
+            let toolStartIndex = 0;
+
+            for (let i = 0; i < visible.length; i++) {
+              const msg = visible[i];
+              if (msg.role === "tool") {
+                if (currentTools.length === 0) {
+                  toolStartIndex = i;
+                }
+                currentTools.push(msg);
+              } else {
+                if (currentTools.length > 0) {
+                  if (currentTools.length >= 2) {
+                    groups.push({ type: "toolGroup", messages: currentTools, startIndex: toolStartIndex });
+                  } else {
+                    groups.push({ type: "single", message: currentTools[0], originalIndex: toolStartIndex });
+                  }
+                  currentTools = [];
+                }
+                groups.push({ type: "single", message: msg, originalIndex: i });
+              }
+            }
+            if (currentTools.length > 0) {
+              if (currentTools.length >= 2) {
+                groups.push({ type: "toolGroup", messages: currentTools, startIndex: toolStartIndex });
+              } else {
+                groups.push({ type: "single", message: currentTools[0], originalIndex: toolStartIndex });
+              }
+            }
+
             return (
               <>
-                {visible.map((message, index) => (
-                  <article key={`${message.turnId ?? "local"}-${index}`} className={`message-row ${message.role}`}>
-                    {message.role === "tool" ? null : <Avatar who={message.role === "user" ? "user" : "assistant"} />}
-                    <div className="message-body">
-                      {message.role === "tool" ? (
-                        <p className={`tool-step${message.live ? " live" : ""}`}>
-                          {message.text || (message.live ? "正在处理" : "处理步骤")}
-                          {message.live ? " …" : ""}
-                        </p>
-                      ) : message.role === "assistant" && message.text
-                        ? <MdContent text={message.text} />
-                        : message.text ? <p>{message.text}</p> : null}
-                    </div>
-                  </article>
-                ))}
+                {groups.map((item) => {
+                  if (item.type === "toolGroup") {
+                    return (
+                      <ToolGroupDrawer
+                        key={`tool-group-${item.startIndex}`}
+                        messages={item.messages}
+                        startIndex={item.startIndex}
+                      />
+                    );
+                  }
+                  const message = item.message;
+                  const index = item.originalIndex;
+                  return (
+                    <article key={`${message.turnId ?? "local"}-${index}`} className={`message-row ${message.role}`}>
+                      {message.role === "tool" ? null : <Avatar who={message.role === "user" ? "user" : "assistant"} />}
+                      <div className="message-body">
+                        {message.role === "tool" ? (
+                          <p className={`tool-step${message.live ? " live" : ""}`}>
+                            {message.text || (message.live ? "正在处理" : "处理步骤")}
+                            {message.live ? " …" : ""}
+                          </p>
+                        ) : message.role === "assistant" && message.text
+                          ? <MdContent text={message.text} />
+                          : message.text ? <p>{message.text}</p> : null}
+                      </div>
+                    </article>
+                  );
+                })}
                 {waiting ? (
                   <article className="message-row assistant muted">
                     <Avatar who="assistant" />

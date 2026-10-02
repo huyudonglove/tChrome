@@ -1598,3 +1598,163 @@ html[data-theme="mono"] {
     scroll-behavior: auto !important;
   }
 }
+
+/* ==========================================================================
+   Markdown 代码块 Header、一键复制与表格增强
+   ========================================================================== */
+.code-block-wrapper {
+  position: relative;
+  margin: 10px 0;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  user-select: none;
+}
+
+.code-lang-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+}
+
+.code-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.code-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.code-copy-btn.copied {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.code-block-wrapper pre {
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+/* 表格横向自适应安全滚动容器 */
+.markdown table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 12px 0;
+  border-radius: 6px;
+  border: 1px solid var(--line-subtle);
+}
+
+.markdown th,
+.markdown td {
+  padding: 8px 12px;
+  border: 1px solid var(--line-subtle);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.markdown th {
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* ==========================================================================
+   工具执行步骤流聚合与折叠抽屉 (Tool Step Group Drawer)
+   ========================================================================== */
+.tool-group-drawer {
+  margin: 6px 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.tool-group-drawer:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tool-group-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.15s ease;
+}
+
+.tool-group-summary:hover {
+  color: var(--text);
+}
+
+.tool-group-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.tool-group-icon {
+  color: var(--accent);
+}
+
+.tool-group-chevron {
+  transition: transform 0.2s ease;
+  color: var(--muted);
+}
+
+.tool-group-chevron.expanded {
+  transform: rotate(180deg);
+}
+
+.tool-group-content {
+  padding: 4px 12px 8px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tool-group-content .tool-step {
+  margin: 2px 0;
+  font-size: 11.5px;
+  opacity: 0.85;
+}
+
