@@ -9,12 +9,6 @@ import { loadTurn } from "../../runtime/store.ts";
 export type ConversationTurnSlice = {
   turnId: string;
   userInput: { id: string; turnId: string; userInput: string };
-  task: {
-    activeTaskId: string | null;
-    activeTaskItemId: string | null;
-    task: ReturnType<typeof taskView> | null;
-    events: TaskHistoryRecord[];
-  };
   /** First–last callId of this turn (ids are per-conversation sequential). */
   callRange: string | null;
   observations: ReturnType<typeof pageView>[];
@@ -24,9 +18,12 @@ export type ConversationTurnSlice = {
   stopReason: TurnStopReason | null;
 };
 
+export type ConversationTaskPayload = ReturnType<typeof taskView>;
+
 export type ConversationPayload = {
   conversationMemory: MemoryRecord[] | string;
   conversationHistorySummary: ReturnType<typeof turnSummaryView> | string;
+  task: ConversationTaskPayload;
   turns: ConversationTurnSlice[];
   /** Session-wide first–last callId; detail lives only in the shared toolIO pool below. */
   toolRange: string | null;
@@ -42,6 +39,8 @@ const taskView = (plan: Task | null | undefined) => {
     id: plan.id,
     ...(plan.title ? { title: plan.title } : {}),
     status: plan.status,
+    ...(plan.createdTurnId ? { createdTurnId: plan.createdTurnId } : {}),
+    ...(plan.updatedTurnId ? { updatedTurnId: plan.updatedTurnId } : {}),
     items: plan.items.map((item) => ({
       id: item.id,
       text: item.text,
@@ -97,19 +96,11 @@ export function conversationPayload(input: {
     seen.add(row.turnId);
     const currentTurn = inputIndex + 1;
     const isLive = row.turnId === turn.turnId;
-    const taskEvents = groupByTurn(ledger.taskHistory, row.turnId);
-    const liveTask = isLive && ledger.activeTaskId ? ledger.tasks.find((plan) => plan.id === ledger.activeTaskId) : null;
     const toolRows = groupByTurn(ledger.toolIO, row.turnId);
     const pages = pagesByTurn.get(row.turnId) ?? [];
     turns.push({
       turnId: row.turnId,
       userInput: { id: row.id, turnId: row.turnId, userInput: row.userInput },
-      task: {
-        activeTaskId: isLive ? ledger.activeTaskId : null,
-        activeTaskItemId: isLive ? ledger.activeTaskItemId : null,
-        task: isLive ? taskView(liveTask) : null,
-        events: taskEvents,
-      },
       callRange: toolRows.length
         ? (toolRows[0]!.callId === toolRows.at(-1)!.callId
           ? toolRows[0]!.callId
@@ -144,12 +135,16 @@ export function conversationPayload(input: {
       }
     : null;
   const sessionCalls = ledger.toolIO;
+  const activePlan = ledger.activeTaskId ? ledger.tasks.find((plan) => plan.id === ledger.activeTaskId) : null;
+  const latestPlan = activePlan ?? ledger.tasks.at(-1) ?? null;
+  const taskPayload: ConversationTaskPayload = taskView(latestPlan);
   return {
     reflectionStatus,
     conversationMemory: input.memories.conversation,
     conversationHistorySummary: Array.isArray(input.conversationSummaries)
       ? turnSummaryView(input.conversationSummaries)
       : input.conversationSummaries ?? [],
+    task: taskPayload,
     turns,
     toolRange: sessionCalls.length
       ? (sessionCalls[0]!.callId === sessionCalls.at(-1)!.callId
@@ -170,6 +165,7 @@ export function conversationXml(payload: ConversationPayload): string {
     tag("reflectionStatus", payload.reflectionStatus),
     tag("conversationMemory", payload.conversationMemory),
     tag("conversationHistorySummary", payload.conversationHistorySummary),
+    tag("task", payload.task),
   ].filter((block) => !emptyTag.test(block));
   for (const raw of payload.turns) {
     if (raw && typeof raw === "object" && "contextFile" in (raw as object) && !("turnId" in (raw as object))) {
@@ -179,7 +175,6 @@ export function conversationXml(payload: ConversationPayload): string {
     const slice = raw as ConversationTurnSlice;
     const fields = [
       tag("userInput", slice.userInput),
-      tag("task", slice.task),
       ...(slice.callRange ? [tag("callRange", slice.callRange)] : []),
       tag("observations", slice.observations),
       tag("notes", slice.notes),

@@ -77,7 +77,12 @@ test("task persists, single doing, history append-only", async () => {
     expect(JSON.parse(standalone.text)).toMatchObject({ ok: true, count: 1 });
     fx.apply(standalone, "c_standalone", "task.set");
     expect(fx.ledger.activeTaskId).toBe("task_01");
-    expect(fx.ledger.tasks[0]).toMatchObject({ id: "task_01", status: "active" });
+    expect(fx.ledger.tasks[0]).toMatchObject({
+      id: "task_01",
+      status: "active",
+      createdTurnId: "tn_plan",
+      updatedTurnId: "tn_plan",
+    });
 
     const set = await fx.execute("task.set", {
       reason: "拆步骤", title: "修复",

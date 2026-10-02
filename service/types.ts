@@ -75,6 +75,8 @@ export type Task = {
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+  createdTurnId?: string;
+  updatedTurnId?: string;
 };
 
 export type TaskHistoryType =

@@ -17,9 +17,9 @@
 <conversation>
   <conversationMemory>…</conversationMemory>
   <conversationHistorySummary>…</conversationHistorySummary>
+  <task>…</task>
   <tn_01>
     <userInput>…</userInput>
-    <task>…</task>
     <callRange>call_01–call_12</callRange>
     <actions>…</actions>
     <observations>…</observations>
@@ -31,14 +31,13 @@
 </conversation>
 ```
 
-会话级（与 turn 平级）：`conversationMemory` 为 `[{memoryId, turnId, sourceCallId?, text}]`（`mm_`）；`conversationHistorySummary` 为 `[{sumId, turnId, tag, userRequest, actions, result}]`。
+会话级（与 turn 平级）：`conversationMemory` 为 `[{memoryId, turnId, sourceCallId?, text}]`（`mm_`）；`conversationHistorySummary` 为 `[{sumId, turnId, tag, userRequest, actions, result}]`；`task` 为 `{id, title?, status, createdTurnId?, updatedTurnId?, items:[{id, text, status, expectedEffect?, verification?, blockedReason?, outcome?}]}`（当前活跃或最近完成的任务实体，跨轮唯一持久化，直到新任务顶替）。
 
 轮次级（`<tn_xx>` 内，有则写、无则省略）：
 
 | 标签 | 数据结构 | 身份字段 |
 | --- | --- | --- |
 | `userInput` | `{id, turnId, userInput}` | `id` |
-| `task` | `{activeTaskId, activeTaskItemId, task, events}` | `activeTaskId`、items `id`、events `id` |
 | `callRange` | string \| null | 本段工具调用 ID 首尾（如 `call_01–call_12`；单次调用只一个 id） |
 | `toolIO` | 数组 | conversation 底部全会话公用池：仅最近 10 次调用保留详情，更早按各轮 callRange 用 evidence.search(callId) 取回 |
 | `actions` | `[{id, text, at}]` 或 null；actions.write 追加的本轮流水 | `id` |

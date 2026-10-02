@@ -49,8 +49,11 @@ const findPlan = (ledger: Ledger, taskId: string): Task => {
   return plan;
 };
 
-const touchPlan = (plan: Task): void => {
+const touchPlan = (plan: Task, turnId?: string): void => {
   plan.updatedAt = nowIso();
+  if (turnId) {
+    plan.updatedTurnId = turnId;
+  }
 };
 
 export function prepareTaskSet(dataDir: string, context: TaskContext, args: ToolArguments): {
@@ -95,8 +98,7 @@ export function prepareTaskSet(dataDir: string, context: TaskContext, args: Tool
   if (previous) {
     replacedPlanId = previous.id;
     previous.status = "cancelled";
-    previous.updatedAt = nowIso();
-    touchPlan(previous);
+    touchPlan(previous, context.turnId);
     const record = {
       taskId: previous.id,
       type: "task_cancelled" as const,
@@ -116,6 +118,8 @@ export function prepareTaskSet(dataDir: string, context: TaskContext, args: Tool
     items,
     createdAt: now,
     updatedAt: now,
+    createdTurnId: context.turnId,
+    updatedTurnId: context.turnId,
     ...(typeof args.title === "string" && args.title.trim() ? { title: args.title.trim() } : {}),
   };
   ledger.tasks.push(plan);
@@ -216,7 +220,7 @@ export function prepareTaskUpdate(dataDir: string, context: TaskContext, args: T
     }
     item.index = before.index;
     if (JSON.stringify(before) === JSON.stringify(item)) continue;
-    touchPlan(working);
+    touchPlan(working, context.turnId);
     const type = item.status === "doing" && before.status !== "doing"
       ? "item_started" as const
       : item.status === "done" && before.status !== "done"
@@ -256,7 +260,7 @@ export function prepareTaskComplete(dataDir: string, context: TaskContext, args:
   const before = { status: plan.status };
   plan.status = "completed";
   plan.completedAt = nowIso();
-  touchPlan(plan);
+  touchPlan(plan, context.turnId);
   pushHistory(dataDir, ledger, {
     taskId: plan.id,
     type: "task_completed",
@@ -287,7 +291,7 @@ export function autoCompleteActiveTask(dataDir: string, ledger: Ledger, turnId: 
   const before = { status: plan.status };
   plan.status = "completed";
   plan.completedAt = nowIso();
-  touchPlan(plan);
+  touchPlan(plan, turnId);
   pushHistory(dataDir, ledger, {
     taskId: plan.id,
     type: "task_completed",
