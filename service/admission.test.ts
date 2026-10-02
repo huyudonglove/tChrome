@@ -2,10 +2,12 @@ import { expect, test } from "bun:test";
 import { admitExecution, admitImages, admitText, buildLevels, deferredImageNote, indexTree, payloadIndex, retrievalWindowChars, summarizePayload } from "./admission.ts";
 import { runtimeConfig } from "./config/runtime.ts";
 
+const overInline = runtimeConfig.results.inlineChars + 2000;
+
 test("admitText inlines small text and degrades large text with a precise-fetch hint", () => {
   const small = admitText("hello", { callId: "call_01", path: "/tmp/a.txt" });
   expect(small).toEqual({ mode: "inline", text: "hello" });
-  const large = admitText("x".repeat(8000), { callId: "call_01", path: "/tmp/a.txt", name: "demo" });
+  const large = admitText("x".repeat(overInline), { callId: "call_01", path: "/tmp/a.txt", name: "demo" });
   expect(large.mode).toBe("preview");
   if (large.mode !== "preview") throw new Error("mode");
   expect(large.payload.externalized).toBe(true);
@@ -20,8 +22,8 @@ test("admitText turns an oversized JSON payload into a structured summary instea
   const payload = {
     ok: true,
     results: [
-      { ok: true, path: "/tmp/a.ts", content: "y".repeat(8000), startLine: 1, endLine: 40, totalLines: 400 },
-      { ok: true, path: "/tmp/b.ts", content: "z".repeat(8000), startLine: 10, endLine: 20, totalLines: 90 },
+      { ok: true, path: "/tmp/a.ts", content: "y".repeat(overInline), startLine: 1, endLine: 40, totalLines: 400 },
+      { ok: true, path: "/tmp/b.ts", content: "z".repeat(overInline), startLine: 10, endLine: 20, totalLines: 90 },
     ],
   };
   const admitted = admitText(JSON.stringify(payload), { callId: "call_02", path: "/tmp/returns/call_02.txt", name: "local.fs_read" });
@@ -46,7 +48,7 @@ test("summarizePayload reports failures and keeps non-JSON payloads on the raw h
   expect(summarizePayload(failed)).toContain("faultCode=tool_execution_failed");
   expect(summarizePayload(failed)).toContain("path must be a directory");
   expect(summarizePayload("not json at all")).toBe("");
-  const plain = admitText("q".repeat(8000), { callId: "call_03", path: "/tmp/a.txt" });
+  const plain = admitText("q".repeat(overInline), { callId: "call_03", path: "/tmp/a.txt" });
   if (plain.mode !== "preview") throw new Error("mode");
   expect(plain.payload.summary).toBeUndefined();
   expect(plain.payload.head).toBe("q".repeat(runtimeConfig.results.previewChars));
@@ -325,7 +327,7 @@ test("admitText puts per-layer addressable chunk ids into the pointer payload", 
   expect(hint).toContain(`startLine=${l1.chunks[0]?.from}`);
   expect(hint).toContain(`共 ${l1.total} 块`);
   // 纯文本载荷抽不出层级 → 不带 layers
-  const plain = admitText("z".repeat(8000), { callId: "call_02", path: "/tmp/b.txt" });
+  const plain = admitText("z".repeat(overInline), { callId: "call_02", path: "/tmp/b.txt" });
   if (plain.mode !== "preview") throw new Error("mode");
   expect(plain.payload.layers).toBeUndefined();
 });

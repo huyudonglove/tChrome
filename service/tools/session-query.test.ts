@@ -1,3 +1,5 @@
+import { runtimeConfig } from "../config/runtime.ts";
+const overInline = runtimeConfig.results.inlineChars + 1000;
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { writeFileSync } from "node:fs";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
@@ -32,7 +34,7 @@ beforeAll(async () => {
   writeRows("cv_01", [
     row({ callId: "call_01", turnId: "tn_01", name: "local.run", arguments: { command: "ls" } }),
     row({ callId: "call_02", turnId: "tn_01", name: "local.run", arguments: { command: "du" } }),
-    row({ callId: "call_03", turnId: "tn_02", name: "local.fs_read", return: { stage: "complete", totalChars: 7000, text: "big" } }),
+    row({ callId: "call_03", turnId: "tn_02", name: "local.fs_read", return: { stage: "complete", totalChars: overInline, text: "big" } }),
     row({
       callId: "call_04",
       turnId: "tn_02",
@@ -66,7 +68,7 @@ test("summary mode aggregates calls, turns, externalized rows and return chars",
   expect(result.firstTurnId).toBe("tn_01");
   expect(result.lastTurnId).toBe("tn_02");
   expect(result.externalizedCalls).toBe(1);
-  expect(result.totalReturnChars).toBe(100 + 100 + 7000 + 300);
+  expect(result.totalReturnChars).toBe(100 + 100 + overInline + 300);
 });
 
 test("tools mode ranks by call count and reports argument value distribution", () => {
@@ -122,7 +124,7 @@ test("externalized mode lists oversized returns largest first", () => {
     hint: string;
   };
   expect(result.externalizedCalls).toBe(1);
-  expect(result.items[0]).toMatchObject({ callId: "call_03", name: "local.fs_read", totalChars: 7000 });
+  expect(result.items[0]).toMatchObject({ callId: "call_03", name: "local.fs_read", totalChars: overInline });
   expect(result.hint).toContain("evidence.search");
 });
 
