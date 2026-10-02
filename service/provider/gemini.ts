@@ -115,10 +115,42 @@ export function createGeminiProvider(config: GeminiConfig = {}) {
       parts.push({ inlineData: { mimeType: match[1]!, data: match[2]! } });
     }
 
+    const sanitizeSchema = (schema: any): any => {
+      if (!schema || typeof schema !== "object") return schema;
+      const clone = Array.isArray(schema) ? [...schema] : { ...schema };
+      if (!Array.isArray(clone)) {
+        if (clone.anyOf && Array.isArray(clone.anyOf) && clone.anyOf.length > 0) {
+          const first = clone.anyOf[0];
+          if (first && typeof first === "object" && typeof first.type === "string") {
+            clone.type = first.type;
+          } else {
+            clone.type = "string";
+          }
+          delete clone.anyOf;
+        }
+        if (clone.properties && typeof clone.properties === "object") {
+          for (const [key, prop] of Object.entries(clone.properties as Record<string, any>)) {
+            if (prop && typeof prop === "object") {
+              if (typeof prop.type !== "string") {
+                if (prop.anyOf && Array.isArray(prop.anyOf) && prop.anyOf.length > 0) {
+                  prop.type = prop.anyOf[0]?.type || "string";
+                  delete prop.anyOf;
+                } else {
+                  prop.type = "string";
+                }
+              }
+              clone.properties[key] = sanitizeSchema(prop);
+            }
+          }
+        }
+      }
+      return clone;
+    };
+
     const functionDeclarations = tools.map((tool) => ({
       name: tool.function.name,
       description: tool.function.description,
-      parameters: tool.function.parameters,
+      parameters: sanitizeSchema(tool.function.parameters),
     }));
     const requestTools = [
       ...(googleSearch ? [{ google_search: {} }] : []),
