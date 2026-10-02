@@ -9,6 +9,7 @@
     "service:direct": "TCHROME_PROXY_MODE=direct bun run service/server.ts",
     "build": "bun run scripts/build-extension.ts",
     "test": "bun test",
+    "test:summary": "bun run scripts/test-summary.ts",
     "test:sub": "bun test service shared",
     "test:extension": "bun test extension",
     "check:wiring": "bun run scripts/tool_wiring_check.ts",
