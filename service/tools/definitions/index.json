@@ -94,6 +94,7 @@
     "wait_captcha",
     "click_captcha",
     "solve_captcha",
+    "solve_slider",
     "emulate_device",
     "network_throttle",
     "set_cookie",

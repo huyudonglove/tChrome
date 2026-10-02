@@ -1,0 +1,78 @@
+{
+  "type": "function",
+  "function": {
+    "name": "solve_slider",
+    "description": "求解并拖动滑块拼图验证码。流程：页内 canvas 模板匹配定位缺口 → 探测哪个元素真正随拖动移动 → CDP 拟人轨迹拖动 → 观察验证结果，未通过则按新题重试。返回 ok、status=solved、attempts[]（每轮 dx/score/state）、confidence；题型不是「竖条对齐缺口」（如整图点选）或缺口无法唯一定位时返回 requiresUser=true，不盲拖。ok=true 的判据是控件消失或出现 success/通过态，不代表返回了服务端令牌。必填 tabId；可选 sliderSelector/bgSelector/pieceSelector 显式指定 DOM（不给则自动探测）、maxAttempts（1~5）、timeoutMs（1~12000）、humanize。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "tabId": {
+          "type": "integer",
+          "description": "目标标签编号（必填；从 tabs.current 等返回取得，不随前台切换）。"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "sliderSelector": {
+          "type": "string",
+          "description": "滑轨/容器 CSS 选择器；省略则按背景图向上自动定位。"
+        },
+        "bgSelector": {
+          "type": "string",
+          "description": "背景图（含缺口）CSS 选择器；省略则取容器内最大的可见 img。"
+        },
+        "pieceSelector": {
+          "type": "string",
+          "description": "滑块拼图块 CSS 选择器；省略则取与背景图重叠的最小可见 img。"
+        },
+        "checkUrlContains": {
+          "type": "string",
+          "description": "校验接口 URL 子串（如 captchaFusionAuthCheckV2）。给出后工具会在拖动后读该接口响应体判定服务端是接受还是拒绝——这是区分「位置没找准」与「位置对了但被轨迹检测拒」的关键依据；不给则只靠控件状态启发判定。"
+        },
+        "checkWaitMs": {
+          "type": "integer",
+          "minimum": 500,
+          "maximum": 5000,
+          "description": "等待校验接口响应的时间，默认 3000ms。"
+        },
+        "maxAttempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "失败重试轮数，默认 3；每轮失败后站点通常会换新题。"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12000,
+          "description": "总超时毫秒，默认 10000。"
+        },
+        "humanize": {
+          "type": "object",
+          "description": "拟人化拖动参数；默认全开（验证码场景通常需要）。全 false=原子精确落点。",
+          "properties": {
+            "overshoot": {
+              "type": "boolean",
+              "description": "过冲回拉；终点仍精确落在目标"
+            },
+            "noise": {
+              "type": "boolean",
+              "description": "路径正弦噪声"
+            },
+            "releaseJitter": {
+              "type": "boolean",
+              "description": "松手前微抖"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "reason",
+        "tabId"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "execution": "serial"
+}

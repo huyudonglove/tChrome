@@ -30,7 +30,7 @@ export const BROWSER_TOOL_NAMES = [
   'execute_javascript', 'handle_dialog', 'see_zoom', 'set_zoom',
   'bind_tab', 'see_env', 'list_downloads', 'see_diag', 'see_console', 'wait_new_tab',
   'list_browser_tools', 'measure_timing', 'measure_paint', 'measure_files',
-  'see_captcha', 'wait_captcha', 'click_captcha', 'solve_captcha',
+  'see_captcha', 'wait_captcha', 'click_captcha', 'solve_captcha', 'solve_slider',
   'emulate_device', 'network_throttle', 'set_cookie', 'delete_cookie', 'clear_cookies',
   'set_geolocation', 'page_find', 'long_press',
   'service_worker_list', 'websocket_monitor', 'detach_debugger',
@@ -423,6 +423,254 @@ const cdpDrag = async (tabId, fromX, fromY, toX, toY, options = {}) => {
     return;
   }
   await cdpMouse(tabId, 'mouseReleased', toX, toY, {button: 'left', clickCount: 1, buttons: 0});
+};
+
+// ============ 滑块拼图验证码求解：页内缺口定位 + CDP 拟人拖动 + 重试闭环 ============
+// 页内函数：自包含（会被序列化注入，不能引用模块作用域），返回几何 + 匹配结果 + 状态
+const sliderProbe = (sliderSelector, bgSelector, pieceSelector) => {
+  const pick = (s) => { if (!s) return null; try { return document.querySelector(s); } catch (e) { return null; } };
+  const rectOf = (el) => { const r = el.getBoundingClientRect(); return {left: r.left, top: r.top, width: r.width, height: r.height, cx: r.left + r.width / 2, cy: r.top + r.height / 2}; };
+  const area = (r) => r.width * r.height;
+
+  const imgs = Array.from(document.querySelectorAll('img')).filter((im) => {
+    const r = im.getBoundingClientRect();
+    return r.width >= 60 && r.height >= 30;
+  });
+  let bgEl = pick(bgSelector);
+  if (!bgEl) {
+    const sorted = imgs.slice().sort((a, b) => area(rectOf(b)) - area(rectOf(a)));
+    bgEl = sorted[0] || null;
+  }
+  if (!bgEl) return {ok: false, error: 'no-bg'};
+  const bgRect = rectOf(bgEl);
+
+  let pieceEl = pick(pieceSelector);
+  if (!pieceEl) {
+    const overlap = imgs
+      .filter((im) => im !== bgEl)
+      .map((im) => ({im, r: rectOf(im)}))
+      .filter((o) => o.r.width < bgRect.width * 0.6 && o.r.left < bgRect.left + bgRect.width * 0.35 && Math.abs(o.r.top - bgRect.top) < bgRect.height)
+      .sort((a, b) => area(a.r) - area(b.r));
+    pieceEl = overlap.length ? overlap[0].im : null;
+  }
+
+  const cands = Array.from(document.querySelectorAll('div,span,i,img'))
+    .map((el) => ({el, r: rectOf(el)}))
+    .filter((o) => o.r.width >= 18 && o.r.width <= Math.max(60, bgRect.width * 0.22)
+      && o.r.height >= 18 && o.r.height <= bgRect.height + 30
+      && o.r.cx > bgRect.left - 50 && o.r.cx < bgRect.left + bgRect.width * 0.35
+      && o.r.cy > bgRect.top - 50 && o.r.cy < bgRect.top + bgRect.height + 50);
+  cands.sort((a, b) => area(a.r) - area(b.r));
+  const handleEl = pieceEl && cands.some((c) => c.el === pieceEl) ? pieceEl : (cands[0] ? cands[0].el : pieceEl);
+
+  const readState = () => {
+    if (!bgEl || !bgEl.isConnected) return 'gone';
+    const root = bgEl.closest('div') || document.body;
+    const handleCls = handleEl && handleEl.isConnected ? String(handleEl.className || '') : '';
+    const cls = (String(root.className || '') + ' ' + String(bgEl.className || '') + ' ' + handleCls).toLowerCase();
+    if (/success|passed|verified|checked/.test(cls)) return 'success';
+    if (!handleEl || !handleEl.isConnected) return 'gone';
+    const hr = rectOf(handleEl);
+    if (hr.left > bgRect.left + bgRect.width * 0.7) return 'atRight';
+    return 'pending';
+  };
+
+  const base = {
+    ok: true,
+    bgRect, pieceRect: pieceEl ? rectOf(pieceEl) : null, handleRect: handleEl ? rectOf(handleEl) : null,
+    state: readState(),
+  };
+  if (base.state !== 'pending') return base;
+  if (!pieceEl) return {...base, error: 'no-piece'};
+
+  const toData = (img) => {
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+    if (!w || !h) return null;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d', {willReadFrequently: true});
+    ctx.drawImage(img, 0, 0);
+    let d;
+    try { d = ctx.getImageData(0, 0, w, h).data; } catch (e) { return null; }
+    const gray = new Float32Array(w * h);
+    for (let i = 0, p = 0; i < d.length; i += 4, p++) gray[p] = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+    return {w, h, gray, alpha: d};
+  };
+  const bg = toData(bgEl);
+  const piece = toData(pieceEl);
+  if (!bg || !piece || bg.w <= piece.w || bg.h <= piece.h) return {...base, error: 'bitmap-unavailable'};
+
+  const W = bg.w, H = bg.h, pw = piece.w, ph = piece.h;
+  const px = [], py = [];
+  for (let y = 0; y < ph; y++) {
+    for (let x = 0; x < pw; x++) {
+      if (piece.alpha[(y * pw + x) * 4 + 3] > 24) { px.push(x); py.push(y); }
+    }
+  }
+  if (px.length < 20) return {...base, error: 'piece-mask'};
+  let sp = 0;
+  for (let k = 0; k < px.length; k++) sp += piece.gray[py[k] * pw + px[k]];
+  const mp = sp / px.length;
+  let vp = 0;
+  const pdev = new Float32Array(px.length);
+  for (let k = 0; k < px.length; k++) { pdev[k] = piece.gray[py[k] * pw + px[k]] - mp; vp += pdev[k] * pdev[k]; }
+  if (vp <= 1e-6) return {...base, error: 'piece-flat'};
+
+  const I1 = new Float64Array((W + 1) * (H + 1));
+  const I2 = new Float64Array((W + 1) * (H + 1));
+  for (let y = 0; y < H; y++) {
+    let r1 = 0, r2 = 0;
+    for (let x = 0; x < W; x++) {
+      const v = bg.gray[y * W + x];
+      r1 += v; r2 += v * v;
+      I1[(y + 1) * (W + 1) + (x + 1)] = I1[y * (W + 1) + (x + 1)] + r1;
+      I2[(y + 1) * (W + 1) + (x + 1)] = I2[y * (W + 1) + (x + 1)] + r2;
+    }
+  }
+  const scoreAt = (dx, dy) => {
+    if (dx < 0 || dy < 0 || dx + pw > W || dy + ph > H) return -2;
+    const x2 = dx + pw, y2 = dy + ph;
+    const a = I1[y2 * (W + 1) + x2] - I1[dy * (W + 1) + x2] - I1[y2 * (W + 1) + dx] + I1[dy * (W + 1) + dx];
+    const mb = a / px.length;
+    let num = 0, vb = 0;
+    for (let k = 0; k < px.length; k++) {
+      const bv = bg.gray[(dy + py[k]) * W + (dx + px[k])] - mb;
+      num += pdev[k] * bv;
+      vb += bv * bv;
+    }
+    const den = Math.sqrt(vp * vb);
+    return den > 1e-6 ? num / den : -2;
+  };
+
+  const maxDy = Math.min(Math.floor(ph / 2), 14);
+  let best = {dx: -1, dy: 0, score: -2};
+  for (let dy = -maxDy; dy <= maxDy; dy += 2) {
+    for (let dx = 0; dx + pw <= W; dx += 2) {
+      const s = scoreAt(dx, dy);
+      if (s > best.score) best = {dx, dy, score: s};
+    }
+  }
+  if (best.score <= -2) return {...base, error: 'no-match'};
+  let refined = best;
+  for (let dy = best.dy - 2; dy <= best.dy + 2; dy++) {
+    for (let dx = Math.max(0, best.dx - 3); dx + pw <= W && dx <= best.dx + 3; dx++) {
+      const s = scoreAt(dx, dy);
+      if (s > refined.score) refined = {dx, dy, score: s};
+    }
+  }
+  const scale = bgRect.width / W;
+  return {...base, dxImg: refined.dx, dyImg: refined.dy, score: Math.round(refined.score * 1000) / 1000, dxCss: Math.round(refined.dx * scale)};
+};
+
+const runSolveSliderTool = async (tabId, input = {}) => {
+  const maxAttempts = Math.min(5, Math.max(1, Number(input.maxAttempts) || 3));
+  const timeout = Number(input.timeoutMs) || 10000;
+  const deadline = Date.now() + Math.min(12000, timeout);
+  const h = input.humanize && typeof input.humanize === 'object' ? input.humanize : {};
+  const hz = {overshoot: h.overshoot !== false, noise: h.noise !== false, releaseJitter: h.releaseJitter !== false};
+  const attempts = [];
+  const checkUrlContains = typeof input.checkUrlContains === 'string' && input.checkUrlContains ? input.checkUrlContains : '';
+  const waitCheckMs = Math.max(500, Math.min(5000, Number(input.checkWaitMs) || 3000));
+  let last = null;
+  let adjust = 0;
+  const verdictOf = (check) => {
+    if (!check || !check.body) return 'unknown';
+    const b = String(check.body);
+    if (/"(success|verified|passed|valid|result)"\s*:\s*(true|0)/i.test(b)) return 'passed';
+    if (/"code"\s*:\s*0/.test(b)) return 'passed';
+    if (/fail|reject|invalid|wrong|mismatch|error/i.test(b)) return 'rejected';
+    return 'unknown';
+  };
+  const watchCheck = (id) => {
+    if (!checkUrlContains) return null;
+    const hits = [];
+    const onEvent = (source, method, params) => {
+      if (source.tabId !== id || method !== 'Network.responseReceived') return;
+      const url = String(params?.response?.url || '');
+      if (!url.includes(checkUrlContains)) return;
+      hits.push({requestId: params.requestId, status: params.response.status, url});
+    };
+    chrome.debugger.onEvent.addListener(onEvent);
+    return {hits, stop: () => chrome.debugger.onEvent.removeListener(onEvent)};
+  };
+  const readCheck = async (id, watcher) => {
+    const t0 = Date.now();
+    while (!watcher.hits.length && Date.now() - t0 < waitCheckMs) await new Promise((r) => setTimeout(r, 100));
+    const hit = watcher.hits[watcher.hits.length - 1];
+    if (!hit) return null;
+    let body = null;
+    try {
+      const r = await chrome.debugger.sendCommand({tabId: id}, 'Network.getResponseBody', {requestId: hit.requestId});
+      body = r?.body ?? null;
+    } catch (error) { body = null; }
+    const check = {status: hit.status, url: hit.url, body: body ? String(body).slice(0, 2000) : null};
+    check.verdict = verdictOf(check);
+    return check;
+  };
+  try {
+    while (Date.now() < deadline && attempts.length < maxAttempts) {
+      const [{result}] = await chrome.scripting.executeScript({
+        target: {tabId},
+        func: sliderProbe,
+        args: [input.sliderSelector || null, input.bgSelector || null, input.pieceSelector || null],
+      });
+      const probe = result || {};
+      last = probe;
+      if (probe.state && probe.state !== 'pending') {
+        return {ok: true, status: 'solved', state: probe.state, attempts, confidence: 1, note: '观察到控件消失或出现通过态'};
+      }
+      if (probe.error) return {ok: false, status: 'unsupported', error: probe.error, requiresUser: true, attempts, note: '题型不是竖条对齐缺口或缺口无法定位，需人工处理'};
+      const hr = probe.handleRect || probe.pieceRect;
+      if (!hr || typeof probe.dxCss !== 'number') {
+        return {ok: false, status: 'unsupported', error: probe.error || 'no-handle', requiresUser: true, attempts};
+      }
+      const fromX = hr.cx;
+      const fromY = hr.cy;
+      const dx = probe.dxCss + adjust;
+      const toX = fromX + dx;
+      const attempt = {round: attempts.length + 1, dx, adjust, dxImg: probe.dxImg, score: probe.score, fromX, toX};
+      const watcher = watchCheck(tabId);
+      try {
+        if (watcher) await withDebugger(tabId, () => chrome.debugger.sendCommand({tabId}, 'Network.enable', {}));
+        await cdpDrag(tabId, fromX, fromY, toX, fromY, hz);
+        if (watcher) attempt.check = await readCheck(tabId, watcher);
+      } finally {
+        if (watcher) watcher.stop();
+      }
+      if (attempt.check && attempt.check.verdict === 'passed') {
+        return {ok: true, status: 'solved', state: 'server-passed', attempts, confidence: 1, note: 'check 接口响应体判定通过'};
+      }
+      if (attempt.check && attempt.check.verdict === 'rejected') attempt.serverRejected = true;
+      await new Promise((r) => setTimeout(r, 500));
+      const [{result: after}] = await chrome.scripting.executeScript({
+        target: {tabId},
+        func: sliderProbe,
+        args: [input.sliderSelector || null, input.bgSelector || null, input.pieceSelector || null],
+      });
+      attempt.state = after?.state || 'unknown';
+      if (after?.handleRect && probe.bgRect && after.state === 'pending') {
+        const target = probe.bgRect.left + probe.dxCss;
+        const actual = after.handleRect.left;
+        const moved = Math.abs(actual - hr.left);
+        attempt.targetLeft = Math.round(target * 10) / 10;
+        attempt.actualLeft = Math.round(actual * 10) / 10;
+        attempt.moved = Math.round(moved * 10) / 10;
+        if (moved > 3) {
+          const delta = Math.max(-20, Math.min(20, (target - actual) * 0.6));
+          if (delta) adjust = Math.max(-40, Math.min(40, adjust + delta));
+          attempt.nextAdjust = Math.round(adjust * 10) / 10;
+        }
+      }
+      attempts.push(attempt);
+      if (attempt.state === 'success' || attempt.state === 'gone' || attempt.state === 'atRight') {
+        return {ok: true, status: 'solved', state: attempt.state, attempts, confidence: Math.max(0, Math.min(1, (probe.score || 0) / 0.6)), note: '拖动后控件消失或进入通过态'};
+      }
+    }
+    return {ok: false, status: 'failed', attempts, requiresUser: true, error: `重试 ${attempts.length} 轮仍未通过`, last: last ? {dxCss: last.dxCss, score: last.score} : null};
+  } catch (error) {
+    return {ok: false, status: 'failed', error: String(error?.message || error), attempts, requiresUser: true};
+  }
 };
 
 const waitNetworkIdle = async (tabId, quietMs = 500, maxMs = 4000) => {
@@ -2273,6 +2521,11 @@ const executeBrowserTool = async (name, input = {}) => {
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可检查验证码的普通网页标签'};
     return runCaptchaTool(name, tab.id, input);
+  }
+  if (name === 'solve_slider') {
+    const tab = await getTab(tabId);
+    if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可操作滑块的普通网页标签'};
+    return runSolveSliderTool(tab.id, input);
   }
   // 设备仿真：模拟移动端视口、UA、触摸
   if (name === 'emulate_device') {
