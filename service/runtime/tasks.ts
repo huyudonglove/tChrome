@@ -195,10 +195,6 @@ export function prepareTaskUpdate(dataDir: string, context: TaskContext, args: T
         throw new Error(errorDetail("task_item_done_no_rollback", { id: item.id }));
       }
       if (patch.status === "doing") {
-        const other = working.items.find((row) => row.status === "doing" && row.id !== item.id);
-        if (other) {
-          throw new Error(errorDetail("task_multi_doing_update", { a: other.id, b: item.id }));
-        }
         item.status = "doing";
         item.startedAt ??= now;
         delete item.blockedReason;

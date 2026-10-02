@@ -197,3 +197,37 @@ test("autoCompleteActiveTask closes a finished plan and skips open ones", async 
     fx.cleanup();
   }
 });
+
+test("task.update supports atomic batch transition regardless of item order", async () => {
+  const fx = fixture();
+  try {
+    fx.apply(await fx.execute("task.set", {
+      reason: "测试流转",
+      items: [
+        { text: "第一步", status: "doing" },
+        { text: "第二步", status: "todo" },
+      ],
+    }), "c1", "task.set");
+    expect(fx.ledger.activeTaskId).toBe("task_01");
+    expect(fx.ledger.activeTaskItemId).toBe("item_01");
+
+    // 关键：乱序传入（第二步先置 doing，第一步置 done），批次内原子生效，不应因循环顺序抛出 task_multi_doing_update
+    const atomicTransition = await fx.execute("task.update", {
+      reason: "原子流转推进",
+      items: [
+        { id: "item_02", status: "doing" },
+        { id: "item_01", status: "done" },
+      ],
+    });
+    expect(atomicTransition.effects.length).toBe(1);
+    fx.apply(atomicTransition, "c2", "task.update");
+
+    expect(fx.ledger.activeTaskId).toBe("task_01");
+    expect(fx.ledger.activeTaskItemId).toBe("item_02");
+    expect(fx.ledger.tasks[0]?.items[0]?.status).toBe("done");
+    expect(fx.ledger.tasks[0]?.items[1]?.status).toBe("doing");
+  } finally {
+    fx.cleanup();
+  }
+});
+
