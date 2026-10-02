@@ -12,14 +12,18 @@ https://github.com/user-attachments/assets/da4cfcb9-a5be-44cf-80d7-ca6c83620d26
 
 ### Hello, I am Helm (驭舟)
 
-I reside in your Chrome side panel, using your familiar real browser as my window to the web, connecting down to your local operating system and up to large language models.
+I reside directly in your Chrome side panel.
 
-I am not just a chatbot confined to a dialog box. I am an **autonomous browser agent capable of inspecting web pages, operating interactive controls, managing tabs, perceiving host environments, and orchestrating local terminal commands on your behalf**.
+People have grown accustomed to treating large language models as oracles behind glass—you pose a question, and they generate seemingly flawless prose from the void. But when confronted with dynamic web forms, asynchronous payloads, failing local scripts, or subtle bugs in deep waters, they offer no grounded certainty. They cannot even perceive what is right before your eyes.
 
-When collaborating with you, I adhere to the following principles:
-- **Evidence-based, no assumptions**: I never guess page states. Every step is grounded in the Chromium Accessibility (A11y) tree, rigorous state probes, or high-definition visual crop slices. I decide the next move based on real feedback and never claim success without verification.
-- **Task-driven execution**: For complex, multi-step workflows, I break work into a persistent Task with stable item IDs, single-doing discipline, and append-only history audit trails.
-- **Tiered cognition, local-first**: Notes for temporary drafts, conversation memory for confirmed facts, project memory for long-term knowledge, and the Library for high-value URLs and credentials. All your session data, logs, screenshots, and library records are stored locally on your machine—completely open, inspectable, and under your control.
+**I am not here to be a detached conversationalist.**
+
+My name in Chinese is “驭舟” (Helmsman), because the browser is the vastest and most turbulent ocean of information and computation today. I am here to stand beside you, taking the helm together:
+
+- **Rooted in your physical world**: I don't run in an isolated cloud sandbox. I live inside your everyday browser and operating system—perceiving live page semantics, leveraging your real authenticated sessions, and invoking local files and terminal toolchains when depth demands it.
+- **Grounded in causality, never guessing**: In a reality filled with network noise and dynamic shifts, I never assume page readiness, nor do I pacify you with unverified claims of success. I inspect states, wait for responses, and gather concrete evidence. If something works, it works; if blocked, I tell you precisely where and why.
+- **Long-horizon partnership, not ephemeral chat**: Whether tackling extensive research, multi-file refactoring, or multi-turn troubleshooting, I preserve context, deliverables, and lessons learned. When you step away and return, our shared understanding stays anchored at the exact same coordinates.
+- **Peer-level, determined, and co-evolving**: No flattery, no preaching, no empty ceremony. You guide the intent, direction, and value choices; I provide deterministic support, meticulous observation, and solid defense in the deep water. We are engineering partners co-evolving this white-box system together.
 
 **tChrome** is my host framework (composed of **Chrome Extension + Local Bun Service + Model Provider**), and I—**Helm**—am the autonomous intelligence taking the helm, acting, and delivering results for you across the web.
 
@@ -84,11 +88,11 @@ Interacting with complex web forms previously required multiple model round-trip
 - `page.submit_wait` / `page.fill_submit`: Batch form population combined with network response interception (`wait_response`).
 This cuts interaction latency and token overhead by more than 50% while eliminating race conditions at the protocol level.
 
-### 6. Deterministic State Bus & 4,000-Character Guardrail (Context Assembly)
+### 6. Deterministic State Bus & 6,000-Character Guardrail (Context Assembly)
 tChrome abandons fragile single-prompt concatenation and generic linear message lists:
 - **Layered Assembly Bus**: Strictly decouples immutable System semantic contracts from dynamic User state slots (Task / Notes / Memory / ToolIO), dynamically assembled per turn;
-- **4,000-Character Inline Safety Guardrail**: All single tool outputs and large page observations pass through a 4,000-character inline check. Over-limit content is externalized to disk with fixed line widths, allowing the agent to retrieve exact excerpts or line windows via `evidence.search`, physically preventing prompt pollution and context overflow;
-- **Structured Monotonic Short IDs**: Persistent IDs (`call_01`, `e_01`, `proc_01`) prevent hallucinated identifiers from breaking tool execution chains.
+- **6,000-Character Inline Safety Guardrail**: All single tool outputs and large page observations pass through a 6,000-character physical inline check. Over-limit content is externalized to disk with fixed line widths, allowing the agent to retrieve exact excerpts or line windows via `evidence.search`, physically preventing prompt pollution and context overflow;
+- **Structured Monotonic Short IDs**: Monotonically incrementing identifiers (`call_01`, `e_01`, `task_01`) provide zero-cost topological ordering and gap detection, preventing hallucinated identifiers from breaking execution chains.
 
 ### 7. Interactive Widgets & Dual-Track Sandbox (Interactive Widgets)
 Due to Chrome's strict extension Content Security Policy (CSP), inline JavaScript is prohibited in the side panel. tChrome implements a dual-track interactive presentation layer:
@@ -96,13 +100,13 @@ Due to Chrome's strict extension Content Security Policy (CSP), inline JavaScrip
 - **Isolated Widget Sandbox (`<tchrome-widget>`)**: Complex mini-apps (interactive calculators, dynamic charts, self-contained mini-games) are served via a local independent sandbox iframe outside extension CSP restrictions, ensuring both extension security and full-featured web app capabilities.
 
 ### 8. Lossless Context Compression & Query Agent
-When context approaches the threshold (200,000 characters), the Runtime invokes an independent **Compression Agent** to distill historical turns into structured records (user goals, actions taken, objective outcomes).
+When context approaches the threshold (250,000 characters), the Runtime invokes an independent **Compression Agent** to distill historical turns into structured records (user goals, actions taken, objective outcomes).
 Raw interaction logs and tool arguments remain intact on disk. When deep verification is needed, an independent **Query Agent** retrieves original excerpts on demand, controlling token costs without sacrificing historical fidelity.
 
 ### 9. Tiered Cognitive Architecture & Structured Library
 | Tier | Purpose | Scope |
 | --- | --- | --- |
-| **Persistent Task (`<task>`)** | Cross-turn step plan with stable item IDs; Runtime auto-links tool calls | Survives turn ends; auto-closes when all items are done |
+| **Persistent Task (`<task>`)** | Root-level cross-turn state machine; retains deliverables (`outcome`) in a single slot until replaced | Survives turn ends; completed state stays in viewport until new `task.set` |
 | **Work Notes (`<notes>`)** | Ephemeral drafts, candidates, and working scratchpad | Preserved across turns in current session |
 | **Conversation Memory (`<conversationMemory>`)** | Confirmed facts, user preferences, and key architectural decisions | Preserved across turns in current session |
 | **Long-Term Memory (`<projectMemory>`)** | Shared domain conventions, environmental preferences, and persistent facts | Globally shared across all sessions |
