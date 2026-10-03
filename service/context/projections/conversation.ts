@@ -25,8 +25,6 @@ export type ConversationPayload = {
   conversationHistorySummary: ReturnType<typeof turnSummaryView> | string;
   task: ConversationTaskPayload;
   turns: ConversationTurnSlice[];
-  /** Session-wide reflection tally: how many反思 this session has, and the latest focus. */
-  reflectionStatus: { count: number; latestId?: string; latestFocus?: string } | null;
   /** Shared rolling pool: newest calls across all turns. */
   toolIO: ReturnType<typeof toolHistoryView>;
   /** Pool bounds; rendered as <toolIO> attributes so the range is readable without opening the pool. */
@@ -125,21 +123,11 @@ export function conversationPayload(input: {
           : null),
     });
   }
-  const reflectItems = [...reflectByTurn.values()].flat();
-  const latestReflect = reflectItems[reflectItems.length - 1];
-  const reflectionStatus = reflectItems.length
-    ? {
-        count: reflectItems.length,
-        ...(latestReflect?.id ? { latestId: latestReflect.id } : {}),
-        ...(latestReflect?.focus ? { latestFocus: latestReflect.focus } : {}),
-      }
-    : null;
   const sessionCalls = ledger.toolIO;
   const activePlan = ledger.activeTaskId ? ledger.tasks.find((plan) => plan.id === ledger.activeTaskId) : null;
   const latestPlan = activePlan ?? ledger.tasks.at(-1) ?? null;
   const taskPayload: ConversationTaskPayload = taskView(latestPlan);
   return {
-    reflectionStatus,
     conversationMemory: input.memories.conversation,
     conversationHistorySummary: Array.isArray(input.conversationSummaries)
       ? turnSummaryView(input.conversationSummaries)
@@ -170,7 +158,6 @@ const tag = (name: string, value: unknown, attributes?: Record<string, string>) 
 export function conversationXml(payload: ConversationPayload): string {
   const emptyTag = /^<(\w+)(?:\s[^>]*)?>\n(null|""|\[\]|\{\})\n<\/\1>$/;
   const parts = [
-    tag("reflectionStatus", payload.reflectionStatus),
     tag("conversationMemory", payload.conversationMemory),
     tag("conversationHistorySummary", payload.conversationHistorySummary),
     tag("task", payload.task),
