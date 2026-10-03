@@ -41,7 +41,7 @@ const slot = (user: string, name: string): any => {
   }
   if (key === "notes" || key === "toolIO" || key === "userInput" || key === "goal" || key === "task") {
     const conversation = String(xmlSlots(user).conversation ?? "");
-    const turn = conversation.match(/<tn_[^>]+>\n([\s\S]*?)\n<\/tn_[^>]+>/);
+    const turn = conversation.match(/<turn[^>]*>\n([\s\S]*?)\n<\/turn>/);
     const body = turn?.[1] ?? conversation;
     const m = body.match(new RegExp(`<${key}>\\n([\\s\\S]*?)\\n</${key}>`));
     return m ? JSON.parse(m[1]!) : key === "notes" ? {} : [];

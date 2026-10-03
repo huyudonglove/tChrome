@@ -10,7 +10,7 @@ export type ConversationTurnSlice = {
   turnId: string;
   userInput: { id: string; turnId: string; userInput: string };
   /** First–last callId of this turn (ids are per-conversation sequential). */
-  callRange: string | null;
+  callBounds: { from: string; to: string } | null;
   observations: ReturnType<typeof pageView>[];
   notes: Record<string, string>;
   reflection: { turnId: string; items: { id: string; text: string; focus?: string }[] } | null;
@@ -99,10 +99,8 @@ export function conversationPayload(input: {
     turns.push({
       turnId: row.turnId,
       userInput: { id: row.id, turnId: row.turnId, userInput: row.userInput },
-      callRange: toolRows.length
-        ? (toolRows[0]!.callId === toolRows.at(-1)!.callId
-          ? toolRows[0]!.callId
-          : `${toolRows[0]!.callId}–${toolRows.at(-1)!.callId}`)
+      callBounds: toolRows.length
+        ? { from: toolRows[0]!.callId, to: toolRows.at(-1)!.callId }
         : null,
       observations: pages.map((page) => pageView(page, currentTurn)).filter((page) => page !== null),
       notes: (isLive ? ledger.notes : notesByTurn[row.turnId]) ?? {},
@@ -170,14 +168,18 @@ export function conversationXml(payload: ConversationPayload): string {
     const slice = raw as ConversationTurnSlice;
     const fields = [
       tag("userInput", slice.userInput),
-      ...(slice.callRange ? [tag("callRange", slice.callRange)] : []),
       tag("observations", slice.observations),
       tag("notes", slice.notes),
       tag("reflection", slice.reflection),
       tag("query", slice.query),
       tag("stopReason", slice.stopReason),
     ].filter((block) => !emptyTag.test(block));
-    parts.push(`<${slice.turnId}>\n${fields.join("\n")}\n</${slice.turnId}>`);
+    const turnAttrs: Record<string, string> = { turnId: slice.turnId };
+    if (slice.callBounds) {
+      turnAttrs.from = slice.callBounds.from;
+      turnAttrs.to = slice.callBounds.to;
+    }
+    parts.push(`<turn${Object.entries(turnAttrs).map(([k, v]) => attr(k, v)).join("")}>\n${fields.join("\n")}\n</turn>`);
   }
   // Shared tool pool at the bottom: session range as attributes + newest call details only.
   const bounds = payload.toolIOBounds;

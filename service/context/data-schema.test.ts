@@ -40,8 +40,8 @@ test("assembled User slots follow the shared data contract", () => {
   expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
   expect(values.conversation).toContain("<conversationMemory>");
   expect(values.conversation).toContain("<conversationHistorySummary>");
-  expect(values.conversation).toContain("<tn_01>");
-  expect(values.conversation).toContain("<tn_02>");
+  expect(values.conversation).toContain('<turn turnId="tn_01"');
+  expect(values.conversation).toContain('<turn turnId="tn_02"');
   expect(values.conversation).toContain("检查状态");
   expect(values.conversation).toContain("当时状态是什么？");
   expect(values.conversation).toContain("仅核对");

@@ -57,8 +57,8 @@ test("user window renders B-style XML modules with data under 内容", () => {
   expect(output).toContain("内容：\n技能正文");
   expect(output).toContain("用户输入");
   expect(output).toContain('<conversation id="cv_xml">');
-  expect(output).toContain("<tn_01>");
-  expect(output).toContain("</tn_01>");
+  expect(output).toContain('<turn turnId="tn_01">');
+  expect(output).toContain("</turn>");
   const topTags = Array.from(output.matchAll(/^<([A-Za-z][A-Za-z0-9]*)(?: [a-z]+="[^"]*")*>\n能力：/gm), m => m[1]);
   expect(topTags).toEqual(modules.userOrder.map(tag => tag.slice(1)));
 });

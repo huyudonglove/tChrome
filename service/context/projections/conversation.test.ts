@@ -29,7 +29,7 @@ describe("<task> 会话级任务插槽", () => {
       turns: [{
         turnId: "tn_01",
         userInput: { id: "input_01", turnId: "tn_01", userInput: "hello" },
-        callRange: null,
+        callBounds: null,
         actions: null,
         observations: [],
         notes: null,
@@ -44,8 +44,8 @@ describe("<task> 会话级任务插槽", () => {
     expect(xml).toContain('"id": "task_01"');
     expect(xml).toContain('"status": "active"');
     expect(xml).not.toContain('"events"');
-    // <tn_01> 内不应嵌套 <task>
-    const turnContent = xml.slice(xml.indexOf("<tn_01>"), xml.indexOf("</tn_01>"));
+    // <turn> 内不应嵌套 <task>
+    const turnContent = xml.slice(xml.indexOf("<turn "), xml.indexOf("</turn>"));
     expect(turnContent).not.toContain("<task>");
   });
 

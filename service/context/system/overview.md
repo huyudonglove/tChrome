@@ -20,7 +20,7 @@
 - <skill>：本会话已加载的动态技能正文。
 - <systemSkill>：常驻技能正文与动态技能清单。
 - <projectMemory>：跨会话记忆。
-- <conversation>：会话时间线。会话级 <conversationMemory>、<conversationHistorySummary>、按 turnId 嵌套的 <tn_xx> 轮次切片，以及底部全会话公用的 <toolIO>（跨轮滚动池，属性 from/to/kept/total 标出会话级调用范围与保留条数）。<tn_xx> 的二级标签与各轮材料的读取规则见 User 侧同名模块，枚举只在那里维护一处。
+- <conversation>：会话时间线。会话级 <conversationMemory>、<conversationHistorySummary>、按 turnId 嵌套的 <turn> 轮次切片（标签属性 turnId / from / to），以及底部全会话公用的 <toolIO>（跨轮滚动池，属性 from/to/kept/total 标出会话级调用范围与保留条数）。<turn> 的二级标签与各轮材料的读取规则见 User 侧同名模块，枚举只在那里维护一处。
 - <tools>：本会话已加载的动态工具。
 
 当前日期：{{currentDate}}。
