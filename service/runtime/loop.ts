@@ -12,7 +12,6 @@ import { errorInfo, errorMessage } from "../../shared/errors.ts";
 import { errorDetail } from "../../shared/error-details.ts";
 import { failedTool, toolFailure } from "../tools/result.ts";
 import { systemText, userText, windowChars } from "../context/window.ts";
-import { ContextBudgetError } from "../context/overflow.ts";
 import { beginExecution } from "./execution.ts";
 import { skillGuide, loadedSkillText } from "../skills/loader.ts";
 import { loadContextModules, type ContextModules } from "../context/modules.ts";
@@ -32,7 +31,7 @@ const OBSERVATION_NUDGE_FIRST_GATE = runtimeConfig.context.observationNudgeFirst
 const OBSERVATION_NUDGE_MIN_GATE = runtimeConfig.context.observationNudgeMinGate;
 const OBSERVATION_NUDGE_STEP = runtimeConfig.context.observationNudgeStep;
 // Compress-prep checkpoint: how much room above compressAt still allows deferring compression once
-// (below the hard externalize edge at externalizeAtChars, deferring further would risk context_limit).
+// (below the hard inline limit at hardLimitChars, deferring further would risk context_limit).
 const COMPRESS_NUDGE_HEADROOM = runtimeConfig.context.compressNudgeHeadroom;
 // Management / bookkeeping tools: their returns add no new evidence worth checkpointing.
 const OBSERVATION_NUDGE_EXCLUDED = new Set([
@@ -640,7 +639,7 @@ export async function handleTurn(
       const initialChars = windowChars(messages[0]!.content, messages[1]!.content);
       // Compress-prep checkpoint: compression turns this turn's tool returns into summaries and
       // pointers, so ask for one observation first — but only while the window still has headroom
-      // below the hard externalize edge, and only once per turn (compressNudgeSent). The next
+      // below the hard inline limit, and only once per turn (compressNudgeSent). The next
       // loop iteration compresses as usual; the gate is deferred by one send, never dropped.
       const deferForCheckpoint = !compressNudgeSent && writeCount === 0 && rows.length > 0
         && initialChars >= ledger.compressAt && initialChars < ledger.compressAt + COMPRESS_NUDGE_HEADROOM;
@@ -709,15 +708,15 @@ export async function handleTurn(
           return { conversationId: ledger.conversationId, turnId, stopReason: turn.stopReason };
         }
       }
-      // The send boundary compresses first, then externalizes oversized slot content while the
-      // view is over the inline budget. File publication precedes model dispatch.
+      // The send boundary compresses first, then fails the turn when the settled view is
+      // still over the hard inline limit.
       try {
         skillText = skillTextOf();
         messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, deps.dataDir, skillNav);
       } catch (error) {
         turn.status = "failed";
         turn.completedAt = nowIso();
-        turn.stopReason = { kind: "error", faultCode: error instanceof ContextBudgetError ? "context_limit" : "context_storage_failed",
+        turn.stopReason = { kind: "error", faultCode: "context_limit",
           detail: error instanceof Error ? error.message : String(error) };
         ledger.status = "failed";
         ledger.active = null;

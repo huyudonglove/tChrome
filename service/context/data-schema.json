@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "User 模块数据契约",
-  "description": "模型窗口各标签的逻辑值。skill / conversation / tools 为文本，其余标签取 JSON 解析后的值。conversation 为按 turnId 嵌套的 XML 时间线正文。ID 前缀与分配范围由 service/identity/catalog.json 定义。发送前受 externalizeAtChars 字符内联预算约束，除 tools 和 skill 外的数据模块可用本地文件引用替代；skill 始终保留完整文本，不参与压缩或裁剪。",
+  "description": "模型窗口各标签的逻辑值。skill / conversation / tools 为文本，其余标签取 JSON 解析后的值。conversation 为按 turnId 嵌套的 XML 时间线正文。ID 前缀与分配范围由 service/identity/catalog.json 定义。发送前受 hardLimitChars 字符内联预算约束，除 tools 和 skill 外的数据模块可用本地文件引用替代；skill 始终保留完整文本，不参与压缩或裁剪。",
   "type": "object",
   "properties": {
     "skill": {
@@ -15,15 +15,9 @@
             "anyOf": [
               {
                 "$ref": "#/$defs/memory"
-              },
-              {
-                "$ref": "#/$defs/contextFileReference"
               }
             ]
           }
-        },
-        {
-          "$ref": "#/$defs/contextFileReference"
         }
       ]
     },
@@ -70,33 +64,12 @@
           "type": "string"
         }
       },
-      "required": ["memoryId", "turnId", "text"],
+      "required": [
+        "memoryId",
+        "turnId",
+        "text"
+      ],
       "additionalProperties": true
-    },
-    "contextFileReference": {
-      "type": "object",
-      "properties": {
-        "contextFile": {
-          "type": "object",
-          "properties": {
-            "path": {
-              "type": "string"
-            },
-            "chars": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "format": {
-              "type": "string",
-              "enum": ["json", "text"]
-            }
-          },
-          "required": ["path", "chars", "format"],
-          "additionalProperties": false
-        }
-      },
-      "required": ["contextFile"],
-      "additionalProperties": false
     }
   }
 }

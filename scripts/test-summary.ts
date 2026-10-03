@@ -28,9 +28,9 @@ proc.on("close", (code) => {
   for (const line of lines) {
     const trimmed = line.trim();
     const passMatch = trimmed.match(/^(\d+)\s+pass$/);
-    if (passMatch) passCount = parseInt(passMatch[1], 10);
+    if (passMatch) passCount = parseInt(passMatch[1]!, 10);
     const failMatch = trimmed.match(/^(\d+)\s+fail$/);
-    if (failMatch) failCount = parseInt(failMatch[1], 10);
+    if (failMatch) failCount = parseInt(failMatch[1]!, 10);
     if (trimmed.startsWith("Ran ") && trimmed.includes("tests across")) {
       summaryLine = trimmed;
     }
@@ -58,6 +58,7 @@ proc.on("close", (code) => {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    if (line === undefined) continue;
 
     // 检测文件路径，形如 path/to/file.test.ts:
     if (/^[A-Za-z0-9_./-]+\.(?:test|spec)\.(?:ts|js|tsx|jsx):$/.test(line.trim())) {
@@ -73,7 +74,7 @@ proc.on("close", (code) => {
       }
       currentFailure = {
         file: currentFile,
-        testName: failTestMatch[1].trim(),
+        testName: failTestMatch[1]!.trim(),
         error: "",
         details: [],
       };

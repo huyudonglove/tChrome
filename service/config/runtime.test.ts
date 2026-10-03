@@ -6,13 +6,13 @@ const BASE = 200_000;
 test('derives gates from the base using the declared ratios', () => {
   const gates: Record<string, GateSpec> = {
     compressAtChars: { follow: 'contextWindowChars', ratio: 1 },
-    externalizeAtChars: { follow: 'contextWindowChars', ratio: 1.25 },
+    hardLimitChars: { follow: 'contextWindowChars', ratio: 1.25 },
     inlineChars: { follow: 'contextWindowChars', ratio: 0.02, cap: 4000 },
     previewChars: { follow: 'inlineChars', ratio: 0.1, floor: 200 },
   };
   expect(deriveGates(BASE, gates)).toEqual({
     compressAtChars: 200000,
-    externalizeAtChars: 250000,
+    hardLimitChars: 250000,
     inlineChars: 4000,
     previewChars: 400,
   });

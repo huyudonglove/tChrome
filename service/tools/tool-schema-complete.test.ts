@@ -42,7 +42,6 @@ test("download still requires url", () => {
 });
 
 test("all tool definition properties must declare explicit valid type", () => {
-  const definitions = registry.definitions;
   const issues: string[] = [];
 
   function validateProperties(props: Record<string, any> | undefined, toolName: string, prefix = "") {

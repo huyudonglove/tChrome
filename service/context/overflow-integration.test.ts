@@ -48,22 +48,12 @@ const slot = (user: string, name: string): any => {
   }
   return xmlSlots(user)[key];
 };
-const references = (value: unknown): { path: string; chars: number; format: string }[] => {
-  if (!value || typeof value !== "object") return [];
-  const object = value as Record<string, any>;
-  if (object.contextFile) return [object.contextFile];
-  return Object.values(object).flatMap(references);
-};
-const conversationReferences = (user: string): { path: string; chars: number; format: string }[] => {
-  const conversation = String(xmlSlots(user).conversation ?? "");
-  return [...conversation.matchAll(/"contextFile"\s*:\s*(\{[^}]+\})/g)].map(m => JSON.parse(m[1]!));
-};
 const provider = (run: (user: string) => CompletionResult): Provider => ({ complete: async ({ messages, tools }) => {
   if (tools.some(tool => tool.function.name === "submitTurnSummaries")) {
     const turns = compressionTurnsFromUserMessage(messages[1]!.content);
     return response({ id: "summary", name: "submitTurnSummaries", arguments: { tag: "容量测试", actions: "保存和读取文件", result: "成功" } });
   }
-  expect(messages.reduce((size, message) => size + message.content.length, 0)).toBeLessThanOrEqual(runtimeConfig.context.externalizeAtChars);
+  expect(messages.reduce((size, message) => size + message.content.length, 0)).toBeLessThanOrEqual(runtimeConfig.context.hardLimitChars);
   const values = xmlSlots(messages[1]!.content);
   expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
   return run(messages[1]!.content);
@@ -74,55 +64,6 @@ async function withDir(run: (dataDir: string) => Promise<void>) {
     primeActiveTask(dataDir);
   try { await run(dataDir); } finally { rmSync(dataDir, { recursive: true, force: true }); }
 }
-
-test("oversized notes stay durable, can be deleted by the model, and do not block the next turn", () => withDir(async dataDir => {
-  const value = "N".repeat(305_000);
-  const conversationId = newConversation(dataDir).conversationId!;
-    primeActiveTask(dataDir);
-  let step = 0;
-  const reply = await handleTurn({ dataDir, repoRoot, host, provider: provider(user => {
-    if (++step === 1) return response(call("notes_write", { key: "large", value }));
-    if (step === 2) {
-      const refs = conversationReferences(user);
-      expect(refs.length).toBeGreaterThan(0);
-      expect(readFileSync(refs[0]!.path, "utf8")).toContain(value);
-      const ledger = loadLedger(dataDir, conversationId);
-      expect(ledger.notes.large).toBe(value);
-      return response(call("notes_delete", { key: "large" }));
-    }
-    expect(slot(user, "#notes")).toEqual({});
-    return finish();
-  }) }, { userInput: "保存后删除大笔记", submittedAt: "now" });
-  expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
-  expect(step).toBe(3);
-  expect(loadLedger(dataDir, reply.conversationId).notes).toEqual({});
-  let nextCalls = 0;
-  const next = await handleTurn({ dataDir, repoRoot, host, provider: provider(() => { nextCalls++; return finish(); }) }, { userInput: "继续", submittedAt: "later" });
-  expect(next.stopReason.kind).toBe("reply");
-  expect(nextCalls).toBe(1);
-}));
-
-test("oversized project memory is referenced in a new conversation without losing its original text", () => withDir(async dataDir => {
-  const text = "P".repeat(305_000);
-  let step = 0;
-  const original = await handleTurn({ dataDir, repoRoot, host, provider: provider(() => ++step === 1
-    ? response(call("memory_writeProject", { scope: "tChrome", projectMemory: [text] })) : finish()) }, { userInput: "保存长期记忆", submittedAt: "now" });
-  expect(original.stopReason.kind).toBe("reply");
-  const fresh = newConversation(dataDir).conversationId!;
-    primeActiveTask(dataDir);
-  let calls = 0;
-  const reply = await handleTurn({ dataDir, repoRoot, host, provider: provider(user => {
-    calls++;
-    const refs = references(slot(user, "#projectMemory"));
-    expect(refs.length).toBeGreaterThan(0);
-    expect(readFileSync(refs[0]!.path, "utf8")).toContain(text);
-    return finish();
-  }) }, { userInput: "读取长期记忆", submittedAt: "later" });
-  expect(reply.conversationId).toBe(fresh);
-  expect(reply.stopReason.kind).toBe("reply");
-  expect(calls).toBe(1);
-  expect(loadMemories(dataDir, fresh, { conversation: [], project: [] }).project[0]!.text).toBe(text);
-}));
 
 test("large script results use evidence_search while small follow-up pages stay inline", () => withDir(async dataDir => {
   const code = "//PAGE_SENTINEL\n" + "x".repeat(305_000);
@@ -157,65 +98,25 @@ test("large script results use evidence_search while small follow-up pages stay 
   expect(readFileSync(join(dataDir, "scripts", "large.js"), "utf8")).toBe(code);
 }));
 
-test("individually small notes are externalized when their combined context exceeds 250K", () => withDir(async dataDir => {
+
+
+
+
+test("notes above the hard limit fail the turn with context_limit instead of being externalized", () => withDir(async dataDir => {
   const conversationId = newConversation(dataDir).conversationId!;
     primeActiveTask(dataDir);
   const ledger = loadLedger(dataDir, conversationId);
-  ledger.notes = Object.fromEntries(Array.from({ length: 4 }, (_, index) => [`note${index}`, String(index).repeat(85_000)]));
+  ledger.notes.draft = "N".repeat(Math.round(runtimeConfig.context.hardLimitChars * 1.1));
   saveLedger(dataDir, ledger);
   let calls = 0;
-  const reply = await handleTurn({ dataDir, repoRoot, host, provider: provider(user => {
-    calls++;
-    expect(conversationReferences(user).length).toBeGreaterThan(0);
-    return finish();
-  }) }, { userInput: "继续使用这些笔记", submittedAt: "now" });
-  expect(reply.stopReason.kind).toBe("reply");
-  expect(calls).toBe(1);
-  expect(loadLedger(dataDir, conversationId).notes).toEqual(ledger.notes);
-}));
-
-
-test("context storage failure stops before sending a broken reference to the model", () => withDir(async dataDir => {
-  const conversationId = newConversation(dataDir).conversationId!;
-    primeActiveTask(dataDir);
-  const ledger = loadLedger(dataDir, conversationId);
-  ledger.notes.large = "X".repeat(320_000);
-  saveLedger(dataDir, ledger);
-  writeFileSync(join(dataDir, "context-files"), "blocked directory");
-  let calls = 0;
-  const reply = await handleTurn({ dataDir, repoRoot, host, provider: provider(() => { calls++; return finish(); }) }, { userInput: "继续", submittedAt: "now" });
-  expect(reply.stopReason).toMatchObject({ kind: "error", faultCode: "context_storage_failed" });
-  expect((reply.stopReason as { detail?: string }).detail).toBeTruthy();
+  const reply = await handleTurn({ dataDir, repoRoot, host, provider: { complete: async () => { calls++; return finish(); } } }, { userInput: "继续", submittedAt: "now" });
+  expect(reply.stopReason).toMatchObject({ kind: "error", faultCode: "context_limit" });
   expect(calls).toBe(0);
-  expect(loadLedger(dataDir, conversationId).notes.large).toBe(ledger.notes.large);
-}));
-
-
-test("uncompressible notes between 250K and 312.5K remain inline and allow the main model to run", () => withDir(async dataDir => {
-  const conversationId = newConversation(dataDir).conversationId!;
-    primeActiveTask(dataDir);
-  const ledger = loadLedger(dataDir, conversationId);
-  ledger.notes.draft = "N".repeat(260_000);
-  saveLedger(dataDir, ledger);
-  let calls = 0;
-  const base = provider(user => {
-    calls++;
-    const notesView = slot(user, "#notes") as Record<string, string>;
-    expect(notesView).toEqual(ledger.notes);
-    expect(existsSync(join(dataDir, "context-files"))).toBe(false);
-    return finish();
-  });
-  const reply = await handleTurn({ dataDir, repoRoot, host, provider: { complete: async input => {
-    expect(input.tools.some(tool => tool.function.name === "submitTurnSummaries")).toBe(false);
-    expect(input.messages.reduce((size, message) => size + message.content.length, 0)).toBeGreaterThan(runtimeConfig.context.compressAtChars);
-    return base.complete(input);
-  } } }, { userInput: "继续", submittedAt: "now" });
-  expect(reply.stopReason.kind).toBe("reply");
-  expect(calls).toBe(1);
+  expect(existsSync(join(dataDir, "context-files"))).toBe(false);
   expect(loadLedger(dataDir, conversationId).notes).toEqual(ledger.notes);
 }));
 
-test("history above 250K is compressed before any content is externalized", () => withDir(async dataDir => {
+test("history above the compress threshold is compressed before the main model runs", () => withDir(async dataDir => {
   const conversationId = newConversation(dataDir).conversationId!;
     primeActiveTask(dataDir);
   const ledger = loadLedger(dataDir, conversationId);
@@ -237,14 +138,12 @@ test("history above 250K is compressed before any content is externalized", () =
     expect(summaries).toBeGreaterThan(0);
     const notesView = slot(user, "#notes") as Record<string, string>;
     expect(notesView).toEqual(ledger.notes);
-    expect(existsSync(join(dataDir, "context-files"))).toBe(false);
     return finish();
   });
   const reply = await handleTurn({ dataDir, repoRoot, host, provider: {complete: async input => {
     if (input.tools.some(tool => tool.function.name === "submitTurnSummaries")) {
       summaries++;
       expect(main).toBe(0);
-      expect(existsSync(join(dataDir, "context-files"))).toBe(false);
     } else {
       expect(input.messages.reduce((size, message) => size + message.content.length, 0)).toBeLessThan(runtimeConfig.context.compressAtChars);
     }

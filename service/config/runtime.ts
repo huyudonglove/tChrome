@@ -94,7 +94,7 @@ const results = {
 };
 const context = {
   compressAtChars: resolveGate("compressAtChars"),
-  externalizeAtChars: resolveGate("externalizeAtChars"),
+  hardLimitChars: resolveGate("hardLimitChars"),
   summaryRecompressMinActive: resolveGate("summaryRecompressMinActive"),
   // A summary level only folds into the next one once it holds more than this many rows.
   summaryFoldMinRows: resolveGate("summaryFoldMinRows"),
@@ -127,8 +127,8 @@ const context = {
 };
 
 // Relational invariants: a mis-scaled pair must fail at startup, not at runtime.
-if (!(context.externalizeAtChars > context.compressAtChars)) {
-  throw new Error("Invalid runtime configuration: context.externalizeAtChars must exceed context.compressAtChars");
+if (!(context.hardLimitChars > context.compressAtChars)) {
+  throw new Error("Invalid runtime configuration: context.hardLimitChars must exceed context.compressAtChars");
 }
 if (!(results.summaryChars <= results.inlineChars)) {
   throw new Error("Invalid runtime configuration: results.summaryChars must not exceed results.inlineChars");

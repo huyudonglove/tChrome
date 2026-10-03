@@ -161,10 +161,6 @@ export function conversationXml(payload: ConversationPayload): string {
     tag("task", payload.task),
   ].filter((block) => !emptyTag.test(block));
   for (const raw of payload.turns) {
-    if (raw && typeof raw === "object" && "contextFile" in (raw as object) && !("turnId" in (raw as object))) {
-      parts.push(tag("externalizedTurn", raw));
-      continue;
-    }
     const slice = raw as ConversationTurnSlice;
     const fields = [
       tag("userInput", slice.userInput),

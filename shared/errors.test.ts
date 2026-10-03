@@ -5,9 +5,9 @@ import { AppError, errorInfo, errorMessage, errorRecovery, modelSpeech } from ".
 describe("shared errors", () => {
   test("preserves structured errors and their diagnostic details", () => {
     const cause = new Error("disk full");
-    const error = new AppError("context_storage_failed", "write failed", { path: "/data" }, { cause });
+    const error = new AppError("compression_failed", "write failed", { path: "/data" }, { cause });
     expect(error.cause).toBe(cause);
-    expect(errorInfo(error)).toEqual({ faultCode: "context_storage_failed", detail: "write failed", details: { path: "/data" } });
+    expect(errorInfo(error)).toEqual({ faultCode: "compression_failed", detail: "write failed", details: { path: "/data" } });
     expect(errorInfo({ faultCode: "custom_code", detail: "domain detail", details: { value: 2 } })).toEqual({
       faultCode: "custom_code", detail: "domain detail", details: { value: 2 },
     });

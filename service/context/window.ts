@@ -4,7 +4,7 @@ import { renderSlots, systemTextFromModules, type ContextModules, type SlotAttri
 
 import { conversationPayload, conversationXml } from "./projections/conversation.ts";
 import { queryView, type QueryEvidence } from "./projections/queries.ts";
-import { externalizeContext } from "./overflow.ts";
+import { CONTEXT_INLINE_CHARS, ContextBudgetError } from "./overflow.ts";
 import { runtimeConfig } from "../config/runtime.ts";
 import { paths } from "../runtime/store.ts";
 
@@ -60,15 +60,11 @@ export function userText(input: {
     "#skill": input.skillText,
     "#projectMemory": memories.project,
     "#tools": input.toolGuide ?? "",
-    // JSON while externalizing so turn slices can be referenced individually; XML after.
     "#conversation": jsonBody(conversationData),
   };
   const render = (values: Record<string, string>, attributes: SlotAttributes = {}) =>
     renderSlots(contextModules.userOrder, contextModules.userSlots, values, attributes);
-  const settled = input.inlineBudget ? externalizeContext({
-    dataDir: input.inlineBudget.dataDir, slots,
-    measure: values => windowChars(input.inlineBudget!.system, render(conversationXmlSlots(values))),
-  }) : slots;
+  const settled = slots;
   const xmlValues = conversationXmlSlots(settled);
   // <conversation> self-reports who it is and how much of the window it costs. The read-out counts
   // its own attribute text, so settle it by iterating instead of trusting a single measure.
@@ -83,6 +79,12 @@ export function userText(input: {
       attributes = next;
     }
   }
+  if (input.inlineBudget) {
+    const chars = Number(attributes["#conversation"]?.chars ?? 0);
+    if (chars > CONTEXT_INLINE_CHARS) {
+      throw new ContextBudgetError(`Context inline budget exceeded: ${chars} characters; limit is ${CONTEXT_INLINE_CHARS}`);
+    }
+  }
   return render(xmlValues, attributes);
 }
 
@@ -92,12 +94,11 @@ function budgetReadout(chars: number): Record<string, string> {
   return { chars: String(chars), limit: String(limit), used: `${Math.round((chars / limit) * 100)}%` };
 }
 
-/** conversation slot stays JSON during externalize; render nested XML unless already a file reference. */
+/** The conversation slot holds a JSON array of turns; render it as nested XML. */
 function conversationXmlSlots(values: Record<string, string>): Record<string, string> {
   const body = values["#conversation"] ?? "";
   let parsed: unknown;
   try { parsed = JSON.parse(body); } catch { return values; }
-  if (parsed && typeof parsed === "object" && "contextFile" in (parsed as object)) return values;
   return { ...values, "#conversation": conversationXml(parsed as Parameters<typeof conversationXml>[0]) };
 }
 

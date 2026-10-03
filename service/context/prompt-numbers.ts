@@ -5,7 +5,7 @@ export function promptNumberSlots(): Record<string, string> {
   const ctx = runtimeConfig.context;
   return {
     compressAt: String(ctx.compressAtChars),
-    externalizeAt: String(ctx.externalizeAtChars),
+    hardLimitChars: String(ctx.hardLimitChars),
     summaryRecompressMin: String(ctx.summaryRecompressMinActive),
     summaryFoldMin: String(ctx.summaryFoldMinRows),
     keepBatches: String(ctx.keepToolBatches),

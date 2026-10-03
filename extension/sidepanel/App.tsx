@@ -244,7 +244,7 @@ const MdContent = ({ text }: { text: string }) => {
   return <div className="message-content" ref={ref} />;
 };
 
-function ToolGroupDrawer({ messages, startIndex }: { messages: UiMessage[]; startIndex: number }) {
+function ToolGroupDrawer({ messages, startIndex }: { messages: Message[]; startIndex: number }) {
   const [expanded, setExpanded] = useState(false);
   const hasLive = messages.some((m) => m.live);
   const count = messages.length;
@@ -751,15 +751,15 @@ export function App() {
               && (last?.role === "user" || last?.role === "tool" || !last);
 
             type RenderGroup =
-              | { type: "single"; message: UiMessage; originalIndex: number }
-              | { type: "toolGroup"; messages: UiMessage[]; startIndex: number };
+              | { type: "single"; message: Message; originalIndex: number }
+              | { type: "toolGroup"; messages: Message[]; startIndex: number };
 
             const groups: RenderGroup[] = [];
-            let currentTools: UiMessage[] = [];
+            let currentTools: Message[] = [];
             let toolStartIndex = 0;
 
             for (let i = 0; i < visible.length; i++) {
-              const msg = visible[i];
+              const msg = visible[i]!;
               if (msg.role === "tool") {
                 if (currentTools.length === 0) {
                   toolStartIndex = i;
@@ -770,7 +770,7 @@ export function App() {
                   if (currentTools.length >= 2) {
                     groups.push({ type: "toolGroup", messages: currentTools, startIndex: toolStartIndex });
                   } else {
-                    groups.push({ type: "single", message: currentTools[0], originalIndex: toolStartIndex });
+                    groups.push({ type: "single", message: currentTools[0]!, originalIndex: toolStartIndex });
                   }
                   currentTools = [];
                 }
@@ -781,7 +781,7 @@ export function App() {
               if (currentTools.length >= 2) {
                 groups.push({ type: "toolGroup", messages: currentTools, startIndex: toolStartIndex });
               } else {
-                groups.push({ type: "single", message: currentTools[0], originalIndex: toolStartIndex });
+                groups.push({ type: "single", message: currentTools[0]!, originalIndex: toolStartIndex });
               }
             }
 

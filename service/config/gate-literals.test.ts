@@ -13,7 +13,7 @@ const SERVICE_DIR = new URL('..', import.meta.url).pathname;
 // at 400) collide with unrelated numbers such as HTTP status codes.
 const GATE_VALUES = [
   runtimeConfig.context.compressAtChars,
-  runtimeConfig.context.externalizeAtChars,
+  runtimeConfig.context.hardLimitChars,
   runtimeConfig.results.inlineChars,
   runtimeConfig.results.imageInlineBytes,
 ];
