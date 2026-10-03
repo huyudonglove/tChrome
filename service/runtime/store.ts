@@ -90,6 +90,7 @@ export function emptyLedger(conversationId: string): Ledger {
     queryHistory: [],
     windowChars: 0,
     compressAt: runtimeConfig.context.compressAtChars,
+    turnRotateAt: runtimeConfig.context.turnRotateAtChars,
     memoryIds: { conversation: [], project: [] },
   };
 }

@@ -15,7 +15,7 @@ const recordDirectory = (dataDir: string, conversationId: string, kind: string) 
   join(dataDir, "conversations", conversationId, "context-records", kind);
 
 /** On turn close, persist non-empty reflect into ledger history (turn-scoped; compresses with the turn). */
-function archiveTurnReflection(ledger: Ledger, turn: Turn): void {
+export function archiveTurnReflection(ledger: Ledger, turn: Turn): void {
   if (!turn.reflect?.length) return;
   const items = turn.reflect.map(item => ({ ...item }));
   const at = turn.completedAt ?? nowIso();

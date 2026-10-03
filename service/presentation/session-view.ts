@@ -1,4 +1,5 @@
 import { errorMessage } from "../../shared/errors.ts";
+import { isContinuationInput, stripContinuationPrefix } from "../../shared/continuation.ts";
 import type { Ledger, LogEvent, Turn } from "../types.ts";
 
 const stopReasonText = (output: Turn["stopReason"]): string => {
@@ -11,6 +12,9 @@ const stopReasonText = (output: Turn["stopReason"]): string => {
   if (output.kind === "interrupted") {
     const who = output.initiatedBy === "user" ? "用户" : output.initiatedBy === "budget" ? "预算" : "服务";
     return [`已中断（${who}）`, output.detail || ""].filter(Boolean).join("\n");
+  }
+  if (output.kind === "rotated") {
+    return [`已闭合（单轮注入 ${output.turnDeltaChars} 字符）`, output.detail || ""].filter(Boolean).join("\n");
   }
   return `${output.name} ${output.callId}`;
 };
@@ -120,7 +124,9 @@ export function projectSessionView({ ledger, events, turns }: {
   const messages: SessionMessage[] = [];
   for (const turn of turns) {
     const turnId = turn.turnId;
-    messages.push({ turnId, role: "user", text: turn.input.text });
+    if (!isContinuationInput(turn.input.text)) {
+      messages.push({ turnId, role: "user", text: turn.input.text });
+    }
     const turnEvents = events.filter((event) => event.turnId === turnId);
     // Tool arguments supply progress; only turn.stopReason supplies the final reply.
     // Provider content and raw tool results stay in the logs.
@@ -189,7 +195,7 @@ export function projectConversationList(rows: { ledger: Ledger; lastTurn: Turn |
   return rows
     .map(({ ledger, lastTurn }) => {
       let preview = "新会话";
-      if (lastTurn) preview = lastTurn.input.text;
+      if (lastTurn) preview = stripContinuationPrefix(lastTurn.input.text);
       else if (ledger.userInputHistory.at(-1)) preview = ledger.userInputHistory.at(-1)?.userInput ?? "新会话";
       return {
         conversationId: ledger.conversationId,

@@ -9,6 +9,8 @@ export function promptNumberSlots(): Record<string, string> {
     summaryRecompressMin: String(ctx.summaryRecompressMinActive),
     summaryFoldMin: String(ctx.summaryFoldMinRows),
     keepBatches: String(ctx.keepToolBatches),
+    turnRotateAt: String(ctx.turnRotateAtChars),
+    maxRotations: String(ctx.maxTurnRotations),
     skillCatalogLimit: String(ctx.skillCatalogLimit),
     observationFirst: String(ctx.observationNudgeFirstGate),
     observationGate2: String(Math.max(ctx.observationNudgeMinGate, ctx.observationNudgeFirstGate - ctx.observationNudgeStep)),

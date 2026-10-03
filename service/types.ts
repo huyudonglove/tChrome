@@ -129,6 +129,10 @@ export type TurnStopReason =
   | { kind: "ask"; question: string }
   | { kind: "reply"; text: string }
   | { kind: "interrupted"; initiatedBy: "user" | "budget" | "service"; detail?: string }
+  // The turn was force-closed by the single-turn rotation gate; the caller may open
+  // a continuation turn. turnChars is the window size at closure, turnDeltaChars the
+  // part this turn itself injected.
+  | { kind: "rotated"; turnChars: number; turnDeltaChars: number; detail?: string }
   | { kind: "error"; faultCode: string; causeCode?: string; toolName?: string; detail?: string };
 
 export type Turn = {
@@ -203,6 +207,8 @@ export type Ledger = {
   queryHistory: QueryEvidence[];
   windowChars: number;
   compressAt: number;
+  /** Window size at which a turn whose own injected content crosses it is force-closed. */
+  turnRotateAt: number;
   memoryIds: { conversation: string[]; project: string[] };
 };
 

@@ -10,6 +10,7 @@ import { ensureThumb, loadThumbRef } from "../images/thumb.ts";
 import { deriveActiveScopes, projectMemories, renderScopeIndex } from "../memory/window.ts";
 import { errorInfo, errorMessage } from "../../shared/errors.ts";
 import { errorDetail } from "../../shared/error-details.ts";
+import { continuationInputText } from "../../shared/continuation.ts";
 import { failedTool, toolFailure } from "../tools/result.ts";
 import { systemText, userText, windowChars } from "../context/window.ts";
 import { beginExecution } from "./execution.ts";
@@ -63,7 +64,7 @@ const OBSERVATION_NUDGE_EXCLUDED = new Set([
   "finishTurn",
 ]);
 import type { ToolExecution } from "../tools/effects.ts";
-import { applyToolEffects } from "./effects.ts";
+import { applyToolEffects, archiveTurnReflection } from "./effects.ts";
 import type {
   Assembled,
   BrowserHost,
@@ -502,7 +503,15 @@ const runQueue = async (input: {
 
 export async function handleTurn(
   deps: LoopDeps,
-  body: { userInput: string; submittedAt: string; conversationId?: string },
+  body: {
+    userInput: string;
+    submittedAt: string;
+    conversationId?: string;
+    /** Set on a turn opened to continue a rotated one; forces its first send to compress. */
+    continuationOfTurnId?: string;
+    /** How many chained rotations already happened before this turn, for the cap check. */
+    rotations?: number;
+  },
 ): Promise<TurnReply> {
   // Route by the caller's conversation; the global pointer is only a fallback.
   const session = { conversationId: body.conversationId || ensureSession(deps.dataDir).conversationId };
@@ -575,6 +584,19 @@ export async function handleTurn(
     let observationNudgeGate = OBSERVATION_NUDGE_FIRST_GATE;
     // Compress-prep checkpoint: at most one deferred compression per turn.
     let compressNudgeSent = false;
+    // Rotation-prep checkpoint: at most one deferred forced close per turn.
+    let rotateNudgeSent = false;
+    // This turn's own baseline: its first settled window (user input only, no tool returns yet).
+    // Captured at the rotation check rather than at the first assembly so a continuation turn
+    // measures from *after* its forced compression — otherwise the compression it just paid for
+    // reads as negative growth and the turn never rotates. Rotation is judged on settledChars
+    // minus this baseline rather than the window total, so a turn opened on top of an already
+    // large history does not rotate on arrival.
+    let baseChars: number | null = null;
+    // A continuation turn inherits a window that is still over the rotation threshold.
+    // Compress it on the first send even while it is still below compressAt, otherwise it
+    // would rotate again immediately and the chain would never settle.
+    let forceCompress = body.continuationOfTurnId !== undefined;
     let imageBatchId: string | undefined;
     while (true) {
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
@@ -652,11 +674,15 @@ export async function handleTurn(
         state = contextState(deps.dataDir, ledger, turn, memories);
         messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir);
       }
-      if (!deferForCheckpoint && initialChars >= ledger.compressAt) {
+      if (!deferForCheckpoint && (forceCompress || initialChars >= ledger.compressAt)) {
         let compressionStarted = false;
         try {
           for (const phase of ["history", "current"] as const) {
-            if (windowChars(messages[0]!.content, messages[1]!.content) < ledger.compressAt) break;
+            // A forced compress runs even while the window is still below compressAt, then the
+            // flag is consumed so later sends of this turn compress on the normal threshold.
+            const forced = forceCompress;
+            forceCompress = false;
+            if (!forced && windowChars(messages[0]!.content, messages[1]!.content) < ledger.compressAt) break;
             const outcome = await compressContext({ ...deps, ledger, turn, memories, isCancelled: () => wasStopped(deps.dataDir, ledger.conversationId, turn.turnId), onStart: () => {
               if (!compressionStarted) appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-start", turnId, data: { source: "runtime", windowChars: initialChars } });
               compressionStarted = true;
@@ -706,6 +732,46 @@ export async function handleTurn(
           saveLedger(deps.dataDir, ledger);
           appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-error", turnId, data: { ...cause } });
           return { conversationId: ledger.conversationId, turnId, stopReason: turn.stopReason };
+        }
+      }
+      // Rotation: once this turn's own injected content passes the threshold, close it and let
+      // the caller reopen a continuation turn on the compressed history. Judged on the delta from
+      // this turn's own baseline, so a turn opened on an already large history does not rotate on
+      // arrival. Over the rotation cap the turn keeps running on the normal path and fails with
+      // context_limit rather than being cut off from its own answer.
+      const settledChars = windowChars(messages[0]!.content, messages[1]!.content);
+      // Baseline = this turn's first settled window, so the first send always reads as zero
+      // growth and a continuation turn does not count its own forced compression as shrinkage.
+      if (baseChars === null) baseChars = settledChars;
+      const turnDeltaChars = settledChars - baseChars;
+      if (turnDeltaChars >= ledger.turnRotateAt && (body.rotations ?? 0) < runtimeConfig.context.maxTurnRotations) {
+        // Close-prep checkpoint: a rotated turn ends without finishTurn, so whatever it concluded
+        // only survives if it was written down. Defer one send to ask for an observation first.
+        if (!rotateNudgeSent && writeCount === 0 && rows.length > 0) {
+          rotateNudgeSent = true;
+          const last = rows.at(-1);
+          if (last) {
+            last.return = { ...last.return, text: `${last.return.text}\n\n${OBSERVATION_NUDGE_MARKER} 本轮自身注入已达 ${turnDeltaChars} 字符（阈值 ${ledger.turnRotateAt}），下一轮将闭合本轮并从压缩后的历史续接。闭合时没有结论文本，这段时间的结论只剩指针。建议先用 observation_write 写一次阶段小结：现在处于什么状态、已确认哪些结论、哪些仍未验证、下一步从哪接。` };
+          }
+          state = contextState(deps.dataDir, ledger, turn, memories);
+          messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir);
+        } else {
+          // Same close path as a normal reply, so loadSettledTurnHistory sees this turn and the
+          // next turn is not blocked by a busy ledger.
+          const stopReason: TurnStopReason = { kind: "rotated", turnChars: settledChars, turnDeltaChars };
+          turn.status = "completed";
+          turn.completedAt = nowIso();
+          turn.stopReason = stopReason;
+          ledger.status = "idle";
+          ledger.active = null;
+          ledger.pendingAsk = null;
+          ledger.toolQueue = [];
+          ledger.liveTools = [];
+          archiveTurnReflection(ledger, turn);
+          saveTurn(deps.dataDir, turn);
+          saveLedger(deps.dataDir, ledger);
+          appendEvent(deps.dataDir, ledger.conversationId, { kind: "turn-stop-reason", turnId, data: { output: stopReason } });
+          return { conversationId: ledger.conversationId, turnId, stopReason };
         }
       }
       // The send boundary compresses first, then fails the turn when the settled view is
@@ -1069,4 +1135,28 @@ export async function handleTurn(
     });
     return { conversationId: ledger.conversationId, turnId, stopReason: turn.stopReason };
   } finally { execution.finish(); }
+}
+
+/**
+ * One submission can span several turns: a turn that crosses the rotation threshold closes with
+ * stopReason "rotated" and this opens a continuation turn carrying the original user input plus a
+ * runtime prefix, so the work keeps going on the compressed history. handleTurn itself already
+ * refuses to rotate past the cap, so this loop is bounded by maxTurnRotations.
+ */
+export async function runTurnWithContinuation(
+  deps: LoopDeps,
+  body: { userInput: string; submittedAt: string; conversationId?: string },
+): Promise<TurnReply> {
+  let userInput = body.userInput;
+  let submittedAt = body.submittedAt;
+  let continuationOfTurnId: string | undefined;
+  let rotations = 0;
+  for (;;) {
+    const reply = await handleTurn(deps, { userInput, submittedAt, conversationId: body.conversationId, continuationOfTurnId, rotations });
+    if (reply.stopReason.kind !== "rotated" || rotations >= runtimeConfig.context.maxTurnRotations) return reply;
+    rotations += 1;
+    userInput = continuationInputText(body.userInput);
+    submittedAt = nowIso();
+    continuationOfTurnId = reply.turnId;
+  }
 }

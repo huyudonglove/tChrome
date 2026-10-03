@@ -103,6 +103,12 @@ const context = {
   foldHigherChunk: resolveGate("foldHigherChunk"),
   foldMaxLevel: resolveGate("foldMaxLevel"),
   keepToolBatches: resolveGate("keepToolBatches"),
+  // A turn whose own injected content reaches this share of the window is closed early and
+  // continued in a fresh turn, so one long turn cannot crowd out the history it depends on.
+  turnRotateAtChars: resolveGate("turnRotateAtChars"),
+  // Hard cap on chained continuations: past it the turn ends normally instead of rotating again,
+  // so an incompressible window surfaces as context_limit rather than looping forever.
+  maxTurnRotations: resolveGate("maxTurnRotations"),
   toolioRingSize: resolveGate("toolioRingSize"),
   // How many dynamic skills the System-side catalog lists by default; the rest stay
   // reachable through skill_list (which pages over the full set).

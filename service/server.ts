@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, mkdirSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
-import { handleTurn, type LoopDeps } from "./runtime/loop.ts";
+import { runTurnWithContinuation, type LoopDeps } from "./runtime/loop.ts";
 import { resolveProxy } from "./provider/uuapi.ts";
 import { configuredProvider, isProviderName, providerApiKeyEnv, providerOptions } from "./provider/config.ts";
 import { ensureSession, loadSession, defaultDataDir, currentSessionView, listConversations, listConversationIds, openConversation, newConversation, deleteConversation, stopTurn } from "./runtime/store.ts";
@@ -284,7 +284,7 @@ export function createServer(options: ServeOptions = {}) {
           return respond({ stopReason: { kind: "error", faultCode: "unknown_conversation" } }, 404);
         }
         const submittedAt = body.submittedAt || new Date().toISOString();
-        const reply = await handleTurn(deps, { userInput, submittedAt, conversationId: body.conversationId });
+        const reply = await runTurnWithContinuation(deps, { userInput, submittedAt, conversationId: body.conversationId });
         return respond(reply);
       }
       if (request.method === "POST" && url.pathname === "/stop") {
