@@ -51,7 +51,7 @@ export type LastAction = {
 };
 
 export type TaskItemStatus = "todo" | "doing" | "done";
-export type TaskStatus = "active" | "completed" | "cancelled";
+export type TaskStatus = "active" | "paused" | "completed" | "cancelled";
 
 export type TaskItem = {
   id: string;
@@ -85,7 +85,9 @@ export type TaskHistoryType =
   | "item_updated"
   | "item_completed"
   | "task_completed"
-  | "task_cancelled";
+  | "task_cancelled"
+  | "task_paused"
+  | "task_resumed";
 
 export type TaskHistoryRecord = {
   id: string;

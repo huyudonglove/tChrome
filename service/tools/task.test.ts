@@ -7,7 +7,7 @@ import { applyToolEffects } from "../runtime/effects.ts";
 import { emptyLedger, loadLedger } from "../runtime/store.ts";
 import { loadToolRegistry, toolSchemas } from "./registry.ts";
 import { checkToolCalls } from "./schema.ts";
-import { autoCompleteActiveTask, executionContext } from "../runtime/tasks.ts";
+import { autoCompleteActiveTask, executionContext, pauseActiveTask } from "../runtime/tasks.ts";
 import type { Turn } from "../types.ts";
 
 const repoRoot = new URL("../../", import.meta.url).pathname;
@@ -267,3 +267,38 @@ test("task_update supports recording outcome on done", async () => {
 });
 
 
+
+test("unfinished active task pauses at turn close and resumes on update", async () => {
+  const fx = fixture();
+  try {
+    fx.apply(await fx.execute("task_set", {
+      reason: "测试轮次暂停",
+      items: [{ text: "继续处理", status: "doing" }],
+    }), "c1", "task_set");
+
+    expect(pauseActiveTask(fx.dataDir, fx.ledger, "tn_plan")).toBe(true);
+    expect(fx.ledger.tasks[0]?.status).toBe("paused");
+    expect(fx.ledger.activeTaskId).toBeNull();
+    expect(fx.ledger.taskHistory.at(-1)).toMatchObject({
+      taskId: "task_01",
+      type: "task_paused",
+      reason: "turn_closed",
+      after: { status: "paused" },
+    });
+
+    fx.apply(await fx.execute("task_update", {
+      taskId: "task_01",
+      reason: "恢复任务",
+      items: [{ id: "item_01", status: "doing" }],
+    }), "c2", "task_update");
+    expect(fx.ledger.tasks[0]?.status).toBe("active");
+    expect(fx.ledger.activeTaskId).toBe("task_01");
+    expect(fx.ledger.taskHistory.at(-1)).toMatchObject({
+      taskId: "task_01",
+      type: "task_resumed",
+      after: { status: "active" },
+    });
+  } finally {
+    fx.cleanup();
+  }
+});

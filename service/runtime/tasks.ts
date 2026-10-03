@@ -152,7 +152,22 @@ export function prepareTaskUpdate(dataDir: string, context: TaskContext, args: T
   const taskId = typeof args.taskId === "string" && args.taskId.trim() ? args.taskId.trim() : ledger.activeTaskId;
   if (!taskId) throw new Error(errorDetail("task_update_need_active"));
   const plan = findPlan(ledger, taskId);
-  if (plan.status !== "active") throw new Error(errorDetail("task_update_terminal", { id: plan.id }));
+  if (plan.status !== "active" && plan.status !== "paused") {
+    throw new Error(errorDetail("task_update_terminal", { id: plan.id }));
+  }
+  const wasPaused = plan.status === "paused";
+  if (wasPaused) {
+    plan.status = "active";
+    delete plan.completedAt;
+    touchPlan(plan, context.turnId);
+    pushHistory(dataDir, ledger, {
+      taskId: plan.id,
+      type: "task_resumed",
+      before: { status: "paused" },
+      after: { status: "active" },
+      reason: "task_update",
+    }, context.turnId);
+  }
 
   const raw = Array.isArray(args.items) ? args.items : [];
   if (!raw.length) throw new Error(errorDetail("task_update_empty_items"));
@@ -281,6 +296,26 @@ export function prepareTaskComplete(dataDir: string, context: TaskContext, args:
  * zombie plan behind, so the loop closes it instead of relying on the model to call
  * task_complete. Returns true when the ledger changed and needs persisting.
  */
+export function pauseActiveTask(dataDir: string, ledger: Ledger, turnId: string): boolean {
+  const taskId = ledger.activeTaskId;
+  if (!taskId) return false;
+  const plan = ledger.tasks.find((row) => row.id === taskId);
+  if (!plan || plan.status !== "active") return false;
+
+  const before = { status: plan.status };
+  plan.status = "paused";
+  touchPlan(plan, turnId);
+  pushHistory(dataDir, ledger, {
+    taskId: plan.id,
+    type: "task_paused",
+    before,
+    after: { status: "paused" },
+    reason: "turn_closed",
+  }, turnId);
+  setLedgerActive(ledger, null);
+  return true;
+}
+
 export function autoCompleteActiveTask(dataDir: string, ledger: Ledger, turnId: string): boolean {
   const taskId = ledger.activeTaskId;
   if (!taskId) return false;

@@ -888,7 +888,11 @@ export function App() {
             </div>
             <span className="plan-meta">
               {session.task.task.items.filter((item) => item.status === "done").length}/{session.task.task.items.length}
-              {session.task.task.status === "completed" ? " · 已完成" : ""}
+              {session.task.task.status === "completed"
+                ? " · 已完成"
+                : session.task.task.status === "paused"
+                  ? " · 已暂停"
+                  : ""}
             </span>
           </button>
           {!taskCollapsed ? (
