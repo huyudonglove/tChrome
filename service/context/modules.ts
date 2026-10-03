@@ -139,19 +139,35 @@ function loadXmlModule(dir: string, entry: ModuleRegistryEntry): ContextModule {
   };
 }
 
+/** Attribute values are data, not markup: escape the five XML metacharacters. */
+const xmlAttr = (value: string) => value
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+
+/** Per-tag attribute maps: tag (with '#') -> attribute name -> value. */
+export type SlotAttributes = Record<string, Record<string, string>>;
+
 /** XML body for one module (B: capability + description + optional data). */
-function renderXmlModule(module: ContextModule, data?: string): string {
+function renderXmlModule(module: ContextModule, data?: string, attributes?: SlotAttributes[string]): string {
   const id = module.tag.replace(/^#/, "");
-  const head = `<${id}>\n能力：${module.capability}\n\n详细描述：\n${module.description ?? module.body}`;
+  const attrs = attributes
+    ? Object.entries(attributes).map(([k, v]) => ` ${k}="${xmlAttr(v)}"`).join("")
+    : "";
+  const head = `<${id}${attrs}>\n能力：${module.capability}\n\n详细描述：\n${module.description ?? module.body}`;
   if (data === undefined) return `${head}\n</${id}>`;
   return `${head}\n\n内容：\n${data}\n</${id}>`;
 }
 
-export function renderSlots(order: string[], files: Record<string, ContextModule>, data: Record<string, string>): string {
+export function renderSlots(
+  order: string[],
+  files: Record<string, ContextModule>,
+  data: Record<string, string>,
+  attributes: Record<string, Record<string, string>> = {},
+): string {
   return order.map(tag => {
     const module = files[tag];
     if (!module) throw new Error(`missing slot file ${tag}`);
-    return renderXmlModule(module, data[tag] ?? "");
+    return renderXmlModule(module, data[tag] ?? "", attributes[tag]);
   }).join("\n\n");
 }
 

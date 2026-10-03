@@ -1,6 +1,6 @@
 import type { Ledger, Turn } from "../types.ts";
 import { join } from "node:path";
-import { renderSlots, systemTextFromModules, type ContextModules } from "./modules.ts";
+import { renderSlots, systemTextFromModules, type ContextModules, type SlotAttributes } from "./modules.ts";
 
 import { conversationPayload, conversationXml } from "./projections/conversation.ts";
 import { queryView, type QueryEvidence } from "./projections/queries.ts";
@@ -63,12 +63,33 @@ export function userText(input: {
     // JSON while externalizing so turn slices can be referenced individually; XML after.
     "#conversation": jsonBody(conversationData),
   };
-  const render = (values: Record<string, string>) => renderSlots(contextModules.userOrder, contextModules.userSlots, values);
+  const render = (values: Record<string, string>, attributes: SlotAttributes = {}) =>
+    renderSlots(contextModules.userOrder, contextModules.userSlots, values, attributes);
   const settled = input.inlineBudget ? externalizeContext({
     dataDir: input.inlineBudget.dataDir, slots,
     measure: values => windowChars(input.inlineBudget!.system, render(conversationXmlSlots(values))),
   }) : slots;
-  return render(conversationXmlSlots(settled));
+  const xmlValues = conversationXmlSlots(settled);
+  // <conversation> self-reports who it is and how much of the window it costs. The read-out counts
+  // its own attribute text, so settle it by iterating instead of trusting a single measure.
+  let attributes: SlotAttributes = { "#conversation": { id: ledger.conversationId } };
+  if (input.inlineBudget) {
+    // The read-out counts its own attribute text, so iterate to a fixed point: the settled
+    // attributes are exactly the ones the reported chars was measured with.
+    for (let round = 0; round < 5; round++) {
+      const chars = windowChars(input.inlineBudget.system, render(xmlValues, attributes));
+      const next: SlotAttributes = { "#conversation": { id: ledger.conversationId, ...budgetReadout(chars) } };
+      if (JSON.stringify(next) === JSON.stringify(attributes)) break;
+      attributes = next;
+    }
+  }
+  return render(xmlValues, attributes);
+}
+
+/** Window occupancy as the model reads it: absolute size always paired with the limit it is measured against. */
+function budgetReadout(chars: number): Record<string, string> {
+  const limit = runtimeConfig.context.compressAtChars;
+  return { chars: String(chars), limit: String(limit), used: `${Math.round((chars / limit) * 100)}%` };
 }
 
 /** conversation slot stays JSON during externalize; render nested XML unless already a file reference. */

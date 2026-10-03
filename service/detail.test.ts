@@ -82,7 +82,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
         expect(sessionView(dataDir, f.cv).activity).toBeNull();
         const values = Object.fromEntries(modules.userOrder.map(tag => {
           const id = tag.slice(1);
-          const m = input.messages[1]!.content.match(new RegExp(`<${id}>\\n[\\s\\S]*?\\n\\n内容：\\n([\\s\\S]*?)\\n</${id}>`));
+          const m = input.messages[1]!.content.match(new RegExp(`<${id}(?:\\s[^>]*)?>\\n[\\s\\S]*?\\n\\n内容：\\n([\\s\\S]*?)\\n</${id}>`));
           const body = m![1]!;
           return [id, id === "skill" || id === "tools" || id === "conversation" ? body : JSON.parse(body)];
         }));

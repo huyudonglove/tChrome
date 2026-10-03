@@ -1,7 +1,9 @@
 import { expect, test } from "bun:test";
-import { resolve } from "node:path";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { loadContextModules, parseModule, renderSlots, systemTextFromModules } from "./modules.ts";
-import { systemText, userText } from "./window.ts";
+import { systemText, userText, windowChars } from "./window.ts";
 import { emptyLedger } from "../runtime/store.ts";
 import { promptNumberSlots, assertPromptNumbersMatchRuntime } from "./prompt-numbers.ts";
 import { SUMMARY_RECOMPRESS_MIN_ACTIVE } from "../agents/compression/index.ts";
@@ -9,7 +11,7 @@ import { runtimeConfig } from "../config/runtime.ts";
 import type { Turn } from "../types.ts";
 
 const root = resolve(import.meta.dir, "../..");
-const xmlTags = (text: string) => Array.from(text.matchAll(/^<([A-Za-z][A-Za-z0-9]*)>$/gm), m => m[1]);
+const xmlTags = (text: string) => Array.from(text.matchAll(/^<([A-Za-z][A-Za-z0-9]*)(?:\s[^>]*)?>$/gm), m => m[1]);
 
 test("registry loads XML modules and system text uses angle-bracket tags", () => {
   const modules = loadContextModules(root);
@@ -54,11 +56,38 @@ test("user window renders B-style XML modules with data under 内容", () => {
   expect(output).toContain("能力：");
   expect(output).toContain("内容：\n技能正文");
   expect(output).toContain("用户输入");
-  expect(output).toContain("<conversation>");
+  expect(output).toContain('<conversation id="cv_xml">');
   expect(output).toContain("<tn_01>");
   expect(output).toContain("</tn_01>");
-  const topTags = Array.from(output.matchAll(/^<([A-Za-z][A-Za-z0-9]*)>\n能力：/gm), m => m[1]);
+  const topTags = Array.from(output.matchAll(/^<([A-Za-z][A-Za-z0-9]*)(?: [a-z]+="[^"]*")*>\n能力：/gm), m => m[1]);
   expect(topTags).toEqual(modules.userOrder.map(tag => tag.slice(1)));
+});
+
+test("<conversation> reports its conversation id and window occupancy", () => {
+  const modules = loadContextModules(root);
+  const ledger = emptyLedger("cv_budget");
+  const turn: Turn = {
+    turnId: "tn_01", conversationId: "cv_budget", status: "inferring",
+    createdAt: "", completedAt: null,
+    input: { id: "input_01", text: "用户输入", submittedAt: "" },
+    stopReason: null,
+    assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [] },
+  };
+  const system = "系统窗口文本";
+  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-window-"));
+  try {
+    const output = userText({ contextModules: modules, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: "技能正文", inlineBudget: { dataDir, system } });
+    const head = output.match(/^<conversation ([^>]*)>/m)?.[1] ?? "";
+    expect(head).toContain('id="cv_budget"');
+    const chars = Number(head.match(/chars="(\d+)"/)?.[1]);
+    const limit = Number(head.match(/limit="(\d+)"/)?.[1]);
+    expect(limit).toBe(runtimeConfig.context.compressAtChars);
+    expect(head).toContain(`used="${Math.round((chars / limit) * 100)}%"`);
+    // The read-out must describe the very window it is rendered into, attributes included.
+    expect(chars).toBe(windowChars(system, output));
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true });
+  }
 });
 
 test("parseModule accepts B XML and rejects malformed shells", () => {
