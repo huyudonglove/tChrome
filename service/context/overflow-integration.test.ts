@@ -31,20 +31,47 @@ const nestedTag = (user: string, name: string): any => {
   const m = conversation.match(new RegExp(`<${name}>\\n([\\s\\S]*?)\\n</${name}>`));
   return m ? JSON.parse(m[1]!) : undefined;
 };
+// <toolIO> 池渲染成 <call ...> 兄弟元素：元数据在属性、arguments/result 在正文 JSON。
+const callRows = (xml: string): any[] => {
+  const rows: any[] = [];
+  const re = /<call\s+([^>]*)>\n([\s\S]*?)\n<\/call>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(xml))) {
+    const attrs: Record<string, string> = {};
+    for (const am of m[1]!.matchAll(/([A-Za-z][A-Za-z0-9]*)=\"([^\"]*)\"/g)) attrs[am[1]!] = am[2]!;
+    let payload: any;
+    try { payload = JSON.parse(m[2]!); } catch { payload = { body: m[2]! }; }
+    const { ok, ...rest } = attrs;
+    rows.push({ ...rest, ok: ok === "true", ...payload });
+  }
+  return rows;
+};
+// <notes> renders one <note key="…"> per entry: rebuild the map for slot assertions.
+const noteRows = (xml: string): Record<string, string> => {
+  const rows: Record<string, string> = {};
+  const re = /<note\s+([^>]*)>\n([\s\S]*?)\n<\/note>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(xml))) rows[/key="([^"]*)"/.exec(m[1]!)?.[1] ?? ""] = m[2]!;
+  return rows;
+};
 const slot = (user: string, name: string): any => {
   const key = name.replace(/^#/, "");
+  const conversation = String(xmlSlots(user).conversation ?? "");
   // toolIO is a shared pool at the bottom of <conversation>, not inside a turn slice.
   if (key === "toolIO") {
-    const conversationOnly = String(xmlSlots(user).conversation ?? "");
-    const pool = conversationOnly.match(/<toolIO(?:\s[^>]*)?>\n([\s\S]*?)\n<\/toolIO>/);
-    return pool ? JSON.parse(pool[1]!) : [];
+    const pool = conversation.match(/<toolIO(?:\s[^>]*)?>\n([\s\S]*?)\n<\/toolIO>/);
+    return pool ? callRows(pool[1]!) : [];
   }
-  if (key === "notes" || key === "toolIO" || key === "userInput" || key === "goal" || key === "task") {
-    const conversation = String(xmlSlots(user).conversation ?? "");
+  if (key === "notes") {
+    const notes = conversation.match(/<notes(?:\s[^>]*)?>\n([\s\S]*?)\n<\/notes>/);
+    return notes ? noteRows(notes[1]!) : {};
+  }
+  if (key === "userInput" || key === "goal" || key === "task") {
     const turn = conversation.match(/<turn[^>]*>\n([\s\S]*?)\n<\/turn>/);
     const body = turn?.[1] ?? conversation;
-    const m = body.match(new RegExp(`<${key}>\\n([\\s\\S]*?)\\n</${key}>`));
-    return m ? JSON.parse(m[1]!) : key === "notes" ? {} : [];
+    const m = body.match(new RegExp(`<${key}(?:\\s[^>]*)?>\\n([\\s\\S]*?)\\n</${key}>`));
+    if (!m) return [];
+    try { return JSON.parse(m[1]!); } catch { return m[1]!; }
   }
   return xmlSlots(user)[key];
 };
@@ -77,7 +104,7 @@ test("large script results use evidence_search while small follow-up pages stay 
       const toolIO = slot(user, "#toolIO");
       const row = toolIO.find((item: any) => item.name === "script_read");
       expect(row).toBeDefined();
-      const stub = JSON.parse(JSON.stringify(row.return.result));
+      const stub = JSON.parse(JSON.stringify(row.return));
       expect(stub.externalized).toBe(true);
       expect(String(stub.head ?? stub.summary).length).toBeGreaterThan(0);
       expect(String(stub.path)).toContain("returns");
@@ -86,7 +113,7 @@ test("large script results use evidence_search while small follow-up pages stay 
     const toolIO = slot(user, "#toolIO");
     const search = toolIO.find((row: any) => row.name === "evidence_search");
     expect(search).toBeDefined();
-    const parsed = typeof search.return.result === "string" ? JSON.parse(search.return.result) : search.return.result;
+    const parsed = typeof search.return === "string" ? JSON.parse(search.return) : search.return;
     const hit = parsed.results[0];
     expect(parsed.ok).toBe(true);
     expect(hit.matches[0].hit).toBe("PAGE_SENTINEL");

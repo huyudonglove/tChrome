@@ -39,9 +39,13 @@ describe("<task> 会话级任务标签", () => {
     }));
 
     // <task> 在外层顶层渲染且直接为任务实体（无 events 流水）
-    expect(xml).toContain("<task>\n");
-    expect(xml).toContain('"id": "task_01"');
-    expect(xml).toContain('"status": "active"');
+    // 标量元数据上提为属性，属性名带引号与等号，字段本身不丢
+    expect(xml).toContain('<task id="task_01"');
+    expect(xml).toContain('status="active"');
+    expect(xml).toContain('<item id="item_01" status="doing">');
+    // 非属性键仍留在正文，属性化只搬位置不删字段
+    expect(xml).toContain('{"text":"步骤1"}');
+    expect(xml).not.toContain('"id": "task_01"');
     expect(xml).not.toContain('"events"');
     // <turn> 内不应嵌套 <task>
     const turnContent = xml.slice(xml.indexOf("<turn "), xml.indexOf("</turn>"));

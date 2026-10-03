@@ -144,45 +144,170 @@ export function conversationPayload(input: {
   };
 }
 
-const jsonBody = (value: unknown) => JSON.stringify(value, null, 2);
+/** Compact JSON: the window pays per byte, so body payloads carry no indentation. */
+const jsonBody = (value: unknown) => JSON.stringify(value);
 /** Attribute values are data, not markup. */
 const attr = (name: string, value: string) => ` ${name}="${value.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}"`;
+const attrText = (attributes: Record<string, string>) =>
+  Object.entries(attributes).map(([k, v]) => attr(k, v)).join("");
 const tag = (name: string, value: unknown, attributes?: Record<string, string>) => {
-  const attrs = attributes ? Object.entries(attributes).map(([k, v]) => attr(k, v)).join("") : "";
+  const attrs = attributes ? attrText(attributes) : "";
   return `<${name}${attrs}>\n${typeof value === "string" ? value : jsonBody(value)}\n</${name}>`;
+};
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+
+const pickAttrs = (record: Record<string, unknown>, keys: string[]): Record<string, string> => {
+  const attrs: Record<string, string> = {};
+  for (const key of keys) {
+    const value = record[key];
+    if (value === undefined || value === null) continue;
+    attrs[key] = typeof value === "string" ? value : jsonBody(value);
+  }
+  return attrs;
+};
+
+const pickBody = (record: Record<string, unknown>, keys: string[]): Record<string, unknown> => {
+  const body: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (keys.includes(key) || value === undefined) continue;
+    body[key] = value;
+  }
+  return body;
+};
+
+/**
+ * One record as one element: the listed scalar keys become attributes, everything else
+ * stays in the body. Nothing is dropped, only relocated — that is the whole point.
+ */
+const recordXml = (name: string, record: Record<string, unknown>, keys: string[]): string => {
+  const attrs = attrText(pickAttrs(record, keys));
+  const body = pickBody(record, keys);
+  return Object.keys(body).length ? `<${name}${attrs}>\n${jsonBody(body)}\n</${name}>` : `<${name}${attrs} />`;
+};
+
+const element = (name: string, value: unknown, keys: string[]): string => {
+  const record = asRecord(value);
+  return record ? recordXml(name, record, keys) : "";
+};
+
+/** projectMemories() hands over JSON text while other slots pass prose; only arrays are claimed. */
+const tryParseArray = (text: string): unknown[] | null => {
+  try {
+    const parsed: unknown = JSON.parse(text);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+/** A list of records as sibling elements; pre-serialized JSON is parsed into the same shape. */
+const listXml = (name: string, items: unknown, keys: string[]): string => {
+  if (typeof items === "string") {
+    const parsed = tryParseArray(items);
+    return parsed ? parsed.map((item) => element(name, item, keys)).filter(Boolean).join("\n") : items;
+  }
+  if (!Array.isArray(items)) return "";
+  return items.map((item) => element(name, item, keys)).filter(Boolean).join("\n");
+};
+
+/** Scalar keys lifted to attributes, per record shape (see projections/). */
+const USER_INPUT_ATTRS = ["id", "turnId", "submittedAt"];
+const OBSERVATION_ATTRS = ["id", "turnId", "callId", "batchId", "tabId", "type", "taskId", "taskItemId", "writtenTurn", "validUntilTurn"];
+const MEMORY_ATTRS = ["memoryId", "turnId", "layer", "createdAt", "sourceCallId"];
+const SUMMARY_ATTRS = ["sumId", "turnId", "tag", "level", "turnIds", "from"];
+const REFLECT_ATTRS = ["id", "focus"];
+const QUERY_ATTRS = ["queryId", "turnId", "sumId", "module", "status", "ok", "faultCode", "sourceCallId", "currentQuery", "externalized", "totalChars", "totalLines", "lineWidth", "path", "search"];
+const TASK_ATTRS = ["id", "title", "status", "createdTurnId", "updatedTurnId"];
+const TASK_ITEM_ATTRS = ["id", "status", "expectedEffect", "verification", "blockedReason", "outcome"];
+const STOP_ATTRS = ["kind", "callId"];
+const CALL_ATTRS = ["callId", "turnId", "batchId", "name"];
+
+const notesXml = (notes: unknown): string => {
+  const record = asRecord(notes);
+  if (!record) return "";
+  const entries = Object.entries(record);
+  if (!entries.length) return "";
+  const body = entries
+    .map(([key, value]) => `<note${attr("key", key)}>\n${typeof value === "string" ? value : jsonBody(value)}\n</note>`)
+    .join("\n");
+  return `<notes>\n${body}\n</notes>`;
+};
+
+const taskXml = (plan: unknown): string => {
+  const record = asRecord(plan);
+  if (!record) return "";
+  const attrs = attrText(pickAttrs(record, TASK_ATTRS));
+  const items = Array.isArray(record.items) ? record.items : [];
+  if (!items.length) return `<task${attrs} />`;
+  const body = items.map((item) => recordXml("item", asRecord(item) ?? {}, TASK_ITEM_ATTRS)).join("\n");
+  return `<task${attrs}>\n${body}\n</task>`;
+};
+
+const reflectionXml = (reflection: unknown): string => {
+  const record = asRecord(reflection);
+  if (!record) return "";
+  const items = Array.isArray(record.items) ? record.items : [];
+  if (!items.length) return "";
+  const attrs = attrText(pickAttrs(record, ["turnId"]));
+  const body = items.map((item) => recordXml("reflect", asRecord(item) ?? {}, REFLECT_ATTRS)).join("\n");
+  return `<reflection${attrs}>\n${body}\n</reflection>`;
+};
+
+const stopReasonXml = (stop: unknown): string => {
+  const record = asRecord(stop);
+  if (!record) return "";
+  const attrs = attrText(pickAttrs(record, STOP_ATTRS));
+  const text = typeof record.text === "string" ? record.text : jsonBody(record.text);
+  return `<stopReason${attrs}>\n${text}\n</stopReason>`;
+};
+
+/** Tool pool entry: envelope keys plus outcome flags as attributes, arguments and result in the body. */
+const callXml = (value: unknown): string => {
+  const record = asRecord(value);
+  if (!record) return "";
+  const ret = asRecord(record.return) ?? {};
+  const result = asRecord(ret.result);
+  const attrs: Record<string, string> = pickAttrs(record, CALL_ATTRS);
+  if (ret.stage !== undefined) attrs.stage = String(ret.stage);
+  if (typeof result?.ok === "boolean") attrs.ok = String(result.ok);
+  const body = pickBody(record, CALL_ATTRS);
+  body.return = ret.result !== undefined ? ret.result : ret;
+  return `<call${attrText(attrs)}>\n${jsonBody(body)}\n</call>`;
 };
 
 /** Nested XML body for the conversation module data section. */
 export function conversationXml(payload: ConversationPayload): string {
-  const emptyTag = /^<(\w+)(?:\s[^>]*)?>\n(null|""|\[\]|\{\})\n<\/\1>$/;
   const parts = [
-    tag("conversationMemory", payload.conversationMemory),
-    tag("conversationHistorySummary", payload.conversationHistorySummary),
-    tag("task", payload.task),
-  ].filter((block) => !emptyTag.test(block));
+    listXml("memory", payload.conversationMemory, MEMORY_ATTRS),
+    listXml("summary", payload.conversationHistorySummary, SUMMARY_ATTRS),
+    taskXml(payload.task),
+  ].filter(Boolean);
   for (const raw of payload.turns) {
     const slice = raw as ConversationTurnSlice;
     const fields = [
-      tag("userInput", slice.userInput),
-      tag("observations", slice.observations),
-      tag("notes", slice.notes),
-      tag("reflection", slice.reflection),
-      tag("query", slice.query),
-      tag("stopReason", slice.stopReason),
-    ].filter((block) => !emptyTag.test(block));
+      element("userInput", slice.userInput, USER_INPUT_ATTRS),
+      listXml("observation", slice.observations, OBSERVATION_ATTRS),
+      notesXml(slice.notes),
+      reflectionXml(slice.reflection),
+      listXml("query", slice.query, QUERY_ATTRS),
+      stopReasonXml(slice.stopReason),
+    ].filter(Boolean);
     const turnAttrs: Record<string, string> = { turnId: slice.turnId };
     if (slice.callBounds) {
       turnAttrs.from = slice.callBounds.from;
       turnAttrs.to = slice.callBounds.to;
     }
-    parts.push(`<turn${Object.entries(turnAttrs).map(([k, v]) => attr(k, v)).join("")}>\n${fields.join("\n")}\n</turn>`);
+    parts.push(`<turn${attrText(turnAttrs)}>\n${fields.join("\n")}\n</turn>`);
   }
   // Shared tool pool at the bottom: session range as attributes + newest call details only.
   const bounds = payload.toolIOBounds;
+  const pool = Array.isArray(payload.toolIO) ? payload.toolIO.map(callXml).filter(Boolean).join("\n") : "";
   parts.push(
-    tag("toolIO", payload.toolIO, bounds
-      ? { from: bounds.from, to: bounds.to, kept: String(bounds.kept), total: String(bounds.total) }
-      : undefined),
+    `<toolIO${bounds ? attrText({ from: bounds.from, to: bounds.to, kept: String(bounds.kept), total: String(bounds.total) }) : ""}>\n${pool}\n</toolIO>`,
   );
   return parts.join("\n");
 }

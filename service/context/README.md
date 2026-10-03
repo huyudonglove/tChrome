@@ -47,7 +47,7 @@
 | 3 | tools | — | main |
 | 4 | conversation | — | main |
 
-`<conversation>` 内为会话级 `<conversationMemory>`、`<conversationHistorySummary>` 与按 turnId 嵌套的 `<turn>` 轮次切片（标签属性 turnId / from / to；二级标签 userInput / task / actions / observations / notes / reflection / query / stopReason）；外层底部为全会话公用 toolIO（详情滚动池，from/to/kept/total 见标签属性）；被压缩覆盖的轮次整块删除。
+`<conversation>` 内为会话级 `<memory>`、`<summary>`、`<task>` 与按 turnId 嵌套的 `<turn>` 轮次切片（标签属性 turnId / from / to；二级标签 userInput / observation / note / reflection / query / stopReason）；外层底部为全会话公用 `<toolIO>`（详情滚动池 `<call>` 元素，from/to/kept/total 见标签属性）；被压缩覆盖的轮次整块删除。
 
 ### Archive · 仅压缩
 
@@ -87,11 +87,13 @@ User 模块（含数据）：
 本会话过程记录。…
 
 内容：
-<conversationMemory>…</conversationMemory>
+<memory memoryId="mm_01" turnId="tn_01" layer="conversation">…</memory>
 <turn turnId="tn_01" from="call_01" to="call_12">
-<userInput>…</userInput>
-<toolIO>…</toolIO>
+<userInput id="input_01" turnId="tn_01">…</userInput>
 </turn>
+<toolIO from="call_01" to="call_12" kept="10" total="12">
+<call callId="call_01" turnId="tn_01" name="open_url">…</call>
+</toolIO>
 </conversation>
 ```
 

@@ -38,8 +38,8 @@ test("assembled User slots follow the shared data contract", () => {
     values[name] = name === "skill" || name === "tools" || name === "conversation" ? body : JSON.parse(body);
   }
   expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
-  expect(values.conversation).toContain("<conversationMemory>");
-  expect(values.conversation).toContain("<conversationHistorySummary>");
+  expect(values.conversation).toContain('<memory memoryId="mm_01"');
+  expect(values.conversation).toContain('<summary sumId="sum_01"');
   expect(values.conversation).toContain('<turn turnId="tn_01"');
   expect(values.conversation).toContain('<turn turnId="tn_02"');
   expect(values.conversation).toContain("检查状态");

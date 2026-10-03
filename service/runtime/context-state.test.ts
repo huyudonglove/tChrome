@@ -193,7 +193,7 @@ test("200K during a live tool loop compresses older batches before the next main
     const provider: Provider = { complete: async input => {
       if (input.tools[0]?.function.name === "submitTurnSummaries") { aux++; return summaryResponse(input.messages); }
       main++;
-      if (main === KEEP + 2) { expect(aux).toBeGreaterThan(0); expect(input.messages[1]!.content).toContain("<conversationHistorySummary>"); }
+      if (main === KEEP + 2) { expect(aux).toBeGreaterThan(0); expect(input.messages[1]!.content).toContain("<summary"); }
       return result({ toolCalls: main <= KEEP + 1
         ? [
             ...(main > 1 ? [{ id: `c${main}`, name: "checkContinue", arguments: { reason: "继续", cont: true } }] : []),
