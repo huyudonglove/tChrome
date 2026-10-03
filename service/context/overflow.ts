@@ -83,9 +83,8 @@ export function externalizeContext({dataDir, slots, measure}: {
         add(body, replacement, reference.path, true);
       }
     }
-    // Release notes first; preserve the current request until other content is exhausted.
-    const priority = (key: string) => key === '#notes' ? 0 : key === '#userInput' ? 2 : 1;
-    candidates.sort((a, b) => priority(a.key) - priority(b.key) || a.size - b.size);
+    // No slot priority: every remaining candidate is a real slot, so pick the biggest saving.
+    candidates.sort((a, b) => a.size - b.size);
     const selected = candidates[0];
     if (!selected) throw new ContextBudgetError(`Context inline budget exceeded: ${size} characters remain; limit is ${CONTEXT_INLINE_CHARS}, and no remaining slot can be externalized`);
     store(root, selected.path, selected.content);

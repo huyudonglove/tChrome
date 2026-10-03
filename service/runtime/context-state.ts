@@ -157,7 +157,7 @@ function archiveContentFromInventory(
   return content;
 }
 
-/** Called only inside the 200K send-boundary flow; sequential per-turn commits, never at turn completion. */
+/** Called only inside the send-boundary compression flow; sequential per-turn commits, never at turn completion. */
 export async function compressContext(input: CompressionInput, phase: "history" | "current" = "history"): Promise<CompressOutcome> {
   if (input.isCancelled()) throw new Error("compression_cancelled");
   const { ledger, turn, memories, dataDir, repoRoot } = input;

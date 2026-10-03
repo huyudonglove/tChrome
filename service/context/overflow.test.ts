@@ -28,13 +28,12 @@ test(`${INLINE} characters remain inline, larger content is stored whole with ab
   expect(slots['#notes']).toContain('中');
   expect(measure(result)).toBeLessThanOrEqual(CONTEXT_INLINE_CHARS);
 }));
-test('cumulative small slots respect the budget, retain tools and prefer retaining user input', () => temporary(dataDir => {
-  const slots = {'#tools': 't'.repeat(10000), '#notes': 'n'.repeat(90000), '#memory': 'm'.repeat(220000), '#userInput': 'u'.repeat(100000)};
+test('cumulative movable slots respect the budget and retain tools', () => temporary(dataDir => {
+  const slots = {'#tools': 't'.repeat(10000), '#projectMemory': 'm'.repeat(220000), '#conversation': 'c'.repeat(120000)};
   const result = externalizeContext({dataDir, slots, measure});
   expect(result['#tools']).toBe(slots['#tools']);
-  expect(result['#userInput']).toBe(slots['#userInput']);
-  expect(JSON.parse(result['#notes']!).contextFile).toBeDefined();
-  expect(JSON.parse(result['#memory']!).contextFile).toBeDefined();
+  expect(result['#conversation']).toBe(slots['#conversation']);
+  expect(JSON.parse(result['#projectMemory']!).contextFile).toBeDefined();
   expect(measure(result)).toBeLessThanOrEqual(CONTEXT_INLINE_CHARS);
 }));
 test('skill stays verbatim while repeated projections reuse externalized data', () => temporary(dataDir => {
@@ -82,11 +81,12 @@ test('stored conflicts and symlinks are refused without replacing existing conte
   expect(run).toThrow('conflicts');
 }));
 
-test('notes are externalized before a larger tool result when that alone meets the budget', () => temporary(dataDir => {
-  const slots = {'#notes': JSON.stringify({draft: 'n'.repeat(100000)}), '#toolIO': JSON.stringify([{result: 't'.repeat(230000)}])};
+test('the largest conversation record is externalized before a smaller sibling slot', () => temporary(dataDir => {
+  const slots = {'#conversation': JSON.stringify([{result: 't'.repeat(230000)}, {result: 'small record'}]), '#projectMemory': 'm'.repeat(100000)};
   const result = externalizeContext({dataDir, slots, measure});
-  const ref = JSON.parse(result['#notes']!).contextFile;
-  expect(readFileSync(ref.path, 'utf8')).toBe(slots['#notes']);
-  expect(result['#toolIO']).toBe(slots['#toolIO']);
+  const items = JSON.parse(result['#conversation']!);
+  expect(JSON.parse(readFileSync(items[0].contextFile.path, 'utf8'))).toEqual({result: 't'.repeat(230000)});
+  expect(items[1]).toEqual({result: 'small record'});
+  expect(result['#projectMemory']).toBe(slots['#projectMemory']);
   expect(measure(result)).toBeLessThanOrEqual(CONTEXT_INLINE_CHARS);
 }));

@@ -100,7 +100,7 @@ Due to Chrome's strict extension Content Security Policy (CSP), inline JavaScrip
 - **Isolated Widget Sandbox (`<tchrome-widget>`)**: Complex mini-apps (interactive calculators, dynamic charts, self-contained mini-games) are served via a local independent sandbox iframe outside extension CSP restrictions, ensuring both extension security and full-featured web app capabilities.
 
 ### 8. Lossless Context Compression & Query Agent
-When context approaches the threshold (250,000 characters), the Runtime invokes an independent **Compression Agent** to distill historical turns into structured records (user goals, actions taken, objective outcomes).
+When context approaches the configured compression threshold (`config.compressAtChars`), the Runtime invokes an independent **Compression Agent** to distill historical turns into structured records (user goals, actions taken, objective outcomes).
 Raw interaction logs and tool arguments remain intact on disk. When deep verification is needed, an independent **Query Agent** retrieves original excerpts on demand, controlling token costs without sacrificing historical fidelity.
 
 ### 9. Tiered Cognitive Architecture & Structured Library

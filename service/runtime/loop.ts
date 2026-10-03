@@ -709,8 +709,8 @@ export async function handleTurn(
           return { conversationId: ledger.conversationId, turnId, stopReason: turn.stopReason };
         }
       }
-      // The send boundary first compresses at 200K, then externalizes notes first only
-      // if the resulting view exceeds 250K. File publication precedes model dispatch.
+      // The send boundary compresses first, then externalizes oversized slot content while the
+      // view is over the inline budget. File publication precedes model dispatch.
       try {
         skillText = skillTextOf();
         messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, deps.dataDir, skillNav);
