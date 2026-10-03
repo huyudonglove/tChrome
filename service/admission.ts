@@ -442,14 +442,14 @@ function renderTree(tree: IndexTree, budget: number): string {
         used += body.length + 1;
         continue;
       }
-      const stub = `…${chunk.id} ${chunk.from}-${chunk.to}行/${chunk.chars}字（按 id 取回）`;
+      const stub = `…${chunk.id} 索引行${chunk.from}-${chunk.to}/${chunk.chars}字（按 id 取回）`;
       if (used + stub.length + 1 > budget) break;
       lines.push(stub);
       used += stub.length + 1;
       folded += 1;
     }
     if (folded) {
-      const note = `…上列${folded}块只给了 id 与区间，正文按 id 取回（evidence_search windows=[{callId,levelId}]）`;
+      const note = `…上列${folded}块只给了 id 与索引行区间，正文按 id 取回（evidence_search windows=[{callId,levelId}]）`;
       if (used + note.length + 1 <= budget) {
         lines.push(note);
         used += note.length + 1;
@@ -505,16 +505,17 @@ export function admitText(
       }))
     : undefined;
   const locate = meta.pageId ? `pageId=${meta.pageId}` : `callId=${meta.callId ?? ""}`;
-  // 可操作提示：降级文案不能只说「更精准」，得直接给出下一轮的 startLine 锚点。
-  // 锚点取块数最多的那一层（粒度最细），其 chunk.from 就是可直接用的起始行号。
+  // 可操作提示：降级文案不能只说「更精准」，得直接给出下一轮可用的取回锚点。
+  // chunk.from/to 是 packRows 打包后的索引行坐标，与 .txt 的折行坐标系（startLine 用的那套）
+  // 不同义，混用必然错位；唯一自洽的通道是按块 id 取回正文，所以主推 levelId。
   const finest = [...(layers ?? [])]
     .filter((layer) => layer.chunks.length > 0)
     .sort((a, b) => b.total - a.total)[0];
   const anchors = (finest?.chunks ?? []).slice(0, 3);
   const anchorHint = finest
-    ? `建议按最细一层 ${finest.id} 的锚点收窄：${anchors
-        .map((chunk) => `startLine=${chunk.from}${chunk.to > chunk.from ? `（${chunk.from}-${chunk.to} 行）` : ""}`)
-        .join(" 或 ")}（全文 ${totalLines} 行，共 ${finest.total} 块可按 id 取回）`
+    ? `建议按块取回（下面的区间是索引行，不能当 startLine 用）：${anchors
+        .map((chunk) => `levelId=${chunk.id}（索引行${chunk.from}-${chunk.to}/${chunk.chars}字）`)
+        .join(" 或 ")}（本层共 ${finest.chunks.length} 块可按 id 取回；全文 ${totalLines} 折行、每行约 ${lineWidth} 字，按行收窄请自行估 startLine）`
     : `建议按行收窄：startLine=1 起小段读（全文 ${totalLines} 行，约 ${lineWidth} 字/行）`;
   return {
     mode: "preview",
@@ -535,8 +536,8 @@ export function admitText(
       path: meta.path,
       ...(meta.indexPath ? { indexPath: meta.indexPath } : {}),
       message: structured
-        ? `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（summary 为分层目录，含 ${levels.join("、") || "L1"}；每层行内自带「本层覆盖/总量」，直接在该层定位或再往上翻一层；全文 ${totalLines} 行${meta.indexPath ? `；完整不截断索引已落盘 ${meta.indexPath}` : ""}）。要细节请更精准：evidence_search(windows=[{${locate},keyword|startLine}])，可一次带多个窗口；${anchorHint}；${RETRIEVAL_INLINE_NOTE}`
-        : `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（head 为原文前 ${previewChars} 字，全文 ${totalLines} 行）。要细节请更精准：evidence_search(windows=[{${locate},keyword|startLine}])，可一次带多个窗口；${anchorHint}；${RETRIEVAL_INLINE_NOTE}`,
+        ? `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（summary 为分层目录，含 ${levels.join("、") || "L1"}；每层行内自带「本层覆盖/总量」，直接在该层定位或再往上翻一层；全文 ${totalLines} 行${meta.indexPath ? `；完整不截断索引已落盘 ${meta.indexPath}` : ""}）。要细节请更精准：evidence_search(windows=[{${locate},keyword|startLine|levelId}])，可一次带多个窗口；${anchorHint}；${RETRIEVAL_INLINE_NOTE}`
+        : `runtime: 内容超过 ${inlineChars} 字符，已降级为摘要指针（head 为原文前 ${previewChars} 字，全文 ${totalLines} 行）。要细节请更精准：evidence_search(windows=[{${locate},keyword|startLine|levelId}])，可一次带多个窗口；${anchorHint}；${RETRIEVAL_INLINE_NOTE}`,
       search: "evidence_search",
     },
   };

@@ -322,10 +322,12 @@ test("admitText puts per-layer addressable chunk ids into the pointer payload", 
   }
   // 块正文不进指针，只带元数据
   expect(JSON.stringify(layers)).not.toContain("mod.ts:1 ");
-  // 降级提示直接给出最细一层的 startLine 锚点，模型不必再猜该往哪读。
+  // 降级提示主推 levelId 按块取回：chunk.from 是索引行坐标，与 startLine 的折行坐标不同义，
+  // 冒充 startLine 会让模型按提示取回时必然错位，所以断言里显式禁止它再出现。
   const hint = String(admitted.payload.message);
-  expect(hint).toContain(`startLine=${l1.chunks[0]?.from}`);
-  expect(hint).toContain(`共 ${l1.total} 块`);
+  expect(hint).toContain(`levelId=${l1.chunks[0]?.id}`);
+  expect(hint).toContain(`本层共 ${l1.chunks.length} 块可按 id 取回`);
+  expect(hint).not.toContain("startLine=");
   // 纯文本载荷抽不出层级 → 不带 layers
   const plain = admitText("z".repeat(overInline), { callId: "call_02", path: "/tmp/b.txt" });
   if (plain.mode !== "preview") throw new Error("mode");
