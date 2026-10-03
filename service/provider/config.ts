@@ -47,7 +47,7 @@ const rowOf = (name: string) => {
 export function configuredProvider(proxy: string | undefined, name = Bun.env.TCHROME_PROVIDER ?? "uuapi") {
   const row = rowOf(name);
   const model = Bun.env[row.modelEnv] ?? row.model;
-  const effort = (Bun.env[row.effortEnv ?? ""] ?? "medium") as "low" | "medium" | "high";
+  const effort = (Bun.env[row.effortEnv ?? ""] ?? "high") as "low" | "medium" | "high";
   if (row.effortEnv && !["low", "medium", "high"].includes(effort)) {
     throw new Error(`${row.effortEnv} must be low, medium or high`);
   }
