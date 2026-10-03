@@ -12,7 +12,7 @@ const payload = (extra: Partial<ConversationPayload>): ConversationPayload =>
     ...extra,
   }) as unknown as ConversationPayload;
 
-describe("<task> 会话级任务插槽", () => {
+describe("<task> 会话级任务标签", () => {
   test("renders <task> at session root level alongside turns", () => {
     const sampleTask = {
       id: "task_01",
