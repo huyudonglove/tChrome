@@ -38,7 +38,7 @@
 | --- | --- | --- |
 | `userInput` | `{id, turnId, userInput}` | `id` |
 | `callRange` | string \| null | 本段工具调用 ID 首尾（如 `call_01–call_12`；单次调用只一个 id） |
-| `toolIO` | 数组 | conversation 底部全会话公用池：仅最近 10 次调用保留详情，更早按各轮 callRange 用 evidence_search(callId) 取回 |
+| `toolIO` | 数组 | conversation 底部全会话公用池：仅最近 kept 条调用保留详情（kept / from / to / total 见标签属性），更早按各轮 callRange 用 evidence_search(callId) 取回 |
 | `observations` | `[{id, turnId, callId, batchId?, tabId, type, result}]` | `id` |
 | `notes` | `{key:text}` 本轮草稿 | turnId + key |
 | `reflection` | `{turnId, items:[{id,text,focus?}]}` 或 null | rf_ |

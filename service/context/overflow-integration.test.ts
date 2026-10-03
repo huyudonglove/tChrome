@@ -36,7 +36,7 @@ const slot = (user: string, name: string): any => {
   // toolIO is a shared pool at the bottom of <conversation>, not inside a turn slice.
   if (key === "toolIO") {
     const conversationOnly = String(xmlSlots(user).conversation ?? "");
-    const pool = conversationOnly.match(/<toolIO>\n([\s\S]*?)\n<\/toolIO>/);
+    const pool = conversationOnly.match(/<toolIO(?:\s[^>]*)?>\n([\s\S]*?)\n<\/toolIO>/);
     return pool ? JSON.parse(pool[1]!) : [];
   }
   if (key === "notes" || key === "toolIO" || key === "userInput" || key === "goal" || key === "task") {

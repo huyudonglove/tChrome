@@ -29,7 +29,7 @@ const section = (user: string, tag: string) => {
 };
 const collectNested = (user: string, tag: string): any[] => {
   const rows: any[] = [];
-  for (const m of user.matchAll(new RegExp(`<${tag}>\\n([\\s\\S]*?)\\n</${tag}>`, "g"))) {
+  for (const m of user.matchAll(new RegExp(`<${tag}(?:\\s[^>]*)?>\\n([\\s\\S]*?)\\n</${tag}>`, "g"))) {
     const parsed = JSON.parse(m[1]!);
     if (Array.isArray(parsed)) rows.push(...parsed);
     else rows.push(parsed);

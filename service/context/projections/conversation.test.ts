@@ -8,7 +8,7 @@ const payload = (extra: Partial<ConversationPayload>): ConversationPayload =>
     conversationMemory: [],
     conversationHistorySummary: [],
     turns: [],
-    toolRange: null,
+    toolIOBounds: null,
     toolIO: [],
     ...extra,
   }) as unknown as ConversationPayload;

@@ -25,12 +25,12 @@ export type ConversationPayload = {
   conversationHistorySummary: ReturnType<typeof turnSummaryView> | string;
   task: ConversationTaskPayload;
   turns: ConversationTurnSlice[];
-  /** Session-wide first–last callId; detail lives only in the shared toolIO pool below. */
-  toolRange: string | null;
-  /** Shared rolling pool: newest calls across all turns. */
   /** Session-wide reflection tally: how many反思 this session has, and the latest focus. */
   reflectionStatus: { count: number; latestId?: string; latestFocus?: string } | null;
+  /** Shared rolling pool: newest calls across all turns. */
   toolIO: ReturnType<typeof toolHistoryView>;
+  /** Pool bounds; rendered as <toolIO> attributes so the range is readable without opening the pool. */
+  toolIOBounds: { from: string; to: string; kept: number; total: number } | null;
 };
 
 const taskView = (plan: Task | null | undefined) => {
@@ -146,21 +146,29 @@ export function conversationPayload(input: {
       : input.conversationSummaries ?? [],
     task: taskPayload,
     turns,
-    toolRange: sessionCalls.length
-      ? (sessionCalls[0]!.callId === sessionCalls.at(-1)!.callId
-        ? sessionCalls[0]!.callId
-        : `${sessionCalls[0]!.callId}–${sessionCalls.at(-1)!.callId}`)
-      : null,
     toolIO: toolHistoryView(sessionCalls.slice(-runtimeConfig.context.toolioRingSize), [], ringCallIds),
+    toolIOBounds: sessionCalls.length
+      ? {
+          from: sessionCalls[0]!.callId,
+          to: sessionCalls.at(-1)!.callId,
+          kept: Math.min(sessionCalls.length, runtimeConfig.context.toolioRingSize),
+          total: sessionCalls.length,
+        }
+      : null,
   };
 }
 
 const jsonBody = (value: unknown) => JSON.stringify(value, null, 2);
-const tag = (name: string, value: unknown) => `<${name}>\n${typeof value === "string" ? value : jsonBody(value)}\n</${name}>`;
+/** Attribute values are data, not markup. */
+const attr = (name: string, value: string) => ` ${name}="${value.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}"`;
+const tag = (name: string, value: unknown, attributes?: Record<string, string>) => {
+  const attrs = attributes ? Object.entries(attributes).map(([k, v]) => attr(k, v)).join("") : "";
+  return `<${name}${attrs}>\n${typeof value === "string" ? value : jsonBody(value)}\n</${name}>`;
+};
 
 /** Nested XML body for the conversation module data section. */
 export function conversationXml(payload: ConversationPayload): string {
-  const emptyTag = /^<(\w+)>\n(null|""|\[\]|\{\})\n<\/\1>$/;
+  const emptyTag = /^<(\w+)(?:\s[^>]*)?>\n(null|""|\[\]|\{\})\n<\/\1>$/;
   const parts = [
     tag("reflectionStatus", payload.reflectionStatus),
     tag("conversationMemory", payload.conversationMemory),
@@ -184,10 +192,12 @@ export function conversationXml(payload: ConversationPayload): string {
     ].filter((block) => !emptyTag.test(block));
     parts.push(`<${slice.turnId}>\n${fields.join("\n")}\n</${slice.turnId}>`);
   }
-  // Shared tool pool at the bottom: session range + newest call details only.
-  if (payload.toolRange) {
-    parts.push(tag("toolRange", `${payload.toolRange}（全会话工具调用范围；详情仅保留最近 10 次，更早按轮内 callRange 用 evidence_search(callId) 取回）`));
-  }
-  parts.push(tag("toolIO", payload.toolIO));
+  // Shared tool pool at the bottom: session range as attributes + newest call details only.
+  const bounds = payload.toolIOBounds;
+  parts.push(
+    tag("toolIO", payload.toolIO, bounds
+      ? { from: bounds.from, to: bounds.to, kept: String(bounds.kept), total: String(bounds.total) }
+      : undefined),
+  );
   return parts.join("\n");
 }
