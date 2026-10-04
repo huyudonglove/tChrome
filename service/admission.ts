@@ -572,7 +572,7 @@ function renderTree(tree: IndexTree, budget: number): string {
       folded += 1;
     }
     if (folded) {
-      const note = `…上列${folded}块只给了 id 与索引行区间，正文按 id 取回（evidence_search windows=[{callId,levelId}]）`;
+      const note = `…上列${folded}块只给了 id 与行区间（坐标性质见各块标注，跨文件时才是索引行），正文按 id 取回（evidence_search windows=[{callId,levelId}]）`;
       if (used + note.length + 1 <= budget) {
         lines.push(note);
         used += note.length + 1;
