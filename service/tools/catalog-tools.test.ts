@@ -65,6 +65,26 @@ test("调度说明由 execution 字段派生：定义文件不得再手抄", () 
   }
 });
 
+test("风险档说明由 capabilities 的 risk 派生：定义文件不得再手抄", () => {
+  const dir = join(repoRoot, "service", "tools", "definitions");
+  for (const file of readdirSync(dir)) {
+    if (!file.endsWith(".json") || ["index.json", "groups.json"].includes(file)) continue;
+    expect(readFileSync(join(dir, file), "utf8"), `${file} 手抄风险档`).not.toContain("本工具为");
+  }
+  const registry = loadToolRegistry(repoRoot);
+  const names = [...new Set([...registry.index.browser, ...registry.index.service, ...registry.toolGroups.baseToolsIds])];
+  for (const name of names) {
+    const risk = registry.capabilities.find((row) => row.kind === "tool" && row.id === name)?.risk;
+    if (!risk || risk === "unknown") continue;
+    const description = (registry.tools[name]?.function.parameters as {
+      properties?: Record<string, { description?: unknown }>;
+    })?.properties?.reason?.description;
+    if (typeof description !== "string") continue;
+    const clause = risk === "low" ? "本工具为 low 档，可省略。" : `本工具为 ${risk} 档，必填。`;
+    expect(description, `${name} risk clause`).toContain(clause);
+  }
+});
+
 test("缺字段和类型错走 Ajv，不补齐", () => {
   const registry = loadToolRegistry(repoRoot);
   const ids = ["page_type", "finishTurn"];

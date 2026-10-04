@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { ChatTool, ExecutionMode } from "../types.ts";
 import { promptNumberSlots, fillPromptNumbers } from "../context/prompt-numbers.ts";
 import { loadCapabilityCatalog } from "./capability.ts";
-import type { CapabilityRecord } from "./capability-types.ts";
+import type { CapabilityRecord, CapabilityRisk } from "./capability-types.ts";
 
 export type ToolIndex = {
   browser: string[];
@@ -53,6 +53,34 @@ function executionNote(mode: ExecutionMode): string {
 function withExecutionNote(fn: ChatTool["function"], mode: ExecutionMode): ChatTool["function"] {
   const description = (fn.description ?? "").replace(/执行调度：[^\n]*?。/g, "").replace(/\n+$/, "");
   return { ...fn, description: `${description}\n${executionNote(mode)}` };
+}
+
+/** Per-tool risk clause, derived from the capability catalog so the tier can never drift. */
+function riskClause(risk: CapabilityRisk): string {
+  return `本工具为 ${risk} 档，${risk === "low" ? "可省略" : "必填"}，`;
+}
+
+/** Hand-written risk clauses in definitions are replaced in place by the derived one; tools that had none get it appended. */
+function withRiskNote(tool: ChatTool, risk: CapabilityRisk): ChatTool {
+  const params = tool.function.parameters as { properties?: Record<string, { description?: unknown }> } | undefined;
+  const reason = params?.properties?.reason;
+  if (!params || !params.properties || !reason || typeof reason.description !== "string") return tool;
+  // Any hand-written clause is stripped first and the derived one re-appended, so a definition that
+  // used to carry a stale tier renders exactly the same text as one that never did.
+  const stripped = reason.description
+    .replace(/本工具为\s*\S+\s*档，(?:必填|可省略)[，,。]?/g, "")
+    .replace(/[；;。,\s]+$/, "");
+  const description = `${stripped ? `${stripped}。` : ""}${riskClause(risk).replace(/[，,]$/, "。")}`;
+  return {
+    ...tool,
+    function: {
+      ...tool.function,
+      parameters: {
+        ...(params as object),
+        properties: { ...params.properties, reason: { ...reason, description } },
+      } as ChatTool["function"]["parameters"],
+    },
+  };
 }
 
 function injectCausalBackfill(tool: ChatTool): ChatTool {
@@ -132,8 +160,10 @@ export function loadToolRegistry(root: string): ToolRegistry {
   const capabilities = loadCapabilityCatalog(root, { tools, index, toolGroups, execution });
   for (const [name, tool] of Object.entries(tools)) {
     const risk = capabilities.find((row) => row.kind === "tool" && row.id === name)?.risk;
-    if (risk === "low") tools[name] = relaxReasonRequirement(tool);
-    else if (risk === "medium" || risk === "high") tools[name] = enforceReasonRequirement(tool);
+    if (risk === "low" || risk === "medium" || risk === "high") {
+      tools[name] = withRiskNote(tool, risk);
+      tools[name] = risk === "low" ? relaxReasonRequirement(tools[name]) : enforceReasonRequirement(tools[name]);
+    }
   }
   return { tools, index, toolGroups, execution, mutex, capabilities };
 }

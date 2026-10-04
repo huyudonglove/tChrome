@@ -8,7 +8,7 @@
       "properties": {
         "reason": {
           "type": "string",
-          "description": "本次调用的行动说明，一两句话说明要做什么、为什么；本工具为 high 档，必填，不用于定位控件。"
+          "description": "本次调用的行动说明，一两句话说明要做什么、为什么；不用于定位控件。"
         },
         "tabId": {
           "type": "integer",
