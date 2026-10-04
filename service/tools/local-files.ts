@@ -175,11 +175,16 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
         const total = results.reduce((sum, row) => sum + (typeof row.content === "string" ? row.content.length : 0), 0);
         if (total > maxChars) {
           let remaining = maxChars;
+          // Track who was cut and how hard: a fully emptied item is unreadable in the
+          // return, so the note has to name it instead of leaving the caller guessing.
+          const fullyCut: string[] = [];
+          const partiallyCut: string[] = [];
           for (const row of results) {
             if (typeof row.content !== "string" || row.content.length === 0) continue;
             if (remaining <= 0) {
               row.content = "";
               row.truncatedForBudget = true;
+              fullyCut.push(row.path);
               continue;
             }
             if (row.content.length <= remaining) {
@@ -196,9 +201,12 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
             }
             row.content = kept.join("\n");
             row.truncatedForBudget = true;
+            partiallyCut.push(row.path);
             remaining -= used;
           }
-          return { ok, results, budgetNote: `total content ${total} chars exceeded maxChars=${maxChars}; items were cut in order at line boundaries — re-read the cut ones with a precise startLine/endLine` };
+          const who = fullyCut.length > 0 ? ` fully cut (content came back empty): ${fullyCut.join(", ")};` : "";
+          const partial = partiallyCut.length > 0 ? ` partially cut: ${partiallyCut.join(", ")};` : "";
+          return { ok, results, budgetNote: `total content ${total} chars exceeded maxChars=${maxChars}; items were cut in order at line boundaries —${who}${partial} re-read the named ones with a precise startLine/endLine` };
         }
       }
       return { ok, results };

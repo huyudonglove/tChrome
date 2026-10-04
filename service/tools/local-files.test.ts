@@ -451,6 +451,9 @@ test("fs_read maxChars cuts whole lines in item order and explains how to re-rea
   expect(capped.results[1]!.content).toBe("");
   expect(capped.results[1]!.truncatedForBudget).toBe(true);
   expect(capped.budgetNote).toContain("maxChars=200");
+  // The note must name who was cut: a fully emptied item is unreadable in the return itself.
+  expect(capped.budgetNote).toContain(wide2);
+  expect(capped.budgetNote).toContain("partially cut");
 
   // 3. Without maxChars nothing is cut (previous behaviour preserved).
   const uncapped = await run("local_fs_read", { items: [{ path: a }] }) as {
