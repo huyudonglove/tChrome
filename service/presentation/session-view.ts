@@ -165,10 +165,15 @@ export function projectSessionView({ ledger, events, turns }: {
 }
 
 const taskView = (ledger: Ledger): SessionView["task"] => {
-  const plan = ledger.activeTaskId ? ledger.tasks.find((row) => row.id === ledger.activeTaskId) ?? null : null;
+  const pointed = ledger.activeTaskId
+    ? ledger.tasks.find((row) => row.id === ledger.activeTaskId) ?? null
+    : null;
+  // The pointer survives completion so attribution keeps working, but the sidebar panel is a live
+  // view: a completed or paused plan is no longer shown. Injection still falls back to tasks.at(-1).
+  const plan = pointed && pointed.status === "active" ? pointed : null;
   return {
-    activeTaskId: ledger.activeTaskId,
-    activeTaskItemId: ledger.activeTaskItemId,
+    activeTaskId: plan ? plan.id : null,
+    activeTaskItemId: plan ? ledger.activeTaskItemId : null,
     task: plan
       ? {
         id: plan.id,

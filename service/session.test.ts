@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { appendEvent, emptyLedger, loadEvents, saveLedger, saveTurn, sessionView } from "./runtime/store.ts";
-import type { LogEvent, Turn, TurnStopReason } from "./types.ts";
+import type { LogEvent, Task, Turn, TurnStopReason } from "./types.ts";
 import { emptySessionView, projectSessionView } from "./presentation/session-view.ts";
 
 const makeTurn = (output: TurnStopReason | null): Turn => ({   turnId: "tn_01", conversationId: "cv_01", status: output ? "completed" : "inferring",
@@ -140,4 +140,30 @@ test("tool messages fall back to ledger.toolIO when events carry no tool rows", 
     ]);
     expect(JSON.stringify(view)).not.toContain("RAW_TOOL_RETURN");
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+test("task panel is a live view: only an active plan is shown, and the pointer surviving completion is not a leak", () => {
+  const ledger = emptyLedger("cv_01");
+  ledger.status = "running";
+  ledger.active = { turnId: "tn_01" };
+  const plan = (status: Task["status"]): Task => ({
+    id: "task_09", title: "解耦 Task 生命周期", status,
+    items: [{ id: "item_01", index: 1, text: "改门禁", status: status === "active" ? "doing" : "done", createdAt: "2026-09-07T00:00:00.000Z" }],
+    createdAt: "2026-09-07T00:00:00.000Z", updatedAt: "2026-09-07T00:00:00.000Z",
+  });
+  const view = () => projectSessionView({ ledger, events: [], turns: [makeTurn(null)] });
+
+  // Pointer still points at a completed plan: panel hides it, and attribution pointer is not leaked as active.
+  ledger.tasks = [plan("completed")];
+  ledger.activeTaskId = "task_09";
+  expect(view().task).toMatchObject({ activeTaskId: null, activeTaskItemId: null, task: null });
+
+  // Paused is equally not live.
+  ledger.tasks = [plan("paused")];
+  expect(view().task).toMatchObject({ activeTaskId: null, activeTaskItemId: null, task: null });
+
+  // Only active renders, and the item pointer rides along.
+  ledger.tasks = [plan("active")];
+  ledger.activeTaskItemId = "item_01";
+  expect(view().task).toMatchObject({ activeTaskId: "task_09", activeTaskItemId: "item_01" });
+  expect(view().task?.task).toMatchObject({ id: "task_09", status: "active" });
 });

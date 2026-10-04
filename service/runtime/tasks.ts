@@ -38,8 +38,14 @@ const ensureSingleDoing = (plan: Task): void => {
   }
 };
 
+/**
+ * Point the ledger at `plan` as the current Task context. The pointer is a context tag, not the
+ * gate: only task_set moves it, and completing or pausing keeps it so later calls stay attributed.
+ * Activity itself is decided by `plan.status` (see hasActiveTask), so the item id is cleared
+ * whenever the plan is not active.
+ */
 const setLedgerActive = (ledger: Ledger, plan: Task | null): void => {
-  ledger.activeTaskId = plan && plan.status === "active" ? plan.id : null;
+  ledger.activeTaskId = plan ? plan.id : null;
   ledger.activeTaskItemId = plan && plan.status === "active" ? (activeDoing(plan)?.id ?? null) : null;
 };
 
@@ -284,10 +290,6 @@ export function prepareTaskComplete(dataDir: string, context: TaskContext, args:
     ...(typeof args.reason === "string" && args.reason.trim() ? { reason: args.reason.trim() } : {}),
   }, context.turnId);
   setLedgerActive(ledger, plan);
-  if (ledger.activeTaskId === plan.id) {
-    ledger.activeTaskId = null;
-    ledger.activeTaskItemId = null;
-  }
   return { plan, history: [ledger.taskHistory.at(-1)!] };
 }
 
@@ -312,7 +314,7 @@ export function pauseActiveTask(dataDir: string, ledger: Ledger, turnId: string)
     after: { status: "paused" },
     reason: "turn_closed",
   }, turnId);
-  setLedgerActive(ledger, null);
+  setLedgerActive(ledger, plan);
   return true;
 }
 
@@ -335,16 +337,17 @@ export function autoCompleteActiveTask(dataDir: string, ledger: Ledger, turnId: 
     reason: "auto_closed",
   }, turnId);
   setLedgerActive(ledger, plan);
-  if (ledger.activeTaskId === plan.id) {
-    ledger.activeTaskId = null;
-    ledger.activeTaskItemId = null;
-  }
   return true;
 }
 
 export function executionContext(ledger: Ledger): RuntimeExecutionContext {
+  const plan = ledger.activeTaskId
+    ? ledger.tasks.find((row) => row.id === ledger.activeTaskId)
+    : undefined;
+  // Attribution tags only ride an active Task: a completed or paused pointer must not label
+  // every later tool call and observation with a stale taskId.
   return {
-    activeTaskId: ledger.activeTaskId,
-    activeTaskItemId: ledger.activeTaskItemId,
+    activeTaskId: plan && plan.status === "active" ? plan.id : null,
+    activeTaskItemId: plan && plan.status === "active" ? ledger.activeTaskItemId : null,
   };
 }

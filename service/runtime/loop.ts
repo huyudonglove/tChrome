@@ -4,7 +4,7 @@ import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
 import { admitExecution, admitImages, deferredImageNote } from "../admission.ts";
 import { escalate, BUDGET_NUDGE_MARKER } from "./escalation.ts";
-import { requiresActiveTask } from "./task-gate.ts";
+import { hasActiveTask, requiresActiveTask } from "./task-gate.ts";
 import { repeatHint } from "./repeat-detect.ts";
 import { ensureThumb, loadThumbRef } from "../images/thumb.ts";
 import { deriveActiveScopes, projectMemories, renderScopeIndex } from "../memory/window.ts";
@@ -339,7 +339,7 @@ const runQueue = async (input: {
         } else if (toolRisk && toolRisk !== "unknown") {
           riskAudit.set(slot.item.callId, { risk: toolRisk, riskSource: "fixed" });
         }
-        if (requiresActiveTask(toolRisk, slot.item.arguments.risk) && !ledger.activeTaskId) {
+        if (requiresActiveTask(toolRisk, slot.item.arguments.risk) && !hasActiveTask(ledger)) {
           execution = failedTool(errorDetail("task_gate_required"), "invalid_arguments", {
             toolName: slot.item.name,
           });

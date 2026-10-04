@@ -8,6 +8,7 @@ import { emptyLedger, loadLedger } from "../runtime/store.ts";
 import { loadToolRegistry, toolSchemas } from "./registry.ts";
 import { checkToolCalls } from "./schema.ts";
 import { autoCompleteActiveTask, executionContext, pauseActiveTask } from "../runtime/tasks.ts";
+import { hasActiveTask } from "../runtime/task-gate.ts";
 import type { Turn } from "../types.ts";
 
 const repoRoot = new URL("../../", import.meta.url).pathname;
@@ -139,7 +140,10 @@ test("task persists, single doing, history append-only", async () => {
     const complete = await fx.execute("task_complete", { reason: "步骤齐" });
     fx.apply(complete, "c6", "task_complete");
     expect(fx.ledger.tasks[1]!.status).toBe("completed");
-    expect(fx.ledger.activeTaskId).toBeNull();
+    // The pointer is a context tag now: task_complete keeps it, the gate reads plan.status.
+    expect(fx.ledger.activeTaskId).toBe("task_02");
+    expect(fx.ledger.activeTaskItemId).toBeNull();
+    expect(executionContext(fx.ledger)).toEqual({ activeTaskId: null, activeTaskItemId: null });
 
     fx.ledger.active = { turnId: "tn_plan2" };
     expect(fx.ledger.tasks[1]!.status).toBe("completed");
@@ -188,8 +192,10 @@ test("autoCompleteActiveTask closes a finished plan and skips open ones", async 
     expect(autoCompleteActiveTask(fx.dataDir, fx.ledger, "tn_plan")).toBe(true);
     expect(fx.ledger.tasks[0]!.status).toBe("completed");
     expect(fx.ledger.tasks[0]!.completedAt).toBeTruthy();
-    expect(fx.ledger.activeTaskId).toBeNull();
+    // Auto-completion keeps the pointer but clears the item id; high-risk gating now reads status.
+    expect(fx.ledger.activeTaskId).toBe("task_01");
     expect(fx.ledger.activeTaskItemId).toBeNull();
+    expect(executionContext(fx.ledger)).toEqual({ activeTaskId: null, activeTaskItemId: null });
     expect(fx.ledger.taskHistory.at(-1)).toMatchObject({
       taskId: "task_01",
       type: "task_completed",
@@ -278,7 +284,11 @@ test("unfinished active task pauses at turn close and resumes on update", async 
 
     expect(pauseActiveTask(fx.dataDir, fx.ledger, "tn_plan")).toBe(true);
     expect(fx.ledger.tasks[0]?.status).toBe("paused");
-    expect(fx.ledger.activeTaskId).toBeNull();
+    // Pausing keeps the pointer so the next turn can pick the Task up without an explicit taskId;
+    // hasActiveTask still reports false, so the high-risk gate stays closed.
+    expect(fx.ledger.activeTaskId).toBe("task_01");
+    expect(fx.ledger.activeTaskItemId).toBeNull();
+    expect(executionContext(fx.ledger)).toEqual({ activeTaskId: null, activeTaskItemId: null });
     expect(fx.ledger.taskHistory.at(-1)).toMatchObject({
       taskId: "task_01",
       type: "task_paused",
@@ -298,6 +308,46 @@ test("unfinished active task pauses at turn close and resumes on update", async 
       type: "task_resumed",
       after: { status: "active" },
     });
+  } finally {
+    fx.cleanup();
+  }
+});
+
+
+test("hasActiveTask follows plan status, so a kept pointer still gates high risk", async () => {
+  const fx = fixture();
+  try {
+    expect(hasActiveTask(fx.ledger)).toBe(false);
+
+    fx.apply(await fx.execute("task_set", {
+      reason: "验证门禁活动性判定与指针解耦",
+      items: [{ text: "第一条", status: "doing" }, { text: "第二条" }],
+    }), "g1", "task_set");
+    expect(fx.ledger.activeTaskId).toBe("task_01");
+    expect(hasActiveTask(fx.ledger)).toBe(true);
+
+    expect(pauseActiveTask(fx.dataDir, fx.ledger, "tn_plan")).toBe(true);
+    expect(fx.ledger.activeTaskId).toBe("task_01");
+    expect(hasActiveTask(fx.ledger)).toBe(false);
+
+    fx.apply(await fx.execute("task_update", {
+      taskId: "task_01",
+      reason: "全部完成",
+      items: [{ id: "item_01", status: "done" }, { id: "item_02", status: "done" }],
+    }), "g2", "task_update");
+    expect(autoCompleteActiveTask(fx.dataDir, fx.ledger, "tn_plan")).toBe(true);
+    expect(fx.ledger.tasks[0]?.status).toBe("completed");
+    expect(fx.ledger.activeTaskId).toBe("task_01");
+    expect(hasActiveTask(fx.ledger)).toBe(false);
+    expect(executionContext(fx.ledger)).toEqual({ activeTaskId: null, activeTaskItemId: null });
+
+    // task_set is the only thing that moves the pointer, and it hands activity to the new plan.
+    fx.apply(await fx.execute("task_set", {
+      reason: "换新任务",
+      items: [{ text: "新任务" }],
+    }), "g3", "task_set");
+    expect(fx.ledger.activeTaskId).toBe("task_02");
+    expect(hasActiveTask(fx.ledger)).toBe(true);
   } finally {
     fx.cleanup();
   }
