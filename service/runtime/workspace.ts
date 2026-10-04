@@ -18,7 +18,7 @@ export function defaultWorkspaceCallIds(ledger: Ledger, turnId: string): string[
 }
 
 /** 给一批返回配建议：无业务调用返回 null（纯收口/记账批不打扰）。 */
-export function buildWorkspaceSuggestion(batchRows: ToolIOItem[], boundId: string): string | null {
+export function buildWorkspaceSuggestion(batchRows: ToolIOItem[]): string | null {
   const biz = batchRows.filter((r) => !NEUTRAL_TOOLS.has(r.name));
   if (!biz.length) return null;
   const tally = new Map<string, number>();
@@ -27,8 +27,7 @@ export function buildWorkspaceSuggestion(batchRows: ToolIOItem[], boundId: strin
     .sort((a, b) => b[1] - a[1])
     .map(([name, n]) => `${name}×${n}`)
     .join("、");
-  const ids = biz.map((r) => r.callId).join(",");
-  return `${WORKSPACE_SUGGEST_MARKER} 本批出网共 ${biz.length} 次调用（${detail}）。建议用 workspace_write 写一条因果：op=这批做了什么，value=得到什么结论，boundId=${boundId}，callIds=${ids}。可写可不写，只记「不写就会忘」的结论。`;
+  return `${WORKSPACE_SUGGEST_MARKER} 本批出网共 ${biz.length} 次调用（${detail}）。建议用 workspace_write 写一条因果：op=这批做了什么，value=得到什么结论。可写可不写，只记「不写就会忘」的结论。`;
 }
 
 /** 去掉历史建议，本轮只保留最新一条。 */

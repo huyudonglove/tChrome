@@ -4,7 +4,7 @@ import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
 import { admitExecution, admitImages, deferredImageNote } from "../admission.ts";
 import { escalate, BUDGET_NUDGE_MARKER } from "./escalation.ts";
-import { buildWorkspaceSuggestion, formatBoundId, stripWorkspaceSuggestion } from "./workspace.ts";
+import { buildWorkspaceSuggestion, stripWorkspaceSuggestion } from "./workspace.ts";
 import { hasActiveTask, requiresActiveTask } from "./task-gate.ts";
 import { repeatHint } from "./repeat-detect.ts";
 import { ensureThumb, loadThumbRef } from "../images/thumb.ts";
@@ -667,7 +667,7 @@ export async function handleTurn(
         const batchRows = ledger.toolIO.filter((r) => r.turnId === turn.turnId && r.batchId === batchId);
         const last = batchRows.at(-1);
         if (last) {
-          const text = buildWorkspaceSuggestion(batchRows, formatBoundId((ledger.boundSeq ?? 0) + 1));
+          const text = buildWorkspaceSuggestion(batchRows);
           if (text) last.return = { ...last.return, text: `${last.return.text}\n\n${text}` };
         }
       }
