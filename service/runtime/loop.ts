@@ -57,8 +57,6 @@ const OBSERVATION_NUDGE_EXCLUDED = new Set([
   "agent_compress",
   "agent_query",
   "context_query",
-  "checkContinue",
-  "reportProgress",
   "askUser",
   "finishTurn",
 ]);
@@ -307,6 +305,8 @@ const runQueue = async (input: {
     execCtx: executionContext(ledger),
   }));
   const done = new Map<number, ToolExecution>();
+  /** 只读判定唯一来源：capability metadata 的 readOnly 标记。 */
+  const readOnlyTools = new Set(toolRegistry.capabilities.filter((c) => c.readOnly).map((c) => c.id));
   /** Effective risk per call: the model's own value, otherwise the tool's fixed level. */
   const riskAudit = new Map<string, { risk: string; riskSource: "model" | "fixed" }>();
   const inflight = new Set<Promise<void>>();
@@ -447,7 +447,7 @@ const runQueue = async (input: {
       if (repeated) {
         row.return = { ...row.return, text: `${row.return.text}\n\n${repeated}` };
       }
-      const escalation = escalate(turnRows, item.name);
+      const escalation = escalate(turnRows, item.name, readOnlyTools);
       if (escalation.action === "interrupt") {
         closeForcedReply(ledger, turn, escalation.text);
         saveTurn(dataDir, turn);

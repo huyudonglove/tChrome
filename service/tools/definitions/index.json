@@ -172,8 +172,6 @@
     "script_patch",
     "script_read",
     "script_list",
-    "checkContinue",
-    "reportProgress",
     "memory_update",
     "memory_delete",
     "notes_write",

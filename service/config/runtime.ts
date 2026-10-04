@@ -115,9 +115,10 @@ const context = {
   skillCatalogLimit: resolveGate("skillCatalogLimit"),
   // How many process-output/<procId> directories to keep; older ones are pruned on each new process.
   processOutputRetain: resolveGate("processOutputRetain"),
-  // Per-turn tool-call budget: prompt checkContinue at the soft gate, force-end at the hard gate.
-  checkContinuePrompt: resolveGate("checkContinuePrompt"),
-  checkContinueHard: resolveGate("checkContinueHard"),
+  // 实质性兜底：连续只读 30 提示、60 再提示仅剩 3 次、63 直接中断；有实质性就清零。
+  readOnlyPrompt: resolveGate("readOnlyPrompt"),
+  readOnlySecond: resolveGate("readOnlySecond"),
+  readOnlyGrace: resolveGate("readOnlyGrace"),
   // Nudge thresholds (repeat / actions / observation / compress-prep). Declared here so every
   // "how many rows / how many calls" threshold has one source, same as the char budgets above.
   repeatWindow: resolveGate("repeatWindow"),

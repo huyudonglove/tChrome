@@ -25,6 +25,8 @@ export type CapabilityRecord = {
   outputs: string[];
   preconditions: string[];
   risk: CapabilityRisk;
+  /** 是否纯只读（只观察不改变状态）。兜底计数用：只读累积，其余清零。 */
+  readOnly: boolean;
   verification: string[];
   alternatives: string[];
   composesWith: string[];
@@ -43,6 +45,7 @@ export type CapabilityMetadata = {
   outputs?: string[];
   preconditions?: string[];
   risk?: CapabilityRisk;
+  readOnly?: boolean;
   verification?: string[];
   alternatives?: string[];
   composesWith?: string[];

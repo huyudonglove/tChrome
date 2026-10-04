@@ -1,10 +1,13 @@
 import { expect, test } from "bun:test";
+import { join } from "node:path";
+import { loadToolRegistry } from "../tools/registry.ts";
 import {
   escalate,
+  substantiveStreak,
   BUDGET_NUDGE_MARKER,
-  CHECK_TOOL,
-  PROGRESS_TOOL,
-  SAME_TOOL_PROMPT,
+  READ_ONLY_PROMPT,
+  READ_ONLY_SECOND,
+  READ_ONLY_GRACE,
 } from "./escalation.ts";
 import type { ToolIOItem } from "../types.ts";
 
@@ -16,92 +19,57 @@ const row = (name: string, args: Record<string, unknown> = {}): ToolIOItem => ({
   return: { stage: "complete", totalChars: 0, text: "" },
 });
 
-const rows = (...names: string[]): ToolIOItem[] => names.map((name) => row(name));
+// 测试用最小集合：只读名与实质性名各取两个，与线上名单无关；
+// 线上只读判定唯一来源是 registry（见文末测试），这里只验计数逻辑。
+const READ = new Set(["local_fs_read", "see_page"]);
 
-test("checkContinue and reportProgress do not inflate the total", () => {
-  const business = Array.from({ length: SAME_TOOL_PROMPT - 1 }, (_, i) => row(`tool_${i}`));
-  const withMeta = [
-    ...business,
-    row(CHECK_TOOL, { cont: true }),
-    row(PROGRESS_TOOL, { text: "进度" }),
-  ];
-  expect(escalate(withMeta, PROGRESS_TOOL).action).toBe("continue");
+const reads = (n: number): ToolIOItem[] =>
+  Array.from({ length: n }, (_, i) => row(i % 2 === 0 ? "local_fs_read" : "see_page"));
+
+test("29 reads stay quiet, 30th prompts for substantive action", () => {
+  expect(escalate(reads(READ_ONLY_PROMPT - 1), "see_page", READ).action).toBe("continue");
+  const hint = escalate(reads(READ_ONLY_PROMPT), "see_page", READ) as { action: string; text: string };
+  expect(hint.action).toBe("hint");
+  expect(hint.text).toContain(BUDGET_NUDGE_MARKER);
+  expect(hint.text).toContain("实质性");
 });
 
-test("live budget hints carry the strip marker", () => {
-  const atPrompt = Array.from({ length: SAME_TOOL_PROMPT }, (_, i) => row(`tool_${i}`));
-  const promptHint = escalate(atPrompt, atPrompt.at(-1)!.name) as { action: string; text: string };
-  expect(promptHint.action).toBe("hint");
-  expect(promptHint.text).toContain(BUDGET_NUDGE_MARKER);
-
-  // 链级活提示（进度/求助/收口）同样带标记，否则旧行不会被 loop 的 strip 抹掉。
-  const checks3 = Array.from({ length: 3 }, () => row(CHECK_TOOL, { cont: true }));
-  const few = Array.from({ length: 3 }, (_, i) => row(`tool_${i}`));
-  const progressHint = escalate([...checks3, ...few], few.at(-1)!.name) as { text: string };
-  expect(progressHint.text).toContain(BUDGET_NUDGE_MARKER);
-
-  const reports3 = [
-    ...checks3,
-    ...Array.from({ length: 3 }, () => row(PROGRESS_TOOL, { text: "进度" })),
-    row("tool_probe"),
-  ];
-  const askHint = escalate(reports3, "tool_probe") as { text: string };
-  expect(askHint.text).toContain(BUDGET_NUDGE_MARKER);
-
-  // 预算段没有终止档：硬阈值也是活提示，照样带标记（loop 会 strip 掉上一条）。
-  const many = Array.from({ length: 65 }, (_, i) => row(`tool_${i}`));
-  const hardHint = escalate(many, many.at(-1)!.name) as { action: string; text: string };
-  expect(hardHint.action).toBe("hint");
-  expect(hardHint.text).toContain(BUDGET_NUDGE_MARKER);
-  expect(hardHint.text).toContain("observation_write");
+test("substantive action resets the streak", () => {
+  const rows = [...reads(READ_ONLY_PROMPT - 1), row("page_click"), ...reads(5)];
+  expect(substantiveStreak(rows, READ)).toBe(5);
+  expect(escalate(rows, "see_page", READ).action).toBe("continue");
 });
 
-test("checkContinue resets the budget segment instead of exempting the whole turn", () => {
-  const many = Array.from({ length: 65 }, (_, i) => row(`tool_${i}`));
-  // 分段计数：刚调过 checkContinue 时预算重置，65 次调用重新逼近强提示档。
-  const withCheck = [row(CHECK_TOOL, { cont: true }), ...many];
-  expect(escalate(withCheck, many.at(-1)!.name).action).toBe("hint");
-
-  // 调过 checkContinue 后再跑满一个 prompt 段，应重新提示（这是本次修复的行为）。
-  const atPrompt = Array.from({ length: SAME_TOOL_PROMPT }, (_, i) => row(`tool_${i}`));
-  const checked = [row(CHECK_TOOL, { cont: true }), ...atPrompt];
-  expect(escalate(checked, atPrompt.at(-1)!.name)).toMatchObject({
-    action: "hint",
-    text: expect.stringContaining("checkContinue"),
-  });
-
-  // 从未调过 checkContinue 时门槛同样照常触发。
-  expect(escalate(atPrompt, atPrompt.at(-1)!.name).action).toBe("hint");
-  expect(escalate(many, many.at(-1)!.name).action).toBe("hint");
-
-  // 连续 3 次 check 后仍进入 reportProgress 链。
-  // 段内业务调用须低于强提示门槛，否则会先被硬档 hint 截断。
-  const checks3 = Array.from({ length: 3 }, () => row(CHECK_TOOL, { cont: true }));
-  const few = Array.from({ length: 3 }, (_, i) => row(`tool_${i}`));
-  expect(escalate([...checks3, ...few], few.at(-1)!.name)).toMatchObject({
-    action: "hint",
-    text: expect.stringContaining("reportProgress"),
-  });
+test("neutral bookkeeping neither accumulates nor resets", () => {
+  const rows = [...reads(10), row("observation_write"), row("askUser"), ...reads(5)];
+  expect(substantiveStreak(rows, READ)).toBe(15);
+  expect(escalate(rows, "see_page", READ).action).toBe("continue");
 });
 
-test("checkContinue cont=false interrupts before any counting", () => {
-  const many = Array.from({ length: 65 }, (_, i) => row(`tool_${i}`));
-  const withFalse = [...many, row(CHECK_TOOL, { cont: false })];
-  expect(escalate(withFalse, CHECK_TOOL).action).toBe("interrupt");
+test("60 reads second hint with remaining chances, 63rd interrupts", () => {
+  const second = escalate(reads(READ_ONLY_SECOND), "see_page", READ) as { action: string; text: string };
+  expect(second.action).toBe("hint");
+  expect(second.text).toContain("仅剩");
+  expect(second.text).toContain(String(READ_ONLY_GRACE));
+
+  const lastChance = escalate(reads(READ_ONLY_SECOND + READ_ONLY_GRACE - 1), "see_page", READ);
+  expect(lastChance.action).toBe("hint");
+
+  const over = escalate(reads(READ_ONLY_SECOND + READ_ONLY_GRACE), "see_page", READ) as { action: string; text: string };
+  expect(over.action).toBe("interrupt");
+  expect(over.text).not.toContain(BUDGET_NUDGE_MARKER);
 });
 
-test("progress chain hands off check -> report -> askUser -> finishTurn", () => {
-  const checks = Array.from({ length: 3 }, () => row(CHECK_TOOL, { cont: true }));
-  expect(escalate(checks, CHECK_TOOL)).toMatchObject({ action: "hint", text: expect.stringContaining("reportProgress") });
+test("interrupt then substantive recovers in a new segment", () => {
+  const rows = [...reads(READ_ONLY_SECOND + READ_ONLY_GRACE), row("local_fs_write"), ...reads(2)];
+  expect(substantiveStreak(rows, READ)).toBe(2);
+  expect(escalate(rows, "see_page", READ).action).toBe("continue");
+});
 
-  const reports = Array.from({ length: 3 }, (_, i) => row(PROGRESS_TOOL, { text: `p${i}` }));
-  expect(escalate(reports, PROGRESS_TOOL)).toMatchObject({ action: "hint", text: expect.stringContaining("askUser") });
-
-  const asked = [row("askUser", { question: "?" })];
-  expect(escalate(asked, "askUser").action).toBe("continue");
-  const after3 = [row("askUser", { question: "?" }), ...rows("a", "b", "c")];
-  expect(escalate(after3, "c")).toMatchObject({ action: "hint", text: expect.stringContaining("finishTurn") });
-  // 空转再久也只是收口提示，runtime 不替我结束本 turn。
-  const after6 = [row("askUser", { question: "?" }), ...rows("a", "b", "c", "d", "e", "f")];
-  expect(escalate(after6, "f")).toMatchObject({ action: "hint", text: expect.stringContaining("finishTurn") });
+test("every registry tool carries an explicit readOnly flag", () => {
+  const registry = loadToolRegistry(join(import.meta.dir, "../.."));
+  const toolCaps = registry.capabilities.filter((c) => c.kind === "tool");
+  expect(toolCaps.length).toBeGreaterThan(0);
+  // 每个工具都必须显式标记，不允许 undefined 混过去；只读判定只看这一处。
+  for (const cap of toolCaps) expect(typeof cap.readOnly).toBe("boolean");
 });

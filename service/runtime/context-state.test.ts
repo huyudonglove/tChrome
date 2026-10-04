@@ -196,7 +196,7 @@ test("200K during a live tool loop compresses older batches before the next main
       if (main === KEEP + 2) { expect(aux).toBeGreaterThan(0); expect(input.messages[1]!.content).toContain("<summary"); }
       return result({ toolCalls: main <= KEEP + 1
         ? [
-            ...(main > 1 ? [{ id: `c${main}`, name: "checkContinue", arguments: { reason: "继续", cont: true } }] : []),
+            ...(main > 1 ? [{ id: `c${main}`, name: "page_click", arguments: { reason: "继续" } }] : []),
             ...Array.from({ length: main > 1 ? 19 : 20 }, (_, i) => ({ id: `p${main}_${i}`, name: "page_get_summary", arguments: { reason: "读取", tabId: 1 } })),
           ]
         : [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", text: "完成"} }] });

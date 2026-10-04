@@ -18,8 +18,6 @@
     "list_browser_tools",
     "skill_list",
     "skill_load",
-    "checkContinue",
-    "reportProgress",
     "open_url",
     "page_get_summary",
     "page_list_interactive_elements",

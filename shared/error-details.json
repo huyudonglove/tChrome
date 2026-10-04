@@ -11,7 +11,6 @@
   "exec_js_missing_session": "execute_javascript 心跳缺少会话标识",
   "library_missing": "资料不存在",
   "library_unknown_action": "未知资料操作",
-  "report_progress_empty": "reportProgress 需要非空 text",
   "actions_empty_text": "actions_write 需要非空 text。",
   "reflect_empty_text": "reflect_write 的 text 为空",
   "reflect_missing_session": "reflect_write 缺少会话标识",

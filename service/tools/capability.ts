@@ -45,6 +45,10 @@ function normalizeMetadata(raw: unknown, id: string): CapabilityMetadata {
   const result: CapabilityMetadata = {};
   if (value.purpose !== undefined) result.purpose = value.purpose.trim();
   if (value.risk !== undefined) result.risk = value.risk as CapabilityRisk;
+  if (value.readOnly !== undefined) {
+    if (typeof value.readOnly !== "boolean") throw new Error(`invalid capability metadata ${id}.readOnly`);
+    result.readOnly = value.readOnly;
+  }
   for (const field of ARRAY_FIELDS) {
     if (value[field] !== undefined) result[field] = stringList(value[field], `${id}.${field}`);
   }
@@ -111,6 +115,7 @@ export function loadCapabilityCatalog(repoRoot: string, source: ToolSource): Cap
       outputs: override.outputs ?? [],
       preconditions: override.preconditions ?? [],
       risk: override.risk ?? "unknown",
+      readOnly: override.readOnly ?? false,
       verification: override.verification ?? [],
       alternatives: override.alternatives ?? [],
       composesWith: override.composesWith ?? [],
@@ -138,6 +143,7 @@ export function loadCapabilityCatalog(repoRoot: string, source: ToolSource): Cap
         outputs: override.outputs ?? [],
         preconditions: override.preconditions ?? [],
         risk: override.risk ?? "unknown",
+        readOnly: false,
         verification: override.verification ?? [],
         alternatives: override.alternatives ?? [],
         composesWith: override.composesWith ?? [],

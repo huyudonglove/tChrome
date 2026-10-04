@@ -23,7 +23,8 @@
         "当前已登录页面操作",
         "用户手动登录"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "agent_compress": {
       "purpose": "主动调用 Compression Agent 压缩当前会话的历史上下文",
@@ -52,7 +53,8 @@
       "similar": [],
       "deeper": [
         "agent_query"
-      ]
+      ],
+      "readOnly": false
     },
     "agent_query": {
       "purpose": "主动调用 Query Agent，按 sumId、模块和意图精准回查摘要来源",
@@ -82,7 +84,8 @@
       ],
       "deeper": [
         "evidence_search"
-      ]
+      ],
+      "readOnly": true
     },
     "page_eval_expr": {
       "purpose": "在页面主上下文中快速执行轻量表达式并读回值（免脚本落盘）",
@@ -112,7 +115,8 @@
       ],
       "deeper": [
         "observation_write"
-      ]
+      ],
+      "readOnly": false
     },
     "askUser": {
       "purpose": "向用户提问",
@@ -136,9 +140,9 @@
       ],
       "composesWith": [
         "task_set",
-        "reportProgress",
         "finishTurn"
-      ]
+      ],
+      "readOnly": false
     },
     "asset_list": {
       "purpose": "列出本会话归档资产的 L1 目录（assetId、name、kind、bytes、summary、path）",
@@ -161,7 +165,8 @@
         "页面导出工具",
         "本地文件工具"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": true
     },
     "asset_read": {
       "purpose": "统一取用入口",
@@ -184,7 +189,8 @@
         "页面导出工具",
         "本地文件工具"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": true
     },
     "attach_file": {
       "purpose": "把本机文件注入页面的文件上传控件（input[type=file]），用于图片、模型、附件等上传",
@@ -212,7 +218,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "bind_tab": {
       "purpose": "仅校验指定标签存在且为可操作的普通网页，返回该标签的 url/title",
@@ -240,7 +247,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "cache_storage": {
       "purpose": "读写页内 Cache Storage",
@@ -264,7 +272,8 @@
         "当前已登录页面操作",
         "用户手动登录"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "calibrate_drag": {
       "purpose": "按最近一次 capture_page(mode=viewport) 的图像坐标拖动",
@@ -292,7 +301,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "capture_element": {
       "purpose": "按页面元素 ref 或唯一 CSS selector 裁剪截图；ref 与 selector 必须且只能提供一个",
@@ -326,7 +336,8 @@
       "deeper": [
         "image_crop",
         "observation_write"
-      ]
+      ],
+      "readOnly": true
     },
     "capture_full_page": {
       "purpose": "捕获当前页面整页截图",
@@ -352,7 +363,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "capture_network_traffic": {
       "purpose": "读取页面 Performance 资源时间线（近期网络资源）",
@@ -378,7 +390,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "capture_page": {
       "purpose": "捕获页面图片",
@@ -413,7 +426,8 @@
       "deeper": [
         "image_crop",
         "observation_write"
-      ]
+      ],
+      "readOnly": true
     },
     "capture_rect": {
       "purpose": "按 CSS 像素矩形裁剪页面截图",
@@ -447,7 +461,8 @@
       "deeper": [
         "image_crop",
         "observation_write"
-      ]
+      ],
+      "readOnly": true
     },
     "capture_som": {
       "purpose": "捕获视口 Set-of-Marks 标注图，返回 marks；可按 roles 限定可访问角色",
@@ -473,7 +488,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "capture_viewport": {
       "purpose": "捕获当前页面可视区截图",
@@ -498,7 +514,8 @@
       "composesWith": [
         "page_assert",
         "page_recheck"
-      ]
+      ],
+      "readOnly": true
     },
     "catalog_add": {
       "purpose": "为当前会话加载缺少的动态工具，names 为工具名数组",
@@ -526,33 +543,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
-    },
-    "checkContinue": {
-      "purpose": "执行预算检查点",
-      "triggers": [
-        "checkContinue",
-        "任务需要交互、收口、预算检查或向用户汇报"
       ],
-      "outputs": [
-        "轮次状态或用户可见回复"
-      ],
-      "preconditions": [
-        "当前会话与任务目标有效"
-      ],
-      "risk": "low",
-      "verification": [
-        "工具 ok=true，且回复或状态符合当前目标"
-      ],
-      "alternatives": [
-        "继续执行当前轮工具",
-        "直接向用户说明"
-      ],
-      "composesWith": [
-        "task_set",
-        "reportProgress",
-        "finishTurn"
-      ]
+      "readOnly": false
     },
     "check_page": {
       "purpose": "核对指定页地址、标题或正文是否符合预期",
@@ -580,7 +572,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "clear_cookies": {
       "purpose": "清空 Cookie",
@@ -604,7 +597,8 @@
         "当前已登录页面操作",
         "用户手动登录"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "clear_file": {
       "purpose": "清空文件选择框",
@@ -632,7 +626,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "click": {
       "purpose": "按元素编号或目标文字点击控件",
@@ -660,7 +655,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "click_captcha": {
       "purpose": "点击可访问验证码 frame 内的实际勾选框，不点击 iframe 或页面普通复选框",
@@ -683,7 +679,8 @@
         "用户手动完成",
         "页面自身验证状态检查"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "click_xy": {
       "purpose": "按坐标点击",
@@ -711,7 +708,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "clipboard_page_read": {
       "purpose": "读取页面剪贴板文本（navigator.clipboard.readText）",
@@ -739,7 +737,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "clipboard_page_write": {
       "purpose": "向页面剪贴板写入文本（navigator.clipboard.writeText）",
@@ -767,7 +766,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "close_tab": {
       "purpose": "关闭标签",
@@ -795,7 +795,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "close_window": {
       "purpose": "关闭指定窗口",
@@ -823,7 +824,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "combo_select": {
       "purpose": "对 SELECT 下拉框按 value 或选项文字选择",
@@ -851,7 +853,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "context_query": {
       "purpose": "按 sumId、模块和意图精准回查摘要来源",
@@ -882,7 +885,8 @@
       ],
       "deeper": [
         "evidence_search"
-      ]
+      ],
+      "readOnly": true
     },
     "context_menu": {
       "purpose": "触发页面右键菜单",
@@ -910,7 +914,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "control_download": {
       "purpose": "暂停、继续或取消下载",
@@ -933,7 +938,8 @@
         "页面导出工具",
         "本地文件工具"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "cookies": {
       "purpose": "读取 Cookie",
@@ -957,7 +963,8 @@
         "当前已登录页面操作",
         "用户手动登录"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": true
     },
     "create_window": {
       "purpose": "后台新开一个窗口，不请求输入焦点",
@@ -985,7 +992,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "date_select": {
       "purpose": "向日期/时间输入框写入标准格式值",
@@ -1013,7 +1021,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "delete_cookie": {
       "purpose": "删除指定 Cookie",
@@ -1037,7 +1046,8 @@
         "当前已登录页面操作",
         "用户手动登录"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "detach_debugger": {
       "purpose": "主动断开目标标签的 Chrome Debugger (CDP) 调试连接，关闭浏览器顶部“正在调试此浏览器”的黄色/白色提示横幅",
@@ -1065,7 +1075,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "dialog_wait": {
       "purpose": "等待原生 JavaScript 弹窗（alert/confirm/prompt）出现",
@@ -1093,7 +1104,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "double_click": {
       "purpose": "双击页面上匹配 text 的元素",
@@ -1121,7 +1133,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "download": {
       "purpose": "按网址下载文件",
@@ -1144,7 +1157,8 @@
         "页面导出工具",
         "本地文件工具"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "drag": {
       "purpose": "按视口坐标拖动",
@@ -1172,7 +1186,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "solve_slider": {
       "purpose": "求解并拖动滑块拼图验证码",
@@ -1199,7 +1214,8 @@
         "wait",
         "page_assert",
         "capture_page"
-      ]
+      ],
+      "readOnly": false
     },
     "duplicate_tab": {
       "purpose": "使用 Chrome 原生复制创建指定标签的副本，保留原生复制语义；浏览器会激活副本",
@@ -1227,7 +1243,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "emulate_device": {
       "purpose": "模拟设备视口与 UA",
@@ -1250,7 +1267,8 @@
         "普通页面观察",
         "浏览器原生调试"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "evidence_search": {
       "purpose": "在已缓存的超量结果中检索或按行读取，一次最多 8 个窗口",
@@ -1282,7 +1300,8 @@
       "deeper": [
         "local_fs_read",
         "agent_query"
-      ]
+      ],
+      "readOnly": true
     },
     "execute_javascript": {
       "purpose": "通过 Chrome Debugger 在目标页面的主 JavaScript 环境执行服务数据目录 scripts/ 中已保存的 JavaScript 脚本，可访问页面变量并等待 Promise",
@@ -1315,7 +1334,8 @@
       "deeper": [
         "observation_write",
         "evidence_search"
-      ]
+      ],
+      "readOnly": false
     },
     "export_data": {
       "purpose": "导出数据到本机下载目录",
@@ -1338,7 +1358,8 @@
         "页面导出工具",
         "本地文件工具"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "extract_table": {
       "purpose": "把指定页表格和列表抽成结构化数据",
@@ -1366,7 +1387,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "find_on_page": {
       "purpose": "按文本查找可见交互控件，不返回整页正文，也不接受 CSS 选择器",
@@ -1403,7 +1425,8 @@
         "page_click",
         "page_type",
         "page_click_text"
-      ]
+      ],
+      "readOnly": true
     },
     "fingerprint_apply": {
       "purpose": "用 CDP 覆盖当前标签的指纹相关环境（模拟，不影响真实磁盘配置）",
@@ -1426,7 +1449,8 @@
         "普通页面观察",
         "浏览器原生调试"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "fingerprint_read": {
       "purpose": "读取当前页面可见的浏览器指纹/环境信息：UA、语言、时区、屏幕、viewport、hardwareConcurrency 等",
@@ -1449,7 +1473,8 @@
         "普通页面观察",
         "浏览器原生调试"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": true
     },
     "finishTurn": {
       "purpose": "结束本轮对话",
@@ -1472,9 +1497,9 @@
         "直接向用户说明"
       ],
       "composesWith": [
-        "task_set",
-        "reportProgress"
-      ]
+        "task_set"
+      ],
+      "readOnly": false
     },
     "focus": {
       "purpose": "把焦点放到匹配 text 的元素上",
@@ -1502,7 +1527,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "frame_list": {
       "purpose": "列出页面 frame 树（含 iframe）",
@@ -1530,7 +1556,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "go_history": {
       "purpose": "浏览器前进或后退",
@@ -1558,7 +1585,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "group_tabs": {
       "purpose": "把指定标签编成一组",
@@ -1586,7 +1614,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "handle_dialog": {
       "purpose": "通过 Chrome Debugger 处理目标标签当前已弹出的浏览器原生 alert、confirm、prompt 或 beforeunload 对话框，无需提前调用本工具",
@@ -1609,7 +1638,8 @@
         "普通页面观察",
         "浏览器原生调试"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "har": {
       "purpose": "录制页面网络请求并导出 HAR（HTTP Archive）结构",
@@ -1632,7 +1662,8 @@
         "浏览器网络监听",
         "页面内请求观察"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": true
     },
     "hover": {
       "purpose": "把指针悬停在匹配 text 的元素上",
@@ -1660,7 +1691,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "image_crop": {
       "purpose": "对已归档图片按矩形裁切，得到更小的新图",
@@ -1686,7 +1718,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "indexeddb": {
       "purpose": "读写页内 IndexedDB",
@@ -1710,7 +1743,8 @@
         "当前已登录页面操作",
         "用户手动登录"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "job_status": {
       "purpose": "查询本会话 heartbeatSec 提前返回的后台任务（HTTP/搜索/execute_javascript）",
@@ -1738,7 +1772,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "job_stop": {
       "purpose": "停止本会话由 heartbeatSec 提前返回的后台任务",
@@ -1766,7 +1801,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "library": {
       "purpose": "管理用户面板中的本地资料库，保存值得收藏的网站、账号和普通资料",
@@ -1790,7 +1826,8 @@
         "当前已登录页面操作",
         "用户手动登录"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "list_browser_tools": {
       "purpose": "列出尚未加载的动态工具名称",
@@ -1812,7 +1849,8 @@
         "使用现有常驻工具",
         "通过 skill_load 加载方法论"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "list_downloads": {
       "purpose": "列出下载项",
@@ -1835,7 +1873,8 @@
         "页面导出工具",
         "本地文件工具"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": true
     },
     "list_tabs": {
       "purpose": "读取所有普通浏览器窗口及其完整标签列表，不改变焦点",
@@ -1871,7 +1910,8 @@
       "deeper": [
         "page_get_summary",
         "switch_tab"
-      ]
+      ],
+      "readOnly": true
     },
     "list_windows": {
       "purpose": "列出浏览器窗口",
@@ -1899,7 +1939,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "local_capabilities": {
       "purpose": "Report local platform, home directory, supported script extensions, timeout and output limits. Save scripts under scripts/ (script_patch, script_write or local_fs_write) before executing by filename.",
@@ -1925,7 +1966,8 @@
       "composesWith": [
         "local_git_status",
         "local_run"
-      ]
+      ],
+      "readOnly": true
     },
     "local_diagnose": {
       "purpose": "对指定工程或文件执行结构化类型诊断（typecheck）或测试诊断（test），直接解析并返回精炼结构化的错误清单（文件、行号、列号、错误码、错误信息），免除大日志往返摩擦",
@@ -1951,7 +1993,8 @@
       "composesWith": [
         "local_git_status",
         "local_run"
-      ]
+      ],
+      "readOnly": true
     },
     "local_fs_copy": {
       "purpose": "复制文件或目录，保留符号链接",
@@ -1977,7 +2020,8 @@
       "composesWith": [
         "local_git_status",
         "local_run"
-      ]
+      ],
+      "readOnly": false
     },
     "local_fs_delete": {
       "purpose": "删除文件或目录，recursive=true才递归删除非空目录；删除不可从工具内撤销",
@@ -2003,7 +2047,8 @@
       "composesWith": [
         "local_git_status",
         "local_run"
-      ]
+      ],
+      "readOnly": false
     },
     "local_fs_grep": {
       "purpose": "在目录内按字面量子串检索 UTF-8 文件内容",
@@ -2037,7 +2082,8 @@
       "deeper": [
         "local_fs_read",
         "local_replace_block"
-      ]
+      ],
+      "readOnly": true
     },
     "local_fs_list": {
       "purpose": "列出目录直接子项",
@@ -2063,7 +2109,8 @@
       "composesWith": [
         "local_git_status",
         "local_run"
-      ]
+      ],
+      "readOnly": true
     },
     "local_fs_mkdir": {
       "purpose": "创建目录，recursive=true可创建缺失的父目录",
@@ -2089,7 +2136,8 @@
       "composesWith": [
         "local_git_status",
         "local_run"
-      ]
+      ],
+      "readOnly": false
     },
     "local_fs_move": {
       "purpose": "移动文件或目录，默认拒绝已存在目标，采用复制成功后删除源（非原子）",
@@ -2115,7 +2163,8 @@
       "composesWith": [
         "local_git_status",
         "local_run"
-      ]
+      ],
+      "readOnly": false
     },
     "local_fs_read": {
       "purpose": "按字节分页或按行切片读取 UTF-8 文本文件，一次最多 8 个目标",
@@ -2150,7 +2199,8 @@
         "local_fs_write",
         "local_replace_block",
         "evidence_search"
-      ]
+      ],
+      "readOnly": true
     },
     "local_fs_search": {
       "purpose": "在目录内递归按名称子串 query 搜索文件名；支持 items 批处理（1..8 个 {path, query}），与 fs_read 同一哲学",
@@ -2183,7 +2233,8 @@
       ],
       "deeper": [
         "local_fs_read"
-      ]
+      ],
+      "readOnly": true
     },
     "local_fs_stat": {
       "purpose": "读取文件/目录/符号链接元数据，返回type、size字节数、modifiedAt和mode",
@@ -2209,7 +2260,8 @@
       "composesWith": [
         "local_git_status",
         "local_run"
-      ]
+      ],
+      "readOnly": true
     },
     "local_fs_write": {
       "purpose": "写入UTF-8文本文件，默认替换整个文件内容，append=true则追加",
@@ -2235,7 +2287,8 @@
       "composesWith": [
         "local_git_status",
         "local_run"
-      ]
+      ],
+      "readOnly": false
     },
     "local_git_diff": {
       "purpose": "查看指定 Git 仓库的代码差异（diff）",
@@ -2261,7 +2314,8 @@
       "composesWith": [
         "local_git_status",
         "local_run"
-      ]
+      ],
+      "readOnly": true
     },
     "local_git_status": {
       "purpose": "查看指定 Git 仓库的当前工作区与暂存区状态（分支、是否有未提交改动、暂存/未暂存/未跟踪文件列表及概要）",
@@ -2286,7 +2340,8 @@
       ],
       "composesWith": [
         "local_run"
-      ]
+      ],
+      "readOnly": true
     },
     "local_open": {
       "purpose": "使用系统默认应用打开本机绝对路径",
@@ -2312,7 +2367,8 @@
       "composesWith": [
         "local_git_status",
         "local_run"
-      ]
+      ],
+      "readOnly": true
     },
     "local_process_start": {
       "purpose": "Run a shell command (command, inline) or a saved script (filename) in absolute cwd. Save first with script_patch, script_write or local_fs_write when using filename. Extensions: .sh uses the system shell (zsh/bash/sh by platform), .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches. No default timeout; optional timeoutMs terminates the process group when elapsed. Complete stdout/stderr are returned and persisted in stdoutPath/stderrPath. Returns processId immediately; use local_process_status, local_process_write and local_process_stop to interact. script_patch must run in an earlier call than this execution.",
@@ -2345,7 +2401,8 @@
       "deeper": [
         "local_process_status",
         "local_process_stop"
-      ]
+      ],
+      "readOnly": false
     },
     "local_process_status": {
       "purpose": "查询本会话后台进程（含 local_run heartbeat 返回的 processId）",
@@ -2371,7 +2428,8 @@
       "composesWith": [
         "local_git_status",
         "local_run"
-      ]
+      ],
+      "readOnly": true
     },
     "local_process_stop": {
       "purpose": "终止本会话指定进程及其进程组",
@@ -2397,7 +2455,8 @@
       "composesWith": [
         "local_git_status",
         "local_run"
-      ]
+      ],
+      "readOnly": false
     },
     "local_process_write": {
       "purpose": "向本会话运行中进程的标准输入写入 text；end=true 表示写入后关闭标准输入",
@@ -2423,7 +2482,8 @@
       "composesWith": [
         "local_git_status",
         "local_run"
-      ]
+      ],
+      "readOnly": false
     },
     "local_replace_block": {
       "purpose": "在指定文件中精准查找并替换目标文本块",
@@ -2449,7 +2509,8 @@
       "composesWith": [
         "local_git_status",
         "local_run"
-      ]
+      ],
+      "readOnly": false
     },
     "local_run": {
       "purpose": "Run a shell command (command, inline) or a saved script (filename) in absolute cwd. Save first with script_patch, script_write or local_fs_write when using filename. Extensions: .sh uses the system shell (zsh/bash/sh by platform), .py uses python3, .js/.mjs/.cjs use Bun. Optional args are literal strings. Each execution uses a private snapshot unaffected by later patches.",
@@ -2481,7 +2542,8 @@
       "deeper": [
         "local_process_status",
         "observation_write"
-      ]
+      ],
+      "readOnly": false
     },
     "local_tsx_outline": {
       "purpose": "用 TS AST 提取 .tsx/.jsx 的 DOM 标签骨架与 className 清单",
@@ -2506,7 +2568,8 @@
       ],
       "composesWith": [
         "local_fs_read"
-      ]
+      ],
+      "readOnly": true
     },
     "local_fs_outline": {
       "purpose": "提取文件大纲：代码文件出顶层符号表，无结构文件按字符切块",
@@ -2531,7 +2594,8 @@
       ],
       "composesWith": [
         "local_fs_read"
-      ]
+      ],
+      "readOnly": true
     },
     "local_code_refs": {
       "purpose": "按符号名检索代码定义位置与全部引用点，省去先猜文件再读全文的往返",
@@ -2557,7 +2621,8 @@
       "composesWith": [
         "local_fs_read",
         "local_tsx_outline"
-      ]
+      ],
+      "readOnly": true
     },
     "local_repo_map": {
       "purpose": "仓库结构导航：按目录聚合出「哪块职责在哪、入口文件是哪个」，省去靠猜路径翻文件",
@@ -2583,7 +2648,8 @@
       "composesWith": [
         "local_fs_read",
         "local_code_refs"
-      ]
+      ],
+      "readOnly": true
     },
     "session_query": {
       "purpose": "会话数据聚合查询：一条调用回答「本会话各工具用了几次、哪些轮最密、哪些返回被外置、有哪些会话各占多大」，省去手搓 glob + python 解析 toolio.jsonl",
@@ -2615,7 +2681,8 @@
       "composesWith": [
         "evidence_search",
         "agent_query"
-      ]
+      ],
+      "readOnly": true
     },
     "long_press": {
       "purpose": "长按页面元素",
@@ -2643,7 +2710,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "measure_files": {
       "purpose": "统计指定页资源数量和体积",
@@ -2671,7 +2739,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "measure_paint": {
       "purpose": "测指定页绘制时间",
@@ -2699,7 +2768,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "measure_timing": {
       "purpose": "测指定页首字节、文档就绪和页面加载时间",
@@ -2727,7 +2797,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "memory_delete": {
       "purpose": "按 memoryId 删除已有记忆（会话 mm_ 或长久 lm_）",
@@ -2748,7 +2819,8 @@
       "alternatives": [
         "使用当前 notes 临时保存"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "memory_update": {
       "purpose": "按 memoryId 更新已有记忆正文（会话 mm_ 或长久 lm_）",
@@ -2769,7 +2841,8 @@
       "alternatives": [
         "使用当前 notes 临时保存"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "move_tab": {
       "purpose": "移动指定标签的位置",
@@ -2797,7 +2870,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "network_grep": {
       "purpose": "等待匹配网络响应，并在响应体中检索关键字（返回关键字附近上下文）",
@@ -2820,7 +2894,8 @@
         "浏览器网络监听",
         "页面内请求观察"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": true
     },
     "network_mock": {
       "purpose": "浏览器网络请求拦截与 Mock 打桩",
@@ -2843,7 +2918,8 @@
         "浏览器网络监听",
         "页面内请求观察"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "network_throttle": {
       "purpose": "模拟网络条件",
@@ -2867,7 +2943,8 @@
         "当前已登录页面操作",
         "用户手动登录"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "notes_delete": {
       "purpose": "删除过时的工作笔记",
@@ -2888,7 +2965,8 @@
       "alternatives": [
         "使用当前 notes 临时保存"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "notes_write": {
       "purpose": "保存或更新工作笔记",
@@ -2916,7 +2994,8 @@
       ],
       "deeper": [
         "reflect_write"
-      ]
+      ],
+      "readOnly": false
     },
     "observation_write": {
       "purpose": "把页面/代码/截图等观察结果记入本轮 observations",
@@ -2944,7 +3023,8 @@
       "deeper": [
         "evidence_search",
         "reflect_write"
-      ]
+      ],
+      "readOnly": false
     },
     "open_tab": {
       "purpose": "在指定 windowId 窗口后台新开标签，不激活新页",
@@ -2972,7 +3052,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "open_url": {
       "purpose": "打开指定网址并读回标题正文",
@@ -3008,7 +3089,8 @@
       "deeper": [
         "page_get_summary",
         "see_page"
-      ]
+      ],
+      "readOnly": false
     },
     "page_assert": {
       "purpose": "断言页面条件（只读）",
@@ -3036,7 +3118,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "page_clear_result": {
       "purpose": "清空 <observations> 中指定观察的 result 正文，保留 id、callId、batchId、tabId、type 身份字段，减轻上下文占用",
@@ -3064,7 +3147,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "page_click": {
       "purpose": "按元素编号点击控件",
@@ -3102,7 +3186,8 @@
         "page_get_summary",
         "observation_write",
         "page_recheck"
-      ]
+      ],
+      "readOnly": false
     },
     "page_click_role": {
       "purpose": "复合：A11y 定位（role±name）→ 点击 → 可选等待",
@@ -3138,7 +3223,8 @@
       "deeper": [
         "page_get_summary",
         "observation_write"
-      ]
+      ],
+      "readOnly": false
     },
     "page_click_text": {
       "purpose": "复合：按控件可见文字定位（find_on_page）→ 点击 → 可选等待",
@@ -3166,7 +3252,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "page_drag_to_id": {
       "purpose": "把源元素拖到目标元素（按 e_/r_ 中心点坐标执行拖拽）",
@@ -3194,7 +3281,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "page_fill_role": {
       "purpose": "复合：A11y 定位（role±name）→ 输入 text",
@@ -3230,7 +3318,8 @@
       "deeper": [
         "page_get_summary",
         "observation_write"
-      ]
+      ],
+      "readOnly": false
     },
     "page_fill_submit": {
       "purpose": "复合：按 fields 逐项「A11y 定位 + 输入」，再点击提交按钮，可选等待响应/文本",
@@ -3258,7 +3347,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "page_get_accessibility_tree": {
       "purpose": "取区域或元素的无障碍树",
@@ -3286,7 +3376,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "page_get_by_role": {
       "purpose": "按可访问性角色+名称查找控件/区域（A11y 定位）",
@@ -3314,7 +3405,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "page_get_dom": {
       "purpose": "取区域或元素的完整 HTML 片段",
@@ -3350,7 +3442,8 @@
       "deeper": [
         "page_inspect_element",
         "evidence_search"
-      ]
+      ],
+      "readOnly": true
     },
     "page_get_element_state": {
       "purpose": "看元素焦点、禁用、勾选、当前值",
@@ -3386,7 +3479,8 @@
         "page_click",
         "page_type",
         "page_assert"
-      ]
+      ],
+      "readOnly": true
     },
     "page_get_summary": {
       "purpose": "读指定页摘要：标题、地址、区域数、可交互数、标题列表",
@@ -3423,7 +3517,8 @@
         "page_list_interactive_elements",
         "page_list_regions",
         "page_inspect_element"
-      ]
+      ],
+      "readOnly": true
     },
     "page_inspect_element": {
       "purpose": "看一个可交互元素的标签、名字、位置",
@@ -3459,7 +3554,8 @@
       "deeper": [
         "page_click",
         "page_type"
-      ]
+      ],
+      "readOnly": true
     },
     "page_inspect_region": {
       "purpose": "看一个区域的正文和内部元素",
@@ -3495,7 +3591,8 @@
       "deeper": [
         "page_click",
         "page_type"
-      ]
+      ],
+      "readOnly": true
     },
     "page_list_interactive_elements": {
       "purpose": "列视口内可交互元素（A11y 投影）",
@@ -3533,7 +3630,8 @@
         "page_type",
         "page_click_role",
         "page_fill_role"
-      ]
+      ],
+      "readOnly": true
     },
     "page_list_regions": {
       "purpose": "列指定页区域，每项带 id",
@@ -3569,7 +3667,8 @@
       "deeper": [
         "page_inspect_region",
         "capture_rect"
-      ]
+      ],
+      "readOnly": true
     },
     "page_recheck": {
       "purpose": "轻量只读复验（不作为断言）",
@@ -3596,7 +3695,8 @@
       "composesWith": [
         "page_assert",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "page_select_role": {
       "purpose": "复合：A11y 定位下拉（role±name）→ combo_select(value)",
@@ -3624,7 +3724,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "page_submit_wait": {
       "purpose": "复合：按元素 id 点击提交，并等待匹配网络响应（urlContains）",
@@ -3652,7 +3753,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "page_type": {
       "purpose": "向指定输入框输入文字",
@@ -3690,7 +3792,8 @@
         "page_get_summary",
         "observation_write",
         "page_recheck"
-      ]
+      ],
+      "readOnly": false
     },
     "page_find": {
       "purpose": "使用 window.find 在页面内查找并选中文本，可能滚动页面；不会打开浏览器 Ctrl+F 面板，也不返回可点击元素编号",
@@ -3718,7 +3821,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "page_storage": {
       "purpose": "读写页内 localStorage",
@@ -3742,7 +3846,8 @@
         "当前已登录页面操作",
         "用户手动登录"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "press": {
       "purpose": "按下键盘键",
@@ -3770,7 +3875,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "probe_dns": {
       "purpose": "解析域名地址",
@@ -3798,7 +3904,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "probe_http": {
       "purpose": "探测指定 HTTP/HTTPS 网址的连通性、响应状态和耗时，不是 ICMP ping",
@@ -3832,7 +3939,8 @@
       ],
       "deeper": [
         "send_http"
-      ]
+      ],
+      "readOnly": true
     },
     "probe_ssl": {
       "purpose": "查看证书是否有效",
@@ -3860,7 +3968,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "profile_vault": {
       "purpose": "浏览器配置库（chrome.storage）",
@@ -3884,7 +3993,8 @@
         "当前已登录页面操作",
         "用户手动登录"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "read_page_credentials": {
       "purpose": "读指定页可见的账号相关字段",
@@ -3908,7 +4018,8 @@
         "当前已登录页面操作",
         "用户手动登录"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": true
     },
     "reflect_delete": {
       "purpose": "按 id 删除当前 turn 的一条反思记录（rf_ 编号，来自 <reflection>）",
@@ -3936,7 +4047,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "reflect_write": {
       "purpose": "记录当前 turn 的总结与反思（做了什么、依据、风险与下一步）",
@@ -3970,7 +4082,8 @@
       ],
       "deeper": [
         "finishTurn"
-      ]
+      ],
+      "readOnly": false
     },
     "reload": {
       "purpose": "刷新指定页",
@@ -3998,32 +4111,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
-    },
-    "reportProgress": {
-      "purpose": "向用户侧记录当前进度（做了什么、依据、卡点、下一步）",
-      "triggers": [
-        "reportProgress",
-        "任务需要交互、收口、预算检查或向用户汇报"
       ],
-      "outputs": [
-        "轮次状态或用户可见回复"
-      ],
-      "preconditions": [
-        "当前会话与任务目标有效"
-      ],
-      "risk": "low",
-      "verification": [
-        "工具 ok=true，且回复或状态符合当前目标"
-      ],
-      "alternatives": [
-        "继续执行当前轮工具",
-        "直接向用户说明"
-      ],
-      "composesWith": [
-        "task_set",
-        "finishTurn"
-      ]
+      "readOnly": false
     },
     "save_pdf": {
       "purpose": "将指定页按打印样式保存为 PDF（含背景，优先采用页面 CSS 纸张尺寸），通过 Chrome 下载到本机",
@@ -4046,7 +4135,8 @@
         "页面导出工具",
         "本地文件工具"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "script_list": {
       "purpose": "列出服务数据目录 scripts/ 中可用脚本的文件名",
@@ -4074,7 +4164,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "script_patch": {
       "purpose": "用 git unified diff 在服务数据目录 scripts/ 新增、修改或删除一个脚本文件",
@@ -4111,7 +4202,8 @@
         "script_read",
         "execute_javascript",
         "local_run"
-      ]
+      ],
+      "readOnly": false
     },
     "script_read": {
       "purpose": "读取服务数据目录 scripts/ 中指定脚本的完整代码",
@@ -4146,7 +4238,8 @@
       "deeper": [
         "script_patch",
         "execute_javascript"
-      ]
+      ],
+      "readOnly": true
     },
     "script_write": {
       "purpose": "向服务数据目录 scripts/ 直接全量写入或覆盖一个脚本文件",
@@ -4183,7 +4276,8 @@
         "script_read",
         "execute_javascript",
         "local_run"
-      ]
+      ],
+      "readOnly": false
     },
     "scroll": {
       "purpose": "滚动指定页",
@@ -4211,7 +4305,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "scroll_to": {
       "purpose": "把元素滚进可视区",
@@ -4239,7 +4334,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "see_captcha": {
       "purpose": "检测 Turnstile、reCAPTCHA、hCaptcha 的 iframe、组件、响应字段及可访问勾选框",
@@ -4262,7 +4358,8 @@
         "用户手动完成",
         "页面自身验证状态检查"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": true
     },
     "see_console": {
       "purpose": "读取页面 console 日志（需页面已注入监听；开启后的日志才可读）",
@@ -4285,7 +4382,8 @@
         "普通页面观察",
         "浏览器原生调试"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": true
     },
     "see_diag": {
       "purpose": "从浏览器层采集目标标签诊断信息，不执行页面脚本，可用于排查原生弹窗阻塞页面的情况",
@@ -4308,7 +4406,8 @@
         "普通页面观察",
         "浏览器原生调试"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": true
     },
     "see_env": {
       "purpose": "读取所有普通浏览器窗口及其完整标签列表，不改变焦点",
@@ -4336,7 +4435,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "see_page": {
       "purpose": "读指定页标题、地址和可见正文",
@@ -4372,7 +4472,8 @@
       "deeper": [
         "find_on_page",
         "page_list_interactive_elements"
-      ]
+      ],
+      "readOnly": true
     },
     "see_page_info": {
       "purpose": "读指定页标题、地址和描述",
@@ -4400,7 +4501,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "see_zoom": {
       "purpose": "读指定页缩放",
@@ -4423,7 +4525,8 @@
         "普通页面观察",
         "浏览器原生调试"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": true
     },
     "select": {
       "purpose": "（兼容入口，优先用 combo_select）在下拉框选择精确 value",
@@ -4451,7 +4554,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "send_http": {
       "purpose": "向完整 HTTP/HTTPS URL 发送请求，跟随重定向；method 默认 GET",
@@ -4482,7 +4586,8 @@
       "deeper": [
         "local_fs_write",
         "evidence_search"
-      ]
+      ],
+      "readOnly": false
     },
     "send_http_batch": {
       "purpose": "依次向 1 至 5 个完整 HTTP/HTTPS URL 发送 GET 请求",
@@ -4510,7 +4615,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "service_worker_list": {
       "purpose": "列出目标网页所属源可见的 Service Worker 注册信息，需要页面支持 Service Worker API",
@@ -4538,7 +4644,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "set_cookie": {
       "purpose": "设置 Cookie",
@@ -4562,7 +4669,8 @@
         "当前已登录页面操作",
         "用户手动登录"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "set_geolocation": {
       "purpose": "模拟地理位置",
@@ -4590,7 +4698,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "set_zoom": {
       "purpose": "设置标签页缩放",
@@ -4613,7 +4722,8 @@
         "普通页面观察",
         "浏览器原生调试"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "skill_list": {
       "purpose": "列出可动态加载的技能：id、summary",
@@ -4635,7 +4745,8 @@
         "使用常驻技能",
         "直接组合常驻工具"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "skill_load": {
       "purpose": "按 id 加载动态技能正文到本轮 User <skill>，会话内保持",
@@ -4657,7 +4768,8 @@
         "使用常驻技能",
         "直接组合常驻工具"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "snapshot_page": {
       "purpose": "列出指定页可见交互控件快照，不附带整页正文",
@@ -4695,7 +4807,8 @@
         "page_type",
         "click",
         "type"
-      ]
+      ],
+      "readOnly": true
     },
     "solve_captcha": {
       "purpose": "尝试点击可访问验证码勾选框并等待可观察的验证通过状态，最多 12 秒",
@@ -4718,7 +4831,8 @@
         "用户手动完成",
         "页面自身验证状态检查"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "stream_pull": {
       "purpose": "把浏览器侧数据经二进制流管道写入宿主文件，不经 Base64 中转",
@@ -4741,7 +4855,8 @@
         "页面导出工具",
         "本地文件工具"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": true
     },
     "stream_push": {
       "purpose": "把宿主文件经二进制流管道送到浏览器侧发起请求，不经 Base64 中转",
@@ -4764,7 +4879,8 @@
         "页面导出工具",
         "本地文件工具"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "submit": {
       "purpose": "提交指定页上的表单",
@@ -4792,7 +4908,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "switch_tab": {
       "purpose": "明确切换到指定标签并读取页面",
@@ -4820,7 +4937,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "tab_context": {
       "purpose": "设置/读取/清除默认 tabId（唯一「记住标签」的工具）",
@@ -4848,7 +4966,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "tavily_search": {
       "purpose": "通过 Tavily 高级搜索获取公开网页及相关内容",
@@ -4883,7 +5002,8 @@
       "deeper": [
         "send_http",
         "open_url"
-      ]
+      ],
+      "readOnly": true
     },
     "tick": {
       "purpose": "勾选或取消匹配 text 的复选框",
@@ -4911,7 +5031,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "type": {
       "purpose": "向指定可编辑控件输入 text",
@@ -4939,7 +5060,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "ungroup_tabs": {
       "purpose": "将指定标签移出分组",
@@ -4967,7 +5089,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "update_tab": {
       "purpose": "固定或静音标签",
@@ -4995,7 +5118,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "update_window": {
       "purpose": "改变指定窗口状态",
@@ -5023,7 +5147,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": false
     },
     "video_capture_sequence": {
       "purpose": "按时间间隔连续截取视口帧（轻量录屏序列）",
@@ -5046,7 +5171,8 @@
         "连续截图",
         "Canvas/WebGL 状态探针"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "video_record": {
       "purpose": "持续按帧录制视口（start/stop/status）",
@@ -5069,7 +5195,8 @@
         "连续截图",
         "Canvas/WebGL 状态探针"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": false
     },
     "wait": {
       "purpose": "等待条件满足",
@@ -5097,7 +5224,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "wait_captcha": {
       "purpose": "等待检测到 Turnstile、reCAPTCHA 或 hCaptcha 出现，最多 12 秒",
@@ -5120,7 +5248,8 @@
         "用户手动完成",
         "页面自身验证状态检查"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": true
     },
     "wait_download": {
       "purpose": "按 downloadId 等待指定下载完成",
@@ -5143,7 +5272,8 @@
         "页面导出工具",
         "本地文件工具"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": true
     },
     "wait_network": {
       "purpose": "等到页面接口和资源安静后再读页",
@@ -5166,7 +5296,8 @@
         "浏览器网络监听",
         "页面内请求观察"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": true
     },
     "wait_new_tab": {
       "purpose": "等待调用后新创建的浏览器标签（任意窗口），不是原生 alert/confirm/prompt，也不会返回调用前已经打开的标签",
@@ -5194,7 +5325,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "wait_response": {
       "purpose": "等待匹配的网络响应（CDP Network.responseReceived）",
@@ -5217,7 +5349,8 @@
         "浏览器网络监听",
         "页面内请求观察"
       ],
-      "composesWith": []
+      "composesWith": [],
+      "readOnly": true
     },
     "watch_page": {
       "purpose": "再读一次指定页，看相对上次有没有变化",
@@ -5245,7 +5378,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "web_search": {
       "purpose": "搜索公开网页",
@@ -5281,7 +5415,8 @@
         "send_http",
         "probe_http",
         "open_url"
-      ]
+      ],
+      "readOnly": true
     },
     "websocket_monitor": {
       "purpose": "监控目标标签的 WebSocket 帧，自 start 后捕获收发，不依赖网页事件监听方式",
@@ -5309,7 +5444,8 @@
         "page_assert",
         "page_recheck",
         "capture_viewport"
-      ]
+      ],
+      "readOnly": true
     },
     "task_set": {
       "purpose": "为当前 Goal 创建或替换持久化执行任务",
@@ -5332,7 +5468,8 @@
       ],
       "composesWith": [
         "finishTurn"
-      ]
+      ],
+      "readOnly": false
     },
     "task_update": {
       "purpose": "按稳定 itemId 更新当前 Task 步骤",
@@ -5355,7 +5492,8 @@
       ],
       "composesWith": [
         "finishTurn"
-      ]
+      ],
+      "readOnly": false
     },
     "task_complete": {
       "purpose": "在全部步骤 done 后完成当前 Task",
@@ -5378,7 +5516,8 @@
       ],
       "composesWith": [
         "finishTurn"
-      ]
+      ],
+      "readOnly": false
     },
     "tabs_current": {
       "purpose": "查询当前浏览器窗口与标签列表",
@@ -5408,7 +5547,8 @@
         "page_get_summary",
         "open_url",
         "switch_tab"
-      ]
+      ],
+      "readOnly": true
     },
     "memory_writeConversation": {
       "purpose": "保存后续需要的事实、偏好或进展",
@@ -5436,7 +5576,8 @@
       ],
       "deeper": [
         "memory_update"
-      ]
+      ],
+      "readOnly": false
     },
     "memory_writeProject": {
       "purpose": "保存后续需要的事实、偏好或进展",
@@ -5464,7 +5605,8 @@
       ],
       "deeper": [
         "memory_update"
-      ]
+      ],
+      "readOnly": false
     }
   },
   "skills": {
