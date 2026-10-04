@@ -13,6 +13,9 @@
           "type": "integer",
           "description": "目标标签编号"
         },
+        "frameId": {
+          "type": "integer"
+        },
         "id": {
           "type": "string",
           "description": "page.* 返回的 e_ 编号（提交按钮）"

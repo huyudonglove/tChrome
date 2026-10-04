@@ -12,6 +12,9 @@
         "tabId": {
           "type": "integer"
         },
+        "frameId": {
+          "type": "integer"
+        },
         "text": {
           "type": "string",
           "minLength": 1,

@@ -12,6 +12,9 @@
         "tabId": {
           "type": "integer"
         },
+        "frameId": {
+          "type": "integer"
+        },
         "role": {
           "type": "string",
           "description": "可访问角色，默认 combobox"

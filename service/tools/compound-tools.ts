@@ -67,11 +67,12 @@ async function optionalWait(
   return null;
 }
 
-async function resolveByRole(host: BrowserHost, tabId: unknown, reason: string, role: string, a11yName: string | undefined, matchIndex: number | undefined) {
+async function resolveByRole(host: BrowserHost, tabId: unknown, reason: string, role: string, a11yName: string | undefined, matchIndex: number | undefined, frame: Record<string, unknown> = {}) {
   const found = await host.execute("page_get_by_role", {
     tabId,
     role,
     ...(a11yName !== undefined ? { name: a11yName } : {}),
+    ...frame,
     reason,
   }) as HostResult;
   if (!found?.ok) return { found };
@@ -93,15 +94,16 @@ export async function runCompoundTool(
   const reason = typeof args.reason === "string" ? args.reason : "";
   const ms = typeof args.ms === "number" ? args.ms : undefined;
   const matchIndex = typeof args.matchIndex === "number" ? args.matchIndex : undefined;
+  const withFrame = typeof args.frameId === "number" ? { frameId: args.frameId } : {};
 
   if (name === "page_click_role") {
     const role = String(args.role ?? "");
     const a11yName = typeof args.name === "string" ? args.name : undefined;
-    const located = await resolveByRole(host, tabId, reason, role, a11yName, matchIndex);
+    const located = await resolveByRole(host, tabId, reason, role, a11yName, matchIndex, withFrame);
     if (located.error) return { ...located.error, tabId, role, name: a11yName, step: "page_get_by_role" };
     if (!located.found?.ok) return { ...located.found, step: "page_get_by_role", tabId };
     const id = located.id!;
-    const clicked = await host.execute("page_click", { tabId, id, reason }) as HostResult;
+    const clicked = await host.execute("page_click", { tabId, id, reason, ...withFrame }) as HostResult;
     if (!clicked?.ok) return { ...clicked, step: "page_click", tabId, id };
     const wait = await optionalWait(host, tabId, args, reason, ms);
     if (wait && !wait.ok) return { ...wait, step: "wait", tabId, id, clicked: true };
@@ -112,7 +114,7 @@ export async function runCompoundTool(
     const role = String(args.role ?? "");
     const a11yName = typeof args.name === "string" ? args.name : undefined;
     const text = String(args.text ?? "");
-    const located = await resolveByRole(host, tabId, reason, role, a11yName, matchIndex);
+    const located = await resolveByRole(host, tabId, reason, role, a11yName, matchIndex, withFrame);
     if (located.error) return { ...located.error, tabId, role, name: a11yName, step: "page_get_by_role" };
     if (!located.found?.ok) return { ...located.found, step: "page_get_by_role", tabId };
     const id = located.id!;
@@ -120,6 +122,7 @@ export async function runCompoundTool(
       tabId,
       id,
       text,
+      ...withFrame,
       ...(args.clearBeforeType === true ? { clearBeforeType: true } : {}),
       ...(args.pressEnter === true ? { pressEnter: true } : {}),
       reason,
@@ -138,7 +141,7 @@ export async function runCompoundTool(
       ...(ms !== undefined ? { ms } : {}),
       reason,
     });
-    const clicked = await host.execute("page_click", { tabId, id, reason }) as HostResult;
+    const clicked = await host.execute("page_click", { tabId, id, reason, ...withFrame }) as HostResult;
     if (!clicked?.ok) {
       await Promise.resolve(waiting).catch(() => undefined);
       return { ...clicked, step: "page_click", tabId, id };
@@ -152,11 +155,11 @@ export async function runCompoundTool(
     const role = String(args.role ?? "combobox");
     const a11yName = typeof args.name === "string" ? args.name : undefined;
     const value = String(args.value ?? "");
-    const located = await resolveByRole(host, tabId, reason, role, a11yName, matchIndex);
+    const located = await resolveByRole(host, tabId, reason, role, a11yName, matchIndex, withFrame);
     if (located.error) return { ...located.error, tabId, role, name: a11yName, step: "page_get_by_role" };
     if (!located.found?.ok) return { ...located.found, step: "page_get_by_role", tabId };
     const id = located.id!;
-    const selected = await host.execute("combo_select", { tabId, id, value, reason }) as HostResult;
+    const selected = await host.execute("combo_select", { tabId, id, value, reason, ...withFrame }) as HostResult;
     if (!selected?.ok) return { ...selected, step: "combo_select", tabId, id };
     return { ok: true, tabId, id, role, name: a11yName ?? null, matchIndex: located.index, value: selected.value ?? value, text: selected.text ?? null };
   }
@@ -168,7 +171,7 @@ export async function runCompoundTool(
     const picked = pickElement(found, matchIndex, "find_on_page");
     if ("error" in picked) return { ...picked.error, tabId, text, step: "find_on_page" };
     const id = picked.element.id!;
-    const clicked = await host.execute("page_click", { tabId, id, reason }) as HostResult;
+    const clicked = await host.execute("page_click", { tabId, id, reason, ...withFrame }) as HostResult;
     if (!clicked?.ok) return { ...clicked, step: "page_click", tabId, id };
     const wait = await optionalWait(host, tabId, args, reason, ms);
     if (wait && !wait.ok) return { ...wait, step: "wait", tabId, id, clicked: true };
@@ -191,6 +194,7 @@ export async function runCompoundTool(
         tabId,
         id: located.id,
         text,
+        ...withFrame,
         ...(field.clearBeforeType === true ? { clearBeforeType: true } : {}),
         ...(field.pressEnter === true ? { pressEnter: true } : {}),
         reason,
@@ -211,6 +215,7 @@ export async function runCompoundTool(
         submit.role.trim(),
         typeof submit.name === "string" ? submit.name : undefined,
         typeof submit.matchIndex === "number" ? submit.matchIndex : undefined,
+        withFrame,
       );
       if (located.error) return { ...located.error, tabId, step: "page_get_by_role", filled };
       if (!located.found?.ok) return { ...located.found, tabId, step: "page_get_by_role", filled };
@@ -234,7 +239,7 @@ export async function runCompoundTool(
         ...(typeof waitArgs.ms === "number" ? { ms: waitArgs.ms } : {}),
         reason,
       });
-      const clicked = await host.execute("page_click", { tabId, id: submitId, reason }) as HostResult;
+      const clicked = await host.execute("page_click", { tabId, id: submitId, reason, ...withFrame }) as HostResult;
       if (!clicked?.ok) {
         await Promise.resolve(waiting).catch(() => undefined);
         return { ...clicked, step: "page_click", tabId, id: submitId, filled };
@@ -244,7 +249,7 @@ export async function runCompoundTool(
       return { ok: true, tabId, filled, submit: { id: submitId, clicked: true }, wait: { ok: true, url: wait.url, status: wait.status, requestId: wait.requestId } };
     }
 
-    const clicked = await host.execute("page_click", { tabId, id: submitId, reason }) as HostResult;
+    const clicked = await host.execute("page_click", { tabId, id: submitId, reason, ...withFrame }) as HostResult;
     if (!clicked?.ok) return { ...clicked, step: "page_click", tabId, id: submitId, filled };
     const wait = hasWait ? await optionalWait(host, tabId, waitArgs, reason, ms) : null;
     if (wait && !wait.ok) return { ...wait, step: "wait", tabId, id: submitId, filled, clicked: true };

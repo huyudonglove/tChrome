@@ -12,6 +12,9 @@
         "tabId": {
           "type": "integer"
         },
+        "frameId": {
+          "type": "integer"
+        },
         "sourceId": {
           "type": "string",
           "description": "源元素 e_/r_ 编号"

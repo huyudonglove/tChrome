@@ -12,6 +12,9 @@
         "tabId": {
           "type": "integer"
         },
+        "frameId": {
+          "type": "integer"
+        },
         "fields": {
           "type": "array",
           "minItems": 1,

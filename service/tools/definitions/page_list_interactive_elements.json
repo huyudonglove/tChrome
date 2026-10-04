@@ -12,6 +12,9 @@
         "tabId": {
           "type": "integer"
         },
+        "frameId": {
+          "type": "integer"
+        },
         "regionId": {
           "type": "string"
         }

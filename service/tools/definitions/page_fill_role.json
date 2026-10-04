@@ -13,6 +13,9 @@
           "type": "integer",
           "description": "目标标签编号"
         },
+        "frameId": {
+          "type": "integer"
+        },
         "role": {
           "type": "string",
           "description": "可访问角色，例如 textbox / combobox / searchbox"

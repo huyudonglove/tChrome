@@ -124,3 +124,48 @@ test("executeTool routes compound names through host bridge", async () => {
   });
   expect(JSON.parse(execution.text)).toMatchObject({ ok: true, id: "e_05", clicked: true });
 });
+
+test("compound tools forward frameId to their page.* sub-calls", async () => {
+  const calls: { name: string; args: Record<string, unknown> }[] = [];
+  const host = {
+    execute: async (name: string, args: Record<string, unknown>) => {
+      calls.push({ name, args });
+      if (name === "page_get_by_role") return { ok: true, total: 1, elements: [{ id: "e_41", role: "button", name: "提交" }] };
+      if (name === "page_click") return { ok: true, clicked: true, id: args.id };
+      if (name === "page_type") return { ok: true, value: args.text };
+      if (name === "wait_response") return { ok: true, url: "https://x/api/save", status: 200, requestId: "r1" };
+      return { ok: false };
+    },
+  } as unknown as BrowserHost;
+
+  const clicked = await runCompoundTool("page_click_role", { tabId: 7, role: "button", name: "提交", frameId: 762, reason: "f" }, host);
+  expect(clicked).toMatchObject({ ok: true, id: "e_41", clicked: true });
+  expect(calls.find(c => c.name === "page_get_by_role")?.args.frameId).toBe(762);
+  expect(calls.find(c => c.name === "page_click")?.args.frameId).toBe(762);
+
+  const filled = await runCompoundTool("page_fill_role", { tabId: 7, role: "button", name: "提交", text: "hi", frameId: 762, reason: "f" }, host);
+  expect(filled.ok).toBe(true);
+  expect(calls.filter(c => c.name === "page_type").at(-1)?.args.frameId).toBe(762);
+
+  const submitted = await runCompoundTool("page_submit_wait", { tabId: 7, id: "e_41", urlContains: "/api/save", frameId: 762, reason: "f" }, host);
+  expect(submitted.ok).toBe(true);
+  expect(calls.filter(c => c.name === "page_click").at(-1)?.args.frameId).toBe(762);
+});
+
+test("compound tools omit frameId when the caller does not pass one", async () => {
+  const calls: { name: string; args: Record<string, unknown> }[] = [];
+  const host = {
+    execute: async (name: string, args: Record<string, unknown>) => {
+      calls.push({ name, args });
+      if (name === "page_get_by_role") return { ok: true, total: 1, elements: [{ id: "e_51", role: "button", name: "提交" }] };
+      if (name === "page_click") return { ok: true, clicked: true, id: args.id };
+      return { ok: false };
+    },
+  } as unknown as BrowserHost;
+
+  const clicked = await runCompoundTool("page_click_role", { tabId: 8, role: "button", name: "提交", reason: "n" }, host);
+  expect(clicked).toMatchObject({ ok: true, id: "e_51", clicked: true });
+  for (const call of calls) {
+    expect("frameId" in call.args).toBe(false);
+  }
+});
