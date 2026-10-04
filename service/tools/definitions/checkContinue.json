@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "checkContinue",
-    "description": "执行预算检查点。本轮业务工具总调用超过 {{checkContinuePrompt}} 次时应调用（不限单一工具名，轮换工具同样计数）：true=继续执行，false=直接结束本 turn。{{checkContinueHard}} 次仍未调用将由 Runtime 强制收口。\n参数：必填 cont（boolean）。\n返回：ok、cont、本轮调用计数。",
+    "description": "执行预算检查点。本轮业务工具总调用超过 {{checkContinuePrompt}} 次时应调用（不限单一工具名，轮换工具同样计数）：true=继续执行，false=直接结束本 turn。{{checkContinueHard}} 次仍未调用将由 Runtime 强制收口。\n参数：必填 cont（boolean）。\n连续累计 {{checkContinueHard}} 次仍未确认会收到强提示，要求先落 observation_write / reflect_write 检查点——Runtime 不会替你结束本 turn。\n返回：ok、cont、本轮调用计数。",
     "parameters": {
       "type": "object",
       "properties": {

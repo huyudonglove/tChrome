@@ -28,7 +28,7 @@ test("checkContinue and reportProgress do not inflate the total", () => {
   expect(escalate(withMeta, PROGRESS_TOOL).action).toBe("continue");
 });
 
-test("live budget hints carry the strip marker while terminal actions do not", () => {
+test("live budget hints carry the strip marker", () => {
   const atPrompt = Array.from({ length: SAME_TOOL_PROMPT }, (_, i) => row(`tool_${i}`));
   const promptHint = escalate(atPrompt, atPrompt.at(-1)!.name) as { action: string; text: string };
   expect(promptHint.action).toBe("hint");
@@ -48,18 +48,19 @@ test("live budget hints carry the strip marker while terminal actions do not", (
   const askHint = escalate(reports3, "tool_probe") as { text: string };
   expect(askHint.text).toContain(BUDGET_NUDGE_MARKER);
 
-  // 终止动作直接结束本 turn，不走 strip，不需要标记。
+  // 预算段没有终止档：硬阈值也是活提示，照样带标记（loop 会 strip 掉上一条）。
   const many = Array.from({ length: 65 }, (_, i) => row(`tool_${i}`));
-  const forced = escalate(many, many.at(-1)!.name) as { action: string; text: string };
-  expect(forced.action).toBe("force_end");
-  expect(forced.text).not.toContain(BUDGET_NUDGE_MARKER);
+  const hardHint = escalate(many, many.at(-1)!.name) as { action: string; text: string };
+  expect(hardHint.action).toBe("hint");
+  expect(hardHint.text).toContain(BUDGET_NUDGE_MARKER);
+  expect(hardHint.text).toContain("observation_write");
 });
 
 test("checkContinue resets the budget segment instead of exempting the whole turn", () => {
   const many = Array.from({ length: 65 }, (_, i) => row(`tool_${i}`));
-  // 分段计数：刚调过 checkContinue 时预算重置，65 次调用重新逼近硬收口。
+  // 分段计数：刚调过 checkContinue 时预算重置，65 次调用重新逼近强提示档。
   const withCheck = [row(CHECK_TOOL, { cont: true }), ...many];
-  expect(escalate(withCheck, many.at(-1)!.name).action).toBe("force_end");
+  expect(escalate(withCheck, many.at(-1)!.name).action).toBe("hint");
 
   // 调过 checkContinue 后再跑满一个 prompt 段，应重新提示（这是本次修复的行为）。
   const atPrompt = Array.from({ length: SAME_TOOL_PROMPT }, (_, i) => row(`tool_${i}`));
@@ -71,10 +72,10 @@ test("checkContinue resets the budget segment instead of exempting the whole tur
 
   // 从未调过 checkContinue 时门槛同样照常触发。
   expect(escalate(atPrompt, atPrompt.at(-1)!.name).action).toBe("hint");
-  expect(escalate(many, many.at(-1)!.name).action).toBe("force_end");
+  expect(escalate(many, many.at(-1)!.name).action).toBe("hint");
 
   // 连续 3 次 check 后仍进入 reportProgress 链。
-  // 段内业务调用须低于硬收口门槛，否则会先被 force_end 截断。
+  // 段内业务调用须低于强提示门槛，否则会先被硬档 hint 截断。
   const checks3 = Array.from({ length: 3 }, () => row(CHECK_TOOL, { cont: true }));
   const few = Array.from({ length: 3 }, (_, i) => row(`tool_${i}`));
   expect(escalate([...checks3, ...few], few.at(-1)!.name)).toMatchObject({
@@ -100,6 +101,7 @@ test("progress chain hands off check -> report -> askUser -> finishTurn", () => 
   expect(escalate(asked, "askUser").action).toBe("continue");
   const after3 = [row("askUser", { question: "?" }), ...rows("a", "b", "c")];
   expect(escalate(after3, "c")).toMatchObject({ action: "hint", text: expect.stringContaining("finishTurn") });
+  // 空转再久也只是收口提示，runtime 不替我结束本 turn。
   const after6 = [row("askUser", { question: "?" }), ...rows("a", "b", "c", "d", "e", "f")];
-  expect(escalate(after6, "f").action).toBe("force_end");
+  expect(escalate(after6, "f")).toMatchObject({ action: "hint", text: expect.stringContaining("finishTurn") });
 });

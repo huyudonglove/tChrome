@@ -106,7 +106,7 @@ const stoppedReply = (ledger: Ledger, turn: Turn): TurnReply => ({
 });
 
 /**
- * force_end / interrupt 走的是 applyToolEffects 之前的提前返回，turn.reply 的收尾
+ * interrupt 走的是 applyToolEffects 之前的提前返回，turn.reply 的收尾
  * （回合落 completed、账本翻 idle）会被整个跳过——不补做的话账本永远停在 running，
  * 回复也无法投影进会话视图（回合已写 stop-reason 事件但状态永不翻转）。
  * liveTools 这里一并清空：提前返回时同波工具可能仍在执行，wave 的清空逻辑不会再跑到。
@@ -448,7 +448,7 @@ const runQueue = async (input: {
         row.return = { ...row.return, text: `${row.return.text}\n\n${repeated}` };
       }
       const escalation = escalate(turnRows, item.name);
-      if (escalation.action === "force_end" || escalation.action === "interrupt") {
+      if (escalation.action === "interrupt") {
         closeForcedReply(ledger, turn, escalation.text);
         saveTurn(dataDir, turn);
         saveLedger(dataDir, ledger);
