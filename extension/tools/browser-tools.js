@@ -1403,7 +1403,15 @@ const executeBrowserTool = async (name, input = {}) => {
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可操作的普通网页标签'};
     const run = async () => {
-      const [{result}] = await chrome.scripting.executeScript({target: {tabId: tab.id}, func: elementTool, args: [name, input]});
+      const [{result}] = await chrome.scripting.executeScript({
+        target: {
+          tabId: tab.id,
+          // frameId 走 chrome.scripting 的整数命名空间（与 page.* 注入同一套），不传时保持主文档
+          ...(input.frameId === undefined || input.frameId === null ? {} : {frameIds: [Number(input.frameId)]}),
+        },
+        func: elementTool,
+        args: [name, input],
+      });
       const out = {tabId: tab.id, ...result};
       if (out.ok && ['click', 'double_click', 'type', 'select'].includes(name)) await afterPageAction(tab.id);
       return out;

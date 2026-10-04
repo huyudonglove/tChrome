@@ -166,7 +166,7 @@ export async function runCompoundTool(
 
   if (name === "page_click_text") {
     const text = String(args.text ?? "");
-    const found = await host.execute("find_on_page", { tabId, text, reason, ...(typeof args.limit === "number" ? { limit: args.limit } : {}) }) as HostResult;
+    const found = await host.execute("find_on_page", { tabId, text, reason, ...withFrame, ...(typeof args.limit === "number" ? { limit: args.limit } : {}) }) as HostResult;
     if (!found?.ok) return { ...found, step: "find_on_page", tabId };
     const picked = pickElement(found, matchIndex, "find_on_page");
     if ("error" in picked) return { ...picked.error, tabId, text, step: "find_on_page" };

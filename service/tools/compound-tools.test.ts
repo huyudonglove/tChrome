@@ -169,3 +169,38 @@ test("compound tools omit frameId when the caller does not pass one", async () =
     expect("frameId" in call.args).toBe(false);
   }
 });
+
+test("page_click_text scopes both locate and click to the requested frame", async () => {
+  const calls: { name: string; args: Record<string, unknown> }[] = [];
+  const host = {
+    execute: async (name: string, args: Record<string, unknown>) => {
+      calls.push({ name, args });
+      if (name === "find_on_page") return { ok: true, total: 1, elements: [{ id: "e_61", text: "提交" }] };
+      if (name === "page_click") return { ok: true, clicked: true, id: args.id };
+      return { ok: false };
+    },
+  } as unknown as BrowserHost;
+
+  const clicked = await runCompoundTool("page_click_text", { tabId: 9, text: "提交", frameId: 762, reason: "f" }, host);
+  expect(clicked).toMatchObject({ ok: true, id: "e_61", clicked: true });
+  expect(calls.find(c => c.name === "find_on_page")?.args.frameId).toBe(762);
+  expect(calls.find(c => c.name === "page_click")?.args.frameId).toBe(762);
+});
+
+test("page_click_text omits frameId from find_on_page when the caller does not pass one", async () => {
+  const calls: { name: string; args: Record<string, unknown> }[] = [];
+  const host = {
+    execute: async (name: string, args: Record<string, unknown>) => {
+      calls.push({ name, args });
+      if (name === "find_on_page") return { ok: true, total: 1, elements: [{ id: "e_62", text: "提交" }] };
+      if (name === "page_click") return { ok: true, clicked: true, id: args.id };
+      return { ok: false };
+    },
+  } as unknown as BrowserHost;
+
+  const clicked = await runCompoundTool("page_click_text", { tabId: 10, text: "提交", reason: "n" }, host);
+  expect(clicked).toMatchObject({ ok: true, id: "e_62", clicked: true });
+  for (const call of calls) {
+    expect("frameId" in call.args).toBe(false);
+  }
+});

@@ -791,3 +791,25 @@ test("frame_list enumerates frames with chrome.scripting integer frameIds", asyn
   expect(result.frames.every((frame: any) => Number.isInteger(frame.frameId))).toBe(true);
   expect(result.frames.filter((frame: any) => frame.isTop).length).toBe(1);
 });
+
+test("find_on_page scopes injection to the requested frame", async () => {
+  const calls: any[] = [];
+  globals.chrome = {
+    tabs: { get: async () => ({ id: 33, url: "https://example.test/", status: "complete", title: "Example" }) },
+    scripting: { executeScript: async (input: any) => {
+      calls.push(input);
+      return [{ result: { ok: true, elements: [], total: 0 } }];
+    } },
+  };
+  // frameId 走 chrome.scripting 的整数命名空间（与 page.* 注入同一套）
+  await runBrowserTool("find_on_page", { tabId: 33, text: "提交", frameId: 762 });
+  const scoped = calls.at(-1);
+  expect(scoped.target).toEqual({ tabId: 33, frameIds: [762] });
+  expect(scoped).not.toHaveProperty("frameIds");
+  expect(scoped.args[1].frameId).toBe(762);
+
+  await runBrowserTool("find_on_page", { tabId: 33, text: "提交" });
+  const unscoped = calls.at(-1);
+  expect(unscoped.target).toEqual({ tabId: 33 });
+  expect(unscoped.args[1].frameId).toBeUndefined();
+});
