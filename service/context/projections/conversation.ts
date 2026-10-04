@@ -288,7 +288,7 @@ const stopReasonXml = (stop: unknown): string => {
   return `<stopReason${attrs}>\n${text}\n</stopReason>`;
 };
 
-/** Tool pool entry: envelope keys plus outcome flags as attributes, arguments and result in the body. */
+/** Tool pool entry: envelope keys plus outcome flags as attributes, result in the body. */
 const callXml = (value: unknown): string => {
   const record = asRecord(value);
   if (!record) return "";

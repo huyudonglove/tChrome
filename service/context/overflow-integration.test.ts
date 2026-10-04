@@ -32,7 +32,7 @@ const nestedTag = (user: string, name: string): any => {
   const m = conversation.match(new RegExp(`<${name}>\\n([\\s\\S]*?)\\n</${name}>`));
   return m ? JSON.parse(m[1]!) : undefined;
 };
-// <toolIO> 池渲染成 <call ...> 兄弟元素：元数据在属性、arguments/result 在正文 JSON。
+// <toolIO> 池渲染成 <call ...> 兄弟元素：元数据在属性、result 在正文 JSON。
 const callRows = (xml: string): any[] => {
   const rows: any[] = [];
   const re = /<call\s+([^>]*)>\n([\s\S]*?)\n<\/call>/g;

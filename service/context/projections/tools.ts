@@ -4,32 +4,23 @@ function resultView(text: string): unknown {
   try { return JSON.parse(text); } catch { return text; }
 }
 
-/** Content lives in turn modules; toolIO keeps only the pointer. */
-const MODULE_POINTERS: Record<string, (args: Record<string, unknown>, result: unknown) => { args: Record<string, unknown>; result: unknown }> = {
-  finishTurn: () => ({ args: { output: "reply" }, result: { ok: true, output: "reply" } }),
-  askUser: () => ({ args: { output: "ask" }, result: { ok: true, output: "ask" } }),
-  "notes_write": (args) => {
-    const key = String(args.key ?? "");
-    return { args: { notes: key }, result: { ok: true, note: key } };
-  },
-  "notes_delete": (args) => {
-    const key = String(args.key ?? "");
-    return { args: { notes: key, deleted: true }, result: { ok: true, note: key, deleted: true } };
-  },
-  "memory_writeConversation": () => ({ args: { memory: true }, result: { ok: true, memory: true } }),
-  "memory_writeProject": () => ({ args: { memory: true }, result: { ok: true, memory: true } }),
-  "memory_update": (args) => ({ args: { memory: args.memoryId ?? true }, result: { ok: true, memoryId: args.memoryId ?? null } }),
-  "memory_delete": (args) => ({ args: { memory: args.memoryId ?? true, deleted: true }, result: { ok: true, memoryId: args.memoryId ?? null, deleted: true } }),
-  "reflect_write": (_args, result) => {
-    const id = (result as { id?: string } | undefined)?.id;
-    return { args: { reflect: id ?? true }, result: { ok: true, reflectId: id ?? null } };
-  },
-  "reflect_delete": (args) => ({ args: { reflect: args.id ?? true, deleted: true }, result: { ok: true, reflectId: args.id ?? null, deleted: true } }),
-  "task_set": () => ({ args: { task: true }, result: { ok: true, task: true } }),
-  "task_update": (args) => ({ args: { task: args.taskId ?? true }, result: { ok: true, taskId: args.taskId ?? null } }),
-  "task_complete": (args) => ({ args: { task: args.taskId ?? true }, result: { ok: true, taskId: args.taskId ?? null, completed: true } }),
-  "observation_write": (args) => ({ args: { observations: args.type ?? true }, result: { ok: true, observation: args.type ?? true } }),
-  "workspace_write": () => ({ args: { workspace: true }, result: { ok: true, workspace: true } }),
+/** Content lives in turn modules; toolIO keeps only the pointer's result half. */
+const MODULE_POINTERS: Record<string, (args: Record<string, unknown>, result: unknown) => unknown> = {
+  finishTurn: () => ({ ok: true, output: "reply" }),
+  askUser: () => ({ ok: true, output: "ask" }),
+  "notes_write": (args) => ({ ok: true, note: String(args.key ?? "") }),
+  "notes_delete": (args) => ({ ok: true, note: String(args.key ?? ""), deleted: true }),
+  "memory_writeConversation": () => ({ ok: true, memory: true }),
+  "memory_writeProject": () => ({ ok: true, memory: true }),
+  "memory_update": (args) => ({ ok: true, memoryId: args.memoryId ?? null }),
+  "memory_delete": (args) => ({ ok: true, memoryId: args.memoryId ?? null, deleted: true }),
+  "reflect_write": (_args, result) => ({ ok: true, reflectId: (result as { id?: string } | undefined)?.id ?? null }),
+  "reflect_delete": (args) => ({ ok: true, reflectId: args.id ?? null, deleted: true }),
+  "task_set": () => ({ ok: true, task: true }),
+  "task_update": (args) => ({ ok: true, taskId: args.taskId ?? null }),
+  "task_complete": (args) => ({ ok: true, taskId: args.taskId ?? null, completed: true }),
+  "observation_write": (args) => ({ ok: true, observation: args.type ?? true }),
+  "workspace_write": () => ({ ok: true, workspace: true }),
 };
 
 /** Page observation payloads live in <observations>; toolIO keeps a pointer only. */
@@ -80,6 +71,7 @@ export function toolHistoryView(records: ToolIOItem[], observations: Observation
       const pointer = MODULE_POINTERS[record.name];
       const failed = result && typeof result === "object" && !Array.isArray(result) && (result as { ok?: unknown }).ok === false;
       if (pointer && !failed) {
+        // toolIO only surfaces the result half; `args` is no longer projected.
         const mapped = pointer(record.arguments as Record<string, unknown>, result);
         const hint = record.return.text.split("\n").find((line) => line.startsWith("runtime:"));
         return {
@@ -87,12 +79,11 @@ export function toolHistoryView(records: ToolIOItem[], observations: Observation
           turnId: record.turnId,
           batchId: record.batchId,
           name: record.name,
-          arguments: mapped.args,
           return: {
             stage: record.return.stage,
-            result: hint && typeof mapped.result === "object" && mapped.result !== null && !Array.isArray(mapped.result)
-              ? { ...(mapped.result as Record<string, unknown>), message: hint }
-              : mapped.result,
+            result: hint && typeof mapped === "object" && mapped !== null && !Array.isArray(mapped)
+              ? { ...(mapped as Record<string, unknown>), message: hint }
+              : mapped,
           },
         };
       }
@@ -102,7 +93,6 @@ export function toolHistoryView(records: ToolIOItem[], observations: Observation
       turnId: record.turnId,
       batchId: record.batchId,
       name: record.name,
-      arguments: { ...record.arguments },
       return: { stage: record.return.stage, result },
     };
   });
