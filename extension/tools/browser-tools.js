@@ -773,7 +773,10 @@ const runPageTool = async (name, input = {}) => {
   const exec = async () => {
   try {
     const [{result}] = await chrome.scripting.executeScript({
-      target: {tabId: tab.tabId},
+      target: {
+        tabId: tab.tabId,
+        ...(input.frameId === undefined || input.frameId === null ? {} : {frameIds: [Number(input.frameId)]}),
+      },
       args: [name, {
         id: String(input.id || ''),
         regionId: String(input.regionId || ''),
@@ -796,7 +799,6 @@ const runPageTool = async (name, input = {}) => {
         targetId: String(input.targetId || input.target || ''),
         frameId: input.frameId === undefined || input.frameId === null ? null : Number(input.frameId),
       }],
-      ...(input.frameId === undefined || input.frameId === null ? {} : { frameIds: [Number(input.frameId)] }),
       func: async (toolName, payload) => {
         const state = globalThis.__tChromePageIds ??= {pageElement: new WeakMap(), pageRegion: new WeakMap()};
         const idOf = async (node, kind) => {
@@ -1509,17 +1511,25 @@ const executeBrowserTool = async (name, input = {}) => {
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, tabId, error: '没有可读取的普通网页标签'};
     try {
-      return await withDebugger(tab.id, async () => {
-        const tree = await chrome.debugger.sendCommand({tabId: tab.id}, 'Page.getFrameTree');
-        const frames = [];
-        const walk = (node, depth) => {
-          const f = node.frame || {};
-          frames.push({ frameId: f.id, parentId: f.parentId || null, depth, name: f.name || '', url: f.url || '' });
-          for (const child of node.childFrames || []) walk(child, depth + 1);
-        };
-        if (tree?.frameTree) walk(tree.frameTree, 0);
-        return {ok: true, tabId: tab.id, count: frames.length, frames};
+      // frameId 必须用 chrome.scripting 的整数命名空间（0 为主文档），与 page.* 的 frameId 入参同一套。
+      // 原来走 CDP Page.getFrameTree，那套十六进制串与 chrome.scripting 编号没有映射，传不回 page.*。
+      const injected = await chrome.scripting.executeScript({
+        target: {tabId: tab.id, allFrames: true},
+        func: () => ({
+          url: location.href,
+          name: window.name,
+          title: document.title,
+          isTop: window.top === window,
+        }),
       });
+      const frames = (injected || []).map((entry) => ({
+        frameId: entry.frameId,
+        isTop: entry.result?.isTop === true,
+        url: entry.result?.url || '',
+        name: entry.result?.name || '',
+        title: entry.result?.title || '',
+      })).sort((a, b) => a.frameId - b.frameId);
+      return {ok: true, tabId: tab.id, count: frames.length, frames};
     } catch (error) {
       return {ok: false, tabId: tab.id, error: error instanceof Error ? error.message : String(error)};
     }

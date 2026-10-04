@@ -743,3 +743,51 @@ test("editable elements keep a stable accessible name instead of drifting input 
     });
   }
 });
+
+test("page_assert scopes injection to the requested iframe using chrome.scripting frameIds", async () => {
+  const calls: any[] = [];
+  globals.chrome = {
+    tabs: { get: async () => ({ id: 31, url: "https://example.com" }) },
+    scripting: { executeScript: async (input: any) => {
+      calls.push(input);
+      return [{ result: { ok: true } }];
+    } },
+  };
+  // frameId 走 chrome.scripting 的整数命名空间（0 为主文档），与 frame_list 返回同一套编号。
+  const frameId = 3;
+  // inspectTab 自身也会 executeScript 读标题，所以断言最后一次注入而不是按序号取。
+  await runBrowserTool("page_assert", { tabId: 31, frameId, urlContains: "/embed" });
+  const scoped = calls.at(-1);
+  expect(scoped.target).toEqual({ tabId: 31, frameIds: [frameId] });
+  expect(scoped).not.toHaveProperty("frameIds");
+  expect(scoped.args[1].frameId).toBe(frameId);
+  await runBrowserTool("page_assert", { tabId: 31, urlContains: "/embed" });
+  const unscoped = calls.at(-1);
+  expect(unscoped.target).toEqual({ tabId: 31 });
+  expect(unscoped).not.toHaveProperty("frameIds");
+  expect(unscoped.args[1].frameId).toBe(null);
+});
+
+test("frame_list enumerates frames with chrome.scripting integer frameIds", async () => {
+  const calls: any[] = [];
+  globals.chrome = {
+    tabs: { get: async () => ({ id: 32, url: "https://example.com/host" }) },
+    scripting: { executeScript: async (input: any) => {
+      calls.push(input);
+      return [
+        { frameId: 2, result: { url: "https://example.com/child", name: "", title: "child", isTop: false } },
+        { frameId: 0, result: { url: "https://example.com/host", name: "", title: "host", isTop: true } },
+      ];
+    } },
+  };
+  const result: any = await runBrowserTool("frame_list", { tabId: 32 });
+  expect(calls.at(-1).target).toEqual({ tabId: 32, allFrames: true });
+  expect(result.ok).toBe(true);
+  expect(result.count).toBe(2);
+  expect(result.frames).toEqual([
+    { frameId: 0, isTop: true, url: "https://example.com/host", name: "", title: "host" },
+    { frameId: 2, isTop: false, url: "https://example.com/child", name: "", title: "child" },
+  ]);
+  expect(result.frames.every((frame: any) => Number.isInteger(frame.frameId))).toBe(true);
+  expect(result.frames.filter((frame: any) => frame.isTop).length).toBe(1);
+});
