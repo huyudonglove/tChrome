@@ -137,7 +137,9 @@ test("same-name invalid calls retain independent diagnostics and schema before s
     const second = JSON.parse(rows[1]!.return.text);
     expect(first.faultCode).toBe("missing_required");
     expect(second.faultCode).toBe("wrong_type");
-    expect(second.details.parameterSchema.properties.text.type).toBe("string");
+    // wrong_type 的字段级约束已在 detail 里点名，回灌整份 schema 只会淹没那一行。
+    expect(second.details.parameterSchema).toBeUndefined();
+    expect(second.details.reason).toContain("data/text must be string");
     expect(second.recovery).toBe("correct_arguments");
     expect(browserCalls).toEqual(["page_type"]);
   });

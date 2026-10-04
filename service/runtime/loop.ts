@@ -249,6 +249,10 @@ const writeFault = (dataDir: string, ledger: Ledger, turnId: string, result: Com
   const name = result.badName || result.toolCalls.at(-1)?.name || "unknown";
   const call = result.toolCalls.find((row) => row.name === name) ?? result.toolCalls.at(-1);
   const isFormatFault = result.faultCode === "arguments_not_json";
+  // A wrong_type fault already names the offending field and the shape it accepts inside detail
+  // (e.g. "data/contextChars must be <= 200"), so reattaching the whole parameter schema only
+  // buries the one actionable line under hundreds of characters of noise.
+  const suppressesSchema = isFormatFault || result.faultCode === "wrong_type";
   // Format faults: do not persist broken payload; return a correct usage example instead of the raw error.
   const detail = isFormatFault
     ? errorDetail(/}\s*\{/.test(result.detail ?? "") ? "arguments_json_concat" : "arguments_json_invalid")
@@ -259,7 +263,7 @@ const writeFault = (dataDir: string, ledger: Ledger, turnId: string, result: Com
     missing: result.missing,
     toolName: name,
     detail,
-    details: isFormatFault
+    details: suppressesSchema
       ? {}
       : { parameterSchema: tools.find(tool => tool.function.name === name)?.function.parameters },
   }));
