@@ -683,3 +683,63 @@ test("network_mock manages rules and handles CDP Fetch events correctly", async 
   });
 });
 
+
+test("editable elements keep a stable accessible name instead of drifting input text", async () => {
+  const keys = ['document', 'Element', 'getComputedStyle', 'CSS', '__tChromePageIds', 'innerWidth', 'innerHeight'];
+  const originals = keys.map(key => Object.getOwnPropertyDescriptor(globals, key));
+  class Node {
+    isConnected = true;
+    isContentEditable = false;
+    attrs: Record<string, string> = {};
+    constructor(public tagName: string, public innerText = '', public value = '', attrs: Record<string, string> = {}) {
+      this.attrs = attrs;
+    }
+    getBoundingClientRect() {return {x: 0, y: 0, width: 120, height: 30, bottom: 30, right: 120, top: 0, left: 0};}
+    getAttribute(name: string) {return this.attrs[name] ?? null;}
+    closest() {return null;}
+    contains() {return true;}
+    click() {}
+  }
+  // placeholder 优先；无显式名时退回 name / id / tag[type]，两种情况都不能取 value。
+  const withPlaceholder = new Node('TEXTAREA', '', '联想词会漂移', {placeholder: '搜索你感兴趣的内容'});
+  const byId = new Node('TEXTAREA', '', '用户正在输入的内容', {id: 'editor'});
+  const byName = new Node('INPUT', '', '查询词', {name: 'wd'});
+  byName.attrs.type = 'text';
+  const button = new Node('BUTTON', '百度一下');
+  const nodes = [withPlaceholder, byId, byName, button];
+  let counter = 0;
+  try {
+    delete globals.__tChromePageIds;
+    globals.Element = Node;
+    globals.innerWidth = 800;
+    globals.innerHeight = 600;
+    globals.getComputedStyle = () => ({display: 'block', visibility: 'visible', opacity: '1'});
+    globals.CSS = {escape: (value: string) => value};
+    globals.document = {
+      body: new Node('BODY', 'body'),
+      title: 'Example',
+      querySelector: () => null,
+      querySelectorAll: (selector: string) => selector.startsWith('header') ? [] : nodes,
+    };
+    globals.chrome = {
+      runtime: {sendMessage: async ({kind}: any) => ({id: `${kind === 'pageRegion' ? 'r' : 'e'}_${String(++counter).padStart(2, '0')}`})},
+      tabs: {get: async () => ({id: 1, url: 'https://example.com'})},
+      scripting: {executeScript: async ({func, args}: any) => [{result: args ? await func(...args) : {}}]},
+    };
+    const observed = await runBrowserTool('page_list_interactive_elements', {tabId: 1});
+    const names: string[] = observed.elements.map((el: any) => el.name);
+    expect(names).toEqual(['搜索你感兴趣的内容', 'editor', 'wd', '百度一下']);
+    expect(observed.elements.map((el: any) => el.role)).toEqual(['textbox', 'textbox', 'textbox', 'button']);
+    expect(names.join(' ')).not.toContain('漂移');
+    // 名字必须与当前输入值无关：改 value 后重新枚举，前三个名字保持不变。
+    withPlaceholder.value = '换了个联想词';
+    byId.value = '换成了别的输入';
+    const again: string[] = (await runBrowserTool('page_list_interactive_elements', {tabId: 1})).elements.map((el: any) => el.name);
+    expect(again).toEqual(names);
+  } finally {
+    keys.forEach((key, index) => {
+      if (originals[index]) Object.defineProperty(globals, key, originals[index]!);
+      else delete globals[key];
+    });
+  }
+});

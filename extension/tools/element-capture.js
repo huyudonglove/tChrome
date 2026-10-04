@@ -47,9 +47,25 @@ export async function somAnnotate(options = {}) {
     if (tag === 'input') return (node.type || 'textbox').toLowerCase();
     return tag;
   };
+  const isEditable = (node) => {
+    if (node.isContentEditable) return true;
+    const tag = node.tagName.toLowerCase();
+    if (tag === 'textarea' || tag === 'select') return true;
+    if (tag !== 'input') return false;
+    return !['button', 'submit', 'reset', 'image', 'checkbox', 'radio', 'file'].includes(String(node.type || 'text').toLowerCase());
+  };
+  const editableFallback = (node) => {
+    const tag = node.tagName.toLowerCase();
+    const type = tag === 'input' ? `[type=${String(node.type || 'text').toLowerCase()}]` : '';
+    return node.getAttribute('name') || node.getAttribute('id') || `${tag}${type}`;
+  };
   const labelOf = (node) => {
     const explicit = node.id ? document.querySelector(`label[for="${CSS.escape(node.id)}"]`)?.innerText : '';
-    return (explicit || node.closest('label')?.innerText || node.getAttribute('aria-label') || node.innerText || node.value || '').trim().slice(0, 80);
+    const named = explicit || node.closest('label')?.innerText || node.getAttribute('aria-label') || node.getAttribute('placeholder') || node.getAttribute('title');
+    if (named) return String(named).trim().slice(0, 80);
+    // 与 browser-tools.js 保持同一语义：可编辑元素不取 innerText / value，避免名字随输入漂移。
+    if (isEditable(node)) return editableFallback(node).trim().slice(0, 80);
+    return String(node.innerText || node.value || '').trim().slice(0, 80);
   };
 
   const state = globalThis.__tChromeElementRefs ??= {refs: new Map(), ids: new WeakMap()};

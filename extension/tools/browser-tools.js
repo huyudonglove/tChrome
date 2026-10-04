@@ -851,9 +851,26 @@ const runPageTool = async (name, input = {}) => {
           };
           return Object.fromEntries(Object.entries(states).filter(([, v]) => v !== undefined));
         };
+        const isEditable = (node) => {
+          if (node.isContentEditable) return true;
+          const tag = node.tagName.toLowerCase();
+          if (tag === 'textarea' || tag === 'select') return true;
+          if (tag !== 'input') return false;
+          return !['button', 'submit', 'reset', 'image', 'checkbox', 'radio', 'file'].includes(String(node.type || 'text').toLowerCase());
+        };
+        const editableFallback = (node) => {
+          const tag = node.tagName.toLowerCase();
+          const type = tag === 'input' ? `[type=${String(node.type || 'text').toLowerCase()}]` : '';
+          return node.getAttribute('name') || node.getAttribute('id') || `${tag}${type}`;
+        };
         const labelOf = (node) => {
           const explicit = node.id ? document.querySelector(`label[for="${CSS.escape(node.id)}"]`)?.innerText : '';
-          return clip(explicit || node.closest('label')?.innerText || node.getAttribute('aria-label') || node.getAttribute('placeholder') || node.getAttribute('title') || node.innerText || node.value || node.alt || node.name);
+          const named = explicit || node.closest('label')?.innerText || node.getAttribute('aria-label') || node.getAttribute('placeholder') || node.getAttribute('title');
+          if (named) return clip(named);
+          // 可编辑元素不再拿 innerText / value 当可访问名：两者会随输入与浮层内容漂移（如热搜榜、联想词），
+          // 让 A11y 定位（role + name）无法稳定命中同一个控件。
+          if (isEditable(node)) return clip(editableFallback(node));
+          return clip(node.innerText || node.value || node.alt || node.name);
         };
         const regionRoots = [...document.querySelectorAll('header,nav,main,aside,footer,section,article,form,[role="banner"],[role="navigation"],[role="main"],[role="complementary"],[role="contentinfo"],[role="region"],[role="search"]')].filter(visible);
         const used = new Set();
