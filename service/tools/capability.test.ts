@@ -32,6 +32,14 @@ test("real registry has complete metadata for every tool", () => {
   expect(toolCapabilities.find((item) => item.id === "account_vault")?.risk).toBe("high");
   expect(toolCapabilities.find((item) => item.id === "page_get_summary")?.risk).toBe("low");
   expect(toolCapabilities.find((item) => item.id === "page_select_role")?.risk).toBe("medium");
+  // 只写输入框、不触发提交或导航的工具不得是 high：固定档位优先于 arguments.risk，
+  // 一旦写回 high 就会强制 task_set，把「定位 + 打字」也变成需要活动任务的操作。
+  const typingTools = ["page_type", "page_fill_role"];
+  for (const id of typingTools) {
+    expect(toolCapabilities.find((item) => item.id === id)?.risk).toBe("medium");
+  }
+  expect(toolCapabilities.filter((item) => item.risk === "high").map((item) => item.id)).not.toContain("page_type");
+  expect(toolCapabilities.filter((item) => item.risk === "high").map((item) => item.id)).not.toContain("page_fill_role");
   expect(skillCapabilities.find((item) => item.id === "code-engineering")?.risk).toBe("medium");
   expect(skillCapabilities.find((item) => item.id === "reply-format")?.risk).toBe("low");
 });
