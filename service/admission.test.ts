@@ -307,7 +307,7 @@ test("admitText puts per-layer addressable chunk ids into the pointer payload", 
   const admitted = admitText(payload, { callId: "call_01", path: "/tmp/a.txt", name: "local_fs_grep", indexPath: "/tmp/a.index.json" });
   expect(admitted.mode).toBe("preview");
   if (admitted.mode !== "preview") throw new Error("mode");
-  const layers = admitted.payload.layers as { id: string; name: string; total: number; chunks: { id: string; from: number; to: number; chars: number }[] }[];
+  const layers = admitted.payload.layers as { id: string; name: string; total: number; chunks: { id: string; from: number; to: number; chars: number; lines?: { file: string; from: number; to: number } }[] }[];
   expect(Array.isArray(layers)).toBe(true);
   const l1 = layers.find((level) => level.id === "L1")!;
   expect(l1).toBeDefined();
@@ -320,6 +320,16 @@ test("admitText puts per-layer addressable chunk ids into the pointer payload", 
     expect(chunk.to).toBeGreaterThanOrEqual(chunk.from);
     expect(chunk.chars).toBeLessThanOrEqual(runtimeConfig.results.inlineChars);
   }
+  // 块自报来源文件行区间：同文件的块给出真实文件行，可直接回源文件重读，不必拿索引行猜 startLine。
+  for (const chunk of l1.chunks) expect(chunk.lines?.file).toBe("mod.ts");
+  const firstChunk = l1.chunks[0]!;
+  expect(firstChunk.lines!.from).toBe(1);
+  for (let i = 1; i < l1.chunks.length; i += 1) {
+    const prev = l1.chunks[i - 1]!.lines!;
+    const cur = l1.chunks[i]!.lines!;
+    expect(cur.from).toBe(prev.to + 1);
+  }
+  expect(l1.chunks[l1.chunks.length - 1]!.lines!.to).toBeGreaterThanOrEqual(200);
   // 块正文不进指针，只带元数据
   expect(JSON.stringify(layers)).not.toContain("mod.ts:1 ");
   // 降级提示主推 levelId 按块取回：chunk.from 是索引行坐标，与 startLine 的折行坐标不同义，
@@ -328,6 +338,8 @@ test("admitText puts per-layer addressable chunk ids into the pointer payload", 
   expect(hint).toContain(`levelId=${l1.chunks[0]?.id}`);
   expect(hint).toContain(`本层共 ${l1.chunks.length} 块可按 id 取回`);
   expect(hint).not.toContain("startLine=");
+  // 有文件行区间时，提示里给的坐标就是文件行坐标：模型能拿它回源文件直接重读。
+  expect(hint).toContain(`文件行${firstChunk.lines!.file}:`);
   // 纯文本载荷抽不出层级 → 不带 layers
   const plain = admitText("z".repeat(overInline), { callId: "call_02", path: "/tmp/b.txt" });
   if (plain.mode !== "preview") throw new Error("mode");
@@ -352,6 +364,10 @@ test("summarizePayload keeps a stub for every chunk and never drops a whole leve
     for (const chunk of level.chunks) expect(summary).toContain(chunk.id);
   }
   expect(summary).toContain("（按 id 取回）");
+  // stub 的区间走 chunkSpanText：块自报了来源文件行就印文件行，否则退回并标死「索引行」，
+  // 两种都不再输出裸 from-to，避免被读成文件行号。
+  expect(summary).toContain("索引行");
+  expect(summary).not.toMatch(/L\d+\.\d+ \d+-\d+\//);
   expect(summary.length).toBeLessThan(gate);
 });
 

@@ -301,28 +301,31 @@ function fitSection(head: string, indexLabels: string[], budget: number, lines: 
   return { text: `${pieces.join("\n")}\nindex(${body.length}行):\n${body.join("\n")}`, included, dropped };
 }
 
-/** 一级目录行：标签原子保留（不腰斩），短行并入相邻行到可读长度。 */
-function packRows(labels: string[]): string[] {
-  const rows: string[] = [];
-  let current = "";
+/** 一级目录行：标签原子保留（不腰斩），短行并入相邻行到可读长度。
+ * 同行标签用 ", " 连接，若事后按分隔符切回标签会切碎聚类标签（file:N×M(a, b) 内含逗号），
+ * 所以这里连同构成该行的标签一起返回，供块自报来源行区间。 */
+type PackRow = { text: string; labels: string[] };
+
+function packRows(labels: string[]): PackRow[] {
+  const rows: PackRow[] = [];
+  let current: string[] = [];
   for (const label of labels) {
-    if (!current) {
-      current = label;
-      continue;
+    if (current.length) {
+      const size = current.join(", ").length + 2 + label.length;
+      if (size <= BLOCK_LABEL_CHARS) {
+        current.push(label);
+        continue;
+      }
     }
-    if (current.length + 2 + label.length <= BLOCK_LABEL_CHARS) {
-      current = `${current}, ${label}`;
-      continue;
-    }
-    rows.push(current);
-    current = label;
+    rows.push({ text: current.join(", "), labels: current });
+    current = [label];
   }
-  if (current) rows.push(current);
-  const merged: string[] = [];
+  if (current.length) rows.push({ text: current.join(", "), labels: current });
+  const merged: PackRow[] = [];
   for (const row of rows) {
     const prev = merged[merged.length - 1];
-    if (prev !== undefined && prev.length < MIN_INDEX_LINE_CHARS) {
-      merged[merged.length - 1] = `${prev}, ${row}`;
+    if (prev !== undefined && prev.text.length < MIN_INDEX_LINE_CHARS) {
+      merged[merged.length - 1] = { text: `${prev.text}, ${row.text}`, labels: [...prev.labels, ...row.labels] };
       continue;
     }
     merged.push(row);
@@ -330,30 +333,141 @@ function packRows(labels: string[]): string[] {
   return merged;
 }
 
-/** 分层索引的一块：独立可寻址单元，正文自身不超门禁，from/to 指向下一层的行区间。 */
-export type LevelChunk = { id: string; from: number; to: number; chars: number; text: string };
+/** 块自报的来源文件行区间：块内标签全落在同一个文件上时才有，跨文件不给（单一区间必然指错一半）。 */
+export type SourceLines = { file: string; from: number; to: number };
+
+/** 分层索引的一块：独立可寻址单元，正文自身不超门禁，from/to 是索引行坐标（指向下一层的行区间），
+ * lines 是来源文件行坐标（可直接回源文件按该区间重读），两套坐标不同义，不要混用。 */
+export type LevelChunk = { id: string; from: number; to: number; chars: number; text: string; lines?: SourceLines };
+
+/** 块坐标文案：优先自报的来源文件行，否则退回索引行并标死性质。 */
+export function chunkSpanText(chunk: { from: number; to: number; lines?: SourceLines }): string {
+  const range = (from: number, to: number) => (from === to ? `${from}` : `${from}-${to}`);
+  return chunk.lines
+    ? `文件行${chunk.lines.file}:${range(chunk.lines.from, chunk.lines.to)}`
+    : `索引行${range(chunk.from, chunk.to)}`;
+}
+
+/** 标签的来源行：只认标签开头的 file:N 形态（命中片段里也会出现 file:N，锚定开头才排得掉）。
+ * 逐行标签（file:421 / file:421.2）记 point，文件区间标签（file:1-60/607）记 range。 */
+function labelSpan(label: string): { file: string; point: boolean; from: number; to: number } | null {
+  const bare = (file: string) => (/^[\w./\\-]+\.[A-Za-z0-9]+$/.test(file) ? file : null);
+  const cluster = /^([^:\n]+)×\d+\(([^)]*)\)/.exec(label);
+  if (cluster) {
+    const file = bare(cluster[1]!);
+    if (!file) return null;
+    let from = Infinity;
+    let to = -Infinity;
+    for (const part of cluster[2]!.split(",")) {
+      const hit = /^\s*(\d+)(?:-(\d+))?/.exec(part);
+      if (!hit) continue;
+      const lo = Number(hit[1]);
+      const hi = hit[2] ? Number(hit[2]) : lo;
+      from = Math.min(from, lo);
+      to = Math.max(to, hi);
+    }
+    return from === Infinity ? null : { file, point: true, from, to };
+  }
+  const hit = /^([^:\n]+):(\d+)(?:-(\d+))?(?:\.\d+)?(?:\/(\d+))?/.exec(label);
+  if (!hit) return null;
+  const file = bare(hit[1]!);
+  if (!file) return null;
+  const from = Number(hit[2]);
+  const to = hit[3] ? Number(hit[3]) : from;
+  return { file, point: !hit[4], from, to };
+}
+
+type SpanAcc = { file: string; pFrom: number; pTo: number; rFrom: number; rTo: number };
+type SpanWalk = { acc: SpanAcc | null; crossed: boolean };
+
+function addSpan(walk: SpanWalk, label: string): void {
+  if (walk.crossed) return;
+  const span = labelSpan(label);
+  if (!span) return;
+  if (!walk.acc) {
+    walk.acc = {
+      file: span.file,
+      pFrom: span.point ? span.from : Infinity,
+      pTo: span.point ? span.to : -Infinity,
+      rFrom: span.point ? Infinity : span.from,
+      rTo: span.point ? -Infinity : span.to,
+    };
+    return;
+  }
+  if (walk.acc.file !== span.file) {
+    walk.crossed = true;
+    return;
+  }
+  if (span.point) {
+    walk.acc.pFrom = Math.min(walk.acc.pFrom, span.from);
+    walk.acc.pTo = Math.max(walk.acc.pTo, span.to);
+  } else {
+    walk.acc.rFrom = Math.min(walk.acc.rFrom, span.from);
+    walk.acc.rTo = Math.max(walk.acc.rTo, span.to);
+  }
+}
+
+/** 逐行标签的行号优先于文件区间标签：区间标签覆盖整个读取范围，照它报会指到块根本没装的行上。 */
+function finishSpan(walk: SpanWalk): SourceLines | undefined {
+  if (walk.crossed || !walk.acc) return undefined;
+  const acc = walk.acc;
+  if (acc.pTo >= acc.pFrom) return { file: acc.file, from: acc.pFrom, to: acc.pTo };
+  if (acc.rTo >= acc.rFrom) return { file: acc.file, from: acc.rFrom, to: acc.rTo };
+  return undefined;
+}
+
+function spanOf(labels: string[]): SourceLines | undefined {
+  const walk: SpanWalk = { acc: null, crossed: false };
+  for (const label of labels) addSpan(walk, label);
+  return finishSpan(walk);
+}
+
+/** 合并若干组行区间：跨文件即放弃（宁可少给坐标，也不给指错一半的坐标）。 */
+function mergeSpanList(spans: (SourceLines | undefined)[]): SourceLines | undefined {
+  let acc: SourceLines | undefined;
+  for (const span of spans) {
+    if (!span) continue;
+    if (!acc) {
+      acc = span;
+      continue;
+    }
+    if (acc.file !== span.file) return undefined;
+    acc = { file: acc.file, from: Math.min(acc.from, span.from), to: Math.max(acc.to, span.to) };
+  }
+  return acc;
+}
 export type IndexLevel = { id: string; name: string; total: number; chunks: LevelChunk[] };
 export type IndexTree = { head: string; levels: IndexLevel[] };
 
 /** 把若干行切成若干块：每块 ≤ budget，id 形如 L1.1，可单独寻址。 */
-function chunkRows(rows: string[], prefix: string, budget: number): LevelChunk[] {
+function chunkRows(rows: PackRow[], prefix: string, budget: number): LevelChunk[] {
   const chunks: LevelChunk[] = [];
-  let buffer: string[] = [];
+  let buffer: PackRow[] = [];
   let start = 0;
   let used = 0;
   const flush = (end: number) => {
     if (!buffer.length) return;
-    chunks.push({ id: `${prefix}.${chunks.length + 1}`, from: start + 1, to: end + 1, chars: used, text: buffer.join("\n") });
+    const labels = buffer.flatMap((row) => row.labels);
+    const lines = spanOf(labels);
+    chunks.push({
+      id: `${prefix}.${chunks.length + 1}`,
+      from: start + 1,
+      to: end + 1,
+      chars: used,
+      text: buffer.map((row) => row.text).join("\n"),
+      ...(lines ? { lines } : {}),
+    });
     buffer = [];
     used = 0;
   };
   for (let i = 0; i < rows.length; i += 1) {
-    const add = buffer.length ? 1 + rows[i]!.length : rows[i]!.length;
+    const row = rows[i]!;
+    const add = buffer.length ? 1 + row.text.length : row.text.length;
     if (buffer.length && used + add > budget) {
       flush(i - 1);
       start = i;
     }
-    buffer.push(rows[i]!);
+    buffer.push(row);
     used += add;
   }
   flush(rows.length - 1);
@@ -406,7 +520,16 @@ export function buildLevels(head: string, labels: string[]): IndexTree {
       const b = base[i + 1];
       const halfA = headHalf(a.text, halfCap);
       const text = b ? `${a.id}-${b.id} ${halfA} … ${headHalf(b.text, halfCap)}` : `${a.id} ${halfA}`;
-      chunks.push({ id: `${id}.${chunks.length + 1}`, from: a.from, to: (b ?? a).to, chars: text.length, text });
+      // 父块覆盖两个子块，来源行区间取并集；子块跨文件时不给坐标（宁可空着也不指错一半）。
+      const lines = mergeSpanList([a.lines, b?.lines]);
+      chunks.push({
+        id: `${id}.${chunks.length + 1}`,
+        from: a.from,
+        to: (b ?? a).to,
+        chars: text.length,
+        text,
+        ...(lines ? { lines } : {}),
+      });
     }
     // 折层后块数不降说明这层没有信息增益，停下别做死循环。
     if (chunks.length >= base.length) break;
@@ -442,7 +565,7 @@ function renderTree(tree: IndexTree, budget: number): string {
         used += body.length + 1;
         continue;
       }
-      const stub = `…${chunk.id} 索引行${chunk.from}-${chunk.to}/${chunk.chars}字（按 id 取回）`;
+      const stub = `…${chunk.id} ${chunkSpanText(chunk)}/${chunk.chars}字（按 id 取回）`;
       if (used + stub.length + 1 > budget) break;
       lines.push(stub);
       used += stub.length + 1;
@@ -501,20 +624,27 @@ export function admitText(
           from: chunk.from,
           to: chunk.to,
           chars: chunk.chars,
+          ...(chunk.lines ? { lines: chunk.lines } : {}),
         })),
       }))
     : undefined;
   const locate = meta.pageId ? `pageId=${meta.pageId}` : `callId=${meta.callId ?? ""}`;
   // 可操作提示：降级文案不能只说「更精准」，得直接给出下一轮可用的取回锚点。
-  // chunk.from/to 是 packRows 打包后的索引行坐标，与 .txt 的折行坐标系（startLine 用的那套）
-  // 不同义，混用必然错位；唯一自洽的通道是按块 id 取回正文，所以主推 levelId。
+  // chunk.lines 是块自报的来源文件行区间，可回源文件按该区间重读；chunk.from/to 是索引行坐标，
+  // 与 .txt 的折行坐标系（startLine 用的那套）不同义，混用必然错位，所以绝不当 startLine 输出。
+  // 块内标签跨文件时 lines 为空，此时 chunkSpanText 退回索引行并标死性质。
   const finest = [...(layers ?? [])]
     .filter((layer) => layer.chunks.length > 0)
     .sort((a, b) => b.total - a.total)[0];
   const anchors = (finest?.chunks ?? []).slice(0, 3);
+  // 前缀必须跟着实际坐标走：块内标签跨文件时 lines 为空，chunkSpanText 退回索引行，
+  // 前缀若写死「来源文件行号」就会与括号里的「索引行」自相矛盾。
+  const coordHint = anchors.some((chunk) => chunk.lines)
+    ? "括号内是来源文件行号，可回源文件直接重读"
+    : "这批块内标签跨文件，括号内退回索引行坐标";
   const anchorHint = finest
-    ? `建议按块取回（下面的区间是索引行，不能当 startLine 用）：${anchors
-        .map((chunk) => `levelId=${chunk.id}（索引行${chunk.from}-${chunk.to}/${chunk.chars}字）`)
+    ? `建议按块取回（${coordHint}；都不是折行号，别当 startLine 用）：${anchors
+        .map((chunk) => `levelId=${chunk.id}（${chunkSpanText(chunk)}/${chunk.chars}字）`)
         .join(" 或 ")}（本层共 ${finest.chunks.length} 块可按 id 取回；全文 ${totalLines} 折行、每行约 ${lineWidth} 字，按行收窄请自行估 startLine）`
     : `建议按行收窄：startLine=1 起小段读（全文 ${totalLines} 行，约 ${lineWidth} 字/行）`;
   return {
