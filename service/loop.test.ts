@@ -518,7 +518,8 @@ test("记忆效果失败进入 toolIO，同批工具继续，模型收到错误�
         { id: "memoryP", name: "memory_writeProject", arguments: { reason: "记录", scope: "tChrome", projectMemory: ["不能覆盖"] } },
         { id: "next", name: "notes_write", arguments: { reason: "下一步", key: "next", value: "已执行" } },
       ] });
-      expect(input.messages[1]!.content).toContain('"faultCode": "file_exists"');
+      // tool returns land in the pool as compact JSON; assert the exact rendering instead of pretty-printed form
+      expect(input.messages[1]!.content).toContain('"faultCode":"file_exists"');
       expect(input.messages[1]!.content).toContain("本轮已写入");
       expect(input.messages[1]!.content).toContain("已执行");
       return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "会话记忆已保存，长期记忆写入冲突"} }] });
