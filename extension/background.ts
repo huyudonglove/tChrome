@@ -118,7 +118,10 @@ const executeClaim = async (
     await withTabLock(tabId, async () => {
       const work = (async () => {
         try {
-          return request.name === "__openTabs" ? (await readOpenTabs()) as unknown as Record<string, unknown>
+          // The service reads the tab snapshot through __currentTabs; __openTabs is the
+          // legacy alias. Both must stay off runBrowserTool, which resolves a tab first.
+          return request.name === "__currentTabs" || request.name === "__openTabs"
+            ? (await readOpenTabs()) as unknown as Record<string, unknown>
             : (await runBrowserTool(request.name, input)) as Record<string, unknown>;
         } catch (error) {
           return { ok: false, error: error instanceof Error ? error.message : String(error) };

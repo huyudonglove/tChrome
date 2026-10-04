@@ -151,6 +151,14 @@ test("background dispatch continues without panel messages and resumes on alarms
     await Bun.sleep(0);
     expect(results.at(-1)).toBe("after-hang");
     expect(lastResult).toMatchObject({ ok: true });
+    // The service reads its tab snapshot through __currentTabs. It has to reach
+    // readOpenTabs, not runBrowserTool, which resolves a tab first and would
+    // reject the request for a missing tabId.
+    request = { id: "current-tabs", name: "__currentTabs" };
+    interval();
+    await Bun.sleep(0);
+    expect(results.at(-1)).toBe("current-tabs");
+    expect(lastResult).toMatchObject({ ok: true, windows: [] });
     const delivered = results.slice();
     // Reject both old services that omit a version and incompatible builds.
     request = { id: "must-not-execute", name: "list_browser_tools" };
