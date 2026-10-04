@@ -10,6 +10,10 @@ export const CHECK_PROMPTS = 3;
 export const PROGRESS_LIMIT = 3;
 export const ASK_THEN_ROUNDS = 3;
 export const FINISH_HINTS = 3;
+// Live budget hints carry a marker so the loop strips the previous one before re-evaluating,
+// keeping exactly one active budget nudge in the window (same lifecycle as observation/reflect nudges).
+// force_end / interrupt terminate the turn instead, so they are not marked.
+export const BUDGET_NUDGE_MARKER = "runtime: 预算提醒";
 
 export type Escalation =
   | { action: "continue" }
@@ -45,13 +49,13 @@ export function escalate(rows: ToolIOItem[], lastName: string): Escalation {
     return { action: "force_end", text: `runtime: 距上次 checkContinue 已调用 ${total} 次工具仍未再次调用 checkContinue，本 turn 结束。` };
   }
   if (total >= SAME_TOOL_PROMPT) {
-    return { action: "hint", text: `runtime: 距上次 checkContinue 已调用 ${total} 次工具。请调用 checkContinue(cont=true) 继续或 cont=false 中断；${SAME_TOOL_HARD} 次仍未调用将结束本 turn。` };
+    return { action: "hint", text: `${BUDGET_NUDGE_MARKER} 距上次 checkContinue 已调用 ${total} 次工具。请调用 checkContinue(cont=true) 继续或 cont=false 中断；${SAME_TOOL_HARD} 次仍未调用将结束本 turn。` };
   }
   if (checksTrue >= CHECK_PROMPTS && !reports) {
-    return { action: "hint", text: "runtime: checkContinue 已确认 3 次仍继续。请调用 reportProgress 汇报当前进度（做了什么、卡点、下一步）。" };
+    return { action: "hint", text: `${BUDGET_NUDGE_MARKER} checkContinue 已确认 3 次仍继续。请调用 reportProgress 汇报当前进度（做了什么、卡点、下一步）。` };
   }
   if (reports >= PROGRESS_LIMIT && !asks) {
-    return { action: "hint", text: "runtime: 已汇报 3 次进度仍未完成。请调用 askUser 向用户求助。" };
+    return { action: "hint", text: `${BUDGET_NUDGE_MARKER} 已汇报 3 次进度仍未完成。请调用 askUser 向用户求助。` };
   }
   if (asks >= 1 && !finishes) {
     const afterAsk = turnRows.slice(turnRows.findIndex((row) => row.name === "askUser") + 1).length;
@@ -59,7 +63,7 @@ export function escalate(rows: ToolIOItem[], lastName: string): Escalation {
       return { action: "force_end", text: "runtime: 询问用户后仍未收口，本 turn 结束。" };
     }
     if (afterAsk >= ASK_THEN_ROUNDS) {
-      return { action: "hint", text: "runtime: 请基于现有证据用 finishTurn 收口；继续空转将结束本 turn。" };
+      return { action: "hint", text: `${BUDGET_NUDGE_MARKER} 请基于现有证据用 finishTurn 收口；继续空转将结束本 turn。` };
     }
   }
   return { action: "continue" };

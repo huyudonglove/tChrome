@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import {
   escalate,
+  BUDGET_NUDGE_MARKER,
   CHECK_TOOL,
   PROGRESS_TOOL,
   SAME_TOOL_PROMPT,
@@ -25,6 +26,33 @@ test("checkContinue and reportProgress do not inflate the total", () => {
     row(PROGRESS_TOOL, { text: "进度" }),
   ];
   expect(escalate(withMeta, PROGRESS_TOOL).action).toBe("continue");
+});
+
+test("live budget hints carry the strip marker while terminal actions do not", () => {
+  const atPrompt = Array.from({ length: SAME_TOOL_PROMPT }, (_, i) => row(`tool_${i}`));
+  const promptHint = escalate(atPrompt, atPrompt.at(-1)!.name) as { action: string; text: string };
+  expect(promptHint.action).toBe("hint");
+  expect(promptHint.text).toContain(BUDGET_NUDGE_MARKER);
+
+  // 链级活提示（进度/求助/收口）同样带标记，否则旧行不会被 loop 的 strip 抹掉。
+  const checks3 = Array.from({ length: 3 }, () => row(CHECK_TOOL, { cont: true }));
+  const few = Array.from({ length: 3 }, (_, i) => row(`tool_${i}`));
+  const progressHint = escalate([...checks3, ...few], few.at(-1)!.name) as { text: string };
+  expect(progressHint.text).toContain(BUDGET_NUDGE_MARKER);
+
+  const reports3 = [
+    ...checks3,
+    ...Array.from({ length: 3 }, () => row(PROGRESS_TOOL, { text: "进度" })),
+    row("tool_probe"),
+  ];
+  const askHint = escalate(reports3, "tool_probe") as { text: string };
+  expect(askHint.text).toContain(BUDGET_NUDGE_MARKER);
+
+  // 终止动作直接结束本 turn，不走 strip，不需要标记。
+  const many = Array.from({ length: 65 }, (_, i) => row(`tool_${i}`));
+  const forced = escalate(many, many.at(-1)!.name) as { action: string; text: string };
+  expect(forced.action).toBe("force_end");
+  expect(forced.text).not.toContain(BUDGET_NUDGE_MARKER);
 });
 
 test("checkContinue resets the budget segment instead of exempting the whole turn", () => {

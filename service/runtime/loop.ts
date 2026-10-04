@@ -3,7 +3,7 @@ import { allocateRecordId, inputRecord } from "./ids.ts";
 import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
 import { admitExecution, admitImages, deferredImageNote } from "../admission.ts";
-import { escalate } from "./escalation.ts";
+import { escalate, BUDGET_NUDGE_MARKER } from "./escalation.ts";
 import { requiresActiveTask } from "./task-gate.ts";
 import { repeatHint } from "./repeat-detect.ts";
 import { ensureThumb, loadThumbRef } from "../images/thumb.ts";
@@ -616,6 +616,8 @@ export async function handleTurn(
       // into toolIO, so without this it would reappear in every later model request of the turn.
       for (const row of rows) {
         let text = row.return.text;
+        const budAt = text.indexOf(BUDGET_NUDGE_MARKER);
+        if (budAt >= 0) text = text.slice(0, budAt).trimEnd();
         const obsAt = text.indexOf(OBSERVATION_NUDGE_MARKER);
         if (obsAt >= 0) text = text.slice(0, obsAt).trimEnd();
         const refAt = text.indexOf(REFLECT_NUDGE_MARKER);
