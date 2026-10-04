@@ -26,7 +26,6 @@ import { executeTool } from "../tools/execute.ts";
 const OBSERVATION_NUDGE_MARKER = "runtime: 本回合已累计";
 
 const REFLECT_NUDGE_MARKER = "runtime: 本回合尚未落反思";
-const REFLECT_NUDGE_CALLS = runtimeConfig.context.reflectNudgeCalls;
 
 const OBSERVATION_NUDGE_FIRST_GATE = runtimeConfig.context.observationNudgeFirstGate;
 const OBSERVATION_NUDGE_MIN_GATE = runtimeConfig.context.observationNudgeMinGate;
@@ -105,6 +104,24 @@ const stoppedReply = (ledger: Ledger, turn: Turn): TurnReply => ({
   turnId: turn.turnId,
   stopReason: { kind: "interrupted", initiatedBy: "user" },
 });
+
+/**
+ * force_end / interrupt 走的是 applyToolEffects 之前的提前返回，turn.reply 的收尾
+ * （回合落 completed、账本翻 idle）会被整个跳过——不补做的话账本永远停在 running，
+ * 回复也无法投影进会话视图（回合已写 stop-reason 事件但状态永不翻转）。
+ * liveTools 这里一并清空：提前返回时同波工具可能仍在执行，wave 的清空逻辑不会再跑到。
+ */
+const closeForcedReply = (ledger: Ledger, turn: Turn, text: string): void => {
+  turn.status = "completed";
+  turn.completedAt = nowIso();
+  turn.stopReason = { kind: "reply", text };
+  ledger.status = "idle";
+  ledger.active = null;
+  ledger.pendingAsk = null;
+  ledger.toolQueue = [];
+  ledger.liveTools = [];
+  archiveTurnReflection(ledger, turn);
+};
 
 const wasStopped = (dataDir: string, conversationId: string, turnId: string, expectedStatus: Ledger["status"] = "running") => {
   const current = loadLedger(dataDir, conversationId);
@@ -428,6 +445,8 @@ const runQueue = async (input: {
       }
       const escalation = escalate(turnRows, item.name);
       if (escalation.action === "force_end" || escalation.action === "interrupt") {
+        closeForcedReply(ledger, turn, escalation.text);
+        saveTurn(dataDir, turn);
         saveLedger(dataDir, ledger);
         return { kind: "reply", text: escalation.text };
       }
@@ -582,6 +601,9 @@ export async function handleTurn(
     let nudgedEvidenceCount = 0;
     let observationWrites = 0;
     let observationNudgeGate = OBSERVATION_NUDGE_FIRST_GATE;
+    // Reflect rides the same tightening chain as the observation nudge: it starts at the same gate
+    // and is reset by the same observation_write, so the two never stack on the same 20-call window.
+    let reflectNudgeGate = OBSERVATION_NUDGE_FIRST_GATE;
     // Compress-prep checkpoint: at most one deferred compression per turn.
     let compressNudgeSent = false;
     // Rotation-prep checkpoint: at most one deferred forced close per turn.
@@ -628,6 +650,7 @@ export async function handleTurn(
       if (writeCount > observationWrites) {
         observationWrites = writeCount;
         observationNudgeGate = OBSERVATION_NUDGE_FIRST_GATE;
+        reflectNudgeGate = OBSERVATION_NUDGE_FIRST_GATE;
         nudgedEvidenceCount = 0;
       }
       // Count only the evidence calls made since the most recent observation_write, so a real
@@ -639,6 +662,7 @@ export async function handleTurn(
       if (evidenceCallsSinceObservation - nudgedEvidenceCount >= observationNudgeGate) {
         nudgedEvidenceCount = evidenceCallsSinceObservation;
         observationNudgeGate = Math.max(OBSERVATION_NUDGE_MIN_GATE, observationNudgeGate - OBSERVATION_NUDGE_STEP);
+        reflectNudgeGate = Math.max(OBSERVATION_NUDGE_MIN_GATE, reflectNudgeGate - OBSERVATION_NUDGE_STEP);
         if (last) {
           const tally = new Map<string, number>();
           for (const row of evidenceRows) tally.set(row.name, (tally.get(row.name) ?? 0) + 1);
@@ -652,7 +676,7 @@ export async function handleTurn(
       // Reflect nudge: counted on raw calls for the turn rather than evidence calls, because
       // reflection tracks judgement changes and repeated dead ends, which pure reading also triggers.
       const reflectWritten = rows.some((row) => row.name === "reflect_write");
-      if (last && rows.length >= REFLECT_NUDGE_CALLS && !reflectWritten) {
+      if (last && rows.length >= reflectNudgeGate && !reflectWritten) {
         last.return = {
           ...last.return,
           text: `${last.return.text}\n${REFLECT_NUDGE_MARKER}\n本回合已有 ${rows.length} 次工具调用，尚未写 reflect_write。若这轮出现了结论被推翻、同一卡点反复、或一次取舍决策，用 reflect_write 记下当前状态与下一步；纯流水账不必写。`,

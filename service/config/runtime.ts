@@ -129,7 +129,6 @@ const context = {
   observationNudgeMinGate: resolveGate("observationNudgeMinGate"),
   observationNudgeStep: resolveGate("observationNudgeStep"),
   compressNudgeHeadroom: resolveGate("compressNudgeHeadroom"),
-  reflectNudgeCalls: resolveGate("reflectNudgeCalls"),
 };
 
 // Relational invariants: a mis-scaled pair must fail at startup, not at runtime.

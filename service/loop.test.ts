@@ -1133,7 +1133,7 @@ test("纯文本 content 自动包装为 finishTurn 成功收口", async () => {
 
 
 
-const REFLECT_CALLS = runtimeConfig.context.reflectNudgeCalls;
+const REFLECT_CALLS = runtimeConfig.context.observationNudgeFirstGate;
 const REFLECT_NUDGE_TEXT = "runtime: 本回合尚未落反思";
 // 反思提醒按本轮原始调用数触发：满 REFLECT_CALLS 次调用后才提示（body 在下一次请求里才看得到）
 test(`<reflection> 提醒按本轮调用数触发：满 ${REFLECT_CALLS} 次调用仍未写 reflect_write 才提示`, async () => {
