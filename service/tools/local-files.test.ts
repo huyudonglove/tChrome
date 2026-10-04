@@ -167,6 +167,8 @@ test("grep finds literal text with line context and skips binaries, noisy dirs, 
   await mkdir(join(nested, ".git"));
   await writeFile(join(nested, ".git", "hidden.txt"), "needle\n");
   await writeFile(join(nested, "wide.txt"), "needle-and-more-text");
+  await writeFile(join(nested, ".env"), "API_KEY=needle-secret\n");
+  await writeFile(join(nested, "server.pem"), "-----BEGIN needle-----\n");
   await symlink(file, join(nested, "link.txt"));
   await symlink(root, join(nested, "loop"));
   const result = await run("local_fs_grep", { path: root, query: "needle", contextChars: 6 });
@@ -184,7 +186,14 @@ test("grep finds literal text with line context and skips binaries, noisy dirs, 
     { path: join(nested, "skip.bin"), reason: "binary" },
     { path: join(nested, "node_modules"), reason: "skipped directory" },
     { path: join(nested, ".git"), reason: "skipped directory" },
+    { path: join(nested, ".env"), reason: "secret file" },
+    { path: join(nested, "server.pem"), reason: "secret file" },
   ]));
+  expect(JSON.stringify(result.matches)).not.toContain(".env");
+  expect(JSON.stringify(result.matches)).not.toContain("server.pem");
+  const explicitSecret = await run("local_fs_grep", { path: join(nested, ".env"), query: "needle-secret" });
+  expect(explicitSecret).toMatchObject({ ok: true });
+  expect(JSON.stringify(explicitSecret.matches)).toContain("needle-secret");
   const limited = await run("local_fs_grep", { path: root, query: "needle", limit: 1 });
   expect(limited).toMatchObject({ ok: true, truncated: true, partial: true });
   expect(limited.matches).toHaveLength(1);

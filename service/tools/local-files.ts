@@ -8,6 +8,12 @@ export const LOCAL_FILE_TOOL_NAMES = [
   "local_fs_copy", "local_fs_move", "local_fs_delete", "local_fs_search", "local_fs_grep", "local_replace_block",
 ] as const;
 
+const SECRET_FILE = /^\.env(\..*)?$|\.(key|pem|p12|pfx)$/i;
+/** Env files and key material are skipped by default so plaintext secrets stay out of the model context. */
+function isSecretFile(name: string) {
+  return SECRET_FILE.test(name);
+}
+
 export function pathArg(input: Record<string, unknown>, key = "path") {
   const value = input[key];
   if (typeof value !== "string" || !isAbsolute(value) || value.includes("\0")) {
@@ -336,6 +342,10 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
                 continue;
               }
               if (!entry.isFile()) continue;
+              if (!singleFile && isSecretFile(entry.name)) {
+                if (skipped.length < 100) skipped.push({ path: entryPath, reason: "secret file" });
+                continue;
+              }
               if (scannedFiles >= maxFiles) { truncations.push("maxFiles"); truncated = true; break outer; }
               scannedFiles++;
               const stat = await lstat(entryPath);
