@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { runtimeConfig } from "../config/runtime.ts";
+import { fillPromptNumbers } from "../context/prompt-numbers.ts";
 
 export type SkillManifest = { residentSkillIds: string[]; dynamicSkillIds: string[] };
 export type SkillDocument = { id: string; body: string; description: string };
@@ -31,7 +32,7 @@ export function loadSkillManifest(repoRoot: string): SkillManifest {
 export function readSkill(repoRoot: string, id: string): SkillDocument & { summary: string } {
   if (!id || id.includes("..") || id.includes("/") || id.includes("\\")) throw new Error("invalid skill id");
   const path = join(repoRoot, "service/skills", id, "SKILL.md");
-  const body = readFileSync(path, "utf8").trim();
+  const body = fillPromptNumbers(readFileSync(path, "utf8").trim());
   if (!body) throw new Error(`empty skill ${id}`);
   const lines = body.split(/\r?\n/);
   const title = lines.map(line => line.trim()).find(line => line.startsWith("#"))?.replace(/^#+\s*/, "").trim() || id;

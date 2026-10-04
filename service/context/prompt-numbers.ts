@@ -30,6 +30,11 @@ export function promptNumberSlots(): Record<string, string> {
   };
 }
 
+/** Replaces {{slot}} with the configured runtime number. Unknown slots are left intact so callers can detect them. */
+export function fillPromptNumbers(text: string, slots: Record<string, string> = promptNumberSlots()): string {
+  return text.replace(/\{\{(\w+)\}\}/g, (whole, key: string) => slots[key] ?? whole);
+}
+
 /** Runtime system text must contain every configured prompt number. */
 export function assertPromptNumbersMatchRuntime(systemText: string): void {
   const slots = promptNumberSlots();

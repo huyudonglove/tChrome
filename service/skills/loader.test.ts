@@ -67,3 +67,23 @@ test("resident skills assemble into system guide and only dynamic skills enter c
     expect(() => skillGuide(root)).toThrow("empty skill first");
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+import { readdirSync, readFileSync } from "node:fs";
+import { promptNumberSlots } from "../context/prompt-numbers.ts";
+
+test("skill bodies use known prompt number slots and render without leftovers", () => {
+  const repoRoot = join(import.meta.dir, "../..");
+  const skillsDir = join(repoRoot, "service/skills");
+  const slots = promptNumberSlots();
+  for (const dir of readdirSync(skillsDir, { withFileTypes: true })) {
+    if (!dir.isDirectory()) continue;
+    const file = join(skillsDir, dir.name, "SKILL.md");
+    const raw = readFileSync(file, "utf8");
+    for (const hit of raw.matchAll(/\{\{(\w+)\}\}/g)) {
+      expect(Object.keys(slots)).toContain(hit[1]);
+    }
+  }
+  const rendered = loadSkills(repoRoot);
+  expect(rendered.length).toBeGreaterThan(0);
+  expect(rendered).not.toMatch(/\{\{\w+\}\}/);
+});

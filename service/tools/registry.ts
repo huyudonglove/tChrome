@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ChatTool, ExecutionMode } from "../types.ts";
-import { promptNumberSlots } from "../context/prompt-numbers.ts";
+import { promptNumberSlots, fillPromptNumbers } from "../context/prompt-numbers.ts";
 import { loadCapabilityCatalog } from "./capability.ts";
 import type { CapabilityRecord } from "./capability-types.ts";
 
@@ -107,7 +107,7 @@ const NUMBER_SLOTS = promptNumberSlots();
 
 /** Replaces {{slot}} in definition source text with the configured number. Exported so scripts that read definition files directly stay in sync. */
 export function fillNumbers(text: string): string {
-  return text.replace(/\{\{(\w+)\}\}/g, (whole, key: string) => NUMBER_SLOTS[key] ?? whole);
+  return fillPromptNumbers(text, NUMBER_SLOTS);
 }
 
 export function loadToolRegistry(root: string): ToolRegistry {
