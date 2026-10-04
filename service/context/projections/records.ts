@@ -1,7 +1,6 @@
-import type { LastAction, Observation, UserInputRecord } from "../../types.ts";
+import type { Observation } from "../../types.ts";
 
 // Select model-facing fields without changing archival records.
-export const inputHistoryView = (records: UserInputRecord[]) => records.map(({ id, turnId, userInput }) => ({ id, turnId, userInput }));
 /**
  * `currentTurn` is the 1-based ordinal of the turn being assembled.
  * An observation whose validUntilTurn has passed is dropped (returns null) instead of
@@ -24,9 +23,6 @@ export const pageView = (page: Observation, currentTurn?: number) =>
         ...(page.writtenTurn !== undefined ? { writtenTurn: page.writtenTurn } : {}),
         ...(page.validUntilTurn !== undefined ? { validUntilTurn: page.validUntilTurn } : {}),
       };
-
-/** Replace-only pointer to the latest model-returned tool batch. */
-export const lastActionView = (action: LastAction | null) => action;
 
 
 /**
