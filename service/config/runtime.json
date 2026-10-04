@@ -39,6 +39,7 @@
     "readOnlyPrompt": { "fixed": 30 },
     "readOnlySecond": { "fixed": 60 },
     "readOnlyGrace": { "fixed": 3 },
+    "readOnlyHard": { "fixed": 66 },
     "repeatWindow": { "fixed": 8 },
     "repeatCallLimit": { "fixed": 2 },
     "repeatDuplicateCalls": { "fixed": 6 },

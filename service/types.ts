@@ -24,8 +24,7 @@ export type ReflectHistoryRecord = {
   at: string;
 };
 
-export type Observation = {
-  id: string;
+export type Observation = {  id: string;
   turnId: string;
   observedAt: string;
   callId: string;
@@ -41,6 +40,20 @@ export type Observation = {
   writtenTurn?: number;
   /** Last 1-based turn ordinal in which this observation may still hold; undefined means it never expires. */
   validUntilTurn?: number;
+};
+
+/** 因果工作区条目：一次出网做了什么（op）、得到什么结论（value），由 workspace_write 写入，跟 turn 走。 */
+export type WorkspaceEntry = {
+  id: string;
+  turnId: string;
+  /** 本 Conversation 内第几次模型请求（b01、b02…）。 */
+  boundId: string;
+  /** 写入本次 ws 的工具调用。 */
+  callId: string;
+  /** 被总结的那批调用。 */
+  callIds: string[];
+  op: string;
+  value: string;
 };
 
 /** Most recent model-returned tool batch; replaced before the next model request. */
@@ -121,6 +134,8 @@ export type Assembled = {
   mcpIds: string[];
   currentPage: (CurrentPage & Partial<Observation>) | null;
   observations: Observation[];
+  /** 因果工作区：本轮写下的 ws 条目，窗口不限量，压缩时跟 turn 一起归档。 */
+  workspace: WorkspaceEntry[];
   currentTabs: CurrentTabs;
 };
 
@@ -201,6 +216,8 @@ export type Ledger = {
   liveTools: { name: string; callId: string; reason?: string }[];
   toolIO: ToolIOItem[];
   lastAction: LastAction | null;
+  /** 本 Conversation 内模型请求计数（boundId 来源）；老账本缺省按 0 计。 */
+  boundSeq?: number;
   contextTab: TabContext;
   notes: Record<string, string>;
   currentQuery: QueryEvidence | null;

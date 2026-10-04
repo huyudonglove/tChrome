@@ -12,6 +12,7 @@
     "notes_write",
     "notes_delete",
     "observation_write",
+    "workspace_write",
     "tabs_current",
     "evidence_search",
     "catalog_add",

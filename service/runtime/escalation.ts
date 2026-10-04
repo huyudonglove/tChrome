@@ -3,10 +3,13 @@ import type { ToolIOItem } from "../types.ts";
 
 // 按返回计数的实质性兜底：有实质性就清零，无就累计，循环往复。
 // 30 次连续只读 → 第一次提示；再 30 次（累计 60）仍无实质性 → 第二次提示（仅剩 3 次机会）；
-// 再 3 次仍无 → 直接中断。不再设 checkContinue / reportProgress 这类确认工具。
+// 63 次仍无 → 最后通牒（给模型，要求立即收口）；66 次仍无 → 直接中断。不再设确认类工具。
 export const READ_ONLY_PROMPT = runtimeConfig.context.readOnlyPrompt;
 export const READ_ONLY_SECOND = runtimeConfig.context.readOnlySecond;
 export const READ_ONLY_GRACE = runtimeConfig.context.readOnlyGrace;
+export const READ_ONLY_HARD = runtimeConfig.context.readOnlyHard;
+/** 最后通牒线 = 第二次提示后再给 3 次机会。 */
+export const READ_ONLY_FINAL = READ_ONLY_SECOND + READ_ONLY_GRACE;
 // Live budget hints carry a marker so the loop strips the previous one before re-evaluating,
 // keeping exactly one active budget nudge in the window (same lifecycle as observation/reflect nudges).
 // interrupt 终止本 turn 而不是提示，所以不带标记；两档 hint 都带标记。
@@ -33,6 +36,7 @@ export const NEUTRAL_TOOLS = new Set([
   "agent_compress", "page_clear_result",
   "askUser", "finishTurn",
   "checkContinue", "reportProgress",
+  "workspace_write",
 ]);
 
 /** 自上次实质性操作以来的连续只读业务调用数（跳过 NEUTRAL）。 */
@@ -51,12 +55,16 @@ export function substantiveStreak(rows: ToolIOItem[], readOnly: Set<string>): nu
 
 /**
  * 每 turn 按返回计数升级：只读 30 提示一次要实质性操作，再 30 仍无则第二次提示（仅剩 3 次机会），
- * 再 3 次仍无则直接中断。有实质性就清零，循环往复。
+ * 63 仍无则下最后通牒（给模型，要求立即收口），66 仍无才直接中断。有实质性就清零，循环往复。
+ * 只有最后一档是 interrupt（模型已无机会，turn 直接收口）；前三档都是 hint，写进工具返回给模型看。
  */
 export function escalate(rows: ToolIOItem[], _lastName: string, readOnly: Set<string>): Escalation {
   const streak = substantiveStreak(rows, readOnly);
-  if (streak >= READ_ONLY_SECOND + READ_ONLY_GRACE) {
+  if (streak >= READ_ONLY_HARD) {
     return { action: "interrupt", text: `runtime: 已连续 ${streak} 次工具调用只有读取类操作、无实质性进展，本 turn 结束。请基于已有证据收口，缺关键信息就用 askUser 问一次，别空转。` };
+  }
+  if (streak >= READ_ONLY_FINAL) {
+    return { action: "hint", text: `${BUDGET_NUDGE_MARKER} 已连续 ${streak} 次只有读取类操作，仍无实质性进展，这是最后通牒：立即用 finishTurn 基于已有证据收口，缺关键信息就用 askUser 问一次；再做只读调用本 turn 将直接中断，不会再提醒。` };
   }
   if (streak >= READ_ONLY_SECOND) {
     const remaining = READ_ONLY_SECOND + READ_ONLY_GRACE - streak;

@@ -118,6 +118,13 @@
     "allocation": "counter",
     "description": "本轮反思记录"
   },
+  "workspace": {
+    "field": "id",
+    "prefix": "ws",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "因果工作区条目"
+  },
   "action": {
     "field": "id",
     "prefix": "act",

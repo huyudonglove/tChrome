@@ -209,6 +209,14 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     return result(JSON.stringify({ ok: true, type: observationType, ...(tabId !== undefined ? { tabId } : {}) }),
       [{ type: "observation_write", observationType, result: args.result, ...(tabId !== undefined ? { tabId } : {}), ...(validForTurns !== undefined ? { validForTurns } : {}), ...(refresh !== undefined ? { refresh } : {}) }]);
   }
+  if (name === "workspace_write") {
+    const op = typeof args.op === "string" ? args.op.trim() : "";
+    if (!op) return failedTool(errorDetail("workspace_empty_op"), "invalid_arguments", { toolName: name });
+    const value = typeof args.value === "string" ? args.value.trim() : "";
+    if (!value) return failedTool(errorDetail("workspace_empty_value"), "invalid_arguments", { toolName: name });
+    return result(JSON.stringify({ ok: true, op, value }),
+      [{ type: "workspace_write", op, value }]);
+  }
   if (name === "tabs_current") {
     if (!host?.readCurrentTabs) return failedTool(errorDetail("browser_not_connected"), "browser_unavailable");
     const tabs = await host.readCurrentTabs();

@@ -4,6 +4,7 @@ import { deleteMemory, saveMemory, updateMemory } from "../memory/store.ts";
 import type { Ledger, MemoryRecord, RuntimeExecutionContext, ToolQueueItem, Turn, TurnStopReason } from "../types.ts";
 import type { ToolEffect } from "../tools/effects.ts";
 import { allocateRecordId, nowIso } from "./ids.ts";
+import { formatBoundId, defaultWorkspaceCallIds } from "./workspace.ts";
 import { prepareTaskComplete, prepareTaskSet, prepareTaskUpdate } from "./tasks.ts";
 import { join } from "node:path";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -241,6 +242,22 @@ export function applyToolEffects(input: {
             result: windowResult,
           });
         }
+        break;
+      }
+      case "workspace_write": {
+        // boundId/callIds 一律由 Runtime 反填，不经模型之手：当前请求编号 + 最近一批业务调用。
+        // 计数器走 catalog（文件basename，防账本丢失重号）；展示按 ws01 格式去下划线，与 call_01 等 toolIO 编号区分。
+        const id = allocateRecordId(dataDir, ledger.conversationId, "workspace").replace("_", "");
+        turn.assembled.workspace ??= [];
+        turn.assembled.workspace.push({
+          id,
+          turnId: turn.turnId,
+          boundId: formatBoundId(ledger.boundSeq ?? 0),
+          callId: call.callId,
+          callIds: defaultWorkspaceCallIds(ledger, turn.turnId),
+          op: effect.op,
+          value: effect.value,
+        });
         break;
       }
       case "page_clear_result": {

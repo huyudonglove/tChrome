@@ -10,6 +10,7 @@ import type { CompletionResult, Provider, ToolCall, Turn } from "../types.ts";
 import { inputRecord } from "../runtime/ids.ts";
 import { loadIndex } from "../context-archive/store.ts";
 import { validateUserData } from "./data-schema.ts";
+import { stripWorkspaceSuggestion } from "../runtime/workspace.ts";
 import { compressionTurnsFromUserMessage } from "../agents/compression/protocol.ts";
 
 const repoRoot = join(import.meta.dir, "../..");
@@ -104,7 +105,9 @@ test("large script results use evidence_search while small follow-up pages stay 
       const toolIO = slot(user, "#toolIO");
       const row = toolIO.find((item: any) => item.name === "script_read");
       expect(row).toBeDefined();
-      const stub = JSON.parse(JSON.stringify(row.return));
+      // 窗口投影里返回末尾可能挂工作区建议，先裁再解析。
+      const rawReturn = typeof row.return === "string" ? row.return : JSON.stringify(row.return);
+      const stub = JSON.parse(stripWorkspaceSuggestion(rawReturn));
       expect(stub.externalized).toBe(true);
       expect(String(stub.head ?? stub.summary).length).toBeGreaterThan(0);
       expect(String(stub.path)).toContain("returns");
@@ -113,7 +116,8 @@ test("large script results use evidence_search while small follow-up pages stay 
     const toolIO = slot(user, "#toolIO");
     const search = toolIO.find((row: any) => row.name === "evidence_search");
     expect(search).toBeDefined();
-    const parsed = typeof search.return === "string" ? JSON.parse(search.return) : search.return;
+    const searchRaw = typeof search.return === "string" ? search.return : JSON.stringify(search.return);
+    const parsed = JSON.parse(stripWorkspaceSuggestion(searchRaw));
     const hit = parsed.results[0];
     expect(parsed.ok).toBe(true);
     expect(hit.matches[0].hit).toBe("PAGE_SENTINEL");
@@ -151,7 +155,7 @@ test("history above the compress threshold is compressed before the main model r
     conversationId, turnId: `tn_${String(i + 1).padStart(2, "0")}`, status: "completed",
     createdAt: "2026-09-11", completedAt: "2026-09-11",
     input: {id: `input_${String(i + 1).padStart(2, "0")}`, text: "H".repeat(35000), submittedAt: "2026-09-11"},
-    assembled: {baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: []},
+    assembled: {baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [], workspace: []},
     stopReason: { kind: "reply", text: "已完成" },
   }));
   ledger.turnIds = turns.map(turn => turn.turnId);

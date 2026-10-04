@@ -1,4 +1,4 @@
-import type { Ledger, Observation, Task, TaskHistoryRecord, Turn, TurnStopReason, UserInputRecord } from "../../types.ts";
+import type { Ledger, Observation, Task, TaskHistoryRecord, Turn, TurnStopReason, UserInputRecord, WorkspaceEntry } from "../../types.ts";
 import type { MemoryRecord } from "../../memory/types.ts";
 import { pageView, turnSummaryView, type TurnSummary } from "./records.ts";
 import { toolHistoryView } from "./tools.ts";
@@ -12,6 +12,8 @@ export type ConversationTurnSlice = {
   /** First–last callId of this turn (ids are per-conversation sequential). */
   callBounds: { from: string; to: string } | null;
   observations: ReturnType<typeof pageView>[];
+  /** 因果工作区条目（本轮 workspace_write 写下），窗口不限量。 */
+  workspace: WorkspaceEntry[];
   notes: Record<string, string>;
   reflection: { turnId: string; items: { id: string; text: string; focus?: string }[] } | null;
   query: ReturnType<typeof queryView>[];
@@ -81,6 +83,12 @@ export function conversationPayload(input: {
     rows.push(page);
     pagesByTurn.set(page.turnId, rows);
   }
+  const workspaceByTurn = new Map<string, WorkspaceEntry[]>();
+  for (const entry of turn.assembled.workspace ?? []) {
+    const rows = workspaceByTurn.get(entry.turnId) ?? [];
+    rows.push(entry);
+    workspaceByTurn.set(entry.turnId, rows);
+  }
   const queries: QueryEvidence[] = [...(input.queryHistory ?? [])];
   if (input.currentQuery) queries.push(input.currentQuery);
   const notesByTurn = input.notesByTurn ?? {};
@@ -103,6 +111,7 @@ export function conversationPayload(input: {
         ? { from: toolRows[0]!.callId, to: toolRows.at(-1)!.callId }
         : null,
       observations: pages.map((page) => pageView(page, currentTurn)).filter((page) => page !== null),
+      workspace: workspaceByTurn.get(row.turnId) ?? [],
       notes: (isLive ? ledger.notes : notesByTurn[row.turnId]) ?? {},
       reflection: reflectByTurn.get(row.turnId)?.length
         ? { turnId: row.turnId, items: reflectByTurn.get(row.turnId)! }
@@ -226,8 +235,22 @@ const TASK_ITEM_ATTRS = ["id", "status", "expectedEffect", "verification", "bloc
 const STOP_ATTRS = ["kind", "callId"];
 const CALL_ATTRS = ["callId", "turnId", "batchId", "name"];
 
-const notesXml = (notes: unknown): string => {
-  const record = asRecord(notes);
+/** 因果工作区：<workspace from首条id to末条id> 包 <ws id boundid callIds>，body 为 {op, value}。不限量。 */
+const workspaceXml = (entries: WorkspaceEntry[]): string => {
+  if (!entries.length) return "";
+  const bounds = attrText({ from: entries[0]!.id, to: entries.at(-1)!.id });
+  const body = entries.map((entry) => {
+    const attrs = attrText({
+      id: entry.id,
+      boundid: entry.boundId,
+      ...(entry.callIds.length ? { callIds: entry.callIds.join(",") } : {}),
+    });
+    return `<ws${attrs}>\n${jsonBody({ op: entry.op, value: entry.value })}\n</ws>`;
+  }).join("\n");
+  return `<workspace${bounds}>\n${body}\n</workspace>`;
+};
+
+const notesXml = (notes: unknown): string => {  const record = asRecord(notes);
   if (!record) return "";
   const entries = Object.entries(record);
   if (!entries.length) return "";
@@ -291,6 +314,7 @@ export function conversationXml(payload: ConversationPayload): string {
     const fields = [
       element("userInput", slice.userInput, USER_INPUT_ATTRS),
       listXml("observation", slice.observations, OBSERVATION_ATTRS),
+      workspaceXml(slice.workspace ?? []),
       notesXml(slice.notes),
       reflectionXml(slice.reflection),
       listXml("query", slice.query, QUERY_ATTRS),

@@ -26,7 +26,7 @@ const fixture = () => {
     stopReason: null,     assembled: {
       baseToolsIds: [], toolIds: [],
       conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [],
-      currentPage: null, currentTabs: { ok: true, windows: [] }, observations: [],
+      currentPage: null, currentTabs: { ok: true, windows: [] }, observations: [], workspace: [],
     },
   };
   const execute = async (name: string, args: Record<string, unknown>) => executeTool({

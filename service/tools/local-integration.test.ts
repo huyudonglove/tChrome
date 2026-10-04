@@ -8,6 +8,7 @@ import { deleteConversation, loadLedger, newConversation, primeActiveTask, stopT
 import { LOCAL_TOOL_NAMES, localScope, runLocalTool } from "./local-tools.ts";
 import { abortLocalProcesses } from "./local-process.ts";
 import { dynamicToolIds, loadToolRegistry } from "./registry.ts";
+import { stripWorkspaceSuggestion } from "../runtime/workspace.ts";
 import type { CompletionResult } from "../types.ts";
 
 const repoRoot = join(import.meta.dir, "../..");
@@ -50,7 +51,8 @@ test("local tools are discoverable and load through the existing catalog before 
     } } }, { userInput: "验证本地命令", submittedAt: new Date().toISOString() });
     expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
     const record = loadLedger(dataDir, reply.conversationId).toolIO.find(item => item.name === "local_run");
-    expect(JSON.parse(record!.return.text)).toMatchObject({ ok: true, stdout: "local-execution-ok", exitCode: 0 });
+    // 每批返回末尾可能挂工作区建议（nudge 同理），解析正文前先裁掉。
+    expect(JSON.parse(stripWorkspaceSuggestion(record!.return.text))).toMatchObject({ ok: true, stdout: "local-execution-ok", exitCode: 0 });
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 

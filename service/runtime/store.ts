@@ -84,6 +84,7 @@ export function emptyLedger(conversationId: string): Ledger {
     liveTools: [],
     toolIO: [],
     lastAction: null,
+    boundSeq: 0,
     contextTab: null,
     notes: {},
     currentQuery: null,
@@ -161,6 +162,7 @@ export function primeActiveTask(dataDir: string): void {
 export function loadTurn(dataDir: string, cvId: string, turnId: string): Turn {
   const turn = JSON.parse(readFileSync(join(paths(dataDir, cvId).turns, `${turnId}.json`), "utf8")) as Turn;
   turn.assembled.observations ??= [];
+  turn.assembled.workspace ??= [];
   return turn;
 }
 

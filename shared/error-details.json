@@ -18,6 +18,8 @@
   "notes_key_empty": "key 空着",
   "observation_type_empty": "type 空着",
   "observation_result_empty": "result 空着",
+  "workspace_empty_op": "workspace_write 的 op 为空",
+  "workspace_empty_value": "workspace_write 的 value 为空",
   "page_clear_missing_obs": "没有观察 {pageId}",
   "task_set_empty_items": "task_set 需要非空 items",
   "task_gate_required": "该操作需要先创建活动 Task：调用 task_set（items 写清步骤）后再执行；收口/提问/记忆类工具无需 Task。",

@@ -53,7 +53,7 @@ const rotateAt = (dataDir: string) => {
 const makeTurn = (conversationId: string, turnId: string, text: string, stopReason: Turn["stopReason"]): Turn => ({
   conversationId, turnId, status: "completed", createdAt: "2026-10-03", completedAt: "2026-10-03",
   input: { id: `input_${turnId}`, text, submittedAt: "2026-10-03" },
-  assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [] },
+  assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [], workspace: [] },
   stopReason,
 });
 

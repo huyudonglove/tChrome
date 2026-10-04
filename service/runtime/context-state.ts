@@ -128,7 +128,7 @@ function archiveContentFromInventory(
       continue;
     }
     if (!Array.isArray(raw)) {
-      content[field] = raw ?? (field === "toolIO" || field === "observations" || field === "memoryWrites" ? [] : null);
+      content[field] = raw ?? (field === "toolIO" || field === "observations" || field === "workspace" || field === "memoryWrites" ? [] : null);
       continue;
     }
     const keepCallIds = options.keepCallIds;

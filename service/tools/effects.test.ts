@@ -24,7 +24,7 @@ function setup() {
     stopReason: null, assembled: {
       baseToolsIds: ["finishTurn"], toolIds: ["page_click"],
       conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, currentTabs: { ok: true, windows: [] },
-      observations: [],
+      observations: [], workspace: [],
     },
   };
   const execute = (name: string, args: ToolArguments, options: Partial<ExecuteInput> = {}) => executeTool({
@@ -252,3 +252,32 @@ test("observation_write persists observations in chronological order", () => {
     .toEqual(fixture.turn.assembled);
 });
 
+
+test("workspace_write validates op/value and records a causal entry with runtime ids", async () => {
+  const fixture = setup();
+  const emptyOp = await fixture.execute("workspace_write", { reason: "补记", op: "  ", value: "有结论" });
+  expect(emptyOp.effects).toEqual([]);
+  expect(JSON.parse(emptyOp.text)).toMatchObject({ ok: false, faultCode: "invalid_arguments" });
+  const emptyValue = await fixture.execute("workspace_write", { reason: "补记", op: "读了列表", value: "" });
+  expect(emptyValue.effects).toEqual([]);
+
+  fixture.ledger.boundSeq = 2;
+  fixture.ledger.toolIO.push(
+    { callId: "call_01", batchId: "batch_01", name: "local_fs_read", arguments: {}, turnId: fixture.turn.turnId, return: { stage: "complete", totalChars: 2, text: "ok" } },
+    { callId: "call_02", batchId: "batch_01", name: "observation_write", arguments: {}, turnId: fixture.turn.turnId, return: { stage: "complete", totalChars: 2, text: "ok" } },
+  );
+  const execution = await fixture.execute("workspace_write", { reason: "补记", op: "读了列表接口", value: "分页参数是 cursor" });
+  expect(JSON.parse(execution.text)).toMatchObject({ ok: true });
+  // boundId/callIds 不传时由 Runtime 补：当前请求编号 + 最近一批业务调用。
+  expect(execution.effects).toEqual([{ type: "workspace_write", op: "读了列表接口", value: "分页参数是 cursor" }]);
+  fixture.apply(execution, "call_ws");
+  expect(fixture.turn.assembled.workspace).toEqual([{
+    id: "ws01",
+    turnId: fixture.turn.turnId,
+    boundId: "b02",
+    callId: "call_ws",
+    callIds: ["call_01"],
+    op: "读了列表接口",
+    value: "分页参数是 cursor",
+  }]);
+});

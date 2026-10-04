@@ -49,7 +49,7 @@ test("user window renders B-style XML modules with data under 内容", () => {
     createdAt: "", completedAt: null,
     input: { id: "input_01", text: "用户输入", submittedAt: "" },
     stopReason: null,
-    assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [] },
+    assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [], workspace: [] },
   };
   const output = userText({ contextModules: modules, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: "技能正文" });
   expect(output).toContain("<skill>");
@@ -71,7 +71,7 @@ test("<conversation> reports its conversation id and window occupancy", () => {
     createdAt: "", completedAt: null,
     input: { id: "input_01", text: "用户输入", submittedAt: "" },
     stopReason: null,
-    assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [] },
+    assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [], workspace: [] },
   };
   const system = "系统窗口文本";
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-window-"));

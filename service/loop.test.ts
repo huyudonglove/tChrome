@@ -610,7 +610,7 @@ test("队列和正在跑的工具出现在 /session", () => {
       conversationMemoryIds: [],
       projectMemoryIds: [],
       mcpIds: [],
-      currentPage: null, observations: [],
+      currentPage: null, observations: [], workspace: [],
       currentTabs: { ok: true, windows: [] },
     },
     stopReason: null,

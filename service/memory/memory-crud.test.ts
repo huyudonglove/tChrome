@@ -12,7 +12,7 @@ const turn = (cv: string): Turn => ({
   conversationId: cv, turnId: "tn_01", status: "inferring",
   createdAt: "now", completedAt: null,
   input: { id: "input_01", text: "改记忆", submittedAt: "now" },
-  assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [] },
+  assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [], workspace: [] },
   stopReason: null,
 });
 

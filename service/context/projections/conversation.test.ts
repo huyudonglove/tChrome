@@ -30,7 +30,7 @@ describe("<task> 会话级任务标签", () => {
         turnId: "tn_01",
         userInput: { id: "input_01", turnId: "tn_01", userInput: "hello" },
         callBounds: null,
-        observations: [],
+        observations: [], workspace: [],
         notes: {},
         reflection: null,
         query: [],
@@ -55,5 +55,34 @@ describe("<task> 会话级任务标签", () => {
   test("omits <task> entirely when session has no task", () => {
     const xml = conversationXml(payload({ task: null }));
     expect(xml).not.toContain("<task>");
+  });
+});
+describe("<workspace> 因果工作区", () => {
+  const turnBase = {
+    turnId: "tn_01",
+    userInput: { id: "input_01", turnId: "tn_01", userInput: "hello" },
+    callBounds: null,
+    observations: [],
+    notes: {},
+    reflection: null,
+    query: [],
+    stopReason: null,
+  };
+  test("renders <workspace from to> with <ws id boundid callIds> and op/value body", () => {
+    const xml = conversationXml(payload({
+      task: null,
+      turns: [{ ...turnBase, workspace: [
+        { id: "ws01", turnId: "tn_01", boundId: "b02", callId: "call_03", callIds: ["call_01", "call_02"], op: "读了列表接口", value: "分页参数是 cursor" },
+        { id: "ws02", turnId: "tn_01", boundId: "b03", callId: "call_05", callIds: ["call_04"], op: "试了提交", value: "200 成功" },
+      ] }],
+    }));
+    expect(xml).toContain('<workspace from="ws01" to="ws02">');
+    expect(xml).toContain('<ws id="ws01" boundid="b02" callIds="call_01,call_02">');
+    expect(xml).toContain('{"op":"读了列表接口","value":"分页参数是 cursor"}');
+  });
+
+  test("omits <workspace> entirely when the turn wrote nothing", () => {
+    const xml = conversationXml(payload({ task: null, turns: [{ ...turnBase, workspace: [] }] }));
+    expect(xml).not.toContain("<workspace");
   });
 });

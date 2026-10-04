@@ -11,7 +11,7 @@ const makeTurn = (output: TurnStopReason | null): Turn => ({   turnId: "tn_01", 
   createdAt: "2026-09-07T00:00:00.000Z", completedAt: null,
   input: { id: "input_fixture", text: "查看当前页面", submittedAt: "2026-09-07T00:00:00.000Z" },
   assembled: { baseToolsIds: [], toolIds: [],
-     conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, observations: [], currentTabs: { ok: true, windows: [] } },
+     conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, observations: [], workspace: [], currentTabs: { ok: true, windows: [] } },
   stopReason: output,
   // session view reads stopReason.text for panel display
 });

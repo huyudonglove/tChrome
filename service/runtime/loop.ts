@@ -4,6 +4,7 @@ import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
 import { admitExecution, admitImages, deferredImageNote } from "../admission.ts";
 import { escalate, BUDGET_NUDGE_MARKER } from "./escalation.ts";
+import { buildWorkspaceSuggestion, formatBoundId, stripWorkspaceSuggestion } from "./workspace.ts";
 import { hasActiveTask, requiresActiveTask } from "./task-gate.ts";
 import { repeatHint } from "./repeat-detect.ts";
 import { ensureThumb, loadThumbRef } from "../images/thumb.ts";
@@ -59,6 +60,7 @@ const OBSERVATION_NUDGE_EXCLUDED = new Set([
   "context_query",
   "askUser",
   "finishTurn",
+  "workspace_write",
 ]);
 import type { ToolExecution } from "../tools/effects.ts";
 import { applyToolEffects, archiveTurnReflection } from "./effects.ts";
@@ -150,9 +152,9 @@ const assemble = (toolRegistry: ToolRegistry, loadedToolIds: string[]): Assemble
   mcpIds: [],
   currentPage: null,
   observations: [],
+  workspace: [],
   currentTabs: { ok: false, error: "尚未读取标签列表" },
 });
-
 const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, images: ChatMessage["images"], summaries: Parameters<typeof userText>[0]["conversationSummaries"] = [], dataDir?: string, skillNav = "", historyDataDir?: string): ChatMessage[] => {
   const system = systemText(contextModules, pacificDate(), toolGuideFor(toolRegistry, turn.assembled.baseToolsIds), {
     cwd: process.cwd(),
@@ -624,6 +626,12 @@ export async function handleTurn(
     // would rotate again immediately and the chain would never settle.
     let forceCompress = body.continuationOfTurnId !== undefined;
     let imageBatchId: string | undefined;
+    // 上一批落账的 batchId：迭代顶 strip 掉旧建议后，为它挂新建议（给本次请求看）。
+    // 直接在落账时挂会被下一次迭代顶的 strip 裁掉，所以只记 batchId、挂的动作放 strip 之后。
+    let pendingSuggestBatchId: string | undefined;
+    const suggestWorkspace = (batchId: string | undefined) => {
+      if (batchId) pendingSuggestBatchId = batchId;
+    };
     while (true) {
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
           return stoppedReply(ledger, turn);
@@ -648,7 +656,20 @@ export async function handleTurn(
         if (obsAt >= 0) text = text.slice(0, obsAt).trimEnd();
         const refAt = text.indexOf(REFLECT_NUDGE_MARKER);
         if (refAt >= 0) text = text.slice(0, refAt).trimEnd();
+        // 工作区建议只保留最新一条：旧建议在这里裁掉，新建议在每批返回落账后追加。
+        text = stripWorkspaceSuggestion(text);
         if (text !== row.return.text) row.return = { ...row.return, text };
+      }
+      // 为上一批挂新建议（给本次请求看，boundId 即本次编号；无业务调用的批不打扰）。
+      if (pendingSuggestBatchId) {
+        const batchId = pendingSuggestBatchId;
+        pendingSuggestBatchId = undefined;
+        const batchRows = ledger.toolIO.filter((r) => r.turnId === turn.turnId && r.batchId === batchId);
+        const last = batchRows.at(-1);
+        if (last) {
+          const text = buildWorkspaceSuggestion(batchRows, formatBoundId((ledger.boundSeq ?? 0) + 1));
+          if (text) last.return = { ...last.return, text: `${last.return.text}\n\n${text}` };
+        }
       }
       const writeCount = rows.filter((r) => r.name === "observation_write").length;
       if (writeCount > observationWrites) {
@@ -825,6 +846,8 @@ export async function handleTurn(
       saveLedger(deps.dataDir, ledger);
       const tools = toolSchemas(toolRegistry, [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds]);
       turn.usage!.modelRequests += 1;
+      // boundSeq：本 Conversation 内第几次模型请求（b01…），新会话从 0 起。
+      ledger.boundSeq = (ledger.boundSeq ?? 0) + 1;
       saveTurn(deps.dataDir, turn);
       appendEvent(deps.dataDir, ledger.conversationId, {
         kind: "provider-request",
@@ -975,6 +998,7 @@ export async function handleTurn(
             });
             return { conversationId: ledger.conversationId, turnId, stopReason: closed };
           }
+          suggestWorkspace(batchId);
         }
         if (submitFails >= MAX_SUBMIT) {
           turn.status = "failed";
@@ -1107,6 +1131,7 @@ export async function handleTurn(
         });
         return { conversationId: ledger.conversationId, turnId, stopReason: closed };
       }
+      suggestWorkspace(batchId);
       // Successful tool batches are normal progress, not failed submissions.
       // Empty finishTurn calls must not create an unbounded retry loop.
       if (result.toolCalls.some((call) => call.name !== "finishTurn" && call.name !== "askUser")) {

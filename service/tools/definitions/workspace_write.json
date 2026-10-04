@@ -1,0 +1,32 @@
+{
+  "type": "function",
+  "function": {
+    "name": "workspace_write",
+    "description": "往本轮 <workspace> 写一条因果（这批出网做了什么 op、得到什么结论 value）。Runtime 每次出网后会在返回末尾挂工作区建议，照着写 op/value 即可；op/value 为空会报错。\n参数：必填 op（这批出网做了什么）、value（得到了什么结论）。\n编号与来源调用由 Runtime 反填（boundId=当前请求编号，callIds=最近一批业务调用），不用传。\n返回：{ok, id}；条目编号 ws01…，跟 turn 走、窗口不限量，压缩时跟 turn 一起归档。只记「不写就会忘」的因果，不搬运工具返回原文。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "op": {
+          "type": "string",
+          "minLength": 1,
+          "description": "这批出网做了什么"
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "description": "得到了什么结论"
+        }
+      },
+      "required": [
+        "reason",
+        "op",
+        "value"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "execution": "serial"
+}

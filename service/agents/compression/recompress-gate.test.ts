@@ -35,7 +35,7 @@ const turnSource = (id: string, turnId: string) => ({
     completedAt: "2026-09-20",
     userInput: { id: `input_${turnId}`, turnId, userInput: turnId, submittedAt: "2026-09-20" },
         toolIO: [],
-    observations: [],
+    observations: [], workspace: [],
     memoryWrites: [],
     queryHistory: [],
     stopReason: { kind: "reply", text: turnId },

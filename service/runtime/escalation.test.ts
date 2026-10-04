@@ -8,6 +8,8 @@ import {
   READ_ONLY_PROMPT,
   READ_ONLY_SECOND,
   READ_ONLY_GRACE,
+  READ_ONLY_FINAL,
+  READ_ONLY_HARD,
 } from "./escalation.ts";
 import type { ToolIOItem } from "../types.ts";
 
@@ -46,7 +48,7 @@ test("neutral bookkeeping neither accumulates nor resets", () => {
   expect(escalate(rows, "see_page", READ).action).toBe("continue");
 });
 
-test("60 reads second hint with remaining chances, 63rd interrupts", () => {
+test("60 reads second hint, 63rd is a final warning to the model, 66th interrupts", () => {
   const second = escalate(reads(READ_ONLY_SECOND), "see_page", READ) as { action: string; text: string };
   expect(second.action).toBe("hint");
   expect(second.text).toContain("仅剩");
@@ -55,13 +57,22 @@ test("60 reads second hint with remaining chances, 63rd interrupts", () => {
   const lastChance = escalate(reads(READ_ONLY_SECOND + READ_ONLY_GRACE - 1), "see_page", READ);
   expect(lastChance.action).toBe("hint");
 
-  const over = escalate(reads(READ_ONLY_SECOND + READ_ONLY_GRACE), "see_page", READ) as { action: string; text: string };
+  // 最后通牒是给模型看的 hint，不是中断：模型还有收口机会。
+  const fin = escalate(reads(READ_ONLY_FINAL), "see_page", READ) as { action: string; text: string };
+  expect(fin.action).toBe("hint");
+  expect(fin.text).toContain(BUDGET_NUDGE_MARKER);
+  expect(fin.text).toContain("最后通牒");
+
+  const stillHint = escalate(reads(READ_ONLY_HARD - 1), "see_page", READ);
+  expect(stillHint.action).toBe("hint");
+
+  const over = escalate(reads(READ_ONLY_HARD), "see_page", READ) as { action: string; text: string };
   expect(over.action).toBe("interrupt");
   expect(over.text).not.toContain(BUDGET_NUDGE_MARKER);
 });
 
 test("interrupt then substantive recovers in a new segment", () => {
-  const rows = [...reads(READ_ONLY_SECOND + READ_ONLY_GRACE), row("local_fs_write"), ...reads(2)];
+  const rows = [...reads(READ_ONLY_HARD), row("local_fs_write"), ...reads(2)];
   expect(substantiveStreak(rows, READ)).toBe(2);
   expect(escalate(rows, "see_page", READ).action).toBe("continue");
 });

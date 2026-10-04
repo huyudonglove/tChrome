@@ -24,6 +24,7 @@ test("module registry owns consumers and archive fields", () => {
     "userInput",
     "toolIO",
     "observations",
+    "workspace",
     "memoryWrites",
     "reflection",
     "queryHistory",

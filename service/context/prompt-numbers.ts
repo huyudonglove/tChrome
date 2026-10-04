@@ -18,6 +18,7 @@ export function promptNumberSlots(): Record<string, string> {
     readOnlyPrompt: String(ctx.readOnlyPrompt),
     readOnlySecond: String(ctx.readOnlySecond),
     readOnlyGrace: String(ctx.readOnlyGrace),
+    readOnlyHard: String(ctx.readOnlyHard),
     repeatWindow: String(ctx.repeatWindow),
     repeatDuplicateCalls: String(ctx.repeatDuplicateCalls),
     repeatDuplicateSignatures: String(ctx.repeatDuplicateSignatures),
