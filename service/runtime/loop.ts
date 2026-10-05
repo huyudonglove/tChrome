@@ -58,6 +58,7 @@ const OBSERVATION_NUDGE_EXCLUDED = new Set([
   "agent_compress",
   "agent_query",
   "context_query",
+  "checkContinue",
   "askUser",
   "finishTurn",
   "workspace_write",

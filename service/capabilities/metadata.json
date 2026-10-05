@@ -5632,6 +5632,33 @@
       "composesWith": [
         "evidence_search"
       ]
+    },
+    "checkContinue": {
+      "purpose": "执行确认检查点，拿不准是否继续本轮时调用",
+      "triggers": [
+        "checkContinue",
+        "拿不准是否该继续本轮，需要显式确认"
+      ],
+      "outputs": [
+        "继续或中断的确认结果"
+      ],
+      "preconditions": [
+        "当前会话与任务目标有效"
+      ],
+      "risk": "low",
+      "readOnly": false,
+      "verification": [
+        "工具 ok=true"
+      ],
+      "alternatives": [
+        "继续执行当前轮工具",
+        "用 finishTurn 收口",
+        "用 askUser 提问"
+      ],
+      "composesWith": [
+        "finishTurn",
+        "askUser"
+      ]
     }
   },
   "skills": {

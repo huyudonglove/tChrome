@@ -25,7 +25,7 @@ export type Escalation =
 
 /**
  * 记账/控制类工具：既不算只读累积，也不算实质性清零。
- * 含已删除的 checkContinue / reportProgress（兼容历史 turn 里残留的行）。
+ * 含已删除的 reportProgress（兼容历史 turn 里残留的行）。
  */
 export const NEUTRAL_TOOLS = new Set([
   "observation_write", "reflect_write", "reflect_delete",

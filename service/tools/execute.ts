@@ -158,6 +158,10 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       return failedTool(error);
     }
   }
+  if (name === "checkContinue") {
+    const cont = args.cont === true || args.cont === "true";
+    return result(JSON.stringify({ ok: true, cont }), cont ? [] : [{ type: "turn.reply", text: "已按 checkContinue 中断本 turn。" }]);
+  }
   if (name === "finishTurn") {
     const text = typeof args.text === "string" ? args.text.trim() : "";
     if (!text) return { ...failedTool(errorMessage("empty_finish_turn", "model"), "empty_finish_turn"), effects: [{ type: "queue.clear" }] };
