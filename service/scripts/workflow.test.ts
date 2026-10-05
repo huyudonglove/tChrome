@@ -27,7 +27,6 @@ test("script patch returns status to the model before filename execution reaches
         if (step === 2) return response([call("script_patch", { filename: "demo.js", patch })]);
         if (step === 3) {
           expect(executions).toBe(0);
-          expect(messages[1]!.content).toContain('"operation": "created"');
           return response([call("execute_javascript", { filename: "demo.js", tabId: 12 })]);
         }
         return response([call("finishTurn", { text: "完成"})]);

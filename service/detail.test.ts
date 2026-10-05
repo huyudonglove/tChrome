@@ -21,7 +21,7 @@ const finish = () => reply([{ id: "finish", name: "finishTurn", arguments: { rea
 const section = (user: string, tag: string) => {
   const m = user.match(new RegExp(`<${tag}>\\n[\\s\\S]*?\\n\\n内容：\\n([\\s\\S]*?)\\n</${tag}>`));
   if (m) return JSON.parse(m[1]!);
-  const all = collectNested(user, tag === "currentQuery" || tag === "queryHistory" ? "query" : tag);
+  const all = collectNested(user, tag === "currentQuery" || tag === "queryHistory" ? "query" : tag === "toolIO" ? "call" : tag);
   if (tag === "currentQuery") return all.find((row: any) => row.currentQuery) ?? null;
   if (tag === "queryHistory") return all.filter((row: any) => !row.currentQuery);
   if (tag === "toolIO" || tag === "query") return all;
@@ -29,12 +29,33 @@ const section = (user: string, tag: string) => {
 };
 const collectNested = (user: string, tag: string): any[] => {
   const rows: any[] = [];
-  for (const m of user.matchAll(new RegExp(`<${tag}(?:\\s[^>]*)?>\\n([\\s\\S]*?)\\n</${tag}>`, "g"))) {
-    const parsed = JSON.parse(m[1]!);
-    if (Array.isArray(parsed)) rows.push(...parsed);
-    else rows.push(parsed);
+  // Record elements carry their scalar fields (queryId/currentQuery/externalized/...) as attributes, and
+  // a body is raw JSON, a "内容：" block, or an externalization notice. Scan open tags by hand and pair
+  // each with its own closing tag: a lazy regex can swallow the following record and lose attributes.
+  const open = new RegExp(`<${tag}(\\s[^>]*?)?>`, "g");
+  for (let m = open.exec(user); m; m = open.exec(user)) {
+    const attrs = attrRecord(m[1] ?? "");
+    // Rendered descriptions mention bare tag names (e.g. "<query>：本轮查询"); skip those.
+    if (!Object.keys(attrs).length) continue;
+    const bodyStart = open.lastIndex;
+    const close = user.indexOf(`</${tag}>`, bodyStart);
+    const raw = close === -1 ? user.slice(bodyStart) : user.slice(bodyStart, close);
+    const marker = raw.indexOf("内容：");
+    const body = marker === -1 ? raw : raw.slice(marker + 4);
+    let parsed: any;
+    try { parsed = JSON.parse(body.trim()); } catch { rows.push({ ...attrs, __unparsed: body.trim() }); continue; }
+    for (const row of Array.isArray(parsed) ? parsed : [parsed]) rows.push({ ...attrs, ...row });
   }
   return rows;
+};
+// Record elements carry their scalar fields (name/stage/ok/currentQuery/externalized/...) as
+// attributes, so a body-only parse loses exactly the fields the assertions read.
+const attrRecord = (raw: string): Record<string, any> => {
+  const attrs: Record<string, any> = {};
+  for (const m of raw.matchAll(/([A-Za-z_][\w-]*)="([^"]*)"/g)) {
+    attrs[m[1]!] = m[2] === "true" ? true : m[2] === "false" ? false : m[2];
+  }
+  return attrs;
 };
 function fixture(dataDir: string, text = "精确证据".repeat(250)) {
   const { conversationId: cv } = ensureSession(dataDir), ledger = loadLedger(dataDir, cv);
@@ -101,7 +122,9 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
         expect(sessionView(dataDir, f.cv).activity).toBeNull();
         const toolIO = section(input.messages[1]!.content, "toolIO");
         const queryRow = toolIO.find((row: any) => row.name === "context_query");
-        const result = queryRow?.return?.result;
+        // context_query 的投影把 queryView 直接摊在 return 上（见 context/projections/tools.ts），
+        // 不再包一层 result；只有被外置的 body 才是原始字符串。
+        const result = queryRow?.return;
         if (typeof result === "string") expect(result).toContain("currentQuery");
         else expect(result).toMatchObject({ currentQuery: true });
         expect(JSON.stringify(toolIO)).not.toContain(f.tool.return.text);
