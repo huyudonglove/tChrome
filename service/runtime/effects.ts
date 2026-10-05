@@ -253,7 +253,7 @@ export function applyToolEffects(input: {
         turn.assembled.workspace.push({
           id,
           turnId: turn.turnId,
-          boundId: formatBoundId(ledger.boundSeq ?? 0),
+          boundId: formatBoundId(ledger.boundSeq),
           callId: call.callId,
           callIds: defaultWorkspaceCallIds(ledger, turn.turnId),
           op: effect.op,

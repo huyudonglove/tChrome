@@ -10,7 +10,6 @@ import type { CompletionResult, Provider, ToolCall, Turn } from "../types.ts";
 import { inputRecord } from "../runtime/ids.ts";
 import { loadIndex } from "../context-archive/store.ts";
 import { validateUserData } from "./data-schema.ts";
-import { stripWorkspaceSuggestion } from "../runtime/workspace.ts";
 import { compressionTurnsFromUserMessage } from "../agents/compression/protocol.ts";
 
 const repoRoot = join(import.meta.dir, "../..");
@@ -23,7 +22,7 @@ const xmlSlots = (user: string): Record<string, unknown> => {
   let m: RegExpExecArray | null;
   while ((m = re.exec(user))) {
     const name = m[1]!, body = m[2]!;
-    values[name] = name === "skill" || name === "tools" || name === "conversation" ? body : JSON.parse(body);
+    values[name] = name === "skill" || name === "tools" || name === "conversation" || name === "projectMemory" ? body : JSON.parse(body);
   }
   return values;
 };
@@ -42,8 +41,9 @@ const callRows = (xml: string): any[] => {
     for (const am of m[1]!.matchAll(/([A-Za-z][A-Za-z0-9]*)=\"([^\"]*)\"/g)) attrs[am[1]!] = am[2]!;
     let payload: any;
     try { payload = JSON.parse(m[2]!); } catch { payload = { body: m[2]! }; }
-    const { ok, ...rest } = attrs;
-    rows.push({ ...rest, ok: ok === "true", ...payload });
+    const { ok, callId, ...rest } = attrs;
+    // 窗口里调用编号叫 callId，取回时作 callId 传（见 conversation.md toolIO 说明）。
+    rows.push({ ...rest, callId: callId, ok: ok === "true", ...payload });
   }
   return rows;
 };
@@ -107,7 +107,7 @@ test("large script results use evidence_search while small follow-up pages stay 
       expect(row).toBeDefined();
       // 窗口投影里返回末尾可能挂工作区建议，先裁再解析。
       const rawReturn = typeof row.return === "string" ? row.return : JSON.stringify(row.return);
-      const stub = JSON.parse(stripWorkspaceSuggestion(rawReturn));
+      const stub = JSON.parse(rawReturn);
       expect(stub.externalized).toBe(true);
       expect(String(stub.head ?? stub.summary).length).toBeGreaterThan(0);
       expect(String(stub.path)).toContain("returns");
@@ -117,7 +117,7 @@ test("large script results use evidence_search while small follow-up pages stay 
     const search = toolIO.find((row: any) => row.name === "evidence_search");
     expect(search).toBeDefined();
     const searchRaw = typeof search.return === "string" ? search.return : JSON.stringify(search.return);
-    const parsed = JSON.parse(stripWorkspaceSuggestion(searchRaw));
+    const parsed = JSON.parse(searchRaw);
     const hit = parsed.results[0];
     expect(parsed.ok).toBe(true);
     expect(hit.matches[0].hit).toBe("PAGE_SENTINEL");

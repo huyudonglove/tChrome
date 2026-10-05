@@ -11,7 +11,6 @@ import { loadContextModules } from "./context/modules.ts";
 import { validateUserData } from "./context/data-schema.ts";
 import { systemText, userText } from "./context/window.ts";
 import { loadToolRegistry, coreToolIds, toolGuideFor } from "./tools/registry.ts";
-import { stripWorkspaceSuggestion } from "./runtime/workspace.ts";
 import { skillGuide, loadSkills } from "./skills/loader.ts";
 import { contextState } from "./runtime/context-state.ts";
 import { compressionTurnsFromUserMessage } from "./agents/compression/protocol.ts";
@@ -104,7 +103,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
           const id = tag.slice(1);
           const m = input.messages[1]!.content.match(new RegExp(`<${id}(?:\\s[^>]*)?>\\n[\\s\\S]*?\\n\\n内容：\\n([\\s\\S]*?)\\n</${id}>`));
           const body = m![1]!;
-          return [id, id === "skill" || id === "tools" || id === "conversation" ? body : JSON.parse(body)];
+          return [id, id === "skill" || id === "tools" || id === "conversation" || id === "projectMemory" ? body : JSON.parse(body)];
         }));
         expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
         // 查询直接塞进数组： main===2 时第一次查询已落账，在 <query> 里可见。
@@ -127,7 +126,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
         // 不再包一层 result；只有被外置的 body 才是原始字符串。
         // 每批返回末尾可能挂工作区建议，解析前先裁掉。
         const result = queryRow?.return;
-        const rawResult = typeof result === "string" ? stripWorkspaceSuggestion(result) : JSON.stringify(result);
+        const rawResult = typeof result === "string" ? result : JSON.stringify(result);
         expect(JSON.parse(rawResult)).toMatchObject({ status: "complete", sumId: f.sumId });
         expect(JSON.stringify(toolIO)).not.toContain(f.tool.return.text);
         expect(section(input.messages[1]!.content, "query")).toHaveLength(2);

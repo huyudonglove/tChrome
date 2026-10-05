@@ -32,7 +32,7 @@ const projectors: Record<string, (ctx: ProjectContext) => unknown> = {
   userInput: ({ turn }) => inputRecord(turn),
   toolIO: ({ ledger, turn }) => ledger.toolIO.filter(item => item.turnId === turn.turnId),
   observations: ({ turn }) => turn.assembled.observations.filter(item => item.turnId === turn.turnId),
-  workspace: ({ turn }) => (turn.assembled.workspace ?? []).filter(item => item.turnId === turn.turnId),
+  workspace: ({ turn }) => turn.assembled.workspace.filter(item => item.turnId === turn.turnId),
   memoryWrites: ({ turn, memories }) => memories.conversation.filter(item => item.turnId === turn.turnId),
   queryHistory: ({ ledger, turn }) => ledger.queryHistory.filter(item => item.turnId === turn.turnId),
   reflection: ({ turn }) => (turn.reflect?.length ? { turnId: turn.turnId, items: turn.reflect } : null),

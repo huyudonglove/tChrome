@@ -3,7 +3,6 @@ import {
   buildWorkspaceSuggestion,
   defaultWorkspaceCallIds,
   formatBoundId,
-  stripWorkspaceSuggestion,
   WORKSPACE_SUGGEST_MARKER,
 } from "./workspace.ts";
 import { emptyLedger } from "./store.ts";
@@ -51,12 +50,6 @@ test("suggestion lists batch files for copying into files[]", () => {
   expect(text).toContain("本批涉及文件：src/auth.ts");
   const noFiles = buildWorkspaceSuggestion([row("page_click", "call_03")])!;
   expect(noFiles).not.toContain("本批涉及文件");
-});
-
-test("strip removes the old suggestion so only the newest survives", () => {
-  const withOld = `正文\n\n${WORKSPACE_SUGGEST_MARKER} 旧建议`;
-  expect(stripWorkspaceSuggestion(withOld)).toBe("正文");
-  expect(stripWorkspaceSuggestion("干净正文")).toBe("干净正文");
 });
 
 test("default callIds are the business calls of the latest batch", () => {
@@ -112,11 +105,12 @@ test("loop appends one suggestion per batch, model writes ws, window shows it on
     const ledger = loadLedger(dataDir, reply.conversationId);
     // 三次出网，boundSeq 计三次。
     expect(ledger.boundSeq).toBe(3);
-    // b02 的请求看到了 b01 那批的建议；建议里不含 boundId/callIds，Runtime 写入时反填。
+    // b02 的请求在 <runtime> 模块看到 b01 那批的建议（不再缀在返回后面）。
+    expect(seen[1]).toContain("<runtime>");
+    expect(seen[1]).toContain('kind="workspace"');
     expect(seen[1]).toContain(WORKSPACE_SUGGEST_MARKER);
-    expect(seen[1]!).not.toContain("boundId=");
-    // ws 写下后进窗口，且旧建议被裁、同时最多一条。
-    expect(seen[2]!).toContain('<workspace from="ws01" to="ws01">');
+    // ws 写下后进窗口，且同 kind 只保留最新一条。
+    expect(seen[2]!).toContain('<workspace start="ws01" end="ws01">');
     expect(seen[2]!).toContain('boundid="b02"');
     expect(seen[2]!.split(WORKSPACE_SUGGEST_MARKER).length - 1).toBeLessThanOrEqual(1);
   } finally {

@@ -43,7 +43,7 @@ const MODULE_POINTERS: Record<string, (args: Record<string, unknown>, result: un
 export function toolHistoryView(records: ToolIOItem[], observations: Observation[] = [], ringCallIds?: Set<string>) {
   const byCall = new Map(observations.map((item) => [`${item.turnId}:${item.callId}`, item]));
   // Rolling ring: only the newest calls keep their detail; older rows are omitted
-  // entirely (their callIds stay discoverable via each turn's from/to attributes).
+  // entirely (their callIds stay discoverable via each turn's start/end attributes).
   const visible = ringCallIds ? records.filter((record) => ringCallIds.has(record.callId)) : records;
   return visible.map(record => {
     let result = resultView(record.return.text);

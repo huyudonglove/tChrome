@@ -1,4 +1,4 @@
-import type { Ledger, Observation, Task, TaskHistoryRecord, Turn, TurnStopReason, UserInputRecord, WorkspaceEntry } from "../../types.ts";
+import type { Ledger, Observation, Task, TaskHistoryRecord, Turn, TurnStopReason, UserInputRecord, WorkspaceEntry, RuntimeNotice } from "../../types.ts";
 import type { MemoryRecord } from "../../memory/types.ts";
 import { pageView, turnSummaryView, type TurnSummary } from "./records.ts";
 import { toolHistoryView } from "./tools.ts";
@@ -27,6 +27,8 @@ export type ConversationPayload = {
   conversationHistorySummary: ReturnType<typeof turnSummaryView> | string;
   task: ConversationTaskPayload;
   turns: ConversationTurnSlice[];
+  /** Runtime 运行时提醒：与 turn 平级，不再零散缀在各条返回后面。 */
+  runtime: RuntimeNotice[];
   /** Shared rolling pool: newest calls across all turns. */
   toolIO: ReturnType<typeof toolHistoryView>;
   /** Pool bounds; rendered as <toolIO> attributes so the range is readable without opening the pool. */
@@ -83,7 +85,7 @@ export function conversationPayload(input: {
     pagesByTurn.set(page.turnId, rows);
   }
   const workspaceByTurn = new Map<string, WorkspaceEntry[]>();
-  for (const entry of turn.assembled.workspace ?? []) {
+  for (const entry of turn.assembled.workspace) {
     const rows = workspaceByTurn.get(entry.turnId) ?? [];
     rows.push(entry);
     workspaceByTurn.set(entry.turnId, rows);
@@ -136,6 +138,7 @@ export function conversationPayload(input: {
       : input.conversationSummaries ?? [],
     task: taskPayload,
     turns,
+    runtime: ledger.runtimeNotices,
     toolIO: toolHistoryView(sessionCalls.slice(-runtimeConfig.context.toolioRingSize), [], ringCallIds),
     toolIOBounds: sessionCalls.length
       ? {
@@ -198,7 +201,7 @@ const element = (name: string, value: unknown, keys: string[]): string => {
   return record ? recordXml(name, record, keys) : "";
 };
 
-/** projectMemories() hands over JSON text while other slots pass prose; only arrays are claimed. */
+/** projectMemories() hands over XML text for project memories (conversation memories stay JSON); only arrays are claimed. */
 const tryParseArray = (text: string): unknown[] | null => {
   try {
     const parsed: unknown = JSON.parse(text);
@@ -233,7 +236,7 @@ const CALL_ATTRS = ["callId", "turnId", "name"];
 /** 因果工作区：<workspace from首条id to末条id> 包 <ws id boundid callIds files?>，body 为 {op, value}。不限量。 */
 const workspaceXml = (entries: WorkspaceEntry[]): string => {
   if (!entries.length) return "";
-  const bounds = attrText({ from: entries[0]!.id, to: entries.at(-1)!.id });
+  const bounds = attrText({ start: entries[0]!.id, end: entries.at(-1)!.id });
   const body = entries.map((entry) => {
     const attrs = attrText({
       id: entry.id,
@@ -244,6 +247,16 @@ const workspaceXml = (entries: WorkspaceEntry[]): string => {
     return `<ws${attrs}>\n${jsonBody({ op: entry.op, value: entry.value })}\n</ws>`;
   }).join("\n");
   return `<workspace${bounds}>\n${body}\n</workspace>`;
+};
+
+/** Runtime 提醒：同 kind 只保留最新一条。 */
+const runtimeXml = (notices: RuntimeNotice[]): string => {
+  if (!notices.length) return "";
+  const body = notices.map((notice) => {
+    const attrs = attrText({ kind: notice.kind, scope: notice.scope });
+    return `<notice${attrs}>\n${notice.text}\n</notice>`;
+  }).join("\n");
+  return `<runtime>\n${body}\n</runtime>`;
 };
 
 const notesXml = (notes: unknown): string => {  const record = asRecord(notes);
@@ -261,9 +274,11 @@ const taskXml = (plan: unknown): string => {
   if (!record) return "";
   const attrs = attrText(pickAttrs(record, TASK_ATTRS));
   const items = Array.isArray(record.items) ? record.items : [];
-  if (!items.length) return `<task${attrs} />`;
-  const body = items.map((item) => recordXml("item", asRecord(item) ?? {}, TASK_ITEM_ATTRS)).join("\n");
-  return `<task${attrs}>\n${body}\n</task>`;
+  const inner = items.length
+    ? `<task${attrs}>\n${items.map((item) => recordXml("item", asRecord(item) ?? {}, TASK_ITEM_ATTRS)).join("\n")}\n</task>`
+    : `<task${attrs} />`;
+  const id = typeof record.id === "string" ? record.id : "";
+  return `<tasks${attrText({ start: id, end: id })}>\n${inner}\n</tasks>`;
 };
 
 const reflectionXml = (reflection: unknown): string => {
@@ -273,7 +288,7 @@ const reflectionXml = (reflection: unknown): string => {
   if (!items.length) return "";
   const attrs = attrText(pickAttrs(record, ["turnId"]));
   const body = items.map((item) => recordXml("reflect", asRecord(item) ?? {}, REFLECT_ATTRS)).join("\n");
-  return `<reflection${attrs}>\n${body}\n</reflection>`;
+  return `<reflects${attrs}>\n${body}\n</reflects>`;
 };
 
 const stopReasonXml = (stop: unknown): string => {
@@ -290,43 +305,81 @@ const callXml = (value: unknown): string => {
   if (!record) return "";
   const ret = asRecord(record.return) ?? {};
   const result = asRecord(ret.result);
-  const attrs: Record<string, string> = pickAttrs(record, CALL_ATTRS);
+  const attrs: Record<string, string> = {};
+  if (typeof record.callId === "string") attrs.callId = record.callId;
+  if (typeof record.turnId === "string") attrs.turnId = record.turnId;
+  if (typeof record.name === "string") attrs.name = record.name;
   if (typeof result?.ok === "boolean") attrs.ok = String(result.ok);
   const body = pickBody(record, CALL_ATTRS);
   body.return = ret.result !== undefined ? ret.result : ret;
   return `<call${attrText(attrs)}>\n${jsonBody(body)}\n</call>`;
 };
 
+/** Same-turn record lists ride in a plural container so siblings never lay flat. */
+const wrapList = (tag: string, items: string[], bounds?: { start: string; end: string }): string => {
+  if (!items.length) return "";
+  const attrs = bounds ? attrText(bounds) : "";
+  return `<${tag}${attrs}>\n${items.join("\n")}\n</${tag}>`;
+};
+
 /** Nested XML body for the conversation module data section. */
 export function conversationXml(payload: ConversationPayload): string {
+  const summariesRaw = payload.conversationHistorySummary;
+  const summaryBlock = Array.isArray(summariesRaw)
+    ? (() => {
+        const items = summariesRaw
+          .map((item) => element("summary", item, SUMMARY_ATTRS))
+          .filter(Boolean);
+        if (!items.length) return "";
+        const first = summariesRaw[0] as { sumId?: string };
+        const last = summariesRaw.at(-1) as { sumId?: string } | undefined;
+        return wrapList("allSummary", items, { start: first.sumId ?? "", end: last?.sumId ?? "" });
+      })()
+    : (typeof summariesRaw === "string" && summariesRaw
+      ? `<allSummary>\n${summariesRaw}\n</allSummary>`
+      : "");
   const parts = [
     listXml("memory", payload.conversationMemory, MEMORY_ATTRS),
-    listXml("summary", payload.conversationHistorySummary, SUMMARY_ATTRS),
+    summaryBlock,
     taskXml(payload.task),
   ].filter(Boolean);
   for (const raw of payload.turns) {
     const slice = raw as ConversationTurnSlice;
+    const observations = (Array.isArray(slice.observations) ? slice.observations : [])
+      .map((page) => element("observation", page, OBSERVATION_ATTRS))
+      .filter(Boolean);
+    const obsBounds = observations.length
+      ? {
+          start: (slice.observations[0] as { id?: string }).id ?? "",
+          end: (slice.observations.at(-1) as { id?: string } | undefined)?.id ?? "",
+        }
+      : undefined;
+    const queries = (Array.isArray(slice.query) ? slice.query : [])
+      .map((query) => element("query", query, QUERY_ATTRS))
+      .filter(Boolean);
     const fields = [
       element("userInput", slice.userInput, USER_INPUT_ATTRS),
-      listXml("observation", slice.observations, OBSERVATION_ATTRS),
-      workspaceXml(slice.workspace ?? []),
+      wrapList("observations", observations, obsBounds),
+      workspaceXml(slice.workspace),
       notesXml(slice.notes),
       reflectionXml(slice.reflection),
-      listXml("query", slice.query, QUERY_ATTRS),
+      wrapList("querys", queries),
       stopReasonXml(slice.stopReason),
     ].filter(Boolean);
     const turnAttrs: Record<string, string> = { turnId: slice.turnId };
     if (slice.callBounds) {
-      turnAttrs.from = slice.callBounds.from;
-      turnAttrs.to = slice.callBounds.to;
+      turnAttrs.start = slice.callBounds.from;
+      turnAttrs.end = slice.callBounds.to;
     }
     parts.push(`<turn${attrText(turnAttrs)}>\n${fields.join("\n")}\n</turn>`);
   }
+  const runtime = runtimeXml(Array.isArray(payload.runtime) ? payload.runtime : []);
+  if (runtime) parts.push(runtime);
   // Shared tool pool at the bottom: session range as attributes + newest call details only.
   const bounds = payload.toolIOBounds;
   const pool = Array.isArray(payload.toolIO) ? payload.toolIO.map(callXml).filter(Boolean).join("\n") : "";
   parts.push(
-    `<toolIO${bounds ? attrText({ from: bounds.from, to: bounds.to, kept: String(bounds.kept), total: String(bounds.total) }) : ""}>\n${pool}\n</toolIO>`,
+    `<toolIO${bounds ? attrText({ start: bounds.from, end: bounds.to, kept: String(bounds.kept), total: String(bounds.total) }) : ""}>\n${pool}\n</toolIO>`,
   );
   return parts.join("\n");
 }

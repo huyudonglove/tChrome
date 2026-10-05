@@ -14,6 +14,7 @@
   - <reflection> 本轮反思；
   - <query> 本轮查询；
   - <stopReason> 本轮收口。
+- <runtime>：Runtime 运行时提醒（预算、观察、反思、压缩、轮转、工作区建议），与 turn 平级，同 kind 只保留最新一条；一次性提醒只出现在当次返回里，不进这里。
 - 当前轮永远在最后。读历史时按 turnId 定位，不要把相邻轮次的工具或目标混在一起。
 - 容器标签 <conversation> 自带属性：id 是会话 ID（编号可能跳号，不要据它推算会话总数）；chars / limit / used 是本次窗口 System+User 的字符数、压缩阈值与占用百分比，用来当场判断还能不能再花一次调用去捞东西。
 - 底部 <toolIO> 是全会话公用的跨轮滚动池，自带属性：from / to 是全会话调用 ID 范围，kept 是池内保留的详情条数，total 是全会话调用总数；池内只列最近 kept 条调用详情，更早的按各轮 <turn> 的 from / to 属性用 evidence_search(callId) 取回。

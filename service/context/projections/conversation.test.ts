@@ -40,6 +40,7 @@ describe("<task> 会话级任务标签", () => {
 
     // <task> 在外层顶层渲染且直接为任务实体（无 events 流水）
     // 标量元数据上提为属性，属性名带引号与等号，字段本身不丢
+    expect(xml).toContain('<tasks start="task_01" end="task_01">');
     expect(xml).toContain('<task id="task_01"');
     expect(xml).toContain('status="active"');
     expect(xml).toContain('<item id="item_01" status="doing">');
@@ -54,7 +55,7 @@ describe("<task> 会话级任务标签", () => {
 
   test("omits <task> entirely when session has no task", () => {
     const xml = conversationXml(payload({ task: null }));
-    expect(xml).not.toContain("<task>");
+    expect(xml).not.toContain("<tasks>");
   });
 });
 describe("<workspace> 因果工作区", () => {
@@ -68,7 +69,7 @@ describe("<workspace> 因果工作区", () => {
     query: [],
     stopReason: null,
   };
-  test("renders <workspace from to> with <ws id boundid callIds> and op/value body", () => {
+  test("renders <workspace start end> with <ws id boundid callIds> and op/value body", () => {
     const xml = conversationXml(payload({
       task: null,
       turns: [{ ...turnBase, workspace: [
@@ -76,7 +77,7 @@ describe("<workspace> 因果工作区", () => {
         { id: "ws02", turnId: "tn_01", boundId: "b03", callId: "call_05", callIds: ["call_04"], op: "试了提交", value: "200 成功" },
       ] }],
     }));
-    expect(xml).toContain('<workspace from="ws01" to="ws02">');
+    expect(xml).toContain('<workspace start="ws01" end="ws02">');
     expect(xml).toContain('<ws id="ws01" boundid="b02" callIds="call_01,call_02">');
     expect(xml).toContain('{"op":"读了列表接口","value":"分页参数是 cursor"}');
   });

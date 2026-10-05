@@ -124,7 +124,10 @@ export function loadSkills(repoRoot: string): string {
 
 export function loadedSkillText(repoRoot: string, loadedIds: string[]): string {
   return loadedIds
-    .map(id => readSkill(repoRoot, id).body.trim())
+    .map(id => {
+      const body = readSkill(repoRoot, id).body.trim();
+      return body ? `<${id}>\n${body}\n</${id}>` : "";
+    })
     .filter(Boolean)
     .join("\n\n");
 }

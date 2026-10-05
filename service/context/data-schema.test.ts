@@ -35,9 +35,10 @@ test("assembled User slots follow the shared data contract", () => {
   let m: RegExpExecArray | null;
   while ((m = re.exec(rendered))) {
     const name = m[1]!, body = m[2]!;
-    values[name] = name === "skill" || name === "tools" || name === "conversation" ? body : JSON.parse(body);
+    values[name] = name === "skill" || name === "tools" || name === "conversation" || name === "projectMemory" ? body : JSON.parse(body);
   }
   expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
+  expect(values.projectMemory).toContain('<memory id="lm_01"');
   expect(values.conversation).toContain('<memory memoryId="mm_01"');
   expect(values.conversation).toContain('<summary sumId="sum_01"');
   expect(values.conversation).toContain('<turn turnId="tn_01"');

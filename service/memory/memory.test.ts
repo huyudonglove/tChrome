@@ -55,10 +55,12 @@ test("projection keeps every original memory with identities and without clippin
   }
   const before = JSON.stringify(memories);
   const projected = projectMemories(memories);
-  for (const layer of ["conversation", "project"] as const) {
-    expect(JSON.parse(projected[layer])).toEqual(memories[layer].map(({ memoryId, turnId, sourceCallId, text }) => ({ memoryId, turnId, sourceCallId, text })));
-    expect(JSON.parse(projected[layer])).toHaveLength(10);
+  expect(JSON.parse(projected.conversation)).toEqual(memories.conversation.map(({ memoryId, turnId, sourceCallId, text }) => ({ memoryId, turnId, sourceCallId, text })));
+  expect(JSON.parse(projected.conversation)).toHaveLength(10);
+  for (const record of memories.project) {
+    expect(projected.project).toContain(`<memory id="${record.memoryId}"`);
+    expect(projected.project).toContain(record.text.trim().split("\n")[0]!);
   }
   expect(JSON.stringify(memories)).toBe(before);
-  expect(projectMemories({ conversation: [], project: [] })).toEqual({ conversation: "[]", project: "[]" });
+  expect(projectMemories({ conversation: [], project: [] })).toEqual({ conversation: "[]", project: "" });
 });

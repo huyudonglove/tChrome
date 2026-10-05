@@ -2,7 +2,7 @@ import { NEUTRAL_TOOLS } from "./escalation.ts";
 import { toolArgFiles } from "../agents/query/file-filter.ts";
 import type { Ledger, ToolIOItem } from "../types.ts";
 
-/** 附在工具返回末尾的工作区建议；下次出网前 strip，只保留最新一条。 */
+/** 工作区建议：进 <runtime> 模块（与 turn 平级），同 kind 只保留最新一条。 */
 export const WORKSPACE_SUGGEST_MARKER = "runtime: 工作区建议";
 
 /** boundSeq（从 0 起）→ b01、b02… */
@@ -34,8 +34,3 @@ export function buildWorkspaceSuggestion(batchRows: ToolIOItem[]): string | null
   return `${WORKSPACE_SUGGEST_MARKER} 本批出网共 ${biz.length} 次调用（${detail}）。${fileHint}建议用 workspace_write 写一条因果：op=这批做了什么，value=得到什么结论，files[]=涉及的文件路径（可带行区间，不涉及文件可不传）。可写可不写，只记「不写就会忘」的结论。`;
 }
 
-/** 去掉历史建议，本轮只保留最新一条。 */
-export function stripWorkspaceSuggestion(text: string): string {
-  const at = text.indexOf(WORKSPACE_SUGGEST_MARKER);
-  return at >= 0 ? text.slice(0, at).trimEnd() : text;
-}

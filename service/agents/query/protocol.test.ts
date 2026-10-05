@@ -5,7 +5,7 @@ import { requestMatches, querySystemPrompt, queryUserPrompt, queryTurnsFromUserM
 
 const repoRoot = resolve(import.meta.dir, "../../..");
 function response(overrides: Partial<CompletionResult> = {}): CompletionResult {
-  return { finish: "tool_calls", content: "", toolCalls: [{ id: "call_matches", name: "submitMatches", arguments: { turnIds: ["tn_1"] } }],
+  return { finish: "tool_calls", content: "", toolCalls: [{ id: "tool_matches", name: "submitMatches", arguments: { turnIds: ["tn_1"] } }],
     attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [], ...overrides };
 }
 function run(result: CompletionResult, observe?: (input: Parameters<Provider["complete"]>[0]) => void) {

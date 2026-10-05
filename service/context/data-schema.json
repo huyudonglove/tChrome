@@ -8,18 +8,7 @@
       "type": "string"
     },
     "projectMemory": {
-      "anyOf": [
-        {
-          "type": "array",
-          "items": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/memory"
-              }
-            ]
-          }
-        }
-      ]
+      "type": "string"
     },
     "tools": {
       "type": "string"

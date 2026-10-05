@@ -22,7 +22,7 @@
   </task>
   <turn turnId="tn_01" from="call_01" to="call_12">
     <userInput id="input_01" turnId="tn_01" submittedAt="…">…</userInput>
-    <observation id="page_01" turnId="tn_01" callId="call_60" batchId="batch_32" tabId="101" type="code">…</observation>
+    <observation id="page_01" callId="call_60" tabId="101" type="code">…</observation>
     <note key="…">…</note>
     <reflection turnId="tn_01">
       <reflect id="rf_01" focus="证据">…</reflect>
@@ -31,7 +31,7 @@
     <stopReason kind="reply">…</stopReason>
   </turn>
   <toolIO from="call_01" to="call_86" kept="10" total="86">
-    <call callId="call_77" turnId="tn_02" batchId="batch_40" name="task_update" stage="complete" ok="true">…</call>
+    <call callId="call_77" turnId="tn_02" name="task_update" ok="true">…</call>
   </toolIO>
 </conversation>
 ```
@@ -43,7 +43,8 @@
 | 标签 | 渲染形状 | 身份字段 |
 | --- | --- | --- |
 | `userInput` | `<userInput id turnId>`，正文为用户原话 | `id` |
-| `toolIO` | 池属性 + 每条一个 `<call callId turnId name ok?>` 元素 | conversation 底部全会话公用池：仅最近 kept 条调用保留详情（kept / from / to / total 见标签属性），更早按各轮 `<turn>` 的 from / to 用 evidence_search(callId) 取回 |
+| `toolIO` | 池属性 + 每条一个 `<call callId turnId name ok?>` 元素 | conversation 底部全会话公用池：仅最近 kept 条调用详情（kept / start / end / total 见标签属性），更早按各轮 `<turn>` 的 start / end 属性、用 callId 作 callId 调 evidence_search(callId) 取回 |
+| `runtime` | `<notice kind scope>` + 正文，同 kind 只保留最新一条 | 与 turn 平级的运行时提醒，不进压缩 |
 | `observation` | 每条观察一个元素，属性含 `id callId tabId? type` 等，正文为该次观察的完整返回 | `id` |
 | `note` | 本轮草稿，`<note key>` + 正文；容器为无属性 `<notes>` | turnId + key |
 | `reflection` | `<reflection turnId>` 下每条 `<reflect id focus?>` + 正文 | rf_ |

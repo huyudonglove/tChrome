@@ -3,8 +3,8 @@ import { allocateRecordId, inputRecord } from "./ids.ts";
 import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
 import { admitExecution, admitImages, deferredImageNote } from "../admission.ts";
-import { escalate, BUDGET_NUDGE_MARKER } from "./escalation.ts";
-import { buildWorkspaceSuggestion, stripWorkspaceSuggestion } from "./workspace.ts";
+import { escalate } from "./escalation.ts";
+import { buildWorkspaceSuggestion } from "./workspace.ts";
 import { hasActiveTask, requiresActiveTask } from "./task-gate.ts";
 import { repeatHint } from "./repeat-detect.ts";
 import { ensureThumb, loadThumbRef } from "../images/thumb.ts";
@@ -181,7 +181,7 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
     { role: "user", content: userText({
       contextModules, ledger, turn, memories: projectMemories(memories, activeScopes), skillText, conversationSummaries: summaries,
       queryHistory: ledger.queryHistory,
-      toolGuide: toolGuideFor(toolRegistry, turn.assembled.toolIds),
+      toolGuide: toolGuideFor(toolRegistry, turn.assembled.toolIds, false),
       dataDir: historyDataDir ?? dataDir,
       ...(dataDir ? { inlineBudget: { dataDir, system } } : {}),
     }) + [scopeNote, idleToolNote, imageNote].filter(Boolean).map((note) => `\n\n${note}`).join(""), images: [...inline, ...thumbs] },
@@ -458,7 +458,10 @@ const runQueue = async (input: {
         return { kind: "reply", text: escalation.text };
       }
       if (escalation.action === "hint") {
-        row.return = { ...row.return, text: `${row.return.text}\n\n${escalation.text}` };
+        ledger.runtimeNotices = ledger.runtimeNotices.filter((notice) => notice.kind !== "budget");
+        ledger.runtimeNotices.push({ kind: "budget", scope: "turn", text: escalation.text });
+      } else {
+        ledger.runtimeNotices = ledger.runtimeNotices.filter((notice) => notice.kind !== "budget");
       }
       let output: TurnStopReason | null = null;
       try {
@@ -623,12 +626,14 @@ export async function handleTurn(
     // would rotate again immediately and the chain would never settle.
     let forceCompress = body.continuationOfTurnId !== undefined;
     let imageBatchId: string | undefined;
-    // 上一批落账的 batchId：迭代顶 strip 掉旧建议后，为它挂新建议（给本次请求看）。
-    // 直接在落账时挂会被下一次迭代顶的 strip 裁掉，所以只记 batchId、挂的动作放 strip 之后。
-    let pendingSuggestBatchId: string | undefined;
-    const suggestWorkspace = (batchId: string | undefined) => {
-      if (batchId) pendingSuggestBatchId = batchId;
+    // Runtime 提醒统一进 <runtime> 模块（与 turn 平级），不再缀到各条返回后面。
+    // 每轮发送前清掉本轮级的旧提醒再按条件重挂，同 kind 只保留最新一条。
+    const setNotice = (kind: string, text: string | null) => {
+      ledger.runtimeNotices = ledger.runtimeNotices.filter((notice) => notice.kind !== kind);
+      if (text) ledger.runtimeNotices.push({ kind, scope: "turn", text });
     };
+    // 已出过建议的批：同一批只建议一次（给紧接着的下一次请求看），之后不再打扰。
+    let suggestedBatchId: string | undefined;
     while (true) {
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
           return stoppedReply(ledger, turn);
@@ -643,29 +648,18 @@ export async function handleTurn(
         .flatMap(item => (item.images ?? []).map(image => ({ ...image, callId: item.callId })));
       // Nudge on evidence-producing tool calls: count this turn's toolIO, skipping bookkeeping tools.
       const rows = ledger.toolIO.filter((r) => r.turnId === turn.turnId);
-      // Strip a nudge appended by an earlier iteration before re-evaluating: the text is written
-      // into toolIO, so without this it would reappear in every later model request of the turn.
-      for (const row of rows) {
-        let text = row.return.text;
-        const budAt = text.indexOf(BUDGET_NUDGE_MARKER);
-        if (budAt >= 0) text = text.slice(0, budAt).trimEnd();
-        const obsAt = text.indexOf(OBSERVATION_NUDGE_MARKER);
-        if (obsAt >= 0) text = text.slice(0, obsAt).trimEnd();
-        const refAt = text.indexOf(REFLECT_NUDGE_MARKER);
-        if (refAt >= 0) text = text.slice(0, refAt).trimEnd();
-        // 工作区建议只保留最新一条：旧建议在这里裁掉，新建议在每批返回落账后追加。
-        text = stripWorkspaceSuggestion(text);
-        if (text !== row.return.text) row.return = { ...row.return, text };
+      // 本轮级提醒每轮重算：先清掉上一轮挂的，再按条件挂新的（budget 由 runQueue 在本批落账时重挂）。
+      for (const kind of ["budget", "observation", "reflect", "compress", "rotate", "workspace"]) {
+        setNotice(kind, null);
       }
-      // 为上一批挂新建议（给本次请求看，boundId 即本次编号；无业务调用的批不打扰）。
-      if (pendingSuggestBatchId) {
-        const batchId = pendingSuggestBatchId;
-        pendingSuggestBatchId = undefined;
-        const batchRows = ledger.toolIO.filter((r) => r.turnId === turn.turnId && r.batchId === batchId);
-        const last = batchRows.at(-1);
-        if (last) {
+      // 工作区建议看上一批（ledger.lastAction 记的）：一批只建议一次，无业务调用的批不打扰。
+      {
+        const batchId = ledger.lastAction?.turnId === turn.turnId ? ledger.lastAction.batchId : undefined;
+        if (batchId && batchId !== suggestedBatchId) {
+          suggestedBatchId = batchId;
+          const batchRows = rows.filter((r) => r.batchId === batchId);
           const text = buildWorkspaceSuggestion(batchRows);
-          if (text) last.return = { ...last.return, text: `${last.return.text}\n\n${text}` };
+          if (text) setNotice("workspace", text);
         }
       }
       const writeCount = rows.filter((r) => r.name === "observation_write").length;
@@ -680,29 +674,22 @@ export async function handleTurn(
       const lastWriteAt = rows.reduce((acc, r, i) => (r.name === "observation_write" ? i : acc), -1);
       const evidenceRows = rows.slice(lastWriteAt + 1).filter((r) => !OBSERVATION_NUDGE_EXCLUDED.has(r.name));
       evidenceCallsSinceObservation = evidenceRows.length;
-      const last = rows.at(-1);
       if (evidenceCallsSinceObservation - nudgedEvidenceCount >= observationNudgeGate) {
         nudgedEvidenceCount = evidenceCallsSinceObservation;
         observationNudgeGate = Math.max(OBSERVATION_NUDGE_MIN_GATE, observationNudgeGate - OBSERVATION_NUDGE_STEP);
         reflectNudgeGate = Math.max(OBSERVATION_NUDGE_MIN_GATE, reflectNudgeGate - OBSERVATION_NUDGE_STEP);
-        if (last) {
-          const tally = new Map<string, number>();
-          for (const row of evidenceRows) tally.set(row.name, (tally.get(row.name) ?? 0) + 1);
-          const detail = [...tally.entries()].sort((a, b) => b[1] - a[1]).map(([name, n]) => `${name}×${n}`).join("、");
-          last.return = {
-            ...last.return,
-            text: `${last.return.text}\n\n${OBSERVATION_NUDGE_MARKER} ${evidenceCallsSinceObservation} 次产出证据的工具调用（${detail}），仍未固化任何观察——这段时间查到的结论只散在工具返回里，跨轮或被压缩后只会剩指针，需要时得重新翻。建议用 observation_write 写一次阶段小结：现在处于什么状态、已确认哪些结论、哪些仍未验证、下一步从哪接，后续轮次就能直接接着推进而不是从头取证；这是给自己留的交接笔记，不是工具流水账。下次提示门槛收紧到 ${observationNudgeGate} 次。`,
-          };
-        }
+        const tally = new Map<string, number>();
+        for (const row of evidenceRows) tally.set(row.name, (tally.get(row.name) ?? 0) + 1);
+        const detail = [...tally.entries()].sort((a, b) => b[1] - a[1]).map(([name, n]) => `${name}×${n}`).join("、");
+        setNotice("observation",
+          `${OBSERVATION_NUDGE_MARKER} ${evidenceCallsSinceObservation} 次产出证据的工具调用（${detail}），仍未固化任何观察——这段时间查到的结论只散在工具返回里，跨轮或被压缩后只会剩指针，需要时得重新翻。建议用 observation_write 写一次阶段小结：现在处于什么状态、已确认哪些结论、哪些仍未验证、下一步从哪接，后续轮次就能直接接着推进而不是从头取证；这是给自己留的交接笔记，不是工具流水账。下次提示门槛收紧到 ${observationNudgeGate} 次。`);
       }
       // Reflect nudge: counted on raw calls for the turn rather than evidence calls, because
       // reflection tracks judgement changes and repeated dead ends, which pure reading also triggers.
       const reflectWritten = rows.some((row) => row.name === "reflect_write");
-      if (last && rows.length >= reflectNudgeGate && !reflectWritten) {
-        last.return = {
-          ...last.return,
-          text: `${last.return.text}\n${REFLECT_NUDGE_MARKER}\n本回合已有 ${rows.length} 次工具调用，尚未写 reflect_write。若这轮出现了结论被推翻、同一卡点反复、或一次取舍决策，用 reflect_write 记下当前状态与下一步；纯流水账不必写。`,
-        };
+      if (rows.length >= reflectNudgeGate && !reflectWritten) {
+        setNotice("reflect",
+          `${REFLECT_NUDGE_MARKER}\n本回合已有 ${rows.length} 次工具调用，尚未写 reflect_write。若这轮出现了结论被推翻、同一卡点反复、或一次取舍决策，用 reflect_write 记下当前状态与下一步；纯流水账不必写。`);
       }
       let state = contextState(deps.dataDir, ledger, turn, memories);
       let messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir);
@@ -715,10 +702,8 @@ export async function handleTurn(
         && initialChars >= ledger.compressAt && initialChars < ledger.compressAt + COMPRESS_NUDGE_HEADROOM;
       if (deferForCheckpoint) {
         compressNudgeSent = true;
-        const last = rows.at(-1);
-        if (last) {
-          last.return = { ...last.return, text: `${last.return.text}\n\n${OBSERVATION_NUDGE_MARKER} 上下文即将被压缩（当前窗口 ${initialChars} 字符，阈值 ${ledger.compressAt}）——这一步会把本轮的工具返回压成摘要与指针，而本轮还没有任何 observation 固化，这段时间的结论下一轮就只剩指针了。建议先用 observation_write 写一次阶段小结：现在处于什么状态、已确认哪些结论、哪些仍未验证、下一步从哪接。本轮的下一次循环仍会照常压缩，不会一直推迟。` };
-        }
+        setNotice("compress",
+          `${OBSERVATION_NUDGE_MARKER} 上下文即将被压缩（当前窗口 ${initialChars} 字符，阈值 ${ledger.compressAt}）——这一步会把本轮的工具返回压成摘要与指针，而本轮还没有任何 observation 固化，这段时间的结论下一轮就只剩指针了。建议先用 observation_write 写一次阶段小结：现在处于什么状态、已确认哪些结论、哪些仍未验证、下一步从哪接。本轮的下一次循环仍会照常压缩，不会一直推迟。`);
         state = contextState(deps.dataDir, ledger, turn, memories);
         messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir);
       }
@@ -797,10 +782,8 @@ export async function handleTurn(
         // only survives if it was written down. Defer one send to ask for an observation first.
         if (!rotateNudgeSent && writeCount === 0 && rows.length > 0) {
           rotateNudgeSent = true;
-          const last = rows.at(-1);
-          if (last) {
-            last.return = { ...last.return, text: `${last.return.text}\n\n${OBSERVATION_NUDGE_MARKER} 本轮自身注入已达 ${turnDeltaChars} 字符（阈值 ${ledger.turnRotateAt}），下一轮将闭合本轮并从压缩后的历史续接。闭合时没有结论文本，这段时间的结论只剩指针。建议先用 observation_write 写一次阶段小结：现在处于什么状态、已确认哪些结论、哪些仍未验证、下一步从哪接。` };
-          }
+          setNotice("rotate",
+            `${OBSERVATION_NUDGE_MARKER} 本轮自身注入已达 ${turnDeltaChars} 字符（阈值 ${ledger.turnRotateAt}），下一轮将闭合本轮并从压缩后的历史续接。闭合时没有结论文本，这段时间的结论只剩指针。建议先用 observation_write 写一次阶段小结：现在处于什么状态、已确认哪些结论、哪些仍未验证、下一步从哪接。`);
           state = contextState(deps.dataDir, ledger, turn, memories);
           messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir);
         } else {
@@ -844,7 +827,7 @@ export async function handleTurn(
       const tools = toolSchemas(toolRegistry, [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds]);
       turn.usage!.modelRequests += 1;
       // boundSeq：本 Conversation 内第几次模型请求（b01…），新会话从 0 起。
-      ledger.boundSeq = (ledger.boundSeq ?? 0) + 1;
+      ledger.boundSeq = ledger.boundSeq + 1;
       saveTurn(deps.dataDir, turn);
       appendEvent(deps.dataDir, ledger.conversationId, {
         kind: "provider-request",
@@ -995,7 +978,6 @@ export async function handleTurn(
             });
             return { conversationId: ledger.conversationId, turnId, stopReason: closed };
           }
-          suggestWorkspace(batchId);
         }
         if (submitFails >= MAX_SUBMIT) {
           turn.status = "failed";
@@ -1128,7 +1110,6 @@ export async function handleTurn(
         });
         return { conversationId: ledger.conversationId, turnId, stopReason: closed };
       }
-      suggestWorkspace(batchId);
       // Successful tool batches are normal progress, not failed submissions.
       // Empty finishTurn calls must not create an unbounded retry loop.
       if (result.toolCalls.some((call) => call.name !== "finishTurn" && call.name !== "askUser")) {

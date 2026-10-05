@@ -494,13 +494,13 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
   const memoryIdsBefore = structuredClone(ledger.memoryIds);
   ledger.toolIO.unshift({ callId: "call_old", name: "web_search", turnId: turn.turnId, arguments: {}, return: { stage: "complete", text: "旧证据", totalChars: 3 } });
   await compressRecords({ dataDir: dir, conversationId: ledger.conversationId, repoRoot,
-    module: "conversationHistory", records: [{ id: "tool_old", content: ledger.toolIO[0]! }],
+    module: "conversationHistory", records: [{ id: "call_old", content: ledger.toolIO[0]! }],
     provider: { complete: async () => ok({ finish: "tool_calls", toolCalls: [{id:"summary",name:"submitTurnSummaries",arguments:{summary:"旧查询取得旧证据。",actions:"旧工具提供了旧证据",result:"已取得旧证据"}}] }) },
   });
   expect(turn.assembled.toolIds).toEqual(["see_page", "web_search", "capture_page", "cookies_get"]);
   expect(ledger.memoryIds).toEqual(memoryIdsBefore);
   expect(ledger.toolIO).toHaveLength(4);
-  expect(loadIndex(dir, ledger.conversationId, "conversationHistory").coveredSourceIds).toEqual(["tool_old"]);
+  expect(loadIndex(dir, ledger.conversationId, "conversationHistory").coveredSourceIds).toEqual(["call_old"]);
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).text).toBe("本轮用户要查鼠标价");
 
   rmSync(dir, { recursive: true, force: true });

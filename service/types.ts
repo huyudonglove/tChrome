@@ -58,6 +58,16 @@ export type WorkspaceEntry = {
   files?: string[];
 };
 
+/** Runtime 运行时提醒：与 <turn> 平级的新模块，不再零散缀在各条返回后面。
+ * 一次性提醒只出现在返回里，不进这里；半长久（turn 级）随 turn 消亡；长久的修好即消。 */
+export type RuntimeNoticeScope = "turn" | "persistent";
+export type RuntimeNotice = {
+  /** budget | observation | reflect | compress | rotate | workspace */
+  kind: string;
+  scope: RuntimeNoticeScope;
+  text: string;
+};
+
 /** Most recent model-returned tool batch; replaced before the next model request. */
 export type LastAction = {
   batchId: string;
@@ -218,8 +228,10 @@ export type Ledger = {
   liveTools: { name: string; callId: string; reason?: string }[];
   toolIO: ToolIOItem[];
   lastAction: LastAction | null;
+  /** Runtime 运行时提醒（与 turn 平级展示）；turn 级随 turn 消亡。 */
+  runtimeNotices: RuntimeNotice[];
   /** 本 Conversation 内模型请求计数（boundId 来源）；老账本缺省按 0 计。 */
-  boundSeq?: number;
+  boundSeq: number;
   contextTab: TabContext;
   notes: Record<string, string>;
   queryHistory: QueryEvidence[];

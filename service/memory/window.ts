@@ -67,8 +67,12 @@ export function deriveActiveScopes(calls: readonly { arguments?: unknown }[], wi
 
 /** Preserve identity and content. Runtime owns coverage; projection never prunes records. */
 export function projectMemories(memories: Memories, activeScopes: readonly string[] = []): Record<keyof Memories, string> {
+  const projectXml = (record: MemoryRecord): string => {
+    const attrs = [`id="${record.memoryId}"`, ...(record.scope ? [`scope="${record.scope}"`] : [])].join(" ");
+    return `<memory ${attrs}>\n${JSON.stringify({ summary: record.summary ?? record.text.split("\n")[0] ?? "", text: record.text })}\n</memory>`;
+  };
   return {
-    project: JSON.stringify(memories.project.filter((record) => isInjected(record, activeScopes)).map(memoryView), null, 2),
+    project: memories.project.filter((record) => isInjected(record, activeScopes)).map(projectXml).join("\n"),
     conversation: JSON.stringify(memories.conversation.map(memoryView), null, 2),
   };
 }

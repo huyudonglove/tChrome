@@ -1,5 +1,5 @@
 <projectMemory>
-能力：本模块讲跨会话长期记忆的 scope 归属、注入规则与写入成本边界。
+能力：本模块放项目所需的通用内容（跨会话长期记忆），只看当前项目和全局。
 
 详细描述：
 跨会话适用的领域背景、术语和长期约束。memoryId 标识条目，sourceCallId 和 sourceConversationId 关联来源，text 是正文。编号为 lm_，由 memory_writeProject 写入、memory_update / memory_delete 维护。

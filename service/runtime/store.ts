@@ -84,6 +84,7 @@ export function emptyLedger(conversationId: string): Ledger {
     liveTools: [],
     toolIO: [],
     lastAction: null,
+    runtimeNotices: [],
     boundSeq: 0,
     contextTab: null,
     notes: {},
@@ -116,14 +117,6 @@ export function loadLedger(dataDir: string, cvId: string): Ledger {
   const raw = readJson<Partial<Ledger>>(paths(dataDir, cvId).ledger, emptyLedger(cvId));
   const ledger = normalizeLedger(raw, cvId);
   const cache = toolRowCache(dataDir, cvId);
-  if (cache.rows.length === 0 && Array.isArray(raw.toolIO) && raw.toolIO.length > 0) {
-    // Migration: an older ledger.json still carries toolIO. Adopt it in memory (ledger stays the
-    // single source of truth, never events.jsonl) and let the next saveLedger flush it to toolio.jsonl.
-    cache.rows = raw.toolIO;
-    cache.byCallId = new Map(raw.toolIO.map((row) => [row.callId, row]));
-    cache.persistedCount = 0;
-    cache.persistedReturn = new Map();
-  }
   ledger.toolIO = cache.rows;
   return ledger;
 }
@@ -160,8 +153,6 @@ export function primeActiveTask(dataDir: string): void {
 
 export function loadTurn(dataDir: string, cvId: string, turnId: string): Turn {
   const turn = JSON.parse(readFileSync(join(paths(dataDir, cvId).turns, `${turnId}.json`), "utf8")) as Turn;
-  turn.assembled.observations ??= [];
-  turn.assembled.workspace ??= [];
   return turn;
 }
 
