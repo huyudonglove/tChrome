@@ -44,7 +44,8 @@
       },
       "required": [
         "reason"
-      ]
+      ],
+      "additionalProperties": false
     }
   },
   "execution": "serial"

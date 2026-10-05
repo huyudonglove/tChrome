@@ -38,7 +38,8 @@
         "reason",
         "type",
         "result"
-      ]
+      ],
+      "additionalProperties": false
     }
   },
   "execution": "serial"

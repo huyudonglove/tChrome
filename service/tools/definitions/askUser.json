@@ -26,7 +26,8 @@
         "reason",
         "choice",
         "question"
-      ]
+      ],
+      "additionalProperties": false
     }
   },
   "execution": "serial"

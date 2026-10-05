@@ -20,7 +20,8 @@
         "reason",
         "key",
         "value"
-      ]
+      ],
+      "additionalProperties": false
     }
   },
   "execution": "serial"

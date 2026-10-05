@@ -20,7 +20,8 @@
       "required": [
         "reason",
         "tabId"
-      ]
+      ],
+      "additionalProperties": false
     }
   },
   "execution": "parallel"

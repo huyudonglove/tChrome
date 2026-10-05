@@ -57,7 +57,8 @@
             }
           }
         }
-      ]
+      ],
+      "additionalProperties": false
     }
   },
   "execution": "serial"

@@ -27,7 +27,8 @@
       "required": [
         "reason",
         "names"
-      ]
+      ],
+      "additionalProperties": false
     }
   },
   "execution": "serial"

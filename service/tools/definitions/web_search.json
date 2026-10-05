@@ -24,7 +24,8 @@
       "required": [
         "reason",
         "query"
-      ]
+      ],
+      "additionalProperties": false
     }
   },
   "execution": "parallel"

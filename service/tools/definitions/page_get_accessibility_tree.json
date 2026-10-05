@@ -24,7 +24,8 @@
         "reason",
         "id",
         "tabId"
-      ]
+      ],
+      "additionalProperties": false
     }
   },
   "execution": "parallel"

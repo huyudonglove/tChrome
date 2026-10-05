@@ -28,7 +28,8 @@
         "ref",
         "value",
         "tabId"
-      ]
+      ],
+      "additionalProperties": false
     }
   },
   "execution": "serial"

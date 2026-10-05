@@ -21,7 +21,8 @@
       },
       "required": [
         "reason"
-      ]
+      ],
+      "additionalProperties": false
     }
   },
   "execution": "parallel"

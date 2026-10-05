@@ -25,7 +25,8 @@
       "required": [
         "id",
         "tabId"
-      ]
+      ],
+      "additionalProperties": false
     }
   },
   "execution": "serial"

@@ -21,7 +21,8 @@
         "reason",
         "url",
         "tabId"
-      ]
+      ],
+      "additionalProperties": false
     }
   },
   "execution": "serial"
