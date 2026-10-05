@@ -1846,7 +1846,7 @@ const executeBrowserTool = async (name, input = {}) => {
     }
   }
   if (name === 'wait') {
-    const deadline = Date.now() + Math.min(Number(input.ms) || 8000, 12000);
+    const deadline = Date.now() + Math.min(Number(input.timeoutMs ?? input.ms) || 8000, 12000);
     const useA11y = Boolean(input.role || (input.states && typeof input.states === 'object' && Object.keys(input.states).length));
     if (useA11y) {
       let last;
@@ -1876,11 +1876,11 @@ const executeBrowserTool = async (name, input = {}) => {
       }
       return page.ok && (page.text || '').includes(input.text) ? page : {...page, ok: false, error: page.error || '没等到这段文字'};
     }
-    await new Promise((resolve) => setTimeout(resolve, Math.min(Number(input.ms) || 800, 8000)));
+    await new Promise((resolve) => setTimeout(resolve, Math.min(Number(input.timeoutMs ?? input.ms) || 800, 8000)));
     return inspectTab(tabId);
   }
   if (name === 'wait_network') {
-    const idle = await waitNetworkIdle(tabId, Number(input.ms) || 500);
+    const idle = await waitNetworkIdle(tabId, Number(input.timeoutMs ?? input.ms) || 500);
     const page = await inspectTab(tabId);
     return {...page, ...idle, ok: page.ok !== false && idle.ok !== false};
   }
@@ -1890,7 +1890,7 @@ const executeBrowserTool = async (name, input = {}) => {
     const urlPart = String(input.urlContains || input.url || '').trim();
     if (!urlPart) return {ok: false, tabId, error: 'wait_response 需要 urlContains'};
     const wantStatus = input.status === undefined || input.status === null || input.status === '' ? null : Number(input.status);
-    const timeoutMs = Math.min(Math.max(Number(input.ms) || 8000, 500), 12000);
+    const timeoutMs = Math.min(Math.max(Number(input.timeoutMs ?? input.ms) || 8000, 500), 12000);
     const events = chrome.debugger.onEvent;
     const detached = chrome.debugger.onDetach;
     let matched = null;
@@ -2238,11 +2238,6 @@ const executeBrowserTool = async (name, input = {}) => {
     return {ok: true};
   }
   if (name === 'capture_page') return {...await capturePage(input), mode: input.mode};
-  if (name === 'capture_viewport') return {...await capturePage({...input, mode: 'viewport'}), mode: 'viewport'};
-  if (name === 'capture_full_page') return {...await capturePage({...input, mode: 'full_page'}), mode: 'full_page'};
-  if (name === 'capture_element') return {...await capturePage({...input, mode: 'element'}), mode: 'element'};
-  if (name === 'capture_rect') return {...await capturePage({...input, mode: 'rect'}), mode: 'rect'};
-  if (name === 'capture_som') return {...await capturePage({...input, mode: 'som'}), mode: 'som'};
   if (name === 'save_pdf') {
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可导出 PDF 的普通网页标签'};

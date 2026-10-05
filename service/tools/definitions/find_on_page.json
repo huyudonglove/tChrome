@@ -8,7 +8,8 @@
       "properties": {
         "text": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "要查找的控件可见文字 / value / aria-label"
         },
         "reason": {
           "type": "string"
@@ -23,7 +24,8 @@
         "limit": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 100
+          "maximum": 100,
+          "description": "最多返回的结果条数"
         }
       },
       "required": [

@@ -14,7 +14,8 @@
           "description": "目标标签编号（从 tabs_current 等返回取得）。"
         },
         "url": {
-          "type": "string"
+          "type": "string",
+          "description": "要列出 cookie 的站点 URL"
         }
       },
       "required": [

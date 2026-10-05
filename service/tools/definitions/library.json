@@ -36,7 +36,8 @@
           "minLength": 1
         },
         "url": {
-          "type": "string"
+          "type": "string",
+          "description": "库条目的资源 URL"
         },
         "username": {
           "type": "string"

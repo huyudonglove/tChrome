@@ -14,7 +14,8 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 1000,
-          "default": 200
+          "default": 200,
+          "description": "最多列出的条目数"
         },
         "reason": {
           "type": "string"

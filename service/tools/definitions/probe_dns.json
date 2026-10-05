@@ -10,7 +10,8 @@
           "type": "string"
         },
         "url": {
-          "type": "string"
+          "type": "string",
+          "description": "要解析的主机名或 URL"
         },
         "port": {
           "type": "number"

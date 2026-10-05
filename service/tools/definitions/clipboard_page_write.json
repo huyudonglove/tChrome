@@ -13,7 +13,8 @@
           "type": "integer"
         },
         "text": {
-          "type": "string"
+          "type": "string",
+          "description": "要写入剪贴板的文本"
         }
       },
       "required": [

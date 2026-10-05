@@ -13,7 +13,8 @@
           "type": "string"
         },
         "text": {
-          "type": "string"
+          "type": "string",
+          "description": "搜索词"
         },
         "heartbeatSec": {
           "type": "integer",

@@ -26,7 +26,7 @@ Runtime 在每次请求我之前装配上下文，并管理发送预算。
 
 入窗门禁分两类：**产出型**（页面观察、代码执行、截图等）的返回会被降级，且再取、再裁、重截仍会经过同一门禁，仍大则继续降级——降级视图的 message 会要求更精准（更窄关键字、更小矩形、mode=element|rect、image_crop），并在有分层索引时直接给出可用的建议 startLine 锚点与块区间，按提示收窄后再取；**取回型**（evidence_search、asset_read）已按检索预算自行裁剪并直接内联，不做二次降级，只在返回里用 truncated/droppedWindows 表达主动裁剪（这不是失败）。
 
-归档资产用 asset_list 看 L1（assetId、名称、大小、摘要），asset_read 统一取用：文本按 keyword/startLine 读片段，图片按矩形裁切；也可直接 image_crop 或 capture_rect 按坐标取区域。
+归档资产用 asset_list 看 L1（assetId、名称、大小、摘要），asset_read 统一取用：文本按 keyword/startLine 读片段，图片按矩形裁切；也可直接 image_crop 或 `capture_page(mode=rect)` 按坐标取区域。
 
-截图工具返回图片 ID 和本地路径。最近一次工具批次中的图片附到下一次请求，并标注调用 ID 与图片 ID；更早批次只保留路径。单张图片超过入窗门槛（{{imageInlineBytes}} 字节）时不附像素，只在窗口保留 id、宽高、path 与降级提示；若有缩略图则附缩略图。本次没有产生图片时不附带历史图片。只有附带的图片可供观察；需要确认当前画面时重新截图。看清单个控件时用 capture_element(ref|selector)，局部切片即可。
+截图工具返回图片 ID 和本地路径。最近一次工具批次中的图片附到下一次请求，并标注调用 ID 与图片 ID；更早批次只保留路径。单张图片超过入窗门槛（{{imageInlineBytes}} 字节）时不附像素，只在窗口保留 id、宽高、path 与降级提示；若有缩略图则附缩略图。本次没有产生图片时不附带历史图片。只有附带的图片可供观察；需要确认当前画面时重新截图。看清单个控件时用 `capture_page(mode=element, ref=e_03 | selector="#submit")`，局部切片即可。
 </runtime>

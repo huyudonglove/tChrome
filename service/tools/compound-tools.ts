@@ -50,17 +50,17 @@ async function optionalWait(
   tabId: unknown,
   args: Record<string, unknown>,
   reason: string,
-  ms: number | undefined,
+  timeoutMs: number | undefined,
 ): Promise<HostResult | null> {
   if (typeof args.waitText === "string" && args.waitText.trim()) {
-    return await host.execute("wait", { tabId, text: args.waitText, ...(ms !== undefined ? { ms } : {}), reason }) as HostResult;
+    return await host.execute("wait", { tabId, text: args.waitText, ...(timeoutMs !== undefined ? { timeoutMs } : {}), reason }) as HostResult;
   }
   if (typeof args.waitUrlContains === "string" && args.waitUrlContains.trim()) {
     return await host.execute("wait_response", {
       tabId,
       urlContains: args.waitUrlContains,
       ...(typeof args.status === "number" ? { status: args.status } : {}),
-      ...(ms !== undefined ? { ms } : {}),
+      ...(timeoutMs !== undefined ? { timeoutMs } : {}),
       reason,
     }) as HostResult;
   }
@@ -92,7 +92,7 @@ export async function runCompoundTool(
 ): Promise<Record<string, unknown>> {
   const tabId = args.tabId;
   const reason = typeof args.reason === "string" ? args.reason : "";
-  const ms = typeof args.ms === "number" ? args.ms : undefined;
+  const timeoutMs = typeof args.timeoutMs === "number" ? args.timeoutMs : undefined;
   const matchIndex = typeof args.matchIndex === "number" ? args.matchIndex : undefined;
   const withFrame = typeof args.frameId === "number" ? { frameId: args.frameId } : {};
 
@@ -105,7 +105,7 @@ export async function runCompoundTool(
     const id = located.id!;
     const clicked = await host.execute("page_click", { tabId, id, reason, ...withFrame }) as HostResult;
     if (!clicked?.ok) return { ...clicked, step: "page_click", tabId, id };
-    const wait = await optionalWait(host, tabId, args, reason, ms);
+    const wait = await optionalWait(host, tabId, args, reason, timeoutMs);
     if (wait && !wait.ok) return { ...wait, step: "wait", tabId, id, clicked: true };
     return { ok: true, tabId, id, role, name: a11yName ?? null, matchIndex: located.index, clicked: true, wait: wait ?? null };
   }
@@ -138,7 +138,7 @@ export async function runCompoundTool(
       tabId,
       urlContains,
       ...(typeof args.status === "number" ? { status: args.status } : {}),
-      ...(ms !== undefined ? { ms } : {}),
+      ...(timeoutMs !== undefined ? { timeoutMs } : {}),
       reason,
     });
     const clicked = await host.execute("page_click", { tabId, id, reason, ...withFrame }) as HostResult;
@@ -173,7 +173,7 @@ export async function runCompoundTool(
     const id = picked.element.id!;
     const clicked = await host.execute("page_click", { tabId, id, reason, ...withFrame }) as HostResult;
     if (!clicked?.ok) return { ...clicked, step: "page_click", tabId, id };
-    const wait = await optionalWait(host, tabId, args, reason, ms);
+    const wait = await optionalWait(host, tabId, args, reason, timeoutMs);
     if (wait && !wait.ok) return { ...wait, step: "wait", tabId, id, clicked: true };
     return { ok: true, tabId, id, text, matchIndex: picked.index, clicked: true, wait: wait ?? null };
   }
@@ -228,7 +228,7 @@ export async function runCompoundTool(
     if (typeof submit.waitUrlContains === "string" && submit.waitUrlContains.trim()) waitArgs.waitUrlContains = submit.waitUrlContains.trim();
     if (typeof submit.waitText === "string" && submit.waitText.trim()) waitArgs.waitText = submit.waitText.trim();
     if (typeof submit.status === "number") waitArgs.status = submit.status;
-    if (typeof submit.ms === "number") waitArgs.ms = submit.ms;
+    if (typeof submit.timeoutMs === "number") waitArgs.timeoutMs = submit.timeoutMs;
     const hasWait = typeof waitArgs.waitUrlContains === "string" || typeof waitArgs.waitText === "string";
 
     if (typeof waitArgs.waitUrlContains === "string") {
@@ -236,7 +236,7 @@ export async function runCompoundTool(
         tabId,
         urlContains: waitArgs.waitUrlContains,
         ...(typeof waitArgs.status === "number" ? { status: waitArgs.status } : {}),
-        ...(typeof waitArgs.ms === "number" ? { ms: waitArgs.ms } : {}),
+        ...(typeof waitArgs.timeoutMs === "number" ? { timeoutMs: waitArgs.timeoutMs } : {}),
         reason,
       });
       const clicked = await host.execute("page_click", { tabId, id: submitId, reason, ...withFrame }) as HostResult;
@@ -251,7 +251,7 @@ export async function runCompoundTool(
 
     const clicked = await host.execute("page_click", { tabId, id: submitId, reason, ...withFrame }) as HostResult;
     if (!clicked?.ok) return { ...clicked, step: "page_click", tabId, id: submitId, filled };
-    const wait = hasWait ? await optionalWait(host, tabId, waitArgs, reason, ms) : null;
+    const wait = hasWait ? await optionalWait(host, tabId, waitArgs, reason, timeoutMs) : null;
     if (wait && !wait.ok) return { ...wait, step: "wait", tabId, id: submitId, filled, clicked: true };
     return { ok: true, tabId, filled, submit: { id: submitId, clicked: true }, wait: wait ?? null };
   }

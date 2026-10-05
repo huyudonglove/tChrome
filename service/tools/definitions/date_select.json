@@ -16,7 +16,8 @@
           "type": "string"
         },
         "value": {
-          "type": "string"
+          "type": "string",
+          "description": "要设置的日期或时间，格式 YYYY-MM-DD / YYYY-MM / HH:mm"
         }
       },
       "required": [

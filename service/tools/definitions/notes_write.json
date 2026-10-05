@@ -10,10 +10,12 @@
           "type": "string"
         },
         "key": {
-          "type": "string"
+          "type": "string",
+          "description": "键名"
         },
         "value": {
-          "type": "string"
+          "type": "string",
+          "description": "要写入的值"
         }
       },
       "required": [

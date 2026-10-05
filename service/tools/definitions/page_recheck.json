@@ -22,10 +22,12 @@
           "type": "string"
         },
         "text": {
-          "type": "string"
+          "type": "string",
+          "description": "目标文字：作为定位条件时的可见文本或可访问名子串"
         },
         "urlContains": {
-          "type": "string"
+          "type": "string",
+          "description": "响应 URL 需包含的子串"
         },
         "titleContains": {
           "type": "string"
@@ -34,7 +36,8 @@
           "type": "string"
         },
         "name": {
-          "type": "string"
+          "type": "string",
+          "description": "可访问名子串，与 role 搭配"
         },
         "states": {
           "type": "object",
@@ -65,7 +68,8 @@
         },
         "matchIndex": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "description": "多匹配时的命中序号（0 起），不传则不猜测"
         }
       },
       "required": [

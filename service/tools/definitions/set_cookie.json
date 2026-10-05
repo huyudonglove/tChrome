@@ -10,10 +10,12 @@
           "type": "string"
         },
         "name": {
-          "type": "string"
+          "type": "string",
+          "description": "Cookie 名称"
         },
         "value": {
-          "type": "string"
+          "type": "string",
+          "description": "要设置的 cookie 值"
         },
         "url": {
           "type": "string",
@@ -23,7 +25,8 @@
           "type": "string"
         },
         "path": {
-          "type": "string"
+          "type": "string",
+          "description": "Cookie 的 path 属性，省略表示默认路径"
         },
         "secure": {
           "type": "boolean"

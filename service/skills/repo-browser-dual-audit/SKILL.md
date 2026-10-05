@@ -28,7 +28,7 @@ SUMMARY: 真实浏览器 + 代码双轨验证：先形成源码预期，再像�
 - **看结构**：`page_get_summary`（规模）→ `page_list_interactive_elements` / `find_on_page` / `page_get_by_role`（定位）→ `page_inspect_element` / `page_inspect_region`（细节）。
 - **做交互**：优先复合工具 `page_click_role` / `page_fill_role` / `page_click_text` / `page_select_role` / `page_fill_submit` / `page_submit_wait` / `combo_select` / `date_select` / `page_drag_to_id`；多匹配必须 `matchIndex` 或收窄 name。
 - **做验收**：`page_assert`（结论级）、`page_recheck`（观察级）、`wait_response`（接口级）、`har`（全量请求流）。
-- **做取证**：`capture_viewport` 视口、`capture_som` 一屏多控件角标图、局部控件用 `capture_page(mode=element)`。
+- **做取证**：`capture_page(mode=viewport)` 视口、`capture_page(mode=som)` 一屏多控件角标图、局部控件用 `capture_page(mode=element)`。
 - **读环境**：`page_eval_expr` 读 cookie / localStorage / IndexedDB / 渲染能力（如 `navigator.gpu`、`webgl` 参数、`s3d.rendererCapabilities`）；`fingerprint_read` 看 UA、时区、viewport；必要时 `fingerprint_apply` 模拟目标环境。
 - **读运行时**：Console 错误（`see_console`，需页面已注入监听）、DOM 快照差分（`effects.domChange`）、`pageerror`、请求失败清单。
 - **有副作用的操作**（提交表单、上传文件、删除、对外发消息、涉及账号资金）必须有用户对该动作的明确授权；先核对参数，执行后闭环断言（列表出现新记录 / 成功提示 / 表单关闭），不把「点了」当「成了」。

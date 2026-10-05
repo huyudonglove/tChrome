@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page_click_text",
-    "description": "复合：按控件可见文字定位（find_on_page）→ 点击 → 可选等待。适合没有稳定 role/name 的文字按钮。\n参数：必填 tabId、text；可选 matchIndex、waitText、waitUrlContains、ms、status、limit。\n文字多匹配须 matchIndex，不默认取第一个。返回：ok、id、clicked、wait。",
+    "description": "复合：按控件可见文字定位（find_on_page）→ 点击 → 可选等待。适合没有稳定 role/name 的文字按钮。\n参数：必填 tabId、text；可选 matchIndex、waitText、waitUrlContains、timeoutMs、status、limit。\n文字多匹配须 matchIndex，不默认取第一个。返回：ok、id、clicked、wait。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -22,7 +22,8 @@
         },
         "matchIndex": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "description": "多匹配时的命中序号（0 起），不传则不猜测"
         },
         "limit": {
           "type": "integer",
@@ -39,7 +40,7 @@
         "status": {
           "type": "integer"
         },
-        "ms": {
+        "timeoutMs": {
           "type": "integer"
         }
       },

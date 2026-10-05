@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page_click_role",
-    "description": "复合：A11y 定位（role±name）→ 点击 → 可选等待。一次 tool_call 完成定位+点击，减少往返。\n参数：必填 tabId、role；可选 name（可访问名子串）、matchIndex（多匹配时必须）、waitText 或 waitUrlContains（二选一，可省略）、ms、status。\n无 name 且 total>1 时不猜测，返回 ambiguous_target 与 candidates。返回：ok、id、clicked、wait。",
+    "description": "复合：A11y 定位（role±name）→ 点击 → 可选等待。一次 tool_call 完成定位+点击，减少往返。\n参数：必填 tabId、role；可选 name（可访问名子串）、matchIndex（多匹配时必须）、waitText 或 waitUrlContains（二选一，可省略）、timeoutMs、status。\n无 name 且 total>1 时不猜测，返回 ambiguous_target 与 candidates。返回：ok、id、clicked、wait。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -42,7 +42,7 @@
           "type": "integer",
           "description": "waitUrlContains 时可选的 HTTP 状态码"
         },
-        "ms": {
+        "timeoutMs": {
           "type": "integer",
           "description": "等待超时毫秒，上限与 wait/wait_response 一致"
         }

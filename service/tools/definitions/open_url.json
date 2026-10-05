@@ -7,7 +7,8 @@
       "type": "object",
       "properties": {
         "url": {
-          "type": "string"
+          "type": "string",
+          "description": "要打开的网址（含 https://）"
         },
         "reason": {
           "type": "string"

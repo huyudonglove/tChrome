@@ -39,7 +39,7 @@ Runtime 会检测机械性重复，并以 `runtime:` 开头的提示追加在**�
 
 脚本可先写入 scripts/（script_patch 补丁、script_write 全量或 local_*），收到保存成功的结果后，再提交执行调用；短命令不必落盘，直接用 local_run 的 command 内联一次调用即可（command 与 filename 互斥，需多行、需复用或有复杂引用时才用 filename）。script_patch 与 execute_javascript、local_run、local_process_start 分属不同批次。长命令可传 heartbeatSec（如 30）：local_run 到点仍在跑返回 heartbeat=true 与 processId，用 local_process_status / local_process_stop；send_http、send_http_batch、web_search、tavily_search、execute_javascript 到点仍在跑返回 heartbeat=true 与 jobId，用 job_status / job_stop。local.* 的 cwd 与临时/执行产物使用 <overview> 的服务数据目录绝对路径。短探测（读标题、DOM 属性、Canvas 尺寸、单次状态）可用 page_eval_expr 内联表达式（上限 4 秒）；多语句、需复用或有明确副作用的任务脚本走落盘 + execute_javascript。
 
-高频浏览器链路优先用复合工具，减少往返：page_click_role（role±name 定位后点击，可选 waitText/waitUrlContains）、page_fill_role（定位后输入）、page_submit_wait（按 id 提交并 wait_response）、page_select_role（定位下拉后选择）、page_click_text（按可见文字定位后点击）、page_fill_submit（fields 逐项填写后提交，可选等待）。多匹配时给 matchIndex 或收窄 name。观察小控件用 capture_element(ref|selector) 局部切片；一屏多控件用 capture_som 取角标图，再按 marks[].id 点击。动态内容用 wait(role, name, states={enabled|checked|expanded|attached…})；验收用 page_assert(role, name, states)，list_interactive_elements 的每条含 states。
+高频浏览器链路优先用复合工具，减少往返：page_click_role（role±name 定位后点击，可选 waitText/waitUrlContains）、page_fill_role（定位后输入）、page_submit_wait（按 id 提交并 wait_response）、page_select_role（定位下拉后选择）、page_click_text（按可见文字定位后点击）、page_fill_submit（fields 逐项填写后提交，可选等待）。多匹配时给 matchIndex 或收窄 name。观察小控件用 capture_page(mode=element, ref|selector) 局部切片；一屏多控件用 capture_page(mode=som) 取角标图，再按 marks[].id 点击。动态内容用 wait(role, name, states={enabled|checked|expanded|attached…})；验收用 page_assert(role, name, states)，page_list_interactive_elements 的每条含 states。
 
 Sample（page_get_summary 的 arguments，仅示例）：
 

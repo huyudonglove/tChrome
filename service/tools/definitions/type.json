@@ -7,7 +7,8 @@
       "type": "object",
       "properties": {
         "text": {
-          "type": "string"
+          "type": "string",
+          "description": "要键入的文字，等价于 page_type"
         },
         "ref": {
           "type": "string",

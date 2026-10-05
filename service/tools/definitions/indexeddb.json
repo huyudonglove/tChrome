@@ -31,7 +31,8 @@
           "description": "object store 名"
         },
         "key": {
-          "type": "string"
+          "type": "string",
+          "description": "键名"
         },
         "value": {
           "type": "string",

@@ -52,7 +52,8 @@
           "required": [
             "kind"
           ],
-          "additionalProperties": false
+          "additionalProperties": false,
+          "description": "要拉取的来源标识，如归档资产 sourceId"
         },
         "path": {
           "type": "string",

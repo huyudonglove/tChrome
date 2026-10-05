@@ -10,16 +10,19 @@
           "type": "string"
         },
         "name": {
-          "type": "string"
+          "type": "string",
+          "description": "Cookie 名称"
         },
         "url": {
-          "type": "string"
+          "type": "string",
+          "description": "删除 cookie 的站点 URL"
         },
         "domain": {
           "type": "string"
         },
         "path": {
-          "type": "string"
+          "type": "string",
+          "description": "Cookie 的 path 属性，省略表示默认路径"
         }
       },
       "required": [

@@ -14,12 +14,14 @@
           "description": "目标标签编号（从 tabs_current 等返回取得）。"
         },
         "text": {
-          "type": "string"
+          "type": "string",
+          "description": "目标文字：作为定位条件时的可见文本或可访问名子串"
         },
         "limit": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 100
+          "maximum": 100,
+          "description": "最多返回的结果条数"
         }
       },
       "required": [

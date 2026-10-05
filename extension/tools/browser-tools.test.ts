@@ -578,7 +578,7 @@ test("wait A11y states probe uses role/name/states via page.wait_a11y", async ()
     role: 'button',
     name: '下一步',
     states: {enabled: true},
-    ms: 1000,
+    timeoutMs: 1000,
   });
   expect(result).toMatchObject({ok: true, id: 'e_05', role: 'button'});
   expect(seen[0]).toMatchObject({role: 'button', name: '下一步', states: {enabled: true}});

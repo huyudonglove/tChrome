@@ -20,7 +20,8 @@
           "type": "string"
         },
         "text": {
-          "type": "string"
+          "type": "string",
+          "description": "要写入输入框的文字"
         },
         "clearBeforeType": {
           "type": "boolean",

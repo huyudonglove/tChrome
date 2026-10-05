@@ -25,7 +25,8 @@
         },
         "matchIndex": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "description": "多匹配时的命中序号（0 起），不传则不猜测"
         },
         "value": {
           "type": "string",

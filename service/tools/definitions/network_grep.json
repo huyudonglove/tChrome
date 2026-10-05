@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "network_grep",
-    "description": "等待匹配网络响应，并在响应体中检索关键字（返回关键字附近上下文）。\n参数：必填 urlContains、keyword、tabId；可选 status、contextChars（默认 400）、ms。\n返回：ok、requestId、url、status、matches[{offset,before,hit,after}]、totalChars。",
+    "description": "等待匹配网络响应，并在响应体中检索关键字（返回关键字附近上下文）。\n参数：必填 urlContains、keyword、tabId；可选 status、contextChars（默认 400）、timeoutMs。\n返回：ok、requestId、url、status、matches[{offset,before,hit,after}]、totalChars。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -13,7 +13,8 @@
           "type": "integer"
         },
         "urlContains": {
-          "type": "string"
+          "type": "string",
+          "description": "响应 URL 需包含的子串"
         },
         "keyword": {
           "type": "string"
@@ -24,7 +25,7 @@
         "contextChars": {
           "type": "integer"
         },
-        "ms": {
+        "timeoutMs": {
           "type": "integer"
         }
       },

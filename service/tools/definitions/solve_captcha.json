@@ -16,7 +16,8 @@
         "timeoutMs": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 12000
+          "maximum": 12000,
+          "description": "等待超时毫秒，省略则用该工具默认值"
         }
       },
       "required": [

@@ -7,10 +7,12 @@
       "type": "object",
       "properties": {
         "processId": {
-          "type": "string"
+          "type": "string",
+          "description": "目标本地进程编号，来自 local_run 或 local_process_start 的返回"
         },
         "text": {
-          "type": "string"
+          "type": "string",
+          "description": "要写入进程 stdin 的文本"
         },
         "end": {
           "type": "boolean"
