@@ -1,7 +1,6 @@
 <projectMemory>
-能力：本模块放项目所需的通用内容（跨会话长期记忆），只看当前项目和全局。
-
-详细描述：
+功能：
+本模块放项目所需的通用内容（跨会话长期记忆），只看当前项目和全局。
 跨会话适用的领域背景、术语和长期约束。memoryId 标识条目，sourceCallId 和 sourceConversationId 关联来源，text 是正文。编号为 lm_，由 memory_writeProject 写入、memory_update / memory_delete 维护。
 
 项目记忆按 scope 分归属，注入按 scope 取，不按相关性筛选：

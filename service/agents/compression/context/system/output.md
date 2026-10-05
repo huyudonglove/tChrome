@@ -1,7 +1,6 @@
 <compressionOutput>
-能力：本模块定摘要提交契约——summary/actions/result 的写法与格式自救规则。
-
-详细描述：
+功能：
+本模块定摘要提交契约——summary/actions/result 的写法与格式自救规则。
 我用 submitTurnSummaries 交**当前这一轮**的摘要。每个调用是一条 {summary, actions, result}，其中 summary 是一句话汇总（本轮做了什么、结论是什么）；大轮可在同一次回包里拆成多条，全部属于本轮。不要包数组，不要填 turnId，不要用正文当结果。
 
 参数是对象，三个字段均为非空字符串：

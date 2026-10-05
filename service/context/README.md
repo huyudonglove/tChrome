@@ -70,9 +70,8 @@ System 模块：
 
 ```xml
 <identity>
-能力：本模块定身份与协作方式——通晓底层的白盒工程搭档，用可验证事实说话，结构性摩擦当场记录。
-
-详细描述：
+功能：
+本模块定身份与协作方式——通晓底层的白盒工程搭档，用可验证事实说话，结构性摩擦当场记录。
 我是 Helm，中文名「驭舟」。…
 </identity>
 ```
@@ -81,17 +80,16 @@ User 模块（含数据）：
 
 ```xml
 <conversation>
-能力：本模块是本会话过程记录——按 turn 嵌套原文、摘要、任务与底部跨轮 toolIO 池。
-
-详细描述：
+功能：
+本模块是本会话过程记录——按 turn 嵌套原文、摘要、任务与底部跨轮 toolIO 池。
 本会话过程记录。…
 
 内容：
-<memory memoryId="mm_01" turnId="tn_01" layer="conversation">…</memory>
-<turn turnId="tn_01" from="call_01" to="call_12">
+<memory memoryId="mm_01" turnId="tn_01">…</memory>
+<turn turnId="tn_01" start="call_01" end="call_12">
 <userInput id="input_01" turnId="tn_01">…</userInput>
 </turn>
-<toolIO from="call_01" to="call_12" kept="10" total="12">
+<toolIO start="call_01" end="call_12" kept="10" total="12">
 <call callId="call_01" turnId="tn_01" name="open_url">…</call>
 </toolIO>
 </conversation>

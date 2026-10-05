@@ -53,13 +53,13 @@ test("user window renders B-style XML modules with data under 内容", () => {
   };
   const output = userText({ contextModules: modules, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: "技能正文" });
   expect(output).toContain("<skill>");
-  expect(output).toContain("能力：");
+  expect(output).toContain("功能：");
   expect(output).toContain("内容：\n技能正文");
   expect(output).toContain("用户输入");
   expect(output).toContain('<conversation id="cv_xml">');
   expect(output).toContain('<turn turnId="tn_01">');
   expect(output).toContain("</turn>");
-  const topTags = Array.from(output.matchAll(/^<([A-Za-z][A-Za-z0-9]*)(?: [a-z]+="[^"]*")*>\n能力：/gm), m => m[1]);
+  const topTags = Array.from(output.matchAll(/^<([A-Za-z][A-Za-z0-9]*)(?: [a-z]+="[^"]*")*>\n功能：/gm), m => m[1]);
   expect(topTags).toEqual(modules.userOrder.map(tag => tag.slice(1)));
 });
 
@@ -91,7 +91,7 @@ test("<conversation> reports its conversation id and window occupancy", () => {
 });
 
 test("parseModule accepts B XML and rejects malformed shells", () => {
-  const ok = parseModule("<demo>\n能力：【Test】\n\n详细描述：\n正文\n</demo>", "demo");
+  const ok = parseModule("<demo>\n功能：\n正文\n</demo>", "demo");
   expect(ok.tag).toBe("#demo");
-  expect(() => parseModule("#demo\n能力：【Test】\n\n详细描述：\n正文", "demo")).toThrow();
+  expect(() => parseModule("#demo\n功能：\n正文", "demo")).toThrow();
 });

@@ -1,7 +1,6 @@
 <compressionTurns>
-能力：本模块定 User 材料的形态——单层标签内纯 JSON，一次通常只含一轮。
-
-详细描述：
+功能：
+本模块定 User 材料的形态——单层标签内纯 JSON，一次通常只含一轮。
 User 消息只有一层标签，**标签内只有数据**，没有说明文字。结构：
 
     <compressionTurns>

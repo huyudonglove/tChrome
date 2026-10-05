@@ -1,7 +1,6 @@
 <queryModules>
-能力：本模块说明 request 各字段与候选 turns 里记录的形态。
-
-详细描述：
+功能：
+本模块说明 request 各字段与候选 turns 里记录的形态。
 下列字段出现在 User 的 { "request": {...}, "turns": [...] } 材料里。
 
 request：

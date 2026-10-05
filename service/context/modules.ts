@@ -21,9 +21,10 @@ export type ModuleRegistryEntry = {
 
 export type ContextModule = {
   tag: string;
-  capability: string;
-  description?: string;
-  body: string;
+  /** 合并后的功能说明（原能力句 + 原详细描述）。 */
+  purpose: string;
+  /** 内容模板（可含 {{data}} / {{slots}}），无则为空。 */
+  template: string;
 };
 
 export type ContextModules = {
@@ -99,7 +100,7 @@ export function compressionTurnShellMarkdown(): string {
   ].join("\n");
 }
 
-/** Parse B-style XML module: <id>能力/详细描述[/内容]</id> */
+/** Parse B-style XML module: <id>功能：[/内容]</id> */
 export function parseModule(text: string, expectedTag: string): ContextModule {
   const trimmed = text.replaceAll("\r\n", "\n").trim();
   const match = trimmed.match(/^<([A-Za-z][A-Za-z0-9]*)>\n([\s\S]*)\n<\/\1>$/);
@@ -108,22 +109,15 @@ export function parseModule(text: string, expectedTag: string): ContextModule {
   const want = expectedTag.startsWith("#") ? expectedTag.slice(1) : expectedTag;
   if (tag !== want) throw new Error(`module tag mismatch ${expectedTag}: ${tag}`);
   const bodyText = inner!.trim();
-  const capMatch = bodyText.match(/^能力：([^\n]+)\n([\s\S]*)$/);
+  const capMatch = bodyText.match(/^功能：\n([\s\S]+)$/);
   if (!capMatch) throw new Error(`invalid module content ${expectedTag}`);
-  const capability = capMatch[1]!.trim();
-  const afterCap = capMatch[2]!;
-  // 详细描述可选：没有就是纯能力行 + 内容。
-  const descMatch = afterCap.match(/^\s*详细描述：\n([\s\S]+)$/);
-  const rest = (descMatch ? descMatch[1]! : afterCap).trim();
-  if (!capability || !rest) throw new Error(`empty module content ${expectedTag}`);
+  const rest = capMatch[1]!;
   const parts = rest.split(/\n\n内容：\n/);
   if (parts.length > 2) throw new Error(`duplicate module content section ${expectedTag}`);
-  if (parts.length === 2) {
-    if (!parts[0]!.trim() || !parts[1]!.trim()) throw new Error(`empty module content ${expectedTag}`);
-    if (parts[0]!.includes("{{")) throw new Error(`placeholder in module description ${expectedTag}`);
-    return { tag: `#${want}`, capability, description: parts[0]!.trim(), body: parts[1]!.trim() };
-  }
-  return { tag: `#${want}`, capability, body: rest };
+  const purpose = parts[0]!.trim();
+  const template = (parts[1] ?? "").trim();
+  if (!purpose) throw new Error(`empty module content ${expectedTag}`);
+  return { tag: `#${want}`, purpose, template };
 }
 
 function loadXmlModule(dir: string, entry: ModuleRegistryEntry): ContextModule {
@@ -140,11 +134,19 @@ function loadXmlModule(dir: string, entry: ModuleRegistryEntry): ContextModule {
     }
     return out;
   };
-  return {
+  const filled = {
     ...module,
-    ...(module.description !== undefined ? { description: fill(module.description) } : {}),
-    body: fill(module.body),
+    purpose: fill(module.purpose),
+    template: fill(module.template),
   };
+  // 拼写检查：填完还剩未知占位就是写错了（currentDate/dataDir/cwd/os/data 由后级填充）。
+  for (const text of [filled.purpose, filled.template]) {
+    const stray = text.match(/\{\{(\w+)\}\}/);
+    if (stray && !["currentDate", "dataDir", "cwd", "os", "data"].includes(stray[1]!)) {
+      throw new Error(`unresolved placeholder in module ${entry.id}`);
+    }
+  }
+  return filled;
 }
 
 /** Attribute values are data, not markup: escape the five XML metacharacters. */
@@ -155,13 +157,13 @@ const xmlAttr = (value: string) => value
 /** Per-tag attribute maps: tag (with '#') -> attribute name -> value. */
 export type SlotAttributes = Record<string, Record<string, string>>;
 
-/** XML body for one module (B: capability + description + optional data). */
+/** XML body for one module (B: 功能 + optional data). */
 function renderXmlModule(module: ContextModule, data?: string, attributes?: SlotAttributes[string]): string {
   const id = module.tag.replace(/^#/, "");
   const attrs = attributes
     ? Object.entries(attributes).map(([k, v]) => ` ${k}="${xmlAttr(v)}"`).join("")
     : "";
-  const head = `<${id}${attrs}>\n能力：${module.capability}\n\n详细描述：\n${module.description ?? module.body}`;
+  const head = `<${id}${attrs}>\n功能：\n${module.purpose}`;
   if (data === undefined) return `${head}\n</${id}>`;
   return `${head}\n\n内容：\n${data}\n</${id}>`;
 }
@@ -186,8 +188,8 @@ export function renderInventory(role: "System" | "User", order: string[], module
     if (!module) throw new Error(`missing slot file ${tag}`);
     const id = tag.replace(/^#/, "");
     const payload = data[tag] ?? (tag === "#recordIdentity" ? identityRulesText() : undefined);
-    const body = payload !== undefined && payload !== "" ? payload : (role === "System" ? module.body : module.description ?? module.body);
-    const head = `<${id}>\n能力：${module.capability}\n\n详细描述：\n${body}`;
+    const body = payload !== undefined && payload !== "" ? payload : module.template;
+    const head = `<${id}>\n功能：\n${module.purpose}`;
     return payload !== undefined && payload !== "" && role === "System" && tag === "#baseTools"
       ? `${head}\n\n${payload}\n</${id}>`
       : payload !== undefined && payload !== "" && tag === "#recordIdentity"
@@ -206,7 +208,7 @@ export function loadContextModules(root: string): ContextModules {
   if (systemOrder.some(tag => userOrder.includes(tag))) throw new Error("duplicate tag across system and user");
   const systemSlots = Object.fromEntries(systemEntries.map(entry => [`#${entry.id}`, loadXmlModule(dir, entry)]));
   const userSlots = Object.fromEntries(userEntries.map(entry => [`#${entry.id}`, loadXmlModule(dir, entry)]));
-  const overview = systemSlots["#overview"]?.body ?? "";
+  const overview = systemSlots["#overview"]?.purpose ?? "";
   if (!overview) throw new Error("missing system overview module");
   return { overview, systemOrder, userOrder, systemSlots, userSlots };
 }
@@ -236,11 +238,11 @@ export function systemTextFromModules(
       : tag === "#recordIdentity" ? identityRulesText()
       : tag === "#systemSkill" ? skillGuide
       : "";
-    let body = extra
-      ? (module.body.includes("{{data}}")
-        ? module.body.replaceAll("{{data}}", extra)
-        : `${module.body}\n\n${extra}`)
-      : module.body.replaceAll("{{data}}", "");
+    let body = module.template.includes("{{data}}")
+      ? `${module.purpose}\n\n${module.template.replaceAll("{{data}}", extra)}`
+      : extra
+        ? `${module.purpose}${module.template ? `\n\n${module.template}` : ""}\n\n${extra}`
+        : `${module.purpose}${module.template ? `\n\n${module.template}` : ""}`;
     if (tag === "#overview") {
       body = body
         .replaceAll("{{currentDate}}", currentDate)
@@ -248,7 +250,7 @@ export function systemTextFromModules(
         .replaceAll("{{cwd}}", cwd)
         .replaceAll("{{os}}", os);
     }
-    parts.push(`<${id}>\n能力：${module.capability}\n\n详细描述：\n${body}\n</${id}>`);
+    parts.push(`<${id}>\n功能：\n${module.purpose}\n\n${body}\n</${id}>`);
   }
   return parts.join("\n\n");
 }
