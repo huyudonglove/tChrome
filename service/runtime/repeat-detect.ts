@@ -153,7 +153,7 @@ export function repeatHint(rows: ToolIOItem[], history: ToolIOItem[] = rows): st
     // by callId rather than object identity: the same row object can legitimately appear twice.
     const seenBefore = (code: string): boolean => history.some((row) => row.callId !== current.callId && faultCodeOf(row) === code);
     if (fault && DIAGNOSABLE_FAULTS.has(fault) && !seenBefore(fault)) {
-      return `${RULE_MARKERS.faultMemory} runtime: 本轮首次遇到故障 ${fault}。这类故障的根因不在这次调用里（宿主环境、扩展构建、服务版本或桥接），处置经验不会自己出现在记忆中——下次症状可能相似、根因和动作却相反，所以那时不会去翻其他故障的处置。如果你已经定位清楚根因，请用 memory_writeProject 写一条 projectMemory，把三段记清楚：症状（怎么发现的、表现是什么）→ 根因（真实原因、代码位置）→ 处置（怎么修的、下次先做什么）。没定位清楚就不要写。这只是提示，不阻断排查。`;
+      return `${RULE_MARKERS.faultMemory} runtime: 本轮首次遇到故障 ${fault}。这类故障的根因不在这次调用里（宿主环境、扩展构建、服务版本或桥接），处置经验不会自己出现在记忆中——下次症状可能相似、根因和动作却相反，所以那时不会去翻其他故障的处置。根因确认后，用 memory_writeProject 写一条 projectMemory，把三段记清楚：症状（怎么发现的、表现是什么）→ 根因（真实原因、代码位置）→ 处置（怎么修的、下次先做什么）。没定位清楚就不要写。这只是提示，不阻断排查。`;
     }
   }
   if (rows.length < REPEAT_CALL_LIMIT) return undefined;

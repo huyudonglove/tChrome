@@ -72,7 +72,7 @@ export function modelSpeech(text: string): string {
 export function errorMessage(code: string, audience: "model" | "user"): string {
   const entry = messageFor(code);
   const body = entry[audience] + (audience === "model" && entry.recovery === "correct_arguments"
-    ? "由你核对工具定义并修正调用，不要让用户补填工具参数。" : "");
+    ? "核对工具定义并修正调用，不要让用户补填工具参数。" : "");
   return audience === "model" ? modelSpeech(body) : body;
 }
 

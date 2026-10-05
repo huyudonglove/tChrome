@@ -9,7 +9,7 @@
 
 各模块的职责：
 
-- <identity>：你的身份。
+- <identity>：我的身份。
 - <compressionRole>：摘要应保留哪些事实。
 - <compressionModules>：原文材料的字段。
 - <compressionTurns>：原文压缩与摘要折叠的输入。
