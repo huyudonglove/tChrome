@@ -44,6 +44,15 @@ test("pure bookkeeping batches get no suggestion", () => {
   expect(buildWorkspaceSuggestion([])).toBeNull();
 });
 
+test("suggestion lists batch files for copying into files[]", () => {
+  const read: ToolIOItem = { ...row("local_fs_read", "call_01"), arguments: { reason: "读", items: [{ path: "src/auth.ts" }] } };
+  const write: ToolIOItem = { ...row("local_fs_write", "call_02"), arguments: { reason: "写", path: "src/auth.ts" } };
+  const text = buildWorkspaceSuggestion([read, write])!;
+  expect(text).toContain("本批涉及文件：src/auth.ts");
+  const noFiles = buildWorkspaceSuggestion([row("page_click", "call_03")])!;
+  expect(noFiles).not.toContain("本批涉及文件");
+});
+
 test("strip removes the old suggestion so only the newest survives", () => {
   const withOld = `正文\n\n${WORKSPACE_SUGGEST_MARKER} 旧建议`;
   expect(stripWorkspaceSuggestion(withOld)).toBe("正文");

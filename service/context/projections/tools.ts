@@ -1,7 +1,23 @@
 import type { Observation, ToolIOItem } from "../../types.ts";
+import { runtimeConfig } from "../../config/runtime.ts";
+import { toolArgFiles } from "../../agents/query/file-filter.ts";
 
 function resultView(text: string): unknown {
   try { return JSON.parse(text); } catch { return text; }
+}
+
+/**
+ * Call arguments for the model window: full args when small, file paths only
+ * when large (same inline gate as returns). Empty args are omitted; bookkeeping
+ * calls keep their pointer shape and never carry args.
+ */
+function argsView(args: unknown): Record<string, unknown> | undefined {
+  if (!args || typeof args !== "object" || Array.isArray(args)) return undefined;
+  const record = args as Record<string, unknown>;
+  if (!Object.keys(record).length) return undefined;
+  if (JSON.stringify(record).length <= runtimeConfig.results.inlineChars) return record;
+  const files = toolArgFiles(record);
+  return files.length ? { files } : undefined;
 }
 
 /** Content lives in turn modules; toolIO keeps only the pointer's result half. */
@@ -31,6 +47,14 @@ export function toolHistoryView(records: ToolIOItem[], observations: Observation
   const visible = ringCallIds ? records.filter((record) => ringCallIds.has(record.callId)) : records;
   return visible.map(record => {
     let result = resultView(record.return.text);
+    const args = argsView(record.arguments);
+    const envelope = {
+      callId: record.callId,
+      turnId: record.turnId,
+      batchId: record.batchId,
+      name: record.name,
+      ...(args ? { args } : {}),
+    };
     const observation = byCall.get(`${record.turnId}:${record.callId}`);
     if (observation && record.return.stage === "complete") {
       const obsRes = observation.result && typeof observation.result === "object"
@@ -51,6 +75,9 @@ export function toolHistoryView(records: ToolIOItem[], observations: Observation
       } else {
         result = { ok: true, observationId: observation.id };
       }
+      // Observation content lives in <observations>; the write call keeps no args.
+      const { args: _dropped, ...bare } = envelope;
+      return { ...bare, return: { stage: record.return.stage, result } };
     } else if (record.name === "context_query" && record.return.stage === "complete"
       && result && typeof result === "object" && !Array.isArray(result)) {
       // Query originals live in <query>; keep toolIO as a pointer like page observations.
@@ -70,7 +97,7 @@ export function toolHistoryView(records: ToolIOItem[], observations: Observation
       const pointer = MODULE_POINTERS[record.name];
       const failed = result && typeof result === "object" && !Array.isArray(result) && (result as { ok?: unknown }).ok === false;
       if (pointer && !failed) {
-        // toolIO only surfaces the result half; `args` is no longer projected.
+        // Bookkeeping calls keep the pointer shape only; their content lives in the turn modules.
         const mapped = pointer(record.arguments as Record<string, unknown>, result);
         const hint = record.return.text.split("\n").find((line) => line.startsWith("runtime:"));
         return {
@@ -88,10 +115,7 @@ export function toolHistoryView(records: ToolIOItem[], observations: Observation
       }
     }
     return {
-      callId: record.callId,
-      turnId: record.turnId,
-      batchId: record.batchId,
-      name: record.name,
+      ...envelope,
       return: { stage: record.return.stage, result },
     };
   });

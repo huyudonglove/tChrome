@@ -15,7 +15,7 @@ const touches = (attributed: string, query: string): boolean => {
 };
 
 /** File path arguments of read/write/execute tools (path/items/filename/source/destination/cwd). */
-function toolArgFiles(args: unknown): string[] {
+export function toolArgFiles(args: unknown): string[] {
   if (!args || typeof args !== "object" || Array.isArray(args)) return [];
   const record = args as Record<string, unknown>;
   const out: string[] = [];

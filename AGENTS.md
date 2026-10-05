@@ -25,3 +25,6 @@
 - 动态工具加载以会话为范围，跨 turn、重新打开与服务重启后保持；首次加载仍需下一次模型请求取得 schema。finishTurn 必填非空 text；同一 text 进入侧栏/trace、toolIO 投影与压缩 turns.stopReason，Agent 材料 reply 为 `{kind:"reply", text}`。script_patch 统一使用 git apply --recount 计算补丁块行数，不猜测修复结构或上下文。
 
 - skill 模块始终保留完整正文，不参与压缩，也不参与文件外置。
+
+- 因果按文件归因：workspace_write 可选 files[]（涉及的文件路径，可带行区间）；工作区建议直接列出本批涉及文件供照抄；`<ws>` 投影带 files 属性，压缩时跟 turn 一起归档。context_query / agent_query 可选 file 按文件过滤候选（workspace 按 files[]、toolIO 按调用的文件参数、summaries 按正文提及，其余模块不支持），无命中直接 not_found，不花模型轮次。
+- toolIO 投影带调用参数 args（大小超内联门禁时只留 files 路径；记账类指针调用与观察调用不带，正文已在对应模块）。

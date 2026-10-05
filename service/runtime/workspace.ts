@@ -1,4 +1,5 @@
 import { NEUTRAL_TOOLS } from "./escalation.ts";
+import { toolArgFiles } from "../agents/query/file-filter.ts";
 import type { Ledger, ToolIOItem } from "../types.ts";
 
 /** 附在工具返回末尾的工作区建议；下次出网前 strip，只保留最新一条。 */
@@ -27,7 +28,10 @@ export function buildWorkspaceSuggestion(batchRows: ToolIOItem[]): string | null
     .sort((a, b) => b[1] - a[1])
     .map(([name, n]) => `${name}×${n}`)
     .join("、");
-  return `${WORKSPACE_SUGGEST_MARKER} 本批出网共 ${biz.length} 次调用（${detail}）。建议用 workspace_write 写一条因果：op=这批做了什么，value=得到什么结论，files[]=涉及的文件路径（可带行区间，不涉及文件可不传）。可写可不写，只记「不写就会忘」的结论。`;
+  // 本批触及的文件直接列出来，模型照抄进 files[] 即可，不用回翻 toolIO。
+  const files = [...new Set(biz.flatMap((row) => toolArgFiles(row.arguments)))];
+  const fileHint = files.length ? `本批涉及文件：${files.join("、")}（照抄进 files，不涉及文件可不传）。` : "";
+  return `${WORKSPACE_SUGGEST_MARKER} 本批出网共 ${biz.length} 次调用（${detail}）。${fileHint}建议用 workspace_write 写一条因果：op=这批做了什么，value=得到什么结论，files[]=涉及的文件路径（可带行区间，不涉及文件可不传）。可写可不写，只记「不写就会忘」的结论。`;
 }
 
 /** 去掉历史建议，本轮只保留最新一条。 */
