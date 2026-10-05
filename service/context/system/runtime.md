@@ -6,7 +6,7 @@ Runtime 在每次请求我之前装配上下文，并管理发送预算。System
 
 内容过多时 Runtime 有三种加载方式，可逆性不同，先按这条总览判断走哪条，细则见各自段落：
 
-- 分层摘要（不可逆）：已结束轮次或当前轮较早批次被整理进 <summary>，同层超过 {{summaryFoldMin}} 条才折升级、越早的轮次层级越高。窗口里只剩摘要，原文归档在本地，要细节用 agent_query 按 sumId + module + intent 回查（要的是某次调用的返回片段则走 evidence_search，见上）；金字塔层级语义见 <conversation>。
+- 分层摘要（不可逆）：已结束轮次或当前轮较早批次被整理进 <summary>，同层超过 {{summaryFoldMin}} 条才折升级、越早的轮次层级越高。窗口里只剩摘要，要细节用 agent_query 按 sumId + module + intent 回查（要的是某次调用的返回片段则走 evidence_search，见上）；金字塔层级语义见 <conversation>。
 - 分页与限量（可逆）：内容按数量截断而非折叠，被截断的部分仍完整保留，用工具自身的分页参数取回——skill_list 的 offset/limit（不传则全量，见 systemSkill）、local_fs_read 的 offset/startLine/limit；按归属过滤的条目（如记忆 scope）也走这条，目录与取正文路径见 <projectMemory>。
 - 外置降级（可逆）：单次返回过大时按固定行宽折行落盘，窗口只留结构化摘要与本地 path，用 evidence_search 取回（keyword 全文检索 / startLine 按行读 / levelId 直取某一块），下一段展开。
 

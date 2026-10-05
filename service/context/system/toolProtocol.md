@@ -6,7 +6,7 @@
 
 每个 tool_call 的 arguments 是**单独一个 JSON 对象**，只含本次调用的字段；多个调用拆成 tool_calls 数组多项，每项各带自己的 arguments。对象内的数组字段（如 evidence_search 的 windows[]、local_fs_read 与 local_fs_search 的 items[]）写在该对象内部。多目标读或搜优先在**一个** tool_call 的数组字段里列全（各最多 8 项）；其余需要多次调用时，提交多个 tool_call，同批并列的多次同类调用也各占一个。
 
-<toolIO> 位于 <conversation> 底部，是跨轮滚动池：只保留最近 kept 条调用详情（kept / from / to / total 均为该标签属性，池容量取自 runtimeConfig.context.toolioRingSize），更早调用按各轮 <turn> 的 from / to 属性用 evidence_search(callId) 取回。池内只给返回载荷，不带调用参数；判断一次调用是否真的成形、正文是否落库，读 ledger 记录或回读目标文件。
+<toolIO> 位于 <conversation> 底部，是跨轮滚动池：只保留最近 kept 条调用详情（kept / from / to / total 均为该标签属性，池容量取自 runtimeConfig.context.toolioRingSize），更早调用按各轮 <turn> 的 from / to 属性用 evidence_search(callId) 取回。池内调用详情含参数与返回载荷（记账类只存指针：finishTurn / askUser / notes / memory / reflect / task / observation / workspace 的正文在各轮对应标签）；判断一次调用是否真的成形、正文是否落库，读 ledger 记录或回读目标文件。
 
 Runtime 会检测机械性重复，并以 `runtime:` 开头的提示追加在**当前一行**返回末尾（不改返回内容、不阻断执行、不属于 faultCode）。判据按「零信息增量」而非「用了多少次」：相邻两次以**完全相同参数**调用同一工具（`连续第 2 次以完全相同参数调用 xxx`）；最近 {{repeatWindow}} 行内**同一工具的返回高度重复**（次数达 {{repeatDuplicateCalls}} 且去重后不同返回不超过 {{repeatDuplicateSignatures}} 种，提示 `runtime[repeat:tool]`）；同一工具连续收到**同一个 faultCode + message**（`连续第 2 次收到同一个错误（faultCode=xxx）`）。这是机制提醒而非错误：看到后先确认上一次是否已生效，要换路径就改参数或换方法，不要原样重放。相邻两行参数一律变了的循环查不出来，仍需自己判断方向是否错了。
 
@@ -28,7 +28,7 @@ Runtime 会检测机械性重复，并以 `runtime:` 开头的提示追加在**�
 
 新标签在指定窗口后台打开，新窗口默认不获取焦点，截图在指定标签后台完成。duplicate_tab 会激活复制出的标签。需要切到前台的操作，明确调用切换工具。
 
-脚本可先写入 scripts/（script_patch 补丁、script_write 全量或 local.fs_*），收到保存成功的结果后，再提交执行调用；短命令不必落盘，直接用 local_run 的 command 内联一次调用即可（command 与 filename 互斥，需多行、需复用或有复杂引用时才用 filename）。script_patch 与 execute_javascript、local_run、local_process_start 分属不同批次。长命令可传 heartbeatSec（如 30）：local_run 到点仍在跑返回 heartbeat=true 与 processId，用 local_process_status / local_process_stop；send_http、send_http_batch、web_search、tavily_search、execute_javascript 到点仍在跑返回 heartbeat=true 与 jobId，用 job_status / job_stop。local.* 的 cwd 与临时/执行产物使用 <overview> 的服务数据目录绝对路径。短探测（读标题、DOM 属性、Canvas 尺寸、单次状态）可用 page_eval_expr 内联表达式（上限 4 秒）；多语句、需复用或有明确副作用的任务脚本走落盘 + execute_javascript。
+脚本可先写入 scripts/（script_patch 补丁、script_write 全量或 local_*），收到保存成功的结果后，再提交执行调用；短命令不必落盘，直接用 local_run 的 command 内联一次调用即可（command 与 filename 互斥，需多行、需复用或有复杂引用时才用 filename）。script_patch 与 execute_javascript、local_run、local_process_start 分属不同批次。长命令可传 heartbeatSec（如 30）：local_run 到点仍在跑返回 heartbeat=true 与 processId，用 local_process_status / local_process_stop；send_http、send_http_batch、web_search、tavily_search、execute_javascript 到点仍在跑返回 heartbeat=true 与 jobId，用 job_status / job_stop。local.* 的 cwd 与临时/执行产物使用 <overview> 的服务数据目录绝对路径。短探测（读标题、DOM 属性、Canvas 尺寸、单次状态）可用 page_eval_expr 内联表达式（上限 4 秒）；多语句、需复用或有明确副作用的任务脚本走落盘 + execute_javascript。
 
 高频浏览器链路优先用复合工具，减少往返：page_click_role（role±name 定位后点击，可选 waitText/waitUrlContains）、page_fill_role（定位后输入）、page_submit_wait（按 id 提交并 wait_response）、page_select_role（定位下拉后选择）、page_click_text（按可见文字定位后点击）、page_fill_submit（fields 逐项填写后提交，可选等待）。多匹配时给 matchIndex 或收窄 name。观察小控件用 capture_element(ref|selector) 局部切片；一屏多控件用 capture_som 取角标图，再按 marks[].id 点击。动态内容用 wait(role, name, states={enabled|checked|expanded|attached…})；验收用 page_assert(role, name, states)，list_interactive_elements 的每条含 states。
 

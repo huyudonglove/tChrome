@@ -28,6 +28,10 @@ Sample（一次请求只含一个完整轮次的骨架，仅示例）：
             { "id": "page_01", "turnId": "tn_01", "callId": "call_02", "tabId": 12, "type": "page_get_summary",
               "result": { "ok": true, "description": "支持 CSV" } }
           ],
+          "workspace": [
+            { "id": "ws01", "turnId": "tn_01", "boundId": "b02", "callId": "call_02", "callIds": ["call_02"],
+              "op": "读了导出页概况", "value": "页面支持 CSV" }
+          ],
           "memoryWrites": [],
           "queryHistory": [],
           "reflection": { "turnId": "tn_01", "items": [{ "id": "rf_01", "text": "已确认页面支持 CSV；未下载文件二次核验。", "focus": "证据" }] },

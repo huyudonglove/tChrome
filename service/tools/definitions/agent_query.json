@@ -15,6 +15,7 @@
             "userInput",
             "toolIO",
             "observations",
+            "workspace",
             "memoryWrites",
             "stopReason",
             "queryHistory",

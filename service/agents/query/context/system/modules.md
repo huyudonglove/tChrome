@@ -11,6 +11,7 @@ request：
   - userInput：用户原话
   - toolIO：工具参数与结果（归档形态，含 return.text）
   - observations：观察结果（页面、代码、截图等）
+  - workspace：因果工作区条目（op/value）
   - memoryWrites：会话记忆写入
   - stopReason：当轮收尾。kind=reply 时字段为 text（最终回复正文）；ask/error/tool 同前；kind=tool 表示停在该调用、还没收口
   - queryHistory：当轮历史查询
