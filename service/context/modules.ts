@@ -41,18 +41,17 @@ export type ModuleRegistry = {
 };
 
 /**
- * Data-shape hints injected with each archive module. The conversation projection
- * now renders records as attributed elements, so the hints describe attributes and
- * body rather than JSON keys.
+ * Data-shape hints injected with each archive module, including the corresponding
+ * model-facing XML projection where applicable.
  */
 const DEFAULT_SEMANTICS: Record<string, string> = {
-  userInput: "元素 `<userInput id turnId>`，正文是用户原话。片段可缺省，不表示用户没输入。",
-  observations: "每条一个 `<observation id callId tabId? type taskId? taskItemId? writtenTurn? validUntilTurn?>` 元素，正文是该次观察的完整返回。type 为产生观察的工具名。与 toolIO 同 callId 时两份都读。超过自己声明的 validUntilTurn 后不再注入；跨轮仍要留的结论用 memory_writeConversation 写成会话记忆。",
+  userInput: "对象 `{id, turnId, userInput}`，userInput 是用户原话。片段可缺省，不表示用户没输入。主模型投影为 `<userInput id>`，turnId 与 userInput 保留在正文。",
+  observations: "观察对象数组，含 id、callId、tabId（可选）、type、result 及可选 taskId/taskItemId/writtenTurn/validUntilTurn。type 为观察类型。与 toolIO 同 callId 时两份都读。主模型投影为 `<observations start end>` 下的 `<observation id callId type ...>`，tabId 与 result 保留在正文。超过自己声明的 validUntilTurn 后不再注入；跨轮仍要留的结论用 memory_writeConversation 写成会话记忆。",
   memoryWrites: "每条一个 `<memory memoryId turnId sourceCallId>` 元素，正文是记忆正文。此处只含本轮写入的会话记忆。",
-  toolIO: "每条一个 `<call callId turnId name ok?>` 元素，args 是调用参数（大小超门禁时只留 files 路径），正文是返回载荷。写模块的调用（finishTurn/askUser/notes/memory/task/reflect/observation/workspace）只存指针，正文在对应模块。与 observations 同 callId 的调用返回为 `{ok, observationId}`。",
-  queryHistory: "每条一个 `<query queryId turnId sumId module status sourceCallId?>` 元素，正文是 intent 与 records；命中被外置时 ok/totalChars/path 等作为属性，正文只留 summary。status 为 complete / not_found / error。",
+  toolIO: "工具调用对象数组，保留调用参数与返回原文。主模型投影在 `<calls start end kept total>` 下，每条为 `<call callId turnId name ok?>`；args 是调用参数（大小超门禁时只留 files 路径），正文是返回载荷。写模块的调用（finishTurn/askUser/notes/memory/task/reflect/observation/workspace）在主模型窗口只存指针，正文在对应模块；与 observations 同 callId 的调用返回为 `{ok, observationId}`。",
+  queryHistory: "查询记录对象数组，含 queryId、turnId、sumId、module、status、intent、records 与可选 sourceCallId/detail。status 为 complete / not_found / error。主模型投影为 `<queries start end>` 下的 `<query id sumId module status sourceCallId?>`，id 取 queryId；命中被外置时 ok/totalChars/path 等作为属性，正文只留 summary 等返回字段。",
   stopReason: "元素或缺省。`<stopReason kind callId?>` 的正文：`reply` 为最终回复正文（侧栏与后续上下文同一 text）；`ask` 在等用户；`error` 的 faultCode/causeCode/toolName/detail 作属性；`tool` 的 name/callId 作属性，停在该调用、还没收口。缺省表示暂无收尾。",
-  reflection: "元素或缺省。`<reflection turnId>` 下每条 `<reflect id focus?>`，正文是反思正文。缺省表示未填写。",
+  reflection: "对象 `{turnId, items:[{id, text, focus?}]}` 或 null，text 是反思正文。主模型投影为 `<reflections start end>` 下每条 `<reflect id focus?>`。null 表示未填写。",
 };
 
 export function loadModuleRegistry(root: string): ModuleRegistry {

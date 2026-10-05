@@ -92,9 +92,15 @@ test("loop appends one suggestion per batch, model writes ws, window shows it on
           { id: "a", name: "local_fs_list", arguments: { reason: "看目录", path: dataDir } },
           { id: "b", name: "local_fs_read", arguments: { reason: "读", items: [{ path: join(dataDir, "nope.txt") }] } },
         ] });
-        if (n === 2) return result({ toolCalls: [
-          { id: "c", name: "workspace_write", arguments: { reason: "补记", op: "列了目录", value: "空目录" } },
-        ] });
+        if (n === 2) {
+          const notices = loadLedger(dataDir, session.conversationId).runtimeNotices;
+          expect(notices).toHaveLength(1);
+          expect(notices[0]).toMatchObject({ id: "rt_01", kind: "workspace" });
+          expect(input.messages[1]!.content).toContain(`<notice id="${notices[0]!.id}" kind="workspace"`);
+          return result({ toolCalls: [
+            { id: "c", name: "workspace_write", arguments: { reason: "补记", op: "列了目录", value: "空目录" } },
+          ] });
+        }
         return result({ toolCalls: [
           { id: "d", name: "finishTurn", arguments: { reason: "完", text: "完成" } },
         ] });
@@ -110,7 +116,7 @@ test("loop appends one suggestion per batch, model writes ws, window shows it on
     expect(seen[1]).toContain('kind="workspace"');
     expect(seen[1]).toContain(WORKSPACE_SUGGEST_MARKER);
     // ws 写下后进窗口，且同 kind 只保留最新一条。
-    expect(seen[2]!).toContain('<workspace start="ws01" end="ws01">');
+    expect(seen[2]!).toContain('<workspaces start="ws01" end="ws01">');
     expect(seen[2]!).toContain('boundid="b02"');
     expect(seen[2]!.split(WORKSPACE_SUGGEST_MARKER).length - 1).toBeLessThanOrEqual(1);
   } finally {

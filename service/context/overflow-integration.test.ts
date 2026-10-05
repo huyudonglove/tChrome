@@ -6,7 +6,7 @@ import { runtimeConfig } from "../config/runtime.ts";
 import { handleTurn } from "../runtime/loop.ts";
 import { loadLedger, newConversation, primeActiveTask, saveLedger, saveTurn } from "../runtime/store.ts";
 import { loadMemories } from "../memory/store.ts";
-import type { CompletionResult, Provider, ToolCall, Turn } from "../types.ts";
+import type { CompletionResult, Provider, ToolCall, Turn, Ledger } from "../types.ts";
 import { inputRecord } from "../runtime/ids.ts";
 import { loadIndex } from "../context-archive/store.ts";
 import { validateUserData } from "./data-schema.ts";
@@ -31,7 +31,7 @@ const nestedTag = (user: string, name: string): any => {
   const m = conversation.match(new RegExp(`<${name}>\\n([\\s\\S]*?)\\n</${name}>`));
   return m ? JSON.parse(m[1]!) : undefined;
 };
-// <toolIO> 池渲染成 <call ...> 兄弟元素：元数据在属性、result 在正文 JSON。
+// <calls> 池渲染成 <call ...> 兄弟元素：元数据在属性、result 在正文 JSON。
 const callRows = (xml: string): any[] => {
   const rows: any[] = [];
   const re = /<call\s+([^>]*)>\n([\s\S]*?)\n<\/call>/g;
@@ -47,20 +47,24 @@ const callRows = (xml: string): any[] => {
   }
   return rows;
 };
-// <notes> renders one <note key="…"> per entry: rebuild the map for slot assertions.
-const noteRows = (xml: string): Record<string, string> => {
-  const rows: Record<string, string> = {};
+// <notes> renders one <note id="…" key="…"> per entry: rebuild the map for slot assertions.
+const noteRows = (xml: string): Ledger["notes"] => {
+  const rows: Ledger["notes"] = {};
   const re = /<note\s+([^>]*)>\n([\s\S]*?)\n<\/note>/g;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(xml))) rows[/key="([^"]*)"/.exec(m[1]!)?.[1] ?? ""] = m[2]!;
+  while ((m = re.exec(xml))) {
+    const key = /key="([^"]*)"/.exec(m[1]!)![1]!;
+    const id = /id="([^"]*)"/.exec(m[1]!)![1]!;
+    rows[key] = { id, value: m[2]! };
+  }
   return rows;
 };
 const slot = (user: string, name: string): any => {
   const key = name.replace(/^#/, "");
   const conversation = String(xmlSlots(user).conversation ?? "");
-  // toolIO is a shared pool at the bottom of <conversation>, not inside a turn slice.
-  if (key === "toolIO") {
-    const pool = conversation.match(/<toolIO(?:\s[^>]*)?>\n([\s\S]*?)\n<\/toolIO>/);
+  // calls pool at the bottom of <conversation>, not inside a turn slice.
+  if (key === "toolIO" || key === "calls") {
+    const pool = conversation.match(/<calls(?:\s[^>]*)?>\n([\s\S]*?)\n<\/calls>/);
     return pool ? callRows(pool[1]!) : [];
   }
   if (key === "notes") {
@@ -137,7 +141,7 @@ test("notes above the hard limit fail the turn with context_limit instead of bei
   const conversationId = newConversation(dataDir).conversationId!;
     primeActiveTask(dataDir);
   const ledger = loadLedger(dataDir, conversationId);
-  ledger.notes.draft = "N".repeat(Math.round(runtimeConfig.context.hardLimitChars * 1.1));
+  ledger.notes.draft = { id: "nt_01", value: "N".repeat(Math.round(runtimeConfig.context.hardLimitChars * 1.1)) };
   saveLedger(dataDir, ledger);
   let calls = 0;
   const reply = await handleTurn({ dataDir, repoRoot, host, provider: { complete: async () => { calls++; return finish(); } } }, { userInput: "继续", submittedAt: "now" });
@@ -160,14 +164,14 @@ test("history above the compress threshold is compressed before the main model r
   }));
   ledger.turnIds = turns.map(turn => turn.turnId);
   ledger.userInputHistory = turns.map(inputRecord);
-  ledger.notes.draft = "应保留的笔记";
+  ledger.notes.draft = { id: "nt_01", value: "应保留的笔记" };
   turns.forEach(turn => saveTurn(dataDir, turn));
   saveLedger(dataDir, ledger);
   let summaries = 0, main = 0;
   const base = provider(user => {
     main++;
     expect(summaries).toBeGreaterThan(0);
-    const notesView = slot(user, "#notes") as Record<string, string>;
+    const notesView = slot(user, "#notes") as Ledger["notes"];
     expect(notesView).toEqual(ledger.notes);
     return finish();
   });

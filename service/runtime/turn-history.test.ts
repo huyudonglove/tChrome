@@ -8,7 +8,7 @@ import type { Turn } from "../types.ts";
 const turn = (turnId:string):Turn => ({conversationId:"cv_test",turnId,status:"completed",createdAt:"2026-09-11",completedAt:"2026-09-11",input:{id:`input_${turnId}`,text:"只改负责人",submittedAt:"2026-09-11"},assembled:{baseToolsIds:[],toolIds:[],conversationMemoryIds:[],projectMemoryIds:[],mcpIds:[],currentTabs: { ok: true, windows: [] },currentPage:null,observations:[],workspace:[]},stopReason: { kind:"reply",text:"已修改并核对" }});
 test("turn process joins existing records without mixing turns or mutable memory/notes",()=>{
  const ledger=emptyLedger("cv_test");ledger.turnIds=["tn_01","tn_02"];
- ledger.notes={draft:"当前草稿"};
+ ledger.notes={draft:{id:"nt_01",value:"当前草稿"}};
  const first=turn("tn_01");
  ledger.toolIO=["tn_01","tn_02"].map((turnId,i)=>({turnId,callId:`c${i}`,name:"page_get_summary",arguments:{},return:{stage:"complete",text:"完整结果",totalChars:4}}));
  first.assembled.observations=[{id:"p1",turnId:"tn_01",tabId:1,observedAt:"2026-09-11",callId:"c0",type:"page_get_summary",result:{ok:true}}];

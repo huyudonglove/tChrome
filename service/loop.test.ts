@@ -528,7 +528,7 @@ test("记忆效果失败进入 toolIO，同批工具继续，模型收到错误�
     expect(reply.stopReason.kind).toBe("reply");
     expect(requests).toBe(2);
     const ledger = loadLedger(dir, "cv_01");
-    expect(ledger).toMatchObject({ status: "idle", active: null, liveTools: [], toolQueue: [], memoryIds: { conversation: ["mm_01"] }, notes: { next: "已执行" } });
+    expect(ledger).toMatchObject({ status: "idle", active: null, liveTools: [], toolQueue: [], memoryIds: { conversation: ["mm_01"] }, notes: { next: { id: "nt_01", value: "已执行" } } });
     expect(loadMemory(dir, "cv_01", "mm_01").text).toBe("本轮已写入");
     expect(loadMemory(dir, "cv_01", "lm_01").text).toBe("已有记忆");
     const failedWrite = ledger.toolIO.find((item) => item.name === "memory_writeProject");
@@ -1084,7 +1084,7 @@ test("工具抛错写入记录，清空执行状态并允许下一次模型请�
     const ledger = loadLedger(dir, "cv_01");
     expect(ledger.liveTools).toEqual([]);
     expect(ledger.toolQueue).toEqual([]);
-    expect(ledger.notes.progress).toBe("continued");
+    expect(ledger.notes.progress).toEqual({ id: "nt_01", value: "continued" });
     expect(messages[1]!.content).toContain("tool_execution_failed");
     return ok({ finish: "tool_calls", toolCalls: [
       { id: "finish", name: "finishTurn", arguments: { reason: "已处理失败", text: "完成"} },

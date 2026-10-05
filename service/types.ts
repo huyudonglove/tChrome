@@ -62,6 +62,7 @@ export type WorkspaceEntry = {
  * 一次性提醒只出现在返回里，不进这里；半长久（turn 级）随 turn 消亡；长久的修好即消。 */
 export type RuntimeNoticeScope = "turn" | "persistent";
 export type RuntimeNotice = {
+  id: string;
   /** budget | observation | reflect | compress | rotate | workspace */
   kind: string;
   scope: RuntimeNoticeScope;
@@ -230,10 +231,10 @@ export type Ledger = {
   lastAction: LastAction | null;
   /** Runtime 运行时提醒（与 turn 平级展示）；turn 级随 turn 消亡。 */
   runtimeNotices: RuntimeNotice[];
-  /** 本 Conversation 内模型请求计数（boundId 来源）；老账本缺省按 0 计。 */
+  /** 本 Conversation 内模型请求计数（boundId 来源）。 */
   boundSeq: number;
   contextTab: TabContext;
-  notes: Record<string, string>;
+  notes: Record<string, { id: string; value: string }>;
   queryHistory: QueryEvidence[];
   windowChars: number;
   compressAt: number;

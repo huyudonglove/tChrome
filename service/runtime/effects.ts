@@ -64,7 +64,12 @@ export function applyToolEffects(input: {
           turnId: turn.turnId, sourceCallId: call.callId });
         break;
       }
-      case "note.write": ledger.notes[effect.key] = effect.value; break;
+      case "note.write": {
+        const prev = ledger.notes[effect.key];
+        const id = prev ? prev.id : allocateRecordId(dataDir, ledger.conversationId, "note");
+        ledger.notes[effect.key] = { id, value: effect.value };
+        break;
+      }
       case "note.delete": delete ledger.notes[effect.key]; break;
       case "task_set": {
         prepareTaskSet(dataDir, { ledger, turnId: turn.turnId, sourceCallId: call.callId }, {

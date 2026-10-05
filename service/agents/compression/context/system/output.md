@@ -12,7 +12,7 @@
 | result | 已验证结果、最终回复（材料里 stopReason.text）、错误或等待状态；保留证据差异 |
 | reflection（可选） | 本轮值得留给以后自己的思考：判断变化、思路与路径整理、取舍与踩坑；写成独立一段，日常流水账不填 |
 
-reflection 单独成字段，不揉进 actions；材料里它在 <reflection> 标签下。
+reflection 单独成字段，不揉进 actions；材料里它在 reflection 字段下。
 
 userRequest 不由我提交；Runtime 会从本轮用户原话写入摘要。
 

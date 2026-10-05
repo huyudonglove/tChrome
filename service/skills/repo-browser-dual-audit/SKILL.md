@@ -55,7 +55,7 @@ SUMMARY: 真实浏览器 + 代码双轨验证：先形成源码预期，再像�
 - **等加载再断言**：`wait_network` 超时返回 `ok:false` 但仍带页面文本，文本可用；抓文本常停在 `Loading models...`，最终可能是 `No models here.`。
 - **死链判定看 href 实际值**：指向外站的入口不是死链；grep 不到路由不等于不可达（政策页可能另有注册机制，要查清）。
 - **未跑的门禁要说明**：缺 chromium 的 e2e、因缺后端而未验的登录态流程，都属于未覆盖项，不能算通过。
-- **不要凭 <toolIO> 池里显示的返回摘要判断调用是否成形**。池内只给返回载荷、不含调用参数（参数在 `toolio.jsonl` 与 `ledger.json` 账本里），据此得出的「参数没传、ok:true 但没落库」结论是错的。验证写入是否落库，正确做法是用一个唯一标记（如 `PROBE-2-EXACT-STRING`）写入后去 `ledger.json` grep 读回。实测：完整参数的 notes_write/observation_write/reflect_write 全部正常落库，漏必填会如实返回 `missing_required`/`wrong_type`。
+- **不要凭 <calls> 池里显示的返回摘要判断调用是否成形**。池内调用详情含参数与返回载荷（记账类只存指针），据此得出的「参数没传、ok:true 但没落库」结论是错的。验证写入是否落库，正确做法是用一个唯一标记（如 `PROBE-2-EXACT-STRING`）写入后去 `toolio.jsonl` grep 读回。实测：完整参数的 notes_write/observation_write/reflect_write 全部正常落库，漏必填会如实返回 `missing_required`/`wrong_type`。
 
 ## 收口
 

@@ -47,7 +47,7 @@
 | 3 | tools | — | main |
 | 4 | conversation | — | main |
 
-`<conversation>` 内为会话级 `<memory>`、`<summary>`、`<task>` 与按 turnId 嵌套的 `<turn>` 轮次切片（标签属性 turnId / from / to；二级标签 userInput / observations / workspace / notes / reflection / query / stopReason，详见 user/conversation.md）；外层底部为全会话公用 `<toolIO>`（详情滚动池 `<call>` 元素，from/to/kept/total 见标签属性）；被压缩覆盖的轮次整块删除。
+`<conversation>` 内为会话级 `<memory>`、`<summary>`、`<task>` 与按 turnId 嵌套的 `<turn>` 轮次切片（标签属性 turnId / start / end；二级标签 userInput / observations / workspaces / notes / reflections / queries / stopReason，详见 user/conversation.md）；外层底部为全会话公用 `<calls>`（详情滚动池 `<call>` 元素，start/end/kept/total 见标签属性）；被压缩覆盖的轮次整块删除。
 
 ### Archive · 仅压缩
 
@@ -55,7 +55,7 @@
 |---|---|---|
 | userInput | userInput | 轮次用户输入 |
 | workspace | workspace | 因果工作区条目（op/value，按批随轮归档） |
-| toolIO | toolIO | 底部公用池：最近 kept 条调用详情（调用范围收在 `<turn>` 的 from / to 属性） |
+| toolIO | toolIO | 底部公用池：最近 kept 条调用详情（调用范围收在 `<turn>` 的 start / end 属性） |
 | observations | observations | 观察（页面/代码等） |
 | memoryWrites | memoryWrites | 会话记忆写入 |
 | reflection | reflection | 轮次反思 |
@@ -81,17 +81,17 @@ User 模块（含数据）：
 ```xml
 <conversation>
 功能：
-本模块是本会话过程记录——按 turn 嵌套原文、摘要、任务与底部跨轮 toolIO 池。
+本模块是本会话过程记录——按 turn 嵌套原文、摘要、任务与底部跨轮 calls 池。
 本会话过程记录。…
 
 内容：
 <memory memoryId="mm_01" turnId="tn_01">…</memory>
 <turn turnId="tn_01" start="call_01" end="call_12">
-<userInput id="input_01" turnId="tn_01">…</userInput>
+<userInput id="input_01">{"turnId":"tn_01","userInput":"…"}</userInput>
 </turn>
-<toolIO start="call_01" end="call_12" kept="10" total="12">
+<calls start="call_01" end="call_12" kept="10" total="12">
 <call callId="call_01" turnId="tn_01" name="open_url">…</call>
-</toolIO>
+</calls>
 </conversation>
 ```
 

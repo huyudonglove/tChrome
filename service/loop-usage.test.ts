@@ -68,7 +68,7 @@ test("one model response counts every executed browser, resident and closing too
     expect(reply.stopReason).toEqual({ kind: "reply", text: "任务完成" });
     expect(modelRequests).toBe(1);
     expect(browserCalls).toEqual(["page_get_summary"]);
-    expect(ledger.notes.finding).toBe("已核实");
+    expect(ledger.notes.finding).toEqual({ id: "nt_01", value: "已核实" });
     expect(turn.usage).toEqual({ modelRequests: 1, toolCalls: 3 });
   });
 });

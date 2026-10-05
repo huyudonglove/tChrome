@@ -459,7 +459,7 @@ const runQueue = async (input: {
       }
       if (escalation.action === "hint") {
         ledger.runtimeNotices = ledger.runtimeNotices.filter((notice) => notice.kind !== "budget");
-        ledger.runtimeNotices.push({ kind: "budget", scope: "turn", text: escalation.text });
+        ledger.runtimeNotices.push({ id: allocateRecordId(dataDir, ledger.conversationId, "notice"), kind: "budget", scope: "turn", text: escalation.text });
       } else {
         ledger.runtimeNotices = ledger.runtimeNotices.filter((notice) => notice.kind !== "budget");
       }
@@ -630,7 +630,7 @@ export async function handleTurn(
     // 每轮发送前清掉本轮级的旧提醒再按条件重挂，同 kind 只保留最新一条。
     const setNotice = (kind: string, text: string | null) => {
       ledger.runtimeNotices = ledger.runtimeNotices.filter((notice) => notice.kind !== kind);
-      if (text) ledger.runtimeNotices.push({ kind, scope: "turn", text });
+      if (text) ledger.runtimeNotices.push({ id: allocateRecordId(deps.dataDir, ledger.conversationId, "notice"), kind, scope: "turn", text });
     };
     // 已出过建议的批：同一批只建议一次（给紧接着的下一次请求看），之后不再打扰。
     let suggestedBatchId: string | undefined;

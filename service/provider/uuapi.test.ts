@@ -141,7 +141,7 @@ test("真实 Provider 到 Runtime：多个坏调用留账，合法兄弟照跑",
     const result = await handleTurn({ dataDir: dir, repoRoot: resolve(import.meta.dir, "../.."), provider: providerFor(server.port!) }, { userInput: "测试", submittedAt: "2026-09-08T00:00:00.000Z" });
     expect(result.stopReason).toEqual({ kind: "reply", text: "完成" });
     const ledger = loadLedger(dir, "cv_01");
-    expect(ledger.notes.kept).toBe("yes");
+    expect(ledger.notes.kept).toEqual({ id: "nt_01", value: "yes" });
     expect(ledger.toolIO.map((item) => item.callId)).toEqual(["call_03", "call_04", "call_01", "call_02", "call_05"]);
     expect(requests).toBe(2);
   } finally { server.stop(true); rmSync(dir, { recursive: true, force: true }); }
@@ -172,7 +172,7 @@ for (const policy of ["unknown_tool", "missing_required", "exclusive_resident"])
         { userInput: "测试", submittedAt: "now" });
       expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
       const ledger = loadLedger(dir, reply.conversationId);
-      expect(ledger.notes.kept).toBe(policy === "exclusive_resident" ? undefined : "yes");
+      expect(ledger.notes.kept).toEqual(policy === "exclusive_resident" ? undefined : { id: "nt_01", value: "yes" });
       expect(ledger.toolIO.some((row) => row.return.text.includes(policy))).toBe(true);
     expect(requests).toBe(2);
     } finally { server.stop(true); rmSync(dir, { recursive: true, force: true }); }

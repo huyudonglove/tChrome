@@ -39,7 +39,7 @@ test("whole-turn grouping removes covered module increments, retaining current s
     const ledger = emptyLedger("cv_test"), turns = seed(dataDir, ledger);
     ledger.userInputHistory = turns.map(inputRecord);
     ledger.toolIO = turns.map(turn => ({ callId: `call_${turn.turnId}`, turnId: turn.turnId, batchId: `batch_${turn.turnId}`, name: "memory.write", arguments: {}, return: { stage: "complete", text: "成功", totalChars: 2 } }));
-    ledger.notes = { draft: "当前草稿" };
+    ledger.notes = { draft: { id: "nt_01", value: "当前草稿" } };
     const memories: Memories = { project: [], conversation: turns.map(turn => ({ memoryId: `mm_${turn.turnId}`, turnId: turn.turnId, layer: "conversation", text: `记忆${turn.turnId}`, createdAt: "2026-09-11", sourceCallId: `call_${turn.turnId}` })) };
     const current = makeTurn(ledger.conversationId, "tn_06"); current.status = "inferring"; current.stopReason = null; current.completedAt = null;
     ledger.turnIds.push(current.turnId); ledger.active = { turnId: current.turnId };

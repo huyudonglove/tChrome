@@ -9,9 +9,9 @@ SUMMARY: 网页观察与操作：按区域缩小到控件、交互验收与截�
 
 1. `open_url` 打开或跳转后，用 `page_get_summary` 读标题、地址、区域与可交互规模。
 2. 需要定位控件时用 `page_list_interactive_elements`；需要区域结构时再加载 `page_list_regions` / `page_inspect_region`。
-3. 取元素 id、regionId 时看本轮 `<toolIO>` / `<observations>` 中对应项的 result，不要凭空猜测编号。
+3. 取元素 id、regionId 时看本轮 `<calls>` / `<observations>` 中对应项的 result，不要凭空猜测编号。
 
-带 tabId 的操作（`page.*`、`open_url`、截图、标签内脚本等）返回完整落在本轮 `<toolIO>`。需要固化的页面状态、脚本结论或截图发现，用 `observation_write(type, result, tabId?)` 记入本轮 `<observations>`；Runtime 不自动摘录。产出证据类工具调用累计到门槛（{{observationFirst}} 次起，每次提示后收紧为 {{observationGate2}}、{{observationMin}}）未记录时会提示。工具导航里的「类似 / 深入」给出同级替换与后续链路，如 `page_get_summary` 深入 `page_list_interactive_elements`。
+带 tabId 的操作（`page.*`、`open_url`、截图、标签内脚本等）返回完整落在本轮 `<calls>`。需要固化的页面状态、脚本结论或截图发现，用 `observation_write(type, result, tabId?)` 记入本轮 `<observations>`；Runtime 不自动摘录。产出证据类工具调用累计到门槛（{{observationFirst}} 次起，每次提示后收紧为 {{observationGate2}}、{{observationMin}}）未记录时会提示。工具导航里的「类似 / 深入」给出同级替换与后续链路，如 `page_get_summary` 深入 `page_list_interactive_elements`。
 
 ## 元素编号与标签
 

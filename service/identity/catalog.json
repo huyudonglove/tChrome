@@ -125,6 +125,20 @@
     "allocation": "counter",
     "description": "因果工作区条目"
   },
+  "note": {
+    "field": "id",
+    "prefix": "nt",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "工作草稿条目"
+  },
+  "notice": {
+    "field": "id",
+    "prefix": "rt",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "Runtime 提醒条目"
+  },
   "action": {
     "field": "id",
     "prefix": "act",

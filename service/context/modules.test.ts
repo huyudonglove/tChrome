@@ -43,7 +43,7 @@ test("registry loads XML modules and system text uses angle-bracket tags", () =>
 test("user window renders B-style XML modules with data under 内容", () => {
   const modules = loadContextModules(root);
   const ledger = emptyLedger("cv_xml");
-  ledger.notes = { candidate: "草稿 {{literal}}" };
+  ledger.notes = { candidate: { id: "nt_01", value: "草稿 {{literal}}" } };
   const turn: Turn = {
     turnId: "tn_01", conversationId: "cv_xml", status: "inferring",
     createdAt: "", completedAt: null,

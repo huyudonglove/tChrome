@@ -69,7 +69,7 @@ describe("<workspace> 因果工作区", () => {
     query: [],
     stopReason: null,
   };
-  test("renders <workspace start end> with <ws id boundid callIds> and op/value body", () => {
+  test("renders <workspaces start end> with <workspace id boundid callIds> and op/value body", () => {
     const xml = conversationXml(payload({
       task: null,
       turns: [{ ...turnBase, workspace: [
@@ -77,8 +77,8 @@ describe("<workspace> 因果工作区", () => {
         { id: "ws02", turnId: "tn_01", boundId: "b03", callId: "call_05", callIds: ["call_04"], op: "试了提交", value: "200 成功" },
       ] }],
     }));
-    expect(xml).toContain('<workspace start="ws01" end="ws02">');
-    expect(xml).toContain('<ws id="ws01" boundid="b02" callIds="call_01,call_02">');
+    expect(xml).toContain('<workspaces start="ws01" end="ws02">');
+    expect(xml).toContain('<workspace id="ws01" boundid="b02" callIds="call_01,call_02">');
     expect(xml).toContain('{"op":"读了列表接口","value":"分页参数是 cursor"}');
   });
 
@@ -96,4 +96,31 @@ describe("<workspace> 因果工作区", () => {
     }));
     expect(xml).toContain('files="src/auth.ts:120-180"');
   });
+});
+
+test("projects record IDs into note/query attributes and matching container bounds", async () => {
+  const { queryView } = await import("./queries.ts");
+  const query = {
+    queryId: "query_03", turnId: "tn_01", sumId: "sum_01", module: "toolIO",
+    intent: "核对来源", status: "complete" as const, records: [],
+  };
+  for (const inlineChars of [10000, 1]) {
+    const xml = conversationXml(payload({
+      runtime: [{ id: "rt_02", kind: "workspace", scope: "turn", text: "记录结论" }],
+      turns: [{
+        turnId: "tn_01",
+        userInput: { id: "input_01", turnId: "tn_01", userInput: "hello" },
+        callBounds: null, observations: [], workspace: [], reflection: null, stopReason: null,
+        notes: { draft: { id: "nt_04", value: "待核实" }, result: { id: "nt_07", value: "已完成" } },
+        query: [queryView(query, { inlineChars })],
+      }],
+    }));
+    expect(xml).toContain('<notes start="nt_04" end="nt_07">');
+    expect(xml).toContain('<note id="nt_04" key="draft">\n待核实\n</note>');
+    expect(xml).toContain('<note id="nt_07" key="result">\n已完成\n</note>');
+    expect(xml).toContain('<queries start="query_03" end="query_03">');
+    expect(xml).toContain('<query id="query_03"');
+    expect(xml).toContain('<notice id="rt_02" kind="workspace" scope="turn">');
+    expect(xml).not.toContain('"queryId"');
+  }
 });
