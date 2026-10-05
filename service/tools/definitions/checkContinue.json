@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "checkContinue",
-    "description": "执行确认检查点：拿不准是否该继续本轮时调用。true=继续执行，false=直接结束本 turn（与 finishTurn 不同：不提交最终答复）。\n参数：必填 cont（boolean）。\n这只是显式确认，不重置连续只读计数、不替代实质性操作；要问用户用 askUser，要收口用 finishTurn。",
+    "description": "执行确认检查点：拿不准是否该继续本轮时调用。true=继续执行，false=直接结束本 turn（与 finishTurn 不同：不提交最终答复）。\n参数：必填 cont（boolean）。\ncont=true 会重置连续只读计数；后续只读操作重新累计，确认不替代实质性操作；要问用户用 askUser，要收口用 finishTurn。",
     "parameters": {
       "type": "object",
       "properties": {

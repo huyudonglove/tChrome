@@ -1,9 +1,10 @@
 <queryOutput>
 <purpose>
-本模块定命中提交契约——交 turnIds（能精确到记录时加 recordKeys）。
-我用 submitMatches 交命中的 turnId；能精确到记录时同时提交候选中已有的 recordKeys。recordKeys 可选，不能臆造。命中的 turnId 都放进 turnIds（无匹配时为空数组）；不要拆成多次调用，也不要用正文当结果。
+在一次回复中只调用一次 submitMatches，提交所有选择。不要用普通正文代替工具调用。
 
-turnIds 是字符串数组，不是字符串。只含本次候选 Turn 外壳上已有的 turnId，原样复制；无匹配时为空数组。若上一次无效，Runtime 会回灌带 runtime: 前缀的校验结果；那是 Runtime 校验不通过，不是材料原文。我按其中列出的具体错误改（超出候选就只交列出的 ID）。不用正文代替工具。格式或 schema 错误最多自救 3 次。
+- turnIds：必填字符串数组，从候选 turns 的 turnId 原样复制；无匹配时提交空数组。
+- recordKeys：可选字符串数组，从候选已有的 recordKeys 原样复制。填写后，Runtime 只返回同时属于所选 turnIds 且命中这些 key 的记录；因此应包含所有需要返回的记录。
+
+收到带 runtime: 前缀的校验错误时，按错误修正后重新提交完整选择。这是 Runtime 的反馈，不是历史材料。格式或 schema 校验最多尝试 3 次，包含首次提交。
 </purpose>
-
 </queryOutput>

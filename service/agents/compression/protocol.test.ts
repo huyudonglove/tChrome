@@ -24,15 +24,12 @@ const input = { dataDir, conversationId: "cv_01", repoRoot, turn };
 test("compression system stays layered and user payload is one-turn JSON", () => {
   const system = compressionSystemPrompt(repoRoot);
   expect(system.startsWith("<overview>")).toBe(true);
-  expect(system).toContain("顺序压缩");
   expect(system).toContain("<identity>");
   expect(system).toContain("<compressionRole>");
   expect(system).toContain("<compressionModules>");
   expect(system).toContain("<compressionTurns>");
   expect(system).toContain("<compressionOutput>");
   expect(system).toContain("submitTurnSummaries");
-  expect(system).toContain("{summary, actions, result}");
-  expect(system).toContain("一次请求通常只含一个 turn");
   expect(system).not.toContain("{{archiveFields}}");
   const user = compressionUserPrompt(repoRoot, [turn]);
   expect(user).toBe(`<compressionTurns>\n${JSON.stringify({ turns: [turn] })}\n</compressionTurns>`);

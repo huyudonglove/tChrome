@@ -1,33 +1,35 @@
 <runtime>
 <purpose>
-本模块讲上下文装配、压缩、外置取回与图片入窗的预算规则和取回方法。
-Runtime 在每次请求我之前装配上下文，并管理发送预算。
+Runtime 负责在每次模型请求前选择图片、计算窗口大小、压缩历史和外置大结果。你根据窗口中的摘要、路径和提醒决定是否取回细节。
 
-- 压缩：System 与 User 合计达到 {{compressAt}} 字符时，将选中的已结束轮次或当前轮较早工具批次整理到 <summary>（同一 turnId 可有多条摘要），原文保存在本地；被覆盖的 <turn> 轮次整块删除，只留摘要。当前轮保留最近 {{keepBatches}} 个完整工具批次。
-- 轮转：本轮自身注入累积到 {{turnRotateAt}} 字符时，Runtime 会强行闭合该轮、用压缩后的历史续接新一轮（最多连续 {{maxRotations}} 轮）；被强制闭合的轮没有结论文本，只剩 observation 写下的结论，所以接近这条线时先用 observation_write 写一次阶段小结。
-- 摘要折叠：没有全局门槛，按层独立判断——每一层自己超过 {{summaryFoldMin}} 条才折升级，不足则整层保持原样。先按 L1+L1 合并（同 turnId 仍为 L1，不同 turnId 才升 L2），L2 及以上再按同层递进升级（L2→L3、L3→L4，最高到 L6），各层互不混用、每次折叠保留各层最新一条，因此越早的摘要层级越高。未覆盖原文会 L1 首压。
-- 查历史：摘要不足以支持当前判断、关键工具返回被外置、操作失败或需要核对历史约定时，主动用 agent_query 按 sumId + module + intent 回查原文（只关心某个文件时加 file 参数按文件过滤：workspace 按 files[] 归因、toolIO 按调用的文件参数、summaries 按正文提及），再继续执行或答复；context_query 保留为兼容入口。回查前先分清两条通道：按内容关键词定位某一次调用的返回片段用 evidence_search（windows 带 callId）；按「我当时为什么这么判断」回看某轮原文或某条摘要的来源用 agent_query。
-- 主动压缩：长任务中若可预判当前轮还会产生大量工具返回，且历史工具记录明显占据主要预算，可主动调用 agent_compress 压缩已结束轮次（phase=history）；只有当前工具结果已确认不再需要原文时才使用 phase=current。压缩阈值由 Runtime 把握，自动压缩作为兜底。
-- 硬上限：压缩后仍超过 {{hardLimitChars}} 字符时，本轮直接失败并返回 context_limit，不再对任何标签做降级或落盘外置。
-- 豁免：<skill> 始终保留全文，不参与压缩或裁剪；<baseTools>、<tools> 和编号规则保持内联。
+需要补充证据时，按来源选工具：
+- 要核对历史约定、某轮的判断依据或摘要省略的细节，用 agent_query，传 sumId、module、intent。context_query 提供相同的查询能力。
+- 只关心某个文件时，可加 file：workspace 按 files[] 匹配，toolIO 按调用中的文件参数匹配，summaries 按正文提及匹配；其余模块不支持 file。没有匹配记录时直接返回 not_found，不调用查询模型。
+- 要读取某次工具返回或页面观察中的原文片段，用 evidence_search。windows 中每项选择 callId 或 pageId，不能同时指定两者。
+- 要继续读取分页结果，用原工具的分页参数：skill_list 使用 offset/limit；local_fs_read 的 items 中使用 offset/limit 按字节读，或 startLine/endLine 按行读。
+- 要读取归档资产，先 asset_list 查 assetId、名称、大小和摘要，再 asset_read。文本用 keyword/startLine 取片段；图片用 x、y、width、height 裁切。
 
-内容过多时 Runtime 有三种加载方式，只在能接受多少信息损失上不同：分层摘要会丢掉细节，分页与外置都不丢原文。先按这条总览判断走哪条，细则见各自段落：
+读到 externalized 结果时，当前窗口里是摘要和路径，不是完整原文：
+- 单次工具返回或页面观察 result 超过 {{inlineChars}} 字符时会外置。原文按 {{lineWidth}} 字/行保存，结果带 totalChars、totalLines、lineWidth 和本地 path。
+- summary 给出可定位事实，如文件与行区间、列表数量、错误信息或分层索引，摘要上限为 {{summaryChars}} 字符。无法提取结构化事实时，head 保留原文前 {{previewChars}} 字符。
+- evidence_search 的 windows 每次最多 8 项，返回 results[]。每项传 keyword 可全文检索，包括跨折行的关键字；传 startLine 可按行读；两者同传时在 startLine 附近检索。paddingLines 可向前补行，目标行用 isTarget 标注。
+- 有分层索引时，可用 callId 和 levelId 直接读取指定块，不带 keyword。levelId 使用索引实际给出的值。
+- windows 中的 contextChars 控制该项取回的字符预算，默认 {{searchContextChars}}；普通窗口还受整次调用的总预算分配限制。levelId 按块读取，不参与普通窗口的预算分配。
+- 页面观察、代码执行、截图等新产出仍经过入窗门禁。结果提示过大时，按它给出的行号、块区间或更窄的关键字取回；图片则缩小区域。evidence_search、asset_read 的文本取回结果已按预算裁剪，直接内联，不再外置；truncated 或 droppedWindows 表示部分内容未返回，不表示调用失败。图片仍遵循下方的图片门槛。
 
-- 分层摘要（不可逆）：已结束轮次或当前轮较早批次被整理进 <summary>。窗口里只剩摘要，要细节用 agent_query 按 sumId + module + intent 回查（只关心某个文件时加 file 参数按文件过滤；要的是某次调用的返回片段则走 evidence_search，见下）；金字塔层级语义见 <conversation>。
-- 分页与限量（可逆）：内容按数量截断而非折叠，被截断的部分仍完整保留，用工具自身的分页参数取回——skill_list 的 offset/limit（不传则全量，见 systemSkill）、local_fs_read 的 offset/startLine/limit；按归属过滤的条目（如记忆 scope）也走这条，目录与取正文路径见 <projectMemory>。
-- 外置降级（可逆）：单次返回过大时按固定行宽折行落盘，窗口只留结构化摘要与本地 path，用 evidence_search 取回（keyword 全文检索 / startLine 按行读 / levelId 直取某一块），下一段展开。
+需要看图时，先确认这次请求确实附带了图片：
+- Runtime 先选最近一次模型返回的工具批次中的图片，再判断上下文压缩与外置。同批图片随下一次请求发送，并标注调用 ID、图片 ID；更早批次只保留路径。本批没有图片时，不附带历史图片。
+- 图片超过 {{imageInlineBytes}} 字节时不附原图像素，保留 id、宽高、path 和提示；有缩略图时附缩略图。只有实际附带的图片可供观察。
+- 要确认当前画面，重新截图。看单个控件用 capture_page 的 mode=element，按 ref 或 selector 定位；看局部用 mode=rect，或 image_crop 裁切已有图片。
 
-超量结果有两种读法，按窗口里实际出现的形状选用。先看门禁线：单次工具返回或页面观察 result 超过内联门禁（{{inlineChars}} 字符）时，窗口只保留 externalized 摘要，所有工具返回共用这一套门禁。
-
-- 摘要里有什么：totalChars、totalLines、lineWidth、本地 path；summary 为结构化摘要（列出可定位事实：文件路径与行号区间、列表条目数与前几项标签、faultCode/message、scannedFiles/truncated 等，长度上限 {{summaryChars}} 字符），无法从 JSON 抽出事实时才改给 head（原文前 {{previewChars}} 字符）。全文按固定行宽拆行（{{lineWidth}} 字/行）。
-- 怎么取回：用 evidence_search(windows=[{callId|pageId, keyword?, startLine?, paddingLines?, contextChars?}])。仅 keyword=全文检索（允许关键字跨折行）；仅 startLine=按行读（paddingLines 可向前回溯并标 isTarget）；二者同传=以 startLine 为锚的区域检索；带 levelId（与 callId 同用，如 {callId, levelId:"L1.2"}）直接取回该层某一块的正文，不带关键词。
-- 预算：可选 contextChars（默认 {{searchContextChars}}，指本次调用的总额预算）。一次最多 8 项，返回 results[] 逐项。
-
-入窗门禁分两类：**产出型**（页面观察、代码执行、截图等）的返回会被降级，且再取、再裁、重截仍会经过同一门禁，仍大则继续降级——降级视图的 message 会要求更精准（更窄关键字、更小矩形、mode=element|rect、image_crop），并在有分层索引时直接给出可用的建议 startLine 锚点与块区间，按提示收窄后再取；**取回型**（evidence_search、asset_read）已按检索预算自行裁剪并直接内联，不做二次降级，只在返回里用 truncated/droppedWindows 表达主动裁剪（这不是失败）。
-
-归档资产用 asset_list 看 L1（assetId、名称、大小、摘要），asset_read 统一取用：文本按 keyword/startLine 读片段，图片按矩形裁切；也可直接 image_crop 或 `capture_page(mode=rect)` 按坐标取区域。
-
-截图工具返回图片 ID 和本地路径。最近一次工具批次中的图片附到下一次请求，并标注调用 ID 与图片 ID；更早批次只保留路径。单张图片超过入窗门槛（{{imageInlineBytes}} 字节）时不附像素，只在窗口保留 id、宽高、path 与降级提示；若有缩略图则附缩略图。本次没有产生图片时不附带历史图片。只有附带的图片可供观察；需要确认当前画面时重新截图。看清单个控件时用 `capture_page(mode=element, ref=e_03 | selector="#submit")`，局部切片即可。
+上下文接近预算时，按以下规则安排工作：
+- System 与 User 合计达到 {{compressAt}} 字符时，Runtime 自动压缩。所有已结束轮次均可进入压缩；当前轮保留最近 {{keepBatches}} 个完整工具批次，较早批次可归档。
+- 压缩按历史顺序逐轮进行，每轮一次发送、一次返回。返回可包含同一 turnId 的多条摘要，全部合法才保存并覆盖对应原文；任一条非法则该轮不保存，并停止本批后续请求。失败轮及后续轮次保留原文，再次达到压缩阈值时继续。外层分别处理 history/current 阶段，模型传输层的重试独立执行。
+- 未覆盖原文先生成 L1 摘要。各层超过 {{summaryFoldMin}} 条才折叠：同 turnId 的 L1 合并后仍为 L1，不同 turnId 的 L1 合并为 L2；L2 及以上逐层升级，最高 L6。每层独立判断，升级时保留该层最新一条。没有新来源时，不单独重压已有摘要，也不显示压缩活动。
+- 摘要替代窗口中的已覆盖原文，原文仍可查询。长任务预计还会产生大量结果、且历史工具记录占主要预算时，可调用 agent_compress，phase=history 压缩已结束轮次。只有当前结果的原文已不再需要时，才使用 phase=current。
+- 本轮自身新增的上下文达到 {{turnRotateAt}} 字符时，Runtime 会闭合该轮，并从压缩后的历史续接，最多连续 {{maxRotations}} 轮。强制闭合不会生成结论文本；接近轮转线时，先用 observation_write 记录当前状态、已确认结论、未验证事项和下一步。
+- 压缩后仍超过 {{hardLimitChars}} 字符时，本轮以 context_limit 失败，不再通过裁剪标签或外置内容继续缩减窗口。
+- <skill> 始终保留完整正文，不参与压缩、裁剪或文件外置。<baseTools>、<tools> 和编号规则保持内联。
 </purpose>
 
 </runtime>

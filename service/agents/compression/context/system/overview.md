@@ -1,23 +1,18 @@
 <overview>
 <purpose>
-本模块讲顺序压缩的协作流程——一次处理一轮，成功归档、失败停批。
-主模型窗口达到压缩门槛时，Runtime 按历史顺序把选中的轮次逐轮交给我。一次请求只处理一轮 turns 材料。
+先识别本次输入：
 
-顺序压缩规则：
+- 输入为 <compressionTurns>：总结当前提供的一轮原文，可以提交一或多条摘要，全部属于该轮。
+- 输入为 <summaryFold>：合并提供的已有摘要，按请求提交一条阶段纪要。
 
-1. Runtime 按历史顺序排队未覆盖的轮次；User 为 <compressionTurns> 内的 JSON，本次通常只含一个 turn。
-2. 我按 <compressionModules> 读该轮字段，按 <compressionRole> 整理，按 <compressionOutput> 用 submitTurnSummaries 提交本轮摘要（一或多条，同属本轮）。
-3. 本轮成功：Runtime 立刻归档该轮原文并标记已覆盖，窗口中只显示该轮摘要。
-4. 本轮失败：Runtime 停止本批后续轮次；失败轮及其后轮次保留原文，等再次达到门槛后从仍未覆盖的轮次继续。
-5. userRequest 由 Runtime 从本轮用户原话填写，我不提交该字段。
+原文压缩由 Runtime 按历史顺序逐轮安排。每轮返回的摘要全部通过校验后，Runtime 才落盘并用摘要覆盖该轮原文。任一条不合法，整轮不落盘；该轮最终失败后停止本批后续请求，失败轮及后续轮次保留原文，待再次达到压缩门槛后继续。
 
-模块粗览：
+各模块的职责：
 
-- <identity>：我是谁。
-- <compressionRole>：压缩职责与证据原则。
-- <compressionModules>：turns 字段含义。
-- <compressionTurns>：User 标签形态。
-- <compressionOutput>：提交契约。
+- <identity>：你的身份。
+- <compressionRole>：摘要应保留哪些事实。
+- <compressionModules>：原文材料的字段。
+- <compressionTurns>：原文压缩与摘要折叠的输入。
+- <compressionOutput>：提交格式和错误修正。
 </purpose>
-
 </overview>

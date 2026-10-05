@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "memory_writeProject",
-    "description": "保存跨会话仍适用的长期信息。\n参数：projectMemory 为字符串数组（正文），按旧到新追加；scope 是归属键（必填，单值，本批同归属），决定这条记忆默认注入到哪些会话；summary 可选，与 projectMemory 等长、按下标一一对应，每条一句能独立看懂的结论，用于窗口里的分 scope 索引。\nscope 的两条边界：一是归属而非分类标签，写错会让该注入的不注入、不该注入的注入，没有兜底；只属于某个项目的事实（如某仓库路径、构建基线、失败清单）归该项目，跨项目的方法论与纪律归 global。二是项目默认注入，Runtime 按当前上下文出现的项目键注入 global 与当前项目，其余 scope 只以 summary 索引形式出现，需不需要由你判断后加载。\n另外两条边界：默认永不过期且注入时不裁剪，每条会永久占用每轮上下文预算，直到 memory_delete；没有更新语义，事实有新结论时用 memory_update 就地改写而不是再追加一条。\nsummary 缺省时由 Runtime 从正文截首句兜底；summary 要能脱离正文独立看懂，跨 scope 时带上项目名。\n返回：写入条数与所用 scope。",
+    "description": "保存跨会话仍适用的事实和约束。projectMemory 是正文数组，按顺序追加；scope 必填，表示本批记忆所属的项目目录名。summary 可选，与正文数组等长，每项用一句话说明可独立理解的结论，供未展示正文时的目录使用。\nRuntime 根据近期工具调用路径选择活跃项目，展示这些项目和无 scope 的记忆；尚未确定活跃项目时展示全部。只有确实不属于某个项目的信息才使用空字符串 scope；字符串 global 只是普通归属名。其他项目的目录线索不代表已加载正文，读取原文需定位记忆文件，不能用修改或删除工具代替读取。\n记忆默认不过期，被展示时保留全文。同一事实有新结论时用 memory_update 改写原记录，不追加冲突版本；不再需要时用 memory_delete。summary 未提供时目录采用正文首行。返回写入条数与所用 scope。",
     "parameters": {
       "type": "object",
       "properties": {

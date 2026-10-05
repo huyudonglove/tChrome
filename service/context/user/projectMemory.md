@@ -1,20 +1,20 @@
 <projectMemory>
 <purpose>
-本模块放项目所需的通用内容（跨会话长期记忆），只看当前项目和全局。
-跨会话适用的领域背景、术语和长期约束。memoryId 标识条目，sourceCallId 和 sourceConversationId 关联来源，text 是正文。编号为 lm_，由 memory_writeProject 写入、memory_update / memory_delete 维护。
+这里保存跨会话仍适用的领域背景、术语、项目事实和长期约束。每条 <memory> 的 id 是 lm_ 记忆编号，scope 是归属项目，正文含 summary 和 text。记忆记录保存来源调用和来源会话，当前展示的是摘要与正文。
 
-项目记忆按 scope 分归属，注入按 scope 取，不按相关性筛选：
-- 写入时我必须给每条 project 记忆一个 scope（memory_writeProject 必填），值就是工作区或仓库的目录名，与具体是哪个项目无关。
-- 注入侧的当前项目不由我填写，是 Runtime 从本轮工具调用的路径参数派生（~/Projects/<repo> 与 ~/Library/Application Support/<repo> 都映射为目录名），最多取 2 个活跃 scope。我写的 scope 与它是否被注入是两件事，判断权在 Runtime。
-- 每轮默认注入两份正文：scope 为空的老数据（读作全局，恒注入）与当前活跃 scope。老数据没有 scope 也照常注入，所以归位是逐条加分，不迁就不动。
-- 其余 scope 的正文不进窗口。窗口 userText 末尾另有「记忆目录」一段，按最近活跃列出这些未注入的 scope，每条记忆一句 gist（优先 summary，否则取正文首句）。看到某条相关才去取正文，用不上就放着不动；目录只是提示，不要求逐轮加载。
-- 取正文目前没有按 scope 整批加载的工具：memory_update / memory_delete 接受 memoryId，可以借此读回单条并就地改写；一次要好几条时按 memoryId 逐条来，不要因为没有批量工具就放弃取。
-- 跨项目的方法论与纪律写进当前 scope 即可，不要为了「放得下」硬塞；只有真正与任何具体仓库无关的规则才值得进 scope 为空的全局层。summary 要能脱离正文独立读懂（不写「见上文」），它会单独出现在目录里。
+写入和维护：
+- 用 memory_writeProject 写入。projectMemory 是正文数组，scope 必填，表示本批记忆所属的工作区或仓库目录名；可选 summary 数组须与正文一一对应。summary 应是一句可独立理解的结论，跨项目阅读时也能看出归属。
+- 只对某个项目成立的事实写入该项目的 scope。scope 决定默认展示范围，不是内容分类标签。没有 scope 或 scope 为空的记录按全局展示；字符串 global 本身不具有全局展示的特殊含义。
+- 同一事实发生变化时，用 memory_update(memoryId, text) 改写已有正文；明确不再需要时，用 memory_delete(memoryId) 删除。不要追加互相冲突的版本。
+- 记忆默认不过期，展示时保留完整正文。只保存以后仍会用到的信息；每条被展示的记忆都会占用上下文预算。
 
-写入前必须知道的三条成本与边界：
-- 落盘是服务级平铺（<dataDir>/memory/project/lm_NN.json 一律同级，scope 只是文件内字段），但注入按 scope 过滤：不属于当前项目又没标全局的条目，这轮不会进窗口。只对某个仓库成立的事实（某项目路径、构建基线、失败清单）务必写那个项目的 scope，写错或漏填的后果是它对我不可见；反过来，写成全局则每轮都会占用预算。
-- 默认永不过期，注入时不做任何裁剪。每条都会永久占用每一轮的上下文预算，直到显式 memory_delete。
-- 没有「更新语义」，只有追加与整条改写。同一事实有新结论时用 memory_update 就地改写，不要再追加一条把旧版本留在那里；否则每次判断哪个是当前真相都要重读全部。
+阅读范围：
+- Runtime 根据近期工具调用中的路径推导最多 2 个活跃 scope。项目目录名作为归属键，例如 Projects 下的仓库目录和 Application Support 下的应用目录。
+- 能确定活跃 scope 时，展示对应项目和全局记忆；尚不能确定时，展示全部项目记忆。写入某个 scope 不会直接切换当前展示范围。
+- 其余 scope 只在 User 末尾的“记忆目录”中提供简短线索，按最近活跃排序；优先显示 summary，否则取正文首行。目录有数量与字符预算，可能未列全。
+- 目录线索不等于完整正文。当前没有专门按 scope 或 memoryId 读取记忆的工具；memory_update 和 memory_delete 会修改或删除记录，不可用于试读。确需正文时，使用已知文件路径读取原始记忆文件；没有路径时先定位文件。
+
+项目记忆文件统一保存在 <dataDir>/memory/project/lm_NN.json，scope 是记录字段。文件在同一目录不表示它们都会进入当前窗口。
 </purpose>
 
 {{data}}

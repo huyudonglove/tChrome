@@ -17,19 +17,12 @@ test("query uses dedicated system and raw {request,turns} user XML", () => {
   const system = querySystemPrompt(repoRoot);
   expect(system.startsWith("<overview>")).toBe(true);
   expect(system).toContain("</overview>");
-  expect(system).toContain("模块粗览");
   expect(system).toContain("<identity>");
-  expect(system).toContain("我是主 Agent 的 Query Agent");
   expect(system).toContain("<queryRole>");
   expect(system).toContain("<queryModules>");
   expect(system).toContain("<queryTurns>");
-  expect(system).toContain("标签内只有数据");
   expect(system).toContain("submitMatches");
-  expect(system).toContain("不是字符串");
-  expect(system).toContain("Turn 外壳");
-  expect(system).toContain("Runtime 校验不通过");
   expect(system).toContain("runtime:");
-  expect(system).not.toContain("身份只在该模块声明");
   expect(system).not.toContain("<agentPosition>");
   const request = { sumId: "sum_01", module: "toolIO", intent: "是否可以修改状态" };
   const turns = ["tn_1", "tn_2"].map(id => ({ turnId: id, records: [{ callId: "call_01", text: "状态" }], recordKeys: ["record_1"] }));
@@ -128,4 +121,3 @@ test("query self-repair can recover on the third format attempt", async () => {
   expect(calls).toBe(3);
   expect(result).toMatchObject({ turnIds: ["tn_1"] });
 });
-

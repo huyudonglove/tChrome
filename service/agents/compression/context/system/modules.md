@@ -1,11 +1,11 @@
 <compressionModules>
 <purpose>
-本模块说明 turns 材料里各字段的含义，以及不参与压缩的外层信封。
-下列字段出现在 User 的 { "turns": [...] } 材料里。我只总结已提供的字段。
+原文压缩的 turns 包含以下归档字段。只总结实际提供的字段：
 
 {{archiveFields}}
 
-材料对象外层还包含 conversationId、turnId、status、createdAt、completedAt、sequence、segment。不参与压缩、也不会出现在 turns 材料里的主 Agent 窗口模块：skill、summary、currentTabs、projectMemory、notes、lastAction、activeContext、plan、tools。
-</purpose>
+conversationId、turnId、status、createdAt、completedAt、sequence、segment 用于识别来源、时间、状态和片段。
 
+主 Agent 窗口中的 skill、summary、currentTabs、projectMemory、notes、lastAction、activeContext、plan、tools 不属于原文归档输入，不需要补写。已有摘要的折叠使用独立的 <summaryFold> 输入。
+</purpose>
 </compressionModules>

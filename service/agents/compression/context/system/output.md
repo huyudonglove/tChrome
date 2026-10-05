@@ -1,22 +1,19 @@
 <compressionOutput>
 <purpose>
-本模块定摘要提交契约——summary/actions/result 的写法与格式自救规则。
-我用 submitTurnSummaries 交**当前这一轮**的摘要。每个调用是一条 {summary, actions, result}，其中 summary 是一句话汇总（本轮做了什么、结论是什么）；大轮可在同一次回包里拆成多条，全部属于本轮。不要包数组，不要填 turnId，不要用正文当结果。
+通过 submitTurnSummaries 提交结果，参数为一个对象，不要包数组，也不要用普通正文代替工具调用。
 
-参数是对象，三个字段均为非空字符串：
+- 原文压缩：在同一次回复中调用一或多次，每次提交一条摘要，全部归属本次轮次。
+- 摘要折叠：调用一次，提交一条阶段纪要。
 
-| 字段 | 我填写什么 |
+| 字段 | 填写要求 |
 | --- | --- |
-| summary | 一句话汇总：本轮做了什么、结论是什么 |
-| actions | 实际执行的关键步骤、修正与失败，串联成一段；区分计划与已执行 |
-| result | 已验证结果、最终回复（材料里 stopReason.text）、错误或等待状态；保留证据差异 |
-| reflection（可选） | 本轮值得留给以后自己的思考：判断变化、思路与路径整理、取舍与踩坑；写成独立一段，日常流水账不填 |
+| summary | 必填非空字符串；用一句话说明做了什么、结论是什么 |
+| actions | 必填非空字符串；将实际关键步骤、修正和重要失败串联成一段，区分计划与已执行 |
+| result | 必填非空字符串；写明已验证结果、最终回复、错误或等待状态，保留回复与证据的差异；最终回复取自 stopReason.text |
+| reflection | 可选非空字符串；仅在材料中有自我纠错、反复踩坑或取舍结论时转述，单独填写，不揉进 actions，也不编造 |
 
-reflection 单独成字段，不揉进 actions；材料里它在 reflection 字段下。
+不要提交 turnId 或 userRequest，Runtime 会填写。原文压缩的 userRequest 来自该轮用户原话。
 
-userRequest 不由我提交；Runtime 会从本轮用户原话写入摘要。
-
-若上一次无效，Runtime 会回灌带 runtime: 前缀的校验结果；那是 Runtime 校验不通过，不是材料原文。我按其中列出的具体错误改，提交 {summary, actions, result}（reflection 视需要给或不给）。格式或 schema 错误最多自救 3 次。再次压缩同一轮已有 summaries 时，缩短重复表述，保留关键因果与失败。
+收到带 runtime: 前缀的校验错误时，按具体错误修正并重新提交。这是 Runtime 的反馈，不是历史材料。格式或 schema 校验最多尝试 3 次，包含首次提交；同一次回复中的所有原文摘要都必须合法。
 </purpose>
-
 </compressionOutput>

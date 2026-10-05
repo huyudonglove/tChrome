@@ -19,7 +19,7 @@ const repoRoot = join(import.meta.dir, "..");
 const reply = (toolCalls: CompletionResult["toolCalls"]): CompletionResult => ({ content: "", finish: "tool_calls", toolCalls, attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] });
 const finish = () => reply([{ id: "finish", name: "finishTurn", arguments: { reason: "已核对", text: "完成"} }]);
 const section = (user: string, tag: string) => {
-  const m = user.match(new RegExp(`<${tag}>\\n[\\s\\S]*?\\n\\n内容：\\n([\\s\\S]*?)\\n</${tag}>`));
+  const m = user.match(new RegExp(`<${tag}>\\n<purpose>\\n[\\s\\S]*?\\n</purpose>\\n\\n([\\s\\S]*?)\\n</${tag}>`));
   if (m) return JSON.parse(m[1]!);
   const all = collectNested(user, tag === "toolIO" ? "call" : tag);
   if (tag === "toolIO" || tag === "query") return all;
@@ -28,7 +28,7 @@ const section = (user: string, tag: string) => {
 const collectNested = (user: string, tag: string): any[] => {
   const rows: any[] = [];
   // Record elements carry their scalar fields (id/externalized/...) as attributes, and
-  // a body is raw JSON, a "内容：" block, or an externalization notice. Scan open tags by hand and pair
+  // a body is raw JSON or an externalization notice. Scan open tags by hand and pair
   // each with its own closing tag: a lazy regex can swallow the following record and lose attributes.
   const open = new RegExp(`<${tag}(\\s[^>]*?)?>`, "g");
   for (let m = open.exec(user); m; m = open.exec(user)) {
@@ -38,8 +38,7 @@ const collectNested = (user: string, tag: string): any[] => {
     const bodyStart = open.lastIndex;
     const close = user.indexOf(`</${tag}>`, bodyStart);
     const raw = close === -1 ? user.slice(bodyStart) : user.slice(bodyStart, close);
-    const marker = raw.indexOf("内容：");
-    const body = marker === -1 ? raw : raw.slice(marker + 4);
+    const body = raw;
     let parsed: any;
     try { parsed = JSON.parse(body.trim()); } catch { rows.push({ ...attrs, __unparsed: body.trim() }); continue; }
     for (const row of Array.isArray(parsed) ? parsed : [parsed]) rows.push({ ...attrs, ...row });
@@ -101,7 +100,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
         expect(sessionView(dataDir, f.cv).activity).toBeNull();
         const values = Object.fromEntries(modules.userOrder.map(tag => {
           const id = tag.slice(1);
-          const m = input.messages[1]!.content.match(new RegExp(`<${id}(?:\\s[^>]*)?>\\n[\\s\\S]*?\\n\\n内容：\\n([\\s\\S]*?)\\n</${id}>`));
+          const m = input.messages[1]!.content.match(new RegExp(`<${id}(?:\\s[^>]*)?>\\n<purpose>\\n[\\s\\S]*?\\n</purpose>\\n\\n([\\s\\S]*?)\\n</${id}>`));
           const body = m![1]!;
           return [id, id === "skill" || id === "tools" || id === "conversation" || id === "projectMemory" ? body : JSON.parse(body)];
         }));

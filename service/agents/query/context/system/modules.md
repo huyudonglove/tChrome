@@ -1,26 +1,29 @@
 <queryModules>
 <purpose>
-本模块说明 request 各字段与候选 turns 里记录的形态。
-下列字段出现在 User 的 { "request": {...}, "turns": [...] } 材料里。
+输入包含 request 和 turns。
 
-request：
+request 字段：
 
-- sumId：本次查询入口摘要 ID。
-- module：指定读取的模块。取值与含义：
-  - userInput：用户原话
-  - toolIO：工具参数与结果（归档形态，含 return.text）
-  - observations：观察结果（页面、代码、截图等）
-  - workspace：因果工作区条目（op/value）
-  - memoryWrites：会话记忆写入
-  - stopReason：当轮收尾。kind=reply 时字段为 text（最终回复正文）；ask/error/tool 同前；kind=tool 表示停在该调用、还没收口
-  - queryHistory：当轮历史查询
-  - summaries：入口及来源摘要对象 {sumId, turnId, summary, userRequest, actions, result}，不是原文
-- intent：本次要找什么；我按它判断哪些轮次含相关证据。
+- sumId：查询入口摘要 ID。
+- module：要查询的模块，见下表。
+- intent：要寻找的证据或问题。
+- file（可选）：限定相关文件。Runtime 已完成文件筛选；仅 workspace、toolIO、summaries 支持。
 
-turns：按来源轮次排列的候选数组。每项：
+| module | 记录含义 |
+| --- | --- |
+| userInput | 用户原话 |
+| toolIO | 归档的工具参数和返回结果，返回正文在 return.text |
+| observations | 页面、代码、截图等观察结果 |
+| workspace | 操作及其原因、结果，正文在 op/value |
+| memoryWrites | 会话记忆写入 |
+| stopReason | 轮次结束或暂停原因；kind=reply 时 text 是最终回复，ask/error/tool 分别表示询问、错误、停在工具调用处 |
+| queryHistory | 该轮的历史查询 |
+| summaries | 入口及来源摘要，包含 sumId、turnId、summary、userRequest、actions、result；这些是摘要，不是原文 |
 
-- turnId：来源轮次 ID；提交时原样复制这里的值。
-- records：该轮指定模块的原始记录数组；记录保留自身标识。空数组表示该轮该模块没有记录。
+turns 按来源轮次排列，每项包含：
+
+- turnId：来源轮次 ID。
+- records：该轮指定模块的候选记录，保留记录自身字段；空数组表示该轮没有该模块记录。
+- recordKeys（可选）：与 records 按位置对应的记录标识。提交时原样复制，不根据记录内容自行生成。
 </purpose>
-
 </queryModules>

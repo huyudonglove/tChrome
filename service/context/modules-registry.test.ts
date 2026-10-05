@@ -38,8 +38,8 @@ test("module registry owns consumers and archive fields", () => {
   const md = compressionArchiveFieldsMarkdown(root);
   expect(md).toContain("- toolIO:");
   expect(md).toContain("- observations:");
-  expect(md).toContain("<call callId name ok?>");
-  expect(md).toContain("只存指针");
+  expect(md).toContain("arguments");
+  expect(md).toContain("return.text");
   expect(md).not.toContain("modules.json");
   expect(md).not.toContain("archiveField");
 });
