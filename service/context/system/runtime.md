@@ -7,14 +7,14 @@ Runtime 在每次请求我之前装配上下文，并管理发送预算。
 - 压缩：System 与 User 合计达到 {{compressAt}} 字符时，将选中的已结束轮次或当前轮较早工具批次整理到 <summary>（同一 turnId 可有多条摘要），原文保存在本地；被覆盖的 <turn> 轮次整块删除，只留摘要。当前轮保留最近 {{keepBatches}} 个完整工具批次。
 - 轮转：本轮自身注入累积到 {{turnRotateAt}} 字符时，Runtime 会强行闭合该轮、用压缩后的历史续接新一轮（最多连续 {{maxRotations}} 轮）；被强制闭合的轮没有结论文本，只剩 observation 写下的结论，所以接近这条线时先用 observation_write 写一次阶段小结。
 - 摘要折叠：没有全局门槛，按层独立判断——每一层自己超过 {{summaryFoldMin}} 条才折升级，不足则整层保持原样。先按 L1+L1 合并（同 turnId 仍为 L1，不同 turnId 才升 L2），L2 及以上再按同层递进升级（L2→L3、L3→L4，最高到 L6），各层互不混用、每次折叠保留各层最新一条，因此越早的摘要层级越高。未覆盖原文会 L1 首压。
-- 查历史：摘要不足以支持当前判断、关键工具返回被外置、操作失败或需要核对历史约定时，主动用 agent_query 按 sumId + module + intent 回查原文，再继续执行或答复；context_query 保留为兼容入口。回查前先分清两条通道：按内容关键词定位某一次调用的返回片段用 evidence_search（windows 带 callId）；按「我当时为什么这么判断」回看某轮原文或某条摘要的来源用 agent_query。
+- 查历史：摘要不足以支持当前判断、关键工具返回被外置、操作失败或需要核对历史约定时，主动用 agent_query 按 sumId + module + intent 回查原文（只关心某个文件时加 file 参数按文件过滤：workspace 按 files[] 归因、toolIO 按调用的文件参数、summaries 按正文提及），再继续执行或答复；context_query 保留为兼容入口。回查前先分清两条通道：按内容关键词定位某一次调用的返回片段用 evidence_search（windows 带 callId）；按「我当时为什么这么判断」回看某轮原文或某条摘要的来源用 agent_query。
 - 主动压缩：长任务中若可预判当前轮还会产生大量工具返回，且历史工具记录明显占据主要预算，可主动调用 agent_compress 压缩已结束轮次（phase=history）；只有当前工具结果已确认不再需要原文时才使用 phase=current。压缩阈值由 Runtime 把握，自动压缩作为兜底。
 - 硬上限：压缩后仍超过 {{hardLimitChars}} 字符时，本轮直接失败并返回 context_limit，不再对任何标签做降级或落盘外置。
 - 豁免：<skill> 始终保留全文，不参与压缩或裁剪；<baseTools>、<tools> 和编号规则保持内联。
 
 内容过多时 Runtime 有三种加载方式，只在能接受多少信息损失上不同：分层摘要会丢掉细节，分页与外置都不丢原文。先按这条总览判断走哪条，细则见各自段落：
 
-- 分层摘要（不可逆）：已结束轮次或当前轮较早批次被整理进 <summary>。窗口里只剩摘要，要细节用 agent_query 按 sumId + module + intent 回查（要的是某次调用的返回片段则走 evidence_search，见下）；金字塔层级语义见 <conversation>。
+- 分层摘要（不可逆）：已结束轮次或当前轮较早批次被整理进 <summary>。窗口里只剩摘要，要细节用 agent_query 按 sumId + module + intent 回查（只关心某个文件时加 file 参数按文件过滤；要的是某次调用的返回片段则走 evidence_search，见下）；金字塔层级语义见 <conversation>。
 - 分页与限量（可逆）：内容按数量截断而非折叠，被截断的部分仍完整保留，用工具自身的分页参数取回——skill_list 的 offset/limit（不传则全量，见 systemSkill）、local_fs_read 的 offset/startLine/limit；按归属过滤的条目（如记忆 scope）也走这条，目录与取正文路径见 <projectMemory>。
 - 外置降级（可逆）：单次返回过大时按固定行宽折行落盘，窗口只留结构化摘要与本地 path，用 evidence_search 取回（keyword 全文检索 / startLine 按行读 / levelId 直取某一块），下一段展开。
 

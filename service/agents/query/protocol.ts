@@ -7,7 +7,7 @@ import { querySystemFromModules } from "./context/loader.ts";
 import { requestToolResult } from "../tool-agent/index.ts";
 
 export type QueryCandidate = { turnId: string; records: Record<string, unknown>[]; recordKeys?: string[] };
-export type QueryRequestPayload = { sumId: string; module: string; intent: string };
+export type QueryRequestPayload = { sumId: string; module: string; intent: string; file?: string };
 export type QueryMatchResult = { turnIds: string[]; recordKeys?: string[] };
 
 export const QUERY_FORMAT_ATTEMPTS = 3;

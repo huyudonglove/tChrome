@@ -3,6 +3,7 @@ import { runtimeConfig } from "../../config/runtime.ts";
 import { createHash } from "node:crypto";
 import type { Provider } from "../../types.ts";
 import { requestMatches, type QueryCandidate } from "./protocol.ts";
+import { FILE_FILTER_MODULES, normalizeFileQuery, recordTouchesFile } from "./file-filter.ts";
 import { loadIndex, resolveSources } from "../../context-archive/store.ts";
 import { queryModules, type QueryRequest, type QueryResult } from "./types.ts";
 export type { QueryRequest, QueryResult, QueryModule } from "./types.ts";
@@ -18,7 +19,8 @@ const recordKeyFor = (record: RecordValue): string => {
 
 /** Only traverse the requested summary's immutable source graph; retrieval never writes archive state. */
 export async function queryContext(input: QueryInput): Promise<QueryResult> {
-  const base = { sumId: input.sumId, module: input.module, intent: input.intent, records: [] };
+  const file = normalizeFileQuery(input.file);
+  const base = { sumId: input.sumId, module: input.module, intent: input.intent, ...(file ? { file } : {}), records: [] };
   const cancelled = (): QueryResult => ({ ...base, ok: false, status: "cancelled", faultCode: "stopped", detail: "查询已取消。" });
   try {
     if (!queryModules.includes(input.module) || typeof input.sumId !== "string" || !/^[A-Za-z0-9_-]{1,100}$/.test(input.sumId)
@@ -56,9 +58,19 @@ export async function queryContext(input: QueryInput): Promise<QueryResult> {
       for (const value of Array.isArray(values) ? values : [values]) add(value, turn.turnId);
     }
     if (!records.length) return { ...base, ok: true, status: "not_found", detail: "指定摘要来源中没有匹配的模块记录。" };
+    // File pre-filter: narrow candidates to records touching the file before the
+    // agent sees them. A miss short-circuits without spending a model roundtrip.
+    let candidates = records;
+    if (file) {
+      if (!(FILE_FILTER_MODULES as readonly string[]).includes(input.module)) {
+        return { ...base, ok: true, status: "not_found", detail: `module=${input.module} 的记录不带文件归因，file 只支持 workspace / toolIO / summaries。` };
+      }
+      candidates = records.filter((record) => recordTouchesFile(record, input.module, file));
+      if (!candidates.length) return { ...base, ok: true, status: "not_found", detail: `指定摘要来源中没有涉及文件 ${file} 的模块记录（module=${input.module}）。` };
+    }
     if (input.isCancelled?.()) return cancelled();
     const byTurn = new Map<string, QueryCandidate>();
-    for (const record of records) {
+    for (const record of candidates) {
       const turnId = record.turnId as string;
       const recordKey = recordKeyFor(record);
       const candidate = byTurn.get(turnId);
@@ -70,12 +82,12 @@ export async function queryContext(input: QueryInput): Promise<QueryResult> {
       }
     }
     const selection = await requestMatches({ provider: input.provider, repoRoot: input.repoRoot,
-      request: { sumId: input.sumId, module: input.module, intent: input.intent }, candidates: [...byTurn.values()] });
+      request: { sumId: input.sumId, module: input.module, intent: input.intent, ...(file ? { file } : {}) }, candidates: [...byTurn.values()] });
     const selected = selection.turnIds;
     if (input.isCancelled?.()) return cancelled();
     if (!selected.length) return { ...base, ok: true, status: "not_found", detail: "指定摘要来源中没有匹配的模块记录。" };
     const selectedRecordKeys = selection.recordKeys;
-    const matches = records.filter(record => selected.includes(record.turnId as string)
+    const matches = candidates.filter(record => selected.includes(record.turnId as string)
       && (!selectedRecordKeys?.length || selectedRecordKeys.includes(recordKeyFor(record))));
     // Runtime applies the unified inline gate; Query Agent may narrow to selected record keys.
     return { ...base, ok: true, status: "complete", records: matches };

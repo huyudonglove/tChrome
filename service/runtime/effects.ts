@@ -246,6 +246,7 @@ export function applyToolEffects(input: {
       }
       case "workspace_write": {
         // boundId/callIds 一律由 Runtime 反填，不经模型之手：当前请求编号 + 最近一批业务调用。
+        // files 由模型可选提供（涉及的文件路径），原样落盘进条目。
         // 计数器走 catalog（文件basename，防账本丢失重号）；展示按 ws01 格式去下划线，与 call_01 等 toolIO 编号区分。
         const id = allocateRecordId(dataDir, ledger.conversationId, "workspace").replace("_", "");
         turn.assembled.workspace ??= [];
@@ -257,6 +258,7 @@ export function applyToolEffects(input: {
           callIds: defaultWorkspaceCallIds(ledger, turn.turnId),
           op: effect.op,
           value: effect.value,
+          ...(effect.files?.length ? { files: [...effect.files] } : {}),
         });
         break;
       }

@@ -281,3 +281,19 @@ test("workspace_write validates op/value and records a causal entry with runtime
     value: "分页参数是 cursor",
   }]);
 });
+
+test("workspace_write carries optional files through to the entry", async () => {
+  const fixture = setup();
+  const execution = await fixture.execute("workspace_write", {
+    reason: "补记", op: "读了鉴权", value: "token 在此处校验", files: ["src/auth.ts:120-180", "  ", 42],
+  });
+  expect(JSON.parse(execution.text)).toMatchObject({ ok: true, files: ["src/auth.ts:120-180"] });
+  expect(execution.effects).toEqual([{
+    type: "workspace_write", op: "读了鉴权", value: "token 在此处校验", files: ["src/auth.ts:120-180"],
+  }]);
+  fixture.apply(execution, "call_ws");
+  expect(fixture.turn.assembled.workspace).toMatchObject([{
+    id: "ws01",
+    files: ["src/auth.ts:120-180"],
+  }]);
+});

@@ -85,4 +85,14 @@ describe("<workspace> 因果工作区", () => {
     const xml = conversationXml(payload({ task: null, turns: [{ ...turnBase, workspace: [] }] }));
     expect(xml).not.toContain("<workspace");
   });
+
+  test("renders files attribute when the entry names files", () => {
+    const xml = conversationXml(payload({
+      task: null,
+      turns: [{ ...turnBase, workspace: [
+        { id: "ws01", turnId: "tn_01", boundId: "b02", callId: "call_03", callIds: ["call_01"], op: "读了鉴权", value: "token 在此处校验", files: ["src/auth.ts:120-180"] },
+      ] }],
+    }));
+    expect(xml).toContain('files="src/auth.ts:120-180"');
+  });
 });

@@ -27,7 +27,7 @@ export function buildWorkspaceSuggestion(batchRows: ToolIOItem[]): string | null
     .sort((a, b) => b[1] - a[1])
     .map(([name, n]) => `${name}×${n}`)
     .join("、");
-  return `${WORKSPACE_SUGGEST_MARKER} 本批出网共 ${biz.length} 次调用（${detail}）。建议用 workspace_write 写一条因果：op=这批做了什么，value=得到什么结论。可写可不写，只记「不写就会忘」的结论。`;
+  return `${WORKSPACE_SUGGEST_MARKER} 本批出网共 ${biz.length} 次调用（${detail}）。建议用 workspace_write 写一条因果：op=这批做了什么，value=得到什么结论，files[]=涉及的文件路径（可带行区间，不涉及文件可不传）。可写可不写，只记「不写就会忘」的结论。`;
 }
 
 /** 去掉历史建议，本轮只保留最新一条。 */

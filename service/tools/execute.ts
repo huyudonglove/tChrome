@@ -67,7 +67,7 @@ export type ExecuteInput = {
   browserNames: string[];
   host?: BrowserHost;
   signal?: AbortSignal;
-  queryContext?: (args: {sumId: string; module: QueryModule; intent: string}) => Promise<QueryResult>;
+  queryContext?: (args: {sumId: string; module: QueryModule; intent: string; file?: string}) => Promise<QueryResult>;
   compressContext?: (args: { phase: "history" | "current" }) => Promise<{
     status: "completed" | "stopped" | "noop";
     committedTurnIds: string[];
@@ -218,8 +218,9 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     if (!op) return failedTool(errorDetail("workspace_empty_op"), "invalid_arguments", { toolName: name });
     const value = typeof args.value === "string" ? args.value.trim() : "";
     if (!value) return failedTool(errorDetail("workspace_empty_value"), "invalid_arguments", { toolName: name });
-    return result(JSON.stringify({ ok: true, op, value }),
-      [{ type: "workspace_write", op, value }]);
+    const files = asStringArray(args.files).map((f) => f.trim()).filter(Boolean);
+    return result(JSON.stringify({ ok: true, op, value, ...(files.length ? { files } : {}) }),
+      [{ type: "workspace_write", op, value, ...(files.length ? { files } : {}) }]);
   }
   if (name === "tabs_current") {
     if (!host?.readCurrentTabs) return failedTool(errorDetail("browser_not_connected"), "browser_unavailable");
@@ -695,8 +696,9 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   }
   if (name === "context_query" || name === "agent_query") {
     if (!input.queryContext) return failedTool("query_agent_unavailable", "query_failed");
+    const file = typeof args.file === "string" && args.file.trim() ? args.file.trim() : undefined;
     const queried = await input.queryContext({ sumId: String(args.sumId), module: args.module as QueryModule,
-      intent: String(args.intent) });
+      intent: String(args.intent), ...(file ? { file } : {}) });
     if (queried.status === "cancelled") return result(JSON.stringify({ ok: false, status: "cancelled" }));
     const status: QueryEvidence["status"] = queried.status === "not_found" || queried.status === "error" ? queried.status : "complete";
     const query = { sumId: queried.sumId, module: queried.module, intent: queried.intent,
@@ -711,6 +713,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       sumId: query.sumId,
       module: query.module,
       intent: query.intent,
+      ...(file ? { file } : {}),
       records: query.records,
       detail: query.detail,
     }), [{ type: "query.set", query }]);

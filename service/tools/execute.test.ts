@@ -117,6 +117,24 @@ test("agent_query reuses the Query Agent and emits query.set", async () => {
   } }]);
 });
 
+test("agent_query passes file through to the Query Agent and echoes it", async () => {
+  const seen: unknown[] = [];
+  const records = [{ id: "ws01", turnId: "tn_01", files: ["src/auth.ts"] }];
+  const execution = await executeTool({
+    name: "agent_query",
+    arguments: { reason: "查鉴权结论", sumId: "sum_01", module: "workspace", intent: "鉴权结论", file: "auth.ts" },
+    dataDir: "",
+    browserNames: [],
+    queryContext: async (args) => {
+      seen.push(args);
+      return { ok: true as const, status: "complete" as const, sumId: "sum_01", module: "workspace" as const, intent: "鉴权结论", file: "auth.ts", records };
+    },
+    lookup: { unusedTools: [], knownTools: [], enabledTools: [] },
+  });
+  expect(seen).toEqual([{ sumId: "sum_01", module: "workspace", intent: "鉴权结论", file: "auth.ts" }]);
+  expect(JSON.parse(execution.text)).toMatchObject({ ok: true, status: "complete", file: "auth.ts" });
+});
+
 
 
 test("agent_compress invokes the Compression Agent with the selected phase", async () => {

@@ -32,7 +32,7 @@
 
 ## 压缩归档查询
 
-常驻 `context_query(sumId, module, intent)` 从指定摘要的来源中查询一个模块。模块为 userInput、toolIO、observations、workspace、memoryWrites、stopReason、queryHistory 或 summaries。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后把完整 records 追加进本轮 `<query>`；`<toolIO>` 只投影指针。查询结果与其它工具返回共用统一内联门禁（默认 6000 字符，inlineChars），超出时注入 externalized 摘要（summary+path+totalLines/lineWidth）；本地全文按默认 100 字/行拆行，可用 evidence_search(windows=[{callId|pageId, keyword|startLine}]) 一次多窗口检索。查询不会刷新页面。
+常驻 `context_query(sumId, module, intent[, file])` 从指定摘要的来源中查询一个模块。模块为 userInput、toolIO、observations、workspace、memoryWrites、stopReason、queryHistory 或 summaries（file 只支持 workspace / toolIO / summaries，按文件过滤候选）。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后把完整 records 追加进本轮 `<query>`；`<toolIO>` 只投影指针。查询结果与其它工具返回共用统一内联门禁（默认 6000 字符，inlineChars），超出时注入 externalized 摘要（summary+path+totalLines/lineWidth）；本地全文按默认 100 字/行拆行，可用 evidence_search(windows=[{callId|pageId, keyword|startLine}]) 一次多窗口检索。查询不会刷新页面。
 
 查询模块统一为 conversationHistory；每份归档保留轮次内部的输入、目标变化、工具、页面观察、记忆增量及最终输出。目录与原文由 `service/context-archive/` 管理，工具层只校验参数并调度 `service/agents/query/`。查询 Agent 自己管理提示词、输入输出协议与业务校验，模型请求复用现有 `provider.complete`。查询 Agent 仅选择候选，返回 ID 不能作为文件路径。查询结果走统一内联门禁，不按普通工具再截一层。
 

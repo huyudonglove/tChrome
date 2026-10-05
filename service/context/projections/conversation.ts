@@ -230,7 +230,7 @@ const TASK_ITEM_ATTRS = ["id", "status", "expectedEffect", "verification", "bloc
 const STOP_ATTRS = ["kind", "callId"];
 const CALL_ATTRS = ["callId", "turnId", "name"];
 
-/** 因果工作区：<workspace from首条id to末条id> 包 <ws id boundid callIds>，body 为 {op, value}。不限量。 */
+/** 因果工作区：<workspace from首条id to末条id> 包 <ws id boundid callIds files?>，body 为 {op, value}。不限量。 */
 const workspaceXml = (entries: WorkspaceEntry[]): string => {
   if (!entries.length) return "";
   const bounds = attrText({ from: entries[0]!.id, to: entries.at(-1)!.id });
@@ -239,6 +239,7 @@ const workspaceXml = (entries: WorkspaceEntry[]): string => {
       id: entry.id,
       boundid: entry.boundId,
       ...(entry.callIds.length ? { callIds: entry.callIds.join(",") } : {}),
+      ...(entry.files?.length ? { files: entry.files.join(",") } : {}),
     });
     return `<ws${attrs}>\n${jsonBody({ op: entry.op, value: entry.value })}\n</ws>`;
   }).join("\n");

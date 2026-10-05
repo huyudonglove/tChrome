@@ -42,7 +42,7 @@ export type Observation = {  id: string;
   validUntilTurn?: number;
 };
 
-/** 因果工作区条目：一次出网做了什么（op）、得到什么结论（value），由 workspace_write 写入，跟 turn 走。 */
+/** 因果工作区条目：一次出网做了什么（op）、得到什么结论（value）、涉及哪些文件（files，可带行区间），由 workspace_write 写入，跟 turn 走。 */
 export type WorkspaceEntry = {
   id: string;
   turnId: string;
@@ -54,6 +54,8 @@ export type WorkspaceEntry = {
   callIds: string[];
   op: string;
   value: string;
+  /** 涉及的文件路径（可选，可带行区间如 src/auth.ts:120-180），用于按文件回查因果。 */
+  files?: string[];
 };
 
 /** Most recent model-returned tool batch; replaced before the next model request. */

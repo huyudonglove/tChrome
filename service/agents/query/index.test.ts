@@ -85,3 +85,66 @@ test("query result retains provider fault codes without partial evidence", async
   expect(await queryContext({ ...input, sumId: "missing", provider: valid }))
     .toMatchObject({ faultCode: "query_failed", status: "error", records: [] });
 });
+
+function fileFixture() {
+  const dataDir = mkdtempSync(join(tmpdir(),"query-file-")); dirs.push(dataDir);
+  const sources = [
+    { id: "turn_tn_01", content: { turnId: "tn_01",
+      observations: [{ id: "page_01", type: "local_fs_read", result: "token" }],
+      workspace: [{ id: "ws01", turnId: "tn_01", boundId: "b01", callId: "call_w1", callIds: ["call_01"], op: "读了鉴权", value: "token 在此校验", files: ["src/auth.ts:120-180"] }],
+      toolIO: [{ callId: "call_01", turnId: "tn_01", name: "local_fs_read", arguments: { reason: "读鉴权", items: [{ path: "src/auth.ts", startLine: 120 }] }, return: { text: "token" } }] } },
+    { id: "turn_tn_02", content: { turnId: "tn_02",
+      observations: [{ id: "page_02", type: "local_fs_list", result: "ok" }],
+      workspace: [{ id: "ws02", turnId: "tn_02", boundId: "b02", callId: "call_w2", callIds: ["call_02"], op: "读了列表", value: "分页 cursor" }],
+      toolIO: [{ callId: "call_02", turnId: "tn_02", name: "local_fs_list", arguments: { reason: "列目录", path: "src/list" }, return: { text: "ok" } }] } },
+  ];
+  const entries: CompressionRecord[] = sources.map((source, n) => ({ id: `sum_0${n + 1}`, module: "conversationHistory", turnId: `tn_0${n + 1}`, level: 1, summary: "状态核对。", userRequest: "核对", actions: "读取", result: "确认", sourceIds: [source.id], createdAt: "2026-09-12" }));
+  entries.push({ ...entries[0]!, id: "sum_03", sourceIds: ["sum_01", "sum_02"], level: 2 });
+  commitArchive(dataDir, "cv_test", { version: 1, module: "conversationHistory", entries, activeIds: ["sum_03", "sum_02", "sum_01"], coveredSourceIds: sources.map(s => s.id) }, sources, entries);
+  return { dataDir, conversationId: "cv_test", repoRoot: resolve(import.meta.dir, "../../.."), sumId: "sum_03", intent: "鉴权结论" };
+}
+
+test("file narrows workspace candidates to the turn that names the file", async () => {
+  const input = fileFixture();
+  const result = await queryContext({ ...input, module: "workspace" as const, file: "auth.ts", provider: provider(["tn_01"], request => {
+    const data = queryTurnsFromUserMessage(request.messages[1]!.content);
+    expect(data.request).toMatchObject({ file: "auth.ts" });
+    expect(data.turns.map(v => v.turnId)).toEqual(["tn_01"]);
+  }) });
+  expect(result.status).toBe("complete");
+  expect(result).toMatchObject({ file: "auth.ts" });
+  expect(result.records).toHaveLength(1);
+  expect(result.records[0]).toMatchObject({ id: "ws01", files: ["src/auth.ts:120-180"] });
+});
+
+test("file narrows toolIO candidates by the call's file arguments", async () => {
+  const input = fileFixture();
+  const result = await queryContext({ ...input, module: "toolIO" as const, file: "src/auth.ts", provider: provider(["tn_01"], request => {
+    const data = queryTurnsFromUserMessage(request.messages[1]!.content);
+    expect(data.turns.map(v => v.turnId)).toEqual(["tn_01"]);
+  }) });
+  expect(result.status).toBe("complete");
+  expect(result.records).toHaveLength(1);
+  expect(result.records[0]).toMatchObject({ callId: "call_01" });
+});
+
+test("file with no match short-circuits without spending a model roundtrip", async () => {
+  const input = fileFixture();
+  const dead: Provider = { async complete() { throw new Error("must not call provider"); } };
+  const miss = await queryContext({ ...input, module: "workspace" as const, file: "nope.ts", provider: dead });
+  expect(miss).toMatchObject({ status: "not_found", records: [] });
+  expect(miss.detail).toContain("nope.ts");
+  const unsupported = await queryContext({ ...input, module: "observations" as const, file: "auth.ts", provider: dead });
+  expect(unsupported).toMatchObject({ status: "not_found", records: [] });
+  expect(unsupported.detail).toContain("不带文件归因");
+});
+
+test("blank file behaves like no filter", async () => {
+  const input = fileFixture();
+  const result = await queryContext({ ...input, module: "workspace" as const, file: "   ", provider: provider(["tn_01", "tn_02"], request => {
+    const data = queryTurnsFromUserMessage(request.messages[1]!.content);
+    expect(data.turns.map(v => v.turnId).sort()).toEqual(["tn_01", "tn_02"]);
+    expect(data.request).not.toHaveProperty("file");
+  }) });
+  expect(result.status).toBe("complete");
+});

@@ -9,7 +9,7 @@
 - <turn>：一轮的完整切片。标签属性：turnId 是轮次 ID；from / to 是本段工具调用 ID 首尾（单次调用时两者相同）。二级标签有则写、无则省略：
   - <userInput> 原话；
   - <observations> 观察结果（页面、代码、截图等）；
-  - <workspace> 因果工作区（op=这批做了什么、value=得到什么结论，窗口不限量；boundid=第几次出网，callIds=来源调用，可凭 callIds 用 evidence_search 跟进原文）；
+  - <workspace> 因果工作区（op=这批做了什么、value=得到什么结论、files[]=涉及的文件路径可带行区间，窗口不限量；boundid=第几次出网，callIds=来源调用，可凭 callIds 用 evidence_search 跟进原文，凭 files 按文件回查因果）；
   - <notes> 本轮草稿；
   - <reflection> 本轮反思；
   - <query> 本轮查询；
