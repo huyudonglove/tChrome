@@ -129,19 +129,22 @@ export function createGeminiProvider(config: GeminiConfig = {}) {
           delete clone.anyOf;
         }
         if (clone.properties && typeof clone.properties === "object") {
-          for (const [key, prop] of Object.entries(clone.properties as Record<string, any>)) {
+          const props = { ...(clone.properties as Record<string, any>) };
+          for (const [key, prop] of Object.entries(props)) {
             if (prop && typeof prop === "object") {
-              if (typeof prop.type !== "string") {
-                if (prop.anyOf && Array.isArray(prop.anyOf) && prop.anyOf.length > 0) {
-                  prop.type = prop.anyOf[0]?.type || "string";
-                  delete prop.anyOf;
+              const next: Record<string, any> = { ...(prop as Record<string, any>) };
+              if (typeof next.type !== "string") {
+                if (next.anyOf && Array.isArray(next.anyOf) && next.anyOf.length > 0) {
+                  next.type = next.anyOf[0]?.type || "string";
                 } else {
-                  prop.type = "string";
+                  next.type = "string";
                 }
+                delete next.anyOf;
               }
-              clone.properties[key] = sanitizeSchema(prop);
+              props[key] = sanitizeSchema(next);
             }
           }
+          clone.properties = props;
         }
       }
       return clone;
