@@ -703,7 +703,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       status,
       records: queried.records as QueryRecord[],
       detail: queried.detail };
-    // Full records go to the archive + <currentQuery>; toolIO projection keeps a pointer only.
+    // Full records go to the queryHistory array + <query>; toolIO projection keeps a pointer only.
     return result(JSON.stringify({
       ok: queried.ok,
       status: query.status,

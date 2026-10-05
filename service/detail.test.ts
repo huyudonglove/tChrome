@@ -11,6 +11,7 @@ import { loadContextModules } from "./context/modules.ts";
 import { validateUserData } from "./context/data-schema.ts";
 import { systemText, userText } from "./context/window.ts";
 import { loadToolRegistry, coreToolIds, toolGuideFor } from "./tools/registry.ts";
+import { stripWorkspaceSuggestion } from "./runtime/workspace.ts";
 import { skillGuide, loadSkills } from "./skills/loader.ts";
 import { contextState } from "./runtime/context-state.ts";
 import { compressionTurnsFromUserMessage } from "./agents/compression/protocol.ts";
@@ -21,9 +22,7 @@ const finish = () => reply([{ id: "finish", name: "finishTurn", arguments: { rea
 const section = (user: string, tag: string) => {
   const m = user.match(new RegExp(`<${tag}>\\n[\\s\\S]*?\\n\\n内容：\\n([\\s\\S]*?)\\n</${tag}>`));
   if (m) return JSON.parse(m[1]!);
-  const all = collectNested(user, tag === "currentQuery" || tag === "queryHistory" ? "query" : tag === "toolIO" ? "call" : tag);
-  if (tag === "currentQuery") return all.find((row: any) => row.currentQuery) ?? null;
-  if (tag === "queryHistory") return all.filter((row: any) => !row.currentQuery);
+  const all = collectNested(user, tag === "toolIO" ? "call" : tag);
   if (tag === "toolIO" || tag === "query") return all;
   return all.length ? all.at(-1) : tag === "notes" ? {} : null;
 };
@@ -48,7 +47,7 @@ const collectNested = (user: string, tag: string): any[] => {
   }
   return rows;
 };
-// Record elements carry their scalar fields (name/stage/ok/currentQuery/externalized/...) as
+// Record elements carry their scalar fields (name/stage/ok/externalized/...) as
 // attributes, so a body-only parse loses exactly the fields the assertions read.
 const attrRecord = (raw: string): Record<string, any> => {
   const attrs: Record<string, any> = {};
@@ -108,7 +107,9 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
           return [id, id === "skill" || id === "tools" || id === "conversation" ? body : JSON.parse(body)];
         }));
         expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
-        const current = section(input.messages[1]!.content, "currentQuery");
+        // 查询直接塞进数组： main===2 时第一次查询已落账，在 <query> 里可见。
+        const queries = section(input.messages[1]!.content, "query");
+        const current = queries.at(-1);
         if (current.externalized) {
           expect(current.search).toBe("evidence_search");
           expect(String(current.head ?? current.summary).length).toBeGreaterThan(0);
@@ -124,27 +125,27 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
         const queryRow = toolIO.find((row: any) => row.name === "context_query");
         // context_query 的投影把 queryView 直接摊在 return 上（见 context/projections/tools.ts），
         // 不再包一层 result；只有被外置的 body 才是原始字符串。
+        // 每批返回末尾可能挂工作区建议，解析前先裁掉。
         const result = queryRow?.return;
-        if (typeof result === "string") expect(result).toContain("currentQuery");
-        else expect(result).toMatchObject({ currentQuery: true });
+        const rawResult = typeof result === "string" ? stripWorkspaceSuggestion(result) : JSON.stringify(result);
+        expect(JSON.parse(rawResult)).toMatchObject({ status: "complete", sumId: f.sumId });
         expect(JSON.stringify(toolIO)).not.toContain(f.tool.return.text);
-        expect(section(input.messages[1]!.content, "queryHistory")).toHaveLength(1);
-        expect(section(input.messages[1]!.content, "currentQuery").queryId).toBe("query_02");
+        expect(section(input.messages[1]!.content, "query")).toHaveLength(2);
+        expect(section(input.messages[1]!.content, "query").map((q: any) => q.queryId)).toEqual(["query_01", "query_02"]);
       } else {
-        expect(section(input.messages[1]!.content, "currentQuery")).toBeNull();
-        expect(section(input.messages[1]!.content, "queryHistory").map((q: {turnId:string}) => q.turnId)).toEqual(["tn_07", "tn_07"]);
+        expect(section(input.messages[1]!.content, "query").map((q: {turnId:string}) => q.turnId)).toEqual(["tn_07", "tn_07"]);
       }
       return finish();
     } };
     expect((await handleTurn({ repoRoot, dataDir, provider }, { userInput: "读取详情", submittedAt: "2026-09-12" })).stopReason).toEqual({ kind: "reply", text: "完成" });
-    expect(loadLedger(dataDir, f.cv).currentQuery?.queryId).toBe("query_02");
+    expect(loadLedger(dataDir, f.cv).queryHistory.at(-1)?.queryId).toBe("query_02");
     expect(loadIndex(dataDir, f.cv, "conversationHistory").coveredSourceIds).toContain("src_02");
     await handleTurn({ repoRoot, dataDir, provider }, { userInput: "继续", submittedAt: "2026-09-12" });
-    expect(loadLedger(dataDir, f.cv).currentQuery).toBeNull();
+    expect(loadLedger(dataDir, f.cv).queryHistory.map(q => q.queryId)).toEqual(["query_01", "query_02"]);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
-test("unified gate externalizes large currentQuery and cancellation preserves the previous query", async () => {
+test("unified gate externalizes large query and cancellation preserves prior queries", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "query-pages-"));
   try {
     const f = fixture(dataDir, "原始证据".repeat(1800)); let main = 0, aux = 0;
@@ -159,7 +160,8 @@ test("unified gate externalizes large currentQuery and cancellation preserves th
       }
       main++;
       if (main === 1) return queryCall(f.sumId);
-      const current = section(input.messages[1]!.content, "currentQuery");
+      const queries = section(input.messages[1]!.content, "query");
+      const current = queries.at(-1);
       expect(current.externalized).toBe(true);
       expect(current.search).toBe("evidence_search");
       expect(current.head ?? current.summary).toBeDefined();
@@ -168,12 +170,12 @@ test("unified gate externalizes large currentQuery and cancellation preserves th
     } };
     const running = handleTurn({ repoRoot, dataDir, provider }, { userInput: "读取详情", submittedAt: "2026-09-12" });
     await entered;
-    const before = loadLedger(dataDir, f.cv).currentQuery;
+    const before = loadLedger(dataDir, f.cv).queryHistory;
     stopTurn(dataDir); release();
     expect((await running).stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
     const after = loadLedger(dataDir, f.cv);
-    expect(after.currentQuery).toEqual(before);
-    // Second query was cancelled mid-flight; first query remains current (not yet rotated to history).
-    expect(after.queryHistory).toEqual([]);
+    expect(after.queryHistory).toEqual(before);
+    // Second query was cancelled mid-flight; only the first query is stored.
+    expect(after.queryHistory).toHaveLength(1);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });

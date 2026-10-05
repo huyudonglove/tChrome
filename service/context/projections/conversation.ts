@@ -61,7 +61,6 @@ export function conversationPayload(input: {
   turn: Turn;
   memories: { conversation: MemoryRecord[] | string };
   conversationSummaries?: TurnSummary[] | string;
-  currentQuery?: QueryEvidence | null;
   queryHistory?: QueryEvidence[];
   gate: Omit<QueryViewOptions, "path"> & { path?: (query: QueryEvidence) => string | undefined };
   /** Per-turn notes snapshots; live notes always land on the active turn. */
@@ -90,7 +89,6 @@ export function conversationPayload(input: {
     workspaceByTurn.set(entry.turnId, rows);
   }
   const queries: QueryEvidence[] = [...(input.queryHistory ?? [])];
-  if (input.currentQuery) queries.push(input.currentQuery);
   const notesByTurn = input.notesByTurn ?? {};
   // Newest tool calls keep their detail; everything older collapses to pointers.
   const ringCallIds = new Set(ledger.toolIO.slice(-runtimeConfig.context.toolioRingSize).map((row) => row.callId));
@@ -116,10 +114,7 @@ export function conversationPayload(input: {
       reflection: reflectByTurn.get(row.turnId)?.length
         ? { turnId: row.turnId, items: reflectByTurn.get(row.turnId)! }
         : null,
-      query: groupByTurn(queries, row.turnId).map((query) => ({
-        ...queryView(query, { ...gate, path: gate.path?.(query) }),
-        ...(input.currentQuery && query.queryId === input.currentQuery.queryId ? { currentQuery: true } : {}),
-      })),
+      query: groupByTurn(queries, row.turnId).map((query) => queryView(query, { ...gate, path: gate.path?.(query) })),
       stopReason: isLive
         ? turn.stopReason
         : (input.dataDir
@@ -224,16 +219,16 @@ const listXml = (name: string, items: unknown, keys: string[]): string => {
 };
 
 /** Scalar keys lifted to attributes, per record shape (see projections/). */
-const USER_INPUT_ATTRS = ["id", "turnId", "submittedAt"];
-const OBSERVATION_ATTRS = ["id", "turnId", "callId", "batchId", "tabId", "type", "taskId", "taskItemId", "writtenTurn", "validUntilTurn"];
-const MEMORY_ATTRS = ["memoryId", "turnId", "layer", "createdAt", "sourceCallId"];
+const USER_INPUT_ATTRS = ["id", "turnId"];
+const OBSERVATION_ATTRS = ["id", "callId", "tabId", "type", "taskId", "taskItemId", "writtenTurn", "validUntilTurn"];
+const MEMORY_ATTRS = ["memoryId", "turnId", "sourceCallId"];
 const SUMMARY_ATTRS = ["sumId", "turnId", "tag", "level", "turnIds", "from"];
 const REFLECT_ATTRS = ["id", "focus"];
-const QUERY_ATTRS = ["queryId", "turnId", "sumId", "module", "status", "ok", "faultCode", "sourceCallId", "currentQuery", "externalized", "totalChars", "totalLines", "lineWidth", "path", "search"];
+const QUERY_ATTRS = ["queryId", "turnId", "sumId", "module", "status", "ok", "faultCode", "sourceCallId", "externalized", "totalChars", "totalLines", "lineWidth", "path", "search"];
 const TASK_ATTRS = ["id", "title", "status", "createdTurnId", "updatedTurnId"];
 const TASK_ITEM_ATTRS = ["id", "status", "expectedEffect", "verification", "blockedReason", "outcome"];
 const STOP_ATTRS = ["kind", "callId"];
-const CALL_ATTRS = ["callId", "turnId", "batchId", "name"];
+const CALL_ATTRS = ["callId", "turnId", "name"];
 
 /** 因果工作区：<workspace from首条id to末条id> 包 <ws id boundid callIds>，body 为 {op, value}。不限量。 */
 const workspaceXml = (entries: WorkspaceEntry[]): string => {
@@ -295,7 +290,6 @@ const callXml = (value: unknown): string => {
   const ret = asRecord(record.return) ?? {};
   const result = asRecord(ret.result);
   const attrs: Record<string, string> = pickAttrs(record, CALL_ATTRS);
-  if (ret.stage !== undefined) attrs.stage = String(ret.stage);
   if (typeof result?.ok === "boolean") attrs.ok = String(result.ok);
   const body = pickBody(record, CALL_ATTRS);
   body.return = ret.result !== undefined ? ret.result : ret;

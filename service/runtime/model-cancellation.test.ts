@@ -78,7 +78,7 @@ test("query uses the main request's signal and cancellation cannot install query
     stopTurn(dataDir); expect(signal?.aborted).toBe(true);
     expect((await within(running)).stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
     const ledger = loadLedger(dataDir, cv);
-    expect(ledger.currentQuery).toBeNull(); expect(ledger.queryHistory).toEqual([]); expect(mainCalls).toBe(1);
+    expect(ledger.queryHistory).toEqual([]); expect(mainCalls).toBe(1);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 

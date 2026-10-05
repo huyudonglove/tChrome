@@ -87,7 +87,6 @@ export function emptyLedger(conversationId: string): Ledger {
     boundSeq: 0,
     contextTab: null,
     notes: {},
-    currentQuery: null,
     queryHistory: [],
     windowChars: 0,
     compressAt: runtimeConfig.context.compressAtChars,

@@ -220,7 +220,6 @@ export type Ledger = {
   boundSeq?: number;
   contextTab: TabContext;
   notes: Record<string, string>;
-  currentQuery: QueryEvidence | null;
   queryHistory: QueryEvidence[];
   windowChars: number;
   compressAt: number;

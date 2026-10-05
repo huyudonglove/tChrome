@@ -62,7 +62,6 @@ export function toolHistoryView(records: ToolIOItem[], observations: Observation
         sumId: query.sumId,
         module: query.module,
         intent: query.intent,
-        currentQuery: true,
         recordCount: records.length,
         ...(query.faultCode ? { faultCode: query.faultCode } : {}),
         ...(query.detail ? { detail: query.detail } : {}),

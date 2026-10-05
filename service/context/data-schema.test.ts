@@ -29,7 +29,7 @@ test("assembled User slots follow the shared data contract", () => {
     project: [{ memoryId: "lm_01", turnId: "tn_01", sourceCallId: "call_01", sourceConversationId: "cv_01", layer: "project", text: "保留核对依据", createdAt: "2026-09-12" }],
     conversation: [{ memoryId: "mm_01", turnId: "tn_01", sourceCallId: "call_01", layer: "conversation", text: "当时待处理", createdAt: "2026-09-12" }],
   });
-  const rendered = userText({ contextModules, ledger, turn, memories, skillText: "核对方法", conversationSummaries: [{ id: "sum_01", turnId: "tn_01", tag: "状态", userRequest: "检查状态", actions: "读取详情", result: "待处理" }], currentQuery: query, queryHistory: [{ ...query, queryId: "query_01" }] });
+  const rendered = userText({ contextModules, ledger, turn, memories, skillText: "核对方法", conversationSummaries: [{ id: "sum_01", turnId: "tn_01", tag: "状态", userRequest: "检查状态", actions: "读取详情", result: "待处理" }], queryHistory: [query, { ...query, queryId: "query_01" }] });
   const values: Record<string, any> = {};
   const re = /<([A-Za-z][A-Za-z0-9]*)(?:\s[^>]*)?>\n能力：[\s\S]*?\n\n内容：\n([\s\S]*?)\n<\/\1>/g;
   let m: RegExpExecArray | null;

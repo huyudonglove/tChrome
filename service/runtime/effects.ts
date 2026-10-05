@@ -58,10 +58,10 @@ export function applyToolEffects(input: {
   for (const effect of effects) {
     switch (effect.type) {
       case "query.set": {
-        if (ledger.currentQuery) ledger.queryHistory.push(ledger.currentQuery);
-        ledger.currentQuery = { ...effect.query,
+        // 反复查询直接塞进数组，不设 current 位、不做退休。
+        ledger.queryHistory.push({ ...effect.query,
           queryId: allocateRecordId(dataDir, ledger.conversationId, "query"),
-          turnId: turn.turnId, sourceCallId: call.callId };
+          turnId: turn.turnId, sourceCallId: call.callId });
         break;
       }
       case "note.write": ledger.notes[effect.key] = effect.value; break;

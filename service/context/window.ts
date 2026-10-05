@@ -28,7 +28,6 @@ export function userText(input: {
   skillText: string;
   toolGuide?: string;
   conversationSummaries?: Parameters<typeof conversationPayload>[0]["conversationSummaries"];
-  currentQuery?: QueryEvidence | null;
   queryHistory?: QueryEvidence[];
   inlineBudget?: { dataDir: string; system: string };
   /** Restores settled turns' <stopReason> from disk when not in inlineBudget. */
@@ -51,7 +50,6 @@ export function userText(input: {
     turn,
     memories: { conversation: memories.conversation },
     conversationSummaries: input.conversationSummaries,
-    currentQuery: input.currentQuery,
     queryHistory: input.queryHistory,
     gate: { ...gate, path: queryPath },
     dataDir: input.dataDir ?? input.inlineBudget?.dataDir,

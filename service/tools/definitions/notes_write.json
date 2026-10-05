@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "notes_write",
-    "description": "保存或更新工作笔记。\n参数：必填 key、value，均为字符串。创建或覆盖 <notes> 中指定 key 的值，同一个 key 不会追加多份。\n返回：当前该项。",
+    "description": "保存或更新工作笔记。\n适合轮内临时暂存（中间状态、计数、待办勾兑），只当前轮可见、不进压缩；要带到下轮或压缩后，用 observation_write / workspace_write / memory_writeConversation。\n参数：必填 key、value，均为字符串。创建或覆盖 <notes> 中指定 key 的值，同一个 key 不会追加多份。\n返回：当前该项。",
     "parameters": {
       "type": "object",
       "properties": {
