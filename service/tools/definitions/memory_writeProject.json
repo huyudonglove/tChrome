@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "memory_writeProject",
-    "description": "保存跨会话仍适用的事实和约束。projectMemory 是正文数组，按顺序追加；scope 必填，表示本批记忆所属的项目目录名。summary 可选，与正文数组等长，每项用一句话说明可独立理解的结论，供未展示正文时的目录使用。\nRuntime 根据近期工具调用路径选择活跃项目，展示这些项目和无 scope 的记忆；尚未确定活跃项目时展示全部。只有确实不属于某个项目的信息才使用空字符串 scope；字符串 global 只是普通归属名。其他项目的目录线索不代表已加载正文，读取原文需定位记忆文件，不能用修改或删除工具代替读取。\n记忆默认不过期，被展示时保留全文。同一事实有新结论时用 memory_update 改写原记录，不追加冲突版本；不再需要时用 memory_delete。summary 未提供时目录采用正文首行。返回写入条数与所用 scope。",
+    "description": "保存跨会话仍适用的事实和约束。长期记忆不参与压缩，被选入模型窗口时保留全文；仅当前会话需要、可以随来源轮次压缩的信息用 memory_writeConversation。projectMemory 是正文数组，按顺序追加；scope 必填，表示本批记忆所属的项目目录名。summary 可选，与正文数组等长，每项用一句话说明可独立理解的结论，供未展示正文时的目录使用。\nRuntime 根据近期工具调用路径选择活跃项目，展示这些项目和无 scope 的记忆；尚未确定活跃项目时展示全部。只有确实不属于某个项目的信息才使用空字符串 scope；字符串 global 只是普通归属名。其他项目的目录线索不代表已加载正文，读取原文需定位记忆文件，不能用修改或删除工具代替读取。\n记忆默认不过期，被展示时保留全文。同一事实有新结论时用 memory_update 改写原记录，不追加冲突版本；不再需要时用 memory_delete。summary 未提供时目录采用正文首行。返回写入条数与所用 scope。",
     "parameters": {
       "type": "object",
       "properties": {

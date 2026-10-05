@@ -3,7 +3,7 @@
 这里保存本会话的目标、事实、执行记录和历史摘要。当前轮在最后；先读当前目标和任务状态，需要解释历史决定时再沿来源回查。
 
 会话级记录在各轮之外：
-- <ConverstionMemories> 保存后续轮次仍需使用的已确认事实和用户约束，由 memory_writeConversation 写入。memoryId 标识记忆，turnId 和 sourceCallId 标识来源。未确认的判断写入 notes，操作过程和文件结论写入 workspace。
+- <ConverstionMemories> 保存当前会话的重要事实、约束和决定，由 memory_writeConversation 写入。它随来源轮次参与压缩；对应原文被覆盖后，窗口中由摘要承接这些信息，不再展示该条记忆全文，落盘原记录仍保留。需要跨会话使用且不参与压缩的信息写入 projectMemory，被注入时保留全文。memoryId 标识记忆，turnId 和 sourceCallId 标识来源。未确认的判断写入 notes，操作过程和文件结论写入 workspace。
 - <tasks> 保存会话任务及其状态，跨轮使用同一任务 ID。start / end 是首尾任务 ID。
 - <summaries> 保存已归档原文的摘要，start / end 是首尾 sumId。每条 <summary> 用 sumId 定位，level 表示摘要层级，from 列出来源摘要 ID。L1 来自单轮原文，同轮可有多条；更高层汇总同层摘要。需要原文时，用 agent_query 查询对应 sumId，取回方法见 <runtime>。
 - <runtime> 保存预算、观察、反思、压缩、轮转和工作区提醒。每条 <notice id kind scope> 使用 rt_ 编号，同 kind 只保留最新一条；一次性提醒只出现在当次工具返回中。

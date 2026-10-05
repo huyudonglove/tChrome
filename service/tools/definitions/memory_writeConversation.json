@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "memory_writeConversation",
-    "description": "保存本会话已确认的事实、偏好和决定（仅在本会话有效，会话结束即消失，不跨会话共享）。\n参数：conversationMemory 为字符串数组，按旧到新追加。需要跨会话保留的信息用 memory_writeProject，不要写在这里。\n返回：写入条数。",
+    "description": "保存当前会话的重要事实、约束和决定。会话记忆随来源轮次参与压缩；对应原文被覆盖后，模型窗口改用摘要，不再展示该条记忆全文，落盘原记录仍保留。结束一轮或重新打开同一会话不会自动删除记忆，不跨会话共享。\n参数：conversationMemory 为字符串数组，逐条追加。需要跨会话保留且不参与压缩的信息用 memory_writeProject；尚未确认的想法放 notes，操作过程和结论放 workspace。\n返回：写入条数。",
     "parameters": {
       "type": "object",
       "properties": {

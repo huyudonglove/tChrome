@@ -9,8 +9,8 @@
 | 页面、代码、截图等已观察到的状态 | observation_write：写清已确认事实、未验证部分和继续检查的位置 |
 | 一批操作与结论之间的关系 | workspace_write：op 写做了什么，value 写得到什么结论；涉及文件时填 files，来源调用填 callIds |
 | 判断为什么改变、反复失败的原因、方案取舍 | reflect_write：保留依据与下一步，不复述工具流水账 |
-| 本会话后续仍需要的已确认事实、偏好和决定 | memory_writeConversation |
-| 跨会话仍适用的事实与约束 | memory_writeProject，归属和维护规则见 <projectMemory> |
+| 当前会话的重要事实、约束和决定，允许随来源轮次压缩为摘要 | memory_writeConversation |
+| 跨会话仍适用、值得长期保留的事实与约束 | memory_writeProject：不参与压缩，被注入时保留全文；归属和维护规则见 <projectMemory> |
 | 尚未确认的想法、中间状态或计数 | notes_write：作为当前轮草稿，不进压缩 |
 | 必须由用户补充的信息或授权 | askUser：question 明确写出要用户回答什么 |
 

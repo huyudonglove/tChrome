@@ -10,6 +10,8 @@ Runtime 处理 memory_writeConversation / memory_writeProject / memory_update / 
 
 conversation 存储于 `<dataDir>/conversations/<conversationId>/memory/<memoryId>.json`，保持会话隔离。project 是服务级长期记忆，独立存储于 `<dataDir>/memory/project/<memoryId>.json`，同一 dataDir 下所有会话共享，删除来源会话后仍保留；新记录携带 sourceConversationId 并使用全局 lm_ 编号，不写入会话账本的 project 索引。
 
+两类记忆同时按适用范围和压缩生命周期区分：会话记忆服务当前会话，随来源轮次参与压缩；长期记忆跨会话保留，不参与压缩，被选入窗口时展示全文。会话记忆的落盘记录不会因结束一轮或重新打开会话而自动删除。
+
 Runtime 在请求前按压缩覆盖关系过滤会话记忆；总窗口达到压缩阈值（`runtime.json` 的 `context.compressAtChars`）触发压缩。长期记忆保持全部原文，不参与轮次压缩。会话记忆写入记录来源 turnId，与当轮材料一并进入 compression，摘要出现在 conversationHistorySummary；原记忆独立落盘。
 
 常驻 `context_query(sumId, module, intent[, file])` 从指定摘要的来源查询模块（userInput、toolIO、observations、workspace、memoryWrites、stopReason、queryHistory 或 summaries；file 只支持 workspace / toolIO / summaries，按文件过滤候选）。Query Agent 用 submitMatches 返回命中的 turnId，Runtime 校验后把完整 records 追加进本轮 `<query>`；`<calls>` 只投影指针。查询结果与其它工具返回共用统一内联门禁。
