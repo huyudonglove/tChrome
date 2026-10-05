@@ -62,6 +62,7 @@ test("60 reads second hint, 63rd is a final warning to the model, 66th interrupt
   expect(fin.action).toBe("hint");
   expect(fin.text).toContain(BUDGET_NUDGE_MARKER);
   expect(fin.text).toContain("最后通牒");
+  expect(fin.text).toContain("checkContinue");
 
   const stillHint = escalate(reads(READ_ONLY_HARD - 1), "see_page", READ);
   expect(stillHint.action).toBe("hint");
@@ -69,6 +70,13 @@ test("60 reads second hint, 63rd is a final warning to the model, 66th interrupt
   const over = escalate(reads(READ_ONLY_HARD), "see_page", READ) as { action: string; text: string };
   expect(over.action).toBe("interrupt");
   expect(over.text).not.toContain(BUDGET_NUDGE_MARKER);
+});
+
+test("checkContinue(true) resets the streak, anything else stays neutral", () => {
+  expect(substantiveStreak([...reads(READ_ONLY_HARD), row("checkContinue", { cont: true })], READ)).toBe(0);
+  expect(escalate([...reads(READ_ONLY_HARD), row("checkContinue", { cont: true })], "see_page", READ).action).toBe("continue");
+  expect(substantiveStreak([...reads(10), row("checkContinue", { cont: false }), ...reads(5)], READ)).toBe(15);
+  expect(substantiveStreak([...reads(10), row("checkContinue", {}), ...reads(5)], READ)).toBe(15);
 });
 
 test("interrupt then substantive recovers in a new segment", () => {

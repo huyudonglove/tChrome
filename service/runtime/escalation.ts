@@ -43,6 +43,13 @@ export const NEUTRAL_TOOLS = new Set([
 export function substantiveStreak(rows: ToolIOItem[], readOnly: Set<string>): number {
   let streak = 0;
   for (const row of rows) {
+    // checkContinue(true) 是模型显式确认继续：计数清零，给继续探索留出完整窗口。
+    // 确认留在账本里可审计；下一轮仍无实质性进展会重新累计，不存在一次确认永久放行。
+    if (row.name === "checkContinue") {
+      const cont = (row.arguments as Record<string, unknown> | undefined)?.cont;
+      if (cont === true || cont === "true") streak = 0;
+      continue;
+    }
     if (NEUTRAL_TOOLS.has(row.name)) continue;
     if (readOnly.has(row.name)) {
       streak += 1;
@@ -64,7 +71,7 @@ export function escalate(rows: ToolIOItem[], _lastName: string, readOnly: Set<st
     return { action: "interrupt", text: `runtime: 已连续 ${streak} 次工具调用只有读取类操作、无实质性进展，本 turn 结束。请基于已有证据收口，缺关键信息就用 askUser 问一次，别空转。` };
   }
   if (streak >= READ_ONLY_FINAL) {
-    return { action: "hint", text: `${BUDGET_NUDGE_MARKER} 已连续 ${streak} 次只有读取类操作，仍无实质性进展，这是最后通牒：立即用 finishTurn 基于已有证据收口，缺关键信息就用 askUser 问一次；再做只读调用本 turn 将直接中断，不会再提醒。` };
+    return { action: "hint", text: `${BUDGET_NUDGE_MARKER} 已连续 ${streak} 次只有读取类操作，仍无实质性进展，这是最后通牒：立即用 finishTurn 基于已有证据收口，缺关键信息就用 askUser 问一次；拿不准是否该收口可用 checkContinue(cont) 显式确认（true 继续则计数清零、false 直接结束，可反复确认、每次清零后重新累计）；再做只读调用本 turn 将直接中断，不会再提醒。` };
   }
   if (streak >= READ_ONLY_SECOND) {
     const remaining = READ_ONLY_SECOND + READ_ONLY_GRACE - streak;
