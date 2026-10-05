@@ -65,12 +65,27 @@ test("default callIds are the business calls of the latest batch", () => {
   expect(defaultWorkspaceCallIds(emptyLedger("cv_empty"), "tn_01")).toEqual([]);
 });
 
+test("separate bookkeeping batches preserve the latest business sources within the turn", () => {
+  const ledger = emptyLedger("cv_ws");
+  ledger.toolIO.push(
+    row("local_fs_read", "call_01", "batch_01"),
+    row("local_fs_read", "call_02", "batch_02"),
+    row("local_fs_grep", "call_03", "batch_02"),
+    row("observation_write", "call_04", "batch_03"),
+    row("workspace_write", "call_05", "batch_04"),
+    { ...row("local_fs_read", "call_06", "batch_05"), turnId: "tn_02" },
+    { ...row("workspace_write", "call_07", "batch_06"), turnId: "tn_03" },
+  );
+  expect(defaultWorkspaceCallIds(ledger, "tn_01")).toEqual(["call_02", "call_03"]);
+  expect(defaultWorkspaceCallIds(ledger, "tn_03")).toEqual([]);
+});
+
 test("loop appends one suggestion per batch, model writes ws, window shows it once", async () => {
   const { mkdtempSync, rmSync } = await import("node:fs");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
   const { handleTurn } = await import("./loop.ts");
-  const { ensureSession, loadLedger, saveLedger } = await import("./store.ts");
+  const { ensureSession, loadLedger, saveLedger, loadTurn } = await import("./store.ts");
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-ws-"));
   try {
     const repoRoot = join(import.meta.dir, "../..");
@@ -109,6 +124,10 @@ test("loop appends one suggestion per batch, model writes ws, window shows it on
     const reply = await handleTurn({ dataDir, repoRoot, provider } as never, { userInput: "整理", submittedAt: "2026-09-11" });
     expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
     const ledger = loadLedger(dataDir, reply.conversationId);
+    const sources = ledger.toolIO.filter((row) => ["local_fs_list", "local_fs_read"].includes(row.name)).map((row) => row.callId);
+    const savedTurn = loadTurn(dataDir, reply.conversationId, reply.turnId);
+    expect(savedTurn.assembled.workspace[0]!.callIds).toEqual(sources);
+    expect(seen[2]!).toContain(`callIds="${sources.join(",")}"`);
     // 三次出网，boundSeq 计三次。
     expect(ledger.boundSeq).toBe(3);
     // b02 的请求在 <runtime> 模块看到 b01 那批的建议（不再缀在返回后面）。

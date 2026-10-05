@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "workspace_write",
-    "description": "往本轮 <workspace> 写一条因果（这批出网做了什么 op、得到什么结论 value、涉及哪些文件 files）。Runtime 每次出网后会在返回末尾挂工作区建议，照着写 op/value/files 即可；op/value 为空会报错。\n参数：必填 op（这批出网做了什么）、value（得到了什么结论）；可选 files（涉及的文件路径字符串数组，可带行区间如 src/auth.ts:120-180，用于按文件回查因果，不传也行）。\n编号与来源调用由 Runtime 反填（boundId=当前请求编号，callIds=最近一批业务调用），不用传。\n返回：{ok, id}；条目编号 ws01…，跟 turn 走、窗口不限量，压缩时跟 turn 一起归档。只记「不写就会忘」的因果，不搬运工具返回原文。",
+    "description": "每批业务工具返回后，先调用本工具把结果写入本轮 <workspace>，再继续调用业务工具。纯记账或控制调用不触发新一轮记录。Runtime 在 <runtime> 中提供本批来源与涉及文件的工作区提醒。\n参数：必填 op（本批做了什么）、value（新增事实、失败原因或排除结果、具体位置、剩余缺口和下一步动作）；可选 files（涉及的文件路径字符串数组，可带行区间如 src/auth.ts:120-180，涉及文件时填写）。op/value 为空会报错。没有新信息时，说明未推进原因并调整下一步方法，不能只写“已检查”或“准备修改”。保留后续执行需要的关键内容，不必复制全部工具原文。\n编号与来源调用由 Runtime 反填（boundId=当前请求编号，callIds=最近一批业务调用），不用传。后续先利用已记录事实；缺原文时沿 callIds 用 evidence_search 精确取回所需部分。\n返回：{ok, id}；条目编号 ws01…，跟 turn 走、窗口不限量，压缩时跟 turn 一起归档。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -12,12 +12,12 @@
         "op": {
           "type": "string",
           "minLength": 1,
-          "description": "这批出网做了什么"
+          "description": "本批业务工具做了什么"
         },
         "value": {
           "type": "string",
           "minLength": 1,
-          "description": "得到了什么结论"
+          "description": "新增事实、失败原因或排除结果、具体位置、剩余缺口和下一步动作；无新信息时说明未推进原因及调整的方法"
         },
         "files": {
           "type": "array",

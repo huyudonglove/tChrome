@@ -11,7 +11,7 @@
 各轮原文放在 <turn> 中。turnId 标识轮次，start / end 是该轮首尾调用 ID；单次调用时两者相同。按轮次核对目标与工具来源，避免将相邻轮次混用。轮内有记录才显示对应标签：
 - <userInput>：用户原话。
 - <observations>：页面、代码、截图等观察结果。
-- <workspaces>：本批操作及结论。每条 <workspace> 的正文含 op 和 value；files 属性列出涉及文件，可带行区间，供按文件回查。boundid 表示第几次模型请求，callIds 指向来源调用，可用 evidence_search 取回对应结果。工作区记录不按条数截断，随来源轮次归档。
+- <workspaces>：每批业务工具的操作、已确认结果和下一步依据。先使用其中已确认的事实继续执行，不重复排查。每条 <workspace> 的正文含 op 和 value；files 属性列出涉及文件，可带行区间，供按文件回查。boundid 表示第几次模型请求，callIds 由 Runtime 关联来源调用；缺少原文时，用 evidence_search 按 callId 加 keyword 或 startLine 精确取回所需部分。工作区记录不按条数截断，随来源轮次归档。
 - <notes>：可修改的草稿。每条 <note id key> 用 nt_ 编号定位，key 是业务键；start / end 是首尾笔记 ID。
 - <reflections>：对判断和执行方式的反思。
 - <queries>：历史查询结果。每条 <query id> 使用查询记录 ID，start / end 是首尾查询 ID。
