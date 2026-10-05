@@ -26,7 +26,11 @@
           "type": "integer"
         },
         "timeoutMs": {
-          "type": "integer"
+          "type": "integer",
+          "description": "等待响应的超时毫秒；转发给 wait_response，默认 8000，钳制在 500~12000。",
+          "default": 8000,
+          "minimum": 500,
+          "maximum": 12000
         }
       },
       "required": [

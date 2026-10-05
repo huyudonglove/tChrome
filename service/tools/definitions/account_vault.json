@@ -16,7 +16,8 @@
           ]
         },
         "id": {
-          "type": "string"
+          "type": "string",
+          "description": "账号库中的账号 id（action=list 结果里的 id），用于按 id 取或更新账号。"
         },
         "site": {
           "type": "string",

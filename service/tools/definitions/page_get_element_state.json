@@ -14,10 +14,12 @@
           "description": "目标标签编号（必填；从 tabs_current 等返回取得，不随前台切换）。"
         },
         "frameId": {
-          "type": "integer"
+          "type": "integer",
+          "description": "内嵌文档编号，从 frame_list 取得；不传则作用于主文档。"
         },
         "id": {
-          "type": "string"
+          "type": "string",
+          "description": "page.* 返回的 e_01 格式元素编号，原样传入。"
         }
       },
       "required": [

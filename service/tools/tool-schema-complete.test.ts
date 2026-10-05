@@ -69,3 +69,35 @@ test("all tool definition properties must declare explicit valid type", () => {
   expect(issues).toEqual([]);
 });
 
+// 跨工具复用的重点参数必须有 description，否则模型只能靠猜。
+// 刻意不纳入的两项：
+//   tabId —— 20 个工具在磁盘 definitions 里没有描述，运行时视图却有，来源未定位；
+//            门禁要求它等于把门禁卡在当前无法修复的状态，先等对照实验定位来源。
+//   role 的 enum —— 扩展侧 roleOf() 动态归一化、运行时无权威闭合取值表，
+//            硬写 enum 会让 schema 失真；只约束 description。
+const FOCUS_PARAM_DESC = ["frameId", "id", "role", "timeoutMs"];
+
+function collectProps(schema: any, out: Record<string, any> = {}, depth = 0): Record<string, any> {
+  if (!schema || typeof schema !== "object" || depth > 6) return out;
+  for (const branch of [schema.allOf, schema.anyOf, schema.oneOf]) {
+    if (!Array.isArray(branch)) continue;
+    for (const item of branch) collectProps(item, out, depth + 1);
+  }
+  for (const [key, prop] of Object.entries(schema.properties || {})) {
+    if (prop && typeof prop === "object" && out[key] === undefined) out[key] = prop;
+  }
+  return out;
+}
+
+test("shared focus parameters must declare descriptions", () => {
+  const issues: string[] = [];
+  for (const tool of toolSchemas(registry, Object.keys(registry.tools))) {
+    const props = collectProps(tool.function?.parameters);
+    for (const key of FOCUS_PARAM_DESC) {
+      if (!(key in props)) continue;
+      if (!props[key].description) issues.push(`${tool.function.name}.${key} is missing 'description'`);
+    }
+  }
+  expect(issues).toEqual([]);
+});
+

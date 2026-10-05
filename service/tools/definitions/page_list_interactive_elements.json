@@ -13,7 +13,8 @@
           "type": "integer"
         },
         "frameId": {
-          "type": "integer"
+          "type": "integer",
+          "description": "内嵌文档编号，从 frame_list 取得；不传则作用于主文档。"
         },
         "regionId": {
           "type": "string"

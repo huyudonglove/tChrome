@@ -13,7 +13,8 @@
           "type": "integer"
         },
         "frameId": {
-          "type": "integer"
+          "type": "integer",
+          "description": "内嵌文档编号，从 frame_list 取得；不传则作用于主文档。"
         },
         "text": {
           "type": "string",
@@ -41,7 +42,10 @@
           "type": "integer"
         },
         "timeoutMs": {
-          "type": "integer"
+          "type": "integer",
+          "description": "点击后等待的超时毫秒；转发给 wait，默认 8000、上限 12000。",
+          "default": 8000,
+          "maximum": 12000
         }
       },
       "required": [

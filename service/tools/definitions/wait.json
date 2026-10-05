@@ -75,7 +75,10 @@
           "description": "对 id/selector：要求非 disabled（角色等待请用 states.enabled）"
         },
         "timeoutMs": {
-          "type": "integer"
+          "type": "integer",
+          "description": "超时毫秒，默认 8000，上限 12000（超出按 12000 截断）。",
+          "default": 8000,
+          "maximum": 12000
         }
       },
       "required": [
