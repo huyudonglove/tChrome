@@ -9,7 +9,7 @@ SUMMARY: 真实浏览器 + 代码双轨验证：先形成源码预期，再像�
 
 | 轨 | 手段 | 擅长 | 不可信之处 |
 | --- | --- | --- | --- |
-| 源码轨 | `local_fs_grep` / `fs_read` / `fs_list` / `local_run` | 意图、路由表、校验逻辑、错误分支、API 契约、构建配置 | 读不到运行时状态，判断停留在推断 |
+| 源码轨 | `local_fs_grep` / `local_fs_read` / `local_fs_list` / `local_run` | 意图、路由表、校验逻辑、错误分支、API 契约、构建配置 | 读不到运行时状态，判断停留在推断 |
 | 真实浏览器轨 | `list_tabs` → `open_url` / `page.*` / `capture_*` / `har` / `see_console` / `page_eval_expr` | 实际渲染、登录态、交互链路、网络与渲染能力、视觉结果 | 单页单次，慢；易被 skeleton 误导 |
 
 联动的核心价值在**对照**：先从源码写出「这一步应该发生什么」的预期，再在真实浏览器里执行并断言；两者不一致的地方就是缺陷（或代码与设计不符），本身就是最有价值的发现。
@@ -24,9 +24,9 @@ SUMMARY: 真实浏览器 + 代码双轨验证：先形成源码预期，再像�
 ## 真实浏览器轨：像人一样操作
 
 - **选标签**：`list_tabs` / `tabs_current` 拿 tabId，优先用用户已打开的目标站标签；`open_tab` 可后台新开但一般不激活。
-- **导航与等待**：`open_url` 导航；`wait_network` 等接口安静再读，`wait_text` / `wait`（id/selector/role±name±states）等具体条件。别用静态抓文本判断加载完成——常停在 skeleton。
-- **看结构**：`page_get_summary`（规模）→ `page_list_interactive_elements` / `find_on_page` / `page_get_by_role`（定位）→ `page_inspect_element` / `inspect_region`（细节）。
-- **做交互**：优先复合工具 `page_click_role` / `fill_role` / `click_text` / `select_role` / `fill_submit` / `submit_wait` / `combo_select` / `date_select` / `drag_to_id`；多匹配必须 `matchIndex` 或收窄 name。
+- **导航与等待**：`open_url` 导航；`wait_network` 等接口安静再读，`wait`（id/selector/text/role±name±states）等具体条件。别用静态抓文本判断加载完成——常停在 skeleton。
+- **看结构**：`page_get_summary`（规模）→ `page_list_interactive_elements` / `find_on_page` / `page_get_by_role`（定位）→ `page_inspect_element` / `page_inspect_region`（细节）。
+- **做交互**：优先复合工具 `page_click_role` / `page_fill_role` / `page_click_text` / `page_select_role` / `page_fill_submit` / `page_submit_wait` / `combo_select` / `date_select` / `page_drag_to_id`；多匹配必须 `matchIndex` 或收窄 name。
 - **做验收**：`page_assert`（结论级）、`page_recheck`（观察级）、`wait_response`（接口级）、`har`（全量请求流）。
 - **做取证**：`capture_viewport` 视口、`capture_som` 一屏多控件角标图、局部控件用 `capture_page(mode=element)`。
 - **读环境**：`page_eval_expr` 读 cookie / localStorage / IndexedDB / 渲染能力（如 `navigator.gpu`、`webgl` 参数、`s3d.rendererCapabilities`）；`fingerprint_read` 看 UA、时区、viewport；必要时 `fingerprint_apply` 模拟目标环境。
@@ -36,13 +36,13 @@ SUMMARY: 真实浏览器 + 代码双轨验证：先形成源码预期，再像�
 ## 通用验证场景与手法
 
 - **功能验收**：源码写预期 → 真实标签执行 → 断言 UI + 接口 + 状态三方一致。
-- **表单与登录**：空值/边界值/非法值/超长输入逐项试；看校验提示、按钮 disabled 态、提交后错误定位；登录态用 `eval_expr` 读 cookie/localStorage 对账。
+- **表单与登录**：空值/边界值/非法值/超长输入逐项试；看校验提示、按钮 disabled 态、提交后错误定位；登录态用 `page_eval_expr` 读 cookie/localStorage 对账。
 - **上传下载**：真实标签触发选择，观察进度、失败重试、落库后详情页能否取回；下载用 HAR 确认响应而非只看提示。
 - **边界与报错页**：不存在的 id/slug/用户名、未知路由、占位路由、无结果搜索词、未登录访问受保护页、非法参数、嵌套子路由。逐条问：有 404 或空态吗、标题合理吗（常见「裸 id 当标题」）、给出下一步动作吗。
 - **空态与数据差异**：有数据 / 无数据 / 加载中 / 加载失败四种态都要看；无数据时是否给引导动作。
 - **异步与竞态**：快速连点、导航中改 URL、请求未返回时切页；看是否重复请求、旧响应覆盖新状态。
 - **跨页状态保持**：滚动位置、筛选条件、分页、主题切换在导航后是否保留。
-- **渲染与性能**：Canvas/WebGL/3D 页面用 `eval_expr` 探尺寸、像素、上下文是否创建成功（脚本状态不足以证明画面成立时必须截图）；首屏骨架与最终态差异。
+- **渲染与性能**：Canvas/WebGL/3D 页面用 `page_eval_expr` 探尺寸、像素、上下文是否创建成功（脚本状态不足以证明画面成立时必须截图）；首屏骨架与最终态差异。
 - **响应式与多视口**：`fingerprint_apply` 改 width/height 验证断点，配合截图。
 - **第三方依赖**：统计、SDK、CDN 失败要区分「外网不通」与「应用缺陷」，先剔除噪声再下结论。
 

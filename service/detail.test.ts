@@ -28,7 +28,7 @@ const section = (user: string, tag: string) => {
 };
 const collectNested = (user: string, tag: string): any[] => {
   const rows: any[] = [];
-  // Record elements carry their scalar fields (queryId/currentQuery/externalized/...) as attributes, and
+  // Record elements carry their scalar fields (queryId/externalized/...) as attributes, and
   // a body is raw JSON, a "内容：" block, or an externalization notice. Scan open tags by hand and pair
   // each with its own closing tag: a lazy regex can swallow the following record and lose attributes.
   const open = new RegExp(`<${tag}(\\s[^>]*?)?>`, "g");
