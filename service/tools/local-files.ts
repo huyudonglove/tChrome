@@ -184,7 +184,7 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
             if (remaining <= 0) {
               row.content = "";
               row.truncatedForBudget = true;
-              fullyCut.push(row.path);
+              fullyCut.push(String(row.path));
               continue;
             }
             if (row.content.length <= remaining) {
@@ -201,7 +201,7 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
             }
             row.content = kept.join("\n");
             row.truncatedForBudget = true;
-            partiallyCut.push(row.path);
+            partiallyCut.push(String(row.path));
             remaining -= used;
           }
           const who = fullyCut.length > 0 ? ` fully cut (content came back empty): ${fullyCut.join(", ")};` : "";

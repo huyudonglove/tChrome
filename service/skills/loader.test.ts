@@ -80,7 +80,7 @@ test("skill bodies use known prompt number slots and render without leftovers", 
     const file = join(skillsDir, dir.name, "SKILL.md");
     const raw = readFileSync(file, "utf8");
     for (const hit of raw.matchAll(/\{\{(\w+)\}\}/g)) {
-      expect(Object.keys(slots)).toContain(hit[1]);
+      expect(Object.keys(slots)).toContain(hit[1]!);
     }
   }
   const rendered = loadSkills(repoRoot);
