@@ -1,5 +1,5 @@
 <queryOutput>
-能力：【Submit Matches】
+能力：本模块定命中提交契约——交 turnIds（能精确到记录时加 recordKeys）。
 
 详细描述：
 我用 submitMatches 交命中的 turnId；能精确到记录时同时提交候选中已有的 recordKeys。recordKeys 可选，不能臆造。命中的 turnId 都放进 turnIds（无匹配时为空数组）；不要拆成多次调用，也不要用正文当结果。

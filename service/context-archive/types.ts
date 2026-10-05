@@ -5,7 +5,7 @@ export type CompressionRecord = {
   id: string;
   module: CompressionModule;
   level: number;
-  tag: string;
+  summary: string;
   turnId: string;
   userRequest: string;
   actions: string;

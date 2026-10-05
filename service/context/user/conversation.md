@@ -1,5 +1,5 @@
 <conversation>
-能力：【Conversation Timeline By Turn】
+能力：本模块是本会话过程记录——按 turn 嵌套原文、摘要、任务与底部跨轮 toolIO 池。
 
 详细描述：
 本会话过程记录。外层是会话级材料，下面按 turnId 嵌套各轮原文；被压缩覆盖的轮次整块删除，只在 <summary> 留摘要。

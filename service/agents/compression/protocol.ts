@@ -6,9 +6,9 @@ import { compressionLog } from "./log.ts";
 import { compressionSystemFromModules } from "./context/loader.ts";
 import type { ChatMessage, ChatTool, CompletionResult, Provider } from "../../types.ts";
 
-export type TurnSummary = { turnId: string; tag: string; userRequest: string; actions: string; result: string; reflection?: string; turnIds?: string[] };
+export type TurnSummary = { turnId: string; summary: string; userRequest: string; actions: string; result: string; reflection?: string; turnIds?: string[] };
 export type CompressionTurn = { turnId: string; [field: string]: unknown };
-export type SubmittedTurnFields = { tag: string; actions: string; result: string; reflection?: string };
+export type SubmittedTurnFields = { summary: string; actions: string; result: string; reflection?: string };
 
 /** Format/schema failures go back to the model for self-repair; transport faults do not loop. */
 export const COMPRESSION_FORMAT_ATTEMPTS = 3;
@@ -56,9 +56,9 @@ export function compressionTurnsFromUserMessage(content: string): CompressionTur
 
 export function compressionRepairInstruction(toolName: string, turnId: string, fault: string): string {
   if (fault.includes('"must be object"') || fault.includes("must be object")) {
-    return `上一次参数不是对象。每个 ${toolName} 提交对象 {tag, actions, result}，三个必填字段均为非空字符串；reflection 可选。不要包数组，也不要填 turnId。本轮是 ${turnId}。大轮可拆成多条 ${toolName}（同属本轮）。请修正后在一次回包里调用一或多个 ${toolName}。`;
+    return `上一次参数不是对象。每个 ${toolName} 提交对象 {summary, actions, result}，三个必填字段均为非空字符串；reflection 可选。不要包数组，也不要填 turnId。本轮是 ${turnId}。大轮可拆成多条 ${toolName}（同属本轮）。请修正后在一次回包里调用一或多个 ${toolName}。`;
   }
-  return `上一次 ${toolName} 无效。请看 fault。每个 ${toolName} 提交对象 {tag, actions, result}，三个必填字段均为非空字符串；reflection 可选。本轮是 ${turnId}，不要填 turnId。大轮可拆成多条 ${toolName}（同属本轮）。请修正后在一次回包里调用一或多个 ${toolName}。`;
+  return `上一次 ${toolName} 无效。请看 fault。每个 ${toolName} 提交对象 {summary, actions, result}，三个必填字段均为非空字符串；reflection 可选。本轮是 ${turnId}，不要填 turnId。大轮可拆成多条 ${toolName}（同属本轮）。请修正后在一次回包里调用一或多个 ${toolName}。`;
 }
 
 /** One turn per request. One response may carry several summaries for that turn; all must be valid. */
@@ -126,7 +126,7 @@ export async function requestTurnSummaries(input: {
         const reflection = value.reflection?.trim();
         summaries.push({
           turnId,
-          tag: value.tag.trim(),
+          summary: value.summary.trim(),
           userRequest: userRequestFromTurn(input.turn),
           actions: value.actions.trim(),
           result: value.result.trim(),
@@ -150,7 +150,7 @@ export async function requestTurnSummaries(input: {
   }
 }
 
-export type FoldRow = { turnId: string; tag: string; userRequest: string; actions: string; result: string; reflection?: string };
+export type FoldRow = { turnId: string; summary: string; userRequest: string; actions: string; result: string; reflection?: string };
 
 /** Span id for a cross-turn fold record, e.g. tn_01..tn_12. */
 export function foldSpanId(turnIds: string[]): string {
@@ -184,13 +184,13 @@ export async function requestCrossTurnFold(input: {
     const validate = new Ajv({ allErrors: true }).compile(tool.function.parameters);
     const baseMessages: ChatMessage[] = [
       { role: "system", content: system },
-      { role: "user", content: `<summaryFold>\n${JSON.stringify({ level: input.level, turnIds: input.turnIds, summaries: input.rows })}\n</summaryFold>\n把以上 ${input.rows.length} 条轮次摘要合并成一条${tier}阶段纪要：覆盖哪些轮次、共同推进了什么、阶段结论是什么。只通过 ${tool.function.name} 提交 {tag, actions, result}（reflection 可选），不要填 turnId。` },
+      { role: "user", content: `<summaryFold>\n${JSON.stringify({ level: input.level, turnIds: input.turnIds, summaries: input.rows })}\n</summaryFold>\n把以上 ${input.rows.length} 条轮次摘要合并成一条${tier}阶段纪要：覆盖哪些轮次、共同推进了什么、阶段结论是什么。只通过 ${tool.function.name} 提交 {summary, actions, result}（其中 summary 是一句话汇总；reflection 可选），不要填 turnId。` },
     ];
     let lastError = "";
     for (let attempt = 1; attempt <= COMPRESSION_FORMAT_ATTEMPTS; attempt++) {
       const messages: ChatMessage[] = attempt === 1 ? baseMessages : [
         ...baseMessages,
-        { role: "user", content: JSON.stringify({ selfRepair: true, attempt, maxAttempts: COMPRESSION_FORMAT_ATTEMPTS, fault: modelSpeech(lastError), instruction: modelSpeech(`上一次折叠提交无效。每个 ${tool.function.name} 提交对象 {tag, actions, result}，三个必填字段均为非空字符串；不要包数组，也不要填 turnId。本轮折叠跨度 ${spanId}。`) }) },
+        { role: "user", content: JSON.stringify({ selfRepair: true, attempt, maxAttempts: COMPRESSION_FORMAT_ATTEMPTS, fault: modelSpeech(lastError), instruction: modelSpeech(`上一次折叠提交无效。每个 ${tool.function.name} 提交对象 {summary, actions, result}，三个必填字段均为非空字符串；不要包数组，也不要填 turnId。本轮折叠跨度 ${spanId}。`) }) },
       ];
       const request: Parameters<Provider["complete"]>[0] = { tools: [tool], messages };
       append("fold-request", { attempt, ...request });
@@ -221,7 +221,7 @@ export async function requestCrossTurnFold(input: {
       return {
         turnId: spanId,
         turnIds: input.turnIds,
-        tag: value.tag.trim(),
+        summary: value.summary.trim(),
         userRequest,
         actions: value.actions.trim(),
         result: value.result.trim(),

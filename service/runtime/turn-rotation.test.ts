@@ -24,7 +24,7 @@ const finished: CompletionResult = result({
   toolCalls: [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", text: "已收尾" } }],
 });
 const summarized: CompletionResult = result({
-  toolCalls: [{ id: "submit", name: "submitTurnSummaries", arguments: { tag: "轮旋转", actions: "本轮被强制闭合", result: "该轮已闭合，等待续接" } }],
+  toolCalls: [{ id: "submit", name: "submitTurnSummaries", arguments: { summary: "本轮被强制闭合等待续接。", actions: "本轮被强制闭合", result: "该轮已闭合，等待续接" } }],
 });
 
 // Compression runs on the same provider, so the main script must only see ordinary turn calls.

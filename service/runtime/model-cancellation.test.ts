@@ -66,7 +66,7 @@ test("query uses the main request's signal and cancellation cannot install query
   const dataDir = mkdtempSync(join(tmpdir(), "model-stop-query-")), entered = deferred<AbortSignal | undefined>();
   try {
     const { cv, turns } = seed(dataDir);
-    const summary = { id: "sum_01", module: "conversationHistory" as const, level: 1, turnId: "tn_01", tag: "历史", userRequest: "要求", actions: "已处理", result: "已完成", sourceIds: ["turn_tn_01"], createdAt: "2026-09-12" };
+    const summary = { id: "sum_01", module: "conversationHistory" as const, level: 1, turnId: "tn_01", summary: "历史要求已处理。", userRequest: "要求", actions: "已处理", result: "已完成", sourceIds: ["turn_tn_01"], createdAt: "2026-09-12" };
     commitArchive(dataDir, cv, { version: 1, module: "conversationHistory", entries: [summary], activeIds: [summary.id], coveredSourceIds: summary.sourceIds }, [{ id: "turn_tn_01", content: { turnId: "tn_01", userInput: inputRecord(turns[0]!) } }], [summary]);
     let mainSignal: AbortSignal | undefined, mainCalls = 0;
     const provider: Provider = { complete: async input => {
@@ -130,7 +130,7 @@ test("immediately restarting during cancelled compression allows the new turn to
       expect(input.signal).not.toBe(signalA); expect(input.signal?.aborted).toBe(false);
       if (input.tools[0]?.function.name !== "submitTurnSummaries") return finish("重启后完成");
       compressed++;
-      return completion([{ id: "summaries", name: "submitTurnSummaries", arguments: { tag: "历史", actions: "已处理", result: "已完成" } }]);
+      return completion([{ id: "summaries", name: "submitTurnSummaries", arguments: { summary: "历史要求已处理完成。", actions: "已处理", result: "已完成" } }]);
     } } }, body);
     expect((await within(a)).stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
     const reply = await within(b);

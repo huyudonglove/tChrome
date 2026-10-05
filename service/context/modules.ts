@@ -108,11 +108,11 @@ export function parseModule(text: string, expectedTag: string): ContextModule {
   const want = expectedTag.startsWith("#") ? expectedTag.slice(1) : expectedTag;
   if (tag !== want) throw new Error(`module tag mismatch ${expectedTag}: ${tag}`);
   const bodyText = inner!.trim();
-  const cap = bodyText.match(/^能力：([【][^\n【】]+[】])\n\s*详细描述：\n([\s\S]+)$/);
+  const cap = bodyText.match(/^能力：([^\n]+)\n\s*详细描述：\n([\s\S]+)$/);
   if (!cap) throw new Error(`invalid module content ${expectedTag}`);
   const capability = cap[1]!;
   const rest = cap[2]!.trim();
-  if (!capability.slice(1, -1).trim() || !rest) throw new Error(`empty module content ${expectedTag}`);
+  if (!capability.trim() || !rest) throw new Error(`empty module content ${expectedTag}`);
   const parts = rest.split(/\n\n内容：\n/);
   if (parts.length > 2) throw new Error(`duplicate module content section ${expectedTag}`);
   if (parts.length === 2) {

@@ -1,5 +1,5 @@
 <toolProtocol>
-能力：【Tool Calls, Parameters, Execution Order】
+能力：本模块定 tool_calls 的提交格式、调度顺序、重复判定、风险 Task 门禁与脚本写法。
 
 详细描述：
 实际操作通过 tool_calls 提交。同批按 execution 调度：parallel 立即执行，可与同批其他 parallel 并发；serial 等当前执行队列清空后独占执行，不与任何调用重叠。execution 是 Runtime 固定的工具属性，只供了解调度并编排同批顺序，不必返回，也不能用参数修改。工具返回与记录按 tool_calls 数组顺序落账。同批每个调用的参数提前确定；需要前一个调用结果才能定参时，等结果返回后再提交下一批。带 runtime: 前缀的返回是 Runtime 机制报错，不是页面业务结果；按 message 与 recovery 处理：correct_arguments 修正调用，inspect_state 先核对状态。看到 externalized=true 时按 <runtime> 用 evidence_search 取回全文片段。
@@ -8,13 +8,22 @@
 
 <toolIO> 位于 <conversation> 底部，是跨轮滚动池：只保留最近 kept 条调用详情（kept / from / to / total 均为该标签属性，池容量取自 runtimeConfig.context.toolioRingSize），更早调用按各轮 <turn> 的 from / to 属性用 evidence_search(callId) 取回。池内调用详情含参数与返回载荷（记账类只存指针：finishTurn / askUser / notes / memory / reflect / task / observation / workspace 的正文在各轮对应标签）；判断一次调用是否真的成形、正文是否落库，读 ledger 记录或回读目标文件。
 
-Runtime 会检测机械性重复，并以 `runtime:` 开头的提示追加在**当前一行**返回末尾（不改返回内容、不阻断执行、不属于 faultCode）。判据按「零信息增量」而非「用了多少次」：相邻两次以**完全相同参数**调用同一工具（`连续第 2 次以完全相同参数调用 xxx`）；最近 {{repeatWindow}} 行内**同一工具的返回高度重复**（次数达 {{repeatDuplicateCalls}} 且去重后不同返回不超过 {{repeatDuplicateSignatures}} 种，提示 `runtime[repeat:tool]`）；同一工具连续收到**同一个 faultCode + message**（`连续第 2 次收到同一个错误（faultCode=xxx）`）。这是机制提醒而非错误：看到后先确认上一次是否已生效，要换路径就改参数或换方法，不要原样重放。相邻两行参数一律变了的循环查不出来，仍需自己判断方向是否错了。
+Runtime 会检测机械性重复，并以 `runtime:` 开头的提示追加在**当前一行**返回末尾（不改返回内容、不阻断执行、不属于 faultCode）。这是机制提醒而非错误：看到后先确认上一次是否已生效，要换路径就改参数或换方法，不要原样重放。相邻两行参数一律变了的循环查不出来，仍需自己判断方向是否错了。
+
+判据按「零信息增量」而非「用了多少次」：
+
+- 相邻两次以**完全相同参数**调用同一工具（`连续第 2 次以完全相同参数调用 xxx`）；
+- 最近 {{repeatWindow}} 行内**同一工具的返回高度重复**（次数达 {{repeatDuplicateCalls}} 且去重后不同返回不超过 {{repeatDuplicateSignatures}} 种，提示 `runtime[repeat:tool]`）；
+- 同一工具连续收到**同一个 faultCode + message**（`连续第 2 次收到同一个错误（faultCode=xxx）`）。
 
 
 
 风险与 Task：**仅 high 需要活动 Task**（先 task_set 再调）。low / medium 可直接调。固定为 high 的工具始终要 Task；其他工具本次若是高危，在 arguments.risk 填 high，Runtime 同样要求 Task。无活动 Task 时 high 调用返回 task_gate_required。
 
-产出证据类工具调用累计到门槛（起始 {{observationFirst}} 次，每次提示后收紧为 {{observationGate2}}、{{observationMin}}）仍未 observation_write 时，Runtime 会在最后一条工具返回末尾追加提示，届时先用 observation_write 写一次阶段检查点：现在处于什么状态、哪些已确认、哪些仍未验证、下一步从哪接，再继续。
+产出证据类工具调用累计到门槛仍未 observation_write 时，Runtime 会在最后一条工具返回末尾追加提示，届时写一次阶段检查点再继续。
+
+- 门槛：起始 {{observationFirst}} 次，每次提示后收紧为 {{observationGate2}}、{{observationMin}}。
+- 写法：现在处于什么状态、哪些已确认、哪些仍未验证、下一步从哪接。这是给自己留的交接笔记，不是工具流水账。
 
 动作类工具返回可能带可选 effects（观察器稀疏注入，无异常则整段不出现）：network=动作后新出现的 4xx/断网；console=JS 未捕获异常或 console.error；nav=URL 变化；delta=拖拽回弹、表单 aria-invalid/validationMessage 等；mutations.newAlerts=白名单提示条新增文案；domChange=剥离样式后的结构 HTML 前后 diff 摘要（"-旧 +新"）。effects 是证据，不自动改写 ok：对照 expected 判断是否达成，未达则按 fallback 收敛。effects 是可选附加信息，不是必填字段；键不存在表示未观察到该类异常，仍须用可见结果验收。
 

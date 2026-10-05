@@ -106,7 +106,7 @@ async function compress(input: Input): Promise<CompressOutcome> {
       : {
           turnId,
           segments: sourcesForTurn.map(source => asTurn(source.content)),
-          summaries: priorForTurn.map(({ tag, userRequest, actions, result, reflection }) => ({ tag, userRequest, actions, result, ...(reflection ? { reflection } : {}) })),
+          summaries: priorForTurn.map(({ summary, userRequest, actions, result, reflection }) => ({ summary, userRequest, actions, result, ...(reflection ? { reflection } : {}) })),
         };
 
     let summaries;
@@ -202,7 +202,7 @@ export async function foldActiveSummaries(input: Input & { protectTurnId: string
       level,
       turnIds,
       rows: rows.map((row) => ({
-        turnId: row.turnId, tag: row.tag, userRequest: row.userRequest,
+        turnId: row.turnId, summary: row.summary, userRequest: row.userRequest,
         actions: row.actions, result: row.result, ...(row.reflection ? { reflection: row.reflection } : {}),
       })),
       dataDir: input.dataDir,
@@ -215,7 +215,7 @@ export async function foldActiveSummaries(input: Input & { protectTurnId: string
       level,
       turnId: summary.turnId,
       turnIds,
-      tag: summary.tag,
+      summary: summary.summary,
       userRequest: summary.userRequest,
       actions: summary.actions,
       result: summary.result,

@@ -64,7 +64,7 @@ function fixture(dataDir: string, text = "精确证据".repeat(250)) {
   const tool = { callId: allocateRecordId(dataDir, cv, "call"), turnId: "tn_01", batchId: allocateRecordId(dataDir, cv, "batch"), name: "page_get_summary", arguments: {}, return: { stage: "complete", totalChars: text.length, text } };
   const sumId = allocateRecordId(dataDir, cv, "sum");
   const sourceId = allocateRecordId(dataDir, cv, "source");
-  const summary = { id: sumId, module: "conversationHistory" as const, level: 1, turnId: "tn_01", tag: "详情", userRequest: "读取详情", actions: "读取页面", result: "已取得证据", sourceIds: [sourceId], createdAt: "2026-09-12" };
+  const summary = { id: sumId, module: "conversationHistory" as const, level: 1, turnId: "tn_01", summary: "详情读取完成。", userRequest: "读取详情", actions: "读取页面", result: "已取得证据", sourceIds: [sourceId], createdAt: "2026-09-12" };
   commitArchive(dataDir, cv, { version: 1, module: "conversationHistory", entries: [summary], activeIds: [sumId], coveredSourceIds: [sourceId] }, [{ id: sourceId, content: { turnId: "tn_01", userInput: inputRecord(turns[0]!), toolIO: [tool] } }], [summary]);
   writeFileSync(join(archiveDir(dataDir, cv, "conversationHistory"), "source-ids.json"), JSON.stringify({ [JSON.stringify(["turn", "tn_01"])]: sourceId }));
   saveLedger(dataDir, ledger);
@@ -92,7 +92,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
         expect(main).toBe(2);
         expect(sessionView(dataDir, f.cv).activity).toMatchObject({ kind: "compressing", phase: "history" });
         expect(sessionView(dataDir, f.cv).activity?.total).toBeGreaterThan(0);
-        return reply([{ id: "summaries", name: "submitTurnSummaries", arguments: { tag: "早期要求", actions: "已处理", result: "已完成" } }]);
+        return reply([{ id: "summaries", name: "submitTurnSummaries", arguments: { summary: "早期要求已处理完成。", actions: "已处理", result: "已完成" } }]);
       }
       main++;
       if (main === 1) { expect(compressed).toBe(0); return queryCall(f.sumId); }

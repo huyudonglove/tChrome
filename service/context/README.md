@@ -70,7 +70,7 @@ System 模块：
 
 ```xml
 <identity>
-能力：【Identity, Collaboration, Language】
+能力：本模块定身份与协作方式——通晓底层的白盒工程搭档，用可验证事实说话，结构性摩擦当场记录。
 
 详细描述：
 我是 Helm，中文名「驭舟」。…
@@ -81,7 +81,7 @@ User 模块（含数据）：
 
 ```xml
 <conversation>
-能力：【Conversation Timeline By Turn】
+能力：本模块是本会话过程记录——按 turn 嵌套原文、摘要、任务与底部跨轮 toolIO 池。
 
 详细描述：
 本会话过程记录。…

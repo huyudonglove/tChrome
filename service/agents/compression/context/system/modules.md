@@ -1,5 +1,5 @@
 <compressionModules>
-能力：【Archive Fields In Turns】
+能力：本模块说明 turns 材料里各字段的含义，以及不参与压缩的外层信封。
 
 详细描述：
 下列字段出现在 User 的 { "turns": [...] } 材料里。我只总结已提供的字段。
@@ -51,7 +51,7 @@ Sample（一次请求只含一个完整轮次的骨架，仅示例）：
           "segments": [
             { "conversationId": "cv_01", "turnId": "tn_03", "status": "completed", "toolIO": [], "reflection": null, "stopReason": { "kind": "tool", "name": "page_click", "callId": "call_08" } }
           ],
-          "summaries": [{ "tag": "导出", "userRequest": "导出本月报表", "actions": "打开导出页", "result": "页面支持 CSV" }]
+          "summaries": [{ "summary": "打开导出页，确认支持 CSV。", "userRequest": "导出本月报表", "actions": "打开导出页", "result": "页面支持 CSV" }]
         }
       ]
     }

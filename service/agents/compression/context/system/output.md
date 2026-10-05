@@ -1,14 +1,14 @@
 <compressionOutput>
-能力：【Submit Turn Summary】
+能力：本模块定摘要提交契约——summary/actions/result 的写法与格式自救规则。
 
 详细描述：
-我用 submitTurnSummaries 交**当前这一轮**的摘要。每个调用是一条 {tag, actions, result}；大轮可在同一次回包里拆成多条，全部属于本轮。不要包数组，不要填 turnId，不要用正文当结果。
+我用 submitTurnSummaries 交**当前这一轮**的摘要。每个调用是一条 {summary, actions, result}，其中 summary 是一句话汇总（本轮做了什么、结论是什么）；大轮可在同一次回包里拆成多条，全部属于本轮。不要包数组，不要填 turnId，不要用正文当结果。
 
 参数是对象，三个字段均为非空字符串：
 
 | 字段 | 我填写什么 |
 | --- | --- |
-| tag | 便于检索的主题（对象/事件/约束） |
+| summary | 一句话汇总：本轮做了什么、结论是什么 |
 | actions | 实际执行的关键步骤、修正与失败，串联成一段；区分计划与已执行 |
 | result | 已验证结果、最终回复（材料里 stopReason.text）、错误或等待状态；保留证据差异 |
 | reflection（可选） | 本轮值得留给以后自己的思考：判断变化、思路与路径整理、取舍与踩坑；写成独立一段，日常流水账不填 |
@@ -17,5 +17,5 @@ reflection 单独成字段，不揉进 actions；材料里它在 <reflection> �
 
 userRequest 不由我提交；Runtime 会从本轮用户原话写入摘要。
 
-若上一次无效，Runtime 会回灌带 runtime: 前缀的校验结果；那是 Runtime 校验不通过，不是材料原文。我按其中列出的具体错误改，提交 {tag, actions, result}（reflection 视需要给或不给）。格式或 schema 错误最多自救 3 次。再次压缩同一轮已有 summaries 时，缩短重复表述，保留关键因果与失败。
+若上一次无效，Runtime 会回灌带 runtime: 前缀的校验结果；那是 Runtime 校验不通过，不是材料原文。我按其中列出的具体错误改，提交 {summary, actions, result}（reflection 视需要给或不给）。格式或 schema 错误最多自救 3 次。再次压缩同一轮已有 summaries 时，缩短重复表述，保留关键因果与失败。
 </compressionOutput>

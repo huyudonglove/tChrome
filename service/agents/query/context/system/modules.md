@@ -1,5 +1,5 @@
 <queryModules>
-能力：【Request And Candidate Fields】
+能力：本模块说明 request 各字段与候选 turns 里记录的形态。
 
 详细描述：
 下列字段出现在 User 的 { "request": {...}, "turns": [...] } 材料里。
@@ -15,7 +15,7 @@ request：
   - memoryWrites：会话记忆写入
   - stopReason：当轮收尾。kind=reply 时字段为 text（最终回复正文）；ask/error/tool 同前；kind=tool 表示停在该调用、还没收口
   - queryHistory：当轮历史查询
-  - summaries：入口及来源摘要对象 {sumId, turnId, tag, userRequest, actions, result}，不是原文
+  - summaries：入口及来源摘要对象 {sumId, turnId, summary, userRequest, actions, result}，不是原文
 - intent：本次要找什么；我按它判断哪些轮次含相关证据。
 
 turns：按来源轮次排列的候选数组。每项：

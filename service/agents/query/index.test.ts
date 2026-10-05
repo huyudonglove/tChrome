@@ -12,7 +12,7 @@ afterEach(() => dirs.splice(0).forEach(dir => rmSync(dir,{recursive:true,force:t
 function fixture(text = "负责人李明，状态待处理", mismatchedTurn = false) {
   const dataDir = mkdtempSync(join(tmpdir(),"query-")); dirs.push(dataDir);
   const sources = [1,2].map(n => ({id:`turn_tn_0${n}`,content:{turnId:`tn_0${n}`,toolIO:[{callId:`call_0${n}`,turnId:mismatchedTurn ? "tn_99" : `tn_0${n}`,arguments:{reason:"核对"},return:{text}}],userInput:{id:`input_0${n}`,userInput:"保持状态"}}}));
-  const entries: CompressionRecord[] = sources.map((source,n) => ({id:`sum_0${n+1}`,module:"conversationHistory",turnId:`tn_0${n+1}`,level:1,tag:"状态",userRequest:"核对",actions:"读取",result:"确认",sourceIds:[source.id],createdAt:"2026-09-12"}));
+  const entries: CompressionRecord[] = sources.map((source,n) => ({id:`sum_0${n+1}`,module:"conversationHistory",turnId:`tn_0${n+1}`,level:1,summary:"状态核对。",userRequest:"核对",actions:"读取",result:"确认",sourceIds:[source.id],createdAt:"2026-09-12"}));
   entries.push({...entries[0]!,id:"sum_03",sourceIds:["sum_01"],level:2});
   commitArchive(dataDir,"cv_test",{version:1,module:"conversationHistory",entries,activeIds:["sum_03","sum_02"],coveredSourceIds:sources.map(s=>s.id)},sources,entries);
   return {dataDir,conversationId:"cv_test",repoRoot:resolve(import.meta.dir,"../../.."),sumId:"sum_03",module:"toolIO" as const,intent:"保存后的状态"};

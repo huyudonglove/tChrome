@@ -2,15 +2,15 @@
   "type": "function",
   "function": {
     "name": "submitTurnSummaries",
-    "description": "提交当前这一轮的摘要。一次调用是一条 {tag, actions, result}；大轮可在同一次回包里调用多次，全部归属 User 材料里这一轮。userRequest 由 Runtime 从本轮用户原话填写，不要提交。",
+    "description": "提交当前这一轮的摘要。一次调用是一条 {summary, actions, result}，其中 summary 是一句话汇总（本轮做了什么、结论是什么）；大轮可在同一次回包里调用多次，全部归属 User 材料里这一轮。userRequest 由 Runtime 从本轮用户原话填写，不要提交。",
     "parameters": {
       "type": "object",
       "properties": {
-        "tag": {
+        "summary": {
           "type": "string",
           "minLength": 1,
           "pattern": "\\S",
-          "description": "用于检索的主题字符串，概括关键对象、事件或约束。"
+          "description": "一句话汇总：本轮做了什么、结论是什么。"
         },
         "actions": {
           "type": "string",
@@ -31,7 +31,7 @@
           "description": "可选。仅当材料里的 reflection 记录了自我纠错、反复踩同一坑或取舍决策时填写，原样转述其结论，不要展开过程；没有则省略，不要为凑字段编造。"
         }
       },
-      "required": ["tag", "actions", "result"],
+      "required": ["summary", "actions", "result"],
       "additionalProperties": false
     }
   }

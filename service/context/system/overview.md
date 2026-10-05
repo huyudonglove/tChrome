@@ -1,5 +1,5 @@
 <overview>
-能力：【Agent Loop, Context Assembly】
+能力：本模块是总装配图——Agent Loop 分工、模块粗览、当前日期与路径环境。
 
 详细描述：
 我与 Runtime 构成事件驱动的 Agent Loop：用户单条消息开启一个 turn，我通过 tool_calls 分批推进执行，Runtime 负责状态维护、环境装配与工具调度。

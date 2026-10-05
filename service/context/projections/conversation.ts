@@ -222,7 +222,7 @@ const listXml = (name: string, items: unknown, keys: string[]): string => {
 const USER_INPUT_ATTRS = ["id", "turnId"];
 const OBSERVATION_ATTRS = ["id", "callId", "tabId", "type", "taskId", "taskItemId", "writtenTurn", "validUntilTurn"];
 const MEMORY_ATTRS = ["memoryId", "turnId", "sourceCallId"];
-const SUMMARY_ATTRS = ["sumId", "turnId", "tag", "level", "turnIds", "from"];
+const SUMMARY_ATTRS = ["sumId", "turnId", "summary", "level", "turnIds", "from"];
 const REFLECT_ATTRS = ["id", "focus"];
 const QUERY_ATTRS = ["queryId", "turnId", "sumId", "module", "status", "ok", "faultCode", "sourceCallId", "externalized", "totalChars", "totalLines", "lineWidth", "path", "search"];
 const TASK_ATTRS = ["id", "title", "status", "createdTurnId", "updatedTurnId"];

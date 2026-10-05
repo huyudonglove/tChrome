@@ -17,7 +17,7 @@ const provider: Provider = {
   complete: async () => ({
     finish: "tool_calls",
     content: "",
-    toolCalls: [{ id: "s", name: "submitTurnSummaries", arguments: { tag: "合并纪要", actions: "A", result: "R" } }],
+    toolCalls: [{ id: "s", name: "submitTurnSummaries", arguments: { summary: "两轮合并纪要。", actions: "A", result: "R" } }],
     attempts: 1,
     parseOk: true,
     schemaOk: true,
@@ -31,7 +31,7 @@ const l1 = (id: string, turnId: string, minute: number): CompressionRecord => ({
   module: "conversationHistory",
   level: 1,
   turnId,
-  tag: `tag-${turnId}`,
+  summary: `第 ${turnId} 轮汇总。`,
   userRequest: `req-${turnId}`,
   actions: `act-${turnId}`,
   result: `res-${turnId}`,
@@ -70,7 +70,7 @@ test("cross-turn fold keeps the newest turn and rolls older L1s into L2 spans", 
   const l2 = active.filter((e) => e.level === 2);
   expect(l2.length).toBeGreaterThan(0);
   expect(l2.every((e) => (e.turnIds?.length ?? 0) > 1)).toBe(true);
-  expect(l2.every((e) => e.tag === "合并纪要")).toBe(true);
+  expect(l2.every((e) => e.summary === "两轮合并纪要。")).toBe(true);
   // Active count shrank: most pads are gone from the active list.
   expect(active.length).toBeLessThan(rows.length);
   expect(active.filter((e) => e.level === 1 && e.id !== "sum_live").length).toBeLessThanOrEqual(1);

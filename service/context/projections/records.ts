@@ -30,5 +30,5 @@ export const pageView = (page: Observation, currentTurn?: number) =>
  * `level` is 1 for per-turn summaries and rises with each fold; `from` lists the child
  * summary ids this row was folded from, so the pyramid can be walked back down.
  */
-export type TurnSummary = { id: string; turnId: string; tag: string; userRequest: string; actions: string; result: string; reflection?: string; turnIds?: string[]; level?: number; from?: string[] };
-export const turnSummaryView = (records: TurnSummary[] = []) => records.map(({ id, turnId, tag, userRequest, actions, result, reflection, turnIds, level, from }) => ({ sumId: id, turnId, tag, userRequest, actions, result, ...(reflection ? { reflection } : {}), ...(turnIds?.length ? { turnIds } : {}), ...(level !== undefined ? { level } : {}), ...(from?.length ? { from } : {}) }));
+export type TurnSummary = { id: string; turnId: string; summary: string; userRequest: string; actions: string; result: string; reflection?: string; turnIds?: string[]; level?: number; from?: string[] };
+export const turnSummaryView = (records: TurnSummary[] = []) => records.map(({ id, turnId, summary, userRequest, actions, result, reflection, turnIds, level, from }) => ({ sumId: id, turnId, summary, userRequest, actions, result, ...(reflection ? { reflection } : {}), ...(turnIds?.length ? { turnIds } : {}), ...(level !== undefined ? { level } : {}), ...(from?.length ? { from } : {}) }));

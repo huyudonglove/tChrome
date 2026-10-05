@@ -22,7 +22,7 @@ function model(observe?: (turns: CompressionTurn[]) => void, body = "核对成�
     const toolCalls = Array.from({ length: batches }, (_, index) => ({
       id: `summary_${index + 1}`,
       name: "submitTurnSummaries",
-      arguments: { tag: `负责人／状态 ${index + 1}`, actions: "修改负责人", result: body },
+      arguments: { summary: `修改负责人并确认状态 ${index + 1}。`, actions: "修改负责人", result: body },
     }));
     return { finish: "tool_calls", content: "", toolCalls, attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] };
   } };
@@ -103,7 +103,7 @@ test("failed turn stops sequence: prefix stays covered, later turns keep origina
   const args = setup({ async complete(input) {
     const turns = compressionTurnsFromUserMessage(input.messages[1]!.content);
     if (turns[0]!.turnId === "tn_02") {
-      return { finish: "tool_calls", content: "", toolCalls: [{ id: "summary", name: "submitTurnSummaries", arguments: { tag: "", actions: "a", result: "x" } }], attempts: 3, parseOk: true, schemaOk: false, faultCode: "schema_failed", missing: [] };
+      return { finish: "tool_calls", content: "", toolCalls: [{ id: "summary", name: "submitTurnSummaries", arguments: { summary: "", actions: "a", result: "x" } }], attempts: 3, parseOk: true, schemaOk: false, faultCode: "schema_failed", missing: [] };
     }
     return good.complete(input);
   } });

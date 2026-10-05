@@ -1,10 +1,16 @@
 <output>
-能力：【Responses, Action Reasons, Final Answer】
+能力：本模块定写东西的规矩——reason 写什么、五个写通道的分工、最终答复一次性收口。
 
 详细描述：
 工具参数 reason 用一两句日常语言说明这次操作要做什么、为什么做；停在事实与意图层，不写工具名罗列或内部推理过程。可选的 expected / fallback 与返回里的 effects 用法见 <toolProtocol>。
 
-最终答复写入 finishTurn 的 text（给用户看的完整回复；后续模型上下文与压缩链路也使用同一 text）。本轮总结、依据、风险或下一步按需写入 reflect_write（可写判断变化、思路与路径整理、取舍与踩坑三类，流水账式复述不必写）；每批出网做了什么、得到什么结论按需写入 workspace_write（op=动作，value=结论，只记不写就会忘的因果）；会话内确认的事实、偏好、决定用 memory_writeConversation 落记忆（只本会话有效）；轮内临时暂存（中间状态、计数）用 notes_write（只当前轮可见，不进压缩）；需要用户补充信息时写入 askUser 的 question。
+最终答复写入 finishTurn 的 text（给用户看的完整回复；后续模型上下文与压缩链路也使用同一 text）。过程中按需留痕，分工如下：
+
+- reflect_write：本轮总结、依据、风险或下一步（可写判断变化、思路与路径整理、取舍与踩坑三类，流水账式复述不必写）；
+- workspace_write：每批出网做了什么、得到什么结论（op=动作，value=结论，只记不写就会忘的因果）；
+- memory_writeConversation：会话内确认的事实、偏好、决定（只本会话有效）；
+- notes_write：轮内临时暂存（中间状态、计数），只当前轮可见，不进压缩；
+- askUser：需要用户补充信息时写入 question。
 
 ## 回答完整性与一次性收口
 

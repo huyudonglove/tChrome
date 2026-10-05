@@ -18,7 +18,7 @@ const repoRoot = join(import.meta.dir, "../..");
 const KEEP = runtimeConfig.context.keepToolBatches;
 const makeTurn = (cv: string, id: string, text = id): Turn => ({ conversationId: cv, turnId: id, status: "completed", createdAt: "2026-09-11", completedAt: "2026-09-11", input: { id: `input_${id}`, text, submittedAt: "2026-09-11" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [], workspace: [] }, stopReason: { kind: "reply", text: `完成${id}` } });
 const result = (partial: Partial<CompletionResult>): CompletionResult => ({ finish: "tool_calls", content: "", toolCalls: [], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [], ...partial });
-const summaryResponse = (_messages: Parameters<Provider["complete"]>[0]["messages"]) => result({ toolCalls: [{ id: "submit", name: "submitTurnSummaries", arguments: { tag: "历史事项", actions: "已检查", result: "该轮已完成" } }] });
+const summaryResponse = (_messages: Parameters<Provider["complete"]>[0]["messages"]) => result({ toolCalls: [{ id: "submit", name: "submitTurnSummaries", arguments: { summary: "历史事项已检查完成。", actions: "已检查", result: "该轮已完成" } }] });
 const oneTurnOf = (messages: Parameters<Provider["complete"]>[0]["messages"]) => {
   const turns = compressionTurnsFromUserMessage(messages[1]!.content);
   expect(turns).toHaveLength(1);
@@ -158,7 +158,7 @@ test("segmented turn later closes into one active summary without rearchiving co
     const seeded = loadIndex(dataDir, ledger.conversationId, "conversationHistory");
     while (seeded.activeIds.length <= SUMMARY_RECOMPRESS_MIN_ACTIVE) {
       const id = `sum_pad_${seeded.activeIds.length}`;
-      seeded.entries.push({ id, module: "conversationHistory", level: 1, tag: id, turnId: `tn_pad_${seeded.activeIds.length}`, userRequest: "u", actions: "a", result: "r", sourceIds: [], createdAt: "2026-09-11" });
+      seeded.entries.push({ id, module: "conversationHistory", level: 1, summary: id, turnId: `tn_pad_${seeded.activeIds.length}`, userRequest: "u", actions: "a", result: "r", sourceIds: [], createdAt: "2026-09-11" });
       seeded.activeIds.push(id);
     }
     commitArchive(dataDir, ledger.conversationId, seeded, [], []);
