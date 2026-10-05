@@ -21,7 +21,7 @@ export type ModuleRegistryEntry = {
 
 export type ContextModule = {
   tag: string;
-  /** 合并后的功能说明（原能力句 + 原详细描述）。 */
+  /** 模块用途与职责，渲染在 <purpose> 内。 */
   purpose: string;
   /** 内容模板（可含 {{data}} / {{slots}}），无则为空。 */
   template: string;
@@ -47,8 +47,8 @@ export type ModuleRegistry = {
 const DEFAULT_SEMANTICS: Record<string, string> = {
   userInput: "对象 `{id, turnId, userInput}`，userInput 是用户原话。片段可缺省，不表示用户没输入。主模型投影为 `<userInput id>`，turnId 与 userInput 保留在正文。",
   observations: "观察对象数组，含 id、callId、tabId（可选）、type、result 及可选 taskId/taskItemId/writtenTurn/validUntilTurn。type 为观察类型。与 toolIO 同 callId 时两份都读。主模型投影为 `<observations start end>` 下的 `<observation id callId type ...>`，tabId 与 result 保留在正文。超过自己声明的 validUntilTurn 后不再注入；跨轮仍要留的结论用 memory_writeConversation 写成会话记忆。",
-  memoryWrites: "每条一个 `<memory memoryId turnId sourceCallId>` 元素，正文是记忆正文。此处只含本轮写入的会话记忆。",
-  toolIO: "工具调用对象数组，保留调用参数与返回原文。主模型投影在 `<calls start end kept total>` 下，每条为 `<call callId turnId name ok?>`；args 是调用参数（大小超门禁时只留 files 路径），正文是返回载荷。写模块的调用（finishTurn/askUser/notes/memory/task/reflect/observation/workspace）在主模型窗口只存指针，正文在对应模块；与 observations 同 callId 的调用返回为 `{ok, observationId}`。",
+  memoryWrites: "每条一个 `<ConverstionMemories memoryId turnId sourceCallId>` 元素，正文是记忆正文。此处只含本轮写入的会话记忆。",
+  toolIO: "工具调用对象数组，保留调用参数与返回原文。主模型投影在 `<calls start end kept total>` 下，每条为 `<call callId name ok?>`；args 是调用参数（大小超门禁时只留 files 路径），正文是返回载荷。写模块的调用（finishTurn/askUser/notes/memory/task/reflect/observation/workspace）在主模型窗口只存指针，正文在对应模块；与 observations 同 callId 的调用返回为 `{ok, observationId}`。",
   queryHistory: "查询记录对象数组，含 queryId、turnId、sumId、module、status、intent、records 与可选 sourceCallId/detail。status 为 complete / not_found / error。主模型投影为 `<queries start end>` 下的 `<query id sumId module status sourceCallId?>`，id 取 queryId；命中被外置时 ok/totalChars/path 等作为属性，正文只留 summary 等返回字段。",
   stopReason: "元素或缺省。`<stopReason kind callId?>` 的正文：`reply` 为最终回复正文（侧栏与后续上下文同一 text）；`ask` 在等用户；`error` 的 faultCode/causeCode/toolName/detail 作属性；`tool` 的 name/callId 作属性，停在该调用、还没收口。缺省表示暂无收尾。",
   reflection: "对象 `{turnId, items:[{id, text, focus?}]}` 或 null，text 是反思正文。主模型投影为 `<reflections start end>` 下每条 `<reflect id focus?>`。null 表示未填写。",
@@ -99,7 +99,7 @@ export function compressionTurnShellMarkdown(): string {
   ].join("\n");
 }
 
-/** Parse B-style XML module: <id>功能：[/内容]</id> */
+/** Parse an XML module with one purpose block and optional content template. */
 export function parseModule(text: string, expectedTag: string): ContextModule {
   const trimmed = text.replaceAll("\r\n", "\n").trim();
   const match = trimmed.match(/^<([A-Za-z][A-Za-z0-9]*)>\n([\s\S]*)\n<\/\1>$/);
@@ -108,13 +108,10 @@ export function parseModule(text: string, expectedTag: string): ContextModule {
   const want = expectedTag.startsWith("#") ? expectedTag.slice(1) : expectedTag;
   if (tag !== want) throw new Error(`module tag mismatch ${expectedTag}: ${tag}`);
   const bodyText = inner!.trim();
-  const capMatch = bodyText.match(/^功能：\n([\s\S]+)$/);
-  if (!capMatch) throw new Error(`invalid module content ${expectedTag}`);
-  const rest = capMatch[1]!;
-  const parts = rest.split(/\n\n内容：\n/);
-  if (parts.length > 2) throw new Error(`duplicate module content section ${expectedTag}`);
-  const purpose = parts[0]!.trim();
-  const template = (parts[1] ?? "").trim();
+  const sections = bodyText.match(/^<purpose>\n((?:(?!<\/?purpose>)[\s\S])+)\n<\/purpose>(?:\n\n((?:(?!<\/?purpose>)[\s\S])*))?$/);
+  if (!sections) throw new Error(`invalid module content ${expectedTag}`);
+  const purpose = sections[1]!.trim();
+  const template = (sections[2] ?? "").trim();
   if (!purpose) throw new Error(`empty module content ${expectedTag}`);
   return { tag: `#${want}`, purpose, template };
 }
@@ -156,15 +153,15 @@ const xmlAttr = (value: string) => value
 /** Per-tag attribute maps: tag (with '#') -> attribute name -> value. */
 export type SlotAttributes = Record<string, Record<string, string>>;
 
-/** XML body for one module (B: 功能 + optional data). */
+/** XML body for one module: purpose followed by optional data. */
 function renderXmlModule(module: ContextModule, data?: string, attributes?: SlotAttributes[string]): string {
   const id = module.tag.replace(/^#/, "");
   const attrs = attributes
     ? Object.entries(attributes).map(([k, v]) => ` ${k}="${xmlAttr(v)}"`).join("")
     : "";
-  const head = `<${id}${attrs}>\n功能：\n${module.purpose}`;
+  const head = `<${id}${attrs}>\n<purpose>\n${module.purpose}\n</purpose>`;
   if (data === undefined) return `${head}\n</${id}>`;
-  return `${head}\n\n内容：\n${data}\n</${id}>`;
+  return `${head}\n\n${data}\n</${id}>`;
 }
 
 export function renderSlots(
@@ -185,15 +182,10 @@ export function renderInventory(role: "System" | "User", order: string[], module
   return order.map(tag => {
     const module = modules[tag];
     if (!module) throw new Error(`missing slot file ${tag}`);
-    const id = tag.replace(/^#/, "");
     const payload = data[tag] ?? (tag === "#recordIdentity" ? identityRulesText() : undefined);
-    const body = payload !== undefined && payload !== "" ? payload : module.template;
-    const head = `<${id}>\n功能：\n${module.purpose}`;
-    return payload !== undefined && payload !== "" && role === "System" && tag === "#baseTools"
-      ? `${head}\n\n${payload}\n</${id}>`
-      : payload !== undefined && payload !== "" && tag === "#recordIdentity"
-        ? `${head}\n\n${payload}\n</${id}>`
-        : `${head}\n</${id}>`;
+    const showPayload = payload !== undefined && payload !== "" &&
+      ((role === "System" && tag === "#baseTools") || tag === "#recordIdentity");
+    return renderXmlModule(module, showPayload ? payload : undefined);
   }).join("\n\n");
 }
 
@@ -232,24 +224,22 @@ export function systemTextFromModules(
   const parts: string[] = [];
   for (const tag of modules.systemOrder) {
     const module = modules.systemSlots[tag]!;
-    const id = tag.slice(1);
     const extra = tag === "#baseTools" ? baseToolGuide
       : tag === "#recordIdentity" ? identityRulesText()
       : tag === "#systemSkill" ? skillGuide
       : "";
-    let body = module.template.includes("{{data}}")
-      ? `${module.purpose}\n\n${module.template.replaceAll("{{data}}", extra)}`
-      : extra
-        ? `${module.purpose}${module.template ? `\n\n${module.template}` : ""}\n\n${extra}`
-        : `${module.purpose}${module.template ? `\n\n${module.template}` : ""}`;
+    let purpose = module.purpose;
     if (tag === "#overview") {
-      body = body
+      purpose = purpose
         .replaceAll("{{currentDate}}", currentDate)
         .replaceAll("{{dataDir}}", dataDir)
         .replaceAll("{{cwd}}", cwd)
         .replaceAll("{{os}}", os);
     }
-    parts.push(`<${id}>\n功能：\n${module.purpose}\n\n${body}\n</${id}>`);
+    const data = module.template.includes("{{data}}")
+      ? module.template.replaceAll("{{data}}", extra)
+      : [module.template, extra].filter(Boolean).join("\n\n");
+    parts.push(renderXmlModule({ ...module, purpose }, data || undefined));
   }
   return parts.join("\n\n");
 }

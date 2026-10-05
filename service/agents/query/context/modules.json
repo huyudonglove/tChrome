@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Query Agent system modules (all XML B blocks). Identity only in identity.md.",
+  "description": "Query Agent system modules (all XML modules with purpose blocks). Identity only in identity.md.",
   "modules": [
     { "id": "overview", "order": 1, "file": "system/overview.md", "consumers": ["query"], "description": "Operating mechanism + module skim" },
     { "id": "identity", "order": 2, "file": "system/identity.md", "consumers": ["query"], "description": "Identity only; do not repeat elsewhere" },

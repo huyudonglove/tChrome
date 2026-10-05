@@ -1,5 +1,5 @@
 <projectMemory>
-功能：
+<purpose>
 本模块放项目所需的通用内容（跨会话长期记忆），只看当前项目和全局。
 跨会话适用的领域背景、术语和长期约束。memoryId 标识条目，sourceCallId 和 sourceConversationId 关联来源，text 是正文。编号为 lm_，由 memory_writeProject 写入、memory_update / memory_delete 维护。
 
@@ -15,7 +15,7 @@
 - 落盘是服务级平铺（<dataDir>/memory/project/lm_NN.json 一律同级，scope 只是文件内字段），但注入按 scope 过滤：不属于当前项目又没标全局的条目，这轮不会进窗口。只对某个仓库成立的事实（某项目路径、构建基线、失败清单）务必写那个项目的 scope，写错或漏填的后果是它对我不可见；反过来，写成全局则每轮都会占用预算。
 - 默认永不过期，注入时不做任何裁剪。每条都会永久占用每一轮的上下文预算，直到显式 memory_delete。
 - 没有「更新语义」，只有追加与整条改写。同一事实有新结论时用 memory_update 就地改写，不要再追加一条把旧版本留在那里；否则每次判断哪个是当前真相都要重读全部。
+</purpose>
 
-内容：
 {{data}}
 </projectMemory>

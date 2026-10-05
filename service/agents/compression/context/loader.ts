@@ -31,7 +31,7 @@ export function loadCompressionContextRegistry(repoRoot: string): CompressionCon
   return raw;
 }
 
-/** All System modules are XML B blocks; order comes from compression modules.json. */
+/** All System modules are XML modules with purpose blocks; order comes from compression modules.json. */
 export function loadCompressionSystemModules(repoRoot: string): { id: string; text: string }[] {
   const registry = loadCompressionContextRegistry(repoRoot);
   return [...registry.modules]

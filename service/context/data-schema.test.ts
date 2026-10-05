@@ -31,7 +31,7 @@ test("assembled User slots follow the shared data contract", () => {
   });
   const rendered = userText({ contextModules, ledger, turn, memories, skillText: "核对方法", conversationSummaries: [{ id: "sum_01", turnId: "tn_01", summary: "状态检查完成。", userRequest: "检查状态", actions: "读取详情", result: "待处理" }], queryHistory: [query, { ...query, queryId: "query_01" }] });
   const values: Record<string, any> = {};
-  const re = /<([A-Za-z][A-Za-z0-9]*)(?:\s[^>]*)?>\n功能：[\s\S]*?\n\n内容：\n([\s\S]*?)\n<\/\1>/g;
+  const re = /<([A-Za-z][A-Za-z0-9]*)(?:\s[^>]*)?>\n<purpose>\n[\s\S]*?\n<\/purpose>\n\n([\s\S]*?)\n<\/\1>/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(rendered))) {
     const name = m[1]!, body = m[2]!;
@@ -39,7 +39,7 @@ test("assembled User slots follow the shared data contract", () => {
   }
   expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
   expect(values.projectMemory).toContain('<memory id="lm_01"');
-  expect(values.conversation).toContain('<memory memoryId="mm_01"');
+  expect(values.conversation).toContain('<ConverstionMemories memoryId="mm_01"');
   expect(values.conversation).toContain('<summary sumId="sum_01"');
   expect(values.conversation).toContain('<turn turnId="tn_01"');
   expect(values.conversation).toContain('<turn turnId="tn_02"');

@@ -38,9 +38,19 @@ test("registry loads XML modules and system text uses angle-bracket tags", () =>
   expect(system).toContain("<runtime>");
   expect(system).toContain("GUIDE");
   expect(system).not.toContain("#identity");
+  expect(system).not.toMatch(/\{\{(?:currentDate|dataDir|cwd|os)\}\}/);
+  expect([...system.matchAll(/^<purpose>$/gm)]).toHaveLength(modules.systemOrder.length);
+  for (const tag of modules.systemOrder) {
+    const purpose = modules.systemSlots[tag]!.purpose
+      .replaceAll("{{currentDate}}", "2026-09-06")
+      .replaceAll("{{dataDir}}", "/tmp/tchrome-data")
+      .replaceAll("{{cwd}}", "/tmp/tchrome-test")
+      .replaceAll("{{os}}", "macOS (darwin/arm64)");
+    expect(system.split(purpose)).toHaveLength(2);
+  }
 });
 
-test("user window renders B-style XML modules with data under 内容", () => {
+test("user window renders XML purpose modules with data after purpose", () => {
   const modules = loadContextModules(root);
   const ledger = emptyLedger("cv_xml");
   ledger.notes = { candidate: { id: "nt_01", value: "草稿 {{literal}}" } };
@@ -53,13 +63,14 @@ test("user window renders B-style XML modules with data under 内容", () => {
   };
   const output = userText({ contextModules: modules, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: "技能正文" });
   expect(output).toContain("<skill>");
-  expect(output).toContain("功能：");
-  expect(output).toContain("内容：\n技能正文");
+  expect(output).toContain("<purpose>");
+  expect(output).toContain("</purpose>");
+  expect(output).toContain("</purpose>\n\n技能正文");
   expect(output).toContain("用户输入");
   expect(output).toContain('<conversation id="cv_xml">');
   expect(output).toContain('<turn turnId="tn_01">');
   expect(output).toContain("</turn>");
-  const topTags = Array.from(output.matchAll(/^<([A-Za-z][A-Za-z0-9]*)(?: [a-z]+="[^"]*")*>\n功能：/gm), m => m[1]);
+  const topTags = Array.from(output.matchAll(/^<([A-Za-z][A-Za-z0-9]*)(?: [a-z]+="[^"]*")*>\n<purpose>/gm), m => m[1]);
   expect(topTags).toEqual(modules.userOrder.map(tag => tag.slice(1)));
 });
 
@@ -90,8 +101,15 @@ test("<conversation> reports its conversation id and window occupancy", () => {
   }
 });
 
-test("parseModule accepts B XML and rejects malformed shells", () => {
-  const ok = parseModule("<demo>\n功能：\n正文\n</demo>", "demo");
-  expect(ok.tag).toBe("#demo");
-  expect(() => parseModule("#demo\n功能：\n正文", "demo")).toThrow();
+test("parseModule accepts XML purpose with optional content and rejects malformed sections", () => {
+  const purpose = "<demo>\n<purpose>\n正文\n</purpose>";
+  expect(parseModule(`${purpose}\n</demo>`, "demo")).toEqual({
+    tag: "#demo", purpose: "正文", template: "",
+  });
+  expect(parseModule(`${purpose}\n\n{{data}}\n</demo>`, "#demo")).toEqual({
+    tag: "#demo", purpose: "正文", template: "{{data}}",
+  });
+  expect(() => parseModule("<demo>\n功能：\n正文\n</demo>", "demo")).toThrow();
+  expect(() => parseModule("#demo\n<purpose>\n正文\n</purpose>", "demo")).toThrow();
+  expect(() => parseModule(`${purpose}\n<purpose>\n重复\n</purpose>\n</demo>`, "demo")).toThrow();
 });

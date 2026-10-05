@@ -47,7 +47,7 @@
 | 3 | tools | — | main |
 | 4 | conversation | — | main |
 
-`<conversation>` 内为会话级 `<memory>`、`<summary>`、`<task>` 与按 turnId 嵌套的 `<turn>` 轮次切片（标签属性 turnId / start / end；二级标签 userInput / observations / workspaces / notes / reflections / queries / stopReason，详见 user/conversation.md）；外层底部为全会话公用 `<calls>`（详情滚动池 `<call>` 元素，start/end/kept/total 见标签属性）；被压缩覆盖的轮次整块删除。
+`<conversation>` 内为会话级 `<ConverstionMemories>`、`<summary>`、`<task>` 与按 turnId 嵌套的 `<turn>` 轮次切片（标签属性 turnId / start / end；二级标签 userInput / observations / workspaces / notes / reflections / queries / stopReason，详见 user/conversation.md）；外层底部为全会话公用 `<calls>`（详情滚动池 `<call>` 元素，start/end/kept/total 见标签属性）；被压缩覆盖的轮次整块删除。
 
 ### Archive · 仅压缩
 
@@ -64,15 +64,18 @@
 
 压缩 Agent 提示词在 `service/agents/compression/context/`，字段列表由注册表中带 `archiveField` 的条目生成注入，**不**把主 Agent 全套模块塞给压缩模型。
 
-## 模型可见格式（B + XML）
+## 模型可见格式（XML）
+
+每个模块以 `<purpose>` 包裹完整功能说明；含动态数据的模块在 `</purpose>` 后直接放数据正文。
 
 System 模块：
 
 ```xml
 <identity>
-功能：
+<purpose>
 本模块定身份与协作方式——通晓底层的白盒工程搭档，用可验证事实说话，结构性摩擦当场记录。
 我是 Helm，中文名「驭舟」。…
+</purpose>
 </identity>
 ```
 
@@ -80,17 +83,17 @@ User 模块（含数据）：
 
 ```xml
 <conversation>
-功能：
+<purpose>
 本模块是本会话过程记录——按 turn 嵌套原文、摘要、任务与底部跨轮 calls 池。
 本会话过程记录。…
+</purpose>
 
-内容：
-<memory memoryId="mm_01" turnId="tn_01">…</memory>
+<ConverstionMemories memoryId="mm_01" turnId="tn_01">…</ConverstionMemories>
 <turn turnId="tn_01" start="call_01" end="call_12">
 <userInput id="input_01">{"turnId":"tn_01","userInput":"…"}</userInput>
 </turn>
 <calls start="call_01" end="call_12" kept="10" total="12">
-<call callId="call_01" turnId="tn_01" name="open_url">…</call>
+<call callId="call_01" name="open_url">…</call>
 </calls>
 </conversation>
 ```

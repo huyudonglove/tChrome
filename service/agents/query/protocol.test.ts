@@ -29,7 +29,6 @@ test("query uses dedicated system and raw {request,turns} user XML", () => {
   expect(system).toContain("Turn 外壳");
   expect(system).toContain("Runtime 校验不通过");
   expect(system).toContain("runtime:");
-  expect(system).toContain("Sample");
   expect(system).not.toContain("身份只在该模块声明");
   expect(system).not.toContain("<agentPosition>");
   const request = { sumId: "sum_01", module: "toolIO", intent: "是否可以修改状态" };

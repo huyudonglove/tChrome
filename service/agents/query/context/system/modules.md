@@ -1,5 +1,5 @@
 <queryModules>
-功能：
+<purpose>
 本模块说明 request 各字段与候选 turns 里记录的形态。
 下列字段出现在 User 的 { "request": {...}, "turns": [...] } 材料里。
 
@@ -21,44 +21,6 @@ turns：按来源轮次排列的候选数组。每项：
 
 - turnId：来源轮次 ID；提交时原样复制这里的值。
 - records：该轮指定模块的原始记录数组；记录保留自身标识。空数组表示该轮该模块没有记录。
+</purpose>
 
-Sample（一次查询含两个候选轮次，仅示例）：
-
-    {
-      "request": {
-        "sumId": "sum_01",
-        "module": "toolIO",
-        "intent": "保存后的状态"
-      },
-      "turns": [
-        {
-          "turnId": "tn_01",
-          "records": [
-            {
-              "callId": "call_02",
-              "turnId": "tn_01",
-              "name": "page_get_summary",
-              "arguments": { "tabId": 12, "reason": "读概况", "affectsPage": false },
-              "return": { "stage": "complete", "totalChars": 18, "text": "{\"ok\":true}" }
-            }
-          ]
-        },
-        {
-          "turnId": "tn_02",
-          "records": [
-            {
-              "callId": "call_04",
-              "turnId": "tn_02",
-              "name": "memory_writeProject",
-              "arguments": { "layer": "conversation", "text": "用户偏好 CSV" },
-              "return": { "stage": "complete", "totalChars": 12, "text": "{\"ok\":true}" }
-            }
-          ]
-        }
-      ]
-    }
-
-无候选 Sample：
-
-    { "request": { "sumId": "sum_01", "module": "userInput", "intent": "最初要求" }, "turns": [] }
 </queryModules>

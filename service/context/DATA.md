@@ -15,7 +15,7 @@
 
 ```xml
 <conversation>
-  <memory memoryId="mm_01" turnId="tn_01" sourceCallId="call_09">…</memory>
+  <ConverstionMemories memoryId="mm_01" turnId="tn_01" sourceCallId="call_09">…</ConverstionMemories>
   <summaries start="sum_01" end="sum_01">
     <summary sumId="sum_01" turnId="tn_01" summary="…" level="1" turnIds="tn_01">…</summary>
   </summaries>
@@ -47,19 +47,19 @@
     <notice id="rt_01" kind="budget" scope="turn">…</notice>
   </runtime>
   <calls start="call_01" end="call_86" kept="10" total="86">
-    <call callId="call_77" turnId="tn_02" name="task_update" ok="true">…</call>
+    <call callId="call_77" name="task_update" ok="true">…</call>
   </calls>
 </conversation>
 ```
 
-会话级（与 turn 平级）：`memory` 逐条渲染为 `<memory memoryId turnId sourceCallId?>` 元素、正文为 `text`（`mm_`）；`summaries` 容器以 start / end 标出首尾 sumId，每条摘要渲染为 `<summary sumId turnId summary? level? turnIds? from?>` 元素、正文为 `userRequest` / `actions` / `result`；`tasks` 容器以 start / end 标出任务 ID，`task` 为 `<task id title? status createdTurnId? updatedTurnId?>` 元素，每条步骤一个 `<item id status expectedEffect? verification? blockedReason? outcome?>`、正文为步骤 `text`（当前活跃或最近完成的任务实体，跨轮唯一持久化，直到新任务顶替）。
+会话级（与 turn 平级）：`ConverstionMemories` 逐条渲染为 `<ConverstionMemories memoryId turnId sourceCallId?>` 元素、正文为 `text`（`mm_`）；`summaries` 容器以 start / end 标出首尾 sumId，每条摘要渲染为 `<summary sumId turnId summary? level? turnIds? from?>` 元素、正文为 `userRequest` / `actions` / `result`；`tasks` 容器以 start / end 标出任务 ID，`task` 为 `<task id title? status createdTurnId? updatedTurnId?>` 元素，每条步骤一个 `<item id status expectedEffect? verification? blockedReason? outcome?>`、正文为步骤 `text`（当前活跃或最近完成的任务实体，跨轮唯一持久化，直到新任务顶替）。
 
 轮次级（`<turn>` 内，有则写、无则省略）：轮次 ID 与本段工具调用 ID 范围已收为 `<turn>` 的属性（`turnId` / `start` / `end`，单次调用时 start 与 end 相同），不再是二级标签。
 
 | 标签 | 渲染形状 | 身份字段 |
 | --- | --- | --- |
 | `userInput` | `<userInput id>`，正文含 `turnId` 与 `userInput` 用户原话 | `id` |
-| `calls` | 池属性 + 每条一个 `<call callId turnId name ok?>` 元素 | conversation 底部全会话公用池：仅最近 kept 条调用详情（kept / start / end / total 见标签属性），更早按各轮 `<turn>` 的 start / end 属性凭 callId 调 evidence_search 取回 |
+| `calls` | 池属性 + 每条一个 `<call callId name ok?>` 元素 | conversation 底部全会话公用池：仅最近 kept 条调用详情（kept / start / end / total 见标签属性），更早按各轮 `<turn>` 的 start / end 属性凭 callId 调 evidence_search 取回 |
 | `runtime` | `<notice id kind scope>` + 正文，同 kind 只保留最新一条 | `id`（`rt_`）；与 turn 平级，不进压缩 |
 | `observation` | 每条观察一个元素，容器为 `<observations start end>`，元素属性含 `id callId type` 等，正文保留 `tabId`（如有）与 `result` 等返回字段 | `id` |
 | `workspace` | `<workspaces start end>` 下每条 `<workspace id boundid callIds? files?>`，正文为 `{op, value}` | `id`（如 `ws01`） |

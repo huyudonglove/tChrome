@@ -231,7 +231,8 @@ const QUERY_ATTRS = ["id", "sumId", "module", "status", "ok", "faultCode", "sour
 const TASK_ATTRS = ["id", "title", "status", "createdTurnId", "updatedTurnId"];
 const TASK_ITEM_ATTRS = ["id", "status", "expectedEffect", "verification", "blockedReason", "outcome"];
 const STOP_ATTRS = ["kind", "callId"];
-const CALL_ATTRS = ["callId", "turnId", "name"];
+// Envelope fields omitted from the body; turnId stays in storage only.
+const CALL_ENVELOPE_KEYS = ["callId", "turnId", "name"];
 
 /** 因果工作区：<workspaces start end> 包 <workspace id boundid callIds files?>，body 为 {op, value}。不限量。 */
 const workspaceXml = (entries: WorkspaceEntry[]): string => {
@@ -306,10 +307,9 @@ const callXml = (value: unknown): string => {
   const result = asRecord(ret.result);
   const attrs: Record<string, string> = {};
   if (typeof record.callId === "string") attrs.callId = record.callId;
-  if (typeof record.turnId === "string") attrs.turnId = record.turnId;
   if (typeof record.name === "string") attrs.name = record.name;
   if (typeof result?.ok === "boolean") attrs.ok = String(result.ok);
-  const body = pickBody(record, CALL_ATTRS);
+  const body = pickBody(record, CALL_ENVELOPE_KEYS);
   body.return = ret.result !== undefined ? ret.result : ret;
   return `<call${attrText(attrs)}>\n${jsonBody(body)}\n</call>`;
 };
@@ -338,7 +338,7 @@ export function conversationXml(payload: ConversationPayload): string {
       ? `<summaries>\n${summariesRaw}\n</summaries>`
       : "");
   const parts = [
-    listXml("memory", payload.conversationMemory, MEMORY_ATTRS),
+    listXml("ConverstionMemories", payload.conversationMemory, MEMORY_ATTRS),
     summaryBlock,
     taskXml(payload.task),
   ].filter(Boolean);

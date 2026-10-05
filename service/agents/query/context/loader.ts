@@ -29,7 +29,7 @@ export function loadQueryContextRegistry(repoRoot: string): QueryContextRegistry
   return raw;
 }
 
-/** All System modules are XML B blocks; order comes from query modules.json. */
+/** All System modules are XML modules with purpose blocks; order comes from query modules.json. */
 export function loadQuerySystemModules(repoRoot: string): { id: string; text: string }[] {
   const registry = loadQueryContextRegistry(repoRoot);
   return [...registry.modules]

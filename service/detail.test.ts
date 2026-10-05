@@ -27,7 +27,7 @@ const section = (user: string, tag: string) => {
 };
 const collectNested = (user: string, tag: string): any[] => {
   const rows: any[] = [];
-  // Record elements carry their scalar fields (queryId/externalized/...) as attributes, and
+  // Record elements carry their scalar fields (id/externalized/...) as attributes, and
   // a body is raw JSON, a "内容：" block, or an externalization notice. Scan open tags by hand and pair
   // each with its own closing tag: a lazy regex can swallow the following record and lose attributes.
   const open = new RegExp(`<${tag}(\\s[^>]*?)?>`, "g");
@@ -130,7 +130,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
         expect(JSON.parse(rawResult)).toMatchObject({ status: "complete", sumId: f.sumId });
         expect(JSON.stringify(toolIO)).not.toContain(f.tool.return.text);
         expect(section(input.messages[1]!.content, "query")).toHaveLength(2);
-        expect(section(input.messages[1]!.content, "query").map((q: any) => q.queryId)).toEqual(["query_01", "query_02"]);
+        expect(section(input.messages[1]!.content, "query").map((q: any) => q.id)).toEqual(["query_01", "query_02"]);
       } else {
         expect(section(input.messages[1]!.content, "query").map((q: {turnId:string}) => q.turnId)).toEqual(["tn_07", "tn_07"]);
       }

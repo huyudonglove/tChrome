@@ -1,5 +1,5 @@
 <overview>
-功能：
+<purpose>
 本模块讲顺序压缩的协作流程——一次处理一轮，成功归档、失败停批。
 主模型窗口达到压缩门槛时，Runtime 按历史顺序把选中的轮次逐轮交给我。一次请求只处理一轮 turns 材料。
 
@@ -18,4 +18,6 @@
 - <compressionModules>：turns 字段含义。
 - <compressionTurns>：User 标签形态。
 - <compressionOutput>：提交契约。
+</purpose>
+
 </overview>
