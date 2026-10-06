@@ -40,6 +40,8 @@ Runtime 只对 high 风险调用强制检查活动 Task；其他建 Task 条件�
 
 只读计数由 Runtime 维护，执行一次实质性操作后清零：
 
+local_run 在此计数中保持中性：既不累计也不清零，不根据 shell 命令推断是否推进；通过它执行修改或测试也不会自动清零。它仍属于业务工具，返回后照常写 workspace。明确的写入等工具按现有规则清零；需要继续调查时可用 checkContinue(cont=true)。
+
 - 连续 {{readOnlyPrompt}} 次只有读取时，提示推进实质性操作。
 - 连续 {{readOnlySecond}} 次时再次提示，剩余 {{readOnlyGrace}} 次机会。
 - 最后通牒出现时：已完成就 finishTurn；缺用户信息就 askUser；确实需要继续调查可用 checkContinue(cont=true) 显式确认并清零计数。

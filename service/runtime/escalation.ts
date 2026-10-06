@@ -20,8 +20,8 @@ export type Escalation =
   | { action: "hint"; text: string }
   | { action: "interrupt"; text: string };
 
-/** 只读判定唯一来源：capability metadata 的 readOnly 标记（经 registry 传入）。
- * 名单之外的业务工具一律视为实质性（给模型 credit，避免误杀）。 */
+/** 只读判定使用 capability metadata 的 readOnly 标记（经 registry 传入）。
+ * local_run 不按命令内容推断进展，在本计数中保持中性；其他业务工具按元数据计数。 */
 
 /**
  * 记账/控制类工具：既不算只读累积，也不算实质性清零。
@@ -50,6 +50,8 @@ export function substantiveStreak(rows: ToolIOItem[], readOnly: Set<string>): nu
       continue;
     }
     if (NEUTRAL_TOOLS.has(row.name)) continue;
+    // 仅在停滞计数中中性；local_run 仍是需要 workspace 记录的业务调用。
+    if (row.name === "local_run") continue;
     if (readOnly.has(row.name)) {
       streak += 1;
     } else {
@@ -74,10 +76,10 @@ export function escalate(rows: ToolIOItem[], _lastName: string, readOnly: Set<st
   }
   if (streak >= READ_ONLY_SECOND) {
     const remaining = READ_ONLY_SECOND + READ_ONLY_GRACE - streak;
-    return { action: "hint", text: `${BUDGET_NUDGE_MARKER} 已连续 ${streak} 次只有读取类操作，仍无实质性进展。仅剩 ${remaining} 次机会：下一次调用必须做实质性操作（点击/填写/写入/执行/断言验收等，只读复查不算），否则本 turn 将直接中断。` };
+    return { action: "hint", text: `${BUDGET_NUDGE_MARKER} 已连续 ${streak} 次只有读取类操作，仍无实质性进展。仅剩 ${remaining} 次机会：下一次调用必须做实质性操作（点击/填写/明确写入/断言验收等，只读复查不算），否则本 turn 将直接中断。` };
   }
   if (streak >= READ_ONLY_PROMPT) {
-    return { action: "hint", text: `${BUDGET_NUDGE_MARKER} 已连续 ${streak} 次工具返回只有读取类操作，没有实质性进展。请做一次实质性操作（推进任务的点击/填写/写入/执行/断言验收等），而不是继续只读复查；出现一次实质性操作计数即清零。` };
+    return { action: "hint", text: `${BUDGET_NUDGE_MARKER} 已连续 ${streak} 次工具返回只有读取类操作，没有实质性进展。请做一次实质性操作（推进任务的点击/填写/明确写入/断言验收等），而不是继续只读复查；出现一次实质性操作计数即清零；local_run 不增加也不清零此计数。` };
   }
   return { action: "continue" };
 }

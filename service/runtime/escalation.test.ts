@@ -48,6 +48,27 @@ test("neutral bookkeeping neither accumulates nor resets", () => {
   expect(escalate(rows, "see_page", READ).action).toBe("continue");
 });
 
+test("local_run preserves read streak regardless of command and remains a workspace business call", async () => {
+  const { buildWorkspaceSuggestion, defaultWorkspaceCallIds } = await import("./workspace.ts");
+  const { emptyLedger } = await import("./store.ts");
+  const rows = reads(READ_ONLY_PROMPT - 1);
+  for (const command of ["git diff", "git status --short", "bun test", "echo changed > result.txt"]) {
+    rows.push(row("local_run", { command }));
+    expect(substantiveStreak(rows, READ)).toBe(READ_ONLY_PROMPT - 1);
+    expect(escalate(rows, "local_run", READ).action).toBe("continue");
+  }
+  rows.push(row("local_fs_read"));
+  expect(escalate(rows, "local_fs_read", READ).action).toBe("hint");
+  const call = { ...row("local_run", { command: "git diff" }), batchId: "batch_01" };
+  rows.push(call);
+  expect(substantiveStreak(rows, READ)).toBe(READ_ONLY_PROMPT);
+  expect(escalate(rows, "local_run", READ).action).toBe("hint");
+  expect(buildWorkspaceSuggestion([call])).not.toBeNull();
+  const ledger = emptyLedger("cv_test");
+  ledger.toolIO = [call];
+  expect(defaultWorkspaceCallIds(ledger, "tn_01")).toEqual([call.callId]);
+});
+
 test("60 reads second hint, 63rd is a final warning to the model, 66th interrupts", () => {
   const second = escalate(reads(READ_ONLY_SECOND), "see_page", READ) as { action: string; text: string };
   expect(second.action).toBe("hint");
@@ -103,7 +124,7 @@ for (const resetTool of ["local_fs_write", "checkContinue"]) {
     try {
       const session = ensureSession(dataDir);
       const ledger = loadLedger(dataDir, session.conversationId);
-      ledger.loadedToolIds = ["local_fs_list", "local_fs_write"];
+      ledger.loadedToolIds = ["local_fs_list", "local_fs_write", "local_run"];
       // A previous turn's reminder must not leak into this turn's first request.
       ledger.runtimeNotices.push({ id: "rt_999", kind: "budget", scope: "turn", text: BUDGET_NUDGE_MARKER });
       saveLedger(dataDir, ledger);
@@ -113,7 +134,7 @@ for (const resetTool of ["local_fs_write", "checkContinue"]) {
           request++;
           const runtime = input.messages[1]!.content.match(/<runtime\b[\s\S]*?<\/runtime>/)?.[0] ?? "";
           const hasBudget = runtime.includes('kind="budget"');
-          expect(hasBudget).toBe(request === 2 || request === 3);
+          expect(hasBudget).toBe(request >= 2 && request <= 4);
           const toolCalls = request === 1
             ? Array.from({ length: READ_ONLY_PROMPT }, (_, index) => ({
               id: `read_${index}`, name: "local_fs_list", arguments: { path: dataDir, limit: 1 },
@@ -121,6 +142,8 @@ for (const resetTool of ["local_fs_write", "checkContinue"]) {
             : request === 2
               ? [{ id: "note", name: "workspace_write", arguments: { reason: "记下结果", op: "读取目录", value: "目录已读取" } }]
               : request === 3
+                ? [{ id: "inspect", name: "local_run", arguments: { reason: "读取状态", cwd: dataDir, command: "pwd" } }]
+              : request === 4
                 ? [{ id: "reset", name: resetTool, arguments: resetTool === "checkContinue"
                   ? { reason: "继续执行", cont: true }
                   : { reason: "写入结果", path: join(dataDir, "result.txt"), content: "done" } }]
@@ -132,7 +155,7 @@ for (const resetTool of ["local_fs_write", "checkContinue"]) {
         userInput: "读取目录并保存结果", submittedAt: "2026-10-06",
       });
       expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
-      expect(request).toBe(4);
+      expect(request).toBe(5);
     } finally {
       rmSync(dataDir, { recursive: true, force: true });
     }
