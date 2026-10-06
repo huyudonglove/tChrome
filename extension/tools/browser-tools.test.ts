@@ -813,3 +813,83 @@ test("find_on_page scopes injection to the requested frame", async () => {
   expect(unscoped.target).toEqual({ tabId: 33 });
   expect(unscoped.args[1].frameId).toBeUndefined();
 });
+
+const mockHarBrowser = (tab: number, failNetwork = false) => {
+  const onEvent = eventBus(), onDetach = eventBus(), onRemoved = eventBus();
+  const snapshots = new Map<string, any>();
+  const commands: string[] = [];
+  let setCalls = 0;
+  let removeCalls = 0;
+  let releasePendingSet: (() => void) | undefined;
+  let pendingSet: Promise<void> | undefined;
+  globals.chrome = {
+    tabs: { get: async () => ({ id: tab, url: 'https://example.com', title: 'Example' }), onRemoved },
+    debugger: {
+      onEvent, onDetach,
+      attach: async () => {},
+      sendCommand: async (_target: any, command: string) => {
+        commands.push(command);
+        if (failNetwork && command === 'Network.enable') throw new Error('network unavailable');
+      },
+    },
+    storage: { session: {
+      get: async (key: string) => ({ [key]: snapshots.get(key) }),
+      set: async (values: Record<string, any>) => {
+        setCalls++;
+        if (setCalls > 1) {
+          pendingSet = new Promise<void>((resolve) => { releasePendingSet = resolve; });
+          await pendingSet;
+        }
+        for (const [key, value] of Object.entries(values)) snapshots.set(key, value);
+      },
+      remove: async (key: string) => { removeCalls++; snapshots.delete(key); },
+    } },
+  };
+  return {
+    onEvent, onDetach, onRemoved, commands, snapshots,
+    get setCalls() { return setCalls; },
+    get removeCalls() { return removeCalls; },
+    releasePendingSet: () => releasePendingSet?.(),
+  };
+};
+
+test('HAR cleanup waits for queued persistence before clearing a removed tab snapshot', async () => {
+  const tab = 3201;
+  const mock = mockHarBrowser(tab);
+  expect(await runBrowserTool('har', { tabId: tab, action: 'start' })).toMatchObject({ ok: true, started: true });
+  mock.onEvent.emit({ tabId: tab }, 'Network.requestWillBeSent', {
+    requestId: 'request-1', request: { method: 'GET', url: 'https://example.com/data' },
+  });
+  mock.onRemoved.emit(tab);
+  await Promise.resolve();
+  expect(mock.removeCalls).toBe(0);
+  mock.releasePendingSet();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(mock.removeCalls).toBe(1);
+  expect(mock.snapshots.size).toBe(0);
+});
+
+test('HAR startup failure clears its initial snapshot', async () => {
+  const tab = 3202;
+  const mock = mockHarBrowser(tab, true);
+  const result = await runBrowserTool('har', { tabId: tab, action: 'start' });
+  expect(result).toMatchObject({ ok: false, tabId: tab, error: 'Error: network unavailable' });
+  expect(mock.removeCalls).toBe(1);
+  expect(mock.snapshots.size).toBe(0);
+});
+
+test('HAR stop waits for persistence and clears the snapshot', async () => {
+  const tab = 3203;
+  const mock = mockHarBrowser(tab);
+  expect(await runBrowserTool('har', { tabId: tab, action: 'start' })).toMatchObject({ ok: true, started: true });
+  mock.onEvent.emit({ tabId: tab }, 'Network.requestWillBeSent', {
+    requestId: 'request-1', request: { method: 'GET', url: 'https://example.com/data' },
+  });
+  const stopped = runBrowserTool('har', { tabId: tab, action: 'stop' });
+  await Promise.resolve();
+  expect(mock.removeCalls).toBe(0);
+  mock.releasePendingSet();
+  await expect(stopped).resolves.toMatchObject({ ok: true, stopped: true, entryCount: 1 });
+  expect(mock.removeCalls).toBe(1);
+  expect(mock.snapshots.size).toBe(0);
+});

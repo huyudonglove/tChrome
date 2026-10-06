@@ -1637,16 +1637,40 @@ const executeBrowserTool = async (name, input = {}) => {
     const action = input.action || 'read';
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, tabId, error: '没有可用 HAR 的普通网页标签'};
+    const storageKey = `tchrome.har.${tab.id}`;
+    const readSnapshot = async () => {
+      const session = chrome.storage?.session;
+      if (!session) return null;
+      const stored = await session.get(storageKey);
+      const snapshot = stored?.[storageKey];
+      return snapshot && Array.isArray(snapshot.requests) ? snapshot : null;
+    };
+    const writeSnapshot = async (requests) => {
+      const session = chrome.storage?.session;
+      if (session) await session.set({[storageKey]: {requests}});
+    };
+    const clearSnapshot = async () => {
+      const session = chrome.storage?.session;
+      if (session) await session.remove(storageKey);
+    };
     if (action === 'read') {
       const buf = harBuffers.get(tab.id);
-      return {ok: true, tabId: tab.id, recording: !!buf, entryCount: buf?.requests?.size ?? 0};
+      const snapshot = buf ? null : await readSnapshot();
+      return {ok: true, tabId: tab.id, recording: !!buf || !!snapshot, entryCount: buf?.requests?.size ?? snapshot?.requests?.length ?? 0};
     }
     if (action === 'start') {
       if (harBuffers.has(tab.id)) return {ok: true, tabId: tab.id, already: true, entryCount: harBuffers.get(tab.id).requests.size};
-      const requests = new Map();
+      const snapshot = await readSnapshot();
+      const requests = new Map((snapshot?.requests || []).map((row) => [row.id, row]));
       const events = chrome.debugger.onEvent;
       const detached = chrome.debugger.onDetach;
       const removed = chrome.tabs.onRemoved;
+      const buffer = {requests, cleanup: null, persist: Promise.resolve()};
+      const persist = () => {
+        const rows = [...requests.values()];
+        buffer.persist = buffer.persist.then(() => writeSnapshot(rows));
+        void buffer.persist.catch(() => {});
+      };
       const onEvent = (source, method, params) => {
         if (source.tabId !== tab.id) return;
         if (method === 'Network.requestWillBeSent') {
@@ -1663,6 +1687,7 @@ const executeBrowserTool = async (name, input = {}) => {
               ...(r.postData ? { postData: { mimeType: r.headers?.['Content-Type'] || r.headers?.['content-type'] || 'application/json', text: String(r.postData).slice(0, 32000) } } : {}),
             },
           });
+          persist();
         } else if (method === 'Network.responseReceived') {
           const row = requests.get(params.requestId);
           if (!row) return;
@@ -1675,32 +1700,43 @@ const executeBrowserTool = async (name, input = {}) => {
             mimeType: res.mimeType || '',
             content: { size: Number(res.encodedDataLength || 0), mimeType: res.mimeType || '' },
           };
+          persist();
         } else if (method === 'Network.loadingFinished') {
           const row = requests.get(params.requestId);
-          if (row) row.bytes = Number(params.encodedDataLength || 0);
+          if (row) {
+            row.bytes = Number(params.encodedDataLength || 0);
+            persist();
+          }
         }
       };
-      const cleanup = () => {
+      const cleanup = async ({clearPersisted = false} = {}) => {
         events.removeListener(onEvent);
         detached.removeListener(onDetach);
         removed.removeListener(onRemoved);
+        await buffer.persist;
         harBuffers.delete(tab.id);
+        if (clearPersisted) await clearSnapshot();
       };
-      const onDetach = (source) => { if (source.tabId === tab.id) cleanup(); };
-      const onRemoved = (id) => { if (id === tab.id) cleanup(); };
+      const onDetach = (source) => { if (source.tabId === tab.id) void cleanup(); };
+      const onRemoved = (id) => { if (id === tab.id) void cleanup({clearPersisted: true}); };
+      buffer.cleanup = cleanup;
       events.addListener(onEvent);
       detached.addListener(onDetach);
       removed.addListener(onRemoved);
-      harBuffers.set(tab.id, { requests, cleanup });
+      harBuffers.set(tab.id, buffer);
       try {
+        await writeSnapshot([...requests.values()]);
         await withDebugger(tab.id, () => chrome.debugger.sendCommand({tabId: tab.id}, 'Network.enable', {}));
-      } catch (error) { cleanup(); return {ok: false, tabId: tab.id, error: String(error)}; }
-      return {ok: true, tabId: tab.id, started: true};
+      } catch (error) { await cleanup({clearPersisted: true}); return {ok: false, tabId: tab.id, error: String(error)}; }
+      return {ok: true, tabId: tab.id, started: true, entryCount: requests.size};
     }
     if (action === 'stop') {
       const buf = harBuffers.get(tab.id);
-      if (!buf) return {ok: false, tabId: tab.id, error: '尚未 start HAR'};
-      const entries = [...buf.requests.values()].map((row) => ({
+      const snapshot = buf ? null : await readSnapshot();
+      if (!buf && !snapshot) return {ok: false, tabId: tab.id, error: '尚未 start HAR'};
+      if (buf) await buf.persist;
+      const rows = buf ? [...buf.requests.values()] : snapshot.requests;
+      const entries = rows.map((row) => ({
         startedDateTime: row.startedDateTime,
         time: row.time || 0,
         request: row.request,
@@ -1715,7 +1751,8 @@ const executeBrowserTool = async (name, input = {}) => {
           entries,
         },
       };
-      buf.cleanup();
+      if (buf) await buf.cleanup({clearPersisted: true});
+      else await clearSnapshot();
       return {ok: true, tabId: tab.id, stopped: true, entryCount: entries.length, totalChars: JSON.stringify(har).length, har};
     }
     return {ok: false, tabId: tab.id, error: 'har 需要 action=start|stop|read'};
