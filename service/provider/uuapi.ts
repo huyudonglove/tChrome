@@ -140,6 +140,7 @@ export function createProvider(config: ProviderConfig = {}) {
       stream: true,
       messages: outgoing,
       tools: wireTools,
+      ...(wireTools.length ? { parallel_tool_calls: true } : {}),
       ...(toolChoice === "required" ? { tool_choice: "required" as const } : {}),
     }, { signal }).asResponse();
     if (!rawResponse.ok || !rawResponse.body) {

@@ -37,6 +37,7 @@ test("Responses sends flat tools and high reasoning and normalizes message plus 
     expect(body).toMatchObject({ model: "grok-4.7", store: false, stream: true, reasoning: { effort: "high" } });
     expect(body.tools[0]).toMatchObject({ type: "function", name: "finishTurn", strict: false });
     expect(body.tool_choice).toBeUndefined();
+    expect(body.parallel_tool_calls).toBe(true);
     expect(body.previous_response_id).toBeUndefined();
     expect(result).toMatchObject({ finish: "tool_calls", content: "执行下一步", toolCalls: [{ id: "call_1", name: "finishTurn", arguments: { text: "完成"} }] });
   } finally { server.stop(true); }

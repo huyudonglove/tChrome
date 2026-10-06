@@ -42,6 +42,7 @@ export async function completeResponses(client: OpenAI, input: {
     reasoning: { effort: input.reasoningEffort },
     stream: true,
     store: false,
+    ...(input.tools.length ? { parallel_tool_calls: true } : {}),
     input: outgoing,
     tools: input.tools.map(tool => ({
       type: "function",

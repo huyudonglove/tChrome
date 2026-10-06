@@ -178,3 +178,20 @@ for (const policy of ["unknown_tool", "missing_required", "exclusive_resident"])
     } finally { server.stop(true); rmSync(dir, { recursive: true, force: true }); }
   });
 }
+
+test("parallel function calls are enabled and the complete batch survives parsing", async () => {
+  let body: any;
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(request) {
+    body = await request.json();
+    return sse([call("first", "read_file", '{"path":"a.ts"}'), call("second", "read_file", '{"path":"b.ts"}')]);
+  } });
+  try {
+    const response = await providerFor(server.port!).complete({ messages: [], tools: [{ type: "function", function: {
+      name: "read_file", parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
+    } }] });
+    expect(body.parallel_tool_calls).toBe(true);
+    expect(response.toolCalls.map(call => ({ id: call.id, path: call.arguments.path }))).toEqual([
+      { id: "first", path: "a.ts" }, { id: "second", path: "b.ts" },
+    ]);
+  } finally { server.stop(true); }
+});
