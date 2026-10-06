@@ -20,7 +20,7 @@
     { "id": "conversation", "role": "user", "order": 4, "file": "user/conversation.md", "consumers": ["main"], "description": "Conversation Timeline By Turn" },
 
     { "id": "userInput", "role": "archive", "order": 1, "file": null, "consumers": ["compression"], "archiveField": "userInput", "description": "Turn user input" },
-    { "id": "toolIO", "role": "archive", "order": 3, "file": null, "consumers": ["compression"], "archiveField": "toolIO", "description": "Tool IO" },
+    { "id": "toolIO", "role": "archive", "order": 3, "file": null, "consumers": ["compression"], "archiveField": "toolIO", "description": "Complete turn tool calls, including results no longer visible in the main window" },
     { "id": "observations", "role": "archive", "order": 4, "file": null, "consumers": ["compression"], "archiveField": "observations", "description": "Observations" },
     { "id": "workspace", "role": "archive", "order": 2, "file": null, "consumers": ["compression"], "archiveField": "workspace", "description": "Causal workspace entries (op/value per batch plus optional files[], archived with the turn)" },
     { "id": "memoryWrites", "role": "archive", "order": 5, "file": null, "consumers": ["compression"], "archiveField": "memoryWrites", "description": "Conversation memory writes" },

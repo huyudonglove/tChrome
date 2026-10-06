@@ -47,7 +47,7 @@
 | 3 | tools | — | main |
 | 4 | conversation | — | main |
 
-`<conversation>` 内为会话级 `<ConverstionMemories>`、`<summary>`、`<task>` 与按 turnId 嵌套的 `<turn>` 轮次切片（标签属性 turnId / start / end；二级标签 userInput / observations / workspaces / notes / reflections / queries / stopReason，详见 user/conversation.md）；外层底部为全会话公用 `<calls>`（详情滚动池 `<call>` 元素，start/end/kept/total 见标签属性）；被压缩覆盖的轮次整块删除。
+`<conversation>` 内为会话级 `<ConverstionMemories>`、`<summary>`、`<task>` 与按 turnId 嵌套的 `<turn>` 轮次切片（标签属性 turnId / start / end；二级标签 userInput / calls / observations / workspaces / notes / reflections / queries / stopReason，详见 user/conversation.md）；各轮 `<calls>` 按 keepInCalls 展示调用详情（start/end 为该轮调用范围，kept 为可见条数，total 为该轮调用总数）；被压缩覆盖的轮次整块删除。
 
 ### Archive · 仅压缩
 
@@ -55,7 +55,7 @@
 |---|---|---|
 | userInput | userInput | 轮次用户输入 |
 | workspace | workspace | 因果工作区条目（op/value，按批随轮归档） |
-| toolIO | toolIO | 底部公用池：最近 kept 条调用详情（调用范围收在 `<turn>` 的 start / end 属性） |
+| toolIO | toolIO | 该轮完整调用参数与返回；窗口是否继续展示不影响归档 |
 | observations | observations | 观察（页面/代码等） |
 | memoryWrites | memoryWrites | 会话记忆写入 |
 | reflection | reflection | 轮次反思 |
@@ -84,17 +84,17 @@ User 模块（含数据）：
 ```xml
 <conversation>
 <purpose>
-本模块是本会话过程记录——按 turn 嵌套原文、摘要、任务与底部跨轮 calls 池。
+本模块是本会话过程记录——按 turn 嵌套原文与 calls，摘要和任务位于会话级。
 本会话过程记录。…
 </purpose>
 
 <ConverstionMemories memoryId="mm_01" turnId="tn_01">…</ConverstionMemories>
 <turn turnId="tn_01" start="call_01" end="call_12">
 <userInput id="input_01">{"turnId":"tn_01","userInput":"…"}</userInput>
-</turn>
-<calls start="call_01" end="call_12" kept="10" total="12">
+<calls start="call_01" end="call_12" kept="1" total="12">
 <call callId="call_01" name="open_url">…</call>
 </calls>
+</turn>
 </conversation>
 ```
 
@@ -114,3 +114,5 @@ User 模块（含数据）：
 ## 数据结构
 
 User 槽位的数据契约仍见 [DATA.md](DATA.md) 与 `data-schema.json`（校验用不带 `#` 的模块名）。`skill` / `conversation` / `tools` 为文本，其余为 JSON。DATA.md 约束数据形状，不注入提示词。
+
+调用可见性由统一可选参数 `keepInCalls` 决定：显式 true 保留至原有压缩覆盖；false 或未指定只在返回后的下一次模型请求展示一次。所有调用完整落盘并按来源轮次参与压缩，callId 全会话唯一，移出窗口后仍可回查。

@@ -3,14 +3,14 @@ import type { MemoryRecord } from "../../memory/types.ts";
 import { pageView, turnSummaryView, type TurnSummary } from "./records.ts";
 import { toolHistoryView } from "./tools.ts";
 import { queryView, type QueryEvidence, type QueryViewOptions } from "./queries.ts";
-import { runtimeConfig } from "../../config/runtime.ts";
 import { loadTurn } from "../../runtime/store.ts";
 
 export type ConversationTurnSlice = {
   turnId: string;
   userInput: { id: string; turnId: string; userInput: string };
   /** First–last callId of this turn (ids are per-conversation sequential). */
-  callBounds: { from: string; to: string } | null;
+  callBounds: { from: string; to: string; kept: number; total: number } | null;
+  calls: ReturnType<typeof toolHistoryView>;
   observations: ReturnType<typeof pageView>[];
   /** 因果工作区条目（本轮 workspace_write 写下），窗口不限量。 */
   workspace: WorkspaceEntry[];
@@ -29,10 +29,6 @@ export type ConversationPayload = {
   turns: ConversationTurnSlice[];
   /** Runtime 运行时提醒：与 turn 平级，不再零散缀在各条返回后面。 */
   runtime: RuntimeNotice[];
-  /** Shared rolling pool: newest calls across all turns. */
-  toolIO: ReturnType<typeof toolHistoryView>;
-  /** Pool bounds; rendered as <calls> attributes so the range is readable without opening the pool. */
-  toolIOBounds: { from: string; to: string; kept: number; total: number } | null;
 };
 
 const taskView = (plan: Task | null | undefined) => {
@@ -92,8 +88,8 @@ export function conversationPayload(input: {
   }
   const queries: QueryEvidence[] = [...(input.queryHistory ?? [])];
   const notesByTurn = input.notesByTurn ?? {};
-  // Newest tool calls keep their detail; everything older collapses to pointers.
-  const ringCallIds = new Set(ledger.toolIO.slice(-runtimeConfig.context.toolioRingSize).map((row) => row.callId));
+  const latestBatch = ledger.lastAction?.turnId === turn.turnId ? ledger.lastAction : null;
+  const latestCallIds = new Set(latestBatch?.calls.map(call => call.callId) ?? []);
 
   const turns: ConversationTurnSlice[] = [];
   const seen = new Set<string>();
@@ -104,12 +100,15 @@ export function conversationPayload(input: {
     const isLive = row.turnId === turn.turnId;
     const toolRows = groupByTurn(ledger.toolIO, row.turnId);
     const pages = pagesByTurn.get(row.turnId) ?? [];
+    const visibleCalls = toolRows.filter(record => record.arguments.keepInCalls === true
+      || (isLive && record.batchId === latestBatch?.batchId && latestCallIds.has(record.callId)));
     turns.push({
       turnId: row.turnId,
       userInput: { id: row.id, turnId: row.turnId, userInput: row.userInput },
       callBounds: toolRows.length
-        ? { from: toolRows[0]!.callId, to: toolRows.at(-1)!.callId }
+        ? { from: toolRows[0]!.callId, to: toolRows.at(-1)!.callId, kept: visibleCalls.length, total: toolRows.length }
         : null,
+      calls: toolHistoryView(visibleCalls, pages),
       observations: pages.map((page) => pageView(page, currentTurn)).filter((page) => page !== null),
       workspace: workspaceByTurn.get(row.turnId) ?? [],
       notes: (isLive ? ledger.notes : notesByTurn[row.turnId]) ?? {},
@@ -127,7 +126,6 @@ export function conversationPayload(input: {
           : null),
     });
   }
-  const sessionCalls = ledger.toolIO;
   const activePlan = ledger.activeTaskId ? ledger.tasks.find((plan) => plan.id === ledger.activeTaskId) : null;
   const latestPlan = activePlan ?? ledger.tasks.at(-1) ?? null;
   const taskPayload: ConversationTaskPayload = taskView(latestPlan);
@@ -139,15 +137,6 @@ export function conversationPayload(input: {
     task: taskPayload,
     turns,
     runtime: ledger.runtimeNotices,
-    toolIO: toolHistoryView(sessionCalls.slice(-runtimeConfig.context.toolioRingSize), [], ringCallIds),
-    toolIOBounds: sessionCalls.length
-      ? {
-          from: sessionCalls[0]!.callId,
-          to: sessionCalls.at(-1)!.callId,
-          kept: Math.min(sessionCalls.length, runtimeConfig.context.toolioRingSize),
-          total: sessionCalls.length,
-        }
-      : null,
   };
 }
 
@@ -299,7 +288,7 @@ const stopReasonXml = (stop: unknown): string => {
   return `<stopReason${attrs}>\n${text}\n</stopReason>`;
 };
 
-/** Tool pool entry: envelope keys plus outcome flags as attributes, result in the body. */
+/** Turn call entry: envelope keys plus outcome flags as attributes, result in the body. */
 const callXml = (value: unknown): string => {
   const record = asRecord(value);
   if (!record) return "";
@@ -364,6 +353,9 @@ export function conversationXml(payload: ConversationPayload): string {
       : undefined;
     const fields = [
       element("userInput", slice.userInput, USER_INPUT_ATTRS),
+      ...(slice.calls.length ? [
+        `<calls${slice.callBounds ? attrText({ start: slice.callBounds.from, end: slice.callBounds.to, kept: String(slice.callBounds.kept), total: String(slice.callBounds.total) }) : ""}>\n${slice.calls.map(callXml).join("\n")}\n</calls>`,
+      ] : []),
       wrapList("observations", observations, obsBounds),
       workspaceXml(slice.workspace),
       notesXml(slice.notes),
@@ -380,14 +372,5 @@ export function conversationXml(payload: ConversationPayload): string {
   }
   const runtime = runtimeXml(Array.isArray(payload.runtime) ? payload.runtime : []);
   if (runtime) parts.push(runtime);
-  // Shared tool pool at the bottom: session range as attributes + newest call details only.
-  // 空池不渲染（没数据不占位）。
-  const bounds = payload.toolIOBounds;
-  const pool = Array.isArray(payload.toolIO) ? payload.toolIO.map(callXml).filter(Boolean).join("\n") : "";
-  if (pool || bounds) {
-    parts.push(
-      `<calls${bounds ? attrText({ start: bounds.from, end: bounds.to, kept: String(bounds.kept), total: String(bounds.total) }) : ""}>\n${pool}\n</calls>`,
-    );
-  }
   return parts.join("\n");
 }

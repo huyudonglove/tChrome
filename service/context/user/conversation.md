@@ -17,7 +17,9 @@
 - <queries>：历史查询结果。每条 <query id> 使用查询记录 ID，start / end 是首尾查询 ID。
 - <stopReason>：该轮结束时的结论。
 
-底部 <calls> 保存全会话最近的调用详情。start / end 是全会话调用 ID 范围，kept 是当前保留的详情条数，total 是调用总数。每条 <call> 用 callId 定位；所属轮次由 <turn> 的调用范围确定。较早调用的详情不在池中时，用 evidence_search 按 callId 读取根目录，或加 keyword 搜索，再用 blockId 取回完整原文。
+每轮的 <calls> 保存该轮当前可见的调用详情。start / end 是该轮调用 ID 范围，kept 是本次可见条数，total 是该轮调用总数。每条 <call> 用全会话唯一的 callId 定位。keepInCalls=true 的调用详情持续保留，直到原有压缩覆盖该记录；false 或未指定的详情只供返回后的下一次模型请求查看，之后移出窗口。选择依据与用法见 <toolProtocol>。
+
+窗口中的移出不删除原始调用：所有参数和返回完整落盘，仍按原轮次参与压缩，包括 keepInCalls=false 的调用。需要已移出窗口的原文时，用 evidence_search 按 callId 读取根目录，或加 keyword 搜索，再用 blockId 取回完整原文。
 
 <conversation> 的 id 是会话 ID，编号可能跳号。chars 是本次 System + User 的合计字符数，limit 是压缩阈值，used 是占用百分比；据此判断上下文预算，处理规则见 <runtime>。
 </purpose>

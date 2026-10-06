@@ -100,6 +100,28 @@ function injectCausalBackfill(tool: ChatTool): ChatTool {
   };
 }
 
+/** Runtime projection choice belongs to every call, independent of business parameters. */
+function injectCallRetention(tool: ChatTool): ChatTool {
+  const params = tool.function.parameters as { properties?: Record<string, unknown> } | undefined;
+  return {
+    ...tool,
+    function: {
+      ...tool.function,
+      parameters: {
+        type: "object",
+        ...params,
+        properties: {
+          ...params?.properties,
+          keepInCalls: {
+            type: "boolean",
+            description: "是否在 calls 中持续保留本次调用结果。仅显式 true 请求持续保留；false 或不填时，仅供下一次模型请求查看一次。可选，不影响工具执行。",
+          },
+        },
+      } as ChatTool["function"]["parameters"],
+    },
+  };
+}
+
 /** Low-risk calls are read-only and self-evident, so the model does not have to restate a reason for them. */
 function relaxReasonRequirement(tool: ChatTool): ChatTool {
   const params = tool.function.parameters as { required?: unknown } | undefined;
@@ -152,7 +174,7 @@ export function loadToolRegistry(root: string): ToolRegistry {
     const name = raw.function?.name;
     if (!name) continue;
     const mode: ExecutionMode = raw.execution === "parallel" ? "parallel" : "serial";
-    tools[name] = injectCausalBackfill({ type: "function", function: withExecutionNote(raw.function, mode) });
+    tools[name] = injectCallRetention(injectCausalBackfill({ type: "function", function: withExecutionNote(raw.function, mode) }));
     execution[name] = mode;
     const declaredMutex = (raw as { mutex?: unknown }).mutex;
     if (Array.isArray(declaredMutex) && declaredMutex.length > 0) mutex[name] = declaredMutex as string[][];

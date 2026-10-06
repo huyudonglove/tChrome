@@ -857,8 +857,22 @@ export async function handleTurn(
         toolCalls: providerResult.toolCalls.map(call => ({ ...call, id: localCallId(call.id) })),
         ...(providerResult.toolCallFaults ? { toolCallFaults: providerResult.toolCallFaults.map(fault => ({ ...fault, callId: localCallId(fault.callId) })) } : {}),
       };
-      const batchId = rawResult.toolCalls.length || rawResult.toolCallFaults?.length
-        ? allocateRecordId(deps.dataDir, ledger.conversationId, "batch") : undefined;
+      const batchId = allocateRecordId(deps.dataDir, ledger.conversationId, "batch");
+      const batchStart = ledger.toolIO.length;
+      // Every response's records, including rejected calls and provider evidence,
+      // share the next-request window. A new batch replaces one-shot visibility.
+      const publishBatch = () => {
+        const rows = ledger.toolIO.slice(batchStart);
+        const observations = new Map(turn.assembled.observations
+          .filter(item => item.turnId === turnId).map(item => [item.callId, item.id]));
+        for (const row of rows) row.batchId = batchId;
+        ledger.lastAction = {
+          batchId, turnId,
+          calls: rows.map(row => ({ callId: row.callId, name: row.name,
+            ...(observations.has(row.callId) ? { observationId: observations.get(row.callId)! } : {}),
+          })),
+        };
+      };
       imageBatchId = batchId;
       const { result, batch: batchCheck, checks, validCalls } = validateCompletion(
         rawResult, tools, turn.assembled.baseToolsIds, turn.assembled.toolIds, toolRegistry.mutex,
@@ -951,22 +965,7 @@ export async function handleTurn(
           if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId, ledger.status)) {
           return stoppedReply(ledger, turn);
         }
-          if (batchId) {
-            const observationByCall = new Map(
-              turn.assembled.observations
-                .filter((item) => item.turnId === turn.turnId)
-                .map((item) => [item.callId, item.id] as const),
-            );
-            ledger.lastAction = {
-              batchId,
-              turnId,
-              calls: result.toolCalls.map((call) => ({
-                callId: call.id,
-                name: call.name,
-                ...(observationByCall.has(call.id) ? { observationId: observationByCall.get(call.id)! } : {}),
-              })),
-            };
-          }
+          publishBatch();
           saveTurn(deps.dataDir, turn);
           saveLedger(deps.dataDir, ledger);
           if (closed) {
@@ -978,6 +977,7 @@ export async function handleTurn(
             return { conversationId: ledger.conversationId, turnId, stopReason: closed };
           }
         }
+        publishBatch();
         if (submitFails >= MAX_SUBMIT) {
           turn.status = "failed";
           turn.completedAt = nowIso();
@@ -1003,9 +1003,8 @@ export async function handleTurn(
         const textContent = (result.content ?? "").trim();
         if (textContent && !result.grounding) {
           const autoCallId = allocateRecordId(deps.dataDir, ledger.conversationId, "call");
-          const autoBatchId = allocateRecordId(deps.dataDir, ledger.conversationId, "batch");
           ledger.toolQueue = [{
-            batchId: autoBatchId,
+            batchId,
             callId: autoCallId,
             name: "finishTurn",
             arguments: { text: textContent },
@@ -1020,6 +1019,7 @@ export async function handleTurn(
             host,
             measureWindow: windowMeasurer(deps.dataDir, deps.repoRoot, contextModules, toolRegistry, ledger, turn, memories, images, skillNav),
           });
+          publishBatch();
           saveTurn(deps.dataDir, turn);
           saveLedger(deps.dataDir, ledger);
           if (closed) {
@@ -1040,6 +1040,7 @@ export async function handleTurn(
           arguments: {},
           return: { stage: "complete", totalChars: failure.text.length, text: failure.text },
         });
+        publishBatch();
         if (submitFails >= MAX_SUBMIT) {
           turn.status = "failed";
           turn.completedAt = nowIso();
@@ -1079,22 +1080,7 @@ export async function handleTurn(
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId, ledger.status)) {
           return stoppedReply(ledger, turn);
         }
-      if (batchId) {
-        const observationByCall = new Map(
-          turn.assembled.observations
-            .filter((item) => item.turnId === turn.turnId)
-            .map((item) => [item.callId, item.id] as const),
-        );
-        ledger.lastAction = {
-          batchId,
-          turnId,
-          calls: result.toolCalls.map((call) => ({
-            callId: call.id,
-            name: call.name,
-            ...(observationByCall.has(call.id) ? { observationId: observationByCall.get(call.id)! } : {}),
-          })),
-        };
-      }
+      publishBatch();
       saveTurn(deps.dataDir, turn);
       // A plan whose items are all done is finished work; close it here so a
       // finished turn never leaves a zombie task behind. Persisted below.

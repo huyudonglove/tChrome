@@ -368,7 +368,7 @@ test("Gemini grounding 写入 toolIO 但不进入执行队列或 usage.toolCalls
     });
     expect(ledger.toolQueue).toEqual([]);
     expect(ledger.lastAction).toEqual({
-      batchId: "batch_01",
+      batchId: ledger.toolIO.at(-1)!.batchId!,
       turnId: reply.turnId,
       calls: [
         { callId: "call_03", name: "finishTurn" },

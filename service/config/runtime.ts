@@ -104,7 +104,6 @@ const context = {
   // Hard cap on chained continuations: past it the turn ends normally instead of rotating again,
   // so an incompressible window surfaces as context_limit rather than looping forever.
   maxTurnRotations: resolveGate("maxTurnRotations"),
-  toolioRingSize: resolveGate("toolioRingSize"),
   // How many dynamic skills the System-side catalog lists by default; the rest stay
   // reachable through skill_list (which pages over the full set).
   skillCatalogLimit: resolveGate("skillCatalogLimit"),

@@ -41,14 +41,14 @@
     <queries start="query_01" end="query_01">
       <query id="query_01" sumId="sum_03" module="toolIO" status="complete">…</query>
     </queries>
+    <calls start="call_01" end="call_12" kept="1" total="12">
+      <call callId="call_12" name="task_update" ok="true">…</call>
+    </calls>
     <stopReason kind="reply">…</stopReason>
   </turn>
   <runtime>
     <notice id="rt_01" kind="budget" scope="turn">…</notice>
   </runtime>
-  <calls start="call_01" end="call_86" kept="10" total="86">
-    <call callId="call_77" name="task_update" ok="true">…</call>
-  </calls>
 </conversation>
 ```
 
@@ -59,7 +59,7 @@
 | 标签 | 渲染形状 | 身份字段 |
 | --- | --- | --- |
 | `userInput` | `<userInput id>`，正文含 `turnId` 与 `userInput` 用户原话 | `id` |
-| `calls` | 池属性 + 每条一个 `<call callId name ok?>` 元素 | conversation 底部全会话公用池：仅最近 kept 条调用详情（kept / start / end / total 见标签属性），更早按各轮 `<turn>` 的 start / end 属性凭 callId 调 evidence_search 取回 |
+| `calls` | 每轮的 `<calls start end kept total>`，每条一个 `<call callId name ok?>` 元素 | start / end 为该轮调用范围，kept 为本次可见条数，total 为该轮调用总数；callId 全会话唯一，凭 callId 调 evidence_search 回查 |
 | `runtime` | `<notice id kind scope>` + 正文，同 kind 只保留最新一条 | `id`（`rt_`）；与 turn 平级，不进压缩 |
 | `observation` | 每条观察一个元素，容器为 `<observations start end>`，元素属性含 `id callId type` 等，正文保留 `tabId`（如有）与 `result` 等返回字段 | `id` |
 | `workspace` | `<workspaces start end>` 下每条 `<workspace id boundid callIds? files?>`，正文为 `{op, value}` | `id`（如 `ws01`） |
@@ -69,6 +69,8 @@
 | `stopReason` | `<stopReason kind callId?>` + 正文 | — |
 
 被压缩覆盖的 `<turn>` 整块删除，只在 `<summary>` 留摘要。会话记忆随来源轮次进入压缩，对应原文被覆盖后不再展示该条 `<ConverstionMemories>` 全文，落盘原记录仍保留；长期记忆 `<projectMemory>` 不参与压缩，被注入时保留全文。任务记录 `Task` 为会话级唯一实体，items 用 `item_` 编号。查询记录为 `{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}`。
+
+统一可选布尔参数 `keepInCalls` 只影响窗口可见性：显式 true 持续保留至原有压缩覆盖；false 或未指定的调用详情仅在返回后的下一次模型请求展示一次。全部原始调用完整落盘并按原轮次参与压缩，窗口移出不影响归档与 callId 回查。
 
 工具投影的每条调用带 `args`（调用参数；大小超门禁时只留 `files` 路径，记账类指针调用不带）、`return` 为 `{stage, result}`；result 与 observations 中同一 callId 的观察对应时，只保留 `{ok, observationId}`。context_query 的 result 为 `{ok, status, sumId, module, intent, recordCount}`。归档原文使用 `{stage, totalChars, text}`，只出现在压缩/查询候选里，不进主模型窗口。finishTurn / askUser 在 toolIO 只存指针 `{output:"reply"|"ask"}`，正文在本轮 stopReason。
 

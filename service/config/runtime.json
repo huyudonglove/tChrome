@@ -28,7 +28,6 @@
     "keepToolBatches": { "fixed": 1 },
     "turnRotateAtChars": { "follow": "compressAtChars", "ratio": 0.8 },
     "maxTurnRotations": { "fixed": 3 },
-    "toolioRingSize": { "fixed": 25 },
     "skillCatalogLimit": { "fixed": 10 },
     "processOutputRetain": { "fixed": 200 },
     "readOnlyPrompt": { "fixed": 30 },

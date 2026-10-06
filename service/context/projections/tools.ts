@@ -40,12 +40,9 @@ const MODULE_POINTERS: Record<string, (args: Record<string, unknown>, result: un
 };
 
 /** Page observation payloads live in <observations>; toolIO keeps a pointer only. */
-export function toolHistoryView(records: ToolIOItem[], observations: Observation[] = [], ringCallIds?: Set<string>) {
+export function toolHistoryView(records: ToolIOItem[], observations: Observation[] = []) {
   const byCall = new Map(observations.map((item) => [`${item.turnId}:${item.callId}`, item]));
-  // Rolling ring: only the newest calls keep their detail; older rows are omitted
-  // entirely (their callIds stay discoverable via each turn's start/end attributes).
-  const visible = ringCallIds ? records.filter((record) => ringCallIds.has(record.callId)) : records;
-  return visible.map(record => {
+  return records.map(record => {
     let result = resultView(record.return.text);
     const args = argsView(record.arguments);
     const envelope = {

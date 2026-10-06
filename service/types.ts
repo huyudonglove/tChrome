@@ -180,6 +180,8 @@ export type Turn = {
 
 export type ToolArguments = {
   reason?: string;
+  /** Retain this call in its turn's model context until compression covers it. */
+  keepInCalls?: boolean;
   [key: string]: unknown;
 };
 

@@ -8,11 +8,13 @@
 
 `execution`（parallel|serial）的通用含义写在 System 的 `<toolProtocol>` 中：parallel 可与同批并发，serial 等当前执行队列清空后独占。该值由定义文件顶层的 `execution` 决定并注入工具说明供模型参考；模型不必返回，也不能用参数修改。各工具定义只维护自身类型、必填、固定值和专用说明，不重复装配通用解释。
 
+`registry.ts` 向所有工具 schema 注入可选布尔参数 `keepInCalls`，不依赖工具是否有 reason 字段。显式 true 请求把调用详情保留在来源 `<turn>` 的 `<calls>` 中，直到原有压缩覆盖；false 或未指定只在返回后的下一次模型请求展示一次，之后移出。该参数不传给业务执行器，原始调用参数与返回仍完整落盘并按原轮次参与压缩，callId 全会话唯一且可回查。模型按后续是否需要引用证据选择，不按工具类型固定设置。
+
 - `definitions/<工具名>.json`：工具名称、`function.description`、参数 schema。
 - `definitions/index.json`：动态工具的 browser / service 分类。
 - `definitions/groups.json`：常驻工具和初始动态工具分组。
 
-`registry.ts` 读取本模块定义。System `<environment>` 给出工具大类导航；`<baseTools>` 展示常驻能力导航，User `<tools>` 展示本会话已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送。`schema.ts` 校验调用，Runtime 对主 Agent 响应统一执行校验后调度。校验前按 schema 中明确声明的字段类型，将精确的 `"true"` / `"false"` 转为布尔值，将 JSON 数字字符串转为有限数字（绝对值不超过安全整数上限，integer 字段必须为安全整数）；嵌套对象和数组沿 properties/items 处理。转换后的参数通过原有校验后交给执行器；不补必填项、不转换文本、不把单值包装成数组，也不猜测联合分支的类型。`service/context/` 负责同一服务内的上下文装配。Chrome API 操作由 `extension/tools/` 的宿主执行器完成，经浏览器桥接收服务调度；工具注册和 schema 仍统一维护在本模块。工具返回结构化结果与 effects，`service/runtime/effects.ts` 统一应用状态和持久化。
+`registry.ts` 读取本模块定义。System `<environment>` 给出工具大类导航；`<baseTools>` 展示常驻能力导航，User `<tools>` 展示本会话已加载的动态能力导航；每项由工具名和 function.description 首句生成，完整调用说明与参数 schema 通过 tools[] 发送。`schema.ts` 校验调用，Runtime 对主 Agent 响应统一执行校验后调度。keepInCalls 保留模型原始类型，只接受布尔值，不转换字符串。其他参数校验前按 schema 中明确声明的字段类型，将精确的 `"true"` / `"false"` 转为布尔值，将 JSON 数字字符串转为有限数字（绝对值不超过安全整数上限，integer 字段必须为安全整数）；嵌套对象和数组沿 properties/items 处理。转换后的参数通过原有校验后交给执行器；不补必填项、不转换文本、不把单值包装成数组，也不猜测联合分支的类型。`service/context/` 负责同一服务内的上下文装配。Chrome API 操作由 `extension/tools/` 的宿主执行器完成，经浏览器桥接收服务调度；工具注册和 schema 仍统一维护在本模块。工具返回结构化结果与 effects，`service/runtime/effects.ts` 统一应用状态和持久化。
 
 浏览器元素与区域使用 `e_01` / `r_01`（page.* 与 snapshot 共用）。扩展通过统一编号目录生成前缀，由 service worker 在 `chrome.storage.local` 持久自增分配；跨标签、导航和 worker 重启不复用。编号绑定实际 DOM 节点，同一节点重复观察保持编号；旧节点消失或不可见时操作失败，不按新枚举位置重新解释旧编号。
 

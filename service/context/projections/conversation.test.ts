@@ -1,14 +1,15 @@
 import { describe, expect, test } from "bun:test";
+import { emptyLedger } from "../../runtime/store.ts";
+import { runtimeConfig } from "../../config/runtime.ts";
+import type { ToolIOItem, Turn } from "../../types.ts";
 
-import { conversationXml, type ConversationPayload } from "./conversation.ts";
+import { conversationPayload, conversationXml, type ConversationPayload } from "./conversation.ts";
 
 const payload = (extra: Partial<ConversationPayload>): ConversationPayload =>
   ({
     conversationMemory: [],
     conversationHistorySummary: [],
     turns: [],
-    toolIOBounds: null,
-    toolIO: [],
     ...extra,
   }) as unknown as ConversationPayload;
 
@@ -29,7 +30,7 @@ describe("<task> 会话级任务标签", () => {
       turns: [{
         turnId: "tn_01",
         userInput: { id: "input_01", turnId: "tn_01", userInput: "hello" },
-        callBounds: null,
+        callBounds: null, calls: [],
         observations: [], workspace: [],
         notes: {},
         reflection: null,
@@ -62,7 +63,7 @@ describe("<workspace> 因果工作区", () => {
   const turnBase = {
     turnId: "tn_01",
     userInput: { id: "input_01", turnId: "tn_01", userInput: "hello" },
-    callBounds: null,
+    callBounds: null, calls: [],
     observations: [],
     notes: {},
     reflection: null,
@@ -110,7 +111,7 @@ test("projects record IDs into note/query attributes and matching container boun
       turns: [{
         turnId: "tn_01",
         userInput: { id: "input_01", turnId: "tn_01", userInput: "hello" },
-        callBounds: null, observations: [], workspace: [], reflection: null, stopReason: null,
+        callBounds: null, calls: [], observations: [], workspace: [], reflection: null, stopReason: null,
         notes: { draft: { id: "nt_04", value: "待核实" }, result: { id: "nt_07", value: "已完成" } },
         query: [queryView(query, { inlineChars })],
       }],
@@ -123,4 +124,84 @@ test("projects record IDs into note/query attributes and matching container boun
     expect(xml).toContain('<notice id="rt_02" kind="workspace" scope="turn">');
     expect(xml).not.toContain('"queryId"');
   }
+});
+
+describe("per-turn call retention", () => {
+  const call = (id: number, turnId: string, batchId: string, keepInCalls?: boolean): ToolIOItem => ({
+    callId: `call_${String(id).padStart(2, "0")}`, turnId, batchId, name: "local_fs_read",
+    arguments: { path: `/source/${id}.ts`, ...(keepInCalls === undefined ? {} : { keepInCalls }) },
+    return: { stage: "complete", text: '{"ok":true}', totalChars: 11 },
+  });
+  const fixture = () => {
+    const ledger = emptyLedger("cv_01");
+    ledger.userInputHistory = [{ id: "input_01", turnId: "tn_01", userInput: "earlier", submittedAt: "now" }];
+    ledger.toolIO = [
+      call(1, "tn_01", "batch_01", false), call(2, "tn_01", "batch_01", true),
+      call(3, "tn_01", "batch_01"), call(4, "tn_02", "batch_02", true),
+      call(5, "tn_02", "batch_02", false), call(6, "tn_02", "batch_03", false),
+      call(7, "tn_02", "batch_03"),
+    ];
+    ledger.lastAction = { turnId: "tn_02", batchId: "batch_03", calls: ledger.toolIO.slice(-2).map(row => ({ callId: row.callId, name: row.name })) };
+    const turn: Turn = {
+      turnId: "tn_02", conversationId: "cv_01", status: "inferring", createdAt: "now", completedAt: null, stopReason: null,
+      input: { id: "input_02", text: "current", submittedAt: "now" },
+      assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, currentTabs: { ok: true, windows: [] }, observations: [], workspace: [] },
+    };
+    const project = () => conversationPayload({ ledger, turn, memories: { conversation: [] }, gate: { inlineChars: runtimeConfig.results.inlineChars } });
+    return { ledger, turn, project };
+  };
+
+  test("keeps explicit historical calls and the entire latest live batch inside their own turns", () => {
+    const { ledger, project } = fixture();
+    const source = JSON.stringify(ledger.toolIO);
+    const result = project();
+    expect(result.turns.map(turn => turn.calls.map(call => call.callId))).toEqual([["call_02"], ["call_04", "call_06", "call_07"]]);
+    expect(result.turns.map(turn => turn.callBounds)).toEqual([
+      { from: "call_01", to: "call_03", kept: 1, total: 3 },
+      { from: "call_04", to: "call_07", kept: 3, total: 4 },
+    ]);
+    const xml = conversationXml(result);
+    const turns = [...xml.matchAll(/<turn\b[^>]*>([\s\S]*?)<\/turn>/g)];
+    expect(turns[0]![1]).toContain('<calls start="call_01" end="call_03" kept="1" total="3">');
+    expect(turns[0]![1]).toContain('callId="call_02"');
+    expect(turns[0]![1]).not.toContain('callId="call_06"');
+    expect(turns[1]![1]).toContain('callId="call_06"');
+    expect(xml.slice(xml.lastIndexOf("</turn>") + 7)).not.toContain("<calls");
+    expect(JSON.stringify(ledger.toolIO)).toBe(source);
+    expect(result).not.toHaveProperty("toolIO");
+    expect(result).not.toHaveProperty("toolIOBounds");
+  });
+
+  test("a bookkeeping batch replaces one-time call visibility and preserves pointer mapping", () => {
+    const { ledger, project } = fixture();
+    ledger.toolIO.push({ ...call(8, "tn_02", "batch_04", false), name: "workspace_write", arguments: { keepInCalls: false, op: "read", value: "done" } });
+    ledger.lastAction = { turnId: "tn_02", batchId: "batch_04", calls: [{ callId: "call_08", name: "workspace_write" }] };
+    const live = project().turns[1]!;
+    expect(live.calls.map(call => call.callId)).toEqual(["call_04", "call_08"]);
+    expect(live.calls[1]).not.toHaveProperty("args");
+    expect(live.calls[1]!.return.result).toEqual({ ok: true, workspace: true });
+    expect(live.callBounds).toEqual({ from: "call_04", to: "call_08", kept: 2, total: 5 });
+  });
+
+  test("history has no latest-batch exception and an empty view retains its original bounds", () => {
+    const { ledger, project } = fixture();
+    ledger.toolIO = ledger.toolIO.filter(call => call.arguments.keepInCalls !== true);
+    ledger.lastAction = { turnId: "tn_01", batchId: "batch_01", calls: [{ callId: "call_01", name: "local_fs_read" }] };
+    const result = project();
+    expect(result.turns.every(turn => turn.calls.length === 0)).toBe(true);
+    const xml = conversationXml(result);
+    expect(xml).toContain('<turn turnId="tn_01" start="call_01" end="call_03">');
+    expect(xml).toContain('<turn turnId="tn_02" start="call_05" end="call_07">');
+    expect(xml).not.toContain("<calls");
+  });
+
+  test("explicit retained calls have no count cap and only remaining source rows are projected", () => {
+    const { ledger, project } = fixture();
+    ledger.toolIO = Array.from({ length: 150 }, (_, i) => call(i + 1, "tn_01", "batch_01", true));
+    expect(project().turns[0]!.calls).toHaveLength(150);
+    ledger.toolIO = ledger.toolIO.slice(100);
+    const historical = project().turns[0]!;
+    expect(historical.calls).toHaveLength(50);
+    expect(historical.callBounds).toEqual({ from: "call_101", to: "call_150", kept: 50, total: 50 });
+  });
 });

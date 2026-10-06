@@ -9,6 +9,7 @@ import { compressionTurnsFromUserMessage } from "../agents/compression/protocol.
 import { loadIndex, resolveSources, commitArchive } from "../context-archive/store.ts";
 import { SUMMARY_RECOMPRESS_MIN_ACTIVE } from "../agents/compression/index.ts";
 import { runtimeConfig } from "../config/runtime.ts";
+import { conversationPayload } from "../context/projections/conversation.ts";
 import type { Ledger, Turn, Provider, CompletionResult } from "../types.ts";
 import type { Memories } from "../memory/types.ts";
 import { handleTurn } from "./loop.ts";
@@ -120,22 +121,26 @@ test("stop during batched compression cannot commit coverage or overwrite paused
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
-test("long current turn archives older complete batches and keeps input, current page and last two batches", async () => {
+test("long current turn archives retained and transient calls while keeping the latest batches", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "context-segment-"));
     primeActiveTask(dataDir);
   try {
     const ledger = emptyLedger("cv_test"), current = makeTurn(ledger.conversationId, "tn_01");
     current.status = "inferring"; current.stopReason = null; current.completedAt = null; ledger.turnIds = [current.turnId]; ledger.active = { turnId: current.turnId };
-    ledger.toolIO = Array.from({ length: KEEP * 2 + 2 }, (_, i) => ({ callId: `call_${i}`, turnId: current.turnId, batchId: `b_${Math.floor(i / 2)}`, name: "page_get_summary", arguments: {}, return: { stage: "complete" as const, text: "结果", totalChars: 2 } }));
+    ledger.toolIO = Array.from({ length: KEEP * 2 + 2 }, (_, i) => ({ callId: `call_${i}`, turnId: current.turnId, batchId: `b_${Math.floor(i / 2)}`, name: "page_get_summary", arguments: { keepInCalls: i % 2 === 0 }, return: { stage: "complete" as const, text: "结果", totalChars: 2 } }));
     current.assembled.observations = ledger.toolIO.map((row, i) => ({ id: `p_${i}`, turnId: current.turnId, callId: row.callId, observedAt: "2026-09-11", type: row.name, result: { ok: true, tabId: 1, url: "https://example.com", title: "页面", state: `状态${i}` } }));
     current.assembled.currentPage = { tabId: 1, url: "https://example.com", title: "页面", description: "状态5" };
     const memories: Memories = { project: [], conversation: [] }, provider: Provider = { complete: async input => summaryResponse(input.messages) };
+    const visibleCalls = (sourceLedger: Ledger, sourceTurn: Turn) => conversationPayload({ ledger: sourceLedger, turn: sourceTurn, memories, gate: { inlineChars: runtimeConfig.results.inlineChars } }).turns.flatMap(row => row.calls.map(call => call.callId));
+    expect(visibleCalls(ledger, current)).toContain("call_0");
+    expect(visibleCalls(ledger, current)).not.toContain("call_1");
     await compressContext({ dataDir, repoRoot, ledger, turn: current, memories, provider, isCancelled: () => false }, "current");
     const view = contextState(dataDir, ledger, current, memories);
+    expect(visibleCalls(view.ledger, view.turn)).not.toContain("call_0");
     expect(view.ledger.toolIO).toEqual(ledger.toolIO.slice(2)); expect(view.turn.assembled.observations).toEqual(current.assembled.observations.slice(2));
     expect(view.turn.input).toEqual(current.input); expect(view.turn.assembled.currentPage).toEqual(current.assembled.currentPage);
     const index = loadIndex(dataDir, ledger.conversationId, "conversationHistory"), sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
-    expect((sources[0]!.content as { toolIO: unknown[] }).toolIO).toHaveLength(2);
+    expect((sources[0]!.content as { toolIO: unknown[] }).toolIO).toEqual(ledger.toolIO.slice(0, 2));
     expect((sources[0]!.content as { stopReason: unknown }).stopReason).toBeNull();
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
@@ -183,8 +188,7 @@ test("200K during a live tool loop compresses older batches before the next main
   const dataDir = mkdtempSync(join(tmpdir(), "context-live-boundary-"));
     primeActiveTask(dataDir);
   try {
-    // The rolling toolIO ring keeps the window much smaller than before, so this
-    // scenario lowers the threshold instead of relying on toolIO bloat.
+    // Lower the threshold to exercise live compression with bounded test data.
     const primed = loadLedger(dataDir, ensureSession(dataDir).conversationId);
     primed.compressAt = 40000;
     saveLedger(dataDir, primed);

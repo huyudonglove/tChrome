@@ -46,7 +46,7 @@ const DEFAULT_SEMANTICS: Record<string, string> = {
   observations: "观察记录数组。id 标识观察，callId 关联工具调用，type 表示类型，result 是观察内容；还可能包含 tabId、任务关联和有效轮次。与 toolIO 同 callId 的内容一起核对。",
   workspace: "操作与结论数组。op 是做了什么，value 是得到什么结论；callIds 关联来源调用，files 列出涉及的文件或行区间，boundId 标识请求批次。",
   memoryWrites: "本轮写入的会话记忆数组。text 是记忆正文，memoryId 标识记录，turnId 和 sourceCallId 标识来源。",
-  toolIO: "工具调用数组。callId 标识调用，name 是工具名，arguments 是调用参数，return.text 是返回原文。按实际参数和返回判断发生了什么，不把调用成功等同于任务成功。",
+  toolIO: "工具调用数组。callId 标识调用，name 是工具名，arguments 是调用参数，return.text 是返回原文。包括已移出主模型窗口的调用；keepInCalls 只控制窗口可见性，不影响本轮归档材料。按实际参数和返回判断发生了什么，不把调用成功等同于任务成功。",
   queryHistory: "历史查询记录数组，包含 queryId、turnId、sumId、module、intent、status、records 和可选 sourceCallId/detail。status 为 complete、not_found 或 error；records 是查到的历史材料，不是本轮新执行的操作。",
   stopReason: "轮次结束原因或 null。kind=reply 时 text 是最终答复；ask 表示等待用户，error 包含错误详情，tool 表示停在某次工具调用。null 表示本次材料没有结束结果。",
   reflection: "反思对象或 null。items 中每项含 id、text 和可选 focus，记录判断变化、原因与取舍；null 表示未填写。",
