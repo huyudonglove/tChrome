@@ -8,7 +8,7 @@ SUMMARY: 宿主与浏览器协作：按实际限制选择执行环境，用进�
 - 页面脚本受 CSP 或跨域限制：在授权范围内，用宿主 local_run 执行计算或请求。宿主请求的 Cookie、代理、证书和网络环境可能与浏览器不同，不能直接把宿主成功当成页面成功。
 - Canvas 或复杂组件没有完整 DOM：结合截图和页面探针读取状态；需要时检查 localStorage 或 IndexedDB 中相关数据。写入存储会改变应用状态，只在任务授权涵盖该操作时执行，并检查刷新后的实际行为。
 - 网页内部录制用 video_record；需要标签栏、浏览器界面或其他应用时才使用系统录屏能力。
-- 联调本地服务：按需用 network_grep / wait_response 获取相关接口证据，启动本地服务，再用常驻 open_url 打开对应地址验证。
+- 联调本地服务：先启动服务并确认就绪，再用 open_url 打开对应地址验证。需要接口证据时，按下方监听规则选择 network_grep / wait_response 或 page_submit_wait。
 
 network_grep 和 wait_response 监听后续响应，不回查历史；已有响应直接使用原证据，按钮提交优先 page_submit_wait，避免先阻塞等待再触发请求。
 
