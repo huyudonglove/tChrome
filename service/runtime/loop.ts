@@ -19,6 +19,7 @@ import { skillGuide, loadedSkillText } from "../skills/loader.ts";
 import { loadContextModules, type ContextModules } from "../context/modules.ts";
 import { loadToolRegistry, coreToolIds, dynamicToolIds, toolSchemas, toolGuideFor, zeroCallToolNote, type ToolRegistry } from "../tools/registry.ts";
 import { executeTool } from "../tools/execute.ts";
+import { SUBAGENT_TOOL_CAPABILITIES } from "../agents/subagent/tool-capabilities.ts";
 
 // Observation nudge: counted on evidence-producing tool calls (not model sends), so a turn
 // that only reads/threads bookkeeping stays quiet while a long取证 turn gets asked to checkpoint.
@@ -356,6 +357,20 @@ const runQueue = async (input: {
             browserNames,
             host,
             signal: input.signal,
+            // Subagent 的候选 schema 用完整声明集（本轮基础工具 + 全部动态工具 + 核心工具），
+            // 而不是只取本轮主模型恰好加载的那一份——否则主会话没加载某个工具时，子代理会静默
+            // 失去这项能力。真正暴露给某个子代理的工具，仍由 packet.permissions 与
+            // SUBAGENT_TOOL_CAPABILITIES 两重收窄。
+            subagentTools: toolSchemas(toolRegistry, [...new Set([
+              ...turn.assembled.baseToolsIds,
+              ...turn.assembled.toolIds,
+              // 用 registry 导出的过滤版本：coreToolIds() 会剔除没有 schema 的声明项。
+              // toolSchemas 对缺失项直接抛错，而这个调用在每次工具调度的公共路径上，
+              // 一旦抛错会把本轮所有工具调用一起打成 tool_execution_failed。
+              ...coreToolIds(toolRegistry),
+              ...dynamicToolIds(toolRegistry),
+            ])]),
+            subagentToolCapabilities: SUBAGENT_TOOL_CAPABILITIES,
             observationIds: turn.assembled.observations.map((row) => row.id),
             defaultTabId: ledger.contextTab?.tabId ?? null,
             queryContext: args => queryContext({ dataDir, conversationId: ledger.conversationId, repoRoot: input.repoRoot, provider: input.provider, ...args, isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId) }),

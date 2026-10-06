@@ -1,0 +1,70 @@
+import type { SubagentCapability } from "./types.ts";
+
+/**
+ * 工具 → 能力标签。executor 只在「工具的全部标签都落在 packet 权限上限内」时才把它暴露给
+ * Subagent，所以没列在这里的工具等于不可用：未知工具被收窄，而不是被默认放行。
+ */
+export const SUBAGENT_TOOL_CAPABILITIES: Readonly<Record<string, readonly SubagentCapability[]>> = {
+  // 只读：定位与取证据
+  local_fs_read: ["read"],
+  local_fs_grep: ["read"],
+  local_fs_stat: ["read"],
+  local_fs_list: ["read"],
+  local_fs_search: ["read"],
+  local_fs_outline: ["read"],
+  local_tsx_outline: ["read"],
+  local_code_refs: ["read"],
+  local_repo_map: ["read"],
+  local_git_status: ["read"],
+  local_git_diff: ["read"],
+  evidence_search: ["read"],
+  agent_query: ["read"],
+  context_query: ["read"],
+  library: ["read"],
+  script_read: ["read"],
+  script_list: ["read"],
+  asset_list: ["read"],
+  asset_read: ["read"],
+  web_search: ["read"],
+  tavily_search: ["read"],
+  job_status: ["read"],
+
+  // 写入：改仓库与文件
+  local_fs_write: ["write"],
+  local_fs_mkdir: ["write"],
+  local_fs_copy: ["write"],
+  local_fs_move: ["write"],
+  local_replace_block: ["write"],
+  local_apply_patch: ["write"],
+  script_write: ["write"],
+  script_patch: ["write"],
+
+  // 执行与验证
+  local_run: ["test"],
+  local_diagnose: ["read", "test"],
+  local_process_start: ["test"],
+  local_process_status: ["test"],
+  local_process_stop: ["test"],
+  job_stop: ["test"],
+
+  // 浏览器：只给带 browser 上限的角色
+  page_get_summary: ["browser"],
+  page_list_regions: ["browser"],
+  page_list_interactive_elements: ["browser"],
+  page_inspect_element: ["browser"],
+  page_inspect_region: ["browser"],
+  page_recheck: ["browser"],
+  page_assert: ["browser"],
+  wait: ["browser"],
+  wait_response: ["browser"],
+  wait_network: ["browser"],
+  network_grep: ["browser"],
+  har: ["browser"],
+  tabs_current: ["browser"],
+  open_url: ["browser"],
+  page_click_role: ["browser"],
+  page_fill_role: ["browser"],
+  page_click_text: ["browser"],
+  combo_select: ["browser"],
+  date_select: ["browser"],
+};

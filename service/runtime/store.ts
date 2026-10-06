@@ -463,6 +463,36 @@ export function ensureSession(dataDir: string): Session {
   return session;
 }
 
+/**
+ * 复位被硬杀留下的 running 会话。
+ *
+ * 进程遇 SIGKILL / 崩溃 / 断电时来不及走 stopTurn，ledger.status 会停在 running；
+ * 之后 POST /turn 一见 running 就返回 busy，这个会话再也开不了新轮。
+ * 服务刚启动时不可能有轮次在跑，所以残留的 running 一定是脏数据：把当轮标
+ * failed / interrupted(service)，会话退回 paused。返回被复位的会话 ID 列表。
+ */
+export function recoverStaleRuns(dataDir: string): string[] {
+  const recovered: string[] = [];
+  for (const conversationId of listConversationIds(dataDir)) {
+    const ledger = loadLedger(dataDir, conversationId);
+    if (ledger.status !== "running") continue;
+    const turnId = ledger.active?.turnId;
+    if (turnId && existsSync(join(paths(dataDir, conversationId).turns, `${turnId}.json`))) {
+      const turn = loadTurn(dataDir, conversationId, turnId);
+      turn.status = "failed";
+      turn.completedAt = nowIso();
+      turn.stopReason = { kind: "interrupted", initiatedBy: "service", detail: "服务重启前该轮未正常收尾" };
+      saveTurn(dataDir, turn);
+    }
+    ledger.status = "paused";
+    ledger.active = null;
+    ledger.pendingAsk = null;
+    saveLedger(dataDir, ledger);
+    recovered.push(conversationId);
+  }
+  return recovered;
+}
+
 export function stopTurn(dataDir: string, targetConversationId?: string | null): SessionView {
   // Stop the caller's conversation; the global pointer stays the fallback.
   const session = { conversationId: targetConversationId || loadSession(dataDir)?.conversationId };

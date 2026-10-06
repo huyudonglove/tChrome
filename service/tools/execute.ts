@@ -149,7 +149,13 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       },
     }, input.signal);
     const dag = await runSubagentDag(packets, executor, { maxParallel: args.maxParallel as number | undefined });
-    return result(JSON.stringify({ ok: true, ...dag }));
+    // ok 描述「整次委派是否全部达成」，必须按真实 DAG 结果算：原先无条件写 true，
+    // 即使所有 packet 都失败也对外报成功，调用方无法据此判断。
+    const outcomes = Object.values(dag.results);
+    const success = outcomes.filter((row) => row.status === "success").length;
+    const failed = outcomes.filter((row) => row.status === "failed").length;
+    const blocked = outcomes.filter((row) => row.status === "blocked").length;
+    return result(JSON.stringify({ ok: packets.length > 0 && success === packets.length, ...dag, total: packets.length, success, failed, blocked }));
   }
   if (name === "execute_javascript") {
     try {

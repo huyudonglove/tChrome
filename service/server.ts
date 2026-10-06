@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { runTurnWithContinuation, type LoopDeps } from "./runtime/loop.ts";
 import { resolveProxy } from "./provider/uuapi.ts";
 import { configuredProvider, isProviderName, providerApiKeyEnv, providerOptions } from "./provider/config.ts";
-import { ensureSession, loadSession, defaultDataDir, currentSessionView, listConversations, listConversationIds, openConversation, newConversation, deleteConversation, stopTurn } from "./runtime/store.ts";
+import { ensureSession, loadSession, defaultDataDir, currentSessionView, listConversations, listConversationIds, openConversation, newConversation, deleteConversation, stopTurn, recoverStaleRuns } from "./runtime/store.ts";
 import { createToolBridge, type ToolBridge } from "./runtime/bridge.ts";
 import { calibrateServiceCounters } from "./runtime/ids.ts";
 import type { BrowserResult, BrowserHost, CurrentTabs } from "./types.ts";
@@ -309,6 +309,9 @@ if (isMain) {
   const hostname = "127.0.0.1";
   const port = 18788;
   const server = createServer();
+  // 启动即复位上一次被硬杀留下的 running 会话，否则那些会话会永远卡在 busy。
+  const recovered = recoverStaleRuns(defaultDataDir());
+  if (recovered.length) console.log(`Recovered stale sessions: ${recovered.join(", ")}`);
   const hub = getStreamHub();
   Bun.serve({
     hostname,
