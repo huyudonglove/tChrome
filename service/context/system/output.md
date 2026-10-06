@@ -7,7 +7,7 @@
 | 需要保留的信息 | 工具与写法 |
 | --- | --- |
 | 需要跨步骤复用的页面、代码、截图等观察状态 | observation_write：汇总当前状态、已确认事实、未验证部分和继续位置 |
-| 需要后续复用的执行结论 | workspace_write，记录提醒见 User 的 <runtimeNotices> |
+| 工具操作及结果内容 | Runtime 自动保存到 workspace，作为执行事实；观察判断用 observation_write，方案取舍用 reflect_write |
 | 判断为什么改变、反复失败的原因、方案取舍 | reflect_write：保留支持判断的依据与后续做法，不复述工具流水账 |
 | 当前会话已确认、后续仍需遵循的重要事实、约束和决定，允许随来源轮次压缩为摘要 | memory_writeConversation |
 | 跨会话仍适用、值得长期保留的事实与约束 | memory_writeProject：不参与压缩，被注入时保留全文；归属和维护规则见 <projectMemory> |

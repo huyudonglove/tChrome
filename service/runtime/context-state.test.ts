@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { emptyLedger, ensureSession, loadLedger, primeActiveTask, saveLedger, saveTurn, stopTurn } from "./store.ts";
+import { emptyLedger, ensureSession, loadLedger, loadTurn, primeActiveTask, saveLedger, saveTurn, stopTurn } from "./store.ts";
 import { allocateRecordId, inputRecord } from "./ids.ts";
 import { contextState, compressContext } from "./context-state.ts";
 import { compressionTurnsFromUserMessage } from "../agents/compression/protocol.ts";
@@ -13,6 +13,7 @@ import { conversationPayload } from "../context/projections/conversation.ts";
 import type { Ledger, Turn, Provider, CompletionResult } from "../types.ts";
 import type { Memories } from "../memory/types.ts";
 import { handleTurn } from "./loop.ts";
+import { recordWorkspaceEvidence } from "./workspace.ts";
 const repoRoot = join(import.meta.dir, "../..");
 // Current-phase archiving keeps the last KEEP_BATCHES batches in the window, so
 // fixtures must build one batch more than that to exercise the "older" path.
@@ -145,6 +146,47 @@ test("long current turn archives retained and transient calls while keeping the 
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
+test("automatic workspace evidence reloads old turns and archives alongside source calls", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "context-workspace-"));
+  primeActiveTask(dataDir);
+  try {
+    const ledger = emptyLedger("cv_test");
+    const previous = makeTurn(ledger.conversationId, "tn_01");
+    const current = makeTurn(ledger.conversationId, "tn_02");
+    current.status = "inferring"; current.completedAt = null; current.stopReason = null;
+    ledger.turnIds = [previous.turnId, current.turnId];
+    ledger.userInputHistory = [inputRecord(previous)];
+    ledger.active = { turnId: current.turnId };
+    for (let i = 0; i < KEEP + 2; i++) {
+      const turn = i === 0 ? previous : current;
+      const text = JSON.stringify({ ok: true, path: `/src/${i}.ts`, content: `source ${i}` });
+      const row = { callId: `call_0${i + 1}`, turnId: turn.turnId, batchId: `batch_0${i + 1}`, name: "local_fs_read", arguments: { items: [{ path: `/src/${i}.ts` }] }, return: { stage: "complete" as const, text, totalChars: text.length } };
+      ledger.toolIO.push(row);
+      ledger.boundSeq = i + 1;
+      recordWorkspaceEvidence(dataDir, ledger, turn, row, text);
+    }
+    saveTurn(dataDir, previous); saveTurn(dataDir, current); saveLedger(dataDir, ledger);
+    const reloaded = loadLedger(dataDir, ledger.conversationId);
+    const live = loadTurn(dataDir, ledger.conversationId, current.turnId);
+    const memories: Memories = { project: [], conversation: [] };
+    const expected = [...previous.assembled.workspace, ...current.assembled.workspace];
+    expect(contextState(dataDir, reloaded, live, memories).turn.assembled.workspace).toEqual(expected);
+    const provider: Provider = { complete: async input => {
+      const source = oneTurnOf(input.messages);
+      expect(source.workspace).toEqual(current.assembled.workspace.slice(0, 1));
+      return summaryResponse(input.messages);
+    } };
+    await compressContext({ dataDir, repoRoot, provider, ledger: reloaded, turn: live, memories, isCancelled: () => false }, "current");
+    const view = contextState(dataDir, loadLedger(dataDir, ledger.conversationId), loadTurn(dataDir, ledger.conversationId, current.turnId), memories);
+    expect(view.turn.assembled.workspace).toEqual([...previous.assembled.workspace, ...current.assembled.workspace.slice(1)]);
+    const index = loadIndex(dataDir, ledger.conversationId, "conversationHistory");
+    const sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
+    expect((sources[0]!.content as { workspace: unknown }).workspace).toEqual(current.assembled.workspace.slice(0, 1));
+    expect((sources[0]!.content as { toolIO: unknown }).toolIO).toEqual(ledger.toolIO.slice(1, 2));
+    expect(loadTurn(dataDir, ledger.conversationId, current.turnId).assembled.workspace).toEqual(current.assembled.workspace);
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+});
+
 test("segmented turn later closes into one active summary without rearchiving covered module increments", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "context-close-segment-"));
     primeActiveTask(dataDir);
@@ -205,8 +247,9 @@ test("200K during a live tool loop compresses older batches before the next main
           ]
         : [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", text: "完成"} }] });
     } };
+    let hostCall = 0;
     const reply = await handleTurn({ dataDir, repoRoot, provider, host: { execute: async () => ({
-      ok: true, tabId: 1, url: "https://example.com/p", title: "页", description: "证".repeat(3500),
+      ok: true, tabId: 1, url: "https://example.com/p", title: "页", description: `${++hostCall}:` + "证".repeat(3500),
     }) } }, { userInput: "核对结果", submittedAt: "2026-09-11" });
     expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" }); expect(main).toBe(KEEP + 2);
     const ledger = loadLedger(dataDir, reply.conversationId);

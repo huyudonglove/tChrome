@@ -5353,31 +5353,6 @@
       ],
       "readOnly": false
     },
-    "workspace_write": {
-      "purpose": "往本轮因果工作区写一条 op→value",
-      "triggers": [
-        "workspace_write",
-        "一批出网返回后需要固化因果结论"
-      ],
-      "outputs": [
-        "工作区条目编号"
-      ],
-      "preconditions": [
-        "op 与 value 非空"
-      ],
-      "risk": "low",
-      "readOnly": false,
-      "verification": [
-        "工具 ok=true 且条目出现在本轮 workspace"
-      ],
-      "alternatives": [
-        "observation_write 阶段小结",
-        "memory 跨轮留存"
-      ],
-      "composesWith": [
-        "evidence_search"
-      ]
-    },
     "checkContinue": {
       "purpose": "执行确认检查点，拿不准是否继续本轮时调用",
       "triggers": [

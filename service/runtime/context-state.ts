@@ -1,3 +1,4 @@
+import { loadTurn } from "./store.ts";
 import { mkdirSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { allocateRecordId } from "./ids.ts";
@@ -76,6 +77,9 @@ export function contextState(dataDir: string, ledger: Ledger, turn: Turn, memori
     },
     turn: { ...turn, assembled: { ...turn.assembled,
       observations: turn.assembled.observations.filter(row => !originCovered(row.turnId, row.callId)),
+      workspace: [...ledger.turnIds.filter(id => id !== turn.turnId && !turnCovered(id))
+        .flatMap(id => loadTurn(dataDir, ledger.conversationId, id).assembled.workspace),
+        ...turn.assembled.workspace].filter(row => !originCovered(row.turnId, row.callId)),
     } },
     memories: { ...memories, conversation: memories.conversation.filter(row => !originCovered(row.turnId, row.sourceCallId)) },
     summaries,
@@ -148,7 +152,7 @@ function archiveContentFromInventory(
       content[field] = raw.filter((row: ToolIOItem) => !coverage.toolCovered(row));
     } else if (field === "memoryWrites") {
       content[field] = raw.filter((row: { turnId: string; sourceCallId: string }) => !coverage.originCovered(row.turnId, row.sourceCallId));
-    } else if (field === "observations") {
+    } else if (field === "observations" || field === "workspace") {
       content[field] = raw.filter((row: { turnId: string; callId: string }) => !coverage.originCovered(row.turnId, row.callId));
     } else {
       content[field] = raw;

@@ -8,7 +8,7 @@
 
 常驻技能与 baseTools 同理，System 一直携带完整正文，不需 skill_load。动态技能由常驻工具 `skill_list` / `skill_load` 管理，`ledger.loadedSkillIds` 持久化；正文只出现在 User `<skill>`。
 
-技能正文围绕当前任务组织：说明适用场景、具体缺口对应的工具、何时信息足够可以执行，以及怎样用实际反馈验证和修正。阅读与排查不作为固定前置清单；已确认事实按 workspace 规则复用。代码修改通过差异、类型检查、测试或运行结果验证，页面操作通过相关状态、响应或截图验证。授权规则引用 System 对应模块，记录提醒引用动态 runtimeNotices，不在技能内新增门禁。
+技能正文围绕当前任务组织：说明适用场景、具体缺口对应的工具、何时信息足够可以执行，以及怎样用实际反馈验证和修正。阅读与排查不作为固定前置清单；工具操作及结果由 Runtime 自动记录到 workspace，按文件归组并随来源轮次归档；观察判断与方案取舍分别写入 observation 和 reflection。代码修改通过差异、类型检查、测试或运行结果验证，页面操作通过相关状态、响应或截图验证。授权规则引用 System 对应模块，记录提醒引用动态 runtimeNotices，不在技能内新增门禁。
 
 新增技能：建 `service/skills/<id>/SKILL.md`，文件最外层写一行 `SUMMARY:` 摘要（在标题之前，缺省回退标题），并按装配方式登记进 `index.json` 的 `residentSkillIds` 或 `dynamicSkillIds`：
 

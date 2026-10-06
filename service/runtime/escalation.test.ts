@@ -48,9 +48,7 @@ test("neutral bookkeeping neither accumulates nor resets", () => {
   expect(escalate(rows, "see_page", READ).action).toBe("continue");
 });
 
-test("local_run preserves read streak regardless of command and remains a workspace business call", async () => {
-  const { buildWorkspaceSuggestion, defaultWorkspaceCallIds } = await import("./workspace.ts");
-  const { emptyLedger } = await import("./store.ts");
+test("local_run preserves read streak regardless of command", async () => {
   const rows = reads(READ_ONLY_PROMPT - 1);
   for (const command of ["git diff", "git status --short", "bun test", "echo changed > result.txt"]) {
     rows.push(row("local_run", { command }));
@@ -63,10 +61,7 @@ test("local_run preserves read streak regardless of command and remains a worksp
   rows.push(call);
   expect(substantiveStreak(rows, READ)).toBe(READ_ONLY_PROMPT);
   expect(escalate(rows, "local_run", READ).action).toBe("hint");
-  expect(buildWorkspaceSuggestion([call])).not.toBeNull();
-  const ledger = emptyLedger("cv_test");
-  ledger.toolIO = [call];
-  expect(defaultWorkspaceCallIds(ledger, "tn_01")).toEqual([call.callId]);
+
 });
 
 test("60 reads second hint, 63rd is a final warning to the model, 66th interrupts", () => {
@@ -140,7 +135,7 @@ for (const resetTool of ["local_fs_write", "checkContinue"]) {
               id: `read_${index}`, name: "local_fs_list", arguments: { path: dataDir, limit: 1 },
             }))
             : request === 2
-              ? [{ id: "note", name: "workspace_write", arguments: { reason: "记下结果", op: "读取目录", value: "目录已读取" } }]
+              ? [{ id: "note", name: "notes_write", arguments: { reason: "记下结果", key: "directory", value: "目录已读取" } }]
               : request === 3
                 ? [{ id: "inspect", name: "local_run", arguments: { reason: "读取状态", cwd: dataDir, command: "pwd" } }]
               : request === 4

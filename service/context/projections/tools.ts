@@ -1,4 +1,4 @@
-import type { Observation, ToolIOItem } from "../../types.ts";
+import type { Observation, ToolIOItem, WorkspaceEntry } from "../../types.ts";
 import { runtimeConfig } from "../../config/runtime.ts";
 import { toolArgFiles } from "../../agents/query/file-filter.ts";
 
@@ -36,11 +36,10 @@ const MODULE_POINTERS: Record<string, (args: Record<string, unknown>, result: un
   "task_update": (args) => ({ ok: true, taskId: args.taskId ?? null }),
   "task_complete": (args) => ({ ok: true, taskId: args.taskId ?? null, completed: true }),
   "observation_write": (args) => ({ ok: true, observation: args.type ?? true }),
-  "workspace_write": () => ({ ok: true, workspace: true }),
 };
 
 /** Page observation payloads live in <observations>; toolIO keeps a pointer only. */
-export function toolHistoryView(records: ToolIOItem[], observations: Observation[] = []) {
+export function toolHistoryView(records: ToolIOItem[], observations: Observation[] = [], workspace: WorkspaceEntry[] = []) {
   const byCall = new Map(observations.map((item) => [`${item.turnId}:${item.callId}`, item]));
   return records.map(record => {
     let result = resultView(record.return.text);
@@ -54,6 +53,14 @@ export function toolHistoryView(records: ToolIOItem[], observations: Observation
       ...(record.imagesError ? { imagesError: record.imagesError } : {}),
       ...(args ? { args } : {}),
     };
+    const evidence = workspace.filter(item => item.turnId === record.turnId && item.callId === record.callId);
+    if (evidence.length && record.return.stage === "complete") {
+      const { args: _args, ...bare } = envelope;
+      const ok = result && typeof result === "object" ? (result as { ok?: unknown }).ok : undefined;
+      return { ...bare, return: { stage: record.return.stage, result: {
+        ...(typeof ok === "boolean" ? { ok } : {}), workspaceIds: evidence.map(item => item.id),
+      } } };
+    }
     const observation = byCall.get(`${record.turnId}:${record.callId}`);
     if (observation && record.return.stage === "complete") {
       const obsRes = observation.result && typeof observation.result === "object"

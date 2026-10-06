@@ -59,43 +59,34 @@ describe("<task> 会话级任务标签", () => {
     expect(xml).not.toContain("<tasks>");
   });
 });
-describe("<workspace> 因果工作区", () => {
+describe("conversation workspace evidence", () => {
   const turnBase = {
     turnId: "tn_01",
     userInput: { id: "input_01", turnId: "tn_01", userInput: "hello" },
-    callBounds: null, calls: [],
-    observations: [],
-    notes: {},
-    reflection: null,
-    query: [],
-    stopReason: null,
+    callBounds: null, calls: [], observations: [], notes: {}, reflection: null, query: [], stopReason: null,
   };
-  test("renders <workspaces start end> with <workspace id boundid callIds> and op/value body", () => {
+  test("groups evidence from multiple turns at conversation level and preserves sources", () => {
     const xml = conversationXml(payload({
       task: null,
-      turns: [{ ...turnBase, workspace: [
-        { id: "ws01", turnId: "tn_01", boundId: "b02", callId: "call_03", callIds: ["call_01", "call_02"], op: "读了列表接口", value: "分页参数是 cursor" },
-        { id: "ws02", turnId: "tn_01", boundId: "b03", callId: "call_05", callIds: ["call_04"], op: "试了提交", value: "200 成功" },
-      ] }],
+      turns: [
+        { ...turnBase, workspace: [{ id: "ws01", turnId: "tn_01", boundId: "b02", callId: "call_03", callIds: ["call_03"], target: { kind: "file", key: "/src/auth.ts" }, op: "local_fs_read", result: { ok: true }, content: "token check", files: ["/src/auth.ts"] }] },
+        { ...turnBase, turnId: "tn_02", workspace: [{ id: "ws02", turnId: "tn_02", boundId: "b03", callId: "call_05", callIds: ["call_05"], target: { kind: "file", key: "/src/auth.ts" }, op: "local_fs_write", result: { ok: true }, content: "updated check", mutation: true, files: ["/src/auth.ts"] }] },
+      ],
     }));
-    expect(xml).toContain('<workspaces start="ws01" end="ws02">');
-    expect(xml).toContain('<workspace id="ws01" boundid="b02" callIds="call_01,call_02">');
-    expect(xml).toContain('{"op":"读了列表接口","value":"分页参数是 cursor"}');
+    const turns = [...xml.matchAll(/<turn\b[^>]*>([\s\S]*?)<\/turn>/g)];
+    expect(turns).toHaveLength(2);
+    expect(turns.every(turn => !turn[1]!.includes("<workspace"))).toBe(true);
+    expect(xml).toContain("/src/auth.ts");
+    expect(xml).toContain("token check");
+    expect(xml).toContain("updated check");
+    expect(xml).toContain('"sources"');
+    expect(xml).toContain('"callId":"call_03"');
+    expect(xml).toContain('"callId":"call_05"');
   });
 
-  test("omits <workspace> entirely when the turn wrote nothing", () => {
+  test("omits workspace when there is no evidence", () => {
     const xml = conversationXml(payload({ task: null, turns: [{ ...turnBase, workspace: [] }] }));
     expect(xml).not.toContain("<workspace");
-  });
-
-  test("renders files attribute when the entry names files", () => {
-    const xml = conversationXml(payload({
-      task: null,
-      turns: [{ ...turnBase, workspace: [
-        { id: "ws01", turnId: "tn_01", boundId: "b02", callId: "call_03", callIds: ["call_01"], op: "读了鉴权", value: "token 在此处校验", files: ["src/auth.ts:120-180"] },
-      ] }],
-    }));
-    expect(xml).toContain('files="src/auth.ts:120-180"');
   });
 });
 
@@ -178,14 +169,30 @@ describe("per-turn call retention", () => {
     expect(result).not.toHaveProperty("toolIOBounds");
   });
 
+  test("visible calls reference complete workspace evidence while retaining outcome status", () => {
+    const { ledger, turn, project } = fixture();
+    const row = ledger.toolIO.at(-1)!;
+    row.return.text = '{"ok":false,"error":"read denied"}';
+    turn.assembled.workspace.push({
+      id: "ws01", turnId: turn.turnId, boundId: "b03", callId: row.callId, callIds: [row.callId],
+      target: { kind: "file", key: "/source/7.ts" }, op: "local_fs_read", result: { ok: false, error: "read denied" },
+    });
+    const result = project();
+    const projected = result.turns[1]!.calls.find(call => call.callId === row.callId)!;
+    expect(projected.return.result).toEqual({ ok: false, workspaceIds: ["ws01"] });
+    expect(projected).not.toHaveProperty("args");
+    expect(conversationXml(result)).toContain("read denied");
+    expect(row.return.text).toBe('{"ok":false,"error":"read denied"}');
+  });
+
   test("a bookkeeping batch replaces one-time call visibility and preserves pointer mapping", () => {
     const { ledger, project } = fixture();
-    ledger.toolIO.push({ ...call(8, "tn_02", "batch_04", false), name: "workspace_write", arguments: { keepInCalls: false, op: "read", value: "done" } });
-    ledger.lastAction = { turnId: "tn_02", batchId: "batch_04", calls: [{ callId: "call_08", name: "workspace_write" }] };
+    ledger.toolIO.push({ ...call(8, "tn_02", "batch_04", false), name: "notes_write", arguments: { keepInCalls: false, reason: "记录", key: "read", value: "done" } });
+    ledger.lastAction = { turnId: "tn_02", batchId: "batch_04", calls: [{ callId: "call_08", name: "notes_write" }] };
     const live = project().turns[1]!;
     expect(live.calls.map(call => call.callId)).toEqual(["call_04", "call_08"]);
     expect(live.calls[1]).not.toHaveProperty("args");
-    expect(live.calls[1]!.return.result).toEqual({ ok: true, workspace: true });
+    expect(live.calls[1]!.return.result).toEqual({ ok: true, note: "read" });
     expect(live.callBounds).toEqual({ from: "call_04", to: "call_08", kept: 2, total: 5 });
   });
 

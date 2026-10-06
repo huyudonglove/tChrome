@@ -121,12 +121,10 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
         expect(sessionView(dataDir, f.cv).activity).toBeNull();
         const toolIO = section(input.messages[1]!.content, "toolIO");
         const queryRow = toolIO.find((row: any) => row.name === "context_query");
-        // context_query 的投影把 queryView 直接摊在 return 上（见 context/projections/tools.ts），
-        // 不再包一层 result；只有被外置的 body 才是原始字符串。
-        // 每批返回末尾可能挂工作区建议，解析前先裁掉。
-        const result = queryRow?.return;
-        const rawResult = typeof result === "string" ? result : JSON.stringify(result);
-        expect(JSON.parse(rawResult)).toMatchObject({ status: "complete", sumId: f.sumId });
+        expect(queryRow.return.workspaceIds.length).toBeGreaterThan(0);
+        const operations = collectNested(input.messages[1]!.content, "workspace").flatMap(group => group.operations);
+        const evidence = operations.find(operation => operation.sources.some((source: { id: string }) => queryRow.return.workspaceIds.includes(source.id)));
+        expect(evidence.result).toMatchObject({ status: "complete", sumId: f.sumId });
         expect(JSON.stringify(toolIO)).not.toContain(f.tool.return.text);
         expect(section(input.messages[1]!.content, "query")).toHaveLength(2);
         expect(section(input.messages[1]!.content, "query").map((q: any) => q.id)).toEqual(["query_01", "query_02"]);

@@ -15,7 +15,6 @@ export type ToolEffect =
   | { type: "skill_load"; id: string }
   | { type: "page.set"; page: CurrentPage; result: Record<string, unknown> }
   | { type: "observation_write"; observationType: string; result: unknown; tabId?: number; validForTurns?: number; refresh?: string }
-  | { type: "workspace_write"; op: string; value: string; files?: string[] }
   | { type: "page_clear_result"; pageId: string }
   | { type: "task_set"; title?: string; items: { text: string; status?: "todo" | "doing" | "done"; expectedEffect?: string; verification?: string }[] }
   | { type: "task_update"; taskId?: string; items: { id: string; status?: "todo" | "doing" | "done"; text?: string; expectedEffect?: string; verification?: string; blockedReason?: string }[] }

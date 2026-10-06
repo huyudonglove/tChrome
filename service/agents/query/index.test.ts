@@ -91,11 +91,11 @@ function fileFixture() {
   const sources = [
     { id: "turn_tn_01", content: { turnId: "tn_01",
       observations: [{ id: "page_01", type: "local_fs_read", result: "token" }],
-      workspace: [{ id: "ws01", turnId: "tn_01", boundId: "b01", callId: "call_w1", callIds: ["call_01"], op: "读了鉴权", value: "token 在此校验", files: ["src/auth.ts:120-180"] }],
+      workspace: [{ id: "ws01", turnId: "tn_01", boundId: "b01", callId: "call_w1", callIds: ["call_01"], target: { kind: "file", key: "/src/auth.ts" }, op: "local_fs_read", result: "token 在此校验", files: ["src/auth.ts:120-180"] }],
       toolIO: [{ callId: "call_01", turnId: "tn_01", name: "local_fs_read", arguments: { reason: "读鉴权", items: [{ path: "src/auth.ts", startLine: 120 }] }, return: { text: "token" } }] } },
     { id: "turn_tn_02", content: { turnId: "tn_02",
       observations: [{ id: "page_02", type: "local_fs_list", result: "ok" }],
-      workspace: [{ id: "ws02", turnId: "tn_02", boundId: "b02", callId: "call_w2", callIds: ["call_02"], op: "读了列表", value: "分页 cursor" }],
+      workspace: [{ id: "ws02", turnId: "tn_02", boundId: "b02", callId: "call_w2", callIds: ["call_02"], target: { kind: "tool", key: "tool:local_run" }, op: "local_run", result: "分页 cursor" }],
       toolIO: [{ callId: "call_02", turnId: "tn_02", name: "local_fs_list", arguments: { reason: "列目录", path: "src/list" }, return: { text: "ok" } }] } },
   ];
   const entries: CompressionRecord[] = sources.map((source, n) => ({ id: `sum_0${n + 1}`, module: "conversationHistory", turnId: `tn_0${n + 1}`, level: 1, summary: "状态核对。", userRequest: "核对", actions: "读取", result: "确认", sourceIds: [source.id], createdAt: "2026-09-12" }));

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { runtimeConfig } from "../config/runtime.ts";
 import { handleTurn } from "../runtime/loop.ts";
-import { loadLedger, newConversation, primeActiveTask, saveLedger, saveTurn } from "../runtime/store.ts";
+import { loadLedger, loadSession, newConversation, primeActiveTask, saveLedger, saveTurn } from "../runtime/store.ts";
 import { loadMemories } from "../memory/store.ts";
 import type { CompletionResult, Provider, ToolCall, Turn, Ledger } from "../types.ts";
 import { inputRecord } from "../runtime/ids.ts";
@@ -47,6 +47,11 @@ const callRows = (xml: string): any[] => {
   }
   return rows;
 };
+const workspaceOperations = (xml: string): any[] => [...xml.matchAll(/<workspace\s+[^>]*>\n([\s\S]*?)\n<\/workspace>/g)]
+  .flatMap(match => JSON.parse(match[1]!).operations);
+const operationsFor = (xml: string, callId: string): any[] => workspaceOperations(xml)
+  .filter(operation => operation.sources.some((source: { callId: string }) => source.callId === callId));
+const storedReturn = (dataDir: string, callId: string): any => JSON.parse(loadLedger(dataDir, loadSession(dataDir)!.conversationId!).toolIO.find(row => row.callId === callId)!.return.text);
 // <notes> renders one <note id="…" key="…"> per entry: rebuild the map for slot assertions.
 const noteRows = (xml: string): Ledger["notes"] => {
   const rows: Ledger["notes"] = {};
@@ -146,21 +151,27 @@ test("mixed file read failures stay visible after externalization and originals 
     const row = slot(user, "calls").find((item: any) => item.name === "local_fs_read");
     sourceCallId = row.callId;
     expect(row.ok).toBe(false);
-    expect(row.return).toMatchObject({ ok: false, externalized: true, results: [{ ok: true, path }, { ok: false, faultCode: "file_not_found" }] });
-    expect(row.return.results[1].error).toContain(missing);
-    expect(row.return.results[0]).not.toHaveProperty("content");
-    const original = JSON.parse(readFileSync(row.return.path, "utf8"));
+    expect(row.return.workspaceIds.length).toBeGreaterThan(0);
+    const operations = operationsFor(user, sourceCallId);
+    const success = operations.find(operation => operation.target.key === path)!;
+    const failure = operations.find(operation => operation.target.key === missing)!;
+    expect(success.content).toBe(content);
+    expect(failure.result).toMatchObject({ ok: false, faultCode: "file_not_found" });
+    expect(failure.result.error).toContain(missing);
+    const stub = storedReturn(dataDir, sourceCallId);
+    expect(stub).toMatchObject({ ok: false, externalized: true });
+    const original = JSON.parse(readFileSync(stub.path, "utf8"));
     expect(original.results[0].content).toBe(content);
     expect(original.results[1].faultCode).toBe("file_not_found");
     return finish();
   }) }, { userInput: "读取文件并报告失败项", submittedAt: "now" });
-  expect(reply.stopReason.kind).toBe("reply");
+  expect(reply.stopReason, JSON.stringify(reply.stopReason)).toMatchObject({ kind: "reply" });
   const saved = loadLedger(dataDir, reply.conversationId).toolIO.find(row => row.callId === sourceCallId)!;
   expect(JSON.parse(saved.return.text).ok).toBe(false);
 }));
 
 test("large script results use evidence_search while small follow-up pages stay inline", () => withDir(async dataDir => {
-  const code = "//PAGE_SENTINEL\n" + "x".repeat(305_000);
+  const code = "//PAGE_SENTINEL\n" + "x".repeat(105_000);
   mkdirSync(join(dataDir, "scripts"));
   writeFileSync(join(dataDir, "scripts", "large.js"), code);
   let step = 0;
@@ -171,29 +182,29 @@ test("large script results use evidence_search while small follow-up pages stay 
       const toolIO = slot(user, "#toolIO");
       const row = toolIO.find((item: any) => item.name === "script_read");
       expect(row).toBeDefined();
-      // 窗口投影里返回末尾可能挂工作区建议，先裁再解析。
-      const rawReturn = typeof row.return === "string" ? row.return : JSON.stringify(row.return);
-      const stub = JSON.parse(rawReturn);
+      expect(row.return.workspaceIds.length).toBeGreaterThan(0);
+      expect(operationsFor(user, row.callId)[0]!.result.code).toBe(code);
+      const stub = storedReturn(dataDir, row.callId);
       expect(stub.externalized).toBe(true);
       expect(stub.directory.kind).toBe("directory");
       expect(stub.directory.children.length).toBeGreaterThan(0);
       expect(String(stub.path)).toContain("returns");
+      expect(JSON.parse(readFileSync(stub.path, "utf8")).code).toBe(code);
       return response(call("evidence_search", { windows: [{ callId: row.callId, keyword: "PAGE_SENTINEL" }] }));
     }
     const toolIO = slot(user, "#toolIO");
     const search = toolIO.find((row: any) => row.name === "evidence_search");
     expect(search).toBeDefined();
-    const searchRaw = typeof search.return === "string" ? search.return : JSON.stringify(search.return);
-    const parsed = JSON.parse(searchRaw);
-    const hit = parsed.results[0];
-    expect(parsed.ok).toBe(true);
+    expect(search.return.workspaceIds.length).toBeGreaterThan(0);
+    const hit = operationsFor(user, search.callId).find(operation => operation.result.kind === "search")!.result;
+    expect(search.ok).toBe(true);
     expect(hit.kind).toBe("search");
     expect(hit.matches[0].snippet).toContain("PAGE_SENTINEL");
     expect(hit.matches[0].blockId).toBeDefined();
     expect(String(hit.path)).toContain("returns");
     return finish();
   }) }, { userInput: "读取大脚本并检索关键标记", submittedAt: "now" });
-  expect(reply.stopReason.kind).toBe("reply");
+  expect(reply.stopReason, JSON.stringify(reply.stopReason)).toMatchObject({ kind: "reply" });
   expect(step).toBe(4);
   expect(readFileSync(join(dataDir, "scripts", "large.js"), "utf8")).toBe(code);
 }));
@@ -249,7 +260,7 @@ test("history above the compress threshold is compressed before the main model r
     }
     return base.complete(input);
   }} }, { userInput: "继续", submittedAt: "now" });
-  expect(reply.stopReason.kind).toBe("reply");
+  expect(reply.stopReason, JSON.stringify(reply.stopReason)).toMatchObject({ kind: "reply" });
   expect(main).toBe(1);
   expect(loadIndex(dataDir, conversationId, "conversationHistory").coveredSourceIds.length).toBeGreaterThan(0);
   expect(loadLedger(dataDir, conversationId).userInputHistory.length).toBeGreaterThanOrEqual(turns.length);

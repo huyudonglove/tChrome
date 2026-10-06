@@ -48,14 +48,14 @@
 | 4 | conversation | — | main |
 | 5 | runtimeNotices | — | main |
 
-`<conversation>` 内为会话级 `<ConverstionMemories>`、`<summary>`、`<task>` 与按 turnId 嵌套的 `<turn>` 轮次切片（标签属性 turnId / start / end；二级标签 userInput / calls / observations / workspaces / notes / reflections / queries / stopReason，详见 user/conversation.md）；各轮 `<calls>` 按 keepInCalls 展示调用详情（start/end 为该轮调用范围，kept 为可见条数，total 为该轮调用总数）；被压缩覆盖的轮次整块删除。
+`<conversation>` 内为会话级 `<ConverstionMemories>`、`<summary>`、`<task>`、`<workspaces>` 与按 turnId 嵌套的 `<turn>` 轮次切片（标签属性 turnId / start / end；二级标签 userInput / calls / observations / notes / reflections / queries / stopReason，详见 user/conversation.md）。`<workspaces>` 按 target 对象归组展示，各项操作证据仍存储在来源 turn 并随该轮归档；各轮 `<calls>` 按 keepInCalls 展示调用详情（start/end 为该轮调用范围，kept 为可见条数，total 为该轮调用总数），已在 workspace 保存的正文使用引用；被压缩覆盖的轮次整块删除。
 
 ### Archive · 仅压缩
 
 | id | 归档字段 | 说明 |
 |---|---|---|
 | userInput | userInput | 轮次用户输入 |
-| workspace | workspace | 因果工作区条目（op/value，按批随轮归档） |
+| workspace | workspace | Runtime 自动保存操作证据，按 file/browser/script/process/tool 对象归组；保留 op/args/result/content/range/mutation 与来源编号，随来源轮次归档 |
 | toolIO | toolIO | 该轮完整调用参数与返回；窗口是否继续展示不影响归档 |
 | observations | observations | 观察（页面/代码等） |
 | memoryWrites | memoryWrites | 会话记忆写入 |
@@ -118,4 +118,4 @@ User 槽位的数据契约仍见 [DATA.md](DATA.md) 与 `data-schema.json`（校
 
 调用可见性由统一可选参数 `keepInCalls` 决定：显式 true 保留至原有压缩覆盖；false 或未指定只在返回后的下一次模型请求展示一次。所有调用完整落盘并按来源轮次参与压缩，callId 全会话唯一，移出窗口后仍可回查。
 
-稳定运行规则放在 System 的 `<runtimeProtocol>`：图片选择、压缩、外置与原文取回，以及 workspace 根据新增信息按需记录的原则。User 的 `<runtimeNotices>` 只承载当前动态提醒，作为与 `<conversation>` 平级的独立模块，不参与压缩。
+稳定运行规则放在 System 的 `<runtimeProtocol>`：图片选择、压缩、外置与原文取回，以及 workspace 自动记录操作结果事实与按文件归组的规则。User 的 `<runtimeNotices>` 只承载当前动态提醒，作为与 `<conversation>` 平级的独立模块，不参与压缩。

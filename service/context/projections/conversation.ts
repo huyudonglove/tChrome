@@ -1,3 +1,4 @@
+import { groupWorkspaceEvidence } from "../../runtime/workspace.ts";
 import type { Ledger, Observation, Task, TaskHistoryRecord, Turn, TurnStopReason, UserInputRecord, WorkspaceEntry, RuntimeNotice } from "../../types.ts";
 import type { MemoryRecord } from "../../memory/types.ts";
 import { pageView, turnSummaryView, type TurnSummary } from "./records.ts";
@@ -12,7 +13,7 @@ export type ConversationTurnSlice = {
   callBounds: { from: string; to: string; kept: number; total: number } | null;
   calls: ReturnType<typeof toolHistoryView>;
   observations: ReturnType<typeof pageView>[];
-  /** 因果工作区条目（本轮 workspace_write 写下），窗口不限量。 */
+  /** Runtime 自动记录的操作证据，保留来源轮次。 */
   workspace: WorkspaceEntry[];
   notes: Ledger["notes"];
   reflection: { turnId: string; items: { id: string; text: string; focus?: string }[] } | null;
@@ -106,7 +107,7 @@ export function conversationPayload(input: {
       callBounds: toolRows.length
         ? { from: toolRows[0]!.callId, to: toolRows.at(-1)!.callId, kept: visibleCalls.length, total: toolRows.length }
         : null,
-      calls: toolHistoryView(visibleCalls, pages),
+      calls: toolHistoryView(visibleCalls, pages, workspaceByTurn.get(row.turnId) ?? []),
       observations: pages.map((page) => pageView(page, currentTurn)).filter((page) => page !== null),
       workspace: workspaceByTurn.get(row.turnId) ?? [],
       notes: (isLive ? ledger.notes : notesByTurn[row.turnId]) ?? {},
@@ -220,20 +221,13 @@ const STOP_ATTRS = ["kind", "callId"];
 // Envelope fields omitted from the body; turnId stays in storage only.
 const CALL_ENVELOPE_KEYS = ["callId", "turnId", "name"];
 
-/** 因果工作区：<workspaces start end> 包 <workspace id boundid callIds files?>，body 为 {op, value}。不限量。 */
+/** Objects share one view; each operation retains its immutable source identities. */
 const workspaceXml = (entries: WorkspaceEntry[]): string => {
   if (!entries.length) return "";
-  const bounds = attrText({ start: entries[0]!.id, end: entries.at(-1)!.id });
-  const body = entries.map((entry) => {
-    const attrs = attrText({
-      id: entry.id,
-      boundid: entry.boundId,
-      ...(entry.callIds.length ? { callIds: entry.callIds.join(",") } : {}),
-      ...(entry.files?.length ? { files: entry.files.join(",") } : {}),
-    });
-    return `<workspace${attrs}>\n${jsonBody({ op: entry.op, value: entry.value })}\n</workspace>`;
-  }).join("\n");
-  return `<workspaces${bounds}>\n${body}\n</workspaces>`;
+  const body = groupWorkspaceEvidence(entries).map(group =>
+    tag("workspace", { operations: group.operations }, { kind: group.target.kind, key: group.target.key })
+  ).join("\n");
+  return `<workspaces>\n${body}\n</workspaces>`;
 };
 
 /** Runtime 提醒：同 kind 只保留最新一条。 */
@@ -327,6 +321,7 @@ export function conversationXml(payload: ConversationPayload): string {
     listXml("ConverstionMemories", payload.conversationMemory, MEMORY_ATTRS),
     summaryBlock,
     taskXml(payload.task),
+    workspaceXml(payload.turns.flatMap(slice => slice.workspace)),
   ].filter(Boolean);
   for (const raw of payload.turns) {
     const slice = raw as ConversationTurnSlice;
@@ -354,7 +349,6 @@ export function conversationXml(payload: ConversationPayload): string {
         `<calls${slice.callBounds ? attrText({ start: slice.callBounds.from, end: slice.callBounds.to, kept: String(slice.callBounds.kept), total: String(slice.callBounds.total) }) : ""}>\n${slice.calls.map(callXml).join("\n")}\n</calls>`,
       ] : []),
       wrapList("observations", observations, obsBounds),
-      workspaceXml(slice.workspace),
       notesXml(slice.notes),
       reflectionXml(slice.reflection),
       wrapList("queries", queries, queryBounds),

@@ -14,7 +14,7 @@ SUMMARY: 代码修改与验证：定位必要证据，实施局部改动，用�
 | 不确定类型、调用契约是否成立 | 运行项目的类型检查或相关集成测试 |
 | 不确定实际行为 | 运行定向测试、最小复现或相关页面操作，比较预期和结果 |
 
-按需用 catalog_add 加载动态工具，取得 schema 后按实际参数调用。复用 workspace 中已有结论，并参考动态 <runtimeNotices> 提醒。
+按需用 catalog_add 加载动态工具，取得 schema 后按实际参数调用。复用 workspace 中自动记录的执行事实，并参考动态 <runtimeNotices> 提醒。
 
 遇到专项问题时可从动态技能清单选用方法：疑难因果用 hypothesis-testing，网络状态用 network-state-troubleshooting，源码与页面不一致用 repo-browser-dual-audit。用 skill_load 加载所需正文；清单缺少线索时用 skill_list 查找。方法已经明确时直接执行，不把加载全部技能作为前置步骤。
 

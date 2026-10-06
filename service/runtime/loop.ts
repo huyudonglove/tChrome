@@ -4,7 +4,7 @@ import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
 import { admitExecution, admitImages, deferredImageNote } from "../admission.ts";
 import { escalate } from "./escalation.ts";
-import { buildWorkspaceSuggestion } from "./workspace.ts";
+import { recordWorkspaceEvidence } from "./workspace.ts";
 import { hasActiveTask, requiresActiveTask } from "./task-gate.ts";
 import { repeatHint } from "./repeat-detect.ts";
 import { ensureThumb, loadThumbRef } from "../images/thumb.ts";
@@ -61,7 +61,6 @@ const OBSERVATION_NUDGE_EXCLUDED = new Set([
   "checkContinue",
   "askUser",
   "finishTurn",
-  "workspace_write",
 ]);
 import type { ToolExecution } from "../tools/effects.ts";
 import { applyToolEffects, archiveTurnReflection } from "./effects.ts";
@@ -414,6 +413,7 @@ const runQueue = async (input: {
         }
       }
       const full = stored.text;
+      let evidenceText = full;
       saveFullReturn(dataDir, ledger.conversationId, item.callId, full);
       if (execution.evidenceIndex) saveReturnBlockIndex(dataDir, ledger.conversationId, item.callId, execution.evidenceIndex);
       // 原文与统一块索引使用同一来源调用；取回型结果直接内联，避免再次外置。
@@ -450,6 +450,7 @@ const runQueue = async (input: {
       }
       const escalation = escalate(turnRows, item.name, readOnlyTools);
       if (escalation.action === "interrupt") {
+        recordWorkspaceEvidence(dataDir, ledger, turn, row, evidenceText);
         closeForcedReply(ledger, turn, escalation.text);
         saveTurn(dataDir, turn);
         saveLedger(dataDir, ledger);
@@ -472,11 +473,14 @@ const runQueue = async (input: {
         // Effects can fail after earlier writes succeeded. Report evidence without replaying them.
         const text = failedTool(error, "tool_execution_failed", { toolName: item.name,
           details: { executionState: "部分操作可能已生效，请先检查已保存记录与当前状态，不要直接重放整批操作。" } }).text;
+        evidenceText = text;
         row.return = { stage: "complete", totalChars: text.length, text };
         saveFullReturn(dataDir, ledger.conversationId, item.callId, text);
         saveTurn(dataDir, turn);
         saveLedger(dataDir, ledger);
       }
+      recordWorkspaceEvidence(dataDir, ledger, turn, row, evidenceText);
+      saveTurn(dataDir, turn);
       // Tool calls are not written to events.jsonl: toolio.jsonl is the single source of truth
       // (it carries turnId/batchId/risk/taskId and is amended in place to the final return), and
       // projectSessionView falls back to ledger.toolIO when a turn has no tool events.
@@ -632,8 +636,6 @@ export async function handleTurn(
     };
     // 连续只读计数以 turn 为范围，不携带上一轮的预算提醒。
     setNotice("budget", null);
-    // 已出过建议的批：同一批只建议一次（给紧接着的下一次请求看），之后不再打扰。
-    let suggestedBatchId: string | undefined;
     while (true) {
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
           return stoppedReply(ledger, turn);
@@ -649,18 +651,8 @@ export async function handleTurn(
       // Nudge on evidence-producing tool calls: count this turn's toolIO, skipping bookkeeping tools.
       const rows = ledger.toolIO.filter((r) => r.turnId === turn.turnId);
       // 临时提醒每次发送前重算；budget 保留 runQueue 按最新工具返回计算的状态。
-      for (const kind of ["observation", "reflect", "compress", "rotate", "workspace"]) {
+      for (const kind of ["observation", "reflect", "compress", "rotate"]) {
         setNotice(kind, null);
-      }
-      // 工作区建议看上一批（ledger.lastAction 记的）：一批只建议一次，无业务调用的批不打扰。
-      {
-        const batchId = ledger.lastAction?.turnId === turn.turnId ? ledger.lastAction.batchId : undefined;
-        if (batchId && batchId !== suggestedBatchId) {
-          suggestedBatchId = batchId;
-          const batchRows = rows.filter((r) => r.batchId === batchId);
-          const text = buildWorkspaceSuggestion(batchRows);
-          if (text) setNotice("workspace", text);
-        }
       }
       const writeCount = rows.filter((r) => r.name === "observation_write").length;
       if (writeCount > observationWrites) {

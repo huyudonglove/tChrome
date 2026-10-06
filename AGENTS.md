@@ -26,5 +26,5 @@
 
 - skill 模块始终保留完整正文，不参与压缩，也不参与文件外置。
 
-- 因果按文件归因：workspace_write 可选 files[]（涉及的文件路径，可带行区间）；工作区建议直接列出本批涉及文件供照抄；`<workspace>` 投影带 files 属性，压缩时跟 turn 一起归档。context_query / agent_query 可选 file 按文件过滤候选（workspace 按 files[]、toolIO 按调用的文件参数、summaries 按正文提及，其余模块不支持），无命中直接 not_found，不花模型轮次。
+- workspace 由 Runtime 根据真实工具参数和最终返回自动生成，统一记录 file/browser/script/process/tool 对象的操作、输入、结果、内容与来源；没有明确对象标识则按调用独立保存，不猜测文件或页面归属。会话级按对象归组，重复证据合并来源，写入、执行、页面操作与导航区分证据版本；原始条目随来源 turn/工具批次压缩归档，calls 只引用已记录证据，完整调用仍落盘。context_query / agent_query 可选 file 按文件过滤候选（workspace 按 files[]、toolIO 按调用的文件参数、summaries 按正文提及，其余模块不支持），无命中直接 not_found，不花模型轮次。
 - toolIO 投影带调用参数 args（大小超内联门禁时只留 files 路径；记账类指针调用与观察调用不带，正文已在对应模块）。

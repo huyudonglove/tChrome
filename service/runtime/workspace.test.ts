@@ -1,152 +1,99 @@
 import { expect, test } from "bun:test";
-import {
-  buildWorkspaceSuggestion,
-  defaultWorkspaceCallIds,
-  formatBoundId,
-  WORKSPACE_SUGGEST_MARKER,
-} from "./workspace.ts";
-import { emptyLedger } from "./store.ts";
-import type { ToolIOItem } from "../types.ts";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { formatBoundId, groupWorkspaceEvidence } from "./workspace.ts";
+import { handleTurn } from "./loop.ts";
+import { ensureSession, loadLedger, saveLedger, loadTurn } from "./store.ts";
+import type { CompletionResult, Provider, WorkspaceEntry } from "../types.ts";
 
-const row = (name: string, callId: string, batchId = "batch_01"): ToolIOItem => ({
-  callId,
-  batchId,
-  name,
-  arguments: {},
-  turnId: "tn_01",
-  return: { stage: "complete", totalChars: 1, text: "ok" },
+const response = (toolCalls: CompletionResult["toolCalls"]): CompletionResult => ({
+  finish: "tool_calls", content: "", toolCalls, attempts: 1,
+  parseOk: true, schemaOk: true, faultCode: null, missing: [],
 });
 
 test("boundId formats as b01, b02, …", () => {
   expect(formatBoundId(1)).toBe("b01");
-  expect(formatBoundId(2)).toBe("b02");
   expect(formatBoundId(123)).toBe("b123");
 });
 
-test("suggestion names the batch and tallies tools, without echoing runtime-filled fields", () => {
-  const text = buildWorkspaceSuggestion([
-    row("local_fs_read", "call_01"),
-    row("local_fs_read", "call_02"),
-    row("local_fs_grep", "call_03"),
-  ])!;
-  expect(text).toContain(WORKSPACE_SUGGEST_MARKER);
-  expect(text).toContain("3 次调用");
-  expect(text).toContain("local_fs_read×2");
-
-  // boundId / callIds 写入时由 Runtime 反填，模型不需要抄，建议里不该出现。
-  expect(text).not.toContain("boundId=");
-  expect(text).not.toContain("callIds=");
-});
-
-test("pure bookkeeping batches get no suggestion", () => {
-  expect(buildWorkspaceSuggestion([row("observation_write", "call_01"), row("finishTurn", "call_02")])).toBeNull();
-  expect(buildWorkspaceSuggestion([])).toBeNull();
-});
-
-test("suggestion lists batch files for copying into files[]", () => {
-  const read: ToolIOItem = { ...row("local_fs_read", "call_01"), arguments: { reason: "读", items: [{ path: "src/auth.ts" }] } };
-  const write: ToolIOItem = { ...row("local_fs_write", "call_02"), arguments: { reason: "写", path: "src/auth.ts" } };
-  const text = buildWorkspaceSuggestion([read, write])!;
-  expect(text).toContain("本批涉及文件：src/auth.ts");
-  const noFiles = buildWorkspaceSuggestion([row("page_click", "call_03")])!;
-  expect(noFiles).not.toContain("本批涉及文件");
-});
-
-test("default callIds are the business calls of the latest batch", () => {
-  const ledger = emptyLedger("cv_ws");
-  ledger.toolIO.push(
-    row("see_page", "call_01", "batch_01"),
-    row("observation_write", "call_02", "batch_01"),
-    row("local_fs_read", "call_03", "batch_02"),
-    row("workspace_write", "call_04", "batch_02"),
-  );
-  // workspace_write 自身是中性，不会把自己算进被总结的调用。
-  expect(defaultWorkspaceCallIds(ledger, "tn_01")).toEqual(["call_03"]);
-  expect(defaultWorkspaceCallIds(emptyLedger("cv_empty"), "tn_01")).toEqual([]);
-});
-
-test("separate bookkeeping batches preserve the latest business sources within the turn", () => {
-  const ledger = emptyLedger("cv_ws");
-  ledger.toolIO.push(
-    row("local_fs_read", "call_01", "batch_01"),
-    row("local_fs_read", "call_02", "batch_02"),
-    row("local_fs_grep", "call_03", "batch_02"),
-    row("observation_write", "call_04", "batch_03"),
-    row("workspace_write", "call_05", "batch_04"),
-    { ...row("local_fs_read", "call_06", "batch_05"), turnId: "tn_02" },
-    { ...row("workspace_write", "call_07", "batch_06"), turnId: "tn_03" },
-  );
-  expect(defaultWorkspaceCallIds(ledger, "tn_01")).toEqual(["call_02", "call_03"]);
-  expect(defaultWorkspaceCallIds(ledger, "tn_03")).toEqual([]);
-});
-
-test("loop allows progress before optional workspace recording and keeps notices in User runtime", async () => {
-  const { mkdtempSync, rmSync } = await import("node:fs");
-  const { tmpdir } = await import("node:os");
-  const { join } = await import("node:path");
-  const { handleTurn } = await import("./loop.ts");
-  const { ensureSession, loadLedger, saveLedger, loadTurn } = await import("./store.ts");
+test("loop automatically records file evidence and reloads it across turns", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-ws-"));
   try {
+    const path = join(dataDir, "source.txt");
+    writeFileSync(path, "original evidence");
     const repoRoot = join(import.meta.dir, "../..");
-    const session = ensureSession(dataDir);
-    const primed = loadLedger(dataDir, session.conversationId);
-    primed.loadedToolIds = ["local_fs_list", "local_fs_read"];
-    saveLedger(dataDir, primed);
-    const seen: string[] = [];
-    let n = 0;
-    const result = (partial: Record<string, unknown>) => ({
-      finish: "tool_calls", content: "", toolCalls: [], attempts: 1,
-      parseOk: true, schemaOk: true, faultCode: null, missing: [], ...partial,
-    });
-    const provider = {
-      complete: async (input: { messages: { content: string }[] }) => {
-        n++;
-        seen.push(input.messages[1]!.content);
-        expect(input.messages[0]!.content).not.toContain("继续调用业务工具前，必须先");
-        expect(input.messages[0]!.content).toContain("完整原文保持原样保存");
-        expect(input.messages[1]!.content).not.toContain("完整原文保持原样保存");
-        if (n === 1) return result({ toolCalls: [
-          { id: "a", name: "local_fs_list", arguments: { reason: "看目录", path: dataDir } },
-          { id: "b", name: "local_fs_read", arguments: { reason: "读", items: [{ path: join(dataDir, "nope.txt") }] } },
-        ] });
-        if (n === 2) {
-          const notices = loadLedger(dataDir, session.conversationId).runtimeNotices;
-          expect(notices).toHaveLength(1);
-          expect(notices[0]).toMatchObject({ id: "rt_01", kind: "workspace" });
-          expect(input.messages[1]!.content).toContain(`<notice id="${notices[0]!.id}" kind="workspace"`);
-          return result({ toolCalls: [
-            { id: "next", name: "local_fs_list", arguments: { reason: "继续查看", path: dataDir } },
-          ] });
-        }
-        if (n === 3) {
-          return result({ toolCalls: [
-            { id: "c", name: "workspace_write", arguments: { reason: "补记", op: "列了目录", value: "空目录" } },
-          ] });
-        }
-        return result({ toolCalls: [
-          { id: "d", name: "finishTurn", arguments: { reason: "完", text: "完成" } },
-        ] });
-      },
-    };
-    const reply = await handleTurn({ dataDir, repoRoot, provider } as never, { userInput: "整理", submittedAt: "2026-09-11" });
-    expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
-    const ledger = loadLedger(dataDir, reply.conversationId);
-    const sources = ledger.toolIO.filter((row) => ["local_fs_list", "local_fs_read"].includes(row.name)).map((row) => row.callId);
-    const savedTurn = loadTurn(dataDir, reply.conversationId, reply.turnId);
-    expect(savedTurn.assembled.workspace[0]!.callIds).toEqual(sources.slice(-1));
-    expect(seen[3]!).toContain(`callIds="${sources.at(-1)}"`);
-    // 可先继续业务调用，再按需记录。
-    expect(ledger.boundSeq).toBe(4);
-    // b02 的请求在 <runtimeNotices> 模块看到 b01 那批的建议（不再缀在返回后面）。
-    expect(seen[1]).toContain("</conversation>\n\n<runtimeNotices>");
-    expect(seen[1]).toContain('kind="workspace"');
-    expect(seen[1]).toContain(WORKSPACE_SUGGEST_MARKER);
-    // ws 写下后进窗口，且同 kind 只保留最新一条。
-    expect(seen[3]!).toContain('<workspaces start="ws01" end="ws01">');
-    expect(seen[3]!).toContain('boundid="b03"');
-    expect(seen[2]!.split(WORKSPACE_SUGGEST_MARKER).length - 1).toBeLessThanOrEqual(1);
-  } finally {
-    rmSync(dataDir, { recursive: true, force: true });
-  }
+    const { conversationId } = ensureSession(dataDir);
+    const ledger = loadLedger(dataDir, conversationId);
+    ledger.loadedToolIds = ["local_fs_read", "local_fs_write"];
+    saveLedger(dataDir, ledger);
+    let request = 0;
+    const provider: Provider = { complete: async input => {
+      request++;
+      if (request === 1) return response([{ id: "read", name: "local_fs_read", arguments: { reason: "读取文件", items: [{ path }] } }]);
+      if (request === 2) {
+        const saved = loadLedger(dataDir, conversationId);
+        const turn = loadTurn(dataDir, conversationId, saved.toolIO[0]!.turnId);
+        const evidence = turn.assembled.workspace.find(entry => entry.target.key === path)!;
+        expect(evidence).toMatchObject({ target: { kind: "file", key: path }, op: "local_fs_read", callId: saved.toolIO[0]!.callId });
+        expect(evidence.content).toContain("original evidence");
+        expect(input.messages[1]!.content).toContain("workspaceIds");
+        expect(input.messages[1]!.content).toContain(evidence.id);
+        return response([{ id: "write", name: "local_fs_write", arguments: { reason: "更新文件", path, content: "updated evidence" } }]);
+      }
+      return response([{ id: "finish", name: "finishTurn", arguments: { reason: "完成", text: "完成" } }]);
+    } };
+    const first = await handleTurn({ dataDir, repoRoot, provider }, { userInput: "读取并修改文件", submittedAt: "now" });
+    expect(first.stopReason).toEqual({ kind: "reply", text: "完成" });
+    expect(readFileSync(path, "utf8")).toBe("updated evidence");
+    const saved = loadTurn(dataDir, conversationId, first.turnId);
+    const entries = saved.assembled.workspace.filter(entry => entry.target.key === path);
+    expect(entries.map(entry => entry.op)).toEqual(["local_fs_read", "local_fs_write"]);
+    expect(new Set(entries.map(entry => entry.id)).size).toBe(entries.length);
+    expect(entries.map(entry => entry.boundId)).toEqual(["b01", "b02"]);
+    const groups = groupWorkspaceEvidence(entries);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.operations.map(op => op.content)).toEqual(["original evidence", "updated evidence"]);
+    expect(groups[0]!.operations[1]!.revision).toBeGreaterThan(groups[0]!.operations[0]!.revision);
+    const nextProvider: Provider = { complete: async input => {
+      expect(input.messages[1]!.content).toContain("updated evidence");
+      expect(input.messages[1]!.content).toContain(entries[0]!.id);
+      return response([{ id: "done", name: "finishTurn", arguments: { reason: "完成", text: "完成" } }]);
+    } };
+    const second = await handleTurn({ dataDir, repoRoot, provider: nextProvider }, { userInput: "继续", submittedAt: "now" });
+    expect(second.stopReason).toEqual({ kind: "reply", text: "完成" });
+    expect(loadTurn(dataDir, conversationId, first.turnId).assembled.workspace).toEqual(saved.assembled.workspace);
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+});
+
+
+test("identical evidence shares sources only before a mutation changes the revision", () => {
+  const entry = (id: number, extra: Partial<WorkspaceEntry> = {}): WorkspaceEntry => ({
+    id: `ws${id}`, turnId: "tn_01", boundId: `b0${id}`, callId: `call_0${id}`, callIds: [`call_0${id}`],
+    target: { kind: "file", key: "/src/a.ts" }, op: "local_fs_read", result: { ok: true }, content: "same", ...extra,
+  });
+  const grouped = groupWorkspaceEvidence([
+    entry(1, { args: { reason: "first" } }), entry(2, { args: { reason: "second", keepInCalls: true } }),
+    entry(3, { op: "local_fs_write", mutation: true }), entry(4),
+  ]);
+  expect(grouped).toHaveLength(1);
+  const operations = grouped[0]!.operations;
+  expect(operations).toHaveLength(3);
+  expect(operations[0]!.sources.map(source => source.id)).toEqual(["ws1", "ws2"]);
+  expect(operations.map(operation => operation.revision)).toEqual([0, 1, 1]);
+  expect(operations[2]!.sources.map(source => source.callId)).toEqual(["call_04"]);
+});
+
+test("browser mutations without a URL separate snapshots across the same tab", () => {
+  const entry = (id: number, key: string, mutation = false): WorkspaceEntry => ({
+    id: `ws${id}`, turnId: "tn_01", boundId: "b01", callId: `call_${id}`, callIds: [`call_${id}`],
+    target: { kind: "browser", key, scope: "tab:12" }, op: mutation ? "page_click" : "page_get_summary",
+    result: { ok: true }, content: "same page", ...(mutation ? { mutation } : {}),
+  });
+  const groups = groupWorkspaceEvidence([
+    entry(1, "tab:12:url:A"), entry(2, "tab:12", true), entry(3, "tab:12:url:A"),
+    entry(4, "tab:12:url:B"), entry(5, "tab:12:url:A"),
+  ]);
+  expect(groups[0]!.operations.map(operation => operation.revision)).toEqual([0, 1, 3]);
+  expect(groups[0]!.operations.map(operation => operation.sources[0]!.callId)).toEqual(["call_1", "call_3", "call_5"]);
 });

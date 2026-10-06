@@ -35,7 +35,6 @@ export const NEUTRAL_TOOLS = new Set([
   "agent_compress", "page_clear_result",
   "askUser", "finishTurn",
   "checkContinue",
-  "workspace_write",
 ]);
 
 /** 自上次实质性操作以来的连续只读业务调用数（跳过 NEUTRAL）。 */
