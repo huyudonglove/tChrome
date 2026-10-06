@@ -29,7 +29,8 @@ export const providers: readonly ProviderRow[] = [
   { id: "openai", label: "uuOpenAI", model: "gpt-6.1-sol", baseURL: "https://uuapi.io/v1", apiKeyEnv: "OPENAI_API_KEY", modelEnv: "OPENAI_MODEL", baseUrlEnv: "OPENAI_BASE_URL", effortEnv: "OPENAI_REASONING_EFFORT", kind: "responses" },
 ] as const;
 
-export const providerOptions = providers.map(({ id, label, model }) => ({ id, label, model }));
+const configuredModel = (row: ProviderRow) => Bun.env[row.modelEnv] ?? row.model;
+export const providerOptions = () => providers.map(row => ({ id: row.id, label: row.label, model: configuredModel(row) }));
 export type ProviderName = typeof providers[number]["id"];
 export function isProviderName(value: unknown): value is ProviderName {
   return providers.some((provider) => provider.id === value);
@@ -47,7 +48,7 @@ const rowOf = (name: string) => {
 
 export function configuredProvider(proxy: string | undefined, name = Bun.env.TCHROME_PROVIDER ?? "uuapi") {
   const row = rowOf(name);
-  const model = Bun.env[row.modelEnv] ?? row.model;
+  const model = configuredModel(row);
   const effort = (Bun.env[row.effortEnv ?? ""] ?? "high") as "low" | "medium" | "high";
   if (row.effortEnv && !["low", "medium", "high"].includes(effort)) {
     throw new Error(`${row.effortEnv} must be low, medium or high`);

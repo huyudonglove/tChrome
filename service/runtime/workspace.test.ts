@@ -17,7 +17,7 @@ test("boundId formats as b01, b02, …", () => {
   expect(formatBoundId(123)).toBe("b123");
 });
 
-test("loop automatically records file evidence and reloads it across turns", async () => {
+for (const keepInCalls of [true, false, undefined]) test(`loop records workspace only with explicit retention: ${keepInCalls}`, async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-ws-"));
   try {
     const path = join(dataDir, "source.txt");
@@ -30,16 +30,22 @@ test("loop automatically records file evidence and reloads it across turns", asy
     let request = 0;
     const provider: Provider = { complete: async input => {
       request++;
-      if (request === 1) return response([{ id: "read", name: "local_fs_read", arguments: { reason: "读取文件", items: [{ path }] } }]);
+      if (request === 1) return response([{ id: "read", name: "local_fs_read", arguments: { ...(keepInCalls === undefined ? {} : { keepInCalls }), reason: "读取文件", items: [{ path }] } }]);
       if (request === 2) {
         const saved = loadLedger(dataDir, conversationId);
         const turn = loadTurn(dataDir, conversationId, saved.toolIO[0]!.turnId);
         const evidence = turn.assembled.workspace.find(entry => entry.target.key === path)!;
+        if (keepInCalls === true) {
         expect(evidence).toMatchObject({ target: { kind: "file", key: path }, op: "local_fs_read", callId: saved.toolIO[0]!.callId });
         expect(evidence.content).toContain("original evidence");
         expect(input.messages[1]!.content).toContain("workspaceIds");
         expect(input.messages[1]!.content).toContain(evidence.id);
-        return response([{ id: "write", name: "local_fs_write", arguments: { reason: "更新文件", path, content: "updated evidence" } }]);
+        } else {
+          expect(turn.assembled.workspace).toEqual([]);
+          expect(input.messages[1]!.content).toContain("original evidence");
+          expect(input.messages[1]!.content).not.toContain("workspaceIds");
+        }
+        return response([{ id: "write", name: "local_fs_write", arguments: { ...(keepInCalls === undefined ? {} : { keepInCalls }), reason: "更新文件", path, content: "updated evidence" } }]);
       }
       return response([{ id: "finish", name: "finishTurn", arguments: { reason: "完成", text: "完成" } }]);
     } };
@@ -48,6 +54,13 @@ test("loop automatically records file evidence and reloads it across turns", asy
     expect(readFileSync(path, "utf8")).toBe("updated evidence");
     const saved = loadTurn(dataDir, conversationId, first.turnId);
     const entries = saved.assembled.workspace.filter(entry => entry.target.key === path);
+    if (keepInCalls !== true) {
+      expect(saved.assembled.workspace).toEqual([]);
+      const rawCalls = loadLedger(dataDir, conversationId).toolIO;
+      expect(rawCalls.find(row => row.name === "local_fs_read")!.return.text).toContain("original evidence");
+      expect(rawCalls.find(row => row.name === "local_fs_write")).toBeDefined();
+      return;
+    }
     expect(entries.map(entry => entry.op)).toEqual(["local_fs_read", "local_fs_write"]);
     expect(new Set(entries.map(entry => entry.id)).size).toBe(entries.length);
     expect(entries.map(entry => entry.boundId)).toEqual(["b01", "b02"]);

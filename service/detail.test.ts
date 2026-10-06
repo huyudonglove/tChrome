@@ -68,7 +68,7 @@ function fixture(dataDir: string, text = "精确证据".repeat(250)) {
   saveLedger(dataDir, ledger);
   return { cv, ledger, turns, sumId, tool };
 }
-const queryCall = (sumId: string, module = "toolIO") => reply([{ id: "query", name: "context_query", arguments: { reason: "查原文", sumId, module, intent: "读取详细证据" } }]);
+const queryCall = (sumId: string, module = "toolIO") => reply([{ id: "query", name: "context_query", arguments: { keepInCalls: true, reason: "查原文", sumId, module, intent: "读取详细证据" } }]);
 
 test("query insertion triggers the 200K gate, protects current evidence, rotates and persists history", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "query-loop-"));

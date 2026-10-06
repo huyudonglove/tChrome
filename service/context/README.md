@@ -55,7 +55,7 @@
 | id | 归档字段 | 说明 |
 |---|---|---|
 | userInput | userInput | 轮次用户输入 |
-| workspace | workspace | Runtime 自动保存操作证据，按 file/browser/script/process/tool 对象归组；保留 op/args/result/content/range/mutation 与来源编号，随来源轮次归档 |
+| workspace | workspace | Runtime 仅为显式 keepInCalls=true 的调用自动保存操作证据，按 file/browser/script/process/tool 对象归组；保留 op/args/result/content/range/mutation 与来源编号，随来源轮次归档 |
 | toolIO | toolIO | 该轮完整调用参数与返回；窗口是否继续展示不影响归档 |
 | observations | observations | 观察（页面/代码等） |
 | memoryWrites | memoryWrites | 会话记忆写入 |
@@ -116,6 +116,6 @@ User 模块（含数据）：
 
 User 槽位的数据契约仍见 [DATA.md](DATA.md) 与 `data-schema.json`（校验用不带 `#` 的模块名）。`skill` / `conversation` / `tools` / `runtimeNotices` 为文本，其余为 JSON。DATA.md 约束数据形状，不注入提示词。
 
-调用可见性由统一可选参数 `keepInCalls` 决定：显式 true 保留至原有压缩覆盖；false 或未指定只在返回后的下一次模型请求展示一次。所有调用完整落盘并按来源轮次参与压缩，callId 全会话唯一，移出窗口后仍可回查。
+调用可见性与 workspace 写入由统一可选参数 `keepInCalls` 决定：仅显式 true 写入 workspace，并保留调用详情（已有 workspace 正文时使用引用）至原有压缩覆盖；false 或未指定不写入 workspace，只在返回后的下一次模型请求展示一次。所有调用完整落盘并按来源轮次参与压缩，callId 全会话唯一，移出窗口后仍可回查。
 
 稳定运行规则放在 System 的 `<runtimeProtocol>`：图片选择、压缩、外置与原文取回，以及 workspace 自动记录操作结果事实与按文件归组的规则。User 的 `<runtimeNotices>` 只承载当前动态提醒，作为与 `<conversation>` 平级的独立模块，不参与压缩。

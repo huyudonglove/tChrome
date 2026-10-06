@@ -57,7 +57,7 @@
 
 会话级（与 turn 平级）：`ConverstionMemories` 逐条渲染为 `<ConverstionMemories memoryId turnId sourceCallId?>` 元素、正文为 `text`（`mm_`）；`summaries` 容器以 start / end 标出首尾 sumId，每条摘要渲染为 `<summary sumId turnId summary? level? turnIds? from?>` 元素、正文为 `userRequest` / `actions` / `result`；`tasks` 容器以 start / end 标出任务 ID，`task` 为 `<task id title? status createdTurnId? updatedTurnId?>` 元素，每条步骤一个 `<item id status expectedEffect? verification? blockedReason? outcome?>`、正文为步骤 `text`（当前活跃或最近完成的任务实体，跨轮唯一持久化，直到新任务顶替）。
 
-`workspaces` 在会话级按 `target` 对象归组展示，每组为 `<workspace kind key>`，正文为 `{operations:[...]}`；目标种类为 `file`、`browser`、`script`、`process`、`tool`。每项操作证据保存 `op`、`args`、`result`、`content`、`range`、`mutation`、`revision` 与 `sources:[{id,turnId,callId,boundId}]`，字段按实际工具结果提供。文件按明确路径归组，同文件内容合并，shell 命令不推断文件路径。归组只影响展示：每项证据仍归属来源 turn，随该轮压缩归档；已覆盖的证据从当前归组中移除，剩余证据继续展示。
+`workspaces` 仅接收显式设置 `keepInCalls=true` 的调用证据，在会话级按 `target` 对象归组展示，每组为 `<workspace kind key>`，正文为 `{operations:[...]}`；目标种类为 `file`、`browser`、`script`、`process`、`tool`。每项操作证据保存 `op`、`args`、`result`、`content`、`range`、`mutation`、`revision` 与 `sources:[{id,turnId,callId,boundId}]`，字段按实际工具结果提供。文件按明确路径归组，同文件内容合并，shell 命令不推断文件路径。归组只影响展示：每项证据仍归属来源 turn，随该轮压缩归档；已覆盖的证据从当前归组中移除，剩余证据继续展示。
 
 轮次级（`<turn>` 内，有则写、无则省略）：轮次 ID 与本段工具调用 ID 范围已收为 `<turn>` 的属性（`turnId` / `start` / `end`，单次调用时 start 与 end 相同），不再是二级标签。
 
@@ -73,7 +73,7 @@
 
 被压缩覆盖的 `<turn>` 整块删除，只在 `<summary>` 留摘要。会话记忆随来源轮次进入压缩，对应原文被覆盖后不再展示该条 `<ConverstionMemories>` 全文，落盘原记录仍保留；长期记忆 `<projectMemory>` 不参与压缩，被注入时保留全文。任务记录 `Task` 为会话级唯一实体，items 用 `item_` 编号。查询记录为 `{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}`。
 
-统一可选布尔参数 `keepInCalls` 只影响窗口可见性：显式 true 持续保留至原有压缩覆盖；false 或未指定的调用详情仅在返回后的下一次模型请求展示一次。全部原始调用完整落盘并按原轮次参与压缩，窗口移出不影响归档与 callId 回查。
+统一可选布尔参数 `keepInCalls` 控制窗口可见性与 workspace 写入：仅显式 true 写入 workspace，并持续保留调用详情（已有 workspace 正文时使用引用）至原有压缩覆盖；false 或未指定不写入 workspace，调用详情仅在返回后的下一次模型请求展示一次。全部原始调用完整落盘并按原轮次参与压缩，窗口移出不影响归档与 callId 回查。
 
 工具投影的每条调用带 `args`（调用参数；大小超门禁时只留 `files` 路径，记账类指针调用不带）、`return` 为 `{stage, result}`；操作证据已保存到 workspace 时，调用投影使用 workspace 引用，正文保留在对应对象中，避免重复。result 与 observations 中同一 callId 的观察对应时，只保留 `{ok, observationId}`。context_query 的 result 为 `{ok, status, sumId, module, intent, recordCount}`。归档原文使用 `{stage, totalChars, text}`，只出现在压缩/查询候选里，不进主模型窗口。finishTurn / askUser 在 toolIO 只存指针 `{output:"reply"|"ask"}`，正文在本轮 stopReason。
 

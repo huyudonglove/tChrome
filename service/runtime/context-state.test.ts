@@ -160,7 +160,7 @@ test("automatic workspace evidence reloads old turns and archives alongside sour
     for (let i = 0; i < KEEP + 2; i++) {
       const turn = i === 0 ? previous : current;
       const text = JSON.stringify({ ok: true, path: `/src/${i}.ts`, content: `source ${i}` });
-      const row = { callId: `call_0${i + 1}`, turnId: turn.turnId, batchId: `batch_0${i + 1}`, name: "local_fs_read", arguments: { items: [{ path: `/src/${i}.ts` }] }, return: { stage: "complete" as const, text, totalChars: text.length } };
+      const row = { callId: `call_0${i + 1}`, turnId: turn.turnId, batchId: `batch_0${i + 1}`, name: "local_fs_read", arguments: { keepInCalls: true, items: [{ path: `/src/${i}.ts` }] }, return: { stage: "complete" as const, text, totalChars: text.length } };
       ledger.toolIO.push(row);
       ledger.boundSeq = i + 1;
       recordWorkspaceEvidence(dataDir, ledger, turn, row);

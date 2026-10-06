@@ -185,7 +185,7 @@ test("toolChoice required 映射为 ANY，被拒后降级 AUTO", async () => {
 });
 
 test("providerOptions registers all gateways with key env mapping", () => {
-  expect(providerOptions.map((item) => item.id)).toEqual([
+  expect(providerOptions().map((item) => item.id)).toEqual([
     "uuapi", "shiningspace", "shiningspace-gpt", "gemini", "deepseek", "caicai", "deepseek-official", "xcode", "openrouter", "a6api", "openai",
   ]);
   expect(providerApiKeyEnv.gemini).toBe("GEMINI_API_KEY");

@@ -72,3 +72,18 @@ for (const [mode, stored, expected] of [
     }
   });
 }
+
+test("connection UI reports the model selected by the provider environment", async () => {
+  const previous = Bun.env.XCODE_MODEL;
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-model-label-"));
+  try {
+    const server = createServer({ dataDir: dir });
+    Bun.env.XCODE_MODEL = "gpt-6.1-sol";
+    const response = await server.fetch(new Request("http://127.0.0.1:18788/connection"));
+    const connection = await response.json();
+    expect(connection.providers.find((provider: { id: string }) => provider.id === "xcode").model).toBe("gpt-6.1-sol");
+  } finally {
+    if (previous === undefined) delete Bun.env.XCODE_MODEL; else Bun.env.XCODE_MODEL = previous;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

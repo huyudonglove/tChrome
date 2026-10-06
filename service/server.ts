@@ -59,7 +59,7 @@ export function createServer(options: ServeOptions = {}) {
     ? JSON.parse(readFileSync(connectionPath, "utf8")) : null;
   let proxyEnabled = savedConnection ? savedConnection.enabled === true : Bun.env.TCHROME_PROXY_MODE === "proxy";
   let providerName = savedConnection?.provider ?? Bun.env.TCHROME_PROVIDER ?? "uuapi";
-  const connectionView = () => ({ enabled: proxyEnabled, provider: providerName, providers: providerOptions });
+  const connectionView = () => ({ enabled: proxyEnabled, provider: providerName, providers: providerOptions() });
   const proxyURL = resolveProxy({ ...Bun.env, TCHROME_PROXY_MODE: "proxy" });
   let activeProvider = configuredProvider(proxyEnabled ? proxyURL : "", providerName);
   const provider = options.provider ?? { complete: (input: Parameters<typeof activeProvider.complete>[0]) => activeProvider.complete(input) };

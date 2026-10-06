@@ -147,7 +147,7 @@ test("mixed file read failures stay visible after externalization and originals 
   let sourceCallId = "";
   const reply = await handleTurn({ dataDir, repoRoot, provider: provider(user => {
     if (++step === 1) return response(call("catalog_add", { names: ["local_fs_read"] }));
-    if (step === 2) return response(call("local_fs_read", { items: [{ path }, { path: missing }] }));
+    if (step === 2) return response(call("local_fs_read", { keepInCalls: true, items: [{ path }, { path: missing }] }));
     const row = slot(user, "calls").find((item: any) => item.name === "local_fs_read");
     sourceCallId = row.callId;
     expect(row.ok).toBe(false);
@@ -179,7 +179,7 @@ test("large script results use evidence_search while small follow-up pages stay 
   let step = 0;
   const reply = await handleTurn({ dataDir, repoRoot, host, provider: provider(user => {
     if (++step === 1) return response(call("catalog_add", { names: ["script_read", "evidence_search"] }));
-    if (step === 2) return response(call("script_read", { filename: "large.js" }));
+    if (step === 2) return response(call("script_read", { keepInCalls: true, filename: "large.js" }));
     if (step === 3) {
       const toolIO = slot(user, "#toolIO");
       const row = toolIO.find((item: any) => item.name === "script_read");
@@ -194,7 +194,7 @@ test("large script results use evidence_search while small follow-up pages stay 
       expect(stub.directory.children.length).toBeGreaterThan(0);
       expect(String(stub.path)).toContain("returns");
       expect(JSON.parse(readFileSync(stub.path, "utf8")).code).toBe(code);
-      return response(call("evidence_search", { windows: [{ callId: row.callId, keyword: "PAGE_SENTINEL" }] }));
+      return response(call("evidence_search", { keepInCalls: true, windows: [{ callId: row.callId, keyword: "PAGE_SENTINEL" }] }));
     }
     const toolIO = slot(user, "#toolIO");
     const search = toolIO.find((row: any) => row.name === "evidence_search");

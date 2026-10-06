@@ -8,7 +8,7 @@ export const formatBoundId = (seq: number): string => `b${String(seq).padStart(2
 
 /** Record the final admitted return; full originals remain in the existing return store. */
 export function recordWorkspaceEvidence(dataDir: string, ledger: Ledger, turn: Turn, row: ToolIOItem): void {
-  if (NEUTRAL_TOOLS.has(row.name)) return;
+  if (row.arguments.keepInCalls !== true || NEUTRAL_TOOLS.has(row.name)) return;
   for (const evidence of extractWorkspaceEvidence(row.name, row.arguments, row.return.text, row.callId)) {
     turn.assembled.workspace.push({ ...evidence,
       id: allocateRecordId(dataDir, ledger.conversationId, "workspace").replace("_", ""),

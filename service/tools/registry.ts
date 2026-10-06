@@ -114,7 +114,7 @@ function injectCallRetention(tool: ChatTool): ChatTool {
           ...params?.properties,
           keepInCalls: {
             type: "boolean",
-            description: "是否在 calls 中持续保留本次调用结果。仅显式 true 请求持续保留；false 或不填时，仅供下一次模型请求查看一次。可选，不影响工具执行。",
+            description: "是否保留本次执行证据。显式 true 才写入 workspace，calls 保留对应引用；false 或不填不写入 workspace，结果仅供下一次模型请求查看一次。原始调用始终落盘，不影响工具执行。",
           },
         },
       } as ChatTool["function"]["parameters"],
