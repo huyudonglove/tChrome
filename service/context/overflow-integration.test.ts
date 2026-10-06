@@ -22,7 +22,7 @@ const xmlSlots = (user: string): Record<string, unknown> => {
   let m: RegExpExecArray | null;
   while ((m = re.exec(user))) {
     const name = m[1]!, body = m[2]!;
-    values[name] = name === "skill" || name === "tools" || name === "conversation" || name === "projectMemory" ? body : JSON.parse(body);
+    values[name] = name === "skill" || name === "tools" || name === "conversation" || name === "projectMemory" || name === "runtimeNotices" ? body : JSON.parse(body);
   }
   return values;
 };

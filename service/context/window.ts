@@ -2,7 +2,7 @@ import type { Ledger, Turn } from "../types.ts";
 import { join } from "node:path";
 import { renderSlots, systemTextFromModules, type ContextModules, type SlotAttributes } from "./modules.ts";
 
-import { conversationPayload, conversationXml } from "./projections/conversation.ts";
+import { conversationPayload, conversationXml, runtimeNoticesXml } from "./projections/conversation.ts";
 import { queryView, type QueryEvidence } from "./projections/queries.ts";
 import { CONTEXT_INLINE_CHARS, ContextBudgetError } from "./overflow.ts";
 import { runtimeConfig } from "../config/runtime.ts";
@@ -55,6 +55,7 @@ export function userText(input: {
     "#projectMemory": memories.project,
     "#tools": input.toolGuide ?? "",
     "#conversation": jsonBody(conversationData),
+    "#runtimeNotices": runtimeNoticesXml(ledger.runtimeNotices),
   };
   const render = (values: Record<string, string>, attributes: SlotAttributes = {}) =>
     renderSlots(contextModules.userOrder, contextModules.userSlots, values, attributes);

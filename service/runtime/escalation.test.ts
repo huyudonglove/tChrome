@@ -132,7 +132,7 @@ for (const resetTool of ["local_fs_write", "checkContinue"]) {
       const provider = {
         complete: async (input: { messages: { content: string }[] }) => {
           request++;
-          const runtime = input.messages[1]!.content.match(/<runtime\b[\s\S]*?<\/runtime>/)?.[0] ?? "";
+          const runtime = input.messages[1]!.content.match(/<runtimeNotices\b[\s\S]*?<\/runtimeNotices>/)?.[0] ?? "";
           const hasBudget = runtime.includes('kind="budget"');
           expect(hasBudget).toBe(request >= 2 && request <= 4);
           const toolCalls = request === 1

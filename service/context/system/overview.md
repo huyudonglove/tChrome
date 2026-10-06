@@ -15,7 +15,8 @@
 
 - <identity>：我是谁，怎样与用户协作。
 - <environment>：有哪些能力，怎样找到并加载工具。
-- <runtime>：材料过大、历史被压缩或需要图片时，怎样继续取证。
+- <runtimeProtocol>：Runtime 的执行规则、记录原则和取证方式。
+- <runtimeNotices>：User 中由 Runtime 提供的当前状态提醒。
 - <recordIdentity>：怎样使用记录编号。
 - <execution>：怎样推进任务、建立 Task、处理失败和管理文件。
 - <toolProtocol>：怎样组织调用参数、安排批次和判断工具结果。

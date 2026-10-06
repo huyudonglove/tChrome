@@ -2,7 +2,7 @@
 
 `data-schema.json` 汇总模型可见的 User 标签结构（与 [modules.json](modules.json) 中 `role=user` 且 `consumers∋main` 的模块一致）；修改投影时同步更新它。`../identity/catalog.json` 统一维护 ID 字段、前缀及编号范围。Schema 的 ID 定义引用由此生成的 `tchrome:identity`；使用 `data-schema.ts` 的 validateUserData 校验，不重复维护前缀正则。模块提示词解释含义，本清单约束数据结构，不注入提示词。
 
-验证对象使用**不带尖括号**的模块名（如 `conversation`）。模型侧正文为 XML；`skill`、`conversation`、`tools` 保留文本，其余标签取 JSON 解析后的值；全部模块必须存在。它不是磁盘存储格式。
+验证对象使用**不带尖括号**的模块名（如 `conversation`）。模型侧正文为 XML；`skill`、`conversation`、`tools`、`runtimeNotices` 保留文本，其余标签取 JSON 解析后的值；全部模块必须存在。它不是磁盘存储格式。
 
 | 模块 | 数据结构 | 身份字段 |
 | --- | --- | --- |
@@ -10,6 +10,9 @@
 | `projectMemory` | `[{memoryId, turnId, sourceCallId?, sourceConversationId?, text}]` | `memoryId`（`lm_`） |
 | `tools` | 本轮已加载动态工具的能力导航文本 | 工具名 |
 | `conversation` | 嵌套 XML 时间线正文（见下） | `<turn>` 元素的 `turnId` 属性（`tn_`） |
+| `runtimeNotices` | 字符串；动态提醒 XML 正文，每条为 `<notice id kind scope>`，同 kind 只保留最新一条 | `id`（`rt_`）；独立 User 模块，不进压缩 |
+
+`runtimeProtocol` 是 System 模块，保存稳定运行规则，不属于 User 数据契约。`runtimeNotices` 仅保存当前动态提醒，与 `conversation` 平级。
 
 ## conversation 嵌套结构
 
@@ -46,10 +49,10 @@
     </calls>
     <stopReason kind="reply">…</stopReason>
   </turn>
-  <runtime>
-    <notice id="rt_01" kind="budget" scope="turn">…</notice>
-  </runtime>
 </conversation>
+<runtimeNotices>
+  <notice id="rt_01" kind="budget" scope="turn">…</notice>
+</runtimeNotices>
 ```
 
 会话级（与 turn 平级）：`ConverstionMemories` 逐条渲染为 `<ConverstionMemories memoryId turnId sourceCallId?>` 元素、正文为 `text`（`mm_`）；`summaries` 容器以 start / end 标出首尾 sumId，每条摘要渲染为 `<summary sumId turnId summary? level? turnIds? from?>` 元素、正文为 `userRequest` / `actions` / `result`；`tasks` 容器以 start / end 标出任务 ID，`task` 为 `<task id title? status createdTurnId? updatedTurnId?>` 元素，每条步骤一个 `<item id status expectedEffect? verification? blockedReason? outcome?>`、正文为步骤 `text`（当前活跃或最近完成的任务实体，跨轮唯一持久化，直到新任务顶替）。
@@ -60,7 +63,6 @@
 | --- | --- | --- |
 | `userInput` | `<userInput id>`，正文含 `turnId` 与 `userInput` 用户原话 | `id` |
 | `calls` | 每轮的 `<calls start end kept total>`，每条一个 `<call callId name ok?>` 元素 | start / end 为该轮调用范围，kept 为本次可见条数，total 为该轮调用总数；callId 全会话唯一，凭 callId 调 evidence_search 回查 |
-| `runtime` | `<notice id kind scope>` + 正文，同 kind 只保留最新一条 | `id`（`rt_`）；与 turn 平级，不进压缩 |
 | `observation` | 每条观察一个元素，容器为 `<observations start end>`，元素属性含 `id callId type` 等，正文保留 `tabId`（如有）与 `result` 等返回字段 | `id` |
 | `workspace` | `<workspaces start end>` 下每条 `<workspace id boundid callIds? files?>`，正文为 `{op, value}` | `id`（如 `ws01`） |
 | `note` | 本轮草稿，`<note id key>` + 正文；容器 `<notes start end>` | `id`（`nt_`），key 为业务键；start / end 使用首尾笔记 ID |

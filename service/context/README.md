@@ -29,7 +29,7 @@
 | 1 | overview | system/overview.md | Agent Loop, Context Assembly |
 | 2 | identity | system/identity.md | Identity, Collaboration, Language |
 | 3 | environment | system/environment.md | Environment, Tool Discovery |
-| 4 | runtime | system/runtime.md | Context Assembly, Compression, Images |
+| 4 | runtimeProtocol | system/runtimeProtocol.md | Context Assembly, Compression, Images, Retrieval, Workspace |
 | 5 | recordIdentity | system/recordIdentity.md | ID Rules, Record References |
 | 6 | execution | system/execution.md | Task Execution, Verification, Recovery |
 | 7 | toolProtocol | system/toolProtocol.md | Tool Calls, Parameters, Execution Order |
@@ -46,6 +46,7 @@
 | 2 | projectMemory | — | main |
 | 3 | tools | — | main |
 | 4 | conversation | — | main |
+| 5 | runtimeNotices | — | main |
 
 `<conversation>` 内为会话级 `<ConverstionMemories>`、`<summary>`、`<task>` 与按 turnId 嵌套的 `<turn>` 轮次切片（标签属性 turnId / start / end；二级标签 userInput / calls / observations / workspaces / notes / reflections / queries / stopReason，详见 user/conversation.md）；各轮 `<calls>` 按 keepInCalls 展示调用详情（start/end 为该轮调用范围，kept 为可见条数，total 为该轮调用总数）；被压缩覆盖的轮次整块删除。
 
@@ -106,13 +107,15 @@ User 模块（含数据）：
 4. 需进压缩：同一 `archiveField` 要在 `service/runtime/turn-history.ts` 的 `projectors` 提供取数函数，并在 `modules.ts` 的 `DEFAULT_SEMANTICS`（或该项 `inputSemantics`）写清材料形状；缺 projector 时装配归档会抛错  
 5. 压缩 Agent 岗措辞：只动 `agents/compression/context/`（字段说明由主注册表生成）  
 6. 窗口投影：主 Agent User 槽位在 `context/projections/` 与 `window.ts`；与 turn-history 的 archiveField 是同一数据的两种视图
-7. 数字阈值：`service/config/runtime.json` 的 `context` / `results`；System 用 `{{compressAt}}` 等占位，由 `modules.json` 的 `inject` 与 `prompt-numbers.ts` 注入
+7. 数字阈值：`service/config/runtime.json` 的 `context` / `results`；上下文模块用 `{{compressAt}}` 等占位，由 `modules.json` 的 `inject` 与 `prompt-numbers.ts` 注入
 
 
 共用措辞见 `templates.ts`；字段语义在 `modules.ts` 的 `DEFAULT_SEMANTICS`。
 
 ## 数据结构
 
-User 槽位的数据契约仍见 [DATA.md](DATA.md) 与 `data-schema.json`（校验用不带 `#` 的模块名）。`skill` / `conversation` / `tools` 为文本，其余为 JSON。DATA.md 约束数据形状，不注入提示词。
+User 槽位的数据契约仍见 [DATA.md](DATA.md) 与 `data-schema.json`（校验用不带 `#` 的模块名）。`skill` / `conversation` / `tools` / `runtimeNotices` 为文本，其余为 JSON。DATA.md 约束数据形状，不注入提示词。
 
 调用可见性由统一可选参数 `keepInCalls` 决定：显式 true 保留至原有压缩覆盖；false 或未指定只在返回后的下一次模型请求展示一次。所有调用完整落盘并按来源轮次参与压缩，callId 全会话唯一，移出窗口后仍可回查。
+
+稳定运行规则放在 System 的 `<runtimeProtocol>`：图片选择、压缩、外置与原文取回，以及 workspace 根据新增信息按需记录的原则。User 的 `<runtimeNotices>` 只承载当前动态提醒，作为与 `<conversation>` 平级的独立模块，不参与压缩。

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "observation_write",
-    "description": "把需要跨步骤引用的观察状态写入本轮 <observations>，例如当前页面状态、截图结论或多个操作合并后的验证结论，供后续核对与 evidence_search 检索。每批业务工具的事实与下一步按 workspace_write 记录；本工具补充阶段状态，不重复搬运同一批工具结果。\n参数：必填 type（观察来源，如 page_get_summary / execute_javascript / screenshot / code）、result（观察正文，对象或字符串）；可选 tabId、validForTurns。返回：{ok, type}；观察编号由 Runtime 分配，下一次模型请求的 <observations> 可见。\nRuntime 按调用次数提醒补充观察时，先复用 workspace 中已有事实，仅整理需要持续引用的当前状态、已验证与未验证部分以及继续位置。观察与 workspace 随来源轮次归档，摘要承接信息，原始记录仍可回查；没有写观察不代表已有事实丢失。当前会话的重要事实和约束用 memory_writeConversation，跨会话仍适用的长期事实用 memory_writeProject。",
+    "description": "把需要跨步骤引用的观察状态写入本轮 <observations>，例如当前页面状态、截图结论或多个操作合并后的验证结论，供后续核对与 evidence_search 检索。workspace_write 保存需要后续复用的操作与结论；本工具补充阶段状态，不重复搬运工具原文。\n参数：必填 type（观察来源，如 page_get_summary / execute_javascript / screenshot / code）、result（观察正文，对象或字符串）；可选 tabId、validForTurns。返回：{ok, type}；观察编号由 Runtime 分配，下一次模型请求的 <observations> 可见。\nRuntime 按调用次数提醒补充观察时，先复用 workspace 中已有事实，仅整理需要持续引用的当前状态、已验证与未验证部分以及继续位置。观察与 workspace 随来源轮次归档，摘要承接信息，原始记录仍可回查；没有写观察不代表已有事实丢失。当前会话的重要事实和约束用 memory_writeConversation，跨会话仍适用的长期事实用 memory_writeProject。",
     "parameters": {
       "type": "object",
       "properties": {

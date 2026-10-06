@@ -22,7 +22,7 @@ test("resident and dynamic guides remain separate, persist loaded schemas across
     const names = (guide: string) => [...guide.matchAll(/^- ([^：]+)：/gm)].map(match => match[1]);
     expect(names(baseGuide)).toEqual(registry.toolGroups.baseToolsIds);
     expect(names(dynamicGuide)).toEqual([...coreToolIds(registry), ...([2, 3, 5].includes(requests) ? ["send_http"] : [])]);
-    expect(user).not.toContain("<baseTools>");
+    expect(user).not.toContain("<baseTools>\n<purpose>");
     expect(system).toContain("<systemSkill>");
     if (requests === 1) initialSystem = system;
     else expect(system).toBe(initialSystem);

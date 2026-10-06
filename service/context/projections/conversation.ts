@@ -27,8 +27,6 @@ export type ConversationPayload = {
   conversationHistorySummary: ReturnType<typeof turnSummaryView> | string;
   task: ConversationTaskPayload;
   turns: ConversationTurnSlice[];
-  /** Runtime 运行时提醒：与 turn 平级，不再零散缀在各条返回后面。 */
-  runtime: RuntimeNotice[];
 };
 
 const taskView = (plan: Task | null | undefined) => {
@@ -136,7 +134,6 @@ export function conversationPayload(input: {
       : input.conversationSummaries ?? [],
     task: taskPayload,
     turns,
-    runtime: ledger.runtimeNotices,
   };
 }
 
@@ -240,13 +237,13 @@ const workspaceXml = (entries: WorkspaceEntry[]): string => {
 };
 
 /** Runtime 提醒：同 kind 只保留最新一条。 */
-const runtimeXml = (notices: RuntimeNotice[]): string => {
+export const runtimeNoticesXml = (notices: RuntimeNotice[]): string => {
   if (!notices.length) return "";
   const body = notices.map((notice) => {
     const attrs = attrText({ id: notice.id, kind: notice.kind, scope: notice.scope });
     return `<notice${attrs}>\n${notice.text}\n</notice>`;
   }).join("\n");
-  return `<runtime>\n${body}\n</runtime>`;
+  return body;
 };
 
 const notesXml = (notes: Ledger["notes"]): string => {
@@ -370,7 +367,5 @@ export function conversationXml(payload: ConversationPayload): string {
     }
     parts.push(`<turn${attrText(turnAttrs)}>\n${fields.join("\n")}\n</turn>`);
   }
-  const runtime = runtimeXml(Array.isArray(payload.runtime) ? payload.runtime : []);
-  if (runtime) parts.push(runtime);
   return parts.join("\n");
 }

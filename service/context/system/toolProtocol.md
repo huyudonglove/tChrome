@@ -6,7 +6,7 @@
 
 每项调用有自己的 arguments JSON 对象，只放该调用的参数。工具支持数组时，将多个目标放进同一调用，例如 evidence_search 的 windows、local_fs_read / local_fs_search 的 items；这些数组各最多 8 项。多次独立调用则分别放进 tool_calls。
 
-所有工具都有可选布尔参数 keepInCalls，用来选择本次结果是否需要在后续推理中持续引用。只有显式 true 持续保留调用详情，直到原有压缩覆盖；false 或未指定时，结果只在返回后的下一次模型请求中展示一次，之后移出该轮 <calls>。源码、调用契约和测试结果后续常需引用，可选 true；一次性状态核对可选 false。按本次证据用途选择，不按工具类型固定设置。原始调用始终完整落盘并参与原轮压缩，移出后仍可按 callId 回查。该参数不替代每批业务工具后的 workspace_write 记录。
+所有工具都有可选布尔参数 keepInCalls，用来选择本次结果是否需要在后续推理中持续引用。只有显式 true 持续保留调用详情，直到原有压缩覆盖；false 或未指定时，结果只在返回后的下一次模型请求中展示一次，之后移出该轮 <calls>。源码、调用契约和测试结果后续常需引用，可选 true；一次性状态核对可选 false。按本次证据用途选择，不按工具类型固定设置。原始调用始终完整落盘并参与原轮压缩，移出后仍可按 callId 回查。
 
 同批参数必须提前确定。需要先读一个结果才能填写下一个调用参数时，等待返回后再发下一批。
 
@@ -18,7 +18,7 @@ execution 是工具的固定调度属性，不能通过参数修改：parallel �
 
 只有 high 风险调用需要先有活动 Task。固定 high 的工具始终检查；其他工具本次操作属于 high 时，在 arguments.risk 填 high。缺少活动 Task 会返回 task_gate_required。low 和 medium 不受这个门禁限制。Task 只记录执行步骤，不代替用户授权。
 
-带 runtime: 前缀的错误来自执行机制，不是网页业务结果。按 message 和 recovery 处理：correct_arguments 表示修正参数，inspect_state 表示先检查当前状态。externalized=true 表示完整结果需要按 <runtime> 检索。
+带 runtime: 前缀的错误来自执行机制，不是网页业务结果。按 message 和 recovery 处理：correct_arguments 表示修正参数，inspect_state 表示先检查当前状态。externalized=true 表示完整结果需要按 <runtimeProtocol> 检索。
 
 动作返回可能附带 effects。将它与 expected 对照，判断目标是否达成，未达成时按 fallback 调整：
 
@@ -32,17 +32,6 @@ execution 是工具的固定调度属性，不能通过参数修改：parallel �
 | domChange | 忽略样式后的结构 HTML 差异摘要，使用 -旧 / +新 |
 
 effects 是可选证据，不会自动改写 ok；缺少字段只说明没捕获到这类信息，仍要检查用户可见结果。调用参数和返回可在 <conversation> 各 <turn> 内的 <calls> 中查看，记账类工具只留指针。返回已包含写入后的状态时，直接核对该状态；仍缺少验收证据时，再读取对应记录或目标文件。
-
-## 重复调用与记录提醒
-
-Runtime 会对以下情况追加重复提醒，不阻断执行，也不把提醒算作 faultCode：
-- 连续两次以完全相同参数调用同一工具。
-- 最近 {{repeatWindow}} 条记录中，同一工具调用达到 {{repeatDuplicateCalls}} 次，不同返回不超过 {{repeatDuplicateSignatures}} 种，标为 runtime[repeat:tool]。
-- 同一工具连续两次收到相同的 faultCode 和 message。
-
-收到提醒后，先检查上次是否已生效，再换参数或方法。参数不断变化的无效循环可能检测不到，仍需按 <execution> 的停滞规则判断。
-
-产出证据的调用累计到 {{observationFirst}} 次仍未 observation_write 时，Runtime 会提醒记录观察；后续提示门槛收紧到 {{observationGate2}}、最低 {{observationMin}}。届时汇总需要跨步骤复用的当前状态、已确认事实、未验证部分和继续位置。workspace 保存每批执行事实，observation 保存观察状态，不必重复抄写同一份工具原文；Runtime 不会代为整理这些观察。
 
 ## 浏览器目标与交互
 

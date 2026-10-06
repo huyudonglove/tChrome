@@ -32,7 +32,7 @@ test("suggestion names the batch and tallies tools, without echoing runtime-fill
   expect(text).toContain(WORKSPACE_SUGGEST_MARKER);
   expect(text).toContain("3 次调用");
   expect(text).toContain("local_fs_read×2");
-  expect(text).toContain("workspace_write");
+
   // boundId / callIds 写入时由 Runtime 反填，模型不需要抄，建议里不该出现。
   expect(text).not.toContain("boundId=");
   expect(text).not.toContain("callIds=");
@@ -80,7 +80,7 @@ test("separate bookkeeping batches preserve the latest business sources within t
   expect(defaultWorkspaceCallIds(ledger, "tn_03")).toEqual([]);
 });
 
-test("loop appends one suggestion per batch, model writes ws, window shows it once", async () => {
+test("loop allows progress before optional workspace recording and keeps notices in User runtime", async () => {
   const { mkdtempSync, rmSync } = await import("node:fs");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
@@ -103,6 +103,9 @@ test("loop appends one suggestion per batch, model writes ws, window shows it on
       complete: async (input: { messages: { content: string }[] }) => {
         n++;
         seen.push(input.messages[1]!.content);
+        expect(input.messages[0]!.content).not.toContain("继续调用业务工具前，必须先");
+        expect(input.messages[0]!.content).toContain("完整原文保持原样保存");
+        expect(input.messages[1]!.content).not.toContain("完整原文保持原样保存");
         if (n === 1) return result({ toolCalls: [
           { id: "a", name: "local_fs_list", arguments: { reason: "看目录", path: dataDir } },
           { id: "b", name: "local_fs_read", arguments: { reason: "读", items: [{ path: join(dataDir, "nope.txt") }] } },
@@ -112,6 +115,11 @@ test("loop appends one suggestion per batch, model writes ws, window shows it on
           expect(notices).toHaveLength(1);
           expect(notices[0]).toMatchObject({ id: "rt_01", kind: "workspace" });
           expect(input.messages[1]!.content).toContain(`<notice id="${notices[0]!.id}" kind="workspace"`);
+          return result({ toolCalls: [
+            { id: "next", name: "local_fs_list", arguments: { reason: "继续查看", path: dataDir } },
+          ] });
+        }
+        if (n === 3) {
           return result({ toolCalls: [
             { id: "c", name: "workspace_write", arguments: { reason: "补记", op: "列了目录", value: "空目录" } },
           ] });
@@ -126,17 +134,17 @@ test("loop appends one suggestion per batch, model writes ws, window shows it on
     const ledger = loadLedger(dataDir, reply.conversationId);
     const sources = ledger.toolIO.filter((row) => ["local_fs_list", "local_fs_read"].includes(row.name)).map((row) => row.callId);
     const savedTurn = loadTurn(dataDir, reply.conversationId, reply.turnId);
-    expect(savedTurn.assembled.workspace[0]!.callIds).toEqual(sources);
-    expect(seen[2]!).toContain(`callIds="${sources.join(",")}"`);
-    // 三次出网，boundSeq 计三次。
-    expect(ledger.boundSeq).toBe(3);
-    // b02 的请求在 <runtime> 模块看到 b01 那批的建议（不再缀在返回后面）。
-    expect(seen[1]).toContain("<runtime>");
+    expect(savedTurn.assembled.workspace[0]!.callIds).toEqual(sources.slice(-1));
+    expect(seen[3]!).toContain(`callIds="${sources.at(-1)}"`);
+    // 可先继续业务调用，再按需记录。
+    expect(ledger.boundSeq).toBe(4);
+    // b02 的请求在 <runtimeNotices> 模块看到 b01 那批的建议（不再缀在返回后面）。
+    expect(seen[1]).toContain("</conversation>\n\n<runtimeNotices>");
     expect(seen[1]).toContain('kind="workspace"');
     expect(seen[1]).toContain(WORKSPACE_SUGGEST_MARKER);
     // ws 写下后进窗口，且同 kind 只保留最新一条。
-    expect(seen[2]!).toContain('<workspaces start="ws01" end="ws01">');
-    expect(seen[2]!).toContain('boundid="b02"');
+    expect(seen[3]!).toContain('<workspaces start="ws01" end="ws01">');
+    expect(seen[3]!).toContain('boundid="b03"');
     expect(seen[2]!.split(WORKSPACE_SUGGEST_MARKER).length - 1).toBeLessThanOrEqual(1);
   } finally {
     rmSync(dataDir, { recursive: true, force: true });

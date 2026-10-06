@@ -31,10 +31,11 @@ test("module registry owns consumers and archive fields", () => {
     "stopReason",
   ]);
   const mainSystem = registryModules(registry, { role: "system", consumer: "main" }).map(row => row.id);
-  expect(mainSystem).toContain("runtime");
+  expect(mainSystem).toContain("runtimeProtocol");
+  expect(mainSystem).not.toContain("runtimeNotices");
   expect(mainSystem).not.toContain("compressionModules");
   const mainUser = registryModules(registry, { role: "user", consumer: "main" }).map(row => row.id);
-  expect(mainUser).toEqual(["skill", "projectMemory", "tools", "conversation"]);
+  expect(mainUser).toEqual(["skill", "projectMemory", "tools", "conversation", "runtimeNotices"]);
   const md = compressionArchiveFieldsMarkdown(root);
   expect(md).toContain("- toolIO:");
   expect(md).toContain("- observations:");

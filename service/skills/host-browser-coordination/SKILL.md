@@ -12,7 +12,7 @@ SUMMARY: 宿主与浏览器协作：按实际限制选择执行环境，用进�
 
 network_grep 和 wait_response 监听后续响应，不回查历史；已有响应直接使用原证据，按钮提交优先 page_submit_wait，避免先阻塞等待再触发请求。
 
-动态工具按需 catalog_add，加载后依据 schema 调用。一次操作成功后进入下一项验证；已有结果按执行规则记入 workspace_write，缺原文再沿 callId 使用 evidence_search。
+动态工具按需 catalog_add，加载后依据 schema 调用。一次操作成功后进入下一项验证；复用 workspace 中已有结论，并参考动态 <runtimeNotices> 提醒；缺原文再沿 callId 使用 evidence_search。
 
 ## 让反馈连接两个环境
 

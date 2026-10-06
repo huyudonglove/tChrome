@@ -40,6 +40,6 @@ capture_page 的选择：
 
 工具调用详情在所属 turn 的 <calls> 中。需要跨步骤使用的页面状态、脚本结论或截图发现，用 observation_write(type, result, tabId?) 记入 <observations>，Runtime 不自动摘录。观察记录提醒的规则见 <toolProtocol>，按返回的具体提示处理。
 
-业务批次按执行规则写 workspace_write，记录已确认事实、失败原因和下一步；后续复用这些结果。缺原文时用 evidence_search 沿 callId 或 pageId 搜索 keyword、读取 blockId，不重做已完成的业务动作。已提取结论且不再需要正文的大观察，可用 page_clear_result 清理对应 pageId 在窗口中的正文，原记录及来源关联仍保留。
+复用 workspace 中已有结论，并参考动态 <runtimeNotices> 提醒。缺原文时用 evidence_search 沿 callId 或 pageId 搜索 keyword、读取 blockId，不重做已完成的业务动作。已提取结论且不再需要正文的大观察，可用 page_clear_result 清理对应 pageId 在窗口中的正文，原记录及来源关联仍保留。
 
 失败反馈用于选择下一次操作：定位错就修定位，状态未就绪就等目标条件，业务报错就查对应原因。满足验收条件后完成任务；不能验证的部分如实说明。

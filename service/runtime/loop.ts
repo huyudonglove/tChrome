@@ -624,7 +624,7 @@ export async function handleTurn(
     // would rotate again immediately and the chain would never settle.
     let forceCompress = body.continuationOfTurnId !== undefined;
     let imageBatchId: string | undefined;
-    // Runtime 提醒统一进 <runtime> 模块（与 turn 平级），不再缀到各条返回后面。
+    // Runtime 提醒统一进 User <runtimeNotices> 模块（与 conversation 平级），不再缀到各条返回后面。
     // 发送前重算临时提醒；budget 由工具返回更新，保留到下一次请求，同 kind 只保留最新一条。
     const setNotice = (kind: string, text: string | null) => {
       ledger.runtimeNotices = ledger.runtimeNotices.filter((notice) => notice.kind !== kind);

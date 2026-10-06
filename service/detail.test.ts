@@ -102,7 +102,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
           const id = tag.slice(1);
           const m = input.messages[1]!.content.match(new RegExp(`<${id}(?:\\s[^>]*)?>\\n<purpose>\\n[\\s\\S]*?\\n</purpose>\\n\\n([\\s\\S]*?)\\n</${id}>`));
           const body = m![1]!;
-          return [id, id === "skill" || id === "tools" || id === "conversation" || id === "projectMemory" ? body : JSON.parse(body)];
+          return [id, id === "skill" || id === "tools" || id === "conversation" || id === "projectMemory" || id === "runtimeNotices" ? body : JSON.parse(body)];
         }));
         expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
         // 查询直接塞进数组： main===2 时第一次查询已落账，在 <query> 里可见。

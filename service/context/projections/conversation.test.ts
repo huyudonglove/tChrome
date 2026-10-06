@@ -107,7 +107,6 @@ test("projects record IDs into note/query attributes and matching container boun
   };
   for (const inlineChars of [10000, 1]) {
     const xml = conversationXml(payload({
-      runtime: [{ id: "rt_02", kind: "workspace", scope: "turn", text: "记录结论" }],
       turns: [{
         turnId: "tn_01",
         userInput: { id: "input_01", turnId: "tn_01", userInput: "hello" },
@@ -121,7 +120,6 @@ test("projects record IDs into note/query attributes and matching container boun
     expect(xml).toContain('<note id="nt_07" key="result">\n已完成\n</note>');
     expect(xml).toContain('<queries start="query_03" end="query_03">');
     expect(xml).toContain('<query id="query_03"');
-    expect(xml).toContain('<notice id="rt_02" kind="workspace" scope="turn">');
     expect(xml).not.toContain('"queryId"');
   }
 });
