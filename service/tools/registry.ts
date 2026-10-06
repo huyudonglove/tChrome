@@ -233,5 +233,5 @@ export function zeroCallToolNote(registry: ToolRegistry, loadedToolIds: readonly
   const called = new Set(calls.map((call) => call.name));
   const idle = dynamic.filter((id) => !called.has(id));
   if (idle.length === 0) return "";
-  return `已加载动态工具 ${dynamic.length} 个，本会话零调用 ${idle.length} 个：${idle.join("、")}。`;
+  return `本会话加载的动态工具 ${dynamic.length} 个，零调用 ${idle.length} 个：${idle.join("、")}。`;
 }

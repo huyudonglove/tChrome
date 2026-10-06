@@ -25,9 +25,13 @@
           }
         },
         "maxParallel": { "type": "integer", "minimum": 1, "description": "同时执行的 Subagent 上限，默认 4。" },
-        "maxSteps": { "type": "integer", "minimum": 1, "description": "每个 Subagent 最多进行的模型步数，默认 8。" }
+        "maxSteps": { "type": "integer", "minimum": 1, "description": "每个 Subagent 最多进行的模型步数，默认 8。" },
+        "reason": {
+          "type": "string",
+          "description": "委派任务的目的"
+        }
       },
-      "required": ["packets"]
+      "required": ["packets", "reason"]
     }
   },
   "execution": "serial"

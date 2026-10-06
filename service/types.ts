@@ -56,7 +56,7 @@ export type WorkspaceEntry = import("./runtime/workspace-extract.ts").WorkspaceE
 export type RuntimeNoticeScope = "turn" | "persistent";
 export type RuntimeNotice = {
   id: string;
-  /** budget | observation | reflect | compress | rotate */
+  /** budget | observation | reflect | compress | rotate | image | memory | tools */
   kind: string;
   scope: RuntimeNoticeScope;
   text: string;

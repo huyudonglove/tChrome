@@ -48,7 +48,7 @@
 | 4 | conversation | — | main |
 | 5 | runtimeNotices | — | main |
 
-`<conversation>` 内为会话级 `<ConverstionMemories>`、`<summary>`、`<task>`、`<workspaces>` 与按 turnId 嵌套的 `<turn>` 轮次切片（标签属性 turnId / start / end；二级标签 userInput / calls / observations / notes / reflections / queries / stopReason，详见 user/conversation.md）。`<workspaces>` 按 target 对象归组展示，各项操作证据仍存储在来源 turn 并随该轮归档；各轮 `<calls>` 按 keepInCalls 展示调用详情（start/end 为该轮调用范围，kept 为可见条数，total 为该轮调用总数），已在 workspace 保存的正文使用引用；被压缩覆盖的轮次整块删除。
+`<conversation>` 内为会话级 `<ConversationMemories>`、`<summary>`、`<task>`、`<workspaces>` 与按 turnId 嵌套的 `<turn>` 轮次切片（标签属性 turnId / start / end；二级标签 userInput / calls / observations / notes / reflections / queries / stopReason，详见 user/conversation.md）。`<workspaces>` 按 target 对象归组展示，各项操作证据仍存储在来源 turn 并随该轮归档；各轮 `<calls>` 按 keepInCalls 展示调用详情（start/end 为该轮调用范围，kept 为可见条数，total 为该轮调用总数），已在 workspace 保存的正文使用引用；被压缩覆盖的轮次整块删除。
 
 ### Archive · 仅压缩
 
@@ -89,7 +89,7 @@ User 模块（含数据）：
 本会话过程记录。…
 </purpose>
 
-<ConverstionMemories memoryId="mm_01" turnId="tn_01">…</ConverstionMemories>
+<ConversationMemories memoryId="mm_01" turnId="tn_01">…</ConversationMemories>
 <turn turnId="tn_01" start="call_01" end="call_12">
 <userInput id="input_01">{"turnId":"tn_01","userInput":"…"}</userInput>
 <calls start="call_01" end="call_12" kept="1" total="12">

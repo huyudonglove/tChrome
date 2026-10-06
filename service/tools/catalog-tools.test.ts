@@ -231,7 +231,7 @@ test("service 数组不含已由浏览器通道实现的工具名", () => {
   expect(misplaced).toEqual([]);
 });
 
-test("zeroCallToolNote 只列本会话零调用的已加载动态工具", () => {
+test("zeroCallToolNote 只列本会话零调用的动态工具", () => {
   const registry = loadToolRegistry(repoRoot);
   const dynamic = dynamicToolIds(registry).slice(0, 2);
   const core = coreToolIds(registry).slice(0, 2);
@@ -244,6 +244,6 @@ test("zeroCallToolNote 只列本会话零调用的已加载动态工具", () => 
 
   // 同名调用重复出现（amend 行）只算「已调用」一次；常驻工具即使零调用也不该出现在清单里。
   const note = zeroCallToolNote(registry, loaded, [{ name: dynamic[0]! }, { name: dynamic[0]! }]);
-  expect(note).toBe(`已加载动态工具 2 个，本会话零调用 1 个：${dynamic[1]}。`);
+  expect(note).toBe(`本会话加载的动态工具 2 个，零调用 1 个：${dynamic[1]}。`);
   for (const id of core) expect(note).not.toContain(id);
 });

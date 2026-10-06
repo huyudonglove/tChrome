@@ -318,7 +318,7 @@ export function conversationXml(payload: ConversationPayload): string {
       ? `<summaries>\n${summariesRaw}\n</summaries>`
       : "");
   const parts = [
-    listXml("ConverstionMemories", payload.conversationMemory, MEMORY_ATTRS),
+    listXml("ConversationMemories", payload.conversationMemory, MEMORY_ATTRS),
     summaryBlock,
     taskXml(payload.task),
     workspaceXml(payload.turns.flatMap(slice => slice.workspace)),

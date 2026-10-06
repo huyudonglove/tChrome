@@ -877,6 +877,33 @@
       "composesWith": [],
       "readOnly": false
     },
+    "delegate_subagent": {
+      "purpose": "把一个或多个结构化 Task Packet 委派给受限 Subagent 执行，支持依赖 DAG、有限并行和失败阻断",
+      "triggers": [
+        "delegate_subagent",
+        "需要把多步任务拆给受限 Subagent 执行"
+      ],
+      "outputs": [
+        "结构化 Subagent 执行结果，供主 Agent 自行验收"
+      ],
+      "preconditions": [
+        "packets 中每个 Task Packet 字段完整",
+        "委派范围已获当前任务授权"
+      ],
+      "risk": "high",
+      "verification": [
+        "按 acceptanceCriteria 核对返回结果，必要时复验产物"
+      ],
+      "alternatives": [
+        "主 Agent 自行执行",
+        "拆成多个独立工具调用"
+      ],
+      "composesWith": [
+        "task_set",
+        "observation_write"
+      ],
+      "readOnly": false
+    },
     "detach_debugger": {
       "purpose": "主动断开目标标签的 Chrome Debugger (CDP) 调试连接，关闭浏览器顶部“正在调试此浏览器”的黄色/白色提示横幅",
       "triggers": [
@@ -1752,6 +1779,33 @@
         "page_recheck"
       ],
       "readOnly": true
+    },
+    "local_apply_patch": {
+      "purpose": "在 Git 仓库工作区应用单文件或多文件 unified diff，检查失败不修改文件",
+      "triggers": [
+        "local_apply_patch",
+        "任务需要访问本机文件、Git、脚本或系统能力"
+      ],
+      "outputs": [
+        "本机文件、日志、状态或命令结果"
+      ],
+      "preconditions": [
+        "用户已授权当前宿主操作范围",
+        "路径为允许的绝对路径"
+      ],
+      "risk": "high",
+      "verification": [
+        "检查 ok=true；文件修改复核内容；命令检查退出码与输出"
+      ],
+      "alternatives": [
+        "使用浏览器能力",
+        "通过现有技能组合宿主工具"
+      ],
+      "composesWith": [
+        "local_git_diff",
+        "local_run"
+      ],
+      "readOnly": false
     },
     "local_capabilities": {
       "purpose": "Report local platform, home directory, supported script extensions, timeout and output limits. Save scripts under scripts/ (script_patch, script_write or local_fs_write) before executing by filename.",

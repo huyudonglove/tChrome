@@ -39,7 +39,7 @@ test("assembled User slots follow the shared data contract", () => {
   }
   expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
   expect(values.projectMemory).toContain('<memory id="lm_01"');
-  expect(values.conversation).toContain('<ConverstionMemories memoryId="mm_01"');
+  expect(values.conversation).toContain('<ConversationMemories memoryId="mm_01"');
   expect(values.conversation).toContain('<summary sumId="sum_01"');
   expect(values.conversation).toContain('<turn turnId="tn_01"');
   expect(values.conversation).toContain('<turn turnId="tn_02"');

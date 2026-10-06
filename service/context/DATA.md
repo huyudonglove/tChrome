@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `skill` | 字符串 | 无 |
 | `projectMemory` | `[{memoryId, turnId, sourceCallId?, sourceConversationId?, text}]` | `memoryId`（`lm_`） |
-| `tools` | 本轮已加载动态工具的能力导航文本 | 工具名 |
+| `tools` | 本会话可用工具（核心工具 + 本会话加载的动态工具）的能力导航文本 | 工具名 |
 | `conversation` | 嵌套 XML 时间线正文（见下） | `<turn>` 元素的 `turnId` 属性（`tn_`） |
 | `runtimeNotices` | 字符串；动态提醒 XML 正文，每条为 `<notice id kind scope>`，同 kind 只保留最新一条 | `id`（`rt_`）；独立 User 模块，不进压缩 |
 
@@ -18,7 +18,7 @@
 
 ```xml
 <conversation>
-  <ConverstionMemories memoryId="mm_01" turnId="tn_01" sourceCallId="call_09">…</ConverstionMemories>
+  <ConversationMemories memoryId="mm_01" turnId="tn_01" sourceCallId="call_09">…</ConversationMemories>
   <summaries start="sum_01" end="sum_01">
     <summary sumId="sum_01" turnId="tn_01" summary="…" level="1" turnIds="tn_01">…</summary>
   </summaries>
@@ -55,7 +55,7 @@
 </runtimeNotices>
 ```
 
-会话级（与 turn 平级）：`ConverstionMemories` 逐条渲染为 `<ConverstionMemories memoryId turnId sourceCallId?>` 元素、正文为 `text`（`mm_`）；`summaries` 容器以 start / end 标出首尾 sumId，每条摘要渲染为 `<summary sumId turnId summary? level? turnIds? from?>` 元素、正文为 `userRequest` / `actions` / `result`；`tasks` 容器以 start / end 标出任务 ID，`task` 为 `<task id title? status createdTurnId? updatedTurnId?>` 元素，每条步骤一个 `<item id status expectedEffect? verification? blockedReason? outcome?>`、正文为步骤 `text`（当前活跃或最近完成的任务实体，跨轮唯一持久化，直到新任务顶替）。
+会话级（与 turn 平级）：`ConversationMemories` 逐条渲染为 `<ConversationMemories memoryId turnId sourceCallId?>` 元素、正文为 `text`（`mm_`）；`summaries` 容器以 start / end 标出首尾 sumId，每条摘要渲染为 `<summary sumId turnId summary? level? turnIds? from?>` 元素、正文为 `userRequest` / `actions` / `result`；`tasks` 容器以 start / end 标出任务 ID，`task` 为 `<task id title? status createdTurnId? updatedTurnId?>` 元素，每条步骤一个 `<item id status expectedEffect? verification? blockedReason? outcome?>`、正文为步骤 `text`（当前活跃或最近完成的任务实体，跨轮唯一持久化，直到新任务顶替）。
 
 `workspaces` 仅接收显式设置 `keepInCalls=true` 的调用证据，在会话级按 `target` 对象归组展示，每组为 `<workspace kind key>`，正文为 `{operations:[...]}`；目标种类为 `file`、`browser`、`script`、`process`、`tool`。每项操作证据保存 `op`、`args`、`result`、`content`、`range`、`mutation`、`revision` 与 `sources:[{id,turnId,callId,boundId}]`，字段按实际工具结果提供。文件按明确路径归组，同文件内容合并，shell 命令不推断文件路径。归组只影响展示：每项证据仍归属来源 turn，随该轮压缩归档；已覆盖的证据从当前归组中移除，剩余证据继续展示。
 
@@ -71,7 +71,7 @@
 | `query` | `<queries start end>` 下每条一个 `<query id sumId module status sourceCallId?>` 元素 | `id` 使用记录的 `queryId`（`query_`）；start / end 使用首尾查询 ID |
 | `stopReason` | `<stopReason kind callId?>` + 正文 | — |
 
-被压缩覆盖的 `<turn>` 整块删除，只在 `<summary>` 留摘要。会话记忆随来源轮次进入压缩，对应原文被覆盖后不再展示该条 `<ConverstionMemories>` 全文，落盘原记录仍保留；长期记忆 `<projectMemory>` 不参与压缩，被注入时保留全文。任务记录 `Task` 为会话级唯一实体，items 用 `item_` 编号。查询记录为 `{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}`。
+被压缩覆盖的 `<turn>` 整块删除，只在 `<summary>` 留摘要。会话记忆随来源轮次进入压缩，对应原文被覆盖后不再展示该条 `<ConversationMemories>` 全文，落盘原记录仍保留；长期记忆 `<projectMemory>` 不参与压缩，被注入时保留全文。任务记录 `Task` 为会话级唯一实体，items 用 `item_` 编号。查询记录为 `{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}`。
 
 统一可选布尔参数 `keepInCalls` 控制窗口可见性与 workspace 写入：仅显式 true 写入 workspace，并持续保留调用详情（已有 workspace 正文时使用引用）至原有压缩覆盖；false 或未指定不写入 workspace，调用详情仅在返回后的下一次模型请求展示一次。全部原始调用完整落盘并按原轮次参与压缩，窗口移出不影响归档与 callId 回查。
 
