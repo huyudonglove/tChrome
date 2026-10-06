@@ -66,7 +66,7 @@ export function extractWorkspaceEvidence(name: string, args: Row, text: string, 
   }
   if (name === "local_fs_grep" && Array.isArray(root.matches)) {
     const { matches, ...status } = root;
-    const evidence = [make(status, args, filePath(root.path) ?? filePath(args.path))];
+    const evidence = [make(status, args, filePath(root.externalized === true ? undefined : root.path) ?? filePath(args.path))];
     const grouped = new Map<string | undefined, unknown[]>();
     for (const match of matches) {
       const path = filePath(record(match).path);
@@ -84,8 +84,8 @@ export function extractWorkspaceEvidence(name: string, args: Row, text: string, 
     ];
   }
   if (name.startsWith("local_fs_") || name === "local_replace_block") {
-    const evidence = make(parsed, args, filePath(root.path) ?? filePath(args.path), name === "local_fs_write" && args.append === true ? `${name}:append` : name, mutations.has(name));
-    if (name === "local_fs_write" && root.ok === true && args.append !== true && typeof args.content === "string") evidence.content = args.content;
+    const evidence = make(parsed, args, filePath(root.externalized === true ? undefined : root.path) ?? filePath(args.path), name === "local_fs_write" && args.append === true ? `${name}:append` : name, mutations.has(name));
+    if (name === "local_fs_write" && root.externalized !== true && root.ok === true && args.append !== true && typeof args.content === "string") evidence.content = args.content;
     return [evidence];
   }
   const evidence = make(parsed, args, undefined, name, mutations.has(name));
@@ -98,7 +98,7 @@ export function extractWorkspaceEvidence(name: string, args: Row, text: string, 
   }
   if (name.startsWith("script_") || name === "local_run") {
     const filename = identity(root.filename) ?? identity(args.filename);
-    const path = name.startsWith("script_") ? filePath(root.path) ?? filePath(args.path) : undefined;
+    const path = name.startsWith("script_") ? filePath(root.externalized === true ? undefined : root.path) ?? filePath(args.path) : undefined;
     const scriptId = identity(root.scriptId) ?? identity(args.scriptId);
     if (filename !== undefined || path !== undefined || scriptId !== undefined) {
       evidence.target = { kind: "script", key: filename !== undefined ? `filename:${filename}` : path !== undefined ? `path:${path}` : `scriptId:${scriptId}` };

@@ -4,7 +4,7 @@ Runtime 负责选择图片、计算窗口大小、压缩历史和外置大结果
 
 运行状态提醒：
 
-- Runtime 自动把工具操作及结果内容记录到 workspace，统一按 target 对象归组：file、browser、script、process 或 tool。同一对象的操作证据在会话级合并展示，每项保留操作、参数、结果、内容、范围、变更及来源编号；文件按明确路径归因，shell 命令不推断文件路径。workspace 保存工具返回的执行事实，模型的观察判断与方案取舍分别写入 observation 和 reflection。每项证据仍归属来源 turn，随该轮压缩归档；calls 对已有正文只保留 workspace 引用。已有证据足够就实施并验证，只缺原文时沿来源调用取回。
+- Runtime 自动把工具操作及结果内容记录到 workspace，统一按 target 对象归组：file、browser、script、process 或 tool。同一对象的操作证据在会话级合并展示，每项保留操作、参数、结果、内容、范围、变更及来源编号；文件按明确路径归因，shell 命令不推断文件路径。workspace 保存现有门禁处理后的返回：小结果保留正文，大结果保留状态、错误、索引和原文路径，完整原文沿用 returns 落盘，不重新放回窗口。workspace 保存工具返回的执行事实，模型的观察判断与方案取舍分别写入 observation 和 reflection。每项证据仍归属来源 turn，随该轮压缩归档；calls 对已有正文只保留 workspace 引用。已有证据足够就实施并验证，只缺原文时沿来源调用取回。
 - 重复调用提醒指出等价调用、相同返回或重复错误。核对上次是否已生效及已有证据，只补影响下一步决定的缺口。
 - observation 提醒出现时，若跨步骤状态尚未保存，记录当前进度、未验证项和继续位置；已有 workspace 执行事实直接复用。reflect 提醒用于判断变化和方案取舍。
 - 只读计数在 {{readOnlyPrompt}} 次和 {{readOnlySecond}} 次提示，最后通牒后到 {{readOnlyHard}} 次会中断本轮。记账调用不增加或清零计数；local_run 也保持中性，明确写入等实质性操作清零。确需继续调查时用 checkContinue(cont=true) 显式确认并清零，之后重新累计；cont=false 结束本轮，不提交最终答复。

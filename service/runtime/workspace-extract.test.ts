@@ -144,3 +144,15 @@ test("actual script service write and read contracts preserve full code and stat
     expect(read.target).toEqual(write.target);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
+
+test("externalized returns keep the admitted pointer and never attribute its storage path as the source", () => {
+  const pointer = { ok: true, externalized: true, path: "/data/returns/call_01.txt", directory: { kind: "directory", children: [] } };
+  const [entry] = extractWorkspaceEvidence("local_fs_write", { path: "/src/file.txt", content: "original content" }, JSON.stringify(pointer), "call_01");
+  expect(entry!.target).toEqual({ kind: "file", key: "/src/file.txt" });
+  expect(entry!.result).toEqual(pointer);
+  expect(entry!.content).toBeUndefined();
+  const [script] = extractWorkspaceEvidence("script_read", { filename: "task.js" }, JSON.stringify(pointer), "call_02");
+  expect(script!.target).toEqual({ kind: "script", key: "filename:task.js" });
+  expect(script!.files).toBeUndefined();
+  expect(script!.result).toEqual(pointer);
+});

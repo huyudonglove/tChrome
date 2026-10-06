@@ -413,7 +413,6 @@ const runQueue = async (input: {
         }
       }
       const full = stored.text;
-      let evidenceText = full;
       saveFullReturn(dataDir, ledger.conversationId, item.callId, full);
       if (execution.evidenceIndex) saveReturnBlockIndex(dataDir, ledger.conversationId, item.callId, execution.evidenceIndex);
       // 原文与统一块索引使用同一来源调用；取回型结果直接内联，避免再次外置。
@@ -450,7 +449,7 @@ const runQueue = async (input: {
       }
       const escalation = escalate(turnRows, item.name, readOnlyTools);
       if (escalation.action === "interrupt") {
-        recordWorkspaceEvidence(dataDir, ledger, turn, row, evidenceText);
+        recordWorkspaceEvidence(dataDir, ledger, turn, row);
         closeForcedReply(ledger, turn, escalation.text);
         saveTurn(dataDir, turn);
         saveLedger(dataDir, ledger);
@@ -473,13 +472,12 @@ const runQueue = async (input: {
         // Effects can fail after earlier writes succeeded. Report evidence without replaying them.
         const text = failedTool(error, "tool_execution_failed", { toolName: item.name,
           details: { executionState: "部分操作可能已生效，请先检查已保存记录与当前状态，不要直接重放整批操作。" } }).text;
-        evidenceText = text;
         row.return = { stage: "complete", totalChars: text.length, text };
         saveFullReturn(dataDir, ledger.conversationId, item.callId, text);
         saveTurn(dataDir, turn);
         saveLedger(dataDir, ledger);
       }
-      recordWorkspaceEvidence(dataDir, ledger, turn, row, evidenceText);
+      recordWorkspaceEvidence(dataDir, ledger, turn, row);
       saveTurn(dataDir, turn);
       // Tool calls are not written to events.jsonl: toolio.jsonl is the single source of truth
       // (it carries turnId/batchId/risk/taskId and is amended in place to the final return), and

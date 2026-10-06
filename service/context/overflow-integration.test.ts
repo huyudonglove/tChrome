@@ -155,7 +155,9 @@ test("mixed file read failures stay visible after externalization and originals 
     const operations = operationsFor(user, sourceCallId);
     const success = operations.find(operation => operation.target.key === path)!;
     const failure = operations.find(operation => operation.target.key === missing)!;
-    expect(success.content).toBe(content);
+    expect(success.content).toBeUndefined();
+    expect(user).not.toContain(content);
+    expect(operations.find(operation => operation.result.externalized)?.result).toMatchObject({ externalized: true, ok: false });
     expect(failure.result).toMatchObject({ ok: false, faultCode: "file_not_found" });
     expect(failure.result.error).toContain(missing);
     const stub = storedReturn(dataDir, sourceCallId);
@@ -171,7 +173,7 @@ test("mixed file read failures stay visible after externalization and originals 
 }));
 
 test("large script results use evidence_search while small follow-up pages stay inline", () => withDir(async dataDir => {
-  const code = "//PAGE_SENTINEL\n" + "x".repeat(105_000);
+  const code = "//PAGE_SENTINEL\n" + "x".repeat(305_000);
   mkdirSync(join(dataDir, "scripts"));
   writeFileSync(join(dataDir, "scripts", "large.js"), code);
   let step = 0;
@@ -183,7 +185,9 @@ test("large script results use evidence_search while small follow-up pages stay 
       const row = toolIO.find((item: any) => item.name === "script_read");
       expect(row).toBeDefined();
       expect(row.return.workspaceIds.length).toBeGreaterThan(0);
-      expect(operationsFor(user, row.callId)[0]!.result.code).toBe(code);
+      expect(operationsFor(user, row.callId)[0]!.result).toMatchObject({ externalized: true });
+      expect(operationsFor(user, row.callId)[0]!.result).not.toHaveProperty("code");
+      expect(user).not.toContain(code);
       const stub = storedReturn(dataDir, row.callId);
       expect(stub.externalized).toBe(true);
       expect(stub.directory.kind).toBe("directory");

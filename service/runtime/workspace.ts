@@ -6,10 +6,10 @@ import { NEUTRAL_TOOLS } from "./escalation.ts";
 
 export const formatBoundId = (seq: number): string => `b${String(seq).padStart(2, "0")}`;
 
-/** Capture the complete final result before any model-window externalization. */
-export function recordWorkspaceEvidence(dataDir: string, ledger: Ledger, turn: Turn, row: ToolIOItem, text: string): void {
+/** Record the final admitted return; full originals remain in the existing return store. */
+export function recordWorkspaceEvidence(dataDir: string, ledger: Ledger, turn: Turn, row: ToolIOItem): void {
   if (NEUTRAL_TOOLS.has(row.name)) return;
-  for (const evidence of extractWorkspaceEvidence(row.name, row.arguments, text, row.callId)) {
+  for (const evidence of extractWorkspaceEvidence(row.name, row.arguments, row.return.text, row.callId)) {
     turn.assembled.workspace.push({ ...evidence,
       id: allocateRecordId(dataDir, ledger.conversationId, "workspace").replace("_", ""),
       turnId: turn.turnId, boundId: formatBoundId(ledger.boundSeq),

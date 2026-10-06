@@ -78,3 +78,5 @@
 工具投影的每条调用带 `args`（调用参数；大小超门禁时只留 `files` 路径，记账类指针调用不带）、`return` 为 `{stage, result}`；操作证据已保存到 workspace 时，调用投影使用 workspace 引用，正文保留在对应对象中，避免重复。result 与 observations 中同一 callId 的观察对应时，只保留 `{ok, observationId}`。context_query 的 result 为 `{ok, status, sumId, module, intent, recordCount}`。归档原文使用 `{stage, totalChars, text}`，只出现在压缩/查询候选里，不进主模型窗口。finishTurn / askUser 在 toolIO 只存指针 `{output:"reply"|"ask"}`，正文在本轮 stopReason。
 
 Schema 检查字段类型、必填项、ID 格式及已知记录结构，拒绝未声明的顶层模块。编号至少两位，前缀来自 ID 清单。Schema 不检查编号唯一性、自增状态、引用是否存在或查询是否命中；统一内联门禁由 Runtime 验证。
+
+workspace 记录现有门禁处理后的最终返回：小结果保留正文，大结果保留门禁返回的状态、错误、索引及原文路径；完整原文沿用 returns 落盘，不重新塞回 workspace。calls 只引用对应 workspace，不增加另一层门禁。
