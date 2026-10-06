@@ -195,3 +195,27 @@ test("/browser-batch 校验任务、要求扩展在线，并经扩展桥在真�
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("installed runtime resources stay separate from the model's development workspace", () => {
+  const workspace = mkdtempSync(join(tmpdir(), "helm-development-"));
+  try {
+    const script = `
+      const { createServer } = await import(${JSON.stringify(join(import.meta.dir, "server.ts"))});
+      let sawWorkspace = false;
+      const server = createServer({ dataDir: ${JSON.stringify(join(workspace, "data"))}, provider: {
+        complete: async ({ messages }) => {
+          sawWorkspace = messages[0].content.includes(${JSON.stringify(workspace)});
+          return { finish: "tool_calls", content: "", attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [],
+            toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "done" } }] };
+        }
+      } });
+      const response = await server.fetch(new Request("http://127.0.0.1:18788/turn", {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userInput: "check workspace" })
+      }));
+      const result = await response.json();
+      if (!sawWorkspace || result.stopReason.kind !== "reply") throw new Error("Workspace/runtime separation failed");
+    `;
+    const child = Bun.spawnSync([process.execPath, "--eval", script], { cwd: workspace, env: { ...process.env, TCHROME_DATA: join(workspace, "data") } });
+    expect(child.exitCode, child.stderr.toString()).toBe(0);
+  } finally { rmSync(workspace, { recursive: true, force: true }); }
+});

@@ -22,7 +22,7 @@ test("registry loads XML modules and system text uses angle-bracket tags", () =>
   expect(system).toContain("</overview>");
   expect(system).toContain("2026-09-06");
   expect(system).toContain("服务数据目录（脚本 scripts/、进程输出 process-output/、会话落盘、临时文件）：/tmp/tchrome-data");
-  expect(system).toContain("代码仓库路径（服务源码）：/tmp/tchrome-test");
+  expect(system).toContain("当前开发工作区：/tmp/tchrome-test");
   expect(system).toContain("操作系统：macOS (darwin/arm64)");
   expect(SUMMARY_RECOMPRESS_MIN_ACTIVE).toBe(runtimeConfig.context.summaryRecompressMinActive);
   const runtimePurpose = modules.systemSlots["#runtimeProtocol"]!.purpose;

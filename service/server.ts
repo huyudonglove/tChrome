@@ -31,6 +31,7 @@ loadEnv();
 
 export type ServeOptions = {
   dataDir?: string;
+  /** Installed runtime resources, independent of the development working directory. */
   repoRoot?: string;
   provider?: LoopDeps["provider"];
   host?: LoopDeps["host"];
@@ -50,7 +51,7 @@ const json = (body: unknown, status = 200) =>
   });
 
 export function createServer(options: ServeOptions = {}) {
-  const repoRoot = options.repoRoot ?? process.cwd();
+  const repoRoot = options.repoRoot ?? join(import.meta.dir, "..");
   const dataDir = options.dataDir ?? defaultDataDir();
   calibrateServiceCounters(dataDir);
   const connectionPath = join(dataDir, "connection.json");
