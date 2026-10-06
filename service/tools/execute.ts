@@ -3,7 +3,8 @@ import { errorDetail } from "../../shared/error-details.ts";
 import type { QueryModule, QueryResult } from "../agents/query/types.ts";
 import type { QueryRecord, QueryEvidence } from "../context/projections/queries.ts";
 import type { ToolEffect, ToolExecution } from "./effects.ts";
-import type { BrowserHost, CurrentPage, ToolArguments } from "../types.ts";
+import type { BrowserHost, ChatTool, CurrentPage, Provider, ToolArguments } from "../types.ts";
+import { createTaskPacket, runSubagentDag, createSubagentExecutor, type SubagentCapability, type TaskPacket } from "../agents/subagent/index.ts";
 import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
 import { STREAM_TOOL_NAMES, runStreamTool } from "./stream-tools.ts";
 import { IMAGE_TOOL_NAMES, runImageTool } from "./image-crop.ts";
@@ -93,6 +94,10 @@ export type ExecuteInput = {
   conversationId?: string;
   browserNames: string[];
   host?: BrowserHost;
+  provider?: Provider;
+  repoRoot?: string;
+  subagentTools?: readonly ChatTool[];
+  subagentToolCapabilities?: Readonly<Record<string, readonly SubagentCapability[]>>;
   signal?: AbortSignal;
   queryContext?: (args: {sumId: string; module: QueryModule; intent: string; file?: string}) => Promise<QueryResult>;
   compressContext?: (args: { phase: "history" | "current" }) => Promise<{
@@ -130,6 +135,22 @@ export async function executeTool(input: ExecuteInput): Promise<ToolExecution> {
 
 async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   const { name, arguments: args, lookup, host, dataDir, browserNames } = input;
+  if (name === "delegate_subagent") {
+    if (!input.provider) return failedTool("Subagent provider is missing", "provider_unavailable");
+    const packets = (args.packets as Parameters<typeof createTaskPacket>[0][]).map(createTaskPacket);
+    const executor = createSubagentExecutor({
+      provider: input.provider,
+      tools: input.subagentTools,
+      toolCapabilities: input.subagentToolCapabilities,
+      maxSteps: args.maxSteps as number | undefined,
+      executeTool: async call => {
+        const execution = await executeTool({ ...input, name: call.name, arguments: call.arguments, signal: call.signal });
+        return { text: execution.text };
+      },
+    }, input.signal);
+    const dag = await runSubagentDag(packets, executor, { maxParallel: args.maxParallel as number | undefined });
+    return result(JSON.stringify({ ok: true, ...dag }));
+  }
   if (name === "execute_javascript") {
     try {
       if ("code" in args || typeof args.filename !== "string" || !/\.(?:js|mjs|cjs)$/.test(args.filename)) {

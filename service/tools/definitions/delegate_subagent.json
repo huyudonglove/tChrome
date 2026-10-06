@@ -1,0 +1,34 @@
+{
+  "type": "function",
+  "function": {
+    "name": "delegate_subagent",
+    "description": "把一个或多个结构化 Task Packet 委派给受限 Subagent 执行；支持依赖 DAG、有限并行和失败阻断。主 Agent 必须根据返回的结构化结果自行验收。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "packets": {
+          "type": "array",
+          "description": "Task Packet 数组。每个 packet 必须包含 id、role、objective、facts、constraints、acceptanceCriteria、dependencies；permissions 可省略，由角色权限上限补齐。",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "role": { "type": "string", "enum": ["researcher", "reproducer", "implementer", "reviewer"] },
+              "objective": { "type": "string" },
+              "facts": { "type": "array", "items": { "type": "string" } },
+              "constraints": { "type": "array", "items": { "type": "string" } },
+              "acceptanceCriteria": { "type": "array", "items": { "type": "string" } },
+              "dependencies": { "type": "array", "items": { "type": "string" } },
+              "permissions": { "type": "array", "items": { "type": "string", "enum": ["read", "write", "test", "browser"] } }
+            },
+            "required": ["id", "role", "objective", "facts", "constraints", "acceptanceCriteria", "dependencies"]
+          }
+        },
+        "maxParallel": { "type": "integer", "minimum": 1, "description": "同时执行的 Subagent 上限，默认 4。" },
+        "maxSteps": { "type": "integer", "minimum": 1, "description": "每个 Subagent 最多进行的模型步数，默认 8。" }
+      },
+      "required": ["packets"]
+    }
+  },
+  "execution": "serial"
+}

@@ -1,0 +1,28 @@
+{
+  "type": "function",
+  "function": {
+    "name": "local_apply_patch",
+    "description": "在 Git 仓库工作区应用单文件或多文件 unified diff。先用 git apply --recount --check 检查完整补丁，通过后应用；检查失败不修改文件。返回仓库根目录和补丁涉及的相对文件路径。",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Git 仓库内的绝对目录路径；补丁路径相对于仓库根目录"
+        },
+        "patch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "单文件或多文件 git unified diff，新增或删除使用 /dev/null。Git 按正文重新计算 @@ 行数；仍需合法文件头、块头、每行的空格/+/- 前缀及匹配的上下文，补丁以换行结束"
+        },
+        "reason": {
+          "type": "string",
+          "description": "应用补丁的目的"
+        }
+      },
+      "required": ["path", "patch", "reason"],
+      "additionalProperties": false
+    }
+  },
+  "execution": "serial"
+}

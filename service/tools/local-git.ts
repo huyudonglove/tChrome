@@ -8,6 +8,7 @@ const execFileAsync = promisify(execFile);
 export const LOCAL_GIT_TOOL_NAMES = [
   "local_git_status",
   "local_git_diff",
+  "local_apply_patch",
 ] as const;
 
 export type LocalGitToolName = (typeof LOCAL_GIT_TOOL_NAMES)[number];
@@ -160,6 +161,37 @@ export async function runGitDiff(input: Record<string, unknown>): Promise<GitDif
   };
 }
 
+async function applyGitPatch(repoPath: string, patch: string, args: string[]): Promise<string> {
+  const proc = Bun.spawn(["git", "apply", "--recount", ...args, "-"], {
+    cwd: repoPath,
+    stdin: new Blob([patch]),
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  if (exitCode !== 0) throw new Error(stderr.trim() || `git apply exited with code ${exitCode}`);
+  return stdout;
+}
+
+export async function runApplyPatch(input: Record<string, unknown>) {
+  const path = pathArg(input);
+  if (typeof input.patch !== "string" || input.patch.trim().length === 0) {
+    throw new Error("patch must be a non-empty git unified diff");
+  }
+  const { stdout } = await execFileAsync("git", ["rev-parse", "--show-toplevel"], { cwd: path });
+  const repoPath = stdout.trim();
+  const patch = input.patch;
+  await applyGitPatch(repoPath, patch, ["--check"]);
+  const numstat = await applyGitPatch(repoPath, patch, ["--numstat", "-z"]);
+  const files = numstat.split("\0").filter(Boolean).map(row => row.slice(row.indexOf("\t", row.indexOf("\t") + 1) + 1));
+  await applyGitPatch(repoPath, patch, []);
+  return { ok: true, path: repoPath, files };
+}
+
 export async function runLocalGitTool(name: string, input: Record<string, unknown>) {
   try {
     switch (name) {
@@ -167,6 +199,8 @@ export async function runLocalGitTool(name: string, input: Record<string, unknow
         return await runGitStatus(input);
       case "local_git_diff":
         return await runGitDiff(input);
+      case "local_apply_patch":
+        return await runApplyPatch(input);
       default:
         throw new Error(`unknown local git tool ${name}`);
     }

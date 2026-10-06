@@ -5,9 +5,9 @@ SUMMARY: 等待接口返回而非固定延时、直接提取响应数据，并�
 
 ## 点击与响应
 
-已知提交按钮编号和目标接口时，用 `page_submit_wait` 把点击与监听放在一次调用里，传 `tabId`、`id`、`urlContains`、`reason`；需要时加 `status` 和 `timeoutMs`。根据 `clicked` 和 `wait` 分别判断点击是否执行、响应是否到达。
+已知提交按钮编号和目标接口时，用 `page_submit_wait` 把点击与监听放在一次调用里，传入 `tabId`、`id`、`urlContains` 及当前 schema 要求的其他参数；需要时加 `status` 和 `timeoutMs`。根据 `clicked` 和 `wait` 分别判断点击是否执行、响应是否到达。
 
-`wait_response` 用于等待后续响应，必填 `tabId`、`urlContains`、`reason`，可选 `status`、`timeoutMs`。它不会回查已经结束的请求，也不返回响应正文。不要先阻塞等待它结束，再触发原本需要等待的请求；点击触发的链路优先用复合工具。
+`wait_response` 用于等待后续响应，传入必需的 `tabId`、`urlContains`；`reason` 是否必需以当前 schema 为准，可选 `status`、`timeoutMs`。它不会回查已经结束的请求，也不返回响应正文。不要先阻塞等待它结束，再触发原本需要等待的请求；点击触发的链路优先用复合工具。
 
 超时只表示在等待窗口内没有匹配响应。检查实际返回的错误、当前页面或请求条件，修正具体问题后继续；不要因超时直接重复付款、提交或创建等有副作用的动作。
 

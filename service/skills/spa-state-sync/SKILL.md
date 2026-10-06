@@ -22,7 +22,7 @@ inputEl.dispatchEvent(new Event("change", { bubbles: true }));
 
 ## 等待目标状态
 
-有加载过程时用 `wait` 等待具体条件，必填 `tabId`、`reason`，例如 `role`、`name`、`states:{attached:true}`，或 `selector`、`visible:true`。超时参数是 `timeoutMs`；它不是传 `ms` 的固定延时工具。已出现目标就直接操作，不额外等待。
+有加载过程时用 `wait` 等待具体条件，传入必需的定位参数（如 `tabId`）；`reason` 是否必需以当前 schema 为准。例如可用 `role`、`name`、`states:{attached:true}`，或 `selector`、`visible:true`。超时参数是 `timeoutMs`；它不是传 `ms` 的固定延时工具。已出现目标就直接操作，不额外等待。
 
 `page_recheck` 适合查看当前状态，`page_assert` 用于核验任务要求。超时后根据当前反馈修正定位、检查错误或继续合理的下一步，不重复启动同一业务动作。
 

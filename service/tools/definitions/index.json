@@ -128,6 +128,7 @@
     "wait_response"
   ],
   "service": [
+    "delegate_subagent",
     "send_http",
     "send_http_batch",
     "web_search",
@@ -162,6 +163,7 @@
     "local_run",
     "local_git_status",
     "local_git_diff",
+    "local_apply_patch",
     "library",
     "script_write",
     "script_patch",
