@@ -231,7 +231,7 @@ export function runSessionQuery(
       conversationId: cvId,
       externalizedCalls: externalized.length,
       items,
-      hint: "取全文用 evidence_search(windows=[{callId, keyword|startLine}])",
+      hint: "用 evidence_search(windows=[{callId}]) 查看目录，传 keyword 查找块，再按 blockId 读取完整原文",
     };
   }
 

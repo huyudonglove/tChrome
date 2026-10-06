@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "asset_read",
-    "description": "统一取用入口。text/binary：用 keyword 或 startLine 从 L2 读片段（等价 evidence_search）；image：无矩形返回 L1 元数据，带 x/y/width/height 则等价 image_crop。\n参数：必填 assetId（ast_ 编号）。可选 keyword、startLine，或 image 矩形 x、y、width、height。\n返回：按类型给 L1 摘要/片段或裁切图元数据。取回型结果已按检索预算裁剪并直接内联，不做二次降级（裁切图仍按图片门槛判定，超阈只回 ref）。",
+    "description": "读取归档资产。文本使用统一块索引：不传 blockId/keyword 返回根目录；blockId 返回 kind=directory 的子块目录或 kind=content 的完整原文；keyword 搜索命中块，offset 用于搜索翻页。图片无矩形时返回元数据，带 x/y/width/height 时调用 image_crop。文本取回直接内联，不再外置。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -16,11 +16,6 @@
         "keyword": {
           "type": "string",
           "description": "文本检索关键字"
-        },
-        "startLine": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "从该行起读窗口"
         },
         "x": {
           "type": "number",
@@ -37,6 +32,16 @@
         "height": {
           "type": "number",
           "description": "image 裁切高"
+        },
+        "blockId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "目录提供的块 ID，与 keyword 二选一"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "搜索结果偏移，仅与 keyword 同用"
         }
       },
       "required": [

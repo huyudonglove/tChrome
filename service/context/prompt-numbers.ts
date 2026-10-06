@@ -23,10 +23,6 @@ export function promptNumberSlots(): Record<string, string> {
     repeatDuplicateCalls: String(ctx.repeatDuplicateCalls),
     repeatDuplicateSignatures: String(ctx.repeatDuplicateSignatures),
     inlineChars: String(runtimeConfig.results.inlineChars),
-    previewChars: String(runtimeConfig.results.previewChars),
-    summaryChars: String(runtimeConfig.results.summaryChars),
-    lineWidth: String(runtimeConfig.results.lineWidth),
-    searchContextChars: String(runtimeConfig.results.searchContextChars),
     intentMaxChars: String(runtimeConfig.results.intentMaxChars),
     imageInlineBytes: String(runtimeConfig.results.imageInlineBytes),
   };

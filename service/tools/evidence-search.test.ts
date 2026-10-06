@@ -1,397 +1,223 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { executeTool } from "./execute.ts";
+import { emptyLedger, ensureSession, loadLedger, primeActiveTask, loadReturnBlockIndex, saveFullReturn, saveReturnBlockIndex } from "../runtime/store.ts";
+import { buildBlockIndex, readBlock } from "../evidence/index.ts";
+import { appendAsset } from "../assets/catalog.ts";
+import { handleTurn } from "../runtime/loop.ts";
 import { applyToolEffects } from "../runtime/effects.ts";
-import { emptyLedger, loadTurn, saveFullReturn, saveReturnIndexTree } from "../runtime/store.ts";
-import { buildLevels, retrievalWindowChars } from "../admission.ts";
-import { saveContextRecord, loadContextRecord } from "../runtime/records.ts";
-import { runtimeConfig } from "../config/runtime.ts";
-import type { Turn } from "../types.ts";
+import type { CompletionResult, Turn } from "../types.ts";
+import { saveContextRecord } from "../runtime/records.ts";
 
-const lookup: { knownTools: string[]; enabledTools: string[]; unusedTools: string[] } = { knownTools: ["evidence_search", "page_clear_result"], enabledTools: ["evidence_search"], unusedTools: [] };
+const lookup = { knownTools: ["evidence_search"], enabledTools: ["evidence_search"], unusedTools: [] };
+const fixture = async (run: (dataDir: string) => Promise<void>) => {
+  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-"));
+  try { await run(dataDir); } finally { rmSync(dataDir, { recursive: true, force: true }); }
+};
+const query = async (dataDir: string, windows: unknown) => {
+  const execution = await executeTool({ name: "evidence_search", arguments: { reason: "取证", windows }, dataDir, conversationId: "cv_01", browserNames: [], lookup });
+  return { execution, ...JSON.parse(execution.text) };
+};
 
-test("evidence_search returns default ±2000 context around keyword from cached call return", async () => {
-  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-search-"));
-  try {
-    const body = `${"x".repeat(2500)}NEEDLE_IN_HAYSTACK${"y".repeat(2500)}`;
-    saveFullReturn(dataDir, "cv_01", "call_09", body);
-    const execution = await executeTool({
-      name: "evidence_search",
-      arguments: { reason: "查关键字", windows: [{ callId: "call_09", keyword: "NEEDLE_IN_HAYSTACK" }] },
-      dataDir,
-      conversationId: "cv_01",
-      browserNames: [],
-      lookup,
-    });
-    const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[] };
-    const row = parsed.results[0]! as Record<string, unknown>;
+test("root directory navigates to complete source blocks without re-externalization", () => fixture(async dataDir => {
+  const full = Array.from({ length: 40 }, (_, i) => `function task${i}() { return "${"x".repeat(100)}"; }\n`).join("");
+  saveFullReturn(dataDir, "cv_01", "call_01", full);
+  saveReturnBlockIndex(dataDir, "cv_01", "call_01", buildBlockIndex(full, { maxChars: 500, path: "code.ts" }));
+  const first = await query(dataDir, [{ callId: "call_01" }]);
+  expect(first.results[0].kind).toBe("directory");
+  const visit = async (blockId: string): Promise<string> => {
+    const { results, execution } = await query(dataDir, [{ callId: "call_01", blockId }]);
+    expect(execution.admitted).toBe(true);
+    const row = results[0];
+    if (row.kind === "content") return row.content;
+    return (await Promise.all(row.children.map((child: { blockId: string }) => visit(child.blockId)))).join("");
+  };
+  expect(await visit(first.results[0].blockId)).toBe(full);
+}));
+
+test("search returns block references whose complete text comes from the immutable snapshot", () => fixture(async dataDir => {
+  const full = 'export function useful() { return "needle and full expression"; }\n';
+  saveFullReturn(dataDir, "cv_01", "call_01", full);
+  const found = await query(dataDir, [{ callId: "call_01", keyword: "needle" }]);
+  expect(found.results[0]).toMatchObject({ ok: true, kind: "search", totalMatches: 1 });
+  const blockId = found.results[0].matches[0].blockId;
+  writeFileSync(join(dataDir, "conversations/cv_01/returns/call_01.txt"), "changed source");
+  const read = await query(dataDir, [{ callId: "call_01", blockId }]);
+  expect(read.results[0]).toMatchObject({ kind: "content", content: full });
+}));
+
+test("call snapshots preserve unwrapped text and JSON values can be searched and read", () => fixture(async dataDir => {
+  const full = JSON.stringify({ results: [{ path: "sample.ts", content: "const needle = 42;\n" }], text: "a".repeat(400) });
+  saveFullReturn(dataDir, "cv_01", "call_01", full);
+  expect(readFileSync(join(dataDir, "conversations/cv_01/returns/call_01.txt"), "utf8")).toBe(full);
+  const found = await query(dataDir, [{ callId: "call_01", keyword: "needle" }]);
+  expect(found.results[0].matches.length).toBeGreaterThan(0);
+  const index = loadReturnBlockIndex(dataDir, "cv_01", "call_01")!;
+  const blockId = found.results[0].matches[0].blockId;
+  const expected = readBlock(index, blockId)!;
+  const row = (await query(dataDir, [{ callId: "call_01", blockId }])).results[0];
+  expect(row.kind).toBe(expected.kind);
+  if (expected.kind === "content") expect(row.content).toBe(expected.content);
+}));
+
+test("page observations use the same search and complete block interface", () => fixture(async dataDir => {
+  saveContextRecord(dataDir, "cv_01", "observation", { id: "page_01", result: { elements: [{ text: "target button" }] } });
+  const found = await query(dataDir, [{ pageId: "page_01", keyword: "target" }]);
+  expect(found.results[0]).toMatchObject({ ok: true, source: "page:page_01", kind: "search" });
+  const read = await query(dataDir, [{ pageId: "page_01", blockId: found.results[0].matches[0].blockId }]);
+  expect(read.results[0].kind).toBe("content");
+  expect(read.results[0].content).toContain("target button");
+}));
+
+test("search pagination visits all matched blocks without clipping their content", () => fixture(async dataDir => {
+  const full = Array.from({ length: 90 }, (_, i) => `needle_${i} ${"a".repeat(700)}\n\n`).join("");
+  const index = buildBlockIndex(full, { maxChars: 1000 });
+  saveFullReturn(dataDir, "cv_01", "call_01", full);
+  saveReturnBlockIndex(dataDir, "cv_01", "call_01", index);
+  let offset = 0;
+  const ids = new Set<string>();
+  let total = 0;
+  do {
+    const row = (await query(dataDir, [{ callId: "call_01", keyword: "needle", offset }])).results[0];
     expect(row.ok).toBe(true);
-    expect(row.mode).toBe("search");
-    expect(row.matchCount).toBe(1);
-    expect(row.path).toBe(join(dataDir, "conversations", "cv_01", "returns", "call_09.txt"));
-    expect(row.lineWidth).toBe(runtimeConfig.results.lineWidth);
-    expect(row.totalLines).toBe(Math.ceil(body.length / runtimeConfig.results.lineWidth));
-    expect((row.matches as { hit: string; lineStart: number; lineEnd: number; before: string; after: string }[])[0]!.hit).toBe("NEEDLE_IN_HAYSTACK");
-    expect((row.matches as { lineStart: number }[])[0]!.lineStart).toBeGreaterThan(0);
-    expect((row.matches as { lineStart: number; lineEnd: number }[])[0]!.lineEnd).toBeGreaterThanOrEqual((row.matches as { lineStart: number }[])[0]!.lineStart);
-    // contextChars 现在是「本次取回总额」：单条命中的 before+hit+after 不超过 retrievalWindowChars。
-    const firstMatch = (row.matches as { hit: string; before: string; after: string }[])[0]!;
-    expect(firstMatch.before.length).toBeGreaterThan(0);
-    expect(firstMatch.after.length).toBeGreaterThan(0);
-    expect(firstMatch.before.length + firstMatch.hit.length + firstMatch.after.length)
-      .toBeLessThanOrEqual(retrievalWindowChars());
-  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+    total = row.totalMatches;
+    for (const hit of row.matches) { expect(ids.has(hit.blockId)).toBe(false); ids.add(hit.blockId); }
+    if (row.nextOffset === undefined) break;
+    expect(row.nextOffset).toBeGreaterThan(offset);
+    offset = row.nextOffset;
+  } while (true);
+  expect(offset).toBeGreaterThan(0);
+  expect(ids.size).toBe(total);
+}));
+
+test("every requested window survives even when full blocks exceed the combined retrieval budget", () => fixture(async dataDir => {
+  const windows = [];
+  for (let i = 0; i < 8; i++) {
+    const callId = `call_${i}`;
+    const full = String(i).repeat(1500);
+    const index = buildBlockIndex(full, { maxChars: 2000 });
+    saveFullReturn(dataDir, "cv_01", callId, full);
+    saveReturnBlockIndex(dataDir, "cv_01", callId, index);
+    const root = readBlock(index, index.rootId)!;
+    const blockId = root.kind === "content" ? root.blockId : root.children[0]!.blockId;
+    windows.push({ callId, blockId });
+  }
+  const result = await query(dataDir, windows);
+  expect(result.results).toHaveLength(8);
+  for (let i = 0; i < 8; i++) expect(result.results[i].content).toBe(String(i).repeat(1500));
+  expect(result.execution.admitted).toBe(true);
+}));
+
+test("missing source, unknown block and search misses return explicit failures", () => fixture(async dataDir => {
+  saveFullReturn(dataDir, "cv_01", "call_01", "hello");
+  const result = await query(dataDir, [{ callId: "call_missing" }, { callId: "call_01", blockId: "blk_missing" }, { callId: "call_01", keyword: "absent" }]);
+  expect(result.ok).toBe(false);
+  expect(result.results.map((row: { faultCode: string }) => row.faultCode)).toEqual(["file_not_found", "not_found", "not_found"]);
+}));
+
+test("invalid modes and removed parameters are rejected without coercion", () => fixture(async dataDir => {
+  const invalid = [null, {}, { callId: "../secret" }, { callId: "call_01", pageId: "page_01" }, { callId: "call_01", keyword: " " }, { callId: "call_01", keyword: "a", blockId: "blk_01" }, { callId: "call_01", offset: 1 }, { callId: "call_01", keyword: "a", offset: "1" }, { callId: "call_01", keyword: "a", offset: -1 }, { callId: "call_01", levelId: "L1.1" }, { callId: "call_01", startLine: 1 }];
+  for (const win of invalid) expect((await query(dataDir, [win])).results[0].faultCode).toBe("invalid_arguments");
+  expect((await query(dataDir, [])).ok).toBe(false);
+  expect((await query(dataDir, Array(9).fill({ callId: "call_01" }))).ok).toBe(false);
+}));
+
+const completion = (name: string, args: Record<string, unknown>): CompletionResult => ({
+  finish: "tool_calls", content: "", attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [],
+  toolCalls: [{ id: name, name, arguments: { reason: "验证块快照", ...args } }],
 });
 
-test("cached returns are line-wrapped on disk at lineWidth", () => {
-  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-wrap-"));
-  try {
-    const width = runtimeConfig.results.lineWidth;
-    const body = "a".repeat(width * 2 + 10);
-    saveFullReturn(dataDir, "cv_01", "call_wrap", body);
-    const file = readFileSync(join(dataDir, "conversations", "cv_01", "returns", "call_wrap.txt"), "utf8");
-    const lines = file.split("\n");
-    expect(lines).toHaveLength(3);
-    expect(lines[0]).toHaveLength(width);
-    expect(lines[1]).toHaveLength(width);
-    expect(lines[2]).toHaveLength(10);
-  } finally { rmSync(dataDir, { recursive: true, force: true }); }
-});
+test("outline snapshot survives the full model loop and source edits before evidence retrieval", () => fixture(async dataDir => {
+  primeActiveTask(dataDir);
+  const conversationId = ensureSession(dataDir).conversationId;
+  const file = join(dataDir, "source.ts");
+  const original = Array.from({ length: 40 }, (_, i) => `export function feature${i}() { return "${"x".repeat(200)}"; }\n`).join("");
+  writeFileSync(file, original);
+  let step = 0, blockId = "", expected = "";
+  const reply = await handleTurn({ dataDir, repoRoot: join(import.meta.dir, "../.."), provider: { complete: async input => {
+    step++;
+    if (step === 1) return completion("catalog_add", { names: ["local_fs_outline"] });
+    if (step === 2) return completion("local_fs_outline", { path: file });
+    const ledger = loadLedger(dataDir, conversationId);
+    const outline = ledger.toolIO.find(row => row.name === "local_fs_outline")!;
+    if (step === 3) {
+      const shown = JSON.parse(outline.return.text);
+      expect(shown.block.kind).toBe("directory");
+      blockId = shown.block.children.find((child: { kind: string }) => child.kind === "content").blockId;
+      expect(input.messages[1]!.content).toContain(blockId);
+      const index = loadReturnBlockIndex(dataDir, conversationId, outline.callId)!;
+      const block = readBlock(index, blockId)!;
+      expect(block.kind).toBe("content");
+      if (block.kind === "content") expected = block.content;
+      expect(original).toContain(expected);
+      writeFileSync(file, "export const changed = true;\n");
+      return completion("evidence_search", { windows: [{ callId: outline.callId, blockId }] });
+    }
+    const evidence = ledger.toolIO.find(row => row.name === "evidence_search")!;
+    const retrieved = JSON.parse(evidence.return.text);
+    expect(retrieved.results[0]).toMatchObject({ kind: "content", blockId, content: expected });
+    expect(retrieved.externalized).toBeUndefined();
+    expect(input.messages[1]!.content).toContain("feature0");
+    return completion("finishTurn", { text: "快照验证完成" });
+  } } }, { userInput: "验证目录和快照", submittedAt: new Date().toISOString() });
+  expect(reply.stopReason).toEqual({ kind: "reply", text: "快照验证完成" });
+  expect(step).toBe(4);
+  expect(expected.length).toBeGreaterThan(0);
+}));
 
-test("evidence_search lines mode reads from startLine within the searchContextChars window", async () => {
-  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-lines-"));
-  try {
-    const width = runtimeConfig.results.lineWidth;
-    const body = Array.from({ length: 30 }, (_, i) => String(i + 1).padStart(width, `${(i + 1) % 10}`)).join("");
-    saveFullReturn(dataDir, "cv_01", "call_lines", body);
-    const execution = await executeTool({
-      name: "evidence_search",
-      arguments: { reason: "按行读", windows: [{ callId: "call_lines", startLine: 3 }] },
-      dataDir,
-      conversationId: "cv_01",
-      browserNames: [],
-      lookup,
-    });
-    const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[] };
-    const row = parsed.results[0]! as Record<string, unknown>;
-    expect(row.ok).toBe(true);
-    expect(row.mode).toBe("lines");
-    expect(row.totalLines).toBe(30);
-    expect(row.startLine).toBe(3);
-    // Same default window as keyword search: searchContextChars chars → ~20 full lines at width 100.
-    expect(row.endLine).toBe(22);
-    expect((row.lines as { line: number }[]).map((item) => item.line)).toEqual(Array.from({ length: 20 }, (_, i) => i + 3));
-    expect((row.lines as { text: string }[])[0]!.text).toHaveLength(width);
-    const textLen = (row.lines as { text: string }[]).reduce((sum, item) => sum + item.text.length, 0);
-    expect(textLen).toBeLessThanOrEqual(runtimeConfig.results.searchContextChars);
-  } finally { rmSync(dataDir, { recursive: true, force: true }); }
-});
+test("externalized observation directory IDs retrieve the exact archived page blocks", () => fixture(async dataDir => {
+  const ledger = emptyLedger("cv_01");
+  const turn: Turn = {
+    turnId: "tn_01", conversationId: "cv_01", status: "inferring", createdAt: "now", completedAt: null,
+    input: { id: "input_01", text: "观察", submittedAt: "now" }, stopReason: null,
+    assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, currentTabs: { ok: true, windows: [] }, observations: [], workspace: [] },
+  };
+  const body = { elements: Array.from({ length: 100 }, (_, i) => ({ name: `button_${i}`, description: "text".repeat(60) })) };
+  applyToolEffects({ dataDir, ledger, turn, call: { callId: "call_01", name: "observation_write", arguments: {}, batchId: "batch_01" }, effects: [{ type: "observation_write", observationType: "page_list_interactive_elements", tabId: 1, result: body }] });
+  const observation = turn.assembled.observations[0]!;
+  const shown = observation.result as { externalized: boolean; rootBlockId: string; directory: { blockId: string } };
+  expect(shown.externalized).toBe(true);
+  expect(shown.rootBlockId).toBe(shown.directory.blockId);
+  const root = (await query(dataDir, [{ pageId: observation.id, blockId: shown.rootBlockId }])).results[0];
+  expect(root.blockId).toBe(shown.rootBlockId);
+  const found = (await query(dataDir, [{ pageId: observation.id, keyword: "button_50" }])).results[0];
+  const fetched = await query(dataDir, [{ pageId: observation.id, blockId: found.matches[0].blockId }]);
+  expect(fetched.results[0].kind).toBe("content");
+  expect(fetched.results[0].content).toContain("button_50");
+  expect(fetched.execution.admitted).toBe(true);
+  const disk = JSON.parse(readFileSync(join(dataDir, "conversations/cv_01/context-records/observation", `${observation.id}.index.json`), "utf8"));
+  expect(fetched.results[0].content).toBe((readBlock(disk, found.matches[0].blockId) as { content: string }).content);
+  applyToolEffects({ dataDir, ledger, turn, call: { callId: "call_02", name: "observation_write", arguments: {}, batchId: "batch_02" }, effects: [{ type: "observation_write", observationType: "page_list_interactive_elements", tabId: 1, refresh: observation.id, result: { title: "refreshed-current-page" } }] });
+  const refreshed = (await query(dataDir, [{ pageId: observation.id, keyword: "refreshed-current-page" }])).results[0];
+  expect(refreshed.ok).toBe(true);
+  const updated = (await query(dataDir, [{ pageId: observation.id, blockId: refreshed.matches[0].blockId }])).results[0];
+  expect(updated.content).toContain("refreshed-current-page");
+  expect(updated.content).not.toContain("button_50");
+  expect((await query(dataDir, [{ pageId: observation.id, keyword: "button_50" }])).results[0].faultCode).toBe("not_found");
+}));
 
-test("evidence_search allows keyword with startLine as hybrid and rejects blank modes", async () => {
-  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-mode-"));
-  try {
-    saveFullReturn(dataDir, "cv_01", "call_01", "hello world");
-    const hybrid = await executeTool({
-      name: "evidence_search",
-      arguments: { reason: "x", windows: [{ callId: "call_01", keyword: "hello", startLine: 1 }] },
-      dataDir, conversationId: "cv_01", browserNames: [], lookup,
-    });
-    const hybridParsed = JSON.parse(hybrid.text) as { ok: boolean; results: Record<string, unknown>[] };
-    expect(hybridParsed.results[0]).toMatchObject({ ok: true, mode: "hybrid", matchCount: 1 });
-    const blank = await executeTool({
-      name: "evidence_search",
-      arguments: { reason: "x", windows: [{ callId: "call_01" }] },
-      dataDir, conversationId: "cv_01", browserNames: [], lookup,
-    });
-    expect(JSON.parse(blank.text)).toMatchObject({ ok: false, results: [{ ok: false, faultCode: "invalid_arguments" }] });
-  } finally { rmSync(dataDir, { recursive: true, force: true }); }
-});
-
-test("evidence_search reads page observation archive and returns file path", async () => {
-  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-search-page-"));
-  try {
-    const huge = { ok: true, tabId: 1, elements: [{ name: "alpha-target-omega" }], blob: "z".repeat(8000) };
-    saveContextRecord(dataDir, "cv_01", "observation", {
-      id: "page_01", turnId: "tn_01", callId: "call_01", tabId: 1,
-      type: "page_list_interactive_elements", result: huge, observedAt: new Date().toISOString(),
-    });
-    const execution = await executeTool({
-      name: "evidence_search",
-      arguments: { reason: "查元素", windows: [{ pageId: "page_01", keyword: "alpha-target" }] },
-      dataDir,
-      conversationId: "cv_01",
-      browserNames: [],
-      lookup,
-    });
-    const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[] };
-    const row = parsed.results[0]! as Record<string, unknown>;
-    expect(row.ok).toBe(true);
-    expect(row.source).toBe("page:page_01");
-    expect(row.path).toContain("context-records/observation/page_01.json");
-    expect((row.matches as { hit: string }[])[0]!.hit).toBe("alpha-target");
-  } finally { rmSync(dataDir, { recursive: true, force: true }); }
-});
-
-test("evidence_search returns one result per window and keeps per-item ok", async () => {
-  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-multi-"));
-  try {
-    saveFullReturn(dataDir, "cv_01", "call_a", "alpha NEEDLE beta");
-    saveFullReturn(dataDir, "cv_01", "call_b", "gamma DELTA epsilon");
-    const execution = await executeTool({
-      name: "evidence_search",
-      arguments: {
-        reason: "两段一起读",
-        windows: [
-          { callId: "call_a", keyword: "NEEDLE" },
-          { callId: "call_b", startLine: 1 },
-          { callId: "call_missing", keyword: "x" },
-        ],
-      },
-      dataDir,
-      conversationId: "cv_01",
-      browserNames: [],
-      lookup,
-    });
-    const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[] };
-    expect(parsed.ok).toBe(false);
-    expect(parsed.results).toHaveLength(3);
-    expect(parsed.results[0]).toMatchObject({ ok: true, mode: "search", matchCount: 1 });
-    expect(parsed.results[1]).toMatchObject({ ok: true, mode: "lines" });
-    expect(parsed.results[2]).toMatchObject({ ok: false, faultCode: "file_not_found" });
-  } finally { rmSync(dataDir, { recursive: true, force: true }); }
-});
-
-test("oversized observation_write result is externalized with path and totalLines; full archive remains", async () => {
-  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-ext-page-"));
-  try {
-    const ledger = emptyLedger("cv_ext");
-    ledger.status = "running";
-    ledger.active = { turnId: "tn_01" };
-    const turn: Turn = {
-      turnId: "tn_01", conversationId: "cv_ext", status: "inferring",
-      createdAt: new Date().toISOString(), completedAt: null,
-      input: { id: "input_01", text: "大结果", submittedAt: "now" },
-      stopReason: null,       assembled: {
-        baseToolsIds: [], toolIds: [],
-        conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [],
-        currentPage: null, currentTabs: { ok: true, windows: [] }, observations: [], workspace: [],
-      },
+test("asset_read navigates both independent text assets and call-backed snapshots", () => fixture(async dataDir => {
+  const full = Array.from({ length: 60 }, (_, i) => `entry_${i}: ${"data ".repeat(40)}\n`).join("");
+  saveFullReturn(dataDir, "cv_01", "call_01", full);
+  const independentPath = "independent.txt";
+  writeFileSync(join(dataDir, "conversations/cv_01", independentPath), full);
+  for (const source of [{}, { callId: "call_01" }]) {
+    const asset = appendAsset(dataDir, "cv_01", { name: "text", kind: "text", bytes: full.length, summary: "entries", source, path: independentPath });
+    const read = async (args: Record<string, unknown>) => {
+      const execution = await executeTool({ name: "asset_read", arguments: { reason: "取资产", assetId: asset.assetId, ...args }, dataDir, conversationId: "cv_01", browserNames: [], lookup });
+      expect(execution.admitted).toBe(true);
+      const parsed = JSON.parse(execution.text);
+      return parsed.results ? parsed.results[0] : parsed;
     };
-    const bigResult = { ok: true, tabId: 7, url: "https://example.com", title: "T", blob: "b".repeat(runtimeConfig.results.inlineChars + 50) };
-    applyToolEffects({
-      dataDir, ledger, turn,
-      call: { callId: "call_big", name: "observation_write", batchId: "batch_01", arguments: {} },
-      effects: [{
-        type: "observation_write",
-        observationType: "page_list_interactive_elements",
-        result: bigResult,
-        tabId: 7,
-      }],
-    });
-    const windowRow = turn.assembled.observations[0]!;
-    expect(windowRow.result).toMatchObject({ ok: true, externalized: true, type: "page_list_interactive_elements" });
-    const stub = windowRow.result as any;
-    expect(stub.message).toContain("evidence_search");
-    expect(stub.path).toContain("observation");
-    expect(stub.lineWidth).toBe(runtimeConfig.results.lineWidth);
-    expect(stub.totalLines).toBe(Math.ceil(stub.totalChars / runtimeConfig.results.lineWidth));
-    expect(stub.preview).toBeUndefined();
-    expect(String(stub.summary).length).toBeGreaterThan(0);
-    const archived = JSON.parse(loadContextRecord(dataDir, "cv_ext", "observation", windowRow.id)!);
-    expect(archived.result.blob.length).toBe(runtimeConfig.results.inlineChars + 50);
-    const textPath = join(dataDir, "conversations", "cv_ext", "context-records", "observation", `${windowRow.id}.txt`);
-    const wrapped = readFileSync(textPath, "utf8");
-    expect(wrapped.split("\n").length).toBe(stub.totalLines);
-  } finally { rmSync(dataDir, { recursive: true, force: true }); }
-});
-
-test("evidence_search rejects missing sources and blank keywords", async () => {
-  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-search-bad-"));
-  try {
-    const missing = await executeTool({
-      name: "evidence_search",
-      arguments: { reason: "x", windows: [{ callId: "call_missing", keyword: "abc" }] },
-      dataDir, conversationId: "cv_01", browserNames: [], lookup,
-    });
-    expect(JSON.parse(missing.text)).toMatchObject({ ok: false, results: [{ ok: false, faultCode: "file_not_found" }] });
-    const blank = await executeTool({
-      name: "evidence_search",
-      arguments: { reason: "x", windows: [{ callId: "call_01", keyword: "  " }] },
-      dataDir, conversationId: "cv_01", browserNames: [], lookup,
-    });
-    expect(JSON.parse(blank.text)).toMatchObject({ ok: false, results: [{ ok: false, faultCode: "invalid_arguments" }] });
-  } finally { rmSync(dataDir, { recursive: true, force: true }); }
-});
-
-test("evidence_search finds keyword split across wrap newlines", async () => {
-  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-wrap-kw-"));
-  try {
-    const width = runtimeConfig.results.lineWidth;
-    // Force NEEDLE to straddle the fixed-width wrap boundary.
-    const pad = "A".repeat(width - 3);
-    const body = `${pad}NEEDLE${"B".repeat(50)}`;
-    saveFullReturn(dataDir, "cv_01", "call_kw", body);
-    const execution = await executeTool({
-      name: "evidence_search",
-      arguments: { reason: "跨行检索", windows: [{ callId: "call_kw", keyword: "NEEDLE" }] },
-      dataDir, conversationId: "cv_01", browserNames: [], lookup,
-    });
-    const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[] };
-    const row = parsed.results[0]! as Record<string, unknown>;
-    expect(row.ok).toBe(true);
-    expect(row.matchCount).toBe(1);
-    const hit = (row.matches as { hit: string }[])[0]!.hit;
-    expect(hit.replace(/[\r\n]+/g, "")).toBe("NEEDLE");
-    expect((row.matches as { lineStart: number }[])[0]!.lineStart).toBeGreaterThan(0);
-  } finally { rmSync(dataDir, { recursive: true, force: true }); }
-});
-
-test("evidence_search paddingLines expands upward and marks isTarget", async () => {
-  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-pad-"));
-  try {
-    const width = runtimeConfig.results.lineWidth;
-    const body = Array.from({ length: 30 }, (_, i) => String(i + 1).padStart(width, `${(i + 1) % 10}`)).join("");
-    saveFullReturn(dataDir, "cv_01", "call_pad", body);
-    const execution = await executeTool({
-      name: "evidence_search",
-      arguments: { reason: "向前回溯", windows: [{ callId: "call_pad", startLine: 10, paddingLines: 3 }] },
-      dataDir, conversationId: "cv_01", browserNames: [], lookup,
-    });
-    const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[] };
-    const row = parsed.results[0]! as Record<string, unknown>;
-    expect(row).toMatchObject({ ok: true, mode: "lines", startLine: 7, targetLine: 10, paddingLines: 3 });
-    const slice = row.lines as { line: number; isTarget: boolean }[];
-    expect(slice[0]!.line).toBe(7);
-    expect(slice.find((item) => item.line === 10)!.isTarget).toBe(true);
-    expect(slice.find((item) => item.line === 7)!.isTarget).toBe(false);
-  } finally { rmSync(dataDir, { recursive: true, force: true }); }
-});
-
-test("evidence_search hybrid only matches keyword inside startLine window", async () => {
-  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-hybrid-"));
-  try {
-    const width = runtimeConfig.results.lineWidth;
-    const line1 = `keep ${"x".repeat(width - 5)}`; // no TARGET
-    const line2 = `anchor ${"y".repeat(width - 7)}`.slice(0, width); // window start
-    const line3 = `has TARGET_WORD inside ${"z".repeat(width)}`.slice(0, width);
-    const body = [line1, line2, line3].join("\n");
-    saveFullReturn(dataDir, "cv_01", "call_h", body);
-    // Without anchor: would match
-    const full = await executeTool({
-      name: "evidence_search",
-      arguments: { reason: "全文", windows: [{ callId: "call_h", keyword: "TARGET_WORD" }] },
-      dataDir, conversationId: "cv_01", browserNames: [], lookup,
-    });
-    expect(JSON.parse(full.text).results[0]).toMatchObject({ ok: true, matchCount: 1 });
-    // Anchored at line 2, small context: line 3 may be out of a tiny window
-    const anchored = await executeTool({
-      name: "evidence_search",
-      arguments: { reason: "锚点", windows: [{ callId: "call_h", keyword: "TARGET_WORD", startLine: 1, contextChars: 20 }] },
-      dataDir, conversationId: "cv_01", browserNames: [], lookup,
-    });
-    const row = JSON.parse(anchored.text).results[0];
-    expect(row.mode).toBe("hybrid");
-    expect(row.ok).toBe(false);
-    expect(row.faultCode).toBe("not_found");
-  } finally { rmSync(dataDir, { recursive: true, force: true }); }
-});
-
-test("evidence_search resolves a levelId chunk from the layered index tree", async () => {
-  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-level-"));
-  try {
-    const callId = "call_lv";
-    saveFullReturn(dataDir, "cv_01", callId, Array.from({ length: 400 }, (_, i) => `row ${i} payload`).join("\n"));
-    const labels = Array.from({ length: 200 }, (_, i) => `mod.ts:${i + 1} "${"x".repeat(30)}"`);
-    const tree = buildLevels("counts: matches×200", labels);
-    saveReturnIndexTree(dataDir, "cv_01", callId, tree);
-    const second = tree.levels[0]!.chunks[1]!;
-    expect(second).toBeDefined();
-    const execution = await executeTool({
-      name: "evidence_search",
-      arguments: { reason: "按块取回", windows: [{ callId, levelId: second.id }] },
-      dataDir, conversationId: "cv_01", browserNames: [], lookup,
-    });
-    const row = JSON.parse(execution.text).results[0] as Record<string, unknown>;
-    expect(row.ok).toBe(true);
-    expect(row.levelId).toBe(second.id);
-    expect(row.levelName).toBe("L1明细");
-    expect(row.content).toBe(second.text);
-    expect(String(row.content).length).toBeLessThanOrEqual(runtimeConfig.results.inlineChars);
-  } finally { rmSync(dataDir, { recursive: true, force: true }); }
-});
-
-test("evidence_search reports missing tree and unknown level ids", async () => {
-  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-level-bad-"));
-  try {
-    saveFullReturn(dataDir, "cv_01", "call_a", "body");
-    const missing = await executeTool({
-      name: "evidence_search",
-      arguments: { reason: "无树", windows: [{ callId: "call_a", levelId: "L1.1" }] },
-      dataDir, conversationId: "cv_01", browserNames: [], lookup,
-    });
-    expect(JSON.parse(missing.text).results[0]).toMatchObject({ ok: false, faultCode: "not_found" });
-    const labels = Array.from({ length: 200 }, (_, i) => `mod.ts:${i + 1} "y"`);
-    saveReturnIndexTree(dataDir, "cv_01", "call_b", buildLevels("counts: matches×200", labels));
-    const unknown = await executeTool({
-      name: "evidence_search",
-      arguments: { reason: "未知块", windows: [{ callId: "call_b", levelId: "L9.9" }] },
-      dataDir, conversationId: "cv_01", browserNames: [], lookup,
-    });
-    expect(JSON.parse(unknown.text).results[0]).toMatchObject({ ok: false, faultCode: "not_found" });
-  } finally { rmSync(dataDir, { recursive: true, force: true }); }
-});
-
-test("evidence_search splits one call budget across windows and reports dropped ones", async () => {
-  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-split-"));
-  try {
-    const windows = [];
-    for (let i = 0; i < 4; i += 1) {
-      const callId = `call_sp${i}`;
-      saveFullReturn(dataDir, "cv_01", callId, `${"x".repeat(3000)}NEEDLE_${i}${"y".repeat(3000)}`);
-      windows.push({ callId, keyword: `NEEDLE_${i}`, contextChars: 3000 });
-    }
-    const execution = await executeTool({
-      name: "evidence_search",
-      arguments: { reason: "多窗口取回应共享总额", windows },
-      dataDir, conversationId: "cv_01", browserNames: [], lookup,
-    });
-    const parsed = JSON.parse(execution.text) as { ok: boolean; results: Record<string, unknown>[]; truncated?: boolean; droppedWindows?: number[] };
-    // 单次调用总额摊分：整体产出不超过取回窗口预算，不会再被二次外置。
-    expect(execution.text.length).toBeLessThanOrEqual(retrievalWindowChars());
-    expect(parsed.results.length).toBeGreaterThan(0);
-    // 后段窗口的片段应短于它自报的 contextChars（预算被收窄）。
-    const first = parsed.results[0]! as { matches: { before: string; after: string; hit: string }[] };
-    const firstWidth = first.matches[0]!.before.length + first.matches[0]!.hit.length + first.matches[0]!.after.length;
-    expect(firstWidth).toBeLessThanOrEqual(retrievalWindowChars());
-    if (parsed.droppedWindows?.length) {
-      expect(parsed.truncated).toBe(true);
-    }
-    // 裁剪只标记 truncated/droppedWindows，不应把整体判成失败（否则会被补成 tool_execution_failed）。
-    expect(parsed.ok).toBe(true);
-  } finally { rmSync(dataDir, { recursive: true, force: true }); }
-});
-
-test("evidence_search keeps levelId windows out of budget splitting", async () => {
-  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-evidence-split-level-"));
-  try {
-    const callId = "call_lv2";
-    saveFullReturn(dataDir, "cv_01", callId, Array.from({ length: 400 }, (_, i) => `row ${i} payload`).join("\n"));
-    const tree = buildLevels("counts: matches×200", Array.from({ length: 200 }, (_, i) => `mod.ts:${i + 1} "${"x".repeat(30)}"`));
-    saveReturnIndexTree(dataDir, "cv_01", callId, tree);
-    const second = tree.levels[0]!.chunks[1]!;
-    const execution = await executeTool({
-      name: "evidence_search",
-      arguments: { reason: "按块取回不受摊分影响", windows: [
-        { callId, keyword: "row 1", contextChars: 3000 },
-        { callId, levelId: second.id },
-      ] },
-      dataDir, conversationId: "cv_01", browserNames: [], lookup,
-    });
-    const parsed = JSON.parse(execution.text) as { results: Record<string, unknown>[] };
-    const levelRow = parsed.results.find((row) => row.levelId === second.id) as Record<string, unknown>;
-    expect(levelRow).toBeDefined();
-    expect(levelRow.content).toBe(second.text);
-  } finally { rmSync(dataDir, { recursive: true, force: true }); }
-});
+    const root = await read({});
+    expect(root.kind).toBe("directory");
+    const child = root.children.find((row: { kind: string }) => row.kind === "content");
+    const block = await read({ blockId: child.blockId });
+    expect(block.kind).toBe("content");
+    expect(full).toContain(block.content);
+    const found = await read({ keyword: "entry_50" });
+    expect((await read({ blockId: found.matches[0].blockId })).content).toContain("entry_50");
+  }
+}));

@@ -91,7 +91,7 @@ import {
   loadTurn,
   paths,
   saveFullReturn,
-  saveReturnIndexTree,
+  saveReturnBlockIndex,
   saveLedger,
   saveTurn,
   appendEvent,
@@ -415,11 +415,8 @@ const runQueue = async (input: {
       }
       const full = stored.text;
       saveFullReturn(dataDir, ledger.conversationId, item.callId, full);
-      // 分层索引树：L1/L2 每层都是完整一份，层内按门禁切 chunk、给可寻址 id，整树落盘供按 id 取回。
-      // 落盘与指针渲染都交给 admitReturn：目录在这里只算一次，indexPath 也由同一处产生。
-      // 取回型工具（evidence_search / asset_read）已在工具内按门禁预算裁剪并显式声明 admitted，直接内联。
-      // 再过一次 admitReturn 只会把它降级成目录，模型只能再次取回同样的内容，形成「取回→外置→再取回」死循环。
-      // 全文仍在上面 saveFullReturn 落盘，需要更细片段仍可按 callId/levelId 取回。
+      if (execution.evidenceIndex) saveReturnBlockIndex(dataDir, ledger.conversationId, item.callId, execution.evidenceIndex);
+      // 原文与统一块索引使用同一来源调用；取回型结果直接内联，避免再次外置。
       const admittedText = admitExecution(
         full,
         execution.admitted,
@@ -429,8 +426,8 @@ const runQueue = async (input: {
           path: join(paths(dataDir, ledger.conversationId).returns, `${item.callId}.txt`),
         },
         {
-          persistTree: (tree) =>
-            saveReturnIndexTree(dataDir, ledger.conversationId, item.callId, tree),
+          persistIndex: (index) =>
+            saveReturnBlockIndex(dataDir, ledger.conversationId, item.callId, index),
         },
       );
       const viewText = admittedText.mode === "inline" ? admittedText.text : JSON.stringify(admittedText.payload);

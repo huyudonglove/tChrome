@@ -59,7 +59,7 @@ test('tools that declare no mutex group are never checked', () => {
 
 test('unrelated sibling keys never trip the mutex check', () => {
   const result = check('evidence_search', {
-    windows: [{callId: 'call_1', keyword: 'alpha', contextChars: 500}],
+    windows: [{callId: 'call_1', keyword: 'alpha', offset: 0}],
   });
   expect(result.faultCode).not.toBe('conflicting_params');
   expect(result.schemaOk).toBe(true);

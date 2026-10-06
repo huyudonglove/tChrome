@@ -1,3 +1,4 @@
+import type { BlockIndex } from "../evidence/index.ts";
 import type { CurrentPage, MemoryLayer } from "../types.ts";
 import type { QueryEvidence } from "../context/projections/queries.ts";
 
@@ -29,4 +30,4 @@ export type ToolEffect =
 
 /** admitted=true 表示本工具的 text 已按门禁预算主动裁剪过（取回型工具），
  *  门禁编排处应直接内联，不再二次外置成指针，否则会出现「取回→外置→再取回」死循环。 */
-export type ToolExecution = { text: string; effects: ToolEffect[]; admitted?: boolean };
+export type ToolExecution = { text: string; effects: ToolEffect[]; admitted?: boolean; evidenceIndex?: BlockIndex };

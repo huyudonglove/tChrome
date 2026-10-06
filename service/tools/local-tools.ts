@@ -1,3 +1,4 @@
+import type { BlockIndex } from "../evidence/index.ts";
 import { resolve } from "node:path";
 import { LOCAL_FILE_TOOL_NAMES, runLocalFileTool } from "./local-files.ts";
 import { LOCAL_PROCESS_TOOL_NAMES, runLocalProcessTool } from "./local-process.ts";
@@ -23,10 +24,10 @@ export const LOCAL_TOOL_NAMES = [
 ];
 export const localScope = (dataDir: string, conversationId: string) => JSON.stringify([resolve(dataDir), conversationId]);
 
-export async function runLocalTool(name: string, input: Record<string, unknown>, dataDir: string, conversationId: string) {
+export async function runLocalTool(name: string, input: Record<string, unknown>, dataDir: string, conversationId: string, onIndex?: (index: BlockIndex) => void) {
   if (name === "local_diagnose") return runLocalDiagnose(input);
   if ((LOCAL_TSX_TOOL_NAMES as readonly string[]).includes(name)) return runTsxOutline(input);
-  if ((LOCAL_OUTLINE_TOOL_NAMES as readonly string[]).includes(name)) return runFsOutline(input);
+  if ((LOCAL_OUTLINE_TOOL_NAMES as readonly string[]).includes(name)) return runFsOutline(input, onIndex);
   if (name === "local_code_refs") return runCodeRefs(input);
   if ((LOCAL_REPO_MAP_TOOL_NAMES as readonly string[]).includes(name)) return runRepoMap(input);
   if ((LOCAL_FILE_TOOL_NAMES as readonly string[]).includes(name)) return runLocalFileTool(name, input);

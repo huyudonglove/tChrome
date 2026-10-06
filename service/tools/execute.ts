@@ -7,8 +7,8 @@ import type { BrowserHost, CurrentPage, ToolArguments } from "../types.ts";
 import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
 import { STREAM_TOOL_NAMES, runStreamTool } from "./stream-tools.ts";
 import { IMAGE_TOOL_NAMES, runImageTool } from "./image-crop.ts";
-import { loadAssets, textFlavor } from "../assets/catalog.ts";
-import { admitReturn, retrievalWindowChars } from "../admission.ts";
+import { loadAssets } from "../assets/catalog.ts";
+import { retrievalWindowChars } from "../admission.ts";
 import { LOCAL_TOOL_NAMES, runLocalTool } from "./local-tools.ts";
 import { COMPOUND_TOOL_NAMES, runCompoundTool } from "./compound-tools.ts";
 import { JOB_TOOL_NAMES, runJobTool, withJobHeartbeat, jobScope } from "./job-registry.ts";
@@ -18,11 +18,37 @@ import { readScript } from "../scripts/store.ts";
 import { failedTool, normalizeToolExecution } from "./result.ts";
 import { allocateRecordId } from "../runtime/ids.ts";
 import { join } from "node:path";
-import { loadFullReturn, paths } from "../runtime/store.ts";
+import { loadFullReturn, loadReturnBlockIndex, saveReturnBlockIndex, paths } from "../runtime/store.ts";
 import { loadContextRecord } from "../runtime/records.ts";
-import { lineNumberAt, linesOf, wrapCachedText } from "../runtime/cache-lines.ts";
-import { existsSync, readFileSync } from "node:fs";
-import { runtimeConfig } from "../config/runtime.ts";
+import { buildBlockIndex, readBlock, searchBlocks, type BlockIndex } from "../evidence/index.ts";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+
+const retrieveEvidenceBlock = (index: BlockIndex, win: Record<string, unknown>, source: string, path: string): Record<string, unknown> => {
+  if (win.keyword !== undefined) {
+    const all = searchBlocks(index, win.keyword as string);
+    const offset = (win.offset as number | undefined) ?? 0;
+    const matches: typeof all = [];
+    let chars = 0;
+    for (const hit of all.slice(offset)) {
+      const size = JSON.stringify(hit).length;
+      if (matches.length > 0 && chars + size > retrievalWindowChars()) break;
+      matches.push(hit);
+      chars += size;
+    }
+    const nextOffset = offset + matches.length;
+    return {
+      ok: matches.length > 0, kind: "search", source, path, keyword: win.keyword,
+      totalMatches: all.length, offset, matches,
+      ...(nextOffset < all.length ? { nextOffset } : {}),
+      ...(matches.length ? {} : { faultCode: "not_found", detail: "没有匹配的原文块" }),
+    };
+  }
+  const blockId = win.blockId === undefined ? index.rootId : win.blockId as string;
+  const block = readBlock(index, blockId);
+  return block
+    ? { ok: true, path, ...block, ...(block.kind === "content" ? { location: block.source } : {}), source }
+    : { ok: false, source, path, blockId, faultCode: "not_found", detail: "未找到原文块" };
+};
 
 const questionWithChoices = (question: string, choice: string[]): string =>
   choice.length === 0 ? question : `${question}\n选项：${choice.join(" / ")}`;
@@ -302,306 +328,57 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   }
   if (name === "evidence_search") {
     if (!input.conversationId) return failedTool(errorDetail("evidence_missing_session"), "invalid_arguments");
-    const windows = Array.isArray(args.windows) ? args.windows as Record<string, unknown>[] : [];
+    const windows = Array.isArray(args.windows) ? args.windows : [];
     if (windows.length < 1 || windows.length > 8) return failedTool(errorDetail("evidence_windows_range"), "invalid_arguments");
-    // charBudget：本窗口可用字符预算（单次调用总额按剩余窗口数摊分下来）。
-    // 传 null 表示不摊分——levelId 是一次性按块取回正文，不与其他窗口分摊。
-    const searchOne = (win: Record<string, unknown>, charBudget: number | null): Record<string, unknown> => {
-      const keyword = typeof win.keyword === "string" ? win.keyword : "";
-      const callId = typeof win.callId === "string" ? win.callId.trim() : "";
-      const pageId = typeof win.pageId === "string" ? win.pageId.trim() : "";
-      if (!callId && !pageId) return { ok: false, faultCode: "invalid_arguments", detail: errorDetail("evidence_source_exclusive") };
-      if (callId && pageId) return { ok: false, faultCode: "invalid_arguments", detail: errorDetail("evidence_source_both") };
-      // levelId: 分层索引树按块寻址（L1.2 / L2.1…），只回该 chunk 正文，不走原文行窗。
-      const levelId = typeof win.levelId === "string" ? win.levelId.trim() : "";
-      if (levelId) {
-        if (!callId) return { ok: false, faultCode: "invalid_arguments", detail: errorDetail("evidence_level_needs_call") };
-        const dir = paths(dataDir, input.conversationId!).returns;
-        const manifestPath = join(dir, `${callId}.index.json`);
-        if (!existsSync(manifestPath)) {
-          return { ok: false, faultCode: "not_found", source: `call:${callId}`, path: manifestPath, mode: "level", levelId, detail: errorDetail("evidence_level_missing_tree") };
-        }
-        const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
-          levels?: { id: string; name: string; chunks: { id: string; from: number; to: number; chars: number; path: string }[] }[];
-        };
-        const level = (manifest.levels ?? []).find((l) => l.chunks.some((c) => c.id === levelId));
-        const chunk = level?.chunks.find((c) => c.id === levelId);
-        if (!level || !chunk) {
-          return { ok: false, faultCode: "not_found", source: `call:${callId}`, path: manifestPath, mode: "level", levelId, detail: errorDetail("evidence_level_unknown") };
-        }
-        const chunkPath = join(dir, chunk.path);
-        const content = readFileSync(chunkPath, "utf8");
-        return {
-          ok: true, source: `call:${callId}`, path: chunkPath, mode: "level",
-          levelId, levelName: level.name, from: chunk.from, to: chunk.to,
-          chars: content.length, content,
-        };
-      }
-      const rawStart = win.startLine;
-      const startLine = rawStart == null || rawStart === "" ? null : Number(rawStart);
-      const hasLineMode = startLine !== null;
-      const hasKeyword = Boolean(keyword.trim());
-      // keyword alone → search; startLine alone → lines; both → hybrid (region-anchored search).
-      if (!hasLineMode && !hasKeyword) return { ok: false, faultCode: "invalid_arguments", detail: errorDetail("evidence_need_mode") };
-      if (startLine !== null && (!Number.isInteger(startLine) || startLine < 1)) return { ok: false, faultCode: "invalid_arguments", detail: errorDetail("evidence_start_line_int") };
-      const rawPad = win.paddingLines;
-      const paddingLines = rawPad == null || rawPad === "" ? 0 : Number(rawPad);
-      if (!Number.isInteger(paddingLines) || paddingLines < 0 || paddingLines > 50) {
-        return { ok: false, faultCode: "invalid_arguments", detail: errorDetail("evidence_padding_range") };
-      }
-      const limits = runtimeConfig.results;
-      const rawWindow = Number(win.contextChars ?? limits.searchContextChars);
-      // 窗口预算 = 摊分额度与入窗门禁取小（摊分额度已由 retrievalWindowChars 起算，这里只做双保险）
-      const charCap = charBudget == null ? retrievalWindowChars() : charBudget;
-      const contextChars = Number.isFinite(rawWindow)
-        ? Math.min(charCap, Math.max(20, Math.floor(rawWindow)))
-        : Math.min(limits.searchContextChars, charCap);
-      // contextChars 是「本次取回总额」而非单侧上限：先按命中数摊分，再摊到 before/after 两侧，
-      // 这样无论命中几条、每侧多长，单次取回都不会超过入窗门禁。
-      const sideChars = (hitCount: number, hitLen: number): number =>
-        Math.max(20, Math.floor((contextChars / Math.max(1, hitCount) - hitLen) / 2));
-      const lineWidth = limits.lineWidth;
-      let haystack = "";
-      let source = "";
-      let path = "";
-      if (callId) {
-        path = join(paths(dataDir, input.conversationId!).returns, `${callId}.txt`);
-        haystack = loadFullReturn(dataDir, input.conversationId!, callId) ?? "";
-        source = `call:${callId}`;
-      } else {
-        const textPath = join(dataDir, "conversations", input.conversationId!, "context-records", "observation", `${pageId}.txt`);
-        const jsonPath = join(dataDir, "conversations", input.conversationId!, "context-records", "observation", `${pageId}.json`);
-        path = textPath;
-        if (existsSync(textPath)) {
-          haystack = readFileSync(textPath, "utf8");
-        } else {
-          path = jsonPath;
-          const raw = loadContextRecord(dataDir, input.conversationId!, "observation", pageId);
-          if (raw) {
-            try {
-              const record = JSON.parse(raw) as { result?: unknown };
-              const body = typeof record.result === "string" ? record.result : JSON.stringify(record.result ?? null);
-              haystack = wrapCachedText(body);
-            } catch {
-              haystack = wrapCachedText(raw);
+    const searchOne = (value: unknown): Record<string, unknown> => {
+      const invalid = (detail: string) => ({ ok: false, faultCode: "invalid_arguments", detail });
+      if (!value || typeof value !== "object" || Array.isArray(value)) return invalid("窗口必须是对象");
+      const win = value as Record<string, unknown>;
+      if (Object.keys(win).some(key => !["callId", "pageId", "blockId", "keyword", "offset"].includes(key))) return invalid("窗口仅支持 callId/pageId、blockId/keyword 和搜索 offset");
+      const hasCall = win.callId !== undefined;
+      const hasPage = win.pageId !== undefined;
+      if (hasCall === hasPage) return invalid("callId 与 pageId 必须且只能提供一个");
+      const id = hasCall ? win.callId : win.pageId;
+      if (typeof id !== "string" || !/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(id)) return invalid("来源 ID 无效");
+      const hasBlock = win.blockId !== undefined;
+      const hasKeyword = win.keyword !== undefined;
+      if (hasBlock && hasKeyword) return invalid("blockId 与 keyword 不能同时提供");
+      if (hasBlock && (typeof win.blockId !== "string" || !win.blockId.trim())) return invalid("blockId 必须是非空字符串");
+      if (hasKeyword && (typeof win.keyword !== "string" || !win.keyword.trim())) return invalid("keyword 必须是非空字符串");
+      if (win.offset !== undefined && (!hasKeyword || typeof win.offset !== "number" || !Number.isSafeInteger(win.offset) || win.offset < 0)) return invalid("offset 仅用于关键词搜索，且必须是非负整数");
+      const source = `${hasCall ? "call" : "page"}:${id}`;
+      const path = hasCall
+        ? join(paths(dataDir, input.conversationId!).returns, `${id}.txt`)
+        : join(dataDir, "conversations", input.conversationId!, "context-records", "observation", `${id}.txt`);
+      const indexPath = path.replace(/\.txt$/, ".index.json");
+      let index: BlockIndex | null = hasCall
+        ? loadReturnBlockIndex(dataDir, input.conversationId!, id)
+        : existsSync(indexPath) ? JSON.parse(readFileSync(indexPath, "utf8")) as BlockIndex : null;
+      if (!index) {
+        let full = hasCall ? loadFullReturn(dataDir, input.conversationId!, id) : null;
+        if (!hasCall) {
+          if (existsSync(path)) full = readFileSync(path, "utf8");
+          else {
+            const record = loadContextRecord(dataDir, input.conversationId!, "observation", id);
+            if (record !== null) {
+              const resultValue = (JSON.parse(record) as { result: unknown }).result;
+              full = typeof resultValue === "string" ? resultValue : JSON.stringify(resultValue);
             }
           }
         }
-        source = `page:${pageId}`;
-      }
-      const lines = linesOf(haystack);
-      const totalLines = lines.length;
-      const totalChars = haystack.length;
-      if (!haystack) {
-        return {
-          ok: false,
-          faultCode: "file_not_found",
-          source,
-          path,
-          keyword,
-          lineWidth,
-          detail: errorDetail("evidence_file_missing"),
-        };
-      }
-
-      /** Slice lines mode window starting at actualFrom (after padding), contextChars budget. */
-      const sliceLinesWindow = (targetLine: number, pad: number) => {
-        const actualFrom = Math.max(1, targetLine - pad);
-        if (targetLine > totalLines) return null;
-        let used = 0;
-        let to = actualFrom - 1;
-        while (to < totalLines) {
-          const next = lines[to]!.length;
-          if (to >= actualFrom && used + next > contextChars) break;
-          used += next;
-          to += 1;
-          if (used >= contextChars) break;
-        }
-        if (to < actualFrom) to = actualFrom;
-        const slice = lines.slice(actualFrom - 1, to).map((text, index) => ({
-          line: actualFrom + index,
-          text,
-          isTarget: (actualFrom + index) === targetLine,
-        }));
-        return { actualFrom, to, slice };
-      };
-
-      const keywordMatchesIn = (region: string, regionBaseLine: number) => {
-        const matches: { offset: number; lineStart: number; lineEnd: number; before: string; hit: string; after: string }[] = [];
-        const lower = region.toLowerCase();
-        const needle = keyword.toLowerCase();
-        let from = 0;
-        while (matches.length < limits.searchMaxMatches) {
-          const at = lower.indexOf(needle, from);
-          if (at === -1) break;
-          const side = sideChars(matches.length + 1, keyword.length);
-          const before = region.slice(Math.max(0, at - side), at);
-          const hit = region.slice(at, at + keyword.length);
-          const after = region.slice(at + keyword.length, at + keyword.length + side);
-          const prefix = region.slice(0, at);
-          const lineInRegion = regionBaseLine + (prefix.match(/\n/g)?.length ?? 0);
-          matches.push({ offset: at, lineStart: lineInRegion, lineEnd: lineInRegion, before, hit, after });
-          from = at + Math.max(1, keyword.length);
-        }
-        // If plain indexOf missed because wrap inserted newlines inside the keyword.
-        if (!matches.length && !region.includes("\n")) return matches;
-        if (!matches.length) {
-          const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          const pattern = escaped.split("").join("[\\r\\n]?");
-          try {
-            const re = new RegExp(pattern, "gi");
-            let m: RegExpExecArray | null;
-            while ((m = re.exec(region)) !== null && matches.length < limits.searchMaxMatches) {
-              const at = m.index;
-              const hitRaw = m[0];
-              const side = sideChars(matches.length + 1, hitRaw.length);
-              const before = region.slice(Math.max(0, at - side), at);
-              const after = region.slice(at + hitRaw.length, at + hitRaw.length + side);
-              const prefix = region.slice(0, at);
-              const lineInRegion = regionBaseLine + (prefix.match(/\n/g)?.length ?? 0);
-              matches.push({ offset: at, lineStart: lineInRegion, lineEnd: lineInRegion, before, hit: hitRaw, after });
-              re.lastIndex = at + Math.max(1, keyword.length);
-            }
-          } catch {
-            // ignore pathological patterns
-          }
-        }
-        return matches;
-      };
-
-      if (hasLineMode && hasKeyword) {
-        // Hybrid: keyword search anchored to startLine window.
-        const window = sliceLinesWindow(startLine!, paddingLines);
-        if (!window) {
-          return {
-            ok: false, faultCode: "not_found", source, path, mode: "hybrid",
-            lineWidth, totalLines, totalChars, startLine, detail: `startLine 超出总行数 ${totalLines}`,
-          };
-        }
-        const region = window.slice.map((row) => row.text).join("\n");
-        const matches = keywordMatchesIn(region, window.actualFrom);
-        return {
-          ok: matches.length > 0,
-          source, path, mode: "hybrid",
-          keyword, startLine, targetLine: startLine, paddingLines,
-          anchorFrom: window.actualFrom, anchorTo: window.to,
-          contextChars, lineWidth, totalLines, totalChars,
-          matchCount: matches.length,
-          matches,
-          ...(matches.length ? {} : { faultCode: "not_found", detail: errorDetail("evidence_hybrid_miss") }),
-        };
-      }
-
-      if (hasLineMode) {
-        const window = sliceLinesWindow(startLine!, paddingLines);
-        if (!window) {
-          return {
-            ok: false, faultCode: "not_found", source, path, mode: "lines",
-            lineWidth, totalLines, totalChars, startLine, detail: `startLine 超出总行数 ${totalLines}`,
-          };
-        }
-        return {
-          ok: true, source, path, mode: "lines",
-          lineWidth, totalLines, totalChars,
-          startLine: window.actualFrom,
-          targetLine: startLine,
-          paddingLines,
-          endLine: window.to,
-          contextChars,
-          lines: window.slice,
-        };
-      }
-
-      // keyword-only search
-      const matches: { offset: number; lineStart: number; lineEnd: number; before: string; hit: string; after: string }[] = [];
-      const lowerHay = haystack.toLowerCase();
-      const needle = keyword.toLowerCase();
-      let from = 0;
-      while (matches.length < limits.searchMaxMatches) {
-        const at = lowerHay.indexOf(needle, from);
-        if (at === -1) break;
-        const side = sideChars(matches.length + 1, keyword.length);
-        const before = haystack.slice(Math.max(0, at - side), at);
-        const hit = haystack.slice(at, at + keyword.length);
-        const after = haystack.slice(at + keyword.length, at + keyword.length + side);
-        const lineStart = lineNumberAt(haystack, at);
-        const lineEnd = lineNumberAt(haystack, at + hit.length - 1);
-        matches.push({ offset: at, lineStart, lineEnd, before, hit, after });
-        from = at + Math.max(1, keyword.length);
-      }
-      // Cross-wrap fallback: wrapCachedText inserts \\n inside what was one continuous keyword.
-      if (!matches.length && keyword.length > 1) {
-        const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const pattern = escaped.split("").join("[\\r\\n]?");
-        try {
-          const re = new RegExp(pattern, "gi");
-          let m: RegExpExecArray | null;
-          while ((m = re.exec(haystack)) !== null && matches.length < limits.searchMaxMatches) {
-            const at = m.index;
-            const hitRaw = m[0];
-            const side = sideChars(matches.length + 1, hitRaw.length);
-            const before = haystack.slice(Math.max(0, at - side), at);
-            const after = haystack.slice(at + hitRaw.length, at + hitRaw.length + side);
-            const lineStart = lineNumberAt(haystack, at);
-            const lineEnd = lineNumberAt(haystack, at + hitRaw.length - 1);
-            matches.push({ offset: at, lineStart, lineEnd, before, hit: hitRaw, after });
-            re.lastIndex = at + Math.max(1, keyword.length);
-          }
-        } catch {
-          // ignore
+        if (full === null || full === undefined) return { ok: false, source, path, faultCode: "file_not_found", detail: "未找到来源原文" };
+        index = buildBlockIndex(full, { maxChars: retrievalWindowChars(), path });
+        if (hasCall) saveReturnBlockIndex(dataDir, input.conversationId!, id, index);
+        else {
+          if (!existsSync(path)) writeFileSync(path, full);
+          writeFileSync(indexPath, JSON.stringify(index));
         }
       }
-      return {
-        ok: matches.length > 0,
-        source,
-        path,
-        mode: "search",
-        keyword,
-        contextChars,
-        lineWidth,
-        totalLines,
-        totalChars,
-        matchCount: matches.length,
-        matches,
-        ...(matches.length ? {} : { faultCode: "not_found", detail: errorDetail("evidence_keyword_miss") }),
-      };
+      return retrieveEvidenceBlock(index, win, source, path);
     };
-    // 单次调用总额摊分：预算是「一次调用」的总字符数，不是每窗口各拿一份。
-    // 每行除命中正文外还有固定结构开销（source/path/mode/JSON 包装），按 ROW_OVERHEAD 预留，
-    // 否则实际产出仍会顶破入窗门禁。收窄后取不完的窗口不再硬塞，显式标记 truncated/droppedWindows，
-    // 让模型知道这是主动裁剪而不是丢了窗口。
-    const budget = retrievalWindowChars();
-    // 每窗口除命中正文外还有固定结构开销（source/path/mode/JSON 包装），按指针壳预留留位。
-    const ROW_OVERHEAD = runtimeConfig.results.pointerShellReserve;
-    const serialize = (rows: Record<string, unknown>[], dropped: number[]): string =>
-      // 主动裁剪不是执行失败：dropped 只描述「因预算没取完」，用 truncated/droppedWindows 表达；
-      // 若并进 ok，Runtime 会按 ok=false 补一个 tool_execution_failed，把预算裁剪误报成工具报错。
-      JSON.stringify({
-        ok: rows.every((row) => row.ok),
-        results: rows,
-        ...(dropped.length ? { truncated: true, droppedWindows: dropped } : {}),
-      });
-    const results: Record<string, unknown>[] = [];
-    const droppedWindows: number[] = [];
-    for (let i = 0; i < windows.length; i += 1) {
-      const win = windows[i]!;
-      const levelId = typeof win.levelId === "string" ? win.levelId.trim() : "";
-      const pending = windows.length - i;
-      if (levelId) {
-        // 按块取回不参与摊分：它已按 id 精确定位到小块正文，不可再窄，也不该被丢弃。
-        results.push(searchOne(win, null));
-        continue;
-      }
-      const used = serialize(results, droppedWindows).length + ROW_OVERHEAD * pending;
-      if (used >= budget) {
-        droppedWindows.push(i);
-        continue;
-      }
-      results.push(searchOne(win, Math.max(20, Math.floor((budget - used) / pending))));
-    }
-    // 摊分后总量已被 retrievalWindowChars 钉住，属「已按门禁预算裁剪」的取回型返回：
-    // 再过一次 admitReturn 只可能把它降级成目录，形成「取回→外置→再取回」死循环。
-    return result(serialize(results, droppedWindows), [], true);
+    const results = windows.map(searchOne);
+    // 目录和原文块已由统一索引划分；取回时保留全部窗口和完整原文，不再次外置。
+    return result(JSON.stringify({ ok: results.every(row => row.ok), results }), [], true);
   }
   if (name === "skill_list") {
     const keyword = typeof args.keyword === "string" && args.keyword.trim() ? args.keyword.trim() : undefined;
@@ -756,23 +533,19 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       }
       return result(JSON.stringify({ ok: true, asset, fetchHint: "要像素请传 x/y/width/height 走 image_crop，或 capture_page(mode=element|rect)" }));
     }
+    if (args.startLine !== undefined) return failedTool("asset_read 使用 blockId 或 keyword 读取文本", "invalid_arguments");
+    if (args.blockId !== undefined && (typeof args.blockId !== "string" || !args.blockId.trim())) return failedTool("blockId 必须是非空字符串", "invalid_arguments");
+    if (args.keyword !== undefined && (typeof args.keyword !== "string" || !args.keyword.trim())) return failedTool("keyword 必须是非空字符串", "invalid_arguments");
+    if (args.blockId !== undefined && args.keyword !== undefined) return failedTool("blockId 与 keyword 不能同时提供", "invalid_arguments");
+    if (args.offset !== undefined && (args.keyword === undefined || typeof args.offset !== "number" || !Number.isSafeInteger(args.offset) || args.offset < 0)) return failedTool("offset 仅用于搜索且必须是非负整数", "invalid_arguments");
     if (!asset.source.callId) {
-      const full = readFileSync(join(dataDir, "conversations", input.conversationId, asset.path), "utf8");
-      // 取回窗口按 retrievalWindowChars 留位（与 evidence_search 同源），而不是按 inlineChars：
-      // 外层还要 JSON.stringify 包 asset 元数据，按入窗门禁裁剪仍会被顶破。
-      const fetchBudget = retrievalWindowChars();
-      const window = args.startLine
-        ? full.split(/\r?\n/).slice(Number(args.startLine) - 1, Number(args.startLine) + 3).join("\n")
-        : typeof args.keyword === "string" && args.keyword
-          ? full.slice(Math.max(0, full.indexOf(args.keyword) - Math.floor(fetchBudget / 2)), Math.max(0, full.indexOf(args.keyword) - Math.floor(fetchBudget / 2)) + fetchBudget)
-          : full.slice(0, fetchBudget);
-      const admitted = admitReturn(window, { path: asset.path, name: asset.name });
-      // window 已由 admitReturn 按取回门禁裁过（或本就是短片段），不再二次外置。
-      // 外层还要 JSON.stringify 包 asset 元数据，故片段本体按 retrievalWindowChars 留位，
-      // 与 evidence_search 取回同源，避免「已裁剪的取回型返回」再被顶破外置。
-      return admitted.mode === "inline"
-        ? result(JSON.stringify({ ok: true, asset, window: admitted.text, flavor: textFlavor(window) }), [], true)
-        : result(JSON.stringify({ ok: true, asset, ...((admitted as { payload?: Record<string, unknown> }).payload ?? {}), flavor: textFlavor(window) }), [], true);
+      const path = join(dataDir, "conversations", input.conversationId, asset.path);
+      const indexPath = `${path}.index.json`;
+      const index: BlockIndex = existsSync(indexPath)
+        ? JSON.parse(readFileSync(indexPath, "utf8")) as BlockIndex
+        : buildBlockIndex(readFileSync(path, "utf8"), { path: asset.path, maxChars: retrievalWindowChars() });
+      if (!existsSync(indexPath)) writeFileSync(indexPath, JSON.stringify(index));
+      return result(JSON.stringify({ asset, ...retrieveEvidenceBlock(index, args, `asset:${assetId}`, path) }), [], true);
     }
     return await executeTool({
       ...input,
@@ -780,16 +553,21 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       arguments: {
         reason: typeof args.reason === "string" ? args.reason : "asset_read",
         windows: [{
-          callId: asset.source.callId ?? asset.name.replace(/\.txt$/, ""),
-          ...(typeof args.keyword === "string" && args.keyword ? { keyword: args.keyword } : {}),
-          ...(typeof args.startLine === "number" ? { startLine: args.startLine } : { keyword: "" }),
+          callId: asset.source.callId,
+          ...(args.keyword !== undefined ? { keyword: args.keyword } : {}),
+          ...(args.blockId !== undefined ? { blockId: args.blockId } : {}),
+          ...(args.offset !== undefined ? { offset: args.offset } : {}),
         }],
       },
     });
   }
+
   if ((LOCAL_TOOL_NAMES as readonly string[]).includes(name)) {
     if (!input.conversationId) return failedTool(errorDetail("local_missing_session"), "invalid_arguments");
-    return externalResult(await runLocalTool(name, hostArgs(args), dataDir, input.conversationId));
+    let evidenceIndex: BlockIndex | undefined;
+    const value = await runLocalTool(name, hostArgs(args), dataDir, input.conversationId, (index) => { evidenceIndex = index; });
+    const execution = externalResult(value);
+    return evidenceIndex ? { ...execution, evidenceIndex, admitted: true } : execution;
   }
   if ((SERVICE_TOOL_NAMES as readonly string[]).includes(name)) {
     return externalResult(await runServiceTool(dataDir, name, hostArgs(args), input.signal, input.conversationId));

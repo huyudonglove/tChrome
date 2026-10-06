@@ -2,10 +2,9 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type { Ledger, LogEvent, ChatMessage, Session, ToolIOItem, Turn } from "../types.ts";
-import type { IndexTree } from "../admission.ts";
+import type { BlockIndex } from "../evidence/index.ts";
 import { runtimeConfig } from "../config/runtime.ts";
 import { idPrefix, nextId, nowIso } from "./ids.ts";
-import { wrapCachedText } from "./cache-lines.ts";
 import { appendAsset, textSummary } from "../assets/catalog.ts";
 import { abortLocalProcesses } from "../tools/local-process.ts";
 import { abortJobsForScope, jobScope } from "../tools/job-registry.ts";
@@ -165,7 +164,7 @@ export function saveFullReturn(dataDir: string, cvId: string, callId: string, fu
   const dir = paths(dataDir, cvId).returns;
   mkdirSync(dir, { recursive: true });
   const path = join(dir, `${callId}.txt`);
-  writeFileSync(path, wrapCachedText(full));
+  writeFileSync(path, full);
   appendAsset(dataDir, cvId, {
     name: `${callId}.txt`,
     kind: "text",
@@ -176,30 +175,19 @@ export function saveFullReturn(dataDir: string, cvId: string, callId: string, fu
   });
 }
 
-/**
- * 分层索引树落盘：像内存分页一样，每层（L1明细 / L2块目录 / L3）都是完整的一份，
- * 层内按门禁切成若干 chunk、每 chunk 一个可寻址 id（L1.1/L1.2…）。
- * 树里只留元数据与各 chunk 的相对路径，chunk 正文单独成文件，取回时按 id 精确读一个。
- */
-export function saveReturnIndexTree(dataDir: string, cvId: string, callId: string, tree: IndexTree): string {
+/** 完整块树与解码内容快照一起保存；块范围始终指向当次返回。 */
+export function saveReturnBlockIndex(dataDir: string, cvId: string, callId: string, index: BlockIndex): string {
   const dir = paths(dataDir, cvId).returns;
   mkdirSync(dir, { recursive: true });
-  const manifest = {
-    head: tree.head,
-    levels: tree.levels.map((level) => ({
-      id: level.id,
-      name: level.name,
-      total: level.total,
-      chunks: level.chunks.map((chunk) => {
-        const path = `${callId}.index.${chunk.id}.txt`;
-        writeFileSync(join(dir, path), chunk.text);
-        return { id: chunk.id, from: chunk.from, to: chunk.to, chars: chunk.chars, path };
-      }),
-    })),
-  };
   const path = join(dir, `${callId}.index.json`);
-  writeFileSync(path, JSON.stringify(manifest, null, 2));
+  writeFileSync(path, JSON.stringify(index));
   return path;
+}
+
+export function loadReturnBlockIndex(dataDir: string, cvId: string, callId: string): BlockIndex | null {
+  const path = join(paths(dataDir, cvId).returns, `${callId}.index.json`);
+  if (!existsSync(path)) return null;
+  return JSON.parse(readFileSync(path, "utf8")) as BlockIndex;
 }
 
 export function loadFullReturn(dataDir: string, cvId: string, callId: string): string | null {

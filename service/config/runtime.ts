@@ -81,13 +81,8 @@ for (const [group, values] of Object.entries(resolved)) {
 
 const results = {
   inlineChars: resolveGate("inlineChars"),
-  previewChars: resolveGate("previewChars"),
-  summaryChars: resolveGate("summaryChars"),
-  lineWidth: resolveGate("lineWidth"),
-  searchContextChars: resolveGate("searchContextChars"),
   // intent 是给查询岗的自然语言指令，语义与「单次返回内联门禁」无关，单独一份门禁。
   intentMaxChars: resolveGate("intentMaxChars"),
-  searchMaxMatches: resolveGate("searchMaxMatches"),
   imageInlineBytes: resolveGate("imageInlineBytes"),
   // 指针/记录壳的固定开销：取回窗口要给它留位，否则返回的指针本身会顶破入窗门禁。
   pointerShellReserve: resolveGate("pointerShellReserve"),
@@ -137,15 +132,6 @@ const context = {
 if (!(context.hardLimitChars > context.compressAtChars)) {
   throw new Error("Invalid runtime configuration: context.hardLimitChars must exceed context.compressAtChars");
 }
-if (!(results.summaryChars <= results.inlineChars)) {
-  throw new Error("Invalid runtime configuration: results.summaryChars must not exceed results.inlineChars");
-}
-if (!(results.previewChars <= results.summaryChars)) {
-  throw new Error("Invalid runtime configuration: results.previewChars must not exceed results.summaryChars");
-}
-// searchContextChars is a per-window slice, so it stays below inlineChars; only
-// require it to be a positive integer that the gate resolver already produced.
-
 Object.freeze(results);
 Object.freeze(context);
 

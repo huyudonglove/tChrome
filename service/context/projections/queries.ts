@@ -1,6 +1,5 @@
 // Query storage and execution are owned by runtime; these are model-facing views.
 import { runtimeConfig } from "../../config/runtime.ts";
-import { summarizePayload } from "../../admission.ts";
 
 export type QueryRecord = Record<string, unknown> & { turnId: string };
 
@@ -18,18 +17,12 @@ export type QueryEvidence = {
 
 export type QueryViewOptions = {
   inlineChars?: number;
-  previewChars?: number;
-  searchContextChars?: number;
-  lineWidth?: number;
   path?: string;
 };
 
 /** Same unified inline gate as other tool-derived views: full body when small, pointer when large. */
 export const queryView = (query: QueryEvidence, options: QueryViewOptions = {}) => {
   const inlineChars = options.inlineChars ?? runtimeConfig.results.inlineChars;
-  const previewChars = options.previewChars ?? runtimeConfig.results.previewChars;
-  const searchContextChars = options.searchContextChars ?? runtimeConfig.results.searchContextChars;
-  const lineWidth = options.lineWidth ?? runtimeConfig.results.lineWidth;
   const view = {
     queryId: query.queryId,
     turnId: query.turnId,
@@ -43,8 +36,6 @@ export const queryView = (query: QueryEvidence, options: QueryViewOptions = {}) 
   };
   const serialized = JSON.stringify(view);
   if (serialized.length <= inlineChars) return view;
-  const totalLines = serialized.length <= 0 ? 0 : Math.ceil(serialized.length / lineWidth);
-  const summary = summarizePayload(serialized);
   return {
     ok: true,
     externalized: true,
@@ -56,13 +47,8 @@ export const queryView = (query: QueryEvidence, options: QueryViewOptions = {}) 
     ...(query.sourceCallId ? { sourceCallId: query.sourceCallId } : {}),
     status: query.status,
     totalChars: serialized.length,
-    totalLines,
-    lineWidth,
-    ...(summary ? { summary } : { head: serialized.slice(0, previewChars) }),
     ...(options.path ? { path: options.path } : {}),
-    message: summary
-      ? `runtime: 查询结果超过 ${inlineChars} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；summary 为结构化摘要。用 evidence_search(windows=[{callId,keyword|startLine}])，可一次带多个窗口。`
-      : `runtime: 查询结果超过 ${inlineChars} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；head 为原文前 ${previewChars} 字符。用 evidence_search(windows=[{callId,keyword|startLine}])，可一次带多个窗口。`,
+    message: `runtime: 查询结果超过 ${inlineChars} 字符，完整结果保存在来源调用中。用 evidence_search(windows=[${JSON.stringify({ callId: query.sourceCallId })}]) 查看块目录，或传 keyword 查找，再按 blockId 取回完整原文。`,
     search: "evidence_search",
     records: [] as QueryRecord[],
   };

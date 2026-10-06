@@ -36,10 +36,6 @@ export function userText(input: {
   const { contextModules, ledger, turn, memories } = input;
   const gate = {
     inlineChars: runtimeConfig.results.inlineChars,
-    previewChars: runtimeConfig.results.previewChars,
-    summaryChars: runtimeConfig.results.summaryChars,
-    searchContextChars: runtimeConfig.results.searchContextChars,
-    lineWidth: runtimeConfig.results.lineWidth,
   };
   const queryPath = (query: QueryEvidence) =>
     input.inlineBudget?.dataDir && query.sourceCallId

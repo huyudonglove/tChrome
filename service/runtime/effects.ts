@@ -1,5 +1,4 @@
 import { saveContextRecord } from "./records.ts";
-import { wrapCachedText } from "./cache-lines.ts";
 import { deleteMemory, saveMemory, updateMemory } from "../memory/store.ts";
 import type { Ledger, MemoryRecord, RuntimeExecutionContext, ToolQueueItem, Turn, TurnStopReason } from "../types.ts";
 import type { ToolEffect } from "../tools/effects.ts";
@@ -7,10 +6,9 @@ import { allocateRecordId, nowIso } from "./ids.ts";
 import { formatBoundId, defaultWorkspaceCallIds } from "./workspace.ts";
 import { prepareTaskComplete, prepareTaskSet, prepareTaskUpdate } from "./tasks.ts";
 import { join } from "node:path";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { appendEvent, paths, saveLedger, saveTurn } from "./store.ts";
-import { runtimeConfig } from "../config/runtime.ts";
-import { summarizePayload } from "../admission.ts";
+import { admitReturn } from "../admission.ts";
 
 const recordDirectory = (dataDir: string, conversationId: string, kind: string) =>
   join(dataDir, "conversations", conversationId, "context-records", kind);
@@ -182,33 +180,21 @@ export function applyToolEffects(input: {
         const id = refreshed ? refreshed.id : allocateRecordId(dataDir, ledger.conversationId, "page");
         // Observation body is the effect payload; storedText is only the tool ack.
         const result = effect.result ?? storedResult;
-        const resultChars = JSON.stringify(result).length;
-        const inlineLimit = runtimeConfig.results.inlineChars;
-        const lineWidth = runtimeConfig.results.lineWidth;
-        const totalLines = resultChars <= 0 ? 0 : Math.ceil(resultChars / lineWidth);
-        const windowResult = resultChars > inlineLimit
-          ? (() => {
-            const previewSource = typeof result === "string"
-              ? result
-              : JSON.stringify(result);
-            const summary = summarizePayload(previewSource);
-            return {
-              ok: true,
-              externalized: true,
-              callId: call.callId,
-              type: effect.observationType,
-              totalChars: resultChars,
-              totalLines,
-              lineWidth,
-              ...(summary ? { summary } : { head: previewSource.slice(0, runtimeConfig.results.previewChars) }),
-              path: join(paths(dataDir, ledger.conversationId).conv, "context-records", "observation", `${id}.json`),
-              message: summary
-                ? `runtime: 观察结果超过 ${inlineLimit} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；summary 为结构化摘要。用 evidence_search(windows=[{pageId:"${id}",keyword|startLine}]) 取片段，可一次带多个窗口。`
-                : `runtime: 观察结果超过 ${inlineLimit} 字符，已按 ${lineWidth} 字/行缓存本地（共 ${totalLines} 行）；head 为原文前 ${runtimeConfig.results.previewChars} 字符。用 evidence_search(windows=[{pageId:"${id}",keyword|startLine}]) 取片段，可一次带多个窗口。`,
-              search: "evidence_search",
-            };
-          })()
-          : result;
+        const searchable = typeof result === "string" ? result : JSON.stringify(result);
+        const obsDir = recordDirectory(dataDir, ledger.conversationId, "observation");
+        mkdirSync(obsDir, { recursive: true });
+        if (refreshedIndex >= 0) rmSync(join(obsDir, `${id}.index.json`), { force: true });
+        const admitted = admitReturn(searchable, {
+          pageId: id,
+          path: join(obsDir, `${id}.txt`),
+        }, {
+          persistIndex: (index) => {
+            const path = join(obsDir, `${id}.index.json`);
+            writeFileSync(path, JSON.stringify(index));
+            return path;
+          },
+        });
+        const windowResult = admitted.mode === "preview" ? admitted.payload : result;
         // 1-based turn number, same numbering as context/projections/conversation.ts (inputs index + 1):
         // the current turn's input is not in userInputHistory yet, so it sits one past the stored ones.
         const writtenTurn = ledger.userInputHistory.length + 1;
@@ -226,11 +212,6 @@ export function applyToolEffects(input: {
           writtenTurn,
           ...(effect.validForTurns !== undefined ? { validUntilTurn: writtenTurn + effect.validForTurns - 1 } : {}),
         };
-        const searchable = typeof effect.result === "string"
-          ? effect.result
-          : JSON.stringify(effect.result ?? null);
-        const obsDir = recordDirectory(dataDir, ledger.conversationId, "observation");
-        mkdirSync(obsDir, { recursive: true });
         if (refreshedIndex >= 0) {
           // Refresh rewrites in place: saveContextRecord is immutable by design, so a re-issued
           // record would throw instead of renewing an entry written earlier in this same turn.
@@ -238,7 +219,7 @@ export function applyToolEffects(input: {
         } else {
           saveContextRecord(dataDir, ledger.conversationId, "observation", record);
         }
-        writeFileSync(join(obsDir, `${id}.txt`), wrapCachedText(searchable));
+        writeFileSync(join(obsDir, `${id}.txt`), searchable);
         if (refreshedIndex >= 0) {
           turn.assembled.observations[refreshedIndex] = { ...record, result: windowResult };
         } else {

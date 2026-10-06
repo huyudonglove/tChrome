@@ -21,7 +21,7 @@ export function removeContextRecord(
   if (!safeId(conversationId) || !safeId(id) || !kinds.has(kind)) return false;
   const dir = recordDirectory(dataDir, conversationId, kind);
   let removed = false;
-  for (const file of [`${id}.json`, `${id}.txt`]) {
+  for (const file of [`${id}.json`, `${id}.txt`, `${id}.index.json`]) {
     try {
       rmSync(join(dir, file), { force: true });
       removed = true;
