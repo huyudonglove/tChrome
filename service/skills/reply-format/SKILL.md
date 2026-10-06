@@ -1,61 +1,35 @@
-SUMMARY: 回复格式（本地侧栏）：展示、可点击区块与 iframe 互动组件。
+SUMMARY: 侧栏回复呈现：按信息需要选择 Markdown、轻量按钮或 iframe 组件，并区分展示与真实执行。
+# 侧栏回复格式
 
-# 回复格式（本地侧栏）
+finishTurn.text 必须是非空的最终答复，同一 text 进入侧栏、上下文和压缩链路。先写清结果、依据和未完成项，再选择有助于用户理解或操作的呈现形式。
 
-finishTurn.text 的侧栏渲染约定。同一 text 进入侧栏、后续上下文与压缩链路；扩展 CSP **禁止内联 JS**，`onclick` / `javascript:` 一律不执行（属性会被去掉）。
+## 选择呈现能力
 
-## 展示
+- 普通解释、结果和步骤使用 GFM：段落、列表、表格、代码、链接和图片。
+- 排版需要时可用展示用 HTML。扩展 CSP 禁止内联脚本和事件属性，普通 HTML 中的 onclick、onerror、javascript: 不执行。
+- 打开链接、复制文本和简单本地展示变化使用 data-* 按钮。
+- 需要自定义脚本交互时，将完整 HTML 与 JS 放入 tchrome-widget，由独立 iframe 页面运行。
 
-侧栏用 GFM + HTML 渲染：
+## 轻量交互
 
-- 标题、列表、表格 `| |`、图片 `![](url)`、代码、链接 `[文字](https://…)`
-- 展示用 HTML（div/style 等）可以
+| 目的 | 写法 |
+| --- | --- |
+| 打开链接 | Markdown 链接，或 button 的 data-open-url 属性 |
+| 复制文本 | button 的 data-copy 属性 |
+| 随机展示一项 | data-action="pick"、data-items="选项一&#124;选项二"、data-target="result" |
+| 数字加一 | data-action="count"、data-target="count" |
+| 设置展示文字 | data-action="set"、data-value="新文字"、data-target="result" |
 
-## 可点击（必须用 `data-*`，禁止 onclick）
+data-target 指向同一条回复内已有元素的 id；计数目标初始内容应为数字。pick 的选项用竖线分隔。所有动态文字正确转义为 HTML 文本或属性，避免引号破坏结构。
 
-| 目标         | 写法                                                                                                                                       |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| 打开链接     | `[文字](https://…)` 或 `<button data-open-url="https://…">`                                                                                |
-| 复制         | `<button data-copy="文本">复制</button>`                                                                                                   |
-| 随机选一项   | `<button data-action="pick" data-items="方案A\|方案B\|方案C" data-target="outId">切换备选方案</button>` 且页面有 `<div id="outId">…</div>` |
-| 计数 +1      | `<button data-action="count" data-target="cntId">重试 +1</button>` 且有 `<span id="cntId">0</span>`                                        |
-| 置为固定文案 | `<button data-action="set" data-value="你好" data-target="outId">`                                                                         |
+这些动作只执行对应的链接、复制或展示逻辑。例如把文字改为“已保存”不会执行保存请求；不要将界面演示当成业务操作已完成。
 
-`data-target` 是同一条回复内的元素 id。不要写 `onclick`、`onerror` 或依赖 `document.getElementById` 的脚本。
+## iframe 组件
 
-### 示例：快捷操作面板
+用 <tchrome-widget> 包裹需要运行的完整 HTML 与 JS。侧栏会将组件提交到本机服务，并在独立页面上下文的 iframe 中加载；脚本可以在组件内执行，不自动获得侧栏 DOM 或扩展权限。普通轻量按钮不需要这一层。
 
-```html
-<div>
-  <div id="env-select">当前环境：生产</div>
-  <button
-    data-action="pick"
-    data-target="env-select"
-    data-items="当前环境：开发|当前环境：预发|当前环境：生产"
-  >
-    切换环境
-  </button>
-  <button data-copy="bun test extension/sidepanel/">复制单测命令</button>
-</div>
-```
+依据用户真实数据制作内容；缺失数据应明确说明，不编造结果。组件中涉及真实数据修改或对外操作时，仍遵循任务授权与 <boundaries>。
 
-## 互动组件（iframe，可跑 JS）
+## 检查实际结果
 
-复杂交互（onclick 动画、计数、随机抽签等）包在 `tchrome-widget` 里：
-
-```html
-<tchrome-widget>
-  <!-- 完整 HTML+JS，可含 script / onclick -->
-  <button onclick="...">抽取灵感</button>
-</tchrome-widget>
-```
-
-侧栏会把块 POST 到本机服务，在 iframe（独立页面上下文）里加载 `http://127.0.0.1:18788/widget/...`，不走扩展 CSP，脚本可执行。
-
-| 写法                                         | 侧栏行为               |
-| -------------------------------------------- | ---------------------- |
-| `[文字](https://…)` / `data-open-url`        | 新标签打开             |
-| `<tchrome-widget>…HTML+JS…</tchrome-widget>` | iframe 内可点击/可脚本 |
-| 无包装的 `<button onclick>`                  | 仍不会执行（扩展 CSP） |
-
-轻量动作仍可用 `data-action` / `data-copy`，不必进 iframe。
+简单文本检查内容和链接即可。交互组件需要检查目标 id、属性和脚本对应关系；有可用的预览或浏览器环境时，实际操作关键路径，根据报错修正。没有运行过就说明验证范围，不把代码生成成功称为交互已验证。

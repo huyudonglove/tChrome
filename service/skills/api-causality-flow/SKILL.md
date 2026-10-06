@@ -1,37 +1,31 @@
 SUMMARY: 等待接口返回而非固定延时、直接提取响应数据，并处理异步长耗时任务。
-# 接口请求与异步任务处理 (API & Async Tasks)
+# 接口请求与异步任务
 
-前端数据与状态通常由网络接口驱动。自动化操作结合接口返回做等待与取证，比纯 UI 延时更稳定。`page_submit_wait`、`page_assert` 常驻；`wait_response`、`network_grep` 及带 `heartbeatSec` 的长耗时工具按需 `catalog_add`。
+先判断当前缺的是“请求有没有返回”“返回了什么”，还是“后台业务完成没有”，选能回答这个问题的工具。已有响应或状态足够推进时直接执行下一步，不重新抓取整条链路。动态工具通过 `catalog_add` 按需加载。
 
-## 接口等待与数据提取
+## 点击与响应
 
-### 等待接口返回而非固定延时
+已知提交按钮编号和目标接口时，用 `page_submit_wait` 把点击与监听放在一次调用里，传 `tabId`、`id`、`urlContains`、`reason`；需要时加 `status` 和 `timeoutMs`。根据 `clicked` 和 `wait` 分别判断点击是否执行、响应是否到达。
 
-表单提交、搜索、翻页等操作不要依赖固定 `sleep`：
+`wait_response` 用于等待后续响应，必填 `tabId`、`urlContains`、`reason`，可选 `status`、`timeoutMs`。它不会回查已经结束的请求，也不返回响应正文。不要先阻塞等待它结束，再触发原本需要等待的请求；点击触发的链路优先用复合工具。
 
-- 用 `page_submit_wait(..., urlContains="/api/submit")` 点击并等待特定接口响应
-- 或在操作前后配合 `wait_response(urlContains, status=200)` 精确捕获接口返回
+超时只表示在等待窗口内没有匹配响应。检查实际返回的错误、当前页面或请求条件，修正具体问题后继续；不要因超时直接重复付款、提交或创建等有副作用的动作。
 
-### 直接提取接口响应数据
+## 响应正文与业务状态
 
-复杂表格或图表常由后端 JSON 驱动。页面 DOM 复杂或有虚拟列表遮挡时，用 `network_grep(urlContains, keyword)` 检索接口响应中的业务字段或 ID，直接取数。
+需要从即将返回的接口中找字段时，用 `network_grep(tabId, urlContains, keyword, reason)`，可选 `status`、`contextChars`、`timeoutMs`。它监听响应并搜索正文，也不是历史响应查询器。已有响应证据时直接使用，不为再次取数重复业务提交。
 
-## 异步任务与长耗时操作
+HTTP 200 不等于业务成功。按任务需要核对返回的业务状态、对象 ID 或页面结果。虚拟列表、图表需要的数据可从已授权访问的接口提取；截图用于确认显示效果，不能代替响应正文。
 
-### 识别异步模式
+返回 `taskId` 或处理中状态时，记录任务 ID，并查询该任务的状态接口或用 `wait` 等待页面完成条件。`page_assert` 用于验收当前条件，不承担等待。业务任务 ID 与 Helm 的 `jobId`、`processId` 分开记录。
 
-导出报表、音视频处理等长耗时任务，提交接口往往只返回 `taskId` 或 `status: "processing"`。
+## 耗时操作
 
-### 状态检查与等待
+仅在工具 schema 支持时使用 `heartbeatSec`：
 
-1. 记录提交接口返回的任务 ID
-2. 用页面元素状态 `page_assert(role, name, states={enabled:true})` 或轮询接口确认进度
-3. 耗时较长的后台操作可开启 `heartbeatSec` 心跳机制，避免长时间阻塞；结束后用 `job_status` / `job_stop` 查询或停止
+- `local_run` 返回 `processId`：用 `local_process_status` 查询，用 `local_process_stop` 停止。
+- 支持心跳的 HTTP、搜索或 `execute_javascript` 返回 `jobId`：用 `job_status` 查询，用 `job_stop` 尝试停止。页面脚本已经执行时可能无法中断，按实际返回判断。
 
-## 请求抓取与本地处理
+业务后台任务不会因为停止 Helm 的等待任务而自动取消。是否取消业务任务，应按用户意图和业务接口操作。
 
-页面不便直接导出大量数据时：
-
-1. 通过 CDP 监听获取带鉴权信息的请求
-2. 由本地命令（如 Python 脚本）执行批量拉取与数据清洗
-3. 处理后的文件保存在服务数据目录绝对路径下
+页面内不便处理的大量已授权数据，可交给宿主脚本计算。脚本和产物保存到 `<overview>` 指定的服务数据目录绝对路径；只使用任务所需的请求信息，不把鉴权值写进对话或无关日志。得到结果后核对业务完成条件，不把“启动成功”当作“处理完成”。

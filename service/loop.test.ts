@@ -764,13 +764,13 @@ test(`观察提醒按证据类工具调用计数：累计 ${OBS_FIRST} 次证据
       step++;
       const body = input.messages[1]!.content;
       if (step <= OBS_FIRST) {
-        expect(body).not.toContain("建议用 observation_write");
+        expect(body).not.toContain('kind="observation"');
         // 每步只发 1 个证据类调用，避免硬收口；bookkeeping 不计数的断言见下一个用例
         return ok({ finish: "tool_calls", toolCalls: [
           { id: `e_${step}`, name: "page_get_summary", arguments: { tabId: 12 } },
         ] });
       }
-      expect(body).toContain("建议用 observation_write");
+      expect(body).toContain('kind="observation"');
       expect(body).toContain(`page_get_summary×${OBS_FIRST}`);
       expect(body).toContain("次产出证据的工具调用");
       expect(body).toContain(`下次提示门槛收紧到 ${OBS_GATE_2} 次`);
@@ -793,16 +793,16 @@ test(`观察提醒门槛在同一轮内 ${OBS_FIRST} → ${OBS_GATE_2} → ${OBS
       const body = input.messages[1]!.content;
       if (step === firstNudge) {
         // 第 OBS_FIRST 次证据类调用后已提示一次，门槛收紧到 OBS_GATE_2
-        expect(body).toContain("建议用 observation_write");
+        expect(body).toContain('kind="observation"');
         expect(body).toContain(`下次提示门槛收紧到 ${OBS_GATE_2} 次`);
       }
       if (step > firstNudge && step < secondNudge) {
         // 门槛已是 OBS_GATE_2，这段区间内不应再提示
-        expect(body).not.toContain("建议用 observation_write");
+        expect(body).not.toContain('kind="observation"');
       }
       if (step === secondNudge) {
         // 门槛收紧到下限 OBS_MIN 并再次提示
-        expect(body).toContain("建议用 observation_write");
+        expect(body).toContain('kind="observation"');
         expect(body).toContain(`下次提示门槛收紧到 ${OBS_MIN} 次`);
       }
       if (step <= secondNudge) {
@@ -825,13 +825,13 @@ test(`写一次 observation_write 后计数与门槛重置回 ${OBS_FIRST}`, asy
       step++;
       const body = input.messages[1]!.content;
       if (step === firstNudge) {
-        expect(body).toContain("建议用 observation_write");
+        expect(body).toContain('kind="observation"');
         expect(body).toContain(`下次提示门槛收紧到 ${OBS_GATE_2} 次`);
         return ok({ finish: "tool_calls", toolCalls: [{ id: "w", name: "observation_write", arguments: { reason: "固化", type: "code", result: "状态" } }] });
       }
       if (step > firstNudge && step <= firstNudge + OBS_FIRST) {
         // 写观察后门槛重置回 OBS_FIRST，这段区间内不应再提示
-        expect(body).not.toContain("建议用 observation_write");
+        expect(body).not.toContain('kind="observation"');
         return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "page_get_summary", arguments: { tabId: 12 } }] });
       }
       if (step <= OBS_FIRST) {
@@ -853,7 +853,7 @@ test("只有 bookkeeping 工具时观察提醒保持安静", async () => {
       step++;
       const body = input.messages[1]!.content;
       if (step <= 40) {
-        expect(body).not.toContain("建议用 observation_write");
+        expect(body).not.toContain('kind="observation"');
         return ok({ finish: "tool_calls", toolCalls: [{ id: `n_${step}`, name: "notes_write", arguments: { reason: "草稿", key: `k${step}`, value: "v" } }] });
       }
       return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
@@ -885,7 +885,7 @@ test("压缩前若无观察则先提示一次，下一轮才压缩", async () =>
       const body = input.messages[1]!.content;
       if (step === 1) {
         expect(body).toContain("上下文即将被压缩");
-        expect(body).toContain("建议用 observation_write");
+        expect(body).toContain('kind="compress"');
         return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "e_1", name: "page_get_summary", arguments: { tabId: 12 } }] });
       }
       if (step === 2) {

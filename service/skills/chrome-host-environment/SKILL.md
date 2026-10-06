@@ -1,30 +1,31 @@
-SUMMARY: 感知 Chrome 本机宿主环境：核心配置文件路径与关键排查字段。
-# Chrome 本机宿主环境感知 (Host Environment)
+SUMMARY: Chrome 宿主环境排查：按故障线索确认实际 Profile 和配置，用运行时行为验证判断。
+# Chrome 宿主环境
 
-扩展沙箱限制访问 `chrome://settings` 或受特权页面隔离时，切换宿主物理视角，用 `local_fs_read`（需 `catalog_add`）读取磁盘上的 Chrome 配置。调用时把下表 `~` 展开为本机主目录绝对路径；分析产物写在服务数据目录（见 `<overview>`）。
+当页面工具无法解释休眠、权限或下载行为，或目标位于受限特权页面时，使用宿主文件和进程证据补充调查。普通网页操作无需先检查浏览器全部配置。
 
-## 核心配置文件路径
+## 选择证据
 
-- **macOS**
-  - Profile 级：`~/Library/Application Support/Google/Chrome/<Profile>/Preferences`（默认 `Default`）
-  - 全局/实验项：`~/Library/Application Support/Google/Chrome/Local State`
-- **Linux**：`~/.config/google-chrome/<Profile>/Preferences`
-- **Windows**：`%LOCALAPPDATA%\Google\Chrome\User Data\<Profile>\Preferences`
+先确认正在使用的浏览器、操作系统和 Profile；不要把 Default 当成已确认的当前 Profile。按需通过 catalog_add 加载 local_fs_read 等宿主工具，路径中的主目录或环境变量展开为绝对路径。
 
-## 关键排查字段
+| 系统 | Chrome 配置位置 |
+| --- | --- |
+| macOS | ~/Library/Application Support/Google/Chrome/<Profile>/Preferences；同级用户数据目录的 Local State |
+| Linux | ~/.config/google-chrome/<Profile>/Preferences；同级用户数据目录的 Local State |
+| Windows | %LOCALAPPDATA%\Google\Chrome\User Data\<Profile>\Preferences；同级用户数据目录的 Local State |
 
-- **后台休眠 (Memory Saver)**
-  - `performance_tuning.high_efficiency_mode.state`：启用自动休眠时，长时间后台标签可能被挂起卸载，导致 DOM 丢失与 CDP 调试断开。
-  - 排除域名白名单：`performance_tuning.high_efficiency_mode.site_exceptions`
-- **权限与弹窗白名单 (Site Settings)**
-  - `profile.content_settings.exceptions.popups` / `clipboard`：确认目标站点是否受弹窗拦截或剪贴板隔离阻碍。
-- **静默下载 (Downloads)**
-  - `download.prompt_for_download`：为 `false` 时下载不弹系统保存窗，避免阻塞操作链路。
-- **无障碍树增强 (Accessibility)**
-  - `accessibility.screen_reader_detected` 或无障碍高亮配置，辅助确认内核 A11y 树分发状态。
+只读取与当前问题有关的字段。已有返回沿 callId 用 evidence_search 的 keyword 或 blockId 取回；记录确认的路径、字段值和仍需验证的判断。
 
-## 操作边界
+## 将配置与现象对照
 
-- 配置路径使用展开后的绝对路径；改写 Preferences / Local State 需用户明确要求。
-- 排查笔记、导出副本放在服务数据目录，不落在代码仓库。
-- **只读探测为准**：Chrome 运行时常驻内存，退出或特定事件时会覆写磁盘文件，且部分安全字段含 HMAC 校验。严禁在浏览器运行期间直接篡改磁盘 JSON；环境调整优先提示用户在浏览器界面或启动参数中设置。
+- 后台标签丢失 DOM 或调试连接：检查休眠现象及 performance_tuning.high_efficiency_mode.state、site_exceptions 等相关设置。
+- 弹窗或剪贴板失败：结合实际权限错误，查看 profile.content_settings.exceptions 下对应站点规则。
+- 下载流程阻塞：查看 download.prompt_for_download，并核验实际下载行为。
+- 无障碍树异常：accessibility.screen_reader_detected 等字段可作为线索，仍需检查当前页面树与实际渲染。
+
+字段及含义可能随 Chrome 版本和策略变化；字段缺失不能直接证明功能关闭，磁盘值也不等于当前运行时已经生效。用实际行为或浏览器设置界面确认影响，证据已足够时继续任务。
+
+## 调整与验证
+
+配置修改依据用户授权和 <boundaries>。Chrome 运行时可能覆写磁盘配置，部分字段还有完整性校验；优先通过受支持的设置界面或启动参数调整，不在运行期间直接改 Preferences 或 Local State。调整后复现原操作，确认目标现象是否改变；失败时根据新证据继续定位。
+
+分析副本与笔记放在 <overview> 的服务数据目录，仅保留任务需要的信息，不把配置中的敏感内容整份写进回复。

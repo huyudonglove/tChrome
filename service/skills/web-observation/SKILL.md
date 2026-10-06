@@ -1,71 +1,45 @@
-SUMMARY: 网页观察与操作：按区域缩小到控件、交互验收与截图证据。
+SUMMARY: 网页观察与操作：按目标选择定位能力，执行交互，用页面、接口和截图反馈验证结果。
 # 网页观察与操作
 
-常驻页面操作方法。浏览器主链路工具一直可用；截图、`page_get_by_role`、`wait`、`wait_response` 等按需 `catalog_add`。
+常驻页面操作方法。先明确要操作的对象和预期结果；目标与授权明确时直接操作。页面概况、控件列表、截图和脚本分别回答不同问题，不必每次从整页观察重新开始。动态能力按需 catalog_add，取得 schema 后调用。
 
-## 观察推进
+需要专项方法时按问题 skill_load：表单与组件状态用 spa-state-sync，接口与后台任务用 api-causality-flow，画布用 canvas-webgl-probing，宿主联调用 host-browser-coordination。浏览器配置问题可用 chrome-host-environment；已有方法足够时直接执行。
 
-按下一步需要，从页面概况缩小到相关区域或控件；目标明确、证据足够时直接操作。
+## 按缺口定位
 
-1. `open_url` 打开或跳转后，用 `page_get_summary` 读标题、地址、区域与可交互规模。
-2. 需要定位控件时用 `page_list_interactive_elements`；需要区域结构时再加载 `page_list_regions` / `page_inspect_region`。
-3. 取元素 id、regionId 时看本轮 `<calls>` / `<observations>` 中对应项的 result，不要凭空猜测编号。
+- 不熟悉页面时，用 page_get_summary 获取标题、地址和区域；已知目标时直接定位相关控件。
+- 用 page_list_interactive_elements 找控件，用 page_list_regions / page_inspect_region 看相关区域结构。已知角色与名称时，可直接用 page_click_role / page_fill_role / page_select_role 等复合工具。
+- 多个匹配时依据实际结果收窄名称、区域或指定 matchIndex；不要猜编号或默认第一个就是目标。
+- 表格、列表中的编辑或删除按钮，先用目标行的唯一文本确定行，再定位行内按钮。虚拟列表未命中时检查搜索、筛选或滚动位置，不能据当前 DOM 推断整个数据集不存在。
 
-带 tabId 的操作（`page.*`、`open_url`、截图、标签内脚本等）返回完整落在本轮 `<calls>`。需要固化的页面状态、脚本结论或截图发现，用 `observation_write(type, result, tabId?)` 记入本轮 `<observations>`；Runtime 不自动摘录。产出证据类工具调用累计到门槛（{{observationFirst}} 次起，每次提示后收紧为 {{observationGate2}}、{{observationMin}}）未记录时会提示。工具导航里的「类似 / 深入」给出同级替换与后续链路，如 `page_get_summary` 深入 `page_list_interactive_elements`。
+元素 e_、区域 r_ 编号绑定实际节点，同一节点重排不改变编号。导航或节点替换后，旧编号不能代替新节点；失效时重新定位受影响目标，不必重查所有控件。跨标签操作显式传入目标 tabId，编号须来自对应页面证据；切回标签本身不要求重新观察。
 
-## 元素编号与标签
+## 执行并检查反馈
 
-元素和区域 id 是按可见节点顺序生成的临时编号（`e_` / `r_`）。导航、节点增删或顺序变化后重新获取；确认变化不影响编号时可复用，单纯切回标签无需重新观察。跨标签操作时须显式传入目标 tabId，各标签节点编号独立，切勿跨标签混用编号。
+用 page_click_text、page_fill_submit 等复合工具缩短已明确的交互链路。需要确认可操作状态时加载 wait，按 id、selector 或 role/name 等待具体条件；用 page_assert 验收当前状态，不把断言当等待。
 
-## 交互与验收
+点击需要等待响应时，优先用 page_submit_wait 在点击前建立监听。wait_response 只等后续匹配响应，不回查已经结束的请求；不要先提交后用它追查旧响应。页面加载完成、HTTP 成功或点击成功都只是证据的一部分，按用户目标核对业务字段或页面结果。
 
-优先用常驻复合工具一次完成定位+操作：`page_click_role` / `page_fill_role` / `page_submit_wait` / `page_select_role` / `page_click_text` / `page_fill_submit`。role/name 多匹配时必须 `matchIndex`，或收窄 name；无 name 且 total>1 时不猜测。
+自定义下拉、日期面板和级联菜单，先打开浮层，再定位实际选项。输入被恢复或提交值不符时，利用控件校验和事件反馈调整；需要脚本时参考 SPA 技能，不假定直接设置 value 就能同步组件状态。
 
-复杂交互：加载 `page_get_by_role` 按 role+name 取 `e_` 编号；提交后用 `wait_response(urlContains)` 等接口；用 `wait`（id/selector，visible/enabled）确认可操作再点。
+提交后未出现预期结果，先看相关错误提示、aria-invalid 或实际返回；修正明确问题后继续。成功提示、表单关闭或列表新增项是否足以证明完成，取决于目标行为，不能把任意一个信号当成通用成功条件。重复有副作用的动作前先确认上次是否生效。
 
-**动态 A11y**：`wait(role, name, states={enabled:true|checked:true|expanded:true|attached:true})`；验收用 `page_assert(role, name, states)`。`page_list_interactive_elements` 每条带 states。
+## 用截图回答视觉问题
 
-## 观察清理
+结构化结果适合核验文字、字段与状态；截图适合位置、布局和画面。Canvas、WebGL 等任务按验收需要结合两者，不要求每次操作都截图。
 
-已完成分析、抽出关键信息、后面不用再对照的大体积观察（整页 DOM、大列表、密集区域快照），用 `page_clear_result` 清空对应 pageId 的 result 正文，保留身份与链路字段，避免历史观察挤占上下文。
+capture_page 的选择：
 
-## 截图证据
+- element：看清已定位的小控件；ref 与 selector 二选一，返回 image 和 element_rect / capture_rect。
+- viewport / full_page：检查视口或整页布局。
+- som：视口内可交互控件带角标，并返回 marks。按 badge 找对应 marks 中的 id，再用页面工具操作；不把角标本身当元素编号。可用 roles、maxMarks 限定标注范围。
 
-Canvas、WebGL、游戏等结果依赖画面的任务，JS 探针用于辅助定位和读取状态；关键操作后或程序状态不足以确认结果时，调用截图工具观察画面，再结合任务完成条件验证。截图可确认位置、对齐和画面变化，通关或稳定性还需对应证据；证据不足时继续核实，不宣称成功。按验证需要截图，无需每次操作都截图。只有本次随请求附带的图片可供观察；更早批次只保留路径，需要确认当前画面时重新截图。
+需要更多细节时再对目标做 element 截图，不把“先整页、再局部”设为每次必经步骤。只有本次随请求附带的图片可供观察；更早批次保留路径，核验当前画面应重新截图。截图中的状态也要与任务完成条件对照，不能仅凭画面变化宣称成功。
 
-### 局部元素截图（省 Token、更清晰）
+## 保留证据供下一步使用
 
-大分辨率下小控件在整页图里容易糊，且整图更贵。需要看清某个元素/控件时，优先：
+工具结果在 <calls>，需要持续引用的页面状态、脚本结论或截图发现，用 observation_write(type, result, tabId?) 记入 <observations>，Runtime 不自动摘录。观察记录提示从 {{observationFirst}} 次起，后续按 {{observationGate2}}、{{observationMin}} 收紧；按实际提示处理。
 
-```text
-catalog_add → capture_page
-capture_page(mode=element, tabId=…, ref=e_03)   # 或 selector="#submit"
-```
+业务批次按执行规则写 workspace_write，记录已确认事实、失败原因和下一步；后续复用这些结果。缺原文时用 evidence_search 沿 callId 或 pageId 搜索 keyword、读取 blockId，不重做已完成的业务动作。已提取结论且不再需要正文的大观察，可用 page_clear_result 清理对应 pageId 的正文，保留身份与归档链路。
 
-- `ref`：`page.*` / snapshot / `page_get_by_role` 返回的 `e_` / `r_` 编号
-- `selector`：唯一 CSS；与 `ref` **二选一**
-- 返回本地 `image` 引用 + `element_rect`/`capture_rect`；只观察该切片，不要为小控件先截整页
-- 验证整页布局、导航前后对比时才用 `viewport` / `full_page`
-
-### 视口 SoM 标注图（一屏多控件）
-
-复杂页面「点哪个」不明确时：
-
-```text
-capture_page(mode=som, tabId=…, maxMarks=40, roles=["button","link"])
-```
-
-- 图上红色角标 = 可交互控件；同时返回 `marks[{badge,id,x,y,…}]`
-- 看图选定 badge → `page_click(id=marks[i].id)`（即 `e_` 编号）
-- `marks` 为视口 CSS 像素；`devicePixelRatio` 仅作对照
-- 截图后角标层自动清理；默认最多 40 个，可用 `roles` 降噪
-
-两阶段：先 `som` 看全局 → 再 `mode=element` 对选定 `e_` 高清切片。
-
-## 复杂表单与复合表格操作
-
-自定义下拉、日期选择器和级联浮层通常不接受直接文本注入。优先模拟交互链路：点击触发输入框唤起面板，再在可见浮层 DOM 中点击具体候选项；脚本设置时须同时触发 input、change 与 blur 事件，避免现代前端响应式状态未同步。
-
-操作表格或列表项中的按钮（如编辑、删除、查看）时，严禁全局无差别定位。应先以该行唯一标识文本锚定行容器（tr、li 或卡片节点），再在其子树内查找操作控件；虚拟列表或超出视口的行须先滚动至视口中央再执行交互。
-
-点击保存或提交不等于操作成功。提交后若表单未关闭，先探查页面局部错误提示（如 error-tip、aria-invalid 或红色高亮项）并针对性修正参数；保存成功的判定依据是表单层关闭、成功 Toast 出现或数据列表中渲染出对应项，完成操作后须闭环核验。
+失败反馈用于选择下一次操作：定位错就修定位，状态未就绪就等目标条件，业务报错就查对应原因。满足验收条件后完成任务；不能验证的部分如实说明。

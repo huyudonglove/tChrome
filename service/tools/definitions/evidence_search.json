@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "evidence_search",
-    "description": "从工具返回或页面观察的统一索引取证，一次最多 8 个窗口。每项 callId/pageId 二选一；不传 blockId/keyword 时读取根目录，传 blockId 读取该目录或完整原文块，传 keyword 搜索并返回可读取的 blockId。kind=directory 表示目录，kind=content 表示完整原文，kind=search 表示搜索命中；搜索命中不是完整原文，随后用 blockId 读取。搜索有 nextOffset 时，用相同来源和 keyword 加 offset 继续，直到没有 nextOffset。原文来自当次返回快照，不代表文件当前版本。",
+    "description": "从工具返回或页面观察的统一索引取证，一次最多 8 个窗口。每项 callId/pageId 二选一；不传 blockId/keyword 时读取根目录，传 blockId 读取该目录或完整原文块，传 keyword 搜索并返回可读取的 blockId。kind=directory 表示目录，kind=content 表示完整原文，kind=search 表示搜索命中。命中片段用于定位，不能当作完整作用域；需要上下文或精确修改原文时再用 blockId 读取。搜索有 nextOffset 且当前问题还需要更多命中时，用相同来源和 keyword 加 offset 继续；证据足够即可停止检索，只有要证明穷尽结果时才需完成搜索。原文来自当次返回快照，不代表文件当前版本。",
     "parameters": {
       "type": "object",
       "properties": {

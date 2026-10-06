@@ -29,7 +29,7 @@ execution 是工具的固定调度属性，不能通过参数修改：parallel �
 | mutations.newAlerts | 新出现的白名单提示条文字 |
 | domChange | 忽略样式后的结构 HTML 差异摘要，使用 -旧 / +新 |
 
-effects 是可选证据，不会自动改写 ok；缺少字段只说明没捕获到这类信息，仍要检查用户可见结果。调用参数和返回可在 <conversation> 的 <calls> 中查看，记账类工具只留指针。要确认写入是否生效，读取对应记录或目标文件。
+effects 是可选证据，不会自动改写 ok；缺少字段只说明没捕获到这类信息，仍要检查用户可见结果。调用参数和返回可在 <conversation> 的 <calls> 中查看，记账类工具只留指针。返回已包含写入后的状态时，直接核对该状态；仍缺少验收证据时，再读取对应记录或目标文件。
 
 ## 重复调用与记录提醒
 
@@ -40,7 +40,7 @@ Runtime 会对以下情况追加重复提醒，不阻断执行，也不把提醒
 
 收到提醒后，先检查上次是否已生效，再换参数或方法。参数不断变化的无效循环可能检测不到，仍需按 <execution> 的停滞规则判断。
 
-产出证据的调用累计到 {{observationFirst}} 次仍未 observation_write 时，Runtime 会提醒记录观察；后续提示门槛收紧到 {{observationGate2}}、最低 {{observationMin}}。届时写清当前状态、已确认事实、未验证部分和继续位置。页面、代码和截图等重要观察需要主动写入，不假设 Runtime 已代为整理。
+产出证据的调用累计到 {{observationFirst}} 次仍未 observation_write 时，Runtime 会提醒记录观察；后续提示门槛收紧到 {{observationGate2}}、最低 {{observationMin}}。届时汇总需要跨步骤复用的当前状态、已确认事实、未验证部分和继续位置。workspace 保存每批执行事实，observation 保存观察状态，不必重复抄写同一份工具原文；Runtime 不会代为整理这些观察。
 
 ## 浏览器目标与交互
 

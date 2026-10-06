@@ -624,11 +624,13 @@ export async function handleTurn(
     let forceCompress = body.continuationOfTurnId !== undefined;
     let imageBatchId: string | undefined;
     // Runtime 提醒统一进 <runtime> 模块（与 turn 平级），不再缀到各条返回后面。
-    // 每轮发送前清掉本轮级的旧提醒再按条件重挂，同 kind 只保留最新一条。
+    // 发送前重算临时提醒；budget 由工具返回更新，保留到下一次请求，同 kind 只保留最新一条。
     const setNotice = (kind: string, text: string | null) => {
       ledger.runtimeNotices = ledger.runtimeNotices.filter((notice) => notice.kind !== kind);
       if (text) ledger.runtimeNotices.push({ id: allocateRecordId(deps.dataDir, ledger.conversationId, "notice"), kind, scope: "turn", text });
     };
+    // 连续只读计数以 turn 为范围，不携带上一轮的预算提醒。
+    setNotice("budget", null);
     // 已出过建议的批：同一批只建议一次（给紧接着的下一次请求看），之后不再打扰。
     let suggestedBatchId: string | undefined;
     while (true) {
@@ -645,8 +647,8 @@ export async function handleTurn(
         .flatMap(item => (item.images ?? []).map(image => ({ ...image, callId: item.callId })));
       // Nudge on evidence-producing tool calls: count this turn's toolIO, skipping bookkeeping tools.
       const rows = ledger.toolIO.filter((r) => r.turnId === turn.turnId);
-      // 本轮级提醒每轮重算：先清掉上一轮挂的，再按条件挂新的（budget 由 runQueue 在本批落账时重挂）。
-      for (const kind of ["budget", "observation", "reflect", "compress", "rotate", "workspace"]) {
+      // 临时提醒每次发送前重算；budget 保留 runQueue 按最新工具返回计算的状态。
+      for (const kind of ["observation", "reflect", "compress", "rotate", "workspace"]) {
         setNotice(kind, null);
       }
       // 工作区建议看上一批（ledger.lastAction 记的）：一批只建议一次，无业务调用的批不打扰。
@@ -679,7 +681,7 @@ export async function handleTurn(
         for (const row of evidenceRows) tally.set(row.name, (tally.get(row.name) ?? 0) + 1);
         const detail = [...tally.entries()].sort((a, b) => b[1] - a[1]).map(([name, n]) => `${name}×${n}`).join("、");
         setNotice("observation",
-          `${OBSERVATION_NUDGE_MARKER} ${evidenceCallsSinceObservation} 次产出证据的工具调用（${detail}），仍未固化任何观察——这段时间查到的结论只散在工具返回里，跨轮或被压缩后只会剩指针，需要时得重新翻。建议用 observation_write 写一次阶段小结：现在处于什么状态、已确认哪些结论、哪些仍未验证、下一步从哪接，后续轮次就能直接接着推进而不是从头取证；这是给自己留的交接笔记，不是工具流水账。下次提示门槛收紧到 ${observationNudgeGate} 次。`);
+          `${OBSERVATION_NUDGE_MARKER} ${evidenceCallsSinceObservation} 次产出证据的工具调用（${detail}），尚未写阶段观察。已写入 workspace 的事实可直接复用；压缩会保留摘要，原文仍可回查。若跨步骤状态尚未记录，可用 observation_write 补充当前进度、未验证项与衔接点，不重复搬运 workspace 或工具返回；已有信息足够时继续执行。下次提示门槛收紧到 ${observationNudgeGate} 次。`);
       }
       // Reflect nudge: counted on raw calls for the turn rather than evidence calls, because
       // reflection tracks judgement changes and repeated dead ends, which pure reading also triggers.
@@ -700,7 +702,7 @@ export async function handleTurn(
       if (deferForCheckpoint) {
         compressNudgeSent = true;
         setNotice("compress",
-          `${OBSERVATION_NUDGE_MARKER} 上下文即将被压缩（当前窗口 ${initialChars} 字符，阈值 ${ledger.compressAt}）——这一步会把本轮的工具返回压成摘要与指针，而本轮还没有任何 observation 固化，这段时间的结论下一轮就只剩指针了。建议先用 observation_write 写一次阶段小结：现在处于什么状态、已确认哪些结论、哪些仍未验证、下一步从哪接。本轮的下一次循环仍会照常压缩，不会一直推迟。`);
+          `${OBSERVATION_NUDGE_MARKER} 上下文即将被压缩（当前窗口 ${initialChars} 字符，阈值 ${ledger.compressAt}）。压缩会保留摘要，原文仍可回查；已写入 workspace 的事实也随轮次归档。本轮尚未写阶段观察，若还有未记录的跨步骤状态，可用 observation_write 补充进度、未验证项与衔接点，不重复搬运已有事实。本轮的下一次循环仍会照常压缩，不会一直推迟。`);
         state = contextState(deps.dataDir, ledger, turn, memories);
         messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir);
       }
@@ -780,7 +782,7 @@ export async function handleTurn(
         if (!rotateNudgeSent && writeCount === 0 && rows.length > 0) {
           rotateNudgeSent = true;
           setNotice("rotate",
-            `${OBSERVATION_NUDGE_MARKER} 本轮自身注入已达 ${turnDeltaChars} 字符（阈值 ${ledger.turnRotateAt}），下一轮将闭合本轮并从压缩后的历史续接。闭合时没有结论文本，这段时间的结论只剩指针。建议先用 observation_write 写一次阶段小结：现在处于什么状态、已确认哪些结论、哪些仍未验证、下一步从哪接。`);
+            `${OBSERVATION_NUDGE_MARKER} 本轮自身注入已达 ${turnDeltaChars} 字符（阈值 ${ledger.turnRotateAt}），下一轮将闭合本轮并从压缩后的历史续接。压缩会保留摘要，原文仍可回查，已写入 workspace 的事实随轮次归档。若还有未记录的跨步骤状态，可用 observation_write 补充进度、未验证项与衔接点，不重复搬运已有事实。`);
           state = contextState(deps.dataDir, ledger, turn, memories);
           messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir);
         } else {

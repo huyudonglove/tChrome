@@ -1,42 +1,35 @@
 SUMMARY: 单页应用（SPA）状态与交互处理：表单事件、虚拟列表与浮层定位。
-# 单页应用 (SPA) 状态与交互处理
+# 单页应用状态与交互
 
-React、Vue、Angular 等单页应用中，输入框和组件由框架内部状态管理。直接改 DOM 属性（如 `input.value = "..."`）不会触发框架状态更新，容易导致提交时数据丢失。优先用常驻输入工具 `page_fill_role` / `page_type`（CDP 真实键入，可触发响应式更新）；`wait` 等动态工具按需 `catalog_add`。
+React、Vue、Angular 等页面会在动作后更新组件和内部状态。先执行已明确的动作，再根据工具结果或页面变化判断下一步；只有目标、状态或结果仍不确定时才补查。不要为一次输入预先遍历所有组件。
 
-## 表单输入与事件触发
+## 输入后看反馈
 
-### 优先使用复合输入工具
+已知元素编号时用 `page_type(tabId, id, text, reason)`；知道角色和名称时用 `page_fill_role(tabId, role, text, reason)`，按需加 `name`、`clearBeforeType`、`pressEnter`。多匹配时收窄目标或依据已有结果指定 `matchIndex`，不猜第一个。
 
-`page_fill_role`、`page_type` 通过 CDP 模拟真实键盘输入，能自动触发框架响应式更新。能走工具时不要改 DOM。
+输入工具会模拟交互，但具体控件是否接受仍以返回值和应用反馈为准。输入被恢复、提交值不符或出现校验错误时，检查该控件的格式、受控状态或事件要求，只调整这一处。
 
-### 必须脚本注入时用原生 Setter
-
-React 等框架重写了输入框的 `value` setter。脚本直接改值时，须调用原生原型链方法并派发事件：
+确需脚本填写已授权表单时，可调用原生 setter 并派发输入事件，例如：
 
 ```javascript
-const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-nativeInputValueSetter.call(inputEl, "目标文本");
+const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+setter.call(inputEl, "目标文本");
 inputEl.dispatchEvent(new Event("input", { bubbles: true }));
 inputEl.dispatchEvent(new Event("change", { bubbles: true }));
-inputEl.dispatchEvent(new Event("blur", { bubbles: true }));
 ```
 
-## 虚拟列表滚动与定位
+`inputEl` 必须来自实际定位；文本域需使用 `HTMLTextAreaElement` 的 setter。此方法不保证适用于所有组件，执行后核对组件反馈。脚本保存后再用 `execute_javascript(tabId, filename, reason)` 执行，不传内联 `code`。不要为了方便读取或控制页面而修改令牌、权限、持久化业务数据或无关应用状态。
 
-虚拟表格或长列表（Ant Design Table、ag-Grid 等）只渲染视口可见行，视口外节点不在 DOM 中。
+## 等待目标状态
 
-1. **滚动到目标位置**：定位滚动容器，用 `element.scrollTo(...)` 或按键滚动，把目标行移入视口。
-2. **等待元素出现**：`wait(role, name, states={attached:true})` 确认目标行已挂载。
-3. **精确定位行内控件**：先以行唯一文本找到行容器（如 `tr`），再在行内查找操作按钮，避免全局匹配点错行。
+有加载过程时用 `wait` 等待具体条件，必填 `tabId`、`reason`，例如 `role`、`name`、`states:{attached:true}`，或 `selector`、`visible:true`。超时参数是 `timeoutMs`；它不是传 `ms` 的固定延时工具。已出现目标就直接操作，不额外等待。
 
-## 弹窗、下拉与 Shadow DOM
+`page_recheck` 适合查看当前状态，`page_assert` 用于核验任务要求。超时后根据当前反馈修正定位、检查错误或继续合理的下一步，不重复启动同一业务动作。
 
-### 脱离父节点的浮层
+## 虚拟列表与浮层
 
-Select、日期选择器、模态弹窗通常直接挂载在 `document.body` 下，脱离触发按钮的 DOM 结构。
+虚拟列表只渲染可见部分。未找到目标行时，先按已知排序、搜索条件或滚动位置缩小范围，将目标移入视口，再定位行内控件。不要把当前 DOM 未命中当作整个数据集不存在。滚动、筛选后编号失效时，重新定位受影响的目标即可。
 
-操作：先点击触发按钮唤起菜单，再在页面全局范围内按名称查找并点击弹出选项，不要在原触发按钮内部找选项。
+下拉菜单、日期面板和弹窗常挂在页面根部。点击触发器后在当前页面或弹窗范围定位选项，不继续只搜触发器的子节点。利用实际角色、名称和所在行区分同名控件。
 
-### Shadow DOM
-
-普通 `querySelector` 无法直接穿透 `shadowRoot`。页面使用 Web Components 时，访问 `el.shadowRoot`，或优先用基于无障碍树（A11y）的定位工具直接操作。
+普通 `querySelector` 不穿透 Shadow DOM。可访问开放的 `shadowRoot`，也可使用页面实际暴露的无障碍节点；关闭的 shadow root 不能按开放节点假定读取。操作后用用户所需的值、状态或可见结果验证，截图核验布局，结构化返回核验数据。

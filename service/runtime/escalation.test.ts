@@ -92,3 +92,49 @@ test("every registry tool carries an explicit readOnly flag", () => {
   // 每个工具都必须显式标记，不允许 undefined 混过去；只读判定只看这一处。
   for (const cap of toolCaps) expect(typeof cap.readOnly).toBe("boolean");
 });
+
+for (const resetTool of ["local_fs_write", "checkContinue"]) {
+  test(`loop delivers budget hints across bookkeeping and clears them after ${resetTool}`, async () => {
+    const { mkdtempSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { handleTurn } = await import("./loop.ts");
+    const { ensureSession, loadLedger, saveLedger } = await import("./store.ts");
+    const dataDir = mkdtempSync(join(tmpdir(), "tchrome-budget-"));
+    try {
+      const session = ensureSession(dataDir);
+      const ledger = loadLedger(dataDir, session.conversationId);
+      ledger.loadedToolIds = ["local_fs_list", "local_fs_write"];
+      // A previous turn's reminder must not leak into this turn's first request.
+      ledger.runtimeNotices.push({ id: "rt_999", kind: "budget", scope: "turn", text: BUDGET_NUDGE_MARKER });
+      saveLedger(dataDir, ledger);
+      let request = 0;
+      const provider = {
+        complete: async (input: { messages: { content: string }[] }) => {
+          request++;
+          const runtime = input.messages[1]!.content.match(/<runtime\b[\s\S]*?<\/runtime>/)?.[0] ?? "";
+          const hasBudget = runtime.includes('kind="budget"');
+          expect(hasBudget).toBe(request === 2 || request === 3);
+          const toolCalls = request === 1
+            ? Array.from({ length: READ_ONLY_PROMPT }, (_, index) => ({
+              id: `read_${index}`, name: "local_fs_list", arguments: { path: dataDir, limit: 1 },
+            }))
+            : request === 2
+              ? [{ id: "note", name: "workspace_write", arguments: { reason: "记下结果", op: "读取目录", value: "目录已读取" } }]
+              : request === 3
+                ? [{ id: "reset", name: resetTool, arguments: resetTool === "checkContinue"
+                  ? { reason: "继续执行", cont: true }
+                  : { reason: "写入结果", path: join(dataDir, "result.txt"), content: "done" } }]
+                : [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", text: "完成" } }];
+          return { finish: "tool_calls", content: "", toolCalls, attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] };
+        },
+      };
+      const reply = await handleTurn({ dataDir, repoRoot: join(import.meta.dir, "../.."), provider } as never, {
+        userInput: "读取目录并保存结果", submittedAt: "2026-10-06",
+      });
+      expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
+      expect(request).toBe(4);
+    } finally {
+      rmSync(dataDir, { recursive: true, force: true });
+    }
+  });
+}

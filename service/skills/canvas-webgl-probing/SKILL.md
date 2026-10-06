@@ -1,46 +1,31 @@
 SUMMARY: 对 Canvas/WebGL 应用做底层数据探测、脚本注入与视觉标注操作。
-# Canvas 与 WebGL 应用操作 (Canvas & WebGL)
+# Canvas 与 WebGL 页面
 
-Canvas 2D、WebGL 等页面（在线绘图、看板、小游戏）将内容直接画在像素画布上，缺少常规 DOM 节点和无障碍树，无法用元素 ID 或角色定位。优先穿透数据模型；画面证据用截图。`execute_javascript`、`capture_page`、`press` 等按需 `catalog_add`。
+画布内部图形通常没有独立 DOM 节点，但外围工具栏仍可能有普通控件。先按当前问题选择证据：找按钮用页面定位，判断画面用截图，核对图形数据用应用已暴露的结构化状态。不要先遍历所有存储和绘制方法。
 
-## 检查底层数据与存储
+## 从可见结果推进
 
-很多画布应用在内存或本地存储中保留结构化数据（Redux、Zustand、Pinia、`localStorage` 等）。
+用 `capture_page(tabId, mode, reason)` 获取相关区域：
 
-1. 先检查页面存储（如 `localStorage.getItem(...)`），直接读图形数据或状态
-2. 部分场景直接改数据并触发重绘，比模拟鼠标轨迹更直接、准确
+- `viewport` 查看当前视口。
+- `element` 截取已定位画布，`selector` 与 `ref` 二选一。
+- `rect` 截取 CSS 像素区域，传 `x`、`y`、`width`、`height`。
+- `som` 给页面可交互元素加角标，返回 marks；它不会自动识别画布内部的所有图形对象。
 
-## 脚本注入与状态监听
+普通控件使用返回的元素编号操作。已知视口坐标时，画布拖动用 `drag(tabId, point1, point2, reason)`；坐标来自截图时，先取 `viewport` 截图，再用 `calibrate_drag` 传 `tabId`、`point1`、`point2`、`image_size`、`reason`，由它映射坐标并直接执行拖动。键盘操作用 `press(tabId, key, reason)`，可传 `id` 对准已有控件。每次动作后检查需要变化的对象或区域，据结果调整；不插入固定按键延时，也不每次重新检查整个页面。
 
-### 拦截 Canvas 绘制方法
+## 按需读取应用状态
 
-页面加载时注入脚本，重写 `CanvasRenderingContext2D.prototype.fillText` 或 WebGL 渲染方法，捕获画布上的文字与坐标：
+已知应用提供对象列表、选区或坐标接口时，读取与目标对象相关的字段，帮助区分“没有创建”“创建在视口外”和“已经创建但未选中”。`localStorage` 或应用内存不是所有画布的通用入口，只有证据指向相关键或模型时才读取。
 
-```javascript
-const origFillText = CanvasRenderingContext2D.prototype.fillText;
-CanvasRenderingContext2D.prototype.fillText = function(text, x, y) {
-  window.__canvas_text_cache = window.__canvas_text_cache || [];
-  window.__canvas_text_cache.push({ text, x, y, time: Date.now() });
-  return origFillText.apply(this, arguments);
-};
-```
+脚本能证明读到的数据，截图能证明当前渲染，两者按验收需要配合。不要为了取证改写存储、权限、凭据或无关业务状态。用户授权的对象编辑可使用应用支持的修改接口，执行后仍需确认应用接受并正确渲染。
 
-### 控制动画与刷新
+脚本保存在 `<overview>` 服务数据目录的 `scripts/`，保存完成后使用 `execute_javascript(tabId, filename, reason)`。返回目标字段即可，避免返回整份应用对象或不可序列化实例。
 
-快速变动的动画或游戏，可通过脚本控制 `requestAnimationFrame`，或调用页面内部暴露的方法，实现按步推进。
+## 绘制探针
 
-## 视觉标注与模拟操作
+只有直接数据和画面仍无法回答问题时，才考虑临时监听绘制调用。例如包装 `CanvasRenderingContext2D.prototype.fillText` 可记录之后发生的文字绘制；它不会恢复注入前的绘制，也不适用于所有 WebGL 文字。
 
-### 标注截图与局部切片
+包装时保存原函数、保持原参数与返回值，记录本次需要的内容，并在完成后恢复函数、移除临时状态。绘制坐标可能受变换矩阵影响，不能直接当作截图坐标。需要观察新绘制时优先使用应用已有刷新或操作，不为方便调试擅自重载并丢失未保存内容。
 
-没有 DOM 的界面上：
-
-- `capture_page(mode=som)` 获取带角标的截图，辅助判断点击位置
-- 核验局部细节时用 `capture_page(mode=element, selector="canvas")` 查看切片
-
-### 模拟连续鼠标与键盘
-
-- 绘制或拖拽按完整时序执行：`pointerdown` → `pointermove`（平滑移动）→ `pointerup`
-- 键盘用 `press(key, tabId)`，两次按键间隔约 100~200ms，避免事件被页面丢弃
-
-操作后结合截图与任务完成条件验证；证据不足时继续核实，不宣称成功。
+动画场景优先用应用提供的暂停或逐步控制。修改 `requestAnimationFrame` 等全局机制会影响整个页面，只有任务需要且在授权范围内才采用，结束后恢复。判断完成依据是目标对象、位置或画面达到要求，工具调用返回成功本身不够。
