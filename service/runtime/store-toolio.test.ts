@@ -59,7 +59,7 @@ test("a rewritten return appends one amend line and wins when read back from dis
   try {
     const cvId = newCv(source);
     const ledger = loadLedger(source, cvId);
-    ledger.toolIO.push(makeRow("call_01", "original"));
+    ledger.toolIO.push({ ...makeRow("call_01", "original"), runtimeHints: ["runtime[repeat:call] repeated"], imagesError: "invalid PNG signature" });
     saveLedger(source, ledger);
 
     // Mirrors the saveFullReturn / nudge-strip paths: mutate the row in place, then save.
@@ -74,6 +74,8 @@ test("a rewritten return appends one amend line and wins when read back from dis
     const rows = loadToolRows(fresh, cvId);
     expect(rows).toHaveLength(1);
     expect(rows[0]!.return.text).toBe("replaced");
+    expect(rows[0]!.runtimeHints).toEqual(["runtime[repeat:call] repeated"]);
+    expect(rows[0]!.imagesError).toBe("invalid PNG signature");
   } finally {
     rmSync(source, { recursive: true, force: true });
     rmSync(fresh, { recursive: true, force: true });

@@ -2,6 +2,60 @@ import { expect, test } from "bun:test";
 import { admitExecution, admitImages, admitText, admitReturn, deferredImageNote, retrievalWindowChars } from "./admission.ts";
 import { buildBlockIndex, readBlock, searchBlocks, type BlockIndex } from "./evidence/index.ts";
 import { runtimeConfig } from "./config/runtime.ts";
+import { toolHistoryView } from "./context/projections/tools.ts";
+
+test("externalization preserves failures and their original message through call projection", () => {
+  const failure = { ok: false, faultCode: "file_not_found", error: "Missing source", message: "Read failed", recovery: "inspect_state", details: { path: "/missing.ts" } };
+  const full = JSON.stringify({ ...failure, content: "x".repeat(runtimeConfig.results.inlineChars) });
+  const admitted = admitReturn(full, { callId: "call_01", path: "call_01.txt" });
+  if (admitted.mode !== "preview") throw new Error("Expected externalization");
+  expect(admitted.payload).toMatchObject({ ...failure, externalized: true });
+  expect(admitted.payload.externalizationHint).toBeString();
+  expect(admitted.payload).not.toHaveProperty("content");
+  const projected = toolHistoryView([{ callId: "call_01", turnId: "tn_01", name: "local_fs_read", arguments: {}, return: { stage: "complete", text: JSON.stringify(admitted.payload), totalChars: full.length } }]);
+  expect(projected[0]!.return.result).toMatchObject(failure);
+  const observed = toolHistoryView([{ callId: "call_01", turnId: "tn_01", name: "observation_write", arguments: {}, return: { stage: "complete", text: "{\"ok\":true}", totalChars: 11 } }],
+    [{ id: "page_01", turnId: "tn_01", callId: "call_01", observedAt: "now", type: "check", result: admitted.payload }]);
+  expect(observed[0]!.return.result).toMatchObject(failure);
+});
+
+test("externalized batch keeps every item status and failed path candidates visible", () => {
+  const good = { ok: true, path: "/good.ts", startLine: 1, endLine: 10 };
+  const bad = { ok: false, faultCode: "file_not_found", error: "Missing /test.js", candidates: ["/test.ts"] };
+  const full = JSON.stringify({ ok: false, results: [{ ...good, content: "x".repeat(runtimeConfig.results.inlineChars) }, bad] });
+  const admitted = admitReturn(full, { callId: "call_02", path: "call_02.txt" });
+  if (admitted.mode !== "preview") throw new Error("Expected externalization");
+  expect(admitted.payload).toMatchObject({ ok: false, externalized: true });
+  expect(admitted.payload.results).toEqual([good, bad]);
+});
+
+test("externalization preserves success and process diagnostics without deriving a new status", () => {
+  for (const state of [{ ok: true, status: "exited", exitCode: 0, passed: true }, { ok: false, status: "exited", exitCode: 1, passed: false, errorCount: 1 }]) {
+    const admitted = admitText(JSON.stringify({ ...state, stdout: "x".repeat(runtimeConfig.results.inlineChars) }), { path: "process.txt" });
+    if (admitted.mode !== "preview") throw new Error("Expected externalization");
+    expect(admitted.payload).toMatchObject({ ...state, externalized: true });
+    expect(admitted.payload).not.toHaveProperty("stdout");
+  }
+  for (const full of ["x".repeat(runtimeConfig.results.inlineChars + 1), JSON.stringify({ content: "x".repeat(runtimeConfig.results.inlineChars) })]) {
+    const admitted = admitText(full, { path: "result.txt" });
+    if (admitted.mode !== "preview") throw new Error("Expected externalization");
+    expect(admitted.payload).not.toHaveProperty("ok");
+    expect(admitted.payload).not.toHaveProperty("message");
+  }
+});
+
+test("externalization retains partial-search and browser failure diagnostics", () => {
+  for (const state of [
+    { ok: true, partial: true, skipped: [{ path: "/repo/large.ts", reason: "file exceeds maxFileBytes" }], skippedCount: 1, truncated: false, truncations: [], errors: [] },
+    { ok: true, partial: true, failedFrameCount: 2, lastError: "capture failed" },
+    { ok: false, failureStage: "detached", detachReason: "target_closed", error: "debugger detached" },
+  ]) {
+    const admitted = admitText(JSON.stringify({ ...state, content: "x".repeat(runtimeConfig.results.inlineChars) }), { path: "result.txt" });
+    if (admitted.mode !== "preview") throw new Error("Expected externalization");
+    expect(admitted.payload).toMatchObject(state);
+    expect(admitted.payload).not.toHaveProperty("content");
+  }
+});
 
 test("small returns stay inline; large plain text uses the same block directory as structured data", () => {
   expect(admitText("hello", { path: "result.txt" })).toEqual({ mode: "inline", text: "hello" });

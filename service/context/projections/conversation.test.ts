@@ -126,6 +126,14 @@ test("projects record IDs into note/query attributes and matching container boun
   }
 });
 
+test("externalized query preserves its status and error detail without inventing success", async () => {
+  const { queryView } = await import("./queries.ts");
+  const query = { queryId: "query_01", turnId: "tn_01", sumId: "sum_01", module: "toolIO", intent: "核对", status: "error" as const, detail: "查询失败", records: [] };
+  const view = queryView(query, { inlineChars: 1 });
+  expect(view).toMatchObject({ externalized: true, status: "error", detail: "查询失败" });
+  expect(view).not.toHaveProperty("ok");
+});
+
 describe("per-turn call retention", () => {
   const call = (id: number, turnId: string, batchId: string, keepInCalls?: boolean): ToolIOItem => ({
     callId: `call_${String(id).padStart(2, "0")}`, turnId, batchId, name: "local_fs_read",

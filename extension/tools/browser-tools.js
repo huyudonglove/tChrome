@@ -1180,10 +1180,19 @@ const runPageTool = async (name, input = {}) => {
             add(`id:${id}`, Boolean(el), el ? el.name || id : 'not found');
           }
           if (payload.selector) {
-            const nodes = document.querySelectorAll(payload.selector);
+            const nodes = [...document.querySelectorAll(payload.selector)];
             add(`selector:${payload.selector}`, nodes.length > 0, `count=${nodes.length}`);
+            if (payload.states && typeof payload.states === 'object') {
+              const matches = nodes.filter((node) => Object.entries(payload.states).every(([key, value]) => {
+                if (value === undefined || value === null) return true;
+                if (key === 'attached') return value !== false;
+                return Boolean(statesOf(node)?.[key]) === Boolean(value);
+              }));
+              add(`selectorStates:${payload.selector}`, matches.length > 0,
+                `matched=${matches.length}/${nodes.length} states=${JSON.stringify(payload.states)}`);
+            }
           }
-          if (payload.role || payload.states || (payload.name && !payload.selector && !id)) {
+          if (payload.role || payload.name || (!payload.selector && payload.states)) {
             const hits = a11yHits(payload);
             const label = `a11y role=${payload.role || '*'} name=${payload.name || ''} states=${JSON.stringify(payload.states || {})}`;
             if (hits.length > 1 && payload.matchIndex === null && (payload.role || payload.name || payload.states)) {
@@ -1781,12 +1790,21 @@ const executeBrowserTool = async (name, input = {}) => {
     const action = input.action || 'status';
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, tabId, error: '没有可录屏的普通网页标签'};
+    const captureResult = (rec) => {
+      if (!rec?.failedFrameCount) return {ok: true};
+      const partial = rec.frames.length > 0;
+      return {ok: partial, partial, failedFrameCount: rec.failedFrameCount, lastError: rec.lastError,
+        ...(!partial ? {faultCode: 'tool_execution_failed', error: rec.lastError} : {})};
+    };
     if (action === 'status') {
       const rec = videoRecorders.get(tab.id);
-      return {ok: true, tabId: tab.id, recording: !!rec, frameCount: rec?.frames.length ?? 0};
+      return {...captureResult(rec), tabId: tab.id, recording: !!rec, frameCount: rec?.frames.length ?? 0};
     }
     if (action === 'start') {
-      if (videoRecorders.has(tab.id)) return {ok: true, tabId: tab.id, already: true, frameCount: videoRecorders.get(tab.id).frames.length};
+      if (videoRecorders.has(tab.id)) {
+        const rec = videoRecorders.get(tab.id);
+        return {...captureResult(rec), tabId: tab.id, already: true, frameCount: rec.frames.length};
+      }
       const fps = Math.min(Math.max(Number(input.fps) || 2, 1), 5);
       const maxFrames = Math.min(Math.max(Number(input.maxFrames) || 30, 1), 60);
       const frames = [];
@@ -1798,10 +1816,14 @@ const executeBrowserTool = async (name, input = {}) => {
           const shot = await chrome.debugger.sendCommand({tabId: tab.id}, 'Page.captureScreenshot', {
             format: 'jpeg', quality: 55, fromSurface: true, captureBeyondViewport: false,
           });
-          if (shot?.data) rec.frames.push({ index: rec.frames.length, time: new Date().toISOString(), image: `data:image/jpeg;base64,${shot.data}`, mime: 'image/jpeg' });
-        } catch { /* keep recorder */ }
+          if (!shot?.data) throw new Error('浏览器未返回截图');
+          rec.frames.push({ index: rec.frames.length, time: new Date().toISOString(), image: `data:image/jpeg;base64,${shot.data}`, mime: 'image/jpeg' });
+        } catch (error) {
+          rec.failedFrameCount++;
+          rec.lastError = error instanceof Error ? error.message : String(error);
+        }
       }, Math.round(1000 / fps));
-      videoRecorders.set(tab.id, { frames, timer, fps, maxFrames });
+      videoRecorders.set(tab.id, { frames, timer, fps, maxFrames, failedFrameCount: 0 });
       try {
         await withDebugger(tab.id, () => chrome.debugger.sendCommand({tabId: tab.id}, 'Page.enable', {}));
       } catch (error) {
@@ -1816,7 +1838,7 @@ const executeBrowserTool = async (name, input = {}) => {
       if (!rec) return {ok: false, tabId: tab.id, error: '尚未 start 录屏'};
       clearInterval(rec.timer);
       videoRecorders.delete(tab.id);
-      return {ok: true, tabId: tab.id, stopped: true, fps: rec.fps, count: rec.frames.length, frames: rec.frames};
+      return {...captureResult(rec), tabId: tab.id, stopped: true, fps: rec.fps, count: rec.frames.length, frames: rec.frames};
     }
     return {ok: false, tabId: tab.id, error: 'video_record 需要 action=start|stop|status'};
   }
@@ -1931,6 +1953,7 @@ const executeBrowserTool = async (name, input = {}) => {
     const events = chrome.debugger.onEvent;
     const detached = chrome.debugger.onDetach;
     let matched = null;
+    let failure;
     let cleanup = () => {};
     const found = await new Promise((resolve) => {
       const onEvent = (source, method, params) => {
@@ -1943,7 +1966,13 @@ const executeBrowserTool = async (name, input = {}) => {
         cleanup();
         resolve(true);
       };
-      const onDetach = (source) => { if (source.tabId === tab.id) { cleanup(); resolve(false); } };
+      const onDetach = (source, reason) => {
+        if (source.tabId !== tab.id) return;
+        failure = {faultCode: 'tool_execution_failed', failureStage: 'detached', detachReason: reason,
+          error: `浏览器调试连接已断开${reason ? `：${reason}` : ''}`};
+        cleanup();
+        resolve(false);
+      };
       cleanup = () => {
         events.removeListener(onEvent);
         detached.removeListener(onDetach);
@@ -1951,12 +1980,17 @@ const executeBrowserTool = async (name, input = {}) => {
       events.addListener(onEvent);
       detached.addListener(onDetach);
       withDebugger(tab.id, () => chrome.debugger.sendCommand({tabId: tab.id}, 'Network.enable', {}))
-        .catch(() => { cleanup(); resolve(false); });
+        .catch((error) => {
+          failure = {faultCode: 'tool_execution_failed', failureStage: 'initialize',
+            error: error instanceof Error ? error.message : String(error)};
+          cleanup();
+          resolve(false);
+        });
       setTimeout(() => { cleanup(); resolve(Boolean(matched)); }, timeoutMs);
     });
     if (!found || !matched) {
       return {ok: false, tabId: tab.id, urlContains: urlPart, status: wantStatus, timeoutMs,
-        error: '未等到匹配的网络响应'};
+        ...(failure ?? {error: '未等到匹配的网络响应'})};
     }
     return {ok: true, tabId: tab.id, urlContains: urlPart, ...matched};
   }

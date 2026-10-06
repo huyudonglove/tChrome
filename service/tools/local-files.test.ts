@@ -209,20 +209,32 @@ test("grep finds literal text with line context and skips binaries, noisy dirs, 
   expect(entryCapped.truncations).toContain("maxEntries");
 
   const none = await run("local_fs_grep", { path: root, query: "absent-token" });
-  expect(none).toMatchObject({ ok: true, truncated: false, partial: false, matches: [] });
-  expect(none.skipped).toBeUndefined();
+  expect(none).toMatchObject({ ok: true, truncated: false, partial: true, matches: [] });
+  expect(none.skipped).toEqual(expect.arrayContaining([expect.objectContaining({ reason: "binary" })]));
   expect(none.skippedCount).toBeGreaterThan(0);
   expect(none.note).toContain("no matches");
 
   const noneCapped = await run("local_fs_grep", { path: root, query: "absent-token", maxFiles: 1 });
   expect(noneCapped).toMatchObject({ ok: true, truncated: true, partial: true, matches: [] });
-  expect(noneCapped.skipped).toBeUndefined();
+  expect(Array.isArray(noneCapped.skipped)).toBe(true);
   expect(String(noneCapped.note)).toContain("maxFiles");
 
   expect(await run("local_fs_grep", { path: root, query: "needle", maxFileBytes: 4 })).toMatchObject({
     ok: true, matches: [],
   });
   expect(await run("local_fs_grep", { path: join(nested, "loop"), query: "needle" })).toMatchObject({ ok: false });
+});
+
+test("grep reports skipped target coverage and reason instead of a complete empty search", async () => {
+  const path = join(root, "target.txt");
+  await writeFile(path, "needle");
+  expect(await run("local_fs_grep", { path, query: "needle", maxFileBytes: 1 })).toMatchObject({
+    ok: true, matches: [], partial: true, truncated: false,
+    skipped: [{ path, reason: "file exceeds maxFileBytes" }], skippedCount: 1,
+  });
+  expect(await run("local_fs_grep", { path, query: "absent" })).toMatchObject({
+    ok: true, matches: [], partial: false, skipped: [], skippedCount: 0,
+  });
 });
 
 test("grep supports regex mode and multi-line context extraction", async () => {

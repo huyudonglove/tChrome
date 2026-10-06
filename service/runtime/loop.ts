@@ -435,6 +435,7 @@ const runQueue = async (input: {
         ...item,
         turnId: turn.turnId,
         ...(stored.images.length ? { images: stored.images } : {}),
+        ...(stored.imagesError ? { imagesError: stored.imagesError } : {}),
         return: { stage: "complete", totalChars: full.length, text: viewText },
         ...(riskAudit.get(item.callId) ?? {}),
         ...(slot.execCtx.activeTaskId ? { taskId: slot.execCtx.activeTaskId } : {}),
@@ -445,7 +446,7 @@ const runQueue = async (input: {
       // Hint only: identical calls or identical repeated failures are flagged, never blocked.
       const repeated = repeatHint(turnRows, ledger.toolIO);
       if (repeated) {
-        row.return = { ...row.return, text: `${row.return.text}\n\n${repeated}` };
+        row.runtimeHints = [repeated];
       }
       const escalation = escalate(turnRows, item.name, readOnlyTools);
       if (escalation.action === "interrupt") {

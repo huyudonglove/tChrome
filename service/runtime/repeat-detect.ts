@@ -142,7 +142,7 @@ export function failureDetail(row: ToolIOItem): string | undefined {
 export function repeatHint(rows: ToolIOItem[], history: ToolIOItem[] = rows): string | undefined {
   const current = rows[rows.length - 1];
   if (!current) return undefined;
-  const alreadyFired = (marker: string): boolean => rows.some((row) => row.return?.text?.includes(marker));
+  const alreadyFired = (marker: string): boolean => rows.some((row) => row.runtimeHints?.some((hint) => hint.includes(marker)));
   // A diagnosable fault that never appeared before is worth writing down: the next time it
   // shows up nothing will recall this occurrence, and similar symptoms routinely have
   // opposite causes. history is the whole-conversation toolIO; default rows = this turn.

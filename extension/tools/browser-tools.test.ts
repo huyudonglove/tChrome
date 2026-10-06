@@ -323,6 +323,58 @@ const mockSocketBrowser = (tab: number, fail = false) => {
   return {onEvent, onDetach, onRemoved, commands};
 };
 
+test('wait_response preserves initialization errors and debugger detach reasons', async () => {
+  mockSocketBrowser(3301, true);
+  expect(await runBrowserTool('wait_response', {tabId: 3301, urlContains: '/api'})).toMatchObject({
+    ok: false, failureStage: 'initialize', error: 'network unavailable',
+  });
+  const {onDetach} = mockSocketBrowser(3302);
+  globals.chrome.debugger.sendCommand = async (_: any, command: string) => {
+    if (command === 'Network.enable') onDetach.emit({tabId: 3302}, 'target_closed');
+  };
+  expect(await runBrowserTool('wait_response', {tabId: 3302, urlContains: '/api'})).toMatchObject({
+    ok: false, failureStage: 'detached', detachReason: 'target_closed', error: expect.stringContaining('target_closed'),
+  });
+});
+
+test('video_record reports failed frames and preserves usable partial recordings', async () => {
+  const originalSetInterval = globals.setInterval;
+  let tick: (() => Promise<void>) | undefined;
+  globals.setInterval = (callback: () => Promise<void>) => { tick = callback; return 0; };
+  try {
+    for (const partial of [false, true]) {
+      const tab = partial ? 3304 : 3303;
+      mockSocketBrowser(tab);
+      let capture = 0;
+      globals.chrome.debugger.sendCommand = async (_: any, command: string) => {
+        if (command !== 'Page.captureScreenshot') return {};
+        capture++;
+        if (capture === 1) throw new Error('capture unavailable');
+        return partial ? {data: 'image'} : {};
+      };
+      try {
+        await runBrowserTool('video_record', {tabId: tab, action: 'start'});
+        await tick!();
+        expect(await runBrowserTool('video_record', {tabId: tab, action: 'status'})).toMatchObject({
+          ok: false, recording: true, failedFrameCount: 1, lastError: 'capture unavailable',
+        });
+        await tick!();
+        const expected = {ok: partial, partial, failedFrameCount: partial ? 1 : 2,
+          lastError: partial ? 'capture unavailable' : '浏览器未返回截图'};
+        expect(await runBrowserTool('video_record', {tabId: tab, action: 'start'})).toMatchObject({...expected, already: true});
+        expect(await runBrowserTool('video_record', {tabId: tab, action: 'stop'})).toMatchObject({
+          ...expected, stopped: true, count: partial ? 1 : 0,
+          frames: partial ? [expect.objectContaining({image: 'data:image/jpeg;base64,image'})] : [],
+        });
+      } finally {
+        await runBrowserTool('video_record', {tabId: tab, action: 'stop'});
+      }
+    }
+  } finally {
+    globals.setInterval = originalSetInterval;
+  }
+});
+
 test('WebSocket monitor captures both directions, isolates tabs, bounds data and cleans up on stop/restart', async () => {
   const tab = 3101;
   const {onEvent, commands} = mockSocketBrowser(tab);
@@ -736,6 +788,63 @@ test("editable elements keep a stable accessible name instead of drifting input 
     byId.value = '换成了别的输入';
     const again: string[] = (await runBrowserTool('page_list_interactive_elements', {tabId: 1})).elements.map((el: any) => el.name);
     expect(again).toEqual(names);
+  } finally {
+    keys.forEach((key, index) => {
+      if (originals[index]) Object.defineProperty(globals, key, originals[index]!);
+      else delete globals[key];
+    });
+  }
+});
+
+test("page_assert checks selector states on the matched DOM node", async () => {
+  const keys = ["document", "Element", "getComputedStyle", "CSS", "__tChromePageIds", "innerWidth", "innerHeight", "location"];
+  const originals = keys.map((key) => Object.getOwnPropertyDescriptor(globals, key));
+  class AssertNode {
+    tagName = "BODY";
+    innerText = "body";
+    value = "";
+    type = "";
+    disabled = false;
+    required = false;
+    checked = false;
+    selected = false;
+    isConnected = true;
+    isContentEditable = false;
+    id = "";
+    attrs: Record<string, string> = {};
+    constructor(tagName = "BODY", attrs: Record<string, string> = {}) {
+      this.tagName = tagName;
+      this.attrs = attrs;
+    }
+    getBoundingClientRect() { return {x: 0, y: 0, width: 100, height: 30, bottom: 30, right: 100, top: 0, left: 0}; }
+    getAttribute(name: string) { return this.attrs[name] ?? null; }
+    hasAttribute(name: string) { return this.getAttribute(name) !== null; }
+    closest() { return null; }
+    contains(node: unknown) { return node === this; }
+  }
+  const body = new AssertNode();
+  try {
+    delete globals.__tChromePageIds;
+    globals.Element = AssertNode;
+    globals.location = {href: "https://example.com"};
+    globals.innerWidth = 800;
+    globals.innerHeight = 600;
+    globals.getComputedStyle = () => ({display: "block", visibility: "visible", opacity: "1"});
+    globals.CSS = {escape: (value: string) => value};
+    globals.document = {
+      body,
+      title: "Example",
+      querySelector: () => null,
+      querySelectorAll: (selector: string) => selector === "body" ? [body] : [],
+    };
+    globals.chrome = {
+      runtime: {sendMessage: async ({kind}: any) => ({id: `${kind === "pageRegion" ? "r" : "e"}_01`})},
+      tabs: {get: async () => ({id: 1, url: "https://example.com"})},
+      scripting: {executeScript: async ({func, args}: any) => [{result: args ? await func(...args) : {}}]},
+    };
+    const result: any = await runBrowserTool("page_assert", {tabId: 1, selector: "body", states: {attached: true}});
+    expect(result.ok, JSON.stringify(result)).toBe(true);
+    expect(result.checks.map((check: any) => check.name), JSON.stringify(result)).toEqual(["selector:body", "selectorStates:body"]);
   } finally {
     keys.forEach((key, index) => {
       if (originals[index]) Object.defineProperty(globals, key, originals[index]!);

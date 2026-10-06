@@ -22,6 +22,22 @@ test.each([429, 503])("search HTTP %s remains a failure instead of an empty succ
   } finally { mock.mockRestore(); }
 });
 
+test.each([200, 202])("search challenge HTTP %s remains a failure instead of an empty success", async (status) => {
+  const mock = spyOn(globalThis, "fetch").mockResolvedValue(new Response('<form id="challenge-form">Please complete the following challenge.</form>', { status }));
+  try {
+    expect(await runServiceTool("/tmp", "web_search", { query: "demo" })).toMatchObject({
+      ok: false, status, recovery: "user_action", error: expect.any(String), urls: [],
+    });
+  } finally { mock.mockRestore(); }
+});
+
+test("search keeps genuine empty results successful", async () => {
+  const mock = spyOn(globalThis, "fetch").mockResolvedValue(new Response('<div class="no-results">No results found</div>'));
+  try {
+    expect(await runServiceTool("/tmp", "web_search", { query: "demo" })).toEqual({ ok: true, query: "demo", urls: [] });
+  } finally { mock.mockRestore(); }
+});
+
 test("search network failure is returned to the loop as a tool error", async () => {
   const mock = spyOn(globalThis, "fetch").mockImplementation((async (_url: RequestInfo | URL, _init?: RequestInit): Promise<Response> => { throw new Error("network unavailable"); }) as typeof fetch);
   try {

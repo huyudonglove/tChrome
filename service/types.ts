@@ -202,6 +202,8 @@ export type ToolIOItem = ToolQueueItem & {
   turnId: string;
   return: ToolReturn;
   images?: ImageReference[];
+  imagesError?: string;
+  runtimeHints?: string[];
   taskId?: string | null;
   taskItemId?: string | null;
   /** Effective risk level: the model's own value, otherwise the tool's fixed level. */

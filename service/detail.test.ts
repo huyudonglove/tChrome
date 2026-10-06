@@ -163,7 +163,7 @@ test("unified gate externalizes large query and cancellation preserves prior que
       expect(current.externalized).toBe(true);
       expect(current.search).toBe("evidence_search");
       expect(current.sourceCallId).toBeDefined();
-      expect(current.message).toContain("blockId");
+      expect(current.externalizationHint).toContain("blockId");
       expect(current.records).toEqual([]);
       return queryCall(f.sumId, "userInput");
     } };

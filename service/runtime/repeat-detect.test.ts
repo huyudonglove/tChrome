@@ -174,7 +174,7 @@ test("a rule fires at most once per turn", () => {
   const afterFired = [
     row("open_url", { url: "x" }, text),
     row("open_url", { url: "y" }, text),
-    { ...row("open_url", { url: "z" }, text), return: { stage: "complete" as const, totalChars: 0, text: `${text}\n\n${first}` } },
+    { ...row("open_url", { url: "z" }, text), runtimeHints: [first!] },
   ];
   expect(repeatHint(afterFired)).toBeUndefined();
 });

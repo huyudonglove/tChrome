@@ -38,6 +38,26 @@ test("failedTool preserves raw reason in details from a bare string", () => {
   });
 });
 
+test("failure normalization retains domain diagnostics and recovery across repeated normalization", () => {
+  const value = {
+    ok: false, faultCode: "local_git_failed", message: "fatal: unknown revision missing-ref",
+    error: { code: 128, stderr: "unknown revision missing-ref" }, detail: "git diff failed",
+    recovery: { action: "choose_revision", refs: ["HEAD"] }, details: { reason: "original reason", command: "git diff" },
+  };
+  const normalized = normalizeToolExecution({ text: JSON.stringify(value), effects: [] }, "local_git_diff");
+  expect(JSON.parse(normalized.text)).toEqual({ toolName: "local_git_diff", ...value });
+  expect(normalizeToolExecution(normalized, "local_git_diff")).toEqual(normalized);
+  const arrayDetails = { ...value, details: ["stderr diagnostic"], message: null, recovery: null };
+  expect(JSON.parse(normalizeToolExecution({ text: JSON.stringify(arrayDetails), effects: [] }).text)).toEqual(arrayDetails);
+});
+
+test("message-only Git errors retain their concrete reason at the public boundary", async () => {
+  const execution = await executeTool({ ...input, conversationId: "test", name: "local_git_status", arguments: { path: "relative-path" } });
+  expect(JSON.parse(execution.text)).toMatchObject({
+    ok: false, message: "path must be an absolute path", details: { reason: "path must be an absolute path" },
+  });
+});
+
 test("successful business payloads are not interpreted as tool errors", () => {
   const value = { ok: true, value: { error: "business value" }, results: [{ ok: false, error: "business row" }] };
   expect(JSON.parse(normalizeToolExecution({ text: JSON.stringify(value), effects: [] }, "execute_javascript").text)).toEqual(value);

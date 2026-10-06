@@ -97,6 +97,68 @@ async function withDir(run: (dataDir: string) => Promise<void>) {
   try { await run(dataDir); } finally { rmSync(dataDir, { recursive: true, force: true }); }
 }
 
+test("repeated failed memory writes retain failure and separate runtime hints", () => withDir(async dataDir => {
+  let step = 0;
+  const reply = await handleTurn({ dataDir, repoRoot, provider: provider(user => {
+    if (++step === 1) return response(call("catalog_add", { names: ["memory_update"] }));
+    if (step <= 3) return response(call("memory_update", { memoryId: "mm_99", text: "updated" }));
+    const row = slot(user, "calls").find((item: any) => item.name === "memory_update");
+    expect(row.ok).toBe(false);
+    expect(row.return.ok).toBe(false);
+    expect(row.return.faultCode).toBeDefined();
+    expect(row.runtimeHints[0]).toContain("runtime[repeat:call]");
+    return finish();
+  }) }, { userInput: "更新不存在的记忆以验证错误记录", submittedAt: "now" });
+  const rows = loadLedger(dataDir, reply.conversationId).toolIO.filter(row => row.name === "memory_update");
+  expect(rows).toHaveLength(2);
+  expect(JSON.parse(rows[1]!.return.text).ok).toBe(false);
+  expect(rows[1]!.runtimeHints).toHaveLength(1);
+}));
+
+test("image processing errors reach the model without changing the tool result", () => withDir(async dataDir => {
+  let step = 0;
+  const raw = { ok: true, image: "data:image/png;base64,AAAA" };
+  const reply = await handleTurn({ dataDir, repoRoot, host: { execute: async () => raw }, provider: provider(user => {
+    if (++step === 1) return response(call("catalog_add", { names: ["capture_page"] }));
+    if (step === 2) return response(call("capture_page", { tabId: 1, mode: "viewport" }));
+    const row = slot(user, "calls").find((item: any) => item.name === "capture_page");
+    expect(row.ok).toBe(true);
+    expect(row.return).toEqual(raw);
+    expect(row.imagesError).toContain("invalid PNG signature");
+    return finish();
+  }) }, { userInput: "截图并报告图片处理异常", submittedAt: "now" });
+  const saved = loadLedger(dataDir, reply.conversationId).toolIO.find(row => row.name === "capture_page")!;
+  expect(JSON.parse(saved.return.text)).toEqual(raw);
+  expect(saved.imagesError).toContain("invalid PNG signature");
+  expect(saved.images).toBeUndefined();
+}));
+
+test("mixed file read failures stay visible after externalization and originals stay intact", () => withDir(async dataDir => {
+  const path = join(dataDir, "large.ts");
+  const missing = join(dataDir, "missing.ts");
+  const content = "// source\n".repeat(runtimeConfig.results.inlineChars);
+  writeFileSync(path, content);
+  let step = 0;
+  let sourceCallId = "";
+  const reply = await handleTurn({ dataDir, repoRoot, provider: provider(user => {
+    if (++step === 1) return response(call("catalog_add", { names: ["local_fs_read"] }));
+    if (step === 2) return response(call("local_fs_read", { items: [{ path }, { path: missing }] }));
+    const row = slot(user, "calls").find((item: any) => item.name === "local_fs_read");
+    sourceCallId = row.callId;
+    expect(row.ok).toBe(false);
+    expect(row.return).toMatchObject({ ok: false, externalized: true, results: [{ ok: true, path }, { ok: false, faultCode: "file_not_found" }] });
+    expect(row.return.results[1].error).toContain(missing);
+    expect(row.return.results[0]).not.toHaveProperty("content");
+    const original = JSON.parse(readFileSync(row.return.path, "utf8"));
+    expect(original.results[0].content).toBe(content);
+    expect(original.results[1].faultCode).toBe("file_not_found");
+    return finish();
+  }) }, { userInput: "读取文件并报告失败项", submittedAt: "now" });
+  expect(reply.stopReason.kind).toBe("reply");
+  const saved = loadLedger(dataDir, reply.conversationId).toolIO.find(row => row.callId === sourceCallId)!;
+  expect(JSON.parse(saved.return.text).ok).toBe(false);
+}));
+
 test("large script results use evidence_search while small follow-up pages stay inline", () => withDir(async dataDir => {
   const code = "//PAGE_SENTINEL\n" + "x".repeat(305_000);
   mkdirSync(join(dataDir, "scripts"));

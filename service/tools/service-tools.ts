@@ -111,6 +111,9 @@ export async function runServiceTool(
       // Parse the complete HTML before limiting the extracted result count.
       const page = await fetchText(url, { signal }, Infinity);
       if (!page.ok) return { ok: false, query, status: page.status, error: `搜索服务返回 HTTP ${page.status}`, urls: [] };
+      if (/<form\b[^>]*\bid\s*=\s*["']?challenge-form\b|\bclass\s*=\s*["'][^"']*\banomaly-modal\b/i.test(page.text)) {
+        return { ok: false, query, status: page.status, recovery: "user_action", error: "搜索服务返回人机验证页面，需完成验证后再搜索", urls: [] };
+      }
       const hits = new Set<string>();
       for (const item of page.text.matchAll(/uddg=([^&"'<>\s]+)/g)) {
         try {

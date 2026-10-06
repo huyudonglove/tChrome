@@ -340,7 +340,10 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
               scannedEntries++;
               const entryPath = join(directory, entry.name);
               if (singleFile && entryPath !== singleFile) continue;
-              if (entry.isSymbolicLink()) continue;
+              if (entry.isSymbolicLink()) {
+                if (skipped.length < 100) skipped.push({ path: entryPath, reason: "symlink" });
+                continue;
+              }
               if (entry.isDirectory()) {
                 if (skipDirs.has(entry.name)) {
                   if (skipped.length < 100) skipped.push({ path: entryPath, reason: "skipped directory" });
@@ -418,14 +421,16 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
             truncated = true;
           }
         }
-        const base = { ok: true, path, matches, scannedFiles, scannedEntries, truncated, truncations, partial: truncated, errors };
-        if (matches.length) return { ...base, skipped };
+        const base = { ok: true, path, matches, scannedFiles, scannedEntries, truncated, truncations, partial: truncated || skipped.length > 0, errors, skipped };
+        if (matches.length) return base;
         return {
           ...base,
           skippedCount: skipped.length,
           note: truncated
             ? `no matches, but the search stopped early (${truncations.join(", ")}); 0 matches does not mean the whole tree is clean`
-            : "no matches in the whole scanned tree",
+            : skipped.length > 0
+              ? "no matches in the files searched; skipped paths were not searched (see skipped)"
+              : "no matches in the whole scanned tree",
         };
       }
       default: throw new Error(`Unknown local file tool: ${name}`);

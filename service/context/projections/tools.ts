@@ -50,6 +50,8 @@ export function toolHistoryView(records: ToolIOItem[], observations: Observation
       turnId: record.turnId,
       batchId: record.batchId,
       name: record.name,
+      ...(record.runtimeHints?.length ? { runtimeHints: record.runtimeHints } : {}),
+      ...(record.imagesError ? { imagesError: record.imagesError } : {}),
       ...(args ? { args } : {}),
     };
     const observation = byCall.get(`${record.turnId}:${record.callId}`);
@@ -65,6 +67,7 @@ export function toolHistoryView(records: ToolIOItem[], observations: Observation
           ok: false,
           observationId: observation.id,
           ...(obsRes.faultCode ? { faultCode: obsRes.faultCode } : {}),
+          ...(Object.hasOwn(obsRes, "error") ? { error: obsRes.error } : {}),
           ...(obsRes.message ? { message: obsRes.message } : {}),
           ...(obsRes.recovery ? { recovery: obsRes.recovery } : {}),
           ...(obsRes.details ? { details: obsRes.details } : {}),
@@ -96,19 +99,8 @@ export function toolHistoryView(records: ToolIOItem[], observations: Observation
       if (pointer && !failed) {
         // Bookkeeping calls keep the pointer shape only; their content lives in the turn modules.
         const mapped = pointer(record.arguments as Record<string, unknown>, result);
-        const hint = record.return.text.split("\n").find((line) => line.startsWith("runtime:"));
-        return {
-          callId: record.callId,
-          turnId: record.turnId,
-          batchId: record.batchId,
-          name: record.name,
-          return: {
-            stage: record.return.stage,
-            result: hint && typeof mapped === "object" && mapped !== null && !Array.isArray(mapped)
-              ? { ...(mapped as Record<string, unknown>), message: hint }
-              : mapped,
-          },
-        };
+        const { args: _dropped, ...bare } = envelope;
+        return { ...bare, return: { stage: record.return.stage, result: mapped } };
       }
     }
     return {

@@ -10,6 +10,28 @@ type SourceMeta = { callId?: string; pageId?: string; path: string; name?: strin
 type Admission = { mode: "inline"; text: string } | { mode: "preview"; payload: Record<string, unknown> };
 type IndexOptions = { index?: BlockIndex; persistIndex?: (index: BlockIndex) => string };
 
+// Execution diagnostics stay visible even when the result body is stored outside the window.
+// Copy supplied values only: admission must never infer or manufacture tool success.
+const STATUS_FIELDS = ["ok", "faultCode", "error", "message", "recovery", "details", "detail", "status", "exitCode", "signal", "passed", "errorCount", "warningCount", "candidates", "partial", "truncated", "truncations", "skipped", "skippedCount", "errors", "failedFrameCount", "lastError", "failureStage", "detachReason"] as const;
+const ITEM_ID_FIELDS = ["path", "url", "id", "name", "index", "startLine", "endLine"] as const;
+function executionStatus(value: unknown, item = false): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const record = value as Record<string, unknown>;
+  const fields = item ? [...STATUS_FIELDS, ...ITEM_ID_FIELDS] : STATUS_FIELDS;
+  const status = Object.fromEntries(fields.filter(key => Object.hasOwn(record, key)).map(key => [key, record[key]]));
+  if (Array.isArray(record.results)) status.results = record.results.map(result => executionStatus(result, true));
+  return status;
+}
+
+function visibleExecutionStatus(full: string): Record<string, unknown> {
+  try {
+    return executionStatus(JSON.parse(full));
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
+    return {};
+  }
+}
+
 /** 超量返回统一展示块目录；目录和原文都通过同一个 blockId 接口读取。 */
 export function admitText(full: string, meta: SourceMeta & { index?: BlockIndex; indexPath?: string }): Admission {
   if (full.length <= runtimeConfig.results.inlineChars) return { mode: "inline", text: full };
@@ -19,7 +41,7 @@ export function admitText(full: string, meta: SourceMeta & { index?: BlockIndex;
   return {
     mode: "preview",
     payload: {
-      ok: true,
+      ...visibleExecutionStatus(full),
       externalized: true,
       ...source,
       ...(meta.name ? { name: meta.name } : {}),
@@ -28,7 +50,7 @@ export function admitText(full: string, meta: SourceMeta & { index?: BlockIndex;
       ...(meta.indexPath ? { indexPath: meta.indexPath } : {}),
       rootBlockId: index.rootId,
       directory,
-      message: `runtime: 返回超过 ${runtimeConfig.results.inlineChars} 字符，完整原文已保存。directory 是块目录；用 evidence_search(windows=[${JSON.stringify({ ...source, blockId: index.rootId })}]) 导航，或传 keyword 查找块。kind=directory 返回子块，kind=content 返回该块完整原文。按返回的 blockId 继续读取，无需换算行号；取回结果直接内联，不会再次外置。`,
+      externalizationHint: `runtime: 返回超过 ${runtimeConfig.results.inlineChars} 字符，完整原文已保存。directory 是块目录；用 evidence_search(windows=[${JSON.stringify({ ...source, blockId: index.rootId })}]) 导航，或传 keyword 查找块。kind=directory 返回子块，kind=content 返回该块完整原文。按返回的 blockId 继续读取，无需换算行号；取回结果直接内联，不会再次外置。`,
       search: "evidence_search",
     },
   };

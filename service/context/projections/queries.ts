@@ -37,7 +37,6 @@ export const queryView = (query: QueryEvidence, options: QueryViewOptions = {}) 
   const serialized = JSON.stringify(view);
   if (serialized.length <= inlineChars) return view;
   return {
-    ok: true,
     externalized: true,
     queryId: query.queryId,
     turnId: query.turnId,
@@ -46,9 +45,10 @@ export const queryView = (query: QueryEvidence, options: QueryViewOptions = {}) 
     intent: query.intent,
     ...(query.sourceCallId ? { sourceCallId: query.sourceCallId } : {}),
     status: query.status,
+    ...(query.detail ? { detail: query.detail } : {}),
     totalChars: serialized.length,
     ...(options.path ? { path: options.path } : {}),
-    message: `runtime: 查询结果超过 ${inlineChars} 字符，完整结果保存在来源调用中。用 evidence_search(windows=[${JSON.stringify({ callId: query.sourceCallId })}]) 查看块目录，或传 keyword 查找，再按 blockId 取回完整原文。`,
+    externalizationHint: `runtime: 查询结果超过 ${inlineChars} 字符，完整结果保存在来源调用中。用 evidence_search(windows=[${JSON.stringify({ callId: query.sourceCallId })}]) 查看块目录，或传 keyword 查找，再按 blockId 取回完整原文。`,
     search: "evidence_search",
     records: [] as QueryRecord[],
   };
