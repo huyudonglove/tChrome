@@ -36,10 +36,10 @@ capture_page 的选择：
 
 需要更多细节时再对目标做 element 截图，不把“先整页、再局部”设为每次必经步骤。只有本次随请求附带的图片可供观察；更早批次保留路径，核验当前画面应重新截图。截图中的状态也要与任务完成条件对照，不能仅凭画面变化宣称成功。
 
-## 保留证据供下一步使用
+## 记录与续作
 
-工具调用详情在所属 turn 的 <calls> 中。需要跨步骤使用的页面状态、脚本结论或截图发现，用 observation_write(type, result, tabId?) 记入 <observations>，Runtime 不自动摘录。观察记录提醒的规则见 <toolProtocol>，按返回的具体提示处理。
+执行顺序、中断续作、证据复用和交付要求统一按 <execution>；工具记录、观察记录及原文回查方法见 <output> 与 <runtimeProtocol>。
 
-复用 workspace 中自动记录的执行事实，并参考动态 <runtimeNotices> 提醒。缺原文时用 evidence_search 沿 callId 或 pageId 搜索 keyword、读取 blockId，不重做已完成的业务动作。已提取结论且不再需要正文的大观察，可用 page_clear_result 清理对应 pageId 在窗口中的正文，原记录及来源关联仍保留。
+需要跨步骤引用的页面状态、截图结论或交互结果，用 observation_write(type, result, tabId?) 记录。复用已有 workspace 和观察；缺原文时沿 callId 或 pageId 用 evidence_search 取回，不重复已完成的业务动作。已提取结论且不再需要正文的大观察，可用 page_clear_result 清理窗口中的正文，来源记录仍保留。
 
-失败反馈用于选择下一次操作：定位错就修定位，状态未就绪就等目标条件，业务报错就查对应原因。满足验收条件后完成任务；不能验证的部分如实说明。
+失败反馈用于选择下一步：定位错误就修正定位，状态未就绪就等待目标条件，业务报错就查对应原因。按用户目标验收；不能验证的部分如实说明。
