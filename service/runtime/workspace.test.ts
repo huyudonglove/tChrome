@@ -17,7 +17,25 @@ test("boundId formats as b01, b02, …", () => {
   expect(formatBoundId(123)).toBe("b123");
 });
 
-for (const keepInCalls of [true, false, undefined]) test(`loop records workspace only with explicit retention: ${keepInCalls}`, async () => {
+test("execution results default to retained and bookkeeping accepts an explicit override", () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-retention-default-"));
+  try {
+    const ledger = emptyLedger("cv_01");
+    const turn = { turnId: "tn_01" } as Turn;
+    const record = (callId: string, name: string, keepInCalls?: boolean) => recordWorkspaceEvidence(dataDir, ledger, turn, {
+      turnId: turn.turnId, callId, name, arguments: { ...(keepInCalls === undefined ? {} : { keepInCalls }) },
+      return: { stage: "complete", totalChars: 42, text: '{"ok":true,"stdout":"26 pass","exitCode":0}' },
+    });
+    record("call_01", "local_run");
+    record("call_02", "local_run", false);
+    record("call_03", "task_update");
+    record("call_04", "task_update", true);
+    expect(ledger.notes.map(entry => entry.callId)).toEqual(["call_01", "call_04"]);
+    expect(ledger.notes[0]!.result).toMatchObject({ stdout: "26 pass", exitCode: 0 });
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+});
+
+for (const keepInCalls of [true, false, undefined]) test(`loop records evidence with default retention and explicit override: ${keepInCalls}`, async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-ws-"));
   try {
     const path = join(dataDir, "source.txt");
@@ -35,7 +53,7 @@ for (const keepInCalls of [true, false, undefined]) test(`loop records workspace
         const saved = loadLedger(dataDir, conversationId);
         const turn = loadTurn(dataDir, conversationId, saved.toolIO[0]!.turnId);
         const evidence = saved.notes.find(entry => entry.target.key === path)!;
-        if (keepInCalls === true) {
+        if (keepInCalls !== false) {
         expect(evidence).toMatchObject({ target: { kind: "file", key: path }, op: "local_fs_read", callId: saved.toolIO[0]!.callId });
         expect(evidence.content).toContain("original evidence");
         expect(input.messages[1]!.content).toContain("workspaceIds");
@@ -55,7 +73,7 @@ for (const keepInCalls of [true, false, undefined]) test(`loop records workspace
     expect(readFileSync(path, "utf8")).toBe("updated evidence");
     const saved = loadTurn(dataDir, conversationId, first.turnId);
     const entries = loadLedger(dataDir, conversationId).notes.filter(entry => entry.target.key === path);
-    if (keepInCalls !== true) {
+    if (keepInCalls === false) {
       expect(saved.assembled.workspace).toEqual([]);
       const rawCalls = loadLedger(dataDir, conversationId).toolIO;
       expect(rawCalls.find(row => row.name === "local_fs_read")!.return.text).toContain("original evidence");

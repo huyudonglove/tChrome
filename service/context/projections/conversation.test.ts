@@ -150,18 +150,18 @@ describe("per-turn call retention", () => {
     return { ledger, turn, project };
   };
 
-  test("keeps explicit historical calls and the entire latest live batch inside their own turns", () => {
+  test("keeps default and explicit historical calls and the entire latest live batch inside their own turns", () => {
     const { ledger, project } = fixture();
     const source = JSON.stringify(ledger.toolIO);
     const result = project();
-    expect(result.turns.map(turn => turn.calls.map(call => call.callId))).toEqual([["call_02"], ["call_04", "call_06", "call_07"]]);
+    expect(result.turns.map(turn => turn.calls.map(call => call.callId))).toEqual([["call_02", "call_03"], ["call_04", "call_06", "call_07"]]);
     expect(result.turns.map(turn => turn.callBounds)).toEqual([
-      { from: "call_01", to: "call_03", kept: 1, total: 3 },
+      { from: "call_01", to: "call_03", kept: 2, total: 3 },
       { from: "call_04", to: "call_07", kept: 3, total: 4 },
     ]);
     const xml = conversationXml(result);
     const turns = [...xml.matchAll(/<turn\b[^>]*>([\s\S]*?)<\/turn>/g)];
-    expect(turns[0]![1]).toContain('<calls start="call_01" end="call_03" kept="1" total="3">');
+    expect(turns[0]![1]).toContain('<calls start="call_01" end="call_03" kept="2" total="3">');
     expect(turns[0]![1]).toContain('callId="call_02"');
     expect(turns[0]![1]).not.toContain('callId="call_06"');
     expect(turns[1]![1]).toContain('callId="call_06"');
@@ -192,15 +192,16 @@ describe("per-turn call retention", () => {
     ledger.toolIO.push({ ...call(8, "tn_02", "batch_04", false), name: "reflect_write", arguments: { keepInCalls: false, reason: "记录", text: "done" } });
     ledger.lastAction = { turnId: "tn_02", batchId: "batch_04", calls: [{ callId: "call_08", name: "reflect_write" }] };
     const live = project().turns[1]!;
-    expect(live.calls.map(call => call.callId)).toEqual(["call_04", "call_08"]);
-    expect(live.calls[1]).not.toHaveProperty("args");
-    expect(live.calls[1]!.return.result).toEqual({ ok: true, reflectId: null });
-    expect(live.callBounds).toEqual({ from: "call_04", to: "call_08", kept: 2, total: 5 });
+    expect(live.calls.map(call => call.callId)).toEqual(["call_04", "call_07", "call_08"]);
+    expect(live.calls[2]).not.toHaveProperty("args");
+    expect(live.calls[2]!.return.result).toEqual({ ok: true, reflectId: null });
+    expect(live.callBounds).toEqual({ from: "call_04", to: "call_08", kept: 3, total: 5 });
   });
 
   test("history has no latest-batch exception and an empty view retains its original bounds", () => {
     const { ledger, project } = fixture();
-    ledger.toolIO = ledger.toolIO.filter(call => call.arguments.keepInCalls !== true);
+    ledger.toolIO = ledger.toolIO.filter(call => call.arguments.keepInCalls !== true)
+      .map(call => ({ ...call, arguments: { ...call.arguments, keepInCalls: false } }));
     ledger.lastAction = { turnId: "tn_01", batchId: "batch_01", calls: [{ callId: "call_01", name: "local_fs_read" }] };
     const result = project();
     expect(result.turns.every(turn => turn.calls.length === 0)).toBe(true);

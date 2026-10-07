@@ -2,7 +2,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { Ledger, ToolIOItem, Turn, WorkspaceEntry } from "../types.ts";
 import { extractWorkspaceEvidence, type WorkspaceEvidence } from "./workspace-extract.ts";
 import { allocateRecordId } from "./ids.ts";
-import { NEUTRAL_TOOLS } from "./escalation.ts";
+import { resolveKeepInCalls } from "../tools/capability.ts";
 import { loadTurn, saveTurn } from "./store.ts";
 import { runtimeConfig } from "../config/runtime.ts";
 
@@ -10,7 +10,7 @@ export const formatBoundId = (seq: number): string => `b${String(seq).padStart(2
 
 /** Record the final admitted return; full originals remain in the existing return store. */
 export function recordWorkspaceEvidence(dataDir: string, ledger: Ledger, turn: Turn, row: ToolIOItem): void {
-  if (row.arguments.keepInCalls !== true || NEUTRAL_TOOLS.has(row.name)) return;
+  if (!resolveKeepInCalls(row.name, row.arguments.keepInCalls)) return;
   for (const evidence of extractWorkspaceEvidence(row.name, row.arguments, row.return.text, row.callId)) {
     ledger.notes.push({ ...evidence,
       id: allocateRecordId(dataDir, ledger.conversationId, "workspace").replace("_", ""),

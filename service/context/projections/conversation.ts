@@ -1,3 +1,4 @@
+import { resolveKeepInCalls } from "../../tools/capability.ts";
 import { groupWorkspaceEvidence } from "../../runtime/workspace.ts";
 import type { Ledger, Observation, Task, TaskHistoryRecord, Turn, TurnStopReason, UserInputRecord, WorkspaceEntry, RuntimeNotice } from "../../types.ts";
 import type { MemoryRecord } from "../../memory/types.ts";
@@ -96,7 +97,7 @@ export function conversationPayload(input: {
     const isLive = row.turnId === turn.turnId;
     const toolRows = groupByTurn(ledger.toolIO, row.turnId);
     const pages = pagesByTurn.get(row.turnId) ?? [];
-    const visibleCalls = toolRows.filter(record => record.arguments.keepInCalls === true
+    const visibleCalls = toolRows.filter(record => resolveKeepInCalls(record.name, record.arguments.keepInCalls)
       || (isLive && record.batchId === latestBatch?.batchId && latestCallIds.has(record.callId)));
     turns.push({
       turnId: row.turnId,

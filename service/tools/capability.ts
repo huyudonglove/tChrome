@@ -1,3 +1,4 @@
+import capabilityMetadata from "../capabilities/metadata.json";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadSkillManifest, readSkill } from "../skills/loader.ts";
@@ -48,6 +49,10 @@ function normalizeMetadata(raw: unknown, id: string): CapabilityMetadata {
   if (value.readOnly !== undefined) {
     if (typeof value.readOnly !== "boolean") throw new Error(`invalid capability metadata ${id}.readOnly`);
     result.readOnly = value.readOnly;
+  }
+  if (value.defaultKeepInCalls !== undefined) {
+    if (typeof value.defaultKeepInCalls !== "boolean") throw new Error(`invalid capability metadata ${id}.defaultKeepInCalls`);
+    result.defaultKeepInCalls = value.defaultKeepInCalls;
   }
   for (const field of ARRAY_FIELDS) {
     if (value[field] !== undefined) result[field] = stringList(value[field], `${id}.${field}`);
@@ -104,6 +109,7 @@ export function loadCapabilityCatalog(repoRoot: string, source: ToolSource): Cap
   for (const id of Object.keys(source.tools).sort()) {
     const tool = source.tools[id]!;
     const override = metadata.tools[id] ?? {};
+    if (typeof override.defaultKeepInCalls !== "boolean") throw new Error(`missing capability metadata ${id}.defaultKeepInCalls`);
     const purpose = override.purpose ?? firstSentence(tool.function.description ?? "", id);
     records.push({
       id,
@@ -116,6 +122,7 @@ export function loadCapabilityCatalog(repoRoot: string, source: ToolSource): Cap
       preconditions: override.preconditions ?? [],
       risk: override.risk ?? "unknown",
       readOnly: override.readOnly ?? false,
+      defaultKeepInCalls: override.defaultKeepInCalls,
       verification: override.verification ?? [],
       alternatives: override.alternatives ?? [],
       composesWith: override.composesWith ?? [],
@@ -156,4 +163,12 @@ export function loadCapabilityCatalog(repoRoot: string, source: ToolSource): Cap
     }
   }
   return records.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/** Resolve retention from authoritative tool metadata and the model's optional override. */
+export function resolveKeepInCalls(toolId: string, requested?: unknown): boolean {
+  const metadata = capabilityMetadata.tools as Record<string, { defaultKeepInCalls: boolean }>;
+  const tool = Object.hasOwn(metadata, toolId) ? metadata[toolId] : undefined;
+  if (!tool || (requested !== undefined && typeof requested !== "boolean")) return false;
+  return requested === undefined ? tool.defaultKeepInCalls : requested;
 }

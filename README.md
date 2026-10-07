@@ -107,7 +107,7 @@ Raw interaction logs and tool arguments remain intact on disk. When deep verific
 | Tier | Purpose | Scope |
 | --- | --- | --- |
 | **Persistent Task (`<task>`)** | Root-level cross-turn state machine; retains deliverables (`outcome`) in a single slot until replaced | Survives turn ends; completed state stays in viewport until new `task_set` |
-| **Operation Notes (`<notes>`)** | Runtime buffer of admitted tool evidence for explicit `keepInCalls=true` calls | Transferred to workspace at the configured row threshold; archived with source turns or tool batches |
+| **Operation Notes (`<notes>`)** | Runtime buffer of admitted tool evidence for calls whose effective `keepInCalls` is true (explicit call value overrides tool metadata `defaultKeepInCalls`) | Transferred to workspace at the configured row threshold; archived with source turns or tool batches |
 | **Conversation Memory (`<conversationMemory>`)** | Confirmed facts, user preferences, and key architectural decisions | Preserved across turns in current session |
 | **Long-Term Memory (`<projectMemory>`)** | Shared domain conventions, environmental preferences, and persistent facts | Globally shared across all sessions |
 | **Local Library** | Curated bookmarks, account credentials, and general references | Persistent local storage, side panel UI |

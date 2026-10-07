@@ -379,13 +379,22 @@ const runQueue = async (input: {
             // Manual compress answers a question the outcome alone cannot: did it actually shrink the window?
             compressContext: async ({ phase }) => {
               const before = input.measureWindow?.() ?? null;
-              const outcome = await compressContext({ dataDir, repoRoot: input.repoRoot, provider: input.provider, ledger, turn,
-                memories: loadMemories(dataDir, ledger.conversationId, ledger.memoryIds),
-                isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId),
-                onStart: () => appendEvent(dataDir, ledger.conversationId, { kind: "compress-start", turnId: turn.turnId, data: { source: "agent", phase } }),
-                onProgress: (progress) => appendEvent(dataDir, ledger.conversationId, { kind: "compress-progress", turnId: turn.turnId, data: { source: "agent", ...progress } }),
-              }, phase);
-              return { ...outcome, windowChars: { before, after: input.measureWindow?.() ?? null } };
+              let started = false;
+              try {
+                const outcome = await compressContext({ dataDir, repoRoot: input.repoRoot, provider: input.provider, ledger, turn,
+                  memories: loadMemories(dataDir, ledger.conversationId, ledger.memoryIds),
+                  isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId),
+                  onStart: () => { started = true; appendEvent(dataDir, ledger.conversationId, { kind: "compress-start", turnId: turn.turnId, data: { source: "agent", phase } }); },
+                  onProgress: (progress) => appendEvent(dataDir, ledger.conversationId, { kind: "compress-progress", turnId: turn.turnId, data: { source: "agent", ...progress } }),
+                }, phase);
+                // GUI 指示由 kind:"compress"/"compress-error" 清除；agent 路径此前只发 start/progress，
+                // 压缩结束后指示一直停留，必须补完成事件（noop 时从未 start，无须发）。
+                if (started) appendEvent(dataDir, ledger.conversationId, { kind: "compress", turnId: turn.turnId, data: { source: "agent", beforeChars: before, afterChars: input.measureWindow?.() ?? null } });
+                return { ...outcome, windowChars: { before, after: input.measureWindow?.() ?? null } };
+              } catch (error) {
+                if (started) appendEvent(dataDir, ledger.conversationId, { kind: "compress-error", turnId: turn.turnId, data: { source: "agent" } });
+                throw error;
+              }
             },
             lookup: {
               knownTools: Object.keys(toolRegistry.tools),

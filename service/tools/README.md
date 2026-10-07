@@ -8,7 +8,7 @@
 
 `execution`（parallel|serial）的通用含义写在 System 的 `<toolProtocol>` 中：parallel 可与同批并发，serial 等当前执行队列清空后独占。该值由定义文件顶层的 `execution` 决定并注入工具说明供模型参考；模型不必返回，也不能用参数修改。各工具定义只维护自身类型、必填、固定值和专用说明，不重复装配通用解释。
 
-`registry.ts` 向所有工具 schema 注入可选布尔参数 `keepInCalls`，不依赖工具是否有 reason 字段。仅显式 true 把操作结果写入 notes 操作证据缓冲，并把调用详情保留在来源 `<turn>` 的 `<calls>` 中（已有 notes 或 workspace 正文时使用 workspaceIds 引用），直到原有压缩覆盖；false 或未指定不写入 notes 或 workspace，只在返回后的下一次模型请求展示一次，之后移出。该参数不传给业务执行器，原始调用参数与返回仍完整落盘并按原轮次参与压缩，callId 全会话唯一且可回查。模型按后续是否需要引用证据选择，不按工具类型固定设置。
+`registry.ts` 向所有工具 schema 注入可选布尔参数 `keepInCalls`，不依赖工具是否有 reason 字段。显式 keepInCalls 优先，省略时采用工具元数据 defaultKeepInCalls；有效值为 true 时把操作结果写入 notes 操作证据缓冲，并把调用详情保留在来源 `<turn>` 的 `<calls>` 中（已有 notes 或 workspace 正文时使用 workspaceIds 引用），直到原有压缩覆盖；有效值为 false 时不写入 notes 或 workspace，只在返回后的下一次模型请求展示一次，之后移出。该参数不传给业务执行器，原始调用参数与返回仍完整落盘并按原轮次参与压缩，callId 全会话唯一且可回查。业务读取、写入、执行和网页操作默认 true；目录、能力加载、等待、状态轮询及已有专属模块的记录默认 false。模型可按后续证据需要用显式 true/false 覆盖任一工具默认值。
 
 - `definitions/<工具名>.json`：工具名称、`function.description`、参数 schema。
 - `definitions/index.json`：动态工具的 browser / service 分类。

@@ -101,7 +101,7 @@ function injectCausalBackfill(tool: ChatTool): ChatTool {
 }
 
 /** Runtime projection choice belongs to every call, independent of business parameters. */
-function injectCallRetention(tool: ChatTool): ChatTool {
+function injectCallRetention(tool: ChatTool, defaultKeepInCalls: boolean): ChatTool {
   const params = tool.function.parameters as { properties?: Record<string, unknown> } | undefined;
   return {
     ...tool,
@@ -114,7 +114,8 @@ function injectCallRetention(tool: ChatTool): ChatTool {
           ...params?.properties,
           keepInCalls: {
             type: "boolean",
-            description: "是否保留本次执行证据。显式 true 才写入 workspace，calls 保留对应引用；false 或不填不写入 workspace，结果仅供下一次模型请求查看一次。原始调用始终落盘，不影响工具执行。",
+            default: defaultKeepInCalls,
+            description: `是否保留本次执行证据。省略使用本工具默认值 ${defaultKeepInCalls}；可显式 true 或 false 覆盖。true 写入 notes，后续归入 workspace，calls 保留证据引用；false 不记录，结果仍供下一次模型请求查看一次。原始调用始终落盘，不影响工具执行。`,
           },
         },
       } as ChatTool["function"]["parameters"],
@@ -174,13 +175,15 @@ export function loadToolRegistry(root: string): ToolRegistry {
     const name = raw.function?.name;
     if (!name) continue;
     const mode: ExecutionMode = raw.execution === "parallel" ? "parallel" : "serial";
-    tools[name] = injectCallRetention(injectCausalBackfill({ type: "function", function: withExecutionNote(raw.function, mode) }));
+    tools[name] = injectCausalBackfill({ type: "function", function: withExecutionNote(raw.function, mode) });
     execution[name] = mode;
     const declaredMutex = (raw as { mutex?: unknown }).mutex;
     if (Array.isArray(declaredMutex) && declaredMutex.length > 0) mutex[name] = declaredMutex as string[][];
   }
   const capabilities = loadCapabilityCatalog(root, { tools, index, toolGroups, execution });
-  for (const [name, tool] of Object.entries(tools)) {
+  for (const [name, rawTool] of Object.entries(tools)) {
+    const tool = injectCallRetention(rawTool, capabilities.find(row => row.kind === "tool" && row.id === name)!.defaultKeepInCalls!);
+    tools[name] = tool;
     const risk = capabilities.find((row) => row.kind === "tool" && row.id === name)?.risk;
     if (risk === "low" || risk === "medium" || risk === "high") {
       tools[name] = withRiskNote(tool, risk);

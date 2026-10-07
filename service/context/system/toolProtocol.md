@@ -6,7 +6,7 @@
 
 每项调用有自己的 arguments JSON 对象，只放该调用的参数。工具支持数组时，将多个目标放进同一调用，例如 evidence_search 的 windows、local_fs_read / local_fs_search 的 items；这些数组各最多 8 项。多次独立调用则分别放进 tool_calls。
 
-keepInCalls 按证据用途选择：后续需要引用的源码、调用契约或验证结果设 true，由 Runtime 记录到 notes，再按配置阈值归入 workspace；一次性核对可不填。false 或省略时，结果只在下一次模型请求展示一次，原始调用仍落盘可回查。存储、压缩和取证细节见 <runtimeProtocol>，记录分工见 <output>。
+keepInCalls 可覆盖工具默认记录设置：显式 true/false 优先，省略时采用工具元数据 defaultKeepInCalls。业务读取、写入、执行和网页操作默认记录；目录、能力加载、等待、状态轮询及已有专属模块的记录默认不记录。后续需要引用证据可设 true，一次性结果可设 false。有效值为 true 时，Runtime 记录到 notes，再按配置阈值归入 workspace；false 时结果只在下一次模型请求展示一次，原始调用仍落盘可回查。存储、压缩和取证细节见 <runtimeProtocol>，记录分工见 <output>。
 
 参数已确定且互不依赖的调用放在同一批；需要根据前一步结果决定参数时，等待返回后再调用。工具支持数组时优先合并目标。证据足够就执行或验证，不为凑批次继续读取，也不设每批最低调用数量。
 

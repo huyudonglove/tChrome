@@ -23,7 +23,7 @@ const setup = () => {
   return { dataDir, conversationId };
 };
 
-test("latest batch is visible once, explicit keeps survive turns, storage and archive retain all calls", async () => {
+test("latest batch is visible once, default and explicit keeps survive turns, storage and archive retain all calls", async () => {
   const { dataDir, conversationId } = setup();
   try {
     const sentToHost: Record<string, unknown>[] = [];
@@ -47,7 +47,7 @@ test("latest batch is visible once, explicit keeps survive turns, storage and ar
         expect(callIds(window)).toEqual(firstCallIds);
         return response([{ id: "record", name: "reflect_write", arguments: { reason: "记录", text: "页面正常" } }]);
       }
-      expect(callIds(window)).toEqual([firstCallIds[0]!, loadLedger(dataDir, conversationId).toolIO.at(-1)!.callId]);
+      expect(callIds(window)).toEqual([firstCallIds[0]!, firstCallIds[2]!, loadLedger(dataDir, conversationId).toolIO.at(-1)!.callId]);
       return finish();
     } };
     const first = await handleTurn({ dataDir, repoRoot, provider, host }, { userInput: "检查", submittedAt: "now" });
@@ -62,10 +62,10 @@ test("latest batch is visible once, explicit keeps survive turns, storage and ar
     expect(archive.toolIO).toEqual(reloaded.toolIO);
     const secondProvider: Provider = { complete: async input => {
       const window = input.messages[1]!.content;
-      expect(callIds(window)).toEqual([firstCallIds[0]!]);
+      expect(callIds(window)).toEqual([firstCallIds[0]!, firstCallIds[2]!]);
       const historical = [...window.matchAll(/<turn\s+turnId="([^"]+)"[^>]*>([\s\S]*?)<\/turn>/g)].find(match => match[1] === first.turnId);
       expect(historical).toBeDefined();
-      expect(callIds(historical![2]!)).toEqual([firstCallIds[0]!]);
+      expect(callIds(historical![2]!)).toEqual([firstCallIds[0]!, firstCallIds[2]!]);
       return finish();
     } };
     const second = await handleTurn({ dataDir, repoRoot, provider: secondProvider, host }, { userInput: "继续", submittedAt: "now" });

@@ -27,6 +27,8 @@ export type CapabilityRecord = {
   risk: CapabilityRisk;
   /** 是否纯只读（只观察不改变状态）。兜底计数用：只读累积，其余清零。 */
   readOnly: boolean;
+  /** 工具省略 keepInCalls 时是否记录执行证据；skill 不适用。 */
+  defaultKeepInCalls?: boolean;
   verification: string[];
   alternatives: string[];
   composesWith: string[];
@@ -46,6 +48,7 @@ export type CapabilityMetadata = {
   preconditions?: string[];
   risk?: CapabilityRisk;
   readOnly?: boolean;
+  defaultKeepInCalls?: boolean;
   verification?: string[];
   alternatives?: string[];
   composesWith?: string[];

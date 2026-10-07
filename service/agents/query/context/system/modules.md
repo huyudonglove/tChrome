@@ -15,7 +15,7 @@ request 字段：
 | toolIO | 归档的工具参数和返回结果，返回正文在 return.text |
 | observations | 页面、代码、截图等观察结果 |
 | notes | 尚在缓冲区时随来源轮次或工具批次归档的 Runtime 工具证据；字段与 workspace 相同，files 提供明确文件归因 |
-| workspace | 显式 keepInCalls=true 的调用由 Runtime 自动记录的对象 target、操作 op、输入 args、结果 result、正文 content 和来源 callId；files 提供明确文件归因 |
+| workspace | 有效 keepInCalls 为 true 的调用（显式值优先，省略采用工具默认值）由 Runtime 自动记录的对象 target、操作 op、输入 args、结果 result、正文 content 和来源 callId；files 提供明确文件归因 |
 | memoryWrites | 会话记忆写入 |
 | stopReason | 轮次结束或暂停原因；kind=reply 时 text 是最终回复，ask/error/tool 分别表示询问、错误、停在工具调用处 |
 | queryHistory | 该轮的历史查询 |

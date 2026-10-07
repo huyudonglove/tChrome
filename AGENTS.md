@@ -26,7 +26,7 @@
 
 - skill 模块始终保留完整正文，不参与压缩，也不参与文件外置。
 
-- notes 仅在调用显式设置 keepInCalls=true 时由 Runtime 根据真实工具参数和最终返回自动生成；false 或省略不写入 notes 或 workspace，其返回仍在最近工具批次的下一次模型请求展示一次，完整调用始终落盘。notes 使用 WorkspaceEntry 记录结构，达到配置 context.notesFlushRows 后过滤结果与内容均为空的条目，将其余原始证据转入来源轮次的 workspace，保留 ws 编号与来源。notes 与 workspace 统一记录 file/browser/script/process/tool 对象的操作、输入、结果、内容与来源；没有明确对象标识则按调用独立保存，不猜测文件或页面归属。会话级按对象归组，重复证据合并来源，写入、执行、页面操作与导航区分证据版本；原始条目随来源 turn/工具批次压缩归档，calls 的 workspaceIds 只引用已记录证据，可指向 notes 或 workspace，完整调用仍落盘。context_query / agent_query 可选 file 按文件过滤候选（notes 与 workspace 按 files[]、toolIO 按调用的文件参数、summaries 按正文提及，其余模块不支持），无命中直接 not_found，不花模型轮次。
+- 每个工具在元数据中声明 defaultKeepInCalls；调用显式设置的 keepInCalls=true/false 优先，省略时采用工具默认值。业务读取、写入、执行和网页操作默认 true；目录、能力加载、等待、状态轮询及已有专属模块的记录默认 false，模型可逐次覆盖。最终为 true 时，Runtime 根据真实工具参数和最终返回自动生成 notes；false 不写入 notes 或 workspace，其返回仍在最近工具批次的下一次模型请求展示一次，完整调用始终落盘。notes 使用 WorkspaceEntry 记录结构，达到配置 context.notesFlushRows 后过滤结果与内容均为空的条目，将其余原始证据转入来源轮次的 workspace，保留 ws 编号与来源。notes 与 workspace 统一记录 file/browser/script/process/tool 对象的操作、输入、结果、内容与来源；没有明确对象标识则按调用独立保存，不猜测文件或页面归属。会话级按对象归组，重复证据合并来源，写入、执行、页面操作与导航区分证据版本；原始条目随来源 turn/工具批次压缩归档，calls 的 workspaceIds 只引用已记录证据，可指向 notes 或 workspace，完整调用仍落盘。context_query / agent_query 可选 file 按文件过滤候选（notes 与 workspace 按 files[]、toolIO 按调用的文件参数、summaries 按正文提及，其余模块不支持），无命中直接 not_found，不花模型轮次。
 - toolIO 投影带调用参数 args（大小超内联门禁时只留 files 路径；记账类指针调用与观察调用不带，正文已在对应模块）。
 
 - notes 与 workspace 记录现有门禁处理后的最终返回：小结果保留正文，大结果保留门禁返回的状态、错误、索引及原文路径；完整原文沿用 returns 落盘，不重新塞回 workspace。calls 只引用对应 workspace，不增加另一层门禁。
