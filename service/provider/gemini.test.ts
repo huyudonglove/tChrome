@@ -186,7 +186,7 @@ test("toolChoice required 映射为 ANY，被拒后降级 AUTO", async () => {
 
 test("providerOptions registers all gateways with key env mapping", () => {
   expect(providerOptions().map((item) => item.id)).toEqual([
-    "uuapi", "shiningspace", "shiningspace-gpt", "gemini", "deepseek", "caicai", "deepseek-official", "xcode", "opencode", "openrouter", "a6api", "openai",
+    "uuapi", "shiningspace", "shiningspace-gpt", "gemini", "deepseek", "caicai", "deepseek-official", "xcode", "opencode", "opencode-glm", "openrouter", "a6api", "openai",
   ]);
   expect(providerApiKeyEnv.gemini).toBe("GEMINI_API_KEY");
   expect(providerApiKeyEnv.deepseek).toBe("DEEPSEEK_API_KEY");
@@ -194,6 +194,8 @@ test("providerOptions registers all gateways with key env mapping", () => {
   expect(providerApiKeyEnv["deepseek-official"]).toBe("DEEPSEEK_OFFICIAL_API_KEY");
   expect(providerApiKeyEnv.xcode).toBe("XCODE_API_KEY");
   expect(providerApiKeyEnv.opencode).toBe("OPENCODE_API_KEY");
+  expect(providerApiKeyEnv["opencode-glm"]).toBe("OPENCODE_API_KEY");
+  expect(providerOptions().find(item => item.id === "opencode-glm")?.model).toBe(Bun.env.OPENCODE_GLM_MODEL ?? "glm-5.3-flash");
   expect(providers.find((item) => item.id === "opencode")).toMatchObject({
     model: "deepseek-v4.1-flash",
     baseURL: "https://opencode.ai/zen/go/v1",

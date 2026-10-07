@@ -25,6 +25,7 @@ export const providers: readonly ProviderRow[] = [
   { id: "deepseek-official", label: "DeepSeek Official", model: "deepseek-flash", baseURL: "https://api.deepseek.com/v1", apiKeyEnv: "DEEPSEEK_OFFICIAL_API_KEY", modelEnv: "DEEPSEEK_OFFICIAL_MODEL", baseUrlEnv: "DEEPSEEK_OFFICIAL_BASE_URL", effortEnv: "DEEPSEEK_OFFICIAL_REASONING_EFFORT", kind: "openai", sanitizeToolNames: true },
   { id: "xcode", label: "Xcode.best", model: "grok-4.7", baseURL: "https://xcode.best/v1", apiKeyEnv: "XCODE_API_KEY", modelEnv: "XCODE_MODEL", baseUrlEnv: "XCODE_BASE_URL", effortEnv: "XCODE_REASONING_EFFORT", kind: "openai", sanitizeToolNames: true },
   { id: "opencode", label: "OpenCode Go", model: "deepseek-v4.1-flash", baseURL: "https://opencode.ai/zen/go/v1", apiKeyEnv: "OPENCODE_API_KEY", modelEnv: "OPENCODE_MODEL", baseUrlEnv: "OPENCODE_BASE_URL", effortEnv: "OPENCODE_REASONING_EFFORT", kind: "openai" },
+  { id: "opencode-glm", label: "OpenCode Go", model: "glm-5.3-flash", baseURL: "https://opencode.ai/zen/go/v1", apiKeyEnv: "OPENCODE_API_KEY", modelEnv: "OPENCODE_GLM_MODEL", baseUrlEnv: "OPENCODE_BASE_URL", effortEnv: "OPENCODE_REASONING_EFFORT", kind: "openai" },
   { id: "openrouter", label: "OpenRouter", model: "stealth/space-bunny-alpha", baseURL: "https://openrouter.ai/api/v1", apiKeyEnv: "OPENROUTER_API_KEY", modelEnv: "OPENROUTER_MODEL", baseUrlEnv: "OPENROUTER_BASE_URL", effortEnv: "OPENROUTER_REASONING_EFFORT", kind: "openai", sanitizeToolNames: true },
   { id: "a6api", label: "A6API", model: "gemini-3.8-flash", baseURL: "https://a6api.com/v1", apiKeyEnv: "A6API_API_KEY", modelEnv: "A6API_MODEL", baseUrlEnv: "A6API_BASE_URL", effortEnv: "A6API_REASONING_EFFORT", kind: "openai", sanitizeToolNames: true },
   { id: "openai", label: "uuOpenAI", model: "gpt-6.1-sol", baseURL: "https://uuapi.io/v1", apiKeyEnv: "OPENAI_API_KEY", modelEnv: "OPENAI_MODEL", baseUrlEnv: "OPENAI_BASE_URL", effortEnv: "OPENAI_REASONING_EFFORT", kind: "responses" },
@@ -63,7 +64,7 @@ export function configuredProvider(proxy: string | undefined, name = Bun.env.TCH
     model,
     reasoningEffort: effort,
     ...(row.sanitizeToolNames ? { sanitizeToolNames: true } : {}),
-    ...(row.id === "opencode" ? { userAgent: "Helm/0.1.0", sessionHeader: "x-opencode-session" } : {}),
+    ...((row.id === "opencode" || row.id === "opencode-glm") ? { userAgent: "Helm/0.1.0", sessionHeader: "x-opencode-session" } : {}),
     proxy,
   });
 }
