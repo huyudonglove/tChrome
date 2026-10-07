@@ -41,12 +41,19 @@ export type SubagentExecutorOptions = {
   systemPrompt?: string;
 };
 
+/** evidence 字段契约：系统提示词与格式自修复重问共用同一份措辞。 */
+const evidenceContract =
+  "evidence 必须是数组，每项为对象且含 kind（observation、test、diff、artifact）与非空 summary；summary 必须是非空字符串";
+
+/** 结果格式自修复的尝试次数（含首次）；它不占用 maxSteps 的工具步预算。 */
+const RESULT_FORMAT_ATTEMPTS = 2;
+
 const DEFAULT_SYSTEM_PROMPT = [
   "你是受限的 Subagent，只完成 <subagentTask> 中的目标。",
   "你不能扩大权限、改变任务边界或替主 Agent 宣布未验证的结论。",
   "需要工具时只调用提供给你的工具；完成后必须只返回 JSON 结果。",
   "JSON 格式：{taskId,status,summary,evidence,errors}，status 为 success、failed 或 blocked。",
-  "evidence 的 kind 只能是 observation、test、diff、artifact。",
+  `${evidenceContract}。`,
 ].join("\n");
 
 const failed = (taskId: string, summary: string, error: unknown): SubagentResult => ({
@@ -128,8 +135,40 @@ export async function executeSubagent(
         return failed(packet.id, "Provider 未能完成 Subagent 任务", new Error(completion.detail ?? completion.faultCode ?? "provider_error"));
       }
       if (completion.finish === "stop") {
-        const result = resultFromModel(packet.id, completion.content);
-        return evidence.length ? { ...result, evidence: [...result.evidence, ...evidence] } : result;
+        // 结构化结果是最容易出错的一环：模型少写一个字段不该让整次委派白跑。
+        // 校验不通过时先按协议纠正重问（不计入 maxSteps 的工具步预算），仍不合格才判 failed。
+        let content = completion.content;
+        for (let attempt = 1; attempt <= RESULT_FORMAT_ATTEMPTS; attempt += 1) {
+          try {
+            const result = resultFromModel(packet.id, content);
+            return evidence.length ? { ...result, evidence: [...result.evidence, ...evidence] } : result;
+          } catch (error) {
+            if (attempt === RESULT_FORMAT_ATTEMPTS) {
+              return failed(packet.id, "Subagent 输出或执行协议无效", error);
+            }
+            if (signal?.aborted) return failed(packet.id, "Subagent 执行被取消", new Error("aborted"));
+            messages.push({ role: "user", content: `<subagentModelStep>${content}</subagentModelStep>` });
+            messages.push({
+              role: "user",
+              content: JSON.stringify({
+                selfRepair: true,
+                attempt,
+                maxAttempts: RESULT_FORMAT_ATTEMPTS,
+                fault: error instanceof Error ? error.message : String(error),
+                instruction: `上一次返回的 JSON 结果未通过校验。请只重新返回一个 JSON 对象 {taskId,status,summary,evidence,errors}，taskId 必须是 ${packet.id}；${evidenceContract}。不要附带解释文字。`,
+              }),
+            });
+            const repair = await options.provider.complete({ messages, tools, signal, toolChoice: "auto" });
+            if (repair.finish === "error") {
+              return failed(packet.id, "Provider 未能完成 Subagent 任务", new Error(repair.detail ?? repair.faultCode ?? "provider_error"));
+            }
+            if (repair.finish !== "stop") {
+              return failed(packet.id, "格式纠正重问没有返回 JSON 结果", new Error("format_repair_unexpected_finish"));
+            }
+            content = repair.content;
+          }
+        }
+        return failed(packet.id, "Subagent 输出或执行协议无效", new Error("result_format_exhausted"));
       }
       if (!completion.toolCalls.length) {
         return failed(packet.id, "Provider 声明有工具调用但未返回调用内容", new Error("empty_tool_calls"));
