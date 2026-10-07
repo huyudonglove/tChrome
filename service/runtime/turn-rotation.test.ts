@@ -15,10 +15,10 @@ const result = (partial: Partial<CompletionResult>): CompletionResult => ({
   finish: "tool_calls", content: "", toolCalls: [], attempts: 1, parseOk: true, schemaOk: true,
   faultCode: null, missing: [], ...partial,
 });
-// notes_write is the cheapest core tool that puts text into the window, so one call is enough
+// reflect_write is the cheapest core tool that puts text into the window, so one call is enough
 // to push a turn's own injected content past a tiny rotation threshold.
 const note = (id: string): CompletionResult => result({
-  toolCalls: [{ id, name: "notes_write", arguments: { reason: "记录", key: id, value: "阶段结论".repeat(60) } }],
+  toolCalls: [{ id, name: "reflect_write", arguments: { reason: "记录", text: "阶段结论".repeat(60) } }],
 });
 const finished: CompletionResult = result({
   toolCalls: [{ id: "finish", name: "finishTurn", arguments: { reason: "完成", text: "已收尾" } }],

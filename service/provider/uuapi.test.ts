@@ -32,8 +32,8 @@ for (const finish of ["length", "content_filter", "stop", "unknown"]) {
     const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch() {
       requests++;
       return sse([
-        call("valid", "notes_write", '{"reason":"test","key":"kept","value":"yes"}'),
-        call("broken", "notes_write", '{"reason":"test"'),
+        call("valid", "reflect_write", '{"reason":"test","text":"yes"}'),
+        call("broken", "reflect_write", '{"reason":"test"'),
       ], "partial", finish);
     } });
     try {
@@ -53,7 +53,7 @@ for (const finish of ["length", "content_filter", "stop", "unknown"]) {
         : `chat_unexpected_finish: ${finish}`;
       expect(result.stopReason).toEqual({ kind: "error", faultCode, detail: `status=0; ${detailSuffix}` });
       const ledger = loadLedger(dir, result.conversationId);
-      expect(ledger.notes.kept).toBeUndefined();
+      expect(ledger.reflectHistory).toEqual([]);
       expect(ledger.toolIO).toEqual([]);
       // complete() retries invalid responses; handleTurn issues another provider request.
       expect(requests).toBe(retriedInvalid ? runtimeConfig.network.maxAttempts * 2 : 2);
@@ -114,7 +114,7 @@ for (const status of [500, 429, 401, 400]) {
 
 for (const badIndex of [0, 1, 2]) {
   test(`坏参数位于 ${badIndex} 时保留其余工具顺序`, async () => {
-    const calls = [0, 1, 2].map((i) => call(`call_${i}`, "notes_write", i === badIndex ? "{broken" : '{"reason":"test","key":"k","value":"v"}'));
+    const calls = [0, 1, 2].map((i) => call(`call_${i}`, "reflect_write", i === badIndex ? "{broken" : '{"reason":"test","text":"v"}'));
     const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => sse(calls) });
     try {
       const result = await providerFor(server.port!).complete(input);
@@ -131,17 +131,17 @@ test("真实 Provider 到 Runtime：多个坏调用留账，合法兄弟照跑",
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch() {
     requests++;
     return requests === 1 ? sse([
-      call("broken_1", "notes_write", "{broken"),
-      call("missing", "notes_write", '{"reason":"test"}'),
-      call("valid", "notes_write", '{"reason":"test","key":"kept","value":"yes"}'),
-      call("broken_2", "notes_write", "{broken"),
+      call("broken_1", "reflect_write", "{broken"),
+      call("missing", "reflect_write", '{"reason":"test"}'),
+      call("valid", "reflect_write", '{"reason":"test","text":"yes"}'),
+      call("broken_2", "reflect_write", "{broken"),
     ]) : sse([call("done", "finishTurn", '{"reason":"done","text":"完成"}')]);
   } });
   try {
     const result = await handleTurn({ dataDir: dir, repoRoot: resolve(import.meta.dir, "../.."), provider: providerFor(server.port!) }, { userInput: "测试", submittedAt: "2026-09-08T00:00:00.000Z" });
     expect(result.stopReason).toEqual({ kind: "reply", text: "完成" });
     const ledger = loadLedger(dir, "cv_01");
-    expect(ledger.notes.kept).toEqual({ id: "nt_01", value: "yes" });
+    expect(ledger.reflectHistory[0]?.items).toEqual([{ id: "rf_01", text: "yes" }]);
     expect(ledger.toolIO.map((item) => item.callId)).toEqual(["call_03", "call_04", "call_01", "call_02", "call_05"]);
     expect(requests).toBe(2);
   } finally { server.stop(true); rmSync(dir, { recursive: true, force: true }); }
@@ -163,16 +163,16 @@ for (const policy of ["unknown_tool", "missing_required", "exclusive_resident"])
   test(`runtime enforces ${policy} for normally parsed provider responses`, async () => {
     const dir = mkdtempSync(join(tmpdir(), "tchrome-runtime-policy-"));
     let requests = 0;
-    const valid = call("valid", "notes_write", JSON.stringify({ reason: "test", key: "kept", value: "yes" }));
+    const valid = call("valid", "reflect_write", JSON.stringify({ reason: "test", text: "yes" }));
     const done = call("done", "finishTurn", JSON.stringify({ reason: "done", text: "完成" }));
-    const bad = policy === "exclusive_resident" ? done : call("invalid", policy === "unknown_tool" ? "not_registered" : "notes_write", "{}");
+    const bad = policy === "exclusive_resident" ? done : call("invalid", policy === "unknown_tool" ? "not_registered" : "reflect_write", "{}");
     const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => sse(++requests === 1 ? [bad, valid] : [done]) });
     try {
       const reply = await handleTurn({ dataDir: dir, repoRoot: resolve(import.meta.dir, "../.."), provider: providerFor(server.port!) },
         { userInput: "测试", submittedAt: "now" });
       expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
       const ledger = loadLedger(dir, reply.conversationId);
-      expect(ledger.notes.kept).toEqual(policy === "exclusive_resident" ? undefined : { id: "nt_01", value: "yes" });
+      expect(ledger.reflectHistory[0]?.items ?? []).toEqual(policy === "exclusive_resident" ? [] : [{ id: "rf_01", text: "yes" }]);
       expect(ledger.toolIO.some((row) => row.return.text.includes(policy))).toBe(true);
     expect(requests).toBe(2);
     } finally { server.stop(true); rmSync(dir, { recursive: true, force: true }); }

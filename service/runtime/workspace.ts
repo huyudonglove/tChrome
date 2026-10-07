@@ -3,6 +3,8 @@ import type { Ledger, ToolIOItem, Turn, WorkspaceEntry } from "../types.ts";
 import { extractWorkspaceEvidence, type WorkspaceEvidence } from "./workspace-extract.ts";
 import { allocateRecordId } from "./ids.ts";
 import { NEUTRAL_TOOLS } from "./escalation.ts";
+import { loadTurn, saveTurn } from "./store.ts";
+import { runtimeConfig } from "../config/runtime.ts";
 
 export const formatBoundId = (seq: number): string => `b${String(seq).padStart(2, "0")}`;
 
@@ -10,12 +12,35 @@ export const formatBoundId = (seq: number): string => `b${String(seq).padStart(2
 export function recordWorkspaceEvidence(dataDir: string, ledger: Ledger, turn: Turn, row: ToolIOItem): void {
   if (row.arguments.keepInCalls !== true || NEUTRAL_TOOLS.has(row.name)) return;
   for (const evidence of extractWorkspaceEvidence(row.name, row.arguments, row.return.text, row.callId)) {
-    turn.assembled.workspace.push({ ...evidence,
+    ledger.notes.push({ ...evidence,
       id: allocateRecordId(dataDir, ledger.conversationId, "workspace").replace("_", ""),
       turnId: turn.turnId, boundId: formatBoundId(ledger.boundSeq),
       callId: row.callId, callIds: [row.callId],
     });
   }
+  if (ledger.notes.length >= runtimeConfig.context.notesFlushRows) flushWorkspaceNotes(dataDir, ledger, turn);
+}
+
+const empty = (value: unknown): boolean => value == null
+  || (typeof value === "string" && value.trim() === "")
+  || (Array.isArray(value) && value.length === 0)
+  || (typeof value === "object" && Object.keys(value).length === 0);
+
+/** Keep source rows intact; the workspace projection groups and deduplicates their evidence. */
+export function flushWorkspaceNotes(dataDir: string, ledger: Ledger, currentTurn: Turn): void {
+  const turns = new Map<string, Turn>([[currentTurn.turnId, currentTurn]]);
+  for (const entry of ledger.notes) {
+    // A failure, status, or successful mutation result is evidence even without content.
+    if (empty(entry.result) && empty(entry.content)) continue;
+    let turn = turns.get(entry.turnId);
+    if (!turn) {
+      turn = loadTurn(dataDir, ledger.conversationId, entry.turnId);
+      turns.set(entry.turnId, turn);
+    }
+    turn.assembled.workspace.push(entry);
+  }
+  for (const turn of turns.values()) if (turn !== currentTurn) saveTurn(dataDir, turn);
+  ledger.notes = [];
 }
 
 type Source = Pick<WorkspaceEntry, "id" | "turnId" | "callId" | "boundId">;

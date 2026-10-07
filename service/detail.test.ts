@@ -123,7 +123,8 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
         const queryRow = toolIO.find((row: any) => row.name === "context_query");
         expect(queryRow.return.workspaceIds.length).toBeGreaterThan(0);
         const operations = collectNested(input.messages[1]!.content, "workspace").flatMap(group => group.operations);
-        const evidence = operations.find(operation => operation.sources.some((source: { id: string }) => queryRow.return.workspaceIds.includes(source.id)));
+        const evidence = collectNested(input.messages[1]!.content, "note").find(note => queryRow.return.workspaceIds.includes(note.id))
+          ?? operations.find(operation => operation.sources.some((source: { id: string }) => queryRow.return.workspaceIds.includes(source.id)));
         expect(evidence.result).toMatchObject({ status: "complete", sumId: f.sumId });
         expect(JSON.stringify(toolIO)).not.toContain(f.tool.return.text);
         expect(section(input.messages[1]!.content, "query")).toHaveLength(2);

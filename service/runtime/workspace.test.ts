@@ -2,10 +2,10 @@ import { expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { formatBoundId, groupWorkspaceEvidence } from "./workspace.ts";
+import { formatBoundId, groupWorkspaceEvidence, recordWorkspaceEvidence } from "./workspace.ts";
 import { handleTurn } from "./loop.ts";
-import { ensureSession, loadLedger, saveLedger, loadTurn } from "./store.ts";
-import type { CompletionResult, Provider, WorkspaceEntry } from "../types.ts";
+import { ensureSession, loadLedger, saveLedger, loadTurn, emptyLedger, saveTurn } from "./store.ts";
+import type { CompletionResult, Provider, WorkspaceEntry, Turn, ToolIOItem } from "../types.ts";
 
 const response = (toolCalls: CompletionResult["toolCalls"]): CompletionResult => ({
   finish: "tool_calls", content: "", toolCalls, attempts: 1,
@@ -34,7 +34,7 @@ for (const keepInCalls of [true, false, undefined]) test(`loop records workspace
       if (request === 2) {
         const saved = loadLedger(dataDir, conversationId);
         const turn = loadTurn(dataDir, conversationId, saved.toolIO[0]!.turnId);
-        const evidence = turn.assembled.workspace.find(entry => entry.target.key === path)!;
+        const evidence = saved.notes.find(entry => entry.target.key === path)!;
         if (keepInCalls === true) {
         expect(evidence).toMatchObject({ target: { kind: "file", key: path }, op: "local_fs_read", callId: saved.toolIO[0]!.callId });
         expect(evidence.content).toContain("original evidence");
@@ -43,7 +43,8 @@ for (const keepInCalls of [true, false, undefined]) test(`loop records workspace
         } else {
           expect(turn.assembled.workspace).toEqual([]);
           expect(input.messages[1]!.content).toContain("original evidence");
-          expect(input.messages[1]!.content).not.toContain("workspaceIds");
+          expect(saved.notes).toEqual([]);
+          expect(input.messages[1]!.content).not.toContain('"workspaceIds":');
         }
         return response([{ id: "write", name: "local_fs_write", arguments: { ...(keepInCalls === undefined ? {} : { keepInCalls }), reason: "更新文件", path, content: "updated evidence" } }]);
       }
@@ -53,7 +54,7 @@ for (const keepInCalls of [true, false, undefined]) test(`loop records workspace
     expect(first.stopReason).toEqual({ kind: "reply", text: "完成" });
     expect(readFileSync(path, "utf8")).toBe("updated evidence");
     const saved = loadTurn(dataDir, conversationId, first.turnId);
-    const entries = saved.assembled.workspace.filter(entry => entry.target.key === path);
+    const entries = loadLedger(dataDir, conversationId).notes.filter(entry => entry.target.key === path);
     if (keepInCalls !== true) {
       expect(saved.assembled.workspace).toEqual([]);
       const rawCalls = loadLedger(dataDir, conversationId).toolIO;
@@ -109,4 +110,50 @@ test("browser mutations without a URL separate snapshots across the same tab", (
   ]);
   expect(groups[0]!.operations.map(operation => operation.revision)).toEqual([0, 1, 3]);
   expect(groups[0]!.operations.map(operation => operation.sources[0]!.callId)).toEqual(["call_1", "call_3", "call_5"]);
+});
+
+
+test("notes flush at 200 rows into their source turns while keeping the live turn and exact sources", () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "tchrome-notes-"));
+  const turn = (turnId: string): Turn => ({
+    conversationId: "cv_test", turnId, status: "completed", createdAt: "now", completedAt: "now",
+    input: { id: `input_${turnId}`, text: "task", submittedAt: "now" },
+    assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [],
+      currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [], workspace: [] }, stopReason: null,
+  });
+  try {
+    const ledger = emptyLedger("cv_test");
+    const previous = turn("tn_01"), current = turn("tn_02");
+    const evidence = (id: number, turnId: string, result: unknown = { ok: true }): WorkspaceEntry => ({
+      id: `ws${id}`, turnId, boundId: "b01", callId: `call_${id}`, callIds: [`call_${id}`],
+      target: { kind: "file", key: "/src/a.ts" }, op: "local_fs_read", result,
+    });
+    previous.assembled.workspace.push(evidence(0, previous.turnId));
+    saveTurn(dataDir, previous);
+    // Disk copy must not replace live changes when a drain includes the current turn.
+    saveTurn(dataDir, current);
+    current.assembled.workspace.push(evidence(999, current.turnId));
+    ledger.notes = Array.from({ length: 198 }, (_, index) => evidence(index + 1, index < 100 ? previous.turnId : current.turnId));
+    ledger.notes[0]!.result = {};
+    ledger.notes[1]!.result = { ok: false, error: "permission denied" };
+    const row = (id: number): ToolIOItem => ({
+      turnId: current.turnId, callId: `call_${id}`, name: "local_fs_stat", arguments: { keepInCalls: true, path: "/src/a.ts" },
+      return: { stage: "complete", text: '{"ok":true}', totalChars: 11 },
+    });
+    recordWorkspaceEvidence(dataDir, ledger, current, row(199));
+    expect(ledger.notes).toHaveLength(199);
+    expect(loadTurn(dataDir, ledger.conversationId, previous.turnId).assembled.workspace).toHaveLength(1);
+    recordWorkspaceEvidence(dataDir, ledger, current, row(200));
+    expect(ledger.notes).toEqual([]);
+    const flushed = loadTurn(dataDir, ledger.conversationId, previous.turnId).assembled.workspace;
+    expect(flushed).toHaveLength(100);
+    expect(flushed.some(entry => entry.id === "ws1")).toBe(false);
+    expect(flushed.find(entry => entry.id === "ws2")!.result).toEqual({ ok: false, error: "permission denied" });
+    expect(current.assembled.workspace).toHaveLength(101);
+    expect(current.assembled.workspace[0]!.id).toBe("ws999");
+    expect(current.assembled.workspace.some(entry => entry.callIds.includes("call_200"))).toBe(true);
+    const grouped = groupWorkspaceEvidence(flushed);
+    expect(grouped[0]!.operations).toHaveLength(2);
+    expect(grouped[0]!.operations.flatMap(operation => operation.sources)).toHaveLength(100);
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });

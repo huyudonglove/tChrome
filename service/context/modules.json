@@ -26,6 +26,7 @@
     { "id": "workspace", "role": "archive", "order": 2, "file": null, "consumers": ["compression"], "archiveField": "workspace", "description": "Runtime-recorded operation evidence, grouped by file/browser/script/process/tool target and archived with each operation's source turn" },
     { "id": "memoryWrites", "role": "archive", "order": 5, "file": null, "consumers": ["compression"], "archiveField": "memoryWrites", "description": "Conversation memory writes" },
     { "id": "reflection", "role": "archive", "order": 6, "file": null, "consumers": ["compression"], "archiveField": "reflection", "description": "Turn reflection" },
+    { "id": "notes", "role": "archive", "order": 7, "file": null, "consumers": ["compression"], "archiveField": "notes", "description": "Runtime-buffered operation evidence attributed to its source turn and tool call" },
     { "id": "queryHistory", "role": "archive", "order": 8, "file": null, "consumers": ["compression"], "archiveField": "queryHistory", "description": "Query History" },
     { "id": "turnOutput", "role": "archive", "order": 9, "file": null, "consumers": ["compression"], "archiveField": "stopReason", "description": "Turn closing output", "inputSemantics": "对象或 null。`{kind:\"reply\", text}` 为最终回复正文；`{kind:\"ask\", question}` / `{kind:\"error\", faultCode, causeCode?, toolName?, detail?}` / `{kind:\"tool\", name, callId}`。null 表示暂无收尾。" }
   ]

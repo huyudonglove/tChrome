@@ -26,6 +26,7 @@
     "foldHigherChunk": { "fixed": 10 },
     "foldMaxLevel": { "fixed": 6 },
     "keepToolBatches": { "fixed": 1 },
+    "notesFlushRows": { "fixed": 200 },
     "turnRotateAtChars": { "follow": "compressAtChars", "ratio": 0.8 },
     "maxTurnRotations": { "fixed": 3 },
     "skillCatalogLimit": { "fixed": 10 },

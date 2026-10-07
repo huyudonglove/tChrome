@@ -9,8 +9,6 @@
     "memory_writeProject",
     "memory_update",
     "memory_delete",
-    "notes_write",
-    "notes_delete",
     "observation_write",
     "tabs_current",
     "evidence_search",

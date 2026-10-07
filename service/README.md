@@ -29,9 +29,9 @@ HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`�
 
 存储层保留持久化和会话命令，读取 ledger / events / turns 后调用 presentation 投影，命令返回行为保持不变。浏览器执行实现在 `extension/tools/browser-tools.js`，由后台 worker 调用。
 
-记忆只有两层：conversation 保存本会话的过程发现、已确认事实、偏好和决定，本地持久化并跨轮读取，新会话不继承，删除会话时删除；project 保存跨会话共享的长期背景与约束，删除来源会话后仍保留。notes 保存本会话草稿、候选和中间材料，按 key 覆盖或删除。
+记忆只有两层：conversation 保存本会话的过程发现、已确认事实、偏好和决定，本地持久化并跨轮读取，新会话不继承，删除会话时删除；project 保存跨会话共享的长期背景与约束，删除来源会话后仍保留。notes 是 Runtime 自动记录的操作证据缓冲，仅接收 keepInCalls=true 的调用参数与门禁处理后的最终返回。达到 context.notesFlushRows 后，过滤结果与内容均为空的条目，将其余原始证据转入来源轮次的 workspace，保留 ws 编号及来源。workspace 按对象归组、合并重复证据展示；calls 的 workspaceIds 同时支持引用缓冲或已转存证据。
 
-每次发送主模型前，Runtime 检测 System + User 文本长度；达到压缩阈值（由 `service/config/runtime.json` 的 `context.compressAtChars` 给出）才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 summary、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 1 个完整工具批次（keepToolBatches）。当前输入、目标、当前页面、notes、长期记忆和 <query> 保持可见；queryHistory 作为取证参考，结论合入 result。摘要按层折叠（同轮 L1 合并仍为 L1，跨轮升 L2，最高到 L6），最新轮次保留。
+每次发送主模型前，Runtime 检测 System + User 文本长度；达到压缩阈值（由 `service/config/runtime.json` 的 `context.compressAtChars` 给出）才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 summary、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 1 个完整工具批次（keepToolBatches）。notes 与 workspace 随来源轮次或工具批次归档；当前输入、目标、当前页面、长期记忆和 <query> 保持可见；queryHistory 作为取证参考，结论合入 result。摘要按层折叠（同轮 L1 合并仍为 L1，跨轮升 L2，最高到 L6），最新轮次保留。
 
 主 Agent 固定配套两个职责单一的子 Agent：Compression Agent 在主模型请求前按需压缩历史材料，Query Agent 在主 Agent 调用 `context_query` 时按意图定位历史证据。两者都复用现有无状态 `provider.complete` 请求能力，包括模型配置、协议适配、重试和响应解析，不另建 LLM 请求层。两个子 Agent 各自通过 `protocol.ts` 组装提示词并校验专用返回工具调用，通过 `index.ts` 执行业务流程，提示词保存在各自的 `context/`；主 Agent 只提交查询意图或消费压缩结果，不直接承担子 Agent 的候选筛选与摘要生成。主 Agent 的工具提交由 `runtime/loop.ts` 的 `validateCompletion` 调用 `tools/schema.ts` 校验；provider 不承担业务输出校验、工具加载策略或批次执行决策。
 

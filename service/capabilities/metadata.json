@@ -2678,7 +2678,7 @@
         "返回成功且更新后的记录内容正确"
       ],
       "alternatives": [
-        "使用当前 notes 临时保存"
+        "使用 reflect_write 记录尚待验证的判断"
       ],
       "composesWith": [],
       "readOnly": false
@@ -2700,7 +2700,7 @@
         "返回成功且更新后的记录内容正确"
       ],
       "alternatives": [
-        "使用当前 notes 临时保存"
+        "使用 reflect_write 记录尚待验证的判断"
       ],
       "composesWith": [],
       "readOnly": false
@@ -2806,57 +2806,6 @@
       "composesWith": [],
       "readOnly": false
     },
-    "notes_delete": {
-      "purpose": "删除过时的工作笔记",
-      "triggers": [
-        "notes_delete",
-        "需要保存、更新或清理跨轮事实与工作草稿"
-      ],
-      "outputs": [
-        "记忆、笔记或删除结果"
-      ],
-      "preconditions": [
-        "内容已被确认且属于约定记忆范围"
-      ],
-      "risk": "medium",
-      "verification": [
-        "返回成功且更新后的记录内容正确"
-      ],
-      "alternatives": [
-        "使用当前 notes 临时保存"
-      ],
-      "composesWith": [],
-      "readOnly": false
-    },
-    "notes_write": {
-      "purpose": "保存或更新工作笔记",
-      "triggers": [
-        "notes_write",
-        "需要保存、更新或清理跨轮事实与工作草稿"
-      ],
-      "outputs": [
-        "记忆、笔记或删除结果"
-      ],
-      "preconditions": [
-        "内容已被确认且属于约定记忆范围"
-      ],
-      "risk": "medium",
-      "verification": [
-        "返回成功且更新后的记录内容正确"
-      ],
-      "alternatives": [
-        "使用当前 notes 临时保存"
-      ],
-      "composesWith": [],
-      "similar": [
-        "observation_write",
-        "memory_writeProject"
-      ],
-      "deeper": [
-        "reflect_write"
-      ],
-      "readOnly": false
-    },
     "observation_write": {
       "purpose": "把页面/代码/截图等观察结果记入本轮 observations",
       "triggers": [
@@ -2877,9 +2826,7 @@
         "需要取片段时用 evidence_search"
       ],
       "composesWith": [],
-      "similar": [
-        "notes_write"
-      ],
+      "similar": [],
       "deeper": [
         "evidence_search",
         "reflect_write"
@@ -3905,9 +3852,7 @@
         "page_assert",
         "page_recheck"
       ],
-      "similar": [
-        "notes_write"
-      ],
+      "similar": [],
       "deeper": [
         "finishTurn"
       ],
@@ -5366,11 +5311,10 @@
         "返回成功且更新后的记录内容正确"
       ],
       "alternatives": [
-        "使用当前 notes 临时保存"
+        "使用 reflect_write 记录尚待验证的判断"
       ],
       "composesWith": [],
       "similar": [
-        "notes_write",
         "observation_write"
       ],
       "deeper": [
@@ -5395,11 +5339,10 @@
         "返回成功且更新后的记录内容正确"
       ],
       "alternatives": [
-        "使用当前 notes 临时保存"
+        "使用 reflect_write 记录尚待验证的判断"
       ],
       "composesWith": [],
       "similar": [
-        "notes_write",
         "observation_write"
       ],
       "deeper": [

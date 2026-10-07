@@ -74,27 +74,6 @@ test("catalog_add mode=remove unloads loaded tools and keeps core tools enabled"
   expect(again.effects).toEqual([]);
 });
 
-test("runtime persists notes through effects", async () => {
-  const fixture = setup();
-  fixture.apply(await fixture.execute("notes_write", { key: " candidate ", value: "页面 A" }));
-  let saved = loadLedger(fixture.dataDir, fixture.ledger.conversationId);
-  expect(saved.notes).toEqual({ candidate: { id: "nt_01", value: "页面 A" } });
-  fixture.apply(await fixture.execute("notes_write", { key: "candidate", value: "页面 B" }));
-  saved = loadLedger(fixture.dataDir, fixture.ledger.conversationId);
-  expect(saved.notes).toEqual({ candidate: { id: "nt_01", value: "页面 B" } });
-  fixture.apply(await fixture.execute("notes_delete", { key: "candidate" }));
-  saved = loadLedger(fixture.dataDir, fixture.ledger.conversationId);
-  expect(saved.notes).toEqual({});
-  applyToolEffects({
-    dataDir: fixture.dataDir, ledger: saved,
-    turn: loadTurn(fixture.dataDir, saved.conversationId, fixture.turn.turnId),
-    call: { callId: "call_reopened", name: "notes_write", arguments: {} },
-    effects: (await fixture.execute("notes_write", { key: "candidate", value: "页面 C" })).effects,
-  });
-  expect(loadLedger(fixture.dataDir, saved.conversationId).notes)
-    .toEqual({ candidate: { id: "nt_02", value: "页面 C" } });
-});
-
 test("memory effects contain normalized entries and runtime persists their source and summary", async () => {
   const fixture = setup();
   const execution = await fixture.execute("memory_writeConversation", {

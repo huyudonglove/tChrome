@@ -8,7 +8,7 @@
 
 `execution`（parallel|serial）的通用含义写在 System 的 `<toolProtocol>` 中：parallel 可与同批并发，serial 等当前执行队列清空后独占。该值由定义文件顶层的 `execution` 决定并注入工具说明供模型参考；模型不必返回，也不能用参数修改。各工具定义只维护自身类型、必填、固定值和专用说明，不重复装配通用解释。
 
-`registry.ts` 向所有工具 schema 注入可选布尔参数 `keepInCalls`，不依赖工具是否有 reason 字段。仅显式 true 把操作结果写入 workspace，并把调用详情保留在来源 `<turn>` 的 `<calls>` 中（已有 workspace 正文时使用引用），直到原有压缩覆盖；false 或未指定不写入 workspace，只在返回后的下一次模型请求展示一次，之后移出。该参数不传给业务执行器，原始调用参数与返回仍完整落盘并按原轮次参与压缩，callId 全会话唯一且可回查。模型按后续是否需要引用证据选择，不按工具类型固定设置。
+`registry.ts` 向所有工具 schema 注入可选布尔参数 `keepInCalls`，不依赖工具是否有 reason 字段。仅显式 true 把操作结果写入 notes 操作证据缓冲，并把调用详情保留在来源 `<turn>` 的 `<calls>` 中（已有 notes 或 workspace 正文时使用 workspaceIds 引用），直到原有压缩覆盖；false 或未指定不写入 notes 或 workspace，只在返回后的下一次模型请求展示一次，之后移出。该参数不传给业务执行器，原始调用参数与返回仍完整落盘并按原轮次参与压缩，callId 全会话唯一且可回查。模型按后续是否需要引用证据选择，不按工具类型固定设置。
 
 - `definitions/<工具名>.json`：工具名称、`function.description`、参数 schema。
 - `definitions/index.json`：动态工具的 browser / service 分类。
@@ -34,7 +34,7 @@
 
 ## 压缩归档查询
 
-常驻 `context_query(sumId, module, intent[, file])` 从指定摘要的来源中查询一个模块。模块为 userInput、toolIO、observations、workspace、memoryWrites、stopReason、queryHistory 或 summaries（file 只支持 workspace / toolIO / summaries，按文件过滤候选）。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后把完整 records 追加进本轮 `<query>`；`<calls>` 只投影指针。查询结果与其它工具返回共用统一内联门禁（默认 6000 字符，inlineChars），超出时通过来源 callId 读取统一块目录；完整原文原样保存。evidence_search 的 windows 每项选择 callId 或 pageId，不传 blockId/keyword 时读根目录，传 keyword 搜索匹配块，传 blockId 读子目录或完整原文块；搜索返回 nextOffset 时用 offset 继续。每次最多 8 个窗口，原文块完整返回且不再次外置。查询不会刷新页面。
+常驻 `context_query(sumId, module, intent[, file])` 从指定摘要的来源中查询一个模块。模块为 userInput、toolIO、observations、notes、workspace、memoryWrites、stopReason、queryHistory 或 summaries（file 只支持 notes / workspace / toolIO / summaries，按文件过滤候选）。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后把完整 records 追加进本轮 `<query>`；`<calls>` 只投影指针。查询结果与其它工具返回共用统一内联门禁（默认 6000 字符，inlineChars），超出时通过来源 callId 读取统一块目录；完整原文原样保存。evidence_search 的 windows 每项选择 callId 或 pageId，不传 blockId/keyword 时读根目录，传 keyword 搜索匹配块，传 blockId 读子目录或完整原文块；搜索返回 nextOffset 时用 offset 继续。每次最多 8 个窗口，原文块完整返回且不再次外置。查询不会刷新页面。
 
 查询模块统一为 conversationHistory；每份归档保留轮次内部的输入、目标变化、工具、页面观察、记忆增量及最终输出。目录与原文由 `service/context-archive/` 管理，工具层只校验参数并调度 `service/agents/query/`。查询 Agent 自己管理提示词、输入输出协议与业务校验，模型请求复用现有 `provider.complete`。查询 Agent 仅选择候选，返回 ID 不能作为文件路径。查询结果走统一内联门禁，不按普通工具再截一层。
 
@@ -65,3 +65,5 @@ HTTP 传输由 `service/network/idle-fetch.ts` 统一检查响应活动，`http-
 动态加载成功后将工具名持久写入会话 ledger.loadedToolIds，新 turn 合并默认工具与会话清单生成 tools[]；重新打开会话和服务重启不清空，新会话独立。技能分常驻与动态：常驻正文装配在 System <systemSkill>；动态由 skill_load 写入 ledger.loadedSkillIds，只出现在 User <skill>。finishTurn 必填 text；同一 text 进入侧栏/trace，并作为后续模型上下文与压缩链路的收口正文，不从 content 补齐。
 
 浏览器目标字段统一为 `tabId` 和 `windowId`。页面操作必须明确指定 `tabId`，窗口操作和新建标签必须指定 `windowId`；目标失效返回错误，不回退到前台。`bind_tab` 仅验证指定标签，不建立隐式绑定。新标签后台打开，新窗口默认不获取焦点，视口截图使用 CDP 在指定标签截图；`duplicate_tab` 保留 Chrome 原生复制并激活新标签的行为。
+
+notes 达到配置 `context.notesFlushRows` 后，Runtime 过滤结果与内容均为空的条目，将其余原始证据转入来源轮次的 workspace；ws 编号、来源轮次与调用编号保持不变。workspace 按对象归组、合并重复证据展示。notes 与 workspace 均按来源轮次或完整工具批次压缩归档；calls 的 workspaceIds 可引用两处证据，正文只保存一处。

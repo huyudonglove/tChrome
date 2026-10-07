@@ -35,8 +35,8 @@
     <observations start="page_01" end="page_01">
       <observation id="page_01" callId="call_60" type="code">{"tabId":101,"result":{}}</observation>
     </observations>
-    <notes start="nt_01" end="nt_01">
-      <note id="nt_01" key="draft">…</note>
+    <notes start="ws02" end="ws02">
+      <note id="ws02">{"id":"ws02","turnId":"tn_01","boundId":"b01","callId":"call_02","callIds":["call_02"],"target":{"kind":"file","key":"/repo/src/test.ts"},"op":"local_fs_read","result":{"ok":true},"content":"…","files":["/repo/src/test.ts"]}</note>
     </notes>
     <reflections start="rf_01" end="rf_01">
       <reflect id="rf_01" focus="证据">…</reflect>
@@ -66,17 +66,19 @@
 | `userInput` | `<userInput id>`，正文含 `turnId` 与 `userInput` 用户原话 | `id` |
 | `calls` | 每轮的 `<calls start end kept total>`，每条一个 `<call callId name ok?>` 元素 | start / end 为该轮调用范围，kept 为本次可见条数，total 为该轮调用总数；callId 全会话唯一，凭 callId 调 evidence_search 回查 |
 | `observation` | 每条观察一个元素，容器为 `<observations start end>`，元素属性含 `id callId type` 等，正文保留 `tabId`（如有）与 `result` 等返回字段 | `id` |
-| `note` | 本轮草稿，`<note id key>` + 正文；容器 `<notes start end>` | `id`（`nt_`），key 为业务键；start / end 使用首尾笔记 ID |
+| `note` | 本轮 Runtime 操作证据，`<note id>` + WorkspaceEntry 正文；容器 `<notes start end>` | `id`（`ws`），start / end 使用首尾证据 ID；转入 workspace 后 ID 不变 |
 | `reflections` | `<reflections start end>` 下每条 `<reflect id focus?>` + 正文 | rf_ |
 | `query` | `<queries start end>` 下每条一个 `<query id sumId module status sourceCallId?>` 元素 | `id` 使用记录的 `queryId`（`query_`）；start / end 使用首尾查询 ID |
 | `stopReason` | `<stopReason kind callId?>` + 正文 | — |
 
 被压缩覆盖的 `<turn>` 整块删除，只在 `<summary>` 留摘要。会话记忆随来源轮次进入压缩，对应原文被覆盖后不再展示该条 `<ConversationMemories>` 全文，落盘原记录仍保留；长期记忆 `<projectMemory>` 不参与压缩，被注入时保留全文。任务记录 `Task` 为会话级唯一实体，items 用 `item_` 编号。查询记录为 `{queryId, turnId, sumId, module, intent, status, records, sourceCallId?, detail?}`。
 
-统一可选布尔参数 `keepInCalls` 控制窗口可见性与 workspace 写入：仅显式 true 写入 workspace，并持续保留调用详情（已有 workspace 正文时使用引用）至原有压缩覆盖；false 或未指定不写入 workspace，调用详情仅在返回后的下一次模型请求展示一次。全部原始调用完整落盘并按原轮次参与压缩，窗口移出不影响归档与 callId 回查。
+统一可选布尔参数 `keepInCalls` 控制窗口可见性与 workspace 写入：仅显式 true 写入 notes 操作证据缓冲，并持续保留调用详情（已有 notes 或 workspace 正文时使用 workspaceIds 引用）至原有压缩覆盖；false 或未指定不写入 notes 或 workspace，调用详情仅在返回后的下一次模型请求展示一次。全部原始调用完整落盘并按原轮次参与压缩，窗口移出不影响归档与 callId 回查。
 
-工具投影的每条调用带 `args`（调用参数；大小超门禁时只留 `files` 路径，记账类指针调用不带）、`return` 为 `{stage, result}`；操作证据已保存到 workspace 时，调用投影使用 workspace 引用，正文保留在对应对象中，避免重复。result 与 observations 中同一 callId 的观察对应时，只保留 `{ok, observationId}`。context_query 的 result 为 `{ok, status, sumId, module, intent, recordCount}`。归档原文使用 `{stage, totalChars, text}`，只出现在压缩/查询候选里，不进主模型窗口。finishTurn / askUser 在 toolIO 只存指针 `{output:"reply"|"ask"}`，正文在本轮 stopReason。
+工具投影的每条调用带 `args`（调用参数；大小超门禁时只留 `files` 路径，记账类指针调用不带）、`return` 为 `{stage, result}`；操作证据已保存到 notes 或 workspace 时，调用投影使用 workspace 引用，正文保留在对应对象中，避免重复。result 与 observations 中同一 callId 的观察对应时，只保留 `{ok, observationId}`。context_query 的 result 为 `{ok, status, sumId, module, intent, recordCount}`。归档原文使用 `{stage, totalChars, text}`，只出现在压缩/查询候选里，不进主模型窗口。finishTurn / askUser 在 toolIO 只存指针 `{output:"reply"|"ask"}`，正文在本轮 stopReason。
 
 Schema 检查字段类型、必填项、ID 格式及已知记录结构，拒绝未声明的顶层模块。编号至少两位，前缀来自 ID 清单。Schema 不检查编号唯一性、自增状态、引用是否存在或查询是否命中；统一内联门禁由 Runtime 验证。
 
 workspace 记录现有门禁处理后的最终返回：小结果保留正文，大结果保留门禁返回的状态、错误、索引及原文路径；完整原文沿用 returns 落盘，不重新塞回 workspace。calls 只引用对应 workspace，不增加另一层门禁。
+
+notes 达到配置 `context.notesFlushRows` 后，Runtime 过滤结果与内容均为空的条目，将其余原始证据转入来源轮次的 workspace；ws 编号、来源轮次与调用编号保持不变。workspace 按对象归组、合并重复证据展示。notes 与 workspace 均按来源轮次或完整工具批次压缩归档；calls 的 workspaceIds 可引用两处证据，正文只保存一处。

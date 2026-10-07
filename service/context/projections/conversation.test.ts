@@ -32,7 +32,7 @@ describe("<task> 会话级任务标签", () => {
         userInput: { id: "input_01", turnId: "tn_01", userInput: "hello" },
         callBounds: null, calls: [],
         observations: [], workspace: [],
-        notes: {},
+        notes: [],
         reflection: null,
         query: [],
         stopReason: null,
@@ -63,7 +63,7 @@ describe("conversation workspace evidence", () => {
   const turnBase = {
     turnId: "tn_01",
     userInput: { id: "input_01", turnId: "tn_01", userInput: "hello" },
-    callBounds: null, calls: [], observations: [], notes: {}, reflection: null, query: [], stopReason: null,
+    callBounds: null, calls: [], observations: [], notes: [], reflection: null, query: [], stopReason: null,
   };
   test("groups evidence from multiple turns at conversation level and preserves sources", () => {
     const xml = conversationXml(payload({
@@ -102,13 +102,15 @@ test("projects record IDs into note/query attributes and matching container boun
         turnId: "tn_01",
         userInput: { id: "input_01", turnId: "tn_01", userInput: "hello" },
         callBounds: null, calls: [], observations: [], workspace: [], reflection: null, stopReason: null,
-        notes: { draft: { id: "nt_04", value: "待核实" }, result: { id: "nt_07", value: "已完成" } },
+        notes: [4, 7].map(n => ({ id: `ws${n}`, turnId: "tn_01", callId: `call_${n}`, callIds: [`call_${n}`], boundId: "b01", target: { kind: "tool" as const, key: `call_${n}` }, op: "read", result: { ok: true, text: n === 4 ? "待核实" : "已完成" } })),
         query: [queryView(query, { inlineChars })],
       }],
     }));
-    expect(xml).toContain('<notes start="nt_04" end="nt_07">');
-    expect(xml).toContain('<note id="nt_04" key="draft">\n待核实\n</note>');
-    expect(xml).toContain('<note id="nt_07" key="result">\n已完成\n</note>');
+    expect(xml).toContain('<notes start="ws4" end="ws7">');
+    expect(xml).toContain('<note id="ws4">');
+    expect(xml).toContain("待核实");
+    expect(xml).toContain('<note id="ws7">');
+    expect(xml).toContain("已完成");
     expect(xml).toContain('<queries start="query_03" end="query_03">');
     expect(xml).toContain('<query id="query_03"');
     expect(xml).not.toContain('"queryId"');
@@ -187,12 +189,12 @@ describe("per-turn call retention", () => {
 
   test("a bookkeeping batch replaces one-time call visibility and preserves pointer mapping", () => {
     const { ledger, project } = fixture();
-    ledger.toolIO.push({ ...call(8, "tn_02", "batch_04", false), name: "notes_write", arguments: { keepInCalls: false, reason: "记录", key: "read", value: "done" } });
-    ledger.lastAction = { turnId: "tn_02", batchId: "batch_04", calls: [{ callId: "call_08", name: "notes_write" }] };
+    ledger.toolIO.push({ ...call(8, "tn_02", "batch_04", false), name: "reflect_write", arguments: { keepInCalls: false, reason: "记录", text: "done" } });
+    ledger.lastAction = { turnId: "tn_02", batchId: "batch_04", calls: [{ callId: "call_08", name: "reflect_write" }] };
     const live = project().turns[1]!;
     expect(live.calls.map(call => call.callId)).toEqual(["call_04", "call_08"]);
     expect(live.calls[1]).not.toHaveProperty("args");
-    expect(live.calls[1]!.return.result).toEqual({ ok: true, note: "read" });
+    expect(live.calls[1]!.return.result).toEqual({ ok: true, reflectId: null });
     expect(live.callBounds).toEqual({ from: "call_04", to: "call_08", kept: 2, total: 5 });
   });
 

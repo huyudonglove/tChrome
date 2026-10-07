@@ -48,13 +48,14 @@
 | 4 | conversation | — | main |
 | 5 | runtimeNotices | — | main |
 
-`<conversation>` 内为会话级 `<ConversationMemories>`、`<summary>`、`<task>`、`<workspaces>` 与按 turnId 嵌套的 `<turn>` 轮次切片（标签属性 turnId / start / end；二级标签 userInput / calls / observations / notes / reflections / queries / stopReason，详见 user/conversation.md）。`<workspaces>` 按 target 对象归组展示，各项操作证据仍存储在来源 turn 并随该轮归档；各轮 `<calls>` 按 keepInCalls 展示调用详情（start/end 为该轮调用范围，kept 为可见条数，total 为该轮调用总数），已在 workspace 保存的正文使用引用；被压缩覆盖的轮次整块删除。
+`<conversation>` 内为会话级 `<ConversationMemories>`、`<summary>`、`<task>`、`<workspaces>` 与按 turnId 嵌套的 `<turn>` 轮次切片（标签属性 turnId / start / end；二级标签 userInput / calls / observations / notes / reflections / queries / stopReason，详见 user/conversation.md）。`<workspaces>` 按 target 对象归组展示，各项操作证据仍存储在来源 turn 并随该轮归档；各轮 `<calls>` 按 keepInCalls 展示调用详情（start/end 为该轮调用范围，kept 为可见条数，total 为该轮调用总数），已在 notes 或 workspace 保存的正文使用 workspaceIds 引用；被压缩覆盖的轮次整块删除。
 
 ### Archive · 仅压缩
 
 | id | 归档字段 | 说明 |
 |---|---|---|
 | userInput | userInput | 轮次用户输入 |
+| notes | notes | Runtime 操作证据缓冲，按来源轮次与工具批次归档 |
 | workspace | workspace | Runtime 仅为显式 keepInCalls=true 的调用自动保存操作证据，按 file/browser/script/process/tool 对象归组；保留 op/args/result/content/range/mutation 与来源编号，随来源轮次归档 |
 | toolIO | toolIO | 该轮完整调用参数与返回；窗口是否继续展示不影响归档 |
 | observations | observations | 观察（页面/代码等） |
@@ -116,6 +117,8 @@ User 模块（含数据）：
 
 User 槽位的数据契约仍见 [DATA.md](DATA.md) 与 `data-schema.json`（校验用不带 `#` 的模块名）。`skill` / `conversation` / `tools` / `runtimeNotices` 为文本，其余为 JSON。DATA.md 约束数据形状，不注入提示词。
 
-调用可见性与 workspace 写入由统一可选参数 `keepInCalls` 决定：仅显式 true 写入 workspace，并保留调用详情（已有 workspace 正文时使用引用）至原有压缩覆盖；false 或未指定不写入 workspace，只在返回后的下一次模型请求展示一次。所有调用完整落盘并按来源轮次参与压缩，callId 全会话唯一，移出窗口后仍可回查。
+调用可见性与 workspace 写入由统一可选参数 `keepInCalls` 决定：仅显式 true 写入 notes 操作证据缓冲，并保留调用详情（已有 notes 或 workspace 正文时使用 workspaceIds 引用）至原有压缩覆盖；false 或未指定不写入 notes 或 workspace，只在返回后的下一次模型请求展示一次。所有调用完整落盘并按来源轮次参与压缩，callId 全会话唯一，移出窗口后仍可回查。
 
 稳定运行规则放在 System 的 `<runtimeProtocol>`：图片选择、压缩、外置与原文取回，以及 workspace 自动记录操作结果事实与按文件归组的规则。User 的 `<runtimeNotices>` 只承载当前动态提醒，作为与 `<conversation>` 平级的独立模块，不参与压缩。
+
+notes 达到配置 `context.notesFlushRows` 后，Runtime 过滤结果与内容均为空的条目，将其余原始证据转入来源轮次的 workspace；ws 编号、来源轮次与调用编号保持不变。workspace 按对象归组、合并重复证据展示。notes 与 workspace 均按来源轮次或完整工具批次压缩归档；calls 的 workspaceIds 可引用两处证据，正文只保存一处。

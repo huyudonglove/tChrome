@@ -16,7 +16,7 @@ test("assembled User slots follow the shared data contract", () => {
   expect(schema.required).toEqual(names);
   const ledger = emptyLedger("cv_01");
   ledger.userInputHistory = [{ id: "input_01", turnId: "tn_01", userInput: "检查状态", submittedAt: "2026-09-12" }];
-  ledger.notes = { scope: { id: "nt_01", value: "仅核对" } };
+  ledger.notes = [{ id: "ws1", turnId: "tn_01", callId: "call_01", callIds: ["call_01"], boundId: "b01", target: { kind: "tool", key: "call_01" }, op: "read", result: "仅核对" }];
   const tool: ToolIOItem = { callId: "call_01", turnId: "tn_01", batchId: "batch_01", name: "page_get_summary", arguments: { reason: "核对状态", businessId: "task-A" }, return: { stage: "complete", totalChars: 3, text: JSON.stringify({ ok: true, tabId: 42, title: "任务", url: "https://example.com", description: "待处理" }) } };
   ledger.toolIO = [tool];
   const page = { id: "page_01", turnId: "tn_01", callId: "call_01", tabId: 42, type: "page_get_summary", result: { ok: true, tabId: 42, title: "任务", url: "https://example.com", description: "待处理" }, observedAt: "2026-09-12" };

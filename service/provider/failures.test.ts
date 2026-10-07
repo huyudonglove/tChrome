@@ -19,9 +19,9 @@ test("failure policy distinguishes transport errors, local errors, and cancellat
 });
 
 const input = { messages: [], tools: [] };
-const args = JSON.stringify({ reason: "test", key: "kept", value: "yes" });
-const chatCall = { id: "valid", type: "function", function: { name: "notes_write", arguments: args } };
-const responseCall = { type: "function_call", status: "completed", call_id: "valid", name: "notes_write", arguments: args };
+const args = JSON.stringify({ reason: "test", text: "yes" });
+const chatCall = { id: "valid", type: "function", function: { name: "reflect_write", arguments: args } };
+const responseCall = { type: "function_call", status: "completed", call_id: "valid", name: "reflect_write", arguments: args };
 
 const chatSse = (finish: string, message: Record<string, unknown> = { content: "partial", tool_calls: [chatCall] }) => {
   const events: unknown[] = [];
@@ -76,7 +76,7 @@ const responses = (status: string, extra: Record<string, unknown> = {}) => () =>
 const cases = [
   { name: "output limit rejects partial tools", fault: "provider_output_limit", chat: chat("length"), responses: responses("incomplete", { incomplete_details: { reason: "max_output_tokens" } }) },
   { name: "explicit refusal rejects sibling tools", fault: "provider_refused", chat: chat("tool_calls", { content: null, refusal: "refused", tool_calls: [chatCall] }), responses: responses("completed", { output: [responseCall, { type: "message", content: [{ type: "refusal", refusal: "refused" }] }] }) },
-  { name: "malformed call rejects valid sibling", fault: "provider_invalid_response", chat: chat("tool_calls", { content: null, tool_calls: [chatCall, { id: "bad", type: "function", function: null }] }), responses: responses("completed", { output: [responseCall, { type: "function_call", call_id: "bad", name: "notes_write", arguments: null }] }) },
+  { name: "malformed call rejects valid sibling", fault: "provider_invalid_response", chat: chat("tool_calls", { content: null, tool_calls: [chatCall, { id: "bad", type: "function", function: null }] }), responses: responses("completed", { output: [responseCall, { type: "function_call", call_id: "bad", name: "reflect_write", arguments: null }] }) },
 ];
 
 for (const scenario of cases) {
@@ -178,7 +178,7 @@ test("Chat/Responses Runtime never executes tools from output-limited responses"
       expect(result.stopReason).toMatchObject({ kind: "error", faultCode: "provider_output_limit" });
       expect((result.stopReason as { detail?: string }).detail).toBeTruthy();
       const ledger = loadLedger(dir, result.conversationId);
-      expect(ledger.notes.kept).toBeUndefined();
+      expect(ledger.reflectHistory).toEqual([]);
       expect(ledger.toolIO).toEqual([]);
       expect(requests).toBe(1);
     } finally { server.stop(true); rmSync(dir, { recursive: true, force: true }); }

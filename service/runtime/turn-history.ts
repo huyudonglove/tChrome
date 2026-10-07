@@ -6,7 +6,7 @@ import { compressedArchiveFields, loadModuleRegistry } from "../context/modules.
 import { inputRecord } from "./ids.ts";
 import { loadTurn } from "./store.ts";
 
-/** A turn's process, distinct from current memory and mutable working notes. */
+/** A turn's process, including buffered runtime notes. */
 export type TurnHistoryRecord = {
   conversationId: string;
   turnId: string;
@@ -17,6 +17,7 @@ export type TurnHistoryRecord = {
   toolIO: ToolIOItem[];
   observations: Observation[];
   workspace: WorkspaceEntry[];
+  notes: WorkspaceEntry[];
   memoryWrites: MemoryRecord[];
   queryHistory: QueryEvidence[];
   reflection: { turnId: string; items: { id: string; text: string; focus?: string }[] } | null;
@@ -33,6 +34,7 @@ const projectors: Record<string, (ctx: ProjectContext) => unknown> = {
   toolIO: ({ ledger, turn }) => ledger.toolIO.filter(item => item.turnId === turn.turnId),
   observations: ({ turn }) => turn.assembled.observations.filter(item => item.turnId === turn.turnId),
   workspace: ({ turn }) => turn.assembled.workspace.filter(item => item.turnId === turn.turnId),
+  notes: ({ ledger, turn }) => ledger.notes.filter(item => item.turnId === turn.turnId),
   memoryWrites: ({ turn, memories }) => memories.conversation.filter(item => item.turnId === turn.turnId),
   queryHistory: ({ ledger, turn }) => ledger.queryHistory.filter(item => item.turnId === turn.turnId),
   reflection: ({ turn }) => (turn.reflect?.length ? { turnId: turn.turnId, items: turn.reflect } : null),

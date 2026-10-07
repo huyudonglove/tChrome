@@ -60,8 +60,6 @@ export function conversationPayload(input: {
   conversationSummaries?: TurnSummary[] | string;
   queryHistory?: QueryEvidence[];
   gate: Omit<QueryViewOptions, "path"> & { path?: (query: QueryEvidence) => string | undefined };
-  /** Per-turn notes snapshots; live notes always land on the active turn. */
-  notesByTurn?: Record<string, Ledger["notes"]>;
   /** Needed to restore settled turns' <output> from disk. */
   dataDir?: string;
 }): ConversationPayload {
@@ -86,7 +84,6 @@ export function conversationPayload(input: {
     workspaceByTurn.set(entry.turnId, rows);
   }
   const queries: QueryEvidence[] = [...(input.queryHistory ?? [])];
-  const notesByTurn = input.notesByTurn ?? {};
   const latestBatch = ledger.lastAction?.turnId === turn.turnId ? ledger.lastAction : null;
   const latestCallIds = new Set(latestBatch?.calls.map(call => call.callId) ?? []);
 
@@ -107,10 +104,10 @@ export function conversationPayload(input: {
       callBounds: toolRows.length
         ? { from: toolRows[0]!.callId, to: toolRows.at(-1)!.callId, kept: visibleCalls.length, total: toolRows.length }
         : null,
-      calls: toolHistoryView(visibleCalls, pages, workspaceByTurn.get(row.turnId) ?? []),
+      calls: toolHistoryView(visibleCalls, pages, [...(workspaceByTurn.get(row.turnId) ?? []), ...groupByTurn(ledger.notes, row.turnId)]),
       observations: pages.map((page) => pageView(page, currentTurn)).filter((page) => page !== null),
       workspace: workspaceByTurn.get(row.turnId) ?? [],
-      notes: (isLive ? ledger.notes : notesByTurn[row.turnId]) ?? {},
+      notes: groupByTurn(ledger.notes, row.turnId),
       reflection: reflectByTurn.get(row.turnId)?.length
         ? { turnId: row.turnId, items: reflectByTurn.get(row.turnId)! }
         : null,
@@ -241,12 +238,9 @@ export const runtimeNoticesXml = (notices: RuntimeNotice[]): string => {
 };
 
 const notesXml = (notes: Ledger["notes"]): string => {
-  const entries = Object.entries(notes);
-  if (!entries.length) return "";
-  const body = entries
-    .map(([key, note]) => `<note${attr("id", note.id)}${attr("key", key)}>\n${note.value}\n</note>`)
-    .join("\n");
-  return `<notes${attrText({ start: entries[0]![1].id, end: entries.at(-1)![1].id })}>\n${body}\n</notes>`;
+  if (!notes.length) return "";
+  const body = notes.map(note => tag("note", note, { id: note.id })).join("\n");
+  return `<notes${attrText({ start: notes[0]!.id, end: notes.at(-1)!.id })}>\n${body}\n</notes>`;
 };
 
 const taskXml = (plan: unknown): string => {

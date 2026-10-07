@@ -15,12 +15,12 @@ const messages = [
 const tools = [{
   type: "function" as const,
   function: {
-    name: "notes_write",
-    description: "保存工作笔记。",
+    name: "reflect_write",
+    description: "记录判断依据。",
     parameters: {
       type: "object",
-      properties: { reason: { type: "string" }, key: { type: "string" }, value: { type: "string" } },
-      required: ["reason", "key", "value"],
+      properties: { reason: { type: "string" }, text: { type: "string" } },
+      required: ["reason", "text"],
     },
   },
 }];
@@ -47,7 +47,7 @@ test("请求体包含 systemInstruction、google_search 与 functionDeclarations
     expect(captured.body.systemInstruction.parts[0].text).toBe("SYSTEM_RULES");
     expect(captured.body.contents).toEqual([{ role: "user", parts: [{ text: "帮我查一下" }] }]);
     expect(captured.body.tools[0]).toEqual({ google_search: {} });
-    expect(captured.body.tools[1].functionDeclarations[0].name).toBe("notes_write");
+    expect(captured.body.tools[1].functionDeclarations[0].name).toBe("reflect_write");
     expect(captured.body.toolConfig).toEqual({ functionCallingConfig: { mode: "AUTO" } });
   } finally { server.stop(true); }
 });
@@ -58,8 +58,8 @@ test("functionCall 生成稳定 call id 并解析参数", async () => {
       finishReason: "STOP",
       content: { parts: [
         { text: "先记一笔" },
-        { functionCall: { name: "notes_write", args: { reason: "记录", key: "k", value: "v" } } },
-        { functionCall: { name: "notes_write", args: { reason: "再记", key: "k2", value: "v2" } } },
+        { functionCall: { name: "reflect_write", args: { reason: "记录", text: "v" } } },
+        { functionCall: { name: "reflect_write", args: { reason: "再记", text: "v2" } } },
       ] },
     }],
   }) });
@@ -68,8 +68,8 @@ test("functionCall 生成稳定 call id 并解析参数", async () => {
     expect(result.finish).toBe("tool_calls");
     expect(result.toolCalls.map((call) => call.id)).toEqual(["gem_call_01", "gem_call_02"]);
     expect(result.toolCalls[0]).toEqual({
-      id: "gem_call_01", name: "notes_write",
-      arguments: { reason: "记录", key: "k", value: "v" },
+      id: "gem_call_01", name: "reflect_write",
+      arguments: { reason: "记录", text: "v" },
     });
     expect(result.content).toBe("先记一笔");
   } finally { server.stop(true); }
@@ -80,7 +80,7 @@ test("缺 args 的 functionCall 解析为空对象并保留调用", async () => 
     candidates: [{
       finishReason: "STOP",
       content: { parts: [
-        { functionCall: { name: "notes_write", args: { reason: "ok", key: "k", value: "v" } } },
+        { functionCall: { name: "reflect_write", args: { reason: "ok", text: "v" } } },
         { functionCall: { name: "broken", args: undefined } },
       ] },
     }],
@@ -89,7 +89,7 @@ test("缺 args 的 functionCall 解析为空对象并保留调用", async () => 
     // args undefined → "{}" via JSON.stringify; use a name that still parses as object.
     const result = await providerFor(server.port!).complete({ messages, tools });
     expect(result.parseOk).toBe(true);
-    expect(result.toolCalls.map((call) => call.name)).toEqual(["notes_write", "broken"]);
+    expect(result.toolCalls.map((call) => call.name)).toEqual(["reflect_write", "broken"]);
   } finally { server.stop(true); }
 });
 

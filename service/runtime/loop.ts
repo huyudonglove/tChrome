@@ -40,8 +40,6 @@ const OBSERVATION_NUDGE_EXCLUDED = new Set([
   "observation_write",
   "reflect_write",
   "reflect_delete",
-  "notes_write",
-  "notes_delete",
   "memory_writeConversation",
   "memory_writeProject",
   "memory_update",

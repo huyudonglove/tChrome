@@ -54,7 +54,6 @@ test("registry loads XML modules and system text uses angle-bracket tags", () =>
 test("user window renders XML purpose modules with data after purpose", () => {
   const modules = loadContextModules(root);
   const ledger = emptyLedger("cv_xml");
-  ledger.notes = { candidate: { id: "nt_01", value: "草稿 {{literal}}" } };
   const turn: Turn = {
     turnId: "tn_01", conversationId: "cv_xml", status: "inferring",
     createdAt: "", completedAt: null,

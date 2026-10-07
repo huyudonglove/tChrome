@@ -41,7 +41,7 @@ test("whole-turn grouping removes covered module increments, retaining current s
     const ledger = emptyLedger("cv_test"), turns = seed(dataDir, ledger);
     ledger.userInputHistory = turns.map(inputRecord);
     ledger.toolIO = turns.map(turn => ({ callId: `call_${turn.turnId}`, turnId: turn.turnId, batchId: `batch_${turn.turnId}`, name: "memory.write", arguments: {}, return: { stage: "complete", text: "成功", totalChars: 2 } }));
-    ledger.notes = { draft: { id: "nt_01", value: "当前草稿" } };
+    ledger.notes = [{ id: "ws01", turnId: "tn_06", boundId: "b01", callId: "call_current", callIds: ["call_current"], target: { kind: "tool", key: "call:call_current" }, op: "local_run", result: { ok: true }, content: "当前记录" }];
     const memories: Memories = { project: [], conversation: turns.map(turn => ({ memoryId: `mm_${turn.turnId}`, turnId: turn.turnId, layer: "conversation", text: `记忆${turn.turnId}`, createdAt: "2026-09-11", sourceCallId: `call_${turn.turnId}` })) };
     const current = makeTurn(ledger.conversationId, "tn_06"); current.status = "inferring"; current.stopReason = null; current.completedAt = null;
     ledger.turnIds.push(current.turnId); ledger.active = { turnId: current.turnId };
@@ -146,7 +146,7 @@ test("long current turn archives retained and transient calls while keeping the 
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
-test("automatic workspace evidence reloads old turns and archives alongside source calls", async () => {
+for (const fail of [false, true]) test(`notes and workspace archive by source turn/batch; failure=${fail} retains originals`, async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "context-workspace-"));
   primeActiveTask(dataDir);
   try {
@@ -164,26 +164,48 @@ test("automatic workspace evidence reloads old turns and archives alongside sour
       ledger.toolIO.push(row);
       ledger.boundSeq = i + 1;
       recordWorkspaceEvidence(dataDir, ledger, turn, row);
+      // An earlier drained record sharing this source exercises workspace coverage too.
+      turn.assembled.workspace.push({ ...ledger.notes.at(-1)!, id: `ws_saved_${i}`, content: `saved ${i}` });
     }
     saveTurn(dataDir, previous); saveTurn(dataDir, current); saveLedger(dataDir, ledger);
     const reloaded = loadLedger(dataDir, ledger.conversationId);
     const live = loadTurn(dataDir, ledger.conversationId, current.turnId);
     const memories: Memories = { project: [], conversation: [] };
-    const expected = [...previous.assembled.workspace, ...current.assembled.workspace];
-    expect(contextState(dataDir, reloaded, live, memories).turn.assembled.workspace).toEqual(expected);
+    const expectedWorkspace = [...previous.assembled.workspace, ...current.assembled.workspace];
+    const before = contextState(dataDir, reloaded, live, memories);
+    expect(before.turn.assembled.workspace).toEqual(expectedWorkspace);
+    expect(before.ledger.notes).toEqual(ledger.notes);
+    let phase: "current" | "history" = "current";
     const provider: Provider = { complete: async input => {
       const source = oneTurnOf(input.messages);
-      expect(source.workspace).toEqual(current.assembled.workspace.slice(0, 1));
-      return summaryResponse(input.messages);
+      const expectedCall = phase === "current" ? ledger.toolIO[1]!.callId : ledger.toolIO[0]!.callId;
+      expect(source.notes).toEqual(ledger.notes.filter(entry => entry.callId === expectedCall));
+      expect(source.workspace).toEqual(expectedWorkspace.filter(entry => entry.callId === expectedCall));
+      return fail ? result({ finish: "error", faultCode: "test_error" }) : summaryResponse(input.messages);
     } };
     await compressContext({ dataDir, repoRoot, provider, ledger: reloaded, turn: live, memories, isCancelled: () => false }, "current");
     const view = contextState(dataDir, loadLedger(dataDir, ledger.conversationId), loadTurn(dataDir, ledger.conversationId, current.turnId), memories);
-    expect(view.turn.assembled.workspace).toEqual([...previous.assembled.workspace, ...current.assembled.workspace.slice(1)]);
+    expect(view.ledger.notes).toEqual(fail ? ledger.notes : ledger.notes.filter(entry => entry.callId !== ledger.toolIO[1]!.callId));
+    expect(view.turn.assembled.workspace).toEqual(fail ? expectedWorkspace : expectedWorkspace.filter(entry => entry.callId !== ledger.toolIO[1]!.callId));
+    phase = "history";
+    await compressContext({ dataDir, repoRoot, provider, ledger: reloaded, turn: live, memories, isCancelled: () => false }, "history");
+    const finalView = contextState(dataDir, reloaded, live, memories);
+    expect(finalView.ledger.notes).toEqual(fail ? ledger.notes : ledger.notes.slice(2));
+    expect(finalView.turn.assembled.workspace).toEqual(fail ? expectedWorkspace : current.assembled.workspace.slice(1));
     const index = loadIndex(dataDir, ledger.conversationId, "conversationHistory");
     const sources = resolveSources(dataDir, ledger.conversationId, "conversationHistory", index.activeIds);
-    expect((sources[0]!.content as { workspace: unknown }).workspace).toEqual(current.assembled.workspace.slice(0, 1));
-    expect((sources[0]!.content as { toolIO: unknown }).toolIO).toEqual(ledger.toolIO.slice(1, 2));
+    if (fail) expect(sources).toEqual([]);
+    else {
+      const currentSource = sources.find(source => (source.content as { turnId: string }).turnId === current.turnId)!;
+      const previousSource = sources.find(source => (source.content as { turnId: string }).turnId === previous.turnId)!;
+      expect((currentSource.content as { notes: unknown }).notes).toEqual(ledger.notes.slice(1, 2));
+      expect((currentSource.content as { workspace: unknown }).workspace).toEqual(current.assembled.workspace.slice(0, 1));
+      expect((previousSource.content as { notes: unknown }).notes).toEqual(ledger.notes.slice(0, 1));
+    }
+    expect(reloaded.notes).toEqual(ledger.notes);
+    expect(loadLedger(dataDir, ledger.conversationId).notes).toEqual(ledger.notes);
     expect(loadTurn(dataDir, ledger.conversationId, current.turnId).assembled.workspace).toEqual(current.assembled.workspace);
+    expect(loadTurn(dataDir, ledger.conversationId, previous.turnId).assembled.workspace).toEqual(previous.assembled.workspace);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 

@@ -27,6 +27,7 @@ test("module registry owns consumers and archive fields", () => {
     "workspace",
     "memoryWrites",
     "reflection",
+    "notes",
     "queryHistory",
     "stopReason",
   ]);

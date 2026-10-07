@@ -246,15 +246,6 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     if (!/^rf_[0-9]{2,}$/.test(id)) return failedTool(errorDetail("reflect_bad_id"), "invalid_arguments", { toolName: name });
     return result(JSON.stringify({ ok: true, id, deleted: true }), [{ type: "reflect_delete", id }]);
   }
-  if (name === "notes_write") {
-    const key = String(args.key ?? "").trim();
-    const value = String(args.value ?? "");
-    return key ? result(`notes[${key}]=${value}`, [{ type: "note.write", key, value }]) : failedTool(errorDetail("notes_key_empty"), "invalid_arguments");
-  }
-  if (name === "notes_delete") {
-    const key = String(args.key ?? "").trim();
-    return key ? result(`deleted notes[${key}]`, [{ type: "note.delete", key }]) : failedTool(errorDetail("notes_key_empty"), "invalid_arguments");
-  }
   if (name === "observation_write") {
     const observationType = String(args.type ?? "").trim();
     if (!observationType) return failedTool(errorDetail("observation_type_empty"), "invalid_arguments");

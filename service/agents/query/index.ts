@@ -63,7 +63,7 @@ export async function queryContext(input: QueryInput): Promise<QueryResult> {
     let candidates = records;
     if (file) {
       if (!(FILE_FILTER_MODULES as readonly string[]).includes(input.module)) {
-        return { ...base, ok: true, status: "not_found", detail: `module=${input.module} 的记录不带文件归因，file 只支持 workspace / toolIO / summaries。` };
+        return { ...base, ok: true, status: "not_found", detail: `module=${input.module} 的记录不带文件归因，file 只支持 workspace / notes / toolIO / summaries。` };
       }
       candidates = records.filter((record) => recordTouchesFile(record, input.module, file));
       if (!candidates.length) return { ...base, ok: true, status: "not_found", detail: `指定摘要来源中没有涉及文件 ${file} 的模块记录（module=${input.module}）。` };

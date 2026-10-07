@@ -73,6 +73,7 @@ export function contextState(dataDir: string, ledger: Ledger, turn: Turn, memori
       reflectHistory: ledger.reflectHistory.filter(row => !turnCovered(row.turnId)),
       taskHistory: ledger.taskHistory.filter(row => !row.turnId || !turnCovered(row.turnId)),
       toolIO: ledger.toolIO.filter(row => !toolCovered(row)),
+      notes: ledger.notes.filter(row => !originCovered(row.turnId, row.callId)),
       queryHistory: ledger.queryHistory.filter(row => !isCovered(querySourceKey(row.queryId))),
     },
     turn: { ...turn, assembled: { ...turn.assembled,
@@ -152,7 +153,7 @@ function archiveContentFromInventory(
       content[field] = raw.filter((row: ToolIOItem) => !coverage.toolCovered(row));
     } else if (field === "memoryWrites") {
       content[field] = raw.filter((row: { turnId: string; sourceCallId: string }) => !coverage.originCovered(row.turnId, row.sourceCallId));
-    } else if (field === "observations" || field === "workspace") {
+    } else if (field === "observations" || field === "workspace" || field === "notes") {
       content[field] = raw.filter((row: { turnId: string; callId: string }) => !coverage.originCovered(row.turnId, row.callId));
     } else {
       content[field] = raw;

@@ -24,8 +24,6 @@ function argsView(args: unknown): Record<string, unknown> | undefined {
 const MODULE_POINTERS: Record<string, (args: Record<string, unknown>, result: unknown) => unknown> = {
   finishTurn: () => ({ ok: true, output: "reply" }),
   askUser: () => ({ ok: true, output: "ask" }),
-  "notes_write": (args) => ({ ok: true, note: String(args.key ?? "") }),
-  "notes_delete": (args) => ({ ok: true, note: String(args.key ?? ""), deleted: true }),
   "memory_writeConversation": () => ({ ok: true, memory: true }),
   "memory_writeProject": () => ({ ok: true, memory: true }),
   "memory_update": (args) => ({ ok: true, memoryId: args.memoryId ?? null }),

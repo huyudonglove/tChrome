@@ -516,7 +516,7 @@ test("记忆效果失败进入 toolIO，同批工具继续，模型收到错误�
       if (++requests === 1) return ok({ finish: "tool_calls", toolCalls: [
         { id: "memory", name: "memory_writeConversation", arguments: { reason: "记录", conversationMemory: ["本轮已写入"] } },
         { id: "memoryP", name: "memory_writeProject", arguments: { reason: "记录", scope: "tChrome", projectMemory: ["不能覆盖"] } },
-        { id: "next", name: "notes_write", arguments: { reason: "下一步", key: "next", value: "已执行" } },
+        { id: "next", name: "reflect_write", arguments: { reason: "下一步", text: "已执行" } },
       ] });
       // tool returns land in the pool as compact JSON; assert the exact rendering instead of pretty-printed form
       expect(input.messages[1]!.content).toContain('"faultCode":"file_exists"');
@@ -528,7 +528,7 @@ test("记忆效果失败进入 toolIO，同批工具继续，模型收到错误�
     expect(reply.stopReason.kind).toBe("reply");
     expect(requests).toBe(2);
     const ledger = loadLedger(dir, "cv_01");
-    expect(ledger).toMatchObject({ status: "idle", active: null, liveTools: [], toolQueue: [], memoryIds: { conversation: ["mm_01"] }, notes: { next: { id: "nt_01", value: "已执行" } } });
+    expect(ledger).toMatchObject({ status: "idle", active: null, liveTools: [], toolQueue: [], memoryIds: { conversation: ["mm_01"] }, reflectHistory: [{ items: [{ id: "rf_01", text: "已执行" }] }] });
     expect(loadMemory(dir, "cv_01", "mm_01").text).toBe("本轮已写入");
     expect(loadMemory(dir, "cv_01", "lm_01").text).toBe("已有记忆");
     const failedWrite = ledger.toolIO.find((item) => item.name === "memory_writeProject");
@@ -854,7 +854,7 @@ test("只有 bookkeeping 工具时观察提醒保持安静", async () => {
       const body = input.messages[1]!.content;
       if (step <= 40) {
         expect(body).not.toContain('kind="observation"');
-        return ok({ finish: "tool_calls", toolCalls: [{ id: `n_${step}`, name: "notes_write", arguments: { reason: "草稿", key: `k${step}`, value: "v" } }] });
+        return ok({ finish: "tool_calls", toolCalls: [{ id: `n_${step}`, name: "reflect_write", arguments: { reason: "草稿", text: "v" } }] });
       }
       return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
     } };
@@ -933,39 +933,6 @@ test("本轮写过 observation_write 时压缩前不再提示", async () => {
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("notes_write 按 key 写入，notes_delete 删除", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "tchrome-notes-"));
-    primeActiveTask(dir);
-  const provider = mock([
-    ok({
-      finish: "tool_calls",
-      content: "",
-      toolCalls: [{ id: "call_01", name: "notes_write", arguments: { reason: "记下", key: "candidate", value: "罗技 MX Master 3S" } }],
-    }),
-    ok({
-      finish: "tool_calls",
-      content: "",
-      toolCalls: [{ id: "call_02", name: "notes_write", arguments: { reason: "改", key: "candidate", value: "MX Master 3S 黑" } }],
-    }),
-    ok({
-      finish: "tool_calls",
-      content: "",
-      toolCalls: [{ id: "call_03", name: "notes_delete", arguments: { reason: "删", key: "candidate" } }],
-    }),
-    ok({
-      finish: "tool_calls",
-      content: "",
-      toolCalls: [{ id: "call_04", name: "finishTurn", arguments: { text: "笔记已删", reason: "答完"} }],
-    }),
-  ]);
-  const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "先记下再删", submittedAt: "2026-09-06T00:00:00.000Z" });
-  expect(reply.stopReason).toEqual({ kind: "reply", text: "笔记已删" });
-  const ledger = loadLedger(dir, "cv_01");
-  expect(ledger.notes).toEqual({});
-  expect(ledger.toolIO.map((row) => row.name)).toEqual(["notes_write", "notes_write", "notes_delete", "finishTurn"]);
-  rmSync(dir, { recursive: true, force: true });
-});
-
 test.each(["provider", "provider-reject", "browser", "browser-reject"])("停止后启动新轮，旧 %s 返回不会覆盖新轮", async (waitingOn) => {
   const dir = mkdtempSync(join(tmpdir(), "tchrome-stop-restart-"));
     primeActiveTask(dir);
@@ -1041,7 +1008,7 @@ test("第20次出网 content 为空但 finishTurn.text 有正文时正常结束"
   try {
     const steps = Array.from({ length: 19 }, (_, i) => ok({
       finish: "tool_calls", content: "", toolCalls: [{
-        id: `note_${i}`, name: "notes_write", arguments: { reason: "记录已确认的进展", key: "progress", value: String(i) },
+        id: `note_${i}`, name: "reflect_write", arguments: { reason: "记录已确认的进展", text: String(i) },
       }],
     }));
     steps.push(ok({ finish: "tool_calls", content: "", toolCalls: [{
@@ -1079,12 +1046,12 @@ test("工具抛错写入记录，清空执行状态并允许下一次模型请�
     ] });
     if (requests === 2) return ok({ finish: "tool_calls", toolCalls: [
       { id: "http", name: "send_http", arguments: { reason: "读取", url: "https://example.com" } },
-      { id: "note", name: "notes_write", arguments: { reason: "继续", key: "progress", value: "continued" } },
+      { id: "note", name: "reflect_write", arguments: { reason: "继续", text: "continued" } },
     ] });
     const ledger = loadLedger(dir, "cv_01");
     expect(ledger.liveTools).toEqual([]);
     expect(ledger.toolQueue).toEqual([]);
-    expect(ledger.notes.progress).toEqual({ id: "nt_01", value: "continued" });
+    expect(loadTurn(dir, "cv_01", ledger.active!.turnId).reflect).toEqual([{ id: "rf_01", text: "continued" }]);
     expect(messages[1]!.content).toContain("tool_execution_failed");
     return ok({ finish: "tool_calls", toolCalls: [
       { id: "finish", name: "finishTurn", arguments: { reason: "已处理失败", text: "完成"} },
@@ -1148,7 +1115,7 @@ test(`<reflection> 提醒按本轮调用数触发：满 ${REFLECT_CALLS} 次调�
       if (step <= REFLECT_CALLS) {
         // 调用数还没到门槛：连打同一工具也不会被提醒
         expect(body).not.toContain(REFLECT_NUDGE_TEXT);
-        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "notes_write", arguments: { reason: "记录取证", key: `k${step}`, value: "v" } }] });
+        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "catalog_add", arguments: { reason: "确认可用工具", names: ["finishTurn"] } }] });
       }
       if (step === REFLECT_CALLS + 1) {
         expect(body.split(REFLECT_NUDGE_TEXT).length - 1).toBe(1);
@@ -1174,7 +1141,7 @@ test(`本轮写过 reflect_write 就整轮不再提醒（走过 ${REFLECT_CALLS}
         return ok({ finish: "tool_calls", toolCalls: [{ id: "rf_01", name: "reflect_write", arguments: { reason: "记录判断变化", text: "取证顺序应先窄读再动手", focus: "证据" } }] });
       }
       if (step <= REFLECT_CALLS + 1) {
-        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "notes_write", arguments: { reason: "记录取证", key: `k${step}`, value: "v" } }] });
+        return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "catalog_add", arguments: { reason: "确认可用工具", names: ["finishTurn"] } }] });
       }
       return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
     } };

@@ -15,7 +15,6 @@
   "reflect_empty_text": "reflect_write 的 text 为空",
   "reflect_missing_session": "reflect_write 缺少会话标识",
   "reflect_bad_id": "id 必须是 rf_ 编号",
-  "notes_key_empty": "key 空着",
   "observation_type_empty": "type 空着",
   "observation_result_empty": "result 空着",
   "page_clear_missing_obs": "没有观察 {pageId}",

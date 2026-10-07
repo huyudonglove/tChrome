@@ -135,7 +135,7 @@ for (const resetTool of ["local_fs_write", "checkContinue"]) {
               id: `read_${index}`, name: "local_fs_list", arguments: { path: dataDir, limit: 1 },
             }))
             : request === 2
-              ? [{ id: "note", name: "notes_write", arguments: { reason: "记下结果", key: "directory", value: "目录已读取" } }]
+              ? [{ id: "note", name: "reflect_write", arguments: { reason: "记下结果", text: "目录已读取" } }]
               : request === 3
                 ? [{ id: "inspect", name: "local_run", arguments: { reason: "读取状态", cwd: dataDir, command: "pwd" } }]
               : request === 4

@@ -98,6 +98,7 @@ const context = {
   foldHigherChunk: resolveGate("foldHigherChunk"),
   foldMaxLevel: resolveGate("foldMaxLevel"),
   keepToolBatches: resolveGate("keepToolBatches"),
+  notesFlushRows: resolveGate("notesFlushRows"),
   // A turn whose own injected content reaches this share of the window is closed early and
   // continued in a fresh turn, so one long turn cannot crowd out the history it depends on.
   turnRotateAtChars: resolveGate("turnRotateAtChars"),

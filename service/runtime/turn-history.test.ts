@@ -6,9 +6,9 @@ import { emptyLedger, saveTurn } from "./store.ts";
 import { assembleTurnHistory, loadSettledTurnHistory } from "./turn-history.ts";
 import type { Turn } from "../types.ts";
 const turn = (turnId:string):Turn => ({conversationId:"cv_test",turnId,status:"completed",createdAt:"2026-09-11",completedAt:"2026-09-11",input:{id:`input_${turnId}`,text:"只改负责人",submittedAt:"2026-09-11"},assembled:{baseToolsIds:[],toolIds:[],conversationMemoryIds:[],projectMemoryIds:[],mcpIds:[],currentTabs: { ok: true, windows: [] },currentPage:null,observations:[],workspace:[]},stopReason: { kind:"reply",text:"已修改并核对" }});
-test("turn process joins existing records without mixing turns or mutable memory/notes",()=>{
+test("turn process joins existing records includes source-turn notes without mixing turns or mutable memory",()=>{
  const ledger=emptyLedger("cv_test");ledger.turnIds=["tn_01","tn_02"];
- ledger.notes={draft:{id:"nt_01",value:"当前草稿"}};
+ ledger.notes=["tn_01","tn_02"].map((turnId,i)=>({id:`ws${i}`,turnId,boundId:"b01",callId:`c${i}`,callIds:[`c${i}`],target:{kind:"tool" as const,key:`call:c${i}`},op:"page_get_summary",result:{ok:true},content:`原文${i}`}));
  const first=turn("tn_01");
  ledger.toolIO=["tn_01","tn_02"].map((turnId,i)=>({turnId,callId:`c${i}`,name:"page_get_summary",arguments:{},return:{stage:"complete",text:"完整结果",totalChars:4}}));
  first.assembled.observations=[{id:"p1",turnId:"tn_01",tabId:1,observedAt:"2026-09-11",callId:"c0",type:"page_get_summary",result:{ok:true}}];
@@ -17,7 +17,8 @@ test("turn process joins existing records without mixing turns or mutable memory
  expect(record.observations).toEqual(first.assembled.observations);
  expect(record.userInput.id).toBe(first.input.id);
  expect(record.stopReason).toEqual({ kind: "reply", text: "已修改并核对" });
- expect(record).not.toHaveProperty("notes");expect(record).not.toHaveProperty("memory");
+ expect(record.notes).toEqual([ledger.notes[0]!]);expect(record).not.toHaveProperty("memory");
+ record.notes[0]!.content="修改笔记投影";
  record.toolIO[0]!.return.text="修改投影";
  expect(JSON.stringify({ledger,first})).toBe(snapshot);
  expect(()=>assembleTurnHistory({...ledger,conversationId:"cv_other"},first)).toThrow();

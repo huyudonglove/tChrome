@@ -28,7 +28,6 @@ export type Escalation =
  */
 export const NEUTRAL_TOOLS = new Set([
   "observation_write", "reflect_write", "reflect_delete",
-  "notes_write", "notes_delete",
   "memory_writeConversation", "memory_writeProject", "memory_update", "memory_delete",
   "task_set", "task_update", "task_complete",
   "skill_load", "skill_list", "catalog_add", "list_browser_tools",

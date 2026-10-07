@@ -62,13 +62,13 @@ test("more than 20 successful tool rounds can finish normally", async () => {
 test("one model response counts every executed browser, resident and closing tool", async () => {
   await run([result({ toolCalls: [
     call("page", "page_get_summary", { tabId: 1 }),
-    call("note", "notes_write", { key: "finding", value: "已核实" }),
+    call("note", "reflect_write", { text: "已核实" }),
     call("finish", "finishTurn", { text: "任务完成"}),
   ] })], ({ reply, turn, ledger, modelRequests, browserCalls }) => {
     expect(reply.stopReason).toEqual({ kind: "reply", text: "任务完成" });
     expect(modelRequests).toBe(1);
     expect(browserCalls).toEqual(["page_get_summary"]);
-    expect(ledger.notes.finding).toEqual({ id: "nt_01", value: "已核实" });
+    expect(ledger.reflectHistory[0]?.items).toEqual([{ id: "rf_01", text: "已核实" }]);
     expect(turn.usage).toEqual({ modelRequests: 1, toolCalls: 3 });
   });
 });

@@ -5,8 +5,6 @@ import type { QueryEvidence } from "../context/projections/queries.ts";
 // Tools describe domain changes; only the runtime applies and persists them.
 export type ToolEffect =
   | { type: "query.set"; query: Omit<QueryEvidence, "queryId" | "turnId" | "sourceCallId"> }
-  | { type: "note.write"; key: string; value: string }
-  | { type: "note.delete"; key: string }
   | { type: "memory.append"; entries: { layer: MemoryLayer; scope?: string; summary?: string; text: string }[] }
   | { type: "memory_update"; memoryId: string; text: string }
   | { type: "memory_delete"; memoryId: string }

@@ -9,13 +9,13 @@ test("normalizeFileQuery trims and treats blank/non-string as no filter", () => 
   expect(normalizeFileQuery(42)).toBeNull();
 });
 
-test("workspace matches its files[] attribution in both directions", () => {
+for (const module of ["workspace", "notes"]) test(`${module} matches its files[] attribution in both directions`, () => {
   const entry = { files: ["src/auth.ts:120-180"] };
-  expect(recordTouchesFile(entry, "workspace", "auth.ts")).toBe(true);
-  expect(recordTouchesFile(entry, "workspace", "/Users/x/proj/src/auth.ts")).toBe(true);
-  expect(recordTouchesFile(entry, "workspace", "src/other.ts")).toBe(false);
-  expect(recordTouchesFile({ op: "读了 auth.ts" }, "workspace", "auth.ts")).toBe(false);
-  expect(recordTouchesFile({ files: [] }, "workspace", "auth.ts")).toBe(false);
+  expect(recordTouchesFile(entry, module, "auth.ts")).toBe(true);
+  expect(recordTouchesFile(entry, module, "/Users/x/proj/src/auth.ts")).toBe(true);
+  expect(recordTouchesFile(entry, module, "src/other.ts")).toBe(false);
+  expect(recordTouchesFile({ op: "读了 auth.ts" }, module, "auth.ts")).toBe(false);
+  expect(recordTouchesFile({ files: [] }, module, "auth.ts")).toBe(false);
 });
 
 test("toolIO matches file arguments, not free-text reasons", () => {
@@ -36,6 +36,6 @@ test("summaries matches prose mentions; other modules never match", () => {
   expect(recordTouchesFile({ text: "auth.ts" }, "userInput", "auth.ts")).toBe(false);
 });
 
-test("file filter covers workspace, toolIO and summaries", () => {
-  expect([...FILE_FILTER_MODULES]).toEqual(["workspace", "toolIO", "summaries"]);
+test("file filter covers workspace, notes, toolIO and summaries", () => {
+  expect([...FILE_FILTER_MODULES]).toEqual(["workspace", "notes", "toolIO", "summaries"]);
 });

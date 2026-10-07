@@ -49,21 +49,11 @@ const callRows = (xml: string): any[] => {
 };
 const workspaceOperations = (xml: string): any[] => [...xml.matchAll(/<workspace\s+[^>]*>\n([\s\S]*?)\n<\/workspace>/g)]
   .flatMap(match => JSON.parse(match[1]!).operations);
-const operationsFor = (xml: string, callId: string): any[] => workspaceOperations(xml)
+const operationsFor = (xml: string, callId: string): any[] => [...workspaceOperations(xml), ...noteRows(xml).map(note => ({ ...note, sources: [{callId: note.callId}] }))]
   .filter(operation => operation.sources.some((source: { callId: string }) => source.callId === callId));
 const storedReturn = (dataDir: string, callId: string): any => JSON.parse(loadLedger(dataDir, loadSession(dataDir)!.conversationId!).toolIO.find(row => row.callId === callId)!.return.text);
-// <notes> renders one <note id="…" key="…"> per entry: rebuild the map for slot assertions.
-const noteRows = (xml: string): Ledger["notes"] => {
-  const rows: Ledger["notes"] = {};
-  const re = /<note\s+([^>]*)>\n([\s\S]*?)\n<\/note>/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(xml))) {
-    const key = /key="([^"]*)"/.exec(m[1]!)![1]!;
-    const id = /id="([^"]*)"/.exec(m[1]!)![1]!;
-    rows[key] = { id, value: m[2]! };
-  }
-  return rows;
-};
+const noteRows = (xml: string): Ledger["notes"] => [...xml.matchAll(/<note\s+([^>]*)>\n([\s\S]*?)\n<\/note>/g)]
+  .map(match => ({ ...JSON.parse(match[2]!), id: /id="([^"]*)"/.exec(match[1]!)![1]! }));
 const slot = (user: string, name: string): any => {
   const key = name.replace(/^#/, "");
   const conversation = String(xmlSlots(user).conversation ?? "");
@@ -74,7 +64,7 @@ const slot = (user: string, name: string): any => {
   }
   if (key === "notes") {
     const notes = conversation.match(/<notes(?:\s[^>]*)?>\n([\s\S]*?)\n<\/notes>/);
-    return notes ? noteRows(notes[1]!) : {};
+    return notes ? noteRows(notes[1]!) : [];
   }
   if (key === "userInput" || key === "goal" || key === "task") {
     const turn = conversation.match(/<turn[^>]*>\n([\s\S]*?)\n<\/turn>/);
@@ -217,20 +207,6 @@ test("large script results use evidence_search while small follow-up pages stay 
 
 
 
-test("notes above the hard limit fail the turn with context_limit instead of being externalized", () => withDir(async dataDir => {
-  const conversationId = newConversation(dataDir).conversationId!;
-    primeActiveTask(dataDir);
-  const ledger = loadLedger(dataDir, conversationId);
-  ledger.notes.draft = { id: "nt_01", value: "N".repeat(Math.round(runtimeConfig.context.hardLimitChars * 1.1)) };
-  saveLedger(dataDir, ledger);
-  let calls = 0;
-  const reply = await handleTurn({ dataDir, repoRoot, host, provider: { complete: async () => { calls++; return finish(); } } }, { userInput: "继续", submittedAt: "now" });
-  expect(reply.stopReason).toMatchObject({ kind: "error", faultCode: "context_limit" });
-  expect(calls).toBe(0);
-  expect(existsSync(join(dataDir, "context-files"))).toBe(false);
-  expect(loadLedger(dataDir, conversationId).notes).toEqual(ledger.notes);
-}));
-
 test("history above the compress threshold is compressed before the main model runs", () => withDir(async dataDir => {
   const conversationId = newConversation(dataDir).conversationId!;
     primeActiveTask(dataDir);
@@ -244,7 +220,6 @@ test("history above the compress threshold is compressed before the main model r
   }));
   ledger.turnIds = turns.map(turn => turn.turnId);
   ledger.userInputHistory = turns.map(inputRecord);
-  ledger.notes.draft = { id: "nt_01", value: "应保留的笔记" };
   turns.forEach(turn => saveTurn(dataDir, turn));
   saveLedger(dataDir, ledger);
   let summaries = 0, main = 0;
@@ -252,7 +227,7 @@ test("history above the compress threshold is compressed before the main model r
     main++;
     expect(summaries).toBeGreaterThan(0);
     const notesView = slot(user, "#notes") as Ledger["notes"];
-    expect(notesView).toEqual(ledger.notes);
+    expect(notesView).toEqual([]);
     return finish();
   });
   const reply = await handleTurn({ dataDir, repoRoot, host, provider: {complete: async input => {

@@ -39,9 +39,9 @@ service/agents/compression/context/
 
 User 仅为 `<compressionTurns>\n{"turns":[...]}\n</compressionTurns>`（标签内无说明）。归档字段由主注册表 `service/context/modules.json` 中带 `archiveField` 的条目（role=archive）注入 System。可读对照表见 [context/README.md](../context/README.md)。新增模块：改注册表 + projector，再视需要更新压缩 `context/system/` 措辞。
 
-`service/runtime/turn-history.ts` 提供 `assembleTurnHistory` 和 `loadSettledTurnHistory`，使用既有 turnId 汇集输入、目标变化、工具结果、页面观察及最终输出。记录包含 conversationId，轮次编号只在所属会话内解释；已结束历史按账本顺序读取，排除当前活动轮次和未结束记录。会话记忆写入按来源 turnId 关联到当轮，notes 保持当前状态，不增加轮次或版本历史。
+`service/runtime/turn-history.ts` 提供 `assembleTurnHistory` 和 `loadSettledTurnHistory`，使用既有 turnId 汇集输入、目标变化、工具结果、页面观察及最终输出。记录包含 conversationId，轮次编号只在所属会话内解释；已结束历史按账本顺序读取，排除当前活动轮次和未结束记录。会话记忆写入按来源 turnId 关联到当轮，notes 与 workspace 的操作证据按来源 turnId 与完整工具批次进入压缩；成功归档覆盖原文，失败保留原始记录。
 
-每次发送主模型前，Runtime 检测 System + User 文本长度；达到压缩阈值（由 `service/config/runtime.json` 的 `context.compressAtChars` 给出）才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 summary、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 1 个完整工具批次（keepToolBatches）。当前输入、目标、当前页面、notes、长期记忆和 <query> 保持可见；queryHistory 作为取证参考，结论合入 result。摘要按层折叠（同轮 L1 合并仍为 L1，跨轮升 L2，最高到 L6），最新轮次保留。
+每次发送主模型前，Runtime 检测 System + User 文本长度；达到压缩阈值（由 `service/config/runtime.json` 的 `context.compressAtChars` 给出）才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 summary、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 1 个完整工具批次（keepToolBatches）。notes 与 workspace 随来源轮次或工具批次归档；当前输入、目标、当前页面、长期记忆和 <query> 保持可见；queryHistory 作为取证参考，结论合入 result。摘要按层折叠（同轮 L1 合并仍为 L1，跨轮升 L2，最高到 L6），最新轮次保留。
 
 模型输出校验成功、完整来源与摘要落盘后，才原子更新目录索引和覆盖关系。失败或取消不提交该批次覆盖，原文继续可用；此前成功提交的归档保留。索引是提交点，中断可能留下未被索引引用的文件。窗口按来源覆盖过滤历史输入、已结束目标、页面观察、会话记忆写入和工具记录，本地原文不删除。
 

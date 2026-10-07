@@ -231,7 +231,8 @@ export type Ledger = {
   /** 本 Conversation 内模型请求计数（boundId 来源）。 */
   boundSeq: number;
   contextTab: TabContext;
-  notes: Record<string, { id: string; value: string }>;
+  /** Runtime-written evidence buffer; drained into its source turn's workspace at the threshold. */
+  notes: WorkspaceEntry[];
   queryHistory: QueryEvidence[];
   windowChars: number;
   compressAt: number;

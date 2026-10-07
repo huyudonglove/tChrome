@@ -45,7 +45,7 @@ test("latest batch is visible once, explicit keeps survive turns, storage and ar
         firstCallIds = loadLedger(dataDir, conversationId).toolIO.map(row => row.callId);
         expect(firstCallIds).toHaveLength(3);
         expect(callIds(window)).toEqual(firstCallIds);
-        return response([{ id: "record", name: "notes_write", arguments: { reason: "记录", key: "pages", value: "页面正常" } }]);
+        return response([{ id: "record", name: "reflect_write", arguments: { reason: "记录", text: "页面正常" } }]);
       }
       expect(callIds(window)).toEqual([firstCallIds[0]!, loadLedger(dataDir, conversationId).toolIO.at(-1)!.callId]);
       return finish();

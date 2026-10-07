@@ -37,12 +37,12 @@ export function toolArgFiles(args: unknown): string[] {
 
 /**
  * True when an archived module record touches the file query.
- * workspace matches its files[] attribution, toolIO matches the call's file
+ * workspace and notes match their files[] attribution, toolIO matches the call's file
  * arguments, summaries matches prose mentions; other modules carry no file
  * attribution and never match.
  */
 export function recordTouchesFile(record: Record<string, unknown>, module: string, file: string): boolean {
-  if (module === "workspace") {
+  if (module === "workspace" || module === "notes") {
     const files = record.files;
     if (!Array.isArray(files)) return false;
     return files.some((f) => typeof f === "string" && !!f.trim() && touches(f.trim(), file));
@@ -58,4 +58,4 @@ export function recordTouchesFile(record: Record<string, unknown>, module: strin
 }
 
 /** Modules whose records carry (or mention) file attribution; others reject file filters. */
-export const FILE_FILTER_MODULES = ["workspace", "toolIO", "summaries"] as const;
+export const FILE_FILTER_MODULES = ["workspace", "notes", "toolIO", "summaries"] as const;

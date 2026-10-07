@@ -171,8 +171,6 @@
     "script_list",
     "memory_update",
     "memory_delete",
-    "notes_write",
-    "notes_delete",
     "page_clear_result",
     "skill_load",
     "reflect_delete",

@@ -90,10 +90,12 @@ function fileFixture() {
   const dataDir = mkdtempSync(join(tmpdir(),"query-file-")); dirs.push(dataDir);
   const sources = [
     { id: "turn_tn_01", content: { turnId: "tn_01",
+      notes: [{ id: "ws_note_01", turnId: "tn_01", boundId: "b01", callId: "call_note_01", callIds: ["call_note_01"], target: { kind: "file", key: "/src/auth.ts" }, op: "local_fs_read", result: { ok: true }, content: "buffered auth evidence", files: ["src/auth.ts"] }],
       observations: [{ id: "page_01", type: "local_fs_read", result: "token" }],
       workspace: [{ id: "ws01", turnId: "tn_01", boundId: "b01", callId: "call_w1", callIds: ["call_01"], target: { kind: "file", key: "/src/auth.ts" }, op: "local_fs_read", result: "token 在此校验", files: ["src/auth.ts:120-180"] }],
       toolIO: [{ callId: "call_01", turnId: "tn_01", name: "local_fs_read", arguments: { reason: "读鉴权", items: [{ path: "src/auth.ts", startLine: 120 }] }, return: { text: "token" } }] } },
     { id: "turn_tn_02", content: { turnId: "tn_02",
+      notes: [{ id: "ws_note_02", turnId: "tn_02", boundId: "b02", callId: "call_note_02", callIds: ["call_note_02"], target: { kind: "file", key: "/src/other.ts" }, op: "local_fs_read", result: { ok: true }, content: "buffered other evidence", files: ["src/other.ts"] }],
       observations: [{ id: "page_02", type: "local_fs_list", result: "ok" }],
       workspace: [{ id: "ws02", turnId: "tn_02", boundId: "b02", callId: "call_w2", callIds: ["call_02"], target: { kind: "tool", key: "tool:local_run" }, op: "local_run", result: "分页 cursor" }],
       toolIO: [{ callId: "call_02", turnId: "tn_02", name: "local_fs_list", arguments: { reason: "列目录", path: "src/list" }, return: { text: "ok" } }] } },
@@ -147,4 +149,20 @@ test("blank file behaves like no filter", async () => {
     expect(data.request).not.toHaveProperty("file");
   }) });
   expect(result.status).toBe("complete");
+});
+
+
+test("archived notes are retrievable by file and remain isolated to the requested summary source", async () => {
+  const input = fileFixture();
+  const found = await queryContext({ ...input, module: "notes", file: "auth.ts", provider: provider(["tn_01"], request => {
+    const data = queryTurnsFromUserMessage(request.messages[1]!.content);
+    expect(data.request.module).toBe("notes");
+    expect(data.turns.map(turn => turn.turnId)).toEqual(["tn_01"]);
+    expect(data.turns[0]!.records).toHaveLength(1);
+    expect(data.turns[0]!.records[0]).toMatchObject({ id: "ws_note_01", content: "buffered auth evidence" });
+  }) });
+  expect(found).toMatchObject({ status: "complete", records: [{ id: "ws_note_01", callId: "call_note_01", turnId: "tn_01" }] });
+  const dead: Provider = { complete: async () => { throw new Error("must not call provider"); } };
+  const outsideSource = await queryContext({ ...input, sumId: "sum_01", module: "notes", file: "other.ts", provider: dead });
+  expect(outsideSource).toMatchObject({ status: "not_found", records: [] });
 });
