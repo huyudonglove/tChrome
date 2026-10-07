@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { runtimeConfig } from "./config/runtime.ts";
 import { handleTurn } from "./runtime/loop.ts";
 import { ensureSession, loadLedger, saveLedger, saveTurn, stopTurn, sessionView } from "./runtime/store.ts";
-import { allocateRecordId, inputRecord, pacificDate } from "./runtime/ids.ts";
+import { allocateRecordId, inputRecord, localDate } from "./runtime/ids.ts";
 import { archiveDir, commitArchive, loadIndex } from "./context-archive/store.ts";
 import { loadContextModules } from "./context/modules.ts";
 import { validateUserData } from "./context/data-schema.ts";
@@ -77,7 +77,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
     const next: Turn = { ...f.turns[5]!, turnId: "tn_07", input: { id: "input_07", text: "读取详情", submittedAt: "2026-09-12" }, assembled: { ...f.turns[5]!.assembled, baseToolsIds: registry.toolGroups.baseToolsIds, toolIds: coreToolIds(registry) } };
     const previewLedger = { ...f.ledger, userInputHistory: f.turns.map(inputRecord) };
     const view = contextState(dataDir, previewLedger, next, { project: [], conversation: [] });
-    const overhead = systemText(modules, pacificDate(), toolGuideFor(registry, next.assembled.baseToolsIds), {}, skillGuide(repoRoot)).length + userText({ contextModules: modules, ledger: view.ledger, turn: next, conversationSummaries: view.summaries, memories: { project: "[]", conversation: "[]" }, skillText: "", toolGuide: toolGuideFor(registry, next.assembled.toolIds) }).length;
+    const overhead = systemText(modules, localDate(), toolGuideFor(registry, next.assembled.baseToolsIds), {}, skillGuide(repoRoot)).length + userText({ contextModules: modules, ledger: view.ledger, turn: next, conversationSummaries: view.summaries, memories: { project: "[]", conversation: "[]" }, skillText: "", toolGuide: toolGuideFor(registry, next.assembled.toolIds) }).length;
     f.turns[1]!.input.text += "x".repeat(runtimeConfig.context.compressAtChars - overhead - 500);
     saveTurn(dataDir, f.turns[1]!); f.ledger.userInputHistory = f.turns.slice(0, -1).map(inputRecord); saveLedger(dataDir, f.ledger);
     let main = 0, compressed = 0;

@@ -68,9 +68,10 @@ export function nowIso(): string {
   return new Date().toISOString();
 }
 
-export function pacificDate(now = new Date()): string {
+/** 注入给模型的当前日期，取运行环境的本地时区（原实现固定太平洋时区已废弃）。 */
+export function localDate(now = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit",
+    year: "numeric", month: "2-digit", day: "2-digit",
   }).formatToParts(now);
   const value = (type: string) => parts.find(part => part.type === type)!.value;
   return `${value("year")}-${value("month")}-${value("day")}`;

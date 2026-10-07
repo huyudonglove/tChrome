@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { loadContextModules, loadModuleRegistry } from "./context/modules.ts";
 import { coreToolIds, dynamicToolIds, loadToolRegistry, toolGuideFor } from "./tools/registry.ts";
+import { promptNumberSlots } from "./context/prompt-numbers.ts";
 
 const root = join(import.meta.dir, "..");
 
@@ -33,6 +34,12 @@ const docFiles = (): string[] => {
   }
   return out;
 };
+
+/** 写在 .ts 里的系统提示词载体；新增这类常量时登记到此，下面的用例会核对是否有遗漏。 */
+const promptTsFiles = ["service/agents/subagent/executor.ts"];
+
+/** 可能承载提示词的全部文件：既有 md/json，也有登记在案的 .ts 载体。 */
+const promptSources = (): string[] => [...docFiles(), ...promptTsFiles.map((rel) => join(root, rel))];
 
 test("prompts and tool descriptions contain no resurrected dead concepts", () => {
   const bad: string[] = [];
@@ -103,4 +110,37 @@ test("<tools> wording names the same sources the assembler renders", () => {
   const sample = dynamicToolIds(registry)[0]!;
   const rendered = [...new Set([...coreToolIds(registry), sample])];
   expect(() => toolGuideFor(registry, rendered, false)).not.toThrow();
+});
+
+test("every prompt number slot is referenced by a template", () => {
+  const slots = promptNumberSlots();
+  const used = new Set<string>();
+  for (const file of promptSources()) {
+    for (const match of readFileSync(file, "utf8").matchAll(/\{\{(\w+)\}\}/g)) used.add(match[1]!);
+  }
+  const dead = Object.keys(slots).filter((key) => !used.has(key));
+  expect(dead).toEqual([]);
+});
+
+test(".ts prompt carriers are all registered for the prompt scan", () => {
+  const declared: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) { walk(path); continue; }
+      if (!entry.name.endsWith(".ts") || entry.name.endsWith(".test.ts")) continue;
+      if (/const\s+[A-Z_]*SYSTEM_PROMPT\s*=/.test(readFileSync(path, "utf8"))) declared.push(path.slice(root.length + 1));
+    }
+  };
+  for (const dir of ["service/agents", "service/context", "service/runtime"]) walk(join(root, dir));
+  expect(declared.sort()).toEqual([...promptTsFiles].sort());
+});
+
+test("prompt strings hardcoded in .ts carry no resurrected dead concepts", () => {
+  const bad: string[] = [];
+  for (const rel of promptTsFiles) {
+    const text = readFileSync(join(root, rel), "utf8");
+    for (const pattern of DEAD_PATTERNS) if (pattern.test(text)) bad.push(`${rel}: ${pattern}`);
+  }
+  expect(bad).toEqual([]);
 });

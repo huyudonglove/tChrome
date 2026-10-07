@@ -54,7 +54,7 @@ script_patch 与 execute_javascript、local_run、local_process_start 必须分�
 
 短小的页面探测可用 page_eval_expr，执行上限 4 秒，适合标题、DOM 属性、Canvas 尺寸和单次状态读取。多语句、需要复用或有明确副作用的页面脚本，先保存再用 execute_javascript 执行。
 
-长任务可设置 heartbeatSec，例如 30。到点仍未结束时：
+长任务可设置 heartbeatSec（按需指定正秒数）。到点仍未结束时：
 - local_run 返回 heartbeat=true 与 processId，用 local_process_status 查询、local_process_stop 停止。
 - send_http、send_http_batch、web_search、tavily_search、execute_javascript 返回 heartbeat=true 与 jobId，用 job_status 查询、job_stop 停止。
 

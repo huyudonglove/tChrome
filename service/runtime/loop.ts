@@ -82,7 +82,7 @@ import type {
 import { checkToolCalls } from "../tools/schema.ts";
 import { contextState, compressContext } from "./context-state.ts";
 import { queryContext } from "../agents/query/index.ts";
-import { nowIso, pacificDate } from "./ids.ts";
+import { nowIso, localDate } from "./ids.ts";
 import { join } from "node:path";
 import { runtimeConfig } from "../config/runtime.ts";
 import {
@@ -158,7 +158,7 @@ const assemble = (toolRegistry: ToolRegistry, loadedToolIds: string[]): Assemble
   currentTabs: { ok: false, error: "尚未读取标签列表" },
 });
 const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, images: ChatMessage["images"], summaries: Parameters<typeof userText>[0]["conversationSummaries"] = [], dataDir?: string, skillNav = "", historyDataDir?: string, onNotice?: (kind: string, text: string | null) => void, allCalls: readonly { name: string; arguments?: unknown }[] = ledger.toolIO): ChatMessage[] => {
-  const system = systemText(contextModules, pacificDate(), toolGuideFor(toolRegistry, turn.assembled.baseToolsIds), {
+  const system = systemText(contextModules, localDate(), toolGuideFor(toolRegistry, turn.assembled.baseToolsIds), {
     cwd: process.cwd(),
     ...(dataDir ? { dataDir } : {}),
   }, skillNav);
