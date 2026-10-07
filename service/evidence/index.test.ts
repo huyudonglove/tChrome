@@ -39,6 +39,39 @@ function assertCoverage(index: BlockIndex, maxChars: number): void {
 }
 
 describe("uniform immutable evidence blocks", () => {
+  test("CSS groups complete rules and exposes nested selectors within the same budget", () => {
+    const rules = Array.from({ length: 24 }, (_, i) => `.item-${i}{color:red;content:"brace } ; {";background:url("data:image/svg+xml;a{b}");}`).join("");
+    const animation = "@keyframes pulse{from{opacity:0}to{opacity:1}}";
+    const css = `/* { ignored ; } */@media (min-width:1px){@supports(display:grid){${rules}}}${animation}`;
+    const index = buildBlockIndex(css, { path: "/repo/theme.css", maxChars: 900 });
+    assertCoverage(index, 900);
+    const rule = ".item-12{color:red;content:\"brace } ; {\";background:url(\"data:image/svg+xml;a{b}\");}";
+    const hit = searchBlocks(index, ".item-12")[0]!;
+    const read = readBlock(index, hit.blockId)!;
+    expect(read.kind === "content" && read.content.includes(rule)).toBe(true);
+    expect(hit.title).toContain(".item-");
+    const keyframes = readBlock(index, searchBlocks(index, "@keyframes")[0]!.blockId)!;
+    expect(keyframes.kind === "content" && keyframes.content.includes(animation)).toBe(true);
+  });
+
+  test("oversized CSS declarations and incomplete excerpts retain exact content and file locations", () => {
+    const cases = [
+      `.huge{${Array.from({ length: 70 }, (_, i) => `--value-${i}:"😀色彩${i}";`).join("")}}`,
+      `.data{background:url("data:image/svg+xml,${"😀".repeat(1500)}");}`,
+      "color:red;\n}\n@media (width > 100px) {\n.open { color:blue;\n".repeat(30),
+    ];
+    for (const content of cases) {
+      const full = JSON.stringify({ results: [{ path: "/repo/theme.css", startLine: 80, content }] });
+      const index = buildBlockIndex(full, { maxChars: 900 });
+      assertCoverage(index, 900);
+      const source = index.sources.find(source => source.path === "/repo/theme.css")!;
+      expect(source.text).toBe(content);
+      const first = index.nodes.find(node => node.sourceId === source.id && node.start === 0 && !node.children.length)!;
+      const read = readBlock(index, first.id)!;
+      expect(read.kind === "content" && read.source.startLine).toBe(80);
+    }
+  });
+
   test("keeps code functions whole when they fit and descends inside a large function", () => {
     const small = "export function small() { return 'complete expression, including its tail'; }\n";
     const large = `export function large() {\n${Array.from({ length: 50 }, (_, i) => `  const value${i} = ${i}; // a meaningful statement\n`).join("")}  return value49;\n}\n`;

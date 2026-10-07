@@ -1,4 +1,5 @@
 import ts from "typescript";
+import { cssStructure } from "./css.ts";
 import { runtimeConfig } from "../config/runtime.ts";
 
 export type BlockSource = { id: string; text: string; path?: string; jsonPath?: string; startLine?: number };
@@ -95,6 +96,7 @@ export function searchBlocks(index: BlockIndex, keyword: string): BlockSearchHit
 function structureOf(source: BlockSource): Structure {
   const result: Structure = { boundaries: [], labels: [] };
   const path = source.path ?? "";
+  if (/\.css$/i.test(path)) return cssStructure(source.text);
   const isCode = /\.[cm]?[jt]sx?$/i.test(path);
   let isJson = /\.json$/i.test(path);
   if (!isCode && !isJson) {
@@ -180,7 +182,9 @@ export function buildBlockIndex(full: string, options: { maxChars?: number; path
     function titleFor(start: number, end: number): string {
       const label = structure.labels.filter((item) => item.start <= start && item.end >= end)
         .sort((a, b) => (a.end - a.start) - (b.end - b.start))[0];
-      if (label) return label.title;
+      // CSS containers often span many selector groups. Name those groups by their
+      // contained rules instead of repeating the enclosing @media label at every level.
+      if (label && (!/\.css$/i.test(source.path ?? "") || (label.start === start && label.end === end))) return label.title;
       const contained = structure.labels.filter((item) => item.start >= start && item.end <= end);
       if (contained.length) {
         const depth = contained.reduce((depth, item) => Math.min(depth, item.depth), Infinity);
@@ -188,6 +192,7 @@ export function buildBlockIndex(full: string, options: { maxChars?: number; path
         const first = peers[0]!.title; const last = peers[peers.length - 1]!.title;
         return (first === last ? first : `${first} … ${last}`).slice(0, 100);
       }
+      if (label) return label.title;
       return (source.path?.split(/[\\/]/).pop() || source.jsonPath || "Result").slice(0, 100);
     }
     function fits(start: number, end: number): boolean {
