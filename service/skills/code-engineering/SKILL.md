@@ -56,3 +56,9 @@ SUMMARY: 代码修改与验证：定位必要证据，实施局部改动，用�
 - 退出码不等于副作用：命令类调用要核对实际结果（进程是否存在、端口归属、文件或页面是否变化），别只看 exit code。
 - 外置结果不是失败：原文已保存，沿来源取需要的块即可，别反复重读同一份。
 - 验证走真实入口：从实际调用链（例如 handleTurn）验证；直调内部函数会漏掉调度层的接线问题。
+
+## 本仓库的工具与脚本
+
+- 查符号：`local_code_refs` 一次给出定义点与引用点，适合「这个函数定义在哪、被谁调用」；`local_repo_map` 按目录给出职责与入口文件，替代猜路径翻文件；`local_fs_outline` 先用 AST/字段结构看大文件，再决定读哪一段。
+- 落改动：单块用 `local_replace_block`；单文件或多文件可先备好 unified diff，用 `local_apply_patch` 一次应用（先 `git apply --recount --check`，不通过则不修改）。
+- 仓库脚本：`bun run repo:map` 打印目录职责与入口速览；`bun run git:guard` 看工作区干净度与改动统计，`checkpoint <标签>` 在动手前打检查点，`rollback <检查点 JSON>` 出错后回滚。回滚默认不清理未跟踪文件，确需清理时显式加 `--clean`。

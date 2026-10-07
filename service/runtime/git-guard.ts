@@ -157,7 +157,7 @@ export async function getDiffSummary(repoRoot: string, baseHead?: string): Promi
 export async function rollback(
   repoRoot: string,
   checkpoint: GitCheckpoint,
-  options: RollbackOptions = { cleanUntracked: true }
+  options: RollbackOptions = { cleanUntracked: false }
 ): Promise<RollbackResult> {
   try {
     // 1. 恢复工作区已跟踪文件至 HEAD 或 checkpoint.head

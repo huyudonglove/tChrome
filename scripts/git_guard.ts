@@ -31,11 +31,13 @@ switch (command) {
       process.exit(1);
     }
     const checkpoint: GitCheckpoint = JSON.parse(jsonStr);
-    const result = await rollback(repoRoot, checkpoint, { cleanUntracked: true });
+    // 破坏性清理需要显式开关：默认只恢复已跟踪文件，不删未跟踪文件
+    const cleanUntracked = process.argv.includes("--clean");
+    const result = await rollback(repoRoot, checkpoint, { cleanUntracked });
     console.log(JSON.stringify(result, null, 2));
     break;
   }
   default: {
-    console.log("Usage: bun run scripts/git_guard.ts [status|checkpoint <label>|rollback <checkpoint-json>]");
+    console.log("Usage: bun run scripts/git_guard.ts [status|checkpoint <label>|rollback <checkpoint-json> [--clean]]");
   }
 }

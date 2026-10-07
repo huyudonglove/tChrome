@@ -121,4 +121,19 @@ describe("git-guard: Git 事务化检查点与安全回滚护栏", () => {
     // Agent 临时制造的坏文件被清理
     expect(existsSync(join(testRepoDir, "agent_bad.js"))).toBe(false);
   });
+
+  test("6. rollback 默认不清理未跟踪文件，需要显式开关才清理", async () => {
+    const baseline = await createCheckpoint(testRepoDir, "safe-default");
+
+    writeFileSync(join(testRepoDir, "README.md"), "# Broken Code\n");
+    writeFileSync(join(testRepoDir, "keep_me.tmp"), "user data\n");
+
+    const result = await rollback(testRepoDir, baseline);
+    expect(result.ok).toBe(true);
+
+    // 已跟踪文件恢复到检查点，未跟踪文件保留
+    const paths = (await getStatusFiles(testRepoDir)).map((f) => f.path);
+    expect(paths).toContain("keep_me.tmp");
+    expect(paths).not.toContain("README.md");
+  });
 });

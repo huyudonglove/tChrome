@@ -13,6 +13,8 @@
     "test:summary": "bun run scripts/test-summary.ts",
     "test:sub": "bun test service shared",
     "test:extension": "bun test extension",
+    "repo:map": "bun run scripts/repo_map.ts",
+    "git:guard": "bun run scripts/git_guard.ts",
     "check:wiring": "bun run scripts/tool_wiring_check.ts",
     "lint": "bun run scripts/lint.ts",
     "typecheck": "tsc --noEmit",
