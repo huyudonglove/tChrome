@@ -75,6 +75,17 @@ const waitTurnIdle = async (dataDir: string, cvId: string, timeoutMs: number): P
   return !turnRunning(dataDir, cvId);
 };
 
+/** 重启脚本的控制变量（TCHROME_RESTART_*）只对本次重启有意义，绝不能透传给新服务：
+ *  一旦服务 env 里残留 TCHROME_RESTART_DETACHED=1，下一次从服务内部派发的重启就会
+ *  误判「自己已经脱离」，跳过自我脱离、随服务收尾被一起杀掉，结果是只停不换。 */
+const withoutRestartEnv = (env: Record<string, string | undefined>): Record<string, string | undefined> => {
+  const clean: Record<string, string | undefined> = {};
+  for (const [key, value] of Object.entries(env)) {
+    if (!key.startsWith("TCHROME_RESTART_")) clean[key] = value;
+  }
+  return clean;
+};
+
 const main = async (): Promise<void> => {
   // 自我脱离：本脚本若由服务进程内的工具调用启动，就属于该服务的进程组；服务收到 SIGTERM 时
   // 会终止整个进程组，把重启脚本一起杀掉，结果「旧的停了、新的没起」。先用 detached 再派生一份
@@ -155,6 +166,9 @@ const main = async (): Promise<void> => {
     cwd: repoRoot,
     detached: true,
     stdio: ["ignore", logFd, logFd],
+    // 剔除 TCHROME_RESTART_*：它们只对本次重启有意义，透传进服务会污染服务 env，
+    // 让下一次从服务内部派发的重启误判「已脱离」（tn_20 只停不换的根因）。
+    env: withoutRestartEnv(process.env),
   });
   child.unref();
 
