@@ -72,7 +72,7 @@ export async function requestTurnSummaries(input: {
 }): Promise<TurnSummary[]> {
   const log = compressionLog(input.dataDir, input.conversationId);
   const append = (stage: string, data: unknown) => {
-    try { log.append(stage, data); } catch {}
+    try { log.append(stage, data); } catch { /* 压缩日志失败不影响主流程 */ }
   };
   append("start", { conversationId: input.conversationId, module: input.module, turnId: input.turn.turnId });
   try {
@@ -173,7 +173,7 @@ export async function requestCrossTurnFold(input: {
 }): Promise<TurnSummary> {
   const log = compressionLog(input.dataDir, input.conversationId);
   const append = (stage: string, data: unknown) => {
-    try { log.append(stage, data); } catch {}
+    try { log.append(stage, data); } catch { /* 压缩日志失败不影响主流程 */ }
   };
   const spanId = foldSpanId(input.turnIds);
   const tier = `L${input.level}`;

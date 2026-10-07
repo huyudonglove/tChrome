@@ -1,7 +1,8 @@
 import { expect, test } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { loadToolRegistry } from "./tools/registry.ts";
+import { loadContextModules, loadModuleRegistry } from "./context/modules.ts";
+import { coreToolIds, dynamicToolIds, loadToolRegistry, toolGuideFor } from "./tools/registry.ts";
 
 const root = join(import.meta.dir, "..");
 
@@ -61,4 +62,45 @@ test("tool names referenced in prompts exist in the registry", () => {
     }
   }
   expect(bad).toEqual([]);
+});
+
+test("module placeholders come from a declared inject key or a runtime slot", () => {
+  const runtimeSlots = new Set(["currentDate", "dataDir", "cwd", "os", "data"]);
+  const bad: string[] = [];
+  for (const row of loadModuleRegistry(root).modules) {
+    if (!row.file) continue;
+    const declared = new Set(row.inject ?? []);
+    const text = readFileSync(join(root, "service/context", row.file), "utf8");
+    for (const match of text.matchAll(/\{\{(\w+)\}\}/g)) {
+      const key = match[1]!;
+      if (!declared.has(key) && !runtimeSlots.has(key)) bad.push(`${row.file}: {{${key}}} 没有对应来源`);
+    }
+  }
+  expect(bad).toEqual([]);
+});
+
+test("declared inject keys are actually used in the module body", () => {
+  const bad: string[] = [];
+  for (const row of loadModuleRegistry(root).modules) {
+    if (!row.file || !row.inject?.length) continue;
+    const text = readFileSync(join(root, "service/context", row.file), "utf8");
+    for (const key of row.inject) {
+      if (!text.includes(`{{${key}}}`)) bad.push(`${row.file}: 声明了 {{${key}}} 却在正文中没有使用`);
+    }
+  }
+  expect(bad).toEqual([]);
+});
+
+test("<tools> wording names the same sources the assembler renders", () => {
+  const registry = loadToolRegistry(root);
+  const loopSource = readFileSync(join(root, "service/runtime/loop.ts"), "utf8");
+  // 实际渲染集合由 loop.ts 的 assemble 决定：核心工具 ∪ 本会话加载的动态工具。
+  expect(loopSource).toMatch(/toolIds:\s*\[\.\.\.new Set\(\[\.\.\.coreToolIds\([^)]*\),\s*\.\.\.loadedToolIds\]\)\]/);
+  const tools = loadContextModules(root).userSlots["#tools"]!;
+  const wording = `${tools.purpose}\n${tools.template}`;
+  expect(wording).toContain("核心工具");
+  expect(wording).toContain("动态工具");
+  const sample = dynamicToolIds(registry)[0]!;
+  const rendered = [...new Set([...coreToolIds(registry), sample])];
+  expect(() => toolGuideFor(registry, rendered, false)).not.toThrow();
 });

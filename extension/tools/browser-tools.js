@@ -209,7 +209,7 @@ const manageNetworkMock = async (tab, input = {}) => {
       mockManagers.delete(tab);
       try {
         await chrome.debugger.sendCommand({ tabId: tab }, 'Fetch.disable', {}).catch(() => {});
-      } catch (_) {}
+      } catch (_) { /* 调试会话可能已终止，关闭失败可忽略 */ }
     };
 
     const onDetach = (source) => { if (source?.tabId === tab) cleanup(); };

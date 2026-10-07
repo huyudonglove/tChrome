@@ -8,7 +8,7 @@ export function inspectCaptchaFrame(click, deadline) {
       if (host === 'challenges.cloudflare.com') return 'turnstile';
       if (/(^|\.)(google\.com|google\.cn|recaptcha\.net)$/.test(host) && url.pathname.includes('/recaptcha/')) return 'recaptcha';
       if (/(^|\.)hcaptcha\.com$/.test(host)) return 'hcaptcha';
-    } catch {}
+    } catch { /* 非法 URL：按未知类型处理 */ }
     return null;
   };
   const frameType = classify(location.href);

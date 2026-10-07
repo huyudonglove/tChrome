@@ -110,6 +110,13 @@ export function lintSourceCode(
     });
   }
 
+  // 文件级豁免：首行写 `// lint-disable-file 规则名` 可让该文件跳过指定规则（测试夹具用）。
+  const disabledRules = new Set<string>();
+  for (const line of lines) {
+    const directive = line.match(/^\s*\/\/\s*lint-disable-file\s+(.+)$/);
+    if (directive) for (const rule of directive[1]!.split(/[,\s]+/)) if (rule) disabledRules.add(rule);
+  }
+
   // 2. 静态规则诊断（Lint Rules）
   if (options.checkRules !== false) {
     for (let i = 0; i < lines.length; i++) {
@@ -122,7 +129,7 @@ export function lintSourceCode(
       }
 
       // 规则 A: 禁止遗留 debugger 语句 (精确匹配独立语句，避免误伤字符串字面量)
-      if (!options.allowDebugger && /^\s*debugger\s*;?$/.test(trimmed)) {
+      if (!options.allowDebugger && !disabledRules.has("no-debugger") && /^\s*debugger\s*;?$/.test(trimmed)) {
         diagnostics.push({
           file: filePath,
           line: lineNum,
@@ -135,7 +142,7 @@ export function lintSourceCode(
       }
 
       // 规则 B: 警惕过时的 var 声明 (建议 const/let)
-      if (!options.allowVar && /^\s*var\s+[A-Za-z0-9_$]+/.test(rawLine)) {
+      if (!options.allowVar && !disabledRules.has("no-var") && /^\s*var\s+[A-Za-z0-9_$]+/.test(rawLine)) {
         diagnostics.push({
           file: filePath,
           line: lineNum,
@@ -148,7 +155,7 @@ export function lintSourceCode(
       }
 
       // 规则 C: 警惕空 catch 块 (catch (e) {}) 容易吞掉致命报错
-      if (/catch\s*(?:\([^)]*\))?\s*\{\s*\}/.test(trimmed)) {
+      if (!disabledRules.has("no-empty-catch") && /catch\s*(?:\([^)]*\))?\s*\{\s*\}/.test(trimmed)) {
         diagnostics.push({
           file: filePath,
           line: lineNum,

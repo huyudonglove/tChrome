@@ -84,7 +84,7 @@ export function saveItem(dataDir: string, input: unknown): LibraryItem {
   if (!item.title) throw new LibraryError("资料标题不能为空");
   if (item.url) {
     let valid = false;
-    try { valid = ["http:", "https:"].includes(new URL(item.url).protocol); } catch {}
+    try { valid = ["http:", "https:"].includes(new URL(item.url).protocol); } catch { /* 解析失败即视为非法网址 */ }
     if (!valid) throw new LibraryError("网址必须是完整的 http 或 https 地址");
   }
   if (item.type === "website" && !item.url) throw new LibraryError("网站资料需要填写网址");

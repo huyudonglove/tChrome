@@ -44,7 +44,7 @@ export const parseToolArguments = (raw: unknown): { ok: true; value: ToolArgumen
     try {
       const parsed = asObject(JSON.parse(candidate));
       if (parsed) return { ok: true, value: parsed as ToolArguments };
-    } catch {}
+    } catch { /* 候选串不是合法 JSON，继续尝试下一个 */ }
   }
   if (/}\s*\{/.test(text)) {
     return {
@@ -79,5 +79,5 @@ export function unwrapStringArrayField(args: Record<string, unknown>, field: str
   try {
     const parsed = JSON.parse(value);
     if (Array.isArray(parsed)) args[field] = parsed;
-  } catch {}
+  } catch { /* 不是 JSON 数组，保持原字符串 */ }
 }

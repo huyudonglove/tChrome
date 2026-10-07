@@ -29,6 +29,9 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
+      - name: Lint
+        run: bun run lint
+
       - name: Unit tests
         # Full suite, not `bun test service shared`: the narrower form left the
         # browser-side specs unguarded, so a regression there would pass CI.

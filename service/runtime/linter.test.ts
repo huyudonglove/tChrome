@@ -1,3 +1,4 @@
+// lint-disable-file no-var, no-debugger, no-empty-catch
 import { expect, test, describe, beforeEach, afterEach } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -96,5 +97,13 @@ try {
     expect(summary.formattedReport).toContain("[ERROR]");
     expect(summary.formattedReport).toContain("warn.ts");
     expect(summary.formattedReport).toContain("[WARNING]");
+  });
+
+  test("5. lint-disable-file 让指定规则跳过本文件，其它规则仍生效", () => {
+    const source = `// lint-disable-file no-var\nexport function legacy() {\n  var x = 1;\n  debugger;\n}\n`;
+    const res = lintSourceCode(source, "src/legacy.ts");
+    const rules = res.diagnostics.map((d) => d.rule);
+    expect(rules).not.toContain("no-var");
+    expect(rules).toContain("no-debugger");
   });
 });

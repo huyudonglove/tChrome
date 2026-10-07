@@ -12,6 +12,6 @@ const duration = (performance.now() - start).toFixed(2);
 console.log(summary.formattedReport);
 console.log(`\nDiagnostics finished in ${duration}ms`);
 
-if (summary.totalErrors > 0) {
+if (summary.totalErrors > 0 || summary.totalWarnings > 0) {
   process.exit(1);
 }

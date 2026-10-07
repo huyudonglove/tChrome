@@ -143,7 +143,7 @@ export async function runLocalDiagnose(input: Record<string, unknown> = {}): Pro
         settled = true;
         try {
           child.kill("SIGKILL");
-        } catch {}
+        } catch { /* 进程可能已自行退出 */ }
         resolvePromise({
           ok: false,
           passed: false,
