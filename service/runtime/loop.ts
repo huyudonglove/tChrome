@@ -357,6 +357,9 @@ const runQueue = async (input: {
             conversationId: ledger.conversationId,
             browserNames,
             host,
+            // delegate_subagent 需要 provider 才能跑子代理；此前漏传，导致该工具一调就回
+            // provider_unavailable（execute.ts 的判空）。provider 由 runQueue 入参传入。
+            provider: input.provider,
             signal: input.signal,
             // Subagent 的候选 schema 用完整声明集（本轮基础工具 + 全部动态工具 + 核心工具），
             // 而不是只取本轮主模型恰好加载的那一份——否则主会话没加载某个工具时，子代理会静默
