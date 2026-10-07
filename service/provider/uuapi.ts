@@ -21,6 +21,8 @@ export type ProviderConfig = {
   api?: "chat" | "responses";
   /** Gateways that reject dots in function names (e.g. New API). Runtime names stay unchanged. */
   sanitizeToolNames?: boolean;
+  userAgent?: string;
+  sessionHeader?: string;
 };
 
 export function resolveProxy(env: Record<string, string | undefined>) {
@@ -42,6 +44,7 @@ const stoppedResult = (attempts: number): CompletionResult => ({
 });
 
 type CompletionInput = {
+  conversationId?: string;
   messages: ChatMessage[];
   tools: ChatTool[];
   imageContext?: { dataDir: string; conversationId: string };
@@ -113,13 +116,14 @@ export function createProvider(config: ProviderConfig = {}) {
     apiKey,
     baseURL,
     maxRetries: 0,
+    ...(config.userAgent ? { defaultHeaders: { "User-Agent": config.userAgent } } : {}),
     // Match the initial-response deadline; bodies use the shared idle transport below.
     timeout: runtimeConfig.network.idleTimeoutMs,
     fetch: (url: RequestInfo | URL, init?: RequestInit) =>
       fetchWithIdleTimeout(url, { ...init, ...(proxy ? { proxy } : {}) } as RequestInit),
   });
 
-  const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: { dataDir: string; conversationId: string }, signal?: AbortSignal, toolChoice?: "auto" | "required") => {
+  const once = async (messages: ChatMessage[], tools: ChatTool[], imageContext?: { dataDir: string; conversationId: string }, signal?: AbortSignal, toolChoice?: "auto" | "required", conversationId?: string) => {
     if (config.api === "responses") return completeResponses(client, { model, reasoningEffort, messages, tools, imageContext, signal, toolChoice });
     const sanitize = config.sanitizeToolNames === true;
     const { tools: wireTools, byWire } = mapToolsForWire(tools, sanitize);
@@ -142,7 +146,7 @@ export function createProvider(config: ProviderConfig = {}) {
       tools: wireTools,
       ...(wireTools.length ? { parallel_tool_calls: true } : {}),
       ...(toolChoice === "required" ? { tool_choice: "required" as const } : {}),
-    }, { signal }).asResponse();
+    }, { signal, ...(config.sessionHeader && conversationId ? { headers: { [config.sessionHeader]: conversationId } } : {}) }).asResponse();
     if (!rawResponse.ok || !rawResponse.body) {
       const payload = await rawResponse.json().catch(() => ({})) as { error?: { message?: string } };
       const message = payload.error?.message || `HTTP ${rawResponse.status}`;
@@ -208,7 +212,7 @@ export function createProvider(config: ProviderConfig = {}) {
         if (input.signal?.aborted) return stoppedResult(attempts);
         attempts = attempt;
         try {
-          const { content, calls, finish } = await once(input.messages, input.tools, input.imageContext, input.signal, toolChoice);
+          const { content, calls, finish } = await once(input.messages, input.tools, input.imageContext, input.signal, toolChoice, input.conversationId);
           if (input.signal?.aborted) return stoppedResult(attempts);
           // Both adapters reject incomplete or invalid batches before argument parsing.
           if (finish === "stop") {

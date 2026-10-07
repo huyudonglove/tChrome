@@ -195,3 +195,20 @@ test("parallel function calls are enabled and the complete batch survives parsin
     ]);
   } finally { server.stop(true); }
 });
+
+test("OpenCode Go sends Helm identity and isolates concurrent conversation headers", async () => {
+  const seen: { session: string | null; agent: string | null }[] = [];
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch(request) {
+    seen.push({ session: request.headers.get("x-opencode-session"), agent: request.headers.get("user-agent") });
+    return sse([], "Hello", "stop");
+  } });
+  try {
+    const provider = createProvider({ apiKey: "local-test", baseURL: `http://127.0.0.1:${server.port}/v1`, proxy: "",
+      userAgent: "Helm/0.1.0", sessionHeader: "x-opencode-session" });
+    await Promise.all(["cv_01", "cv_02", "cv_01"].map(conversationId => provider.complete({ ...input, conversationId })));
+    expect(seen.map(row => row.session).sort()).toEqual(["cv_01", "cv_01", "cv_02"]);
+    expect(seen.every(row => row.agent === "Helm/0.1.0")).toBe(true);
+    await providerFor(server.port!).complete(input);
+    expect(seen.at(-1)?.session).toBeNull();
+  } finally { server.stop(true); }
+});

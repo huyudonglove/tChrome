@@ -38,7 +38,7 @@ class Execution {
         };
         const onAbort = () => settle(() => resolveRequest(stopped()));
         signal.addEventListener("abort", onAbort, { once: true });
-        try { Promise.resolve(source.complete({ ...input, signal })).then(result => settle(() => resolveRequest(result)), error => settle(() => reject(error))); }
+        try { Promise.resolve(source.complete({ ...input, conversationId: this.conversationId, signal })).then(result => settle(() => resolveRequest(result)), error => settle(() => reject(error))); }
         catch (error) { settle(() => reject(error)); }
       });
     } };

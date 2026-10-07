@@ -298,6 +298,8 @@ export type Provider = {
   complete(input: {
     messages: ChatMessage[];
     tools: ChatTool[];
+    /** Stable owning conversation, supplied by the runtime execution scope. */
+    conversationId?: string;
     imageContext?: { dataDir: string; conversationId: string };
     signal?: AbortSignal;
     toolChoice?: "auto" | "required";

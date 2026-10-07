@@ -5,6 +5,32 @@ import type { CompletionResult, Provider } from "../types.ts";
 const input = { messages: [], tools: [] };
 const result: CompletionResult = { content: "", toolCalls: [], finish: "stop", attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] };
 
+test("execution supplies its conversation identity across turns and concurrent requests", async () => {
+  const seen: Array<{ conversationId?: string; signal?: AbortSignal }> = [];
+  const provider: Provider = { complete: async request => {
+    seen.push({ conversationId: request.conversationId, signal: request.signal });
+    await Promise.resolve();
+    return result;
+  } };
+  const first = beginExecution("/tmp/execution-session", "cv_01", "tn_01", provider);
+  try {
+    await first.provider.complete(input);
+  } finally { first.finish(); }
+  const next = beginExecution("/tmp/execution-session", "cv_01", "tn_02", provider);
+  const other = beginExecution("/tmp/execution-session", "cv_02", "tn_03", provider);
+  try {
+    await Promise.all([
+      next.provider.complete({ ...input, conversationId: "cv_wrong" }),
+      other.provider.complete(input),
+      next.provider.complete(input),
+    ]);
+    expect(seen.map(request => request.conversationId)).toEqual(["cv_01", "cv_01", "cv_02", "cv_01"]);
+    expect(seen[1]!.signal).toBe(next.signal);
+    expect(seen[2]!.signal).toBe(other.signal);
+    expect(seen[3]!.signal).toBe(next.signal);
+  } finally { next.finish(); other.finish(); }
+});
+
 test("execution terminal states are irreversible and reject further requests", async () => {
   let calls = 0;
   const provider: Provider = { complete: async () => { calls++; return result; } };

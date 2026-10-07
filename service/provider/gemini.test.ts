@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { createGeminiProvider } from "./gemini.ts";
 import { sseResponse } from "./sse.ts";
 import { runtimeConfig } from "../config/runtime.ts";
-import { providerApiKeyEnv, providerOptions } from "./config.ts";
+import { providerApiKeyEnv, providerOptions, providers } from "./config.ts";
 
 const providerFor = (port: number, extra: { googleSearch?: boolean } = {}) =>
   createGeminiProvider({ apiKey: "local-test", baseURL: `http://127.0.0.1:${port}/v1beta`, proxy: "", ...extra });
@@ -186,13 +186,24 @@ test("toolChoice required 映射为 ANY，被拒后降级 AUTO", async () => {
 
 test("providerOptions registers all gateways with key env mapping", () => {
   expect(providerOptions().map((item) => item.id)).toEqual([
-    "uuapi", "shiningspace", "shiningspace-gpt", "gemini", "deepseek", "caicai", "deepseek-official", "xcode", "openrouter", "a6api", "openai",
+    "uuapi", "shiningspace", "shiningspace-gpt", "gemini", "deepseek", "caicai", "deepseek-official", "xcode", "opencode", "openrouter", "a6api", "openai",
   ]);
   expect(providerApiKeyEnv.gemini).toBe("GEMINI_API_KEY");
   expect(providerApiKeyEnv.deepseek).toBe("DEEPSEEK_API_KEY");
   expect(providerApiKeyEnv.caicai).toBe("CAICAI_API_KEY");
   expect(providerApiKeyEnv["deepseek-official"]).toBe("DEEPSEEK_OFFICIAL_API_KEY");
   expect(providerApiKeyEnv.xcode).toBe("XCODE_API_KEY");
+  expect(providerApiKeyEnv.opencode).toBe("OPENCODE_API_KEY");
+  expect(providers.find((item) => item.id === "opencode")).toMatchObject({
+    model: "deepseek-v4.1-flash",
+    baseURL: "https://opencode.ai/zen/go/v1",
+    modelEnv: "OPENCODE_MODEL",
+    baseUrlEnv: "OPENCODE_BASE_URL",
+    effortEnv: "OPENCODE_REASONING_EFFORT",
+    kind: "openai",
+  });
+  expect(providerOptions().find((item) => item.id === "opencode")?.model)
+    .toBe(Bun.env.OPENCODE_MODEL ?? "deepseek-v4.1-flash");
   expect(providerApiKeyEnv.openrouter).toBe("OPENROUTER_API_KEY");
   expect(providerApiKeyEnv.a6api).toBe("A6API_API_KEY");
   expect(providerApiKeyEnv.openai).toBe("OPENAI_API_KEY");
