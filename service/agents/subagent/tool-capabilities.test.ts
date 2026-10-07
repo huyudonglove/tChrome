@@ -41,3 +41,11 @@ test("没有对任何人都不可达的死条目", () => {
   const dead = Object.keys(SUBAGENT_TOOL_CAPABILITIES).filter((tool) => !roles.some((role) => exposedTo(role, tool)));
   expect(dead).toEqual([]);
 });
+
+test("复现角色能截图、看 DOM/console、操作表单与拖拽；其他角色看不到", () => {
+  for (const tool of ["capture_page", "page_get_dom", "page_eval_expr", "see_console", "page_fill_submit", "page_drag_to_id", "dialog_wait"]) {
+    expect(exposedTo("reproducer", tool), `${tool} 应给复现角色`).toBe(true);
+    expect(exposedTo("researcher", tool), `${tool} 不该给研究角色`).toBe(false);
+    expect(exposedTo("implementer", tool), `${tool} 不该给实现角色`).toBe(false);
+  }
+});

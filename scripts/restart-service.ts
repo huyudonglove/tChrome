@@ -11,10 +11,11 @@
  * 环境变量优先（从别的进程 spawn 调用时更可靠，不经过 bun 的选项解析）：
  *   TCHROME_RESTART_DELAY / TCHROME_RESTART_CONTINUE / TCHROME_RESTART_INPUT
  *
- * 注意：/stop 会把当前正在跑的轮次标为 interrupted，所以请从服务进程之外执行本脚本。
+ * 注意：脚本会先等目标会话的轮次收尾再 /stop（默认最多等 5 分钟，见 --wait / TCHROME_RESTART_WAIT），
+ * 所以轮次正常收尾时不会再被打成 interrupted；只有超时或该轮已死，才会真的打断运行中的轮次。
  */
 import { spawn, spawnSync } from "node:child_process";
-import { mkdirSync, openSync } from "node:fs";
+import { mkdirSync, openSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -49,6 +50,31 @@ const waitHealthy = async (timeoutMs: number): Promise<boolean> => {
   return false;
 };
 
+const readSessionConversationId = (dataDir: string): string | undefined => {
+  try {
+    const session = JSON.parse(readFileSync(join(dataDir, "session.json"), "utf8")) as { conversationId?: string };
+    return session.conversationId || undefined;
+  } catch { return undefined; }
+};
+
+/** 该会话的账本是否还停在 running。读不到（还没建账本 / 文件不可读）就当没在跑。 */
+const turnRunning = (dataDir: string, cvId: string): boolean => {
+  try {
+    const ledger = JSON.parse(readFileSync(join(dataDir, "conversations", cvId, "ledger.json"), "utf8")) as { status?: string };
+    return ledger.status === "running";
+  } catch { return false; }
+};
+
+/** 等该会话的轮次自己收尾。超时返回 false，调用方据此决定是否照常停止。 */
+const waitTurnIdle = async (dataDir: string, cvId: string, timeoutMs: number): Promise<boolean> => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!turnRunning(dataDir, cvId)) return true;
+    await sleep(500);
+  }
+  return !turnRunning(dataDir, cvId);
+};
+
 const main = async (): Promise<void> => {
   // 自我脱离：本脚本若由服务进程内的工具调用启动，就属于该服务的进程组；服务收到 SIGTERM 时
   // 会终止整个进程组，把重启脚本一起杀掉，结果「旧的停了、新的没起」。先用 detached 再派生一份
@@ -65,12 +91,17 @@ const main = async (): Promise<void> => {
     console.log(`已派生独立重启进程 pid=${detached.pid}；本进程退出，避免被即将终止的服务进程组带走`);
     return;
   }
+  const dataDir = process.env.TCHROME_DATA ?? join(process.env.HOME ?? ".", "Library", "Application Support", "tChrome");
   const args = process.argv.slice(2);
   const continueAt = args.indexOf("--continue");
   const delayAt = args.indexOf("--delay");
+  const waitAt = args.indexOf("--wait");
   // 环境变量优先：从服务进程内部 spawn 本脚本时 env 逐字传递、不经过 bun 的选项解析，
   // 能确保「先延迟、再重启、后自动续跑」这三步不被误读。
   const delaySec = Number(process.env.TCHROME_RESTART_DELAY ?? (delayAt >= 0 ? args[delayAt + 1] : 0));
+  // 停服前等本轮结束的时限（默认 5 分钟）。它只决定「什么时候停」，不改变「停完一定重启」。
+  const waitSec = Number(process.env.TCHROME_RESTART_WAIT ?? (waitAt >= 0 ? args[waitAt + 1] : 300));
+  const waitMs = (Number.isFinite(waitSec) && waitSec > 0 ? waitSec : 0) * 1000;
   const conversationId = process.env.TCHROME_RESTART_CONTINUE ?? (continueAt >= 0 ? args[continueAt + 1] : undefined);
   const continueInput = process.env.TCHROME_RESTART_INPUT ?? (continueAt >= 0 ? args[continueAt + 2] : undefined);
 
@@ -80,13 +111,22 @@ const main = async (): Promise<void> => {
     await sleep(delaySec * 1000);
   }
 
-  // 1. 让服务自己收尾：stopTurn 会把运行中的轮次标为 interrupted 并释放会话锁。
+  // 1. 先等本轮做完再让服务停止。
+  //    直接 /stop 会把仍在跑的轮次标成 interrupted、当轮工作作废，所以这里先轮询账本等它收尾；
+  //    只有超出 waitMs（默认 5 分钟）或该轮已死的情况，才会真的打断运行中的轮次。
   if (listeners().length) {
+    const targetCv = conversationId ?? readSessionConversationId(dataDir);
+    if (targetCv && waitMs > 0) {
+      const idle = await waitTurnIdle(dataDir, targetCv, waitMs);
+      if (!idle) console.error(`会话 ${targetCv} 在 ${Math.round(waitMs / 1000)} 秒内仍未结束，改为按计划停止`);
+      else console.log(`会话 ${targetCv} 已不在运行，继续重启`);
+    }
     try {
       await fetch(`${base}/stop`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(conversationId ? { conversationId } : {}),
+        // initiatedBy=service 让这一轮的 stopReason 能区分出是脚本安排的停止，不是人按的。
+        body: JSON.stringify({ ...(targetCv ? { conversationId: targetCv } : {}), initiatedBy: "service" }),
       });
       await sleep(500);
     } catch { /* 服务已经不在监听 */ }
@@ -107,7 +147,6 @@ const main = async (): Promise<void> => {
   }
 
   // 3. 拉起新进程，日志追加到服务数据目录的 process-output/service-restart.log。
-  const dataDir = process.env.TCHROME_DATA ?? join(process.env.HOME ?? ".", "Library", "Application Support", "tChrome");
   const logDir = join(dataDir, "process-output");
   mkdirSync(logDir, { recursive: true });
   const logPath = join(logDir, "service-restart.log");

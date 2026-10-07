@@ -155,7 +155,11 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     const success = outcomes.filter((row) => row.status === "success").length;
     const failed = outcomes.filter((row) => row.status === "failed").length;
     const blocked = outcomes.filter((row) => row.status === "blocked").length;
-    return result(JSON.stringify({ ok: packets.length > 0 && success === packets.length, ...dag, total: packets.length, success, failed, blocked }));
+    const ok = packets.length > 0 && success === packets.length;
+    // 未全部成功时带专用故障码：否则统一外壳会把它报成笼统的「工具执行失败」，
+    // 调用方看不出只是部分 packet 未完成；逐项详情仍在 results 与 total/success/failed/blocked 里。
+    const faultCode = ok ? null : success === 0 ? "subagent_failed" : "subagent_partial_failure";
+    return result(JSON.stringify({ ok, ...dag, total: packets.length, success, failed, blocked, ...(faultCode ? { faultCode } : {}) }));
   }
   if (name === "execute_javascript") {
     try {
@@ -491,7 +495,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     }), [{ type: "memory_delete", memoryId }]);
   }
   if (name === "context_query" || name === "agent_query") {
-    if (!input.queryContext) return failedTool("query_agent_unavailable", "query_failed");
+    if (!input.queryContext) return failedTool(errorDetail("query_agent_unavailable"), "query_failed");
     const file = typeof args.file === "string" && args.file.trim() ? args.file.trim() : undefined;
     const queried = await input.queryContext({ sumId: String(args.sumId), module: args.module as QueryModule,
       intent: String(args.intent), ...(file ? { file } : {}) });
@@ -515,7 +519,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     }), [{ type: "query.set", query }]);
   }
   if (name === "agent_compress") {
-    if (!input.compressContext) return failedTool("compression_agent_unavailable", "compress_failed");
+    if (!input.compressContext) return failedTool(errorDetail("compression_agent_unavailable"), "compression_failed");
     const phase = args.phase === "current" ? "current" : "history";
     const outcome = await input.compressContext({ phase });
     return result(JSON.stringify({ ok: outcome.status === "completed" || outcome.status === "noop", ...outcome }));

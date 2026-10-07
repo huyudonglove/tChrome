@@ -14,7 +14,7 @@ import { errorDetail } from "../../shared/error-details.ts";
 import { continuationInputText } from "../../shared/continuation.ts";
 import { failedTool, toolFailure } from "../tools/result.ts";
 import { systemText, userText, windowChars } from "../context/window.ts";
-import { beginExecution } from "./execution.ts";
+import { beginExecution, hasActiveExecution } from "./execution.ts";
 import { skillGuide, loadedSkillText } from "../skills/loader.ts";
 import { loadContextModules, type ContextModules } from "../context/modules.ts";
 import { loadToolRegistry, coreToolIds, dynamicToolIds, toolSchemas, toolGuideFor, zeroCallToolNote, type ToolRegistry } from "../tools/registry.ts";
@@ -90,6 +90,7 @@ import {
   loadLedger,
   loadTurn,
   paths,
+  recoverStaleRun,
   saveFullReturn,
   saveReturnBlockIndex,
   saveLedger,
@@ -156,7 +157,7 @@ const assemble = (toolRegistry: ToolRegistry, loadedToolIds: string[]): Assemble
   workspace: [],
   currentTabs: { ok: false, error: "尚未读取标签列表" },
 });
-const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, images: ChatMessage["images"], summaries: Parameters<typeof userText>[0]["conversationSummaries"] = [], dataDir?: string, skillNav = "", historyDataDir?: string, onNotice?: (kind: string, text: string | null) => void): ChatMessage[] => {
+const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, images: ChatMessage["images"], summaries: Parameters<typeof userText>[0]["conversationSummaries"] = [], dataDir?: string, skillNav = "", historyDataDir?: string, onNotice?: (kind: string, text: string | null) => void, allCalls: readonly { name: string; arguments?: unknown }[] = ledger.toolIO): ChatMessage[] => {
   const system = systemText(contextModules, pacificDate(), toolGuideFor(toolRegistry, turn.assembled.baseToolsIds), {
     cwd: process.cwd(),
     ...(dataDir ? { dataDir } : {}),
@@ -171,13 +172,13 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
   }
   // Ownership: the project a turn touches decides which scoped memories are injected. Derivation is
   // evidence-based (paths in the recent tool calls), never a declared guess.
-  const activeScopes = deriveActiveScopes(ledger.toolIO);
+  const activeScopes = deriveActiveScopes(allCalls);
   // 图片附件、未注入的记忆范围、零调用的已加载工具这三条附注，与其他运行时提醒同一承载：
   // 经 onNotice 交给 <runtimeNotices> 容器（带 id/kind），不再作为裸文本缀在 User 正文尾。
   // 同 kind 只保留最新一条，空文本即清除；测量路径不传 onNotice，保持只读。
   onNotice?.("image", deferredImageNote(deferred) + (thumbs.length ? " 已附缩略图，细节仍需 image_crop 或 mode=element|rect。" : ""));
   onNotice?.("memory", renderScopeIndex(memories, activeScopes));
-  onNotice?.("tools", zeroCallToolNote(toolRegistry, ledger.loadedToolIds, ledger.toolIO));
+  onNotice?.("tools", zeroCallToolNote(toolRegistry, ledger.loadedToolIds, allCalls));
   return [
     { role: "system", content: system },
     { role: "user", content: userText({
@@ -345,7 +346,7 @@ const runQueue = async (input: {
           riskAudit.set(slot.item.callId, { risk: toolRisk, riskSource: "fixed" });
         }
         if (requiresActiveTask(toolRisk, slot.item.arguments.risk) && !hasActiveTask(ledger)) {
-          execution = failedTool(errorDetail("task_gate_required"), "invalid_arguments", {
+          execution = failedTool(errorDetail("task_gate_required"), "task_gate_required", {
             toolName: slot.item.name,
           });
         } else {
@@ -562,13 +563,19 @@ export async function handleTurn(
   // Route by the caller's conversation; the global pointer is only a fallback.
   const session = { conversationId: body.conversationId || ensureSession(deps.dataDir).conversationId };
   const host = deps.host?.forScope?.(session.conversationId) ?? deps.host;
-  const ledger = loadLedger(deps.dataDir, session.conversationId);
+  let ledger = loadLedger(deps.dataDir, session.conversationId);
   if (ledger.status === "running") {
-    return {
-      conversationId: ledger.conversationId,
-      turnId: ledger.active?.turnId ?? "",
-      stopReason: { kind: "error", faultCode: "busy" },
-    };
+    // 账本说 running，但本进程已经没有任何该会话的执行在跑 → 上一进程被硬杀留下的脏数据。
+    // 直接复位它，否则这条会话会被 busy 永久拒绝（只有重启服务或手动 /stop 才能解开）。
+    if (hasActiveExecution(deps.dataDir, ledger.conversationId)) {
+      return {
+        conversationId: ledger.conversationId,
+        turnId: ledger.active?.turnId ?? "",
+        stopReason: { kind: "error", faultCode: "busy" },
+      };
+    }
+    recoverStaleRun(deps.dataDir, ledger.conversationId, "账本残留 running，但该会话已无在跑的执行");
+    ledger = loadLedger(deps.dataDir, ledger.conversationId);
   }
   const prevId = ledger.turnIds.at(-1);
   if (prevId) {
@@ -699,7 +706,7 @@ export async function handleTurn(
           `${REFLECT_NUDGE_MARKER}\n本回合已有 ${rows.length} 次工具调用，尚未写 reflect_write。若这轮出现了结论被推翻、同一卡点反复、或一次取舍决策，用 reflect_write 记下当前状态与下一步；纯流水账不必写。`);
       }
       let state = contextState(deps.dataDir, ledger, turn, memories);
-      let messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir, setNotice);
+      let messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir, setNotice, ledger.toolIO);
       const initialChars = windowChars(messages[0]!.content, messages[1]!.content);
       // Compress-prep checkpoint: compression turns this turn's tool returns into summaries and
       // pointers, so ask for one observation first — but only while the window still has headroom
@@ -712,7 +719,7 @@ export async function handleTurn(
         setNotice("compress",
           `${OBSERVATION_NUDGE_MARKER} 上下文即将被压缩（当前窗口 ${initialChars} 字符，阈值 ${ledger.compressAt}）。压缩会保留摘要，原文仍可回查；已写入 workspace 的事实也随轮次归档。本轮尚未写阶段观察，若还有未记录的跨步骤状态，可用 observation_write 补充进度、未验证项与衔接点，不重复搬运已有事实。本轮的下一次循环仍会照常压缩，不会一直推迟。`);
         state = contextState(deps.dataDir, ledger, turn, memories);
-        messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir, setNotice);
+        messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir, setNotice, ledger.toolIO);
       }
       if (!deferForCheckpoint && (forceCompress || initialChars >= ledger.compressAt)) {
         let compressionStarted = false;
@@ -751,7 +758,7 @@ export async function handleTurn(
         }
             state = contextState(deps.dataDir, ledger, turn, memories);
             skillText = skillTextOf();
-            messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir, setNotice);
+            messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir, setNotice, ledger.toolIO);
             // Sequential compression: a failed turn keeps originals; this boundary stops compressing and still sends the main model.
             if (outcome?.status === "stopped") break;
           }
@@ -792,7 +799,7 @@ export async function handleTurn(
           setNotice("rotate",
             `${OBSERVATION_NUDGE_MARKER} 本轮自身注入已达 ${turnDeltaChars} 字符（阈值 ${ledger.turnRotateAt}），下一轮将闭合本轮并从压缩后的历史续接。压缩会保留摘要，原文仍可回查，已写入 workspace 的事实随轮次归档。若还有未记录的跨步骤状态，可用 observation_write 补充进度、未验证项与衔接点，不重复搬运已有事实。`);
           state = contextState(deps.dataDir, ledger, turn, memories);
-          messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir, setNotice);
+          messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir, setNotice, ledger.toolIO);
         } else {
           // Same close path as a normal reply, so loadSettledTurnHistory sees this turn and the
           // next turn is not blocked by a busy ledger.
@@ -816,7 +823,7 @@ export async function handleTurn(
       // still over the hard inline limit.
       try {
         skillText = skillTextOf();
-        messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, deps.dataDir, skillNav, undefined, setNotice);
+        messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, deps.dataDir, skillNav, undefined, setNotice, ledger.toolIO);
       } catch (error) {
         turn.status = "failed";
         turn.completedAt = nowIso();

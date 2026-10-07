@@ -471,29 +471,38 @@ export function ensureSession(dataDir: string): Session {
  * 服务刚启动时不可能有轮次在跑，所以残留的 running 一定是脏数据：把当轮标
  * failed / interrupted(service)，会话退回 paused。返回被复位的会话 ID 列表。
  */
+/**
+ * 复位单个残留 running 会话：把当轮标 failed / interrupted(service)，会话退回 paused。
+ * detail 由调用方给出，因为「服务启动时清扫」与「运行期发现该会话已无在跑执行」语境不同。
+ * 返回是否真的发生了复位。
+ */
+export function recoverStaleRun(dataDir: string, conversationId: string, detail = "服务重启前该轮未正常收尾"): boolean {
+  const ledger = loadLedger(dataDir, conversationId);
+  if (ledger.status !== "running") return false;
+  const turnId = ledger.active?.turnId;
+  if (turnId && existsSync(join(paths(dataDir, conversationId).turns, `${turnId}.json`))) {
+    const turn = loadTurn(dataDir, conversationId, turnId);
+    turn.status = "failed";
+    turn.completedAt = nowIso();
+    turn.stopReason = { kind: "interrupted", initiatedBy: "service", detail };
+    saveTurn(dataDir, turn);
+  }
+  ledger.status = "paused";
+  ledger.active = null;
+  ledger.pendingAsk = null;
+  saveLedger(dataDir, ledger);
+  return true;
+}
+
 export function recoverStaleRuns(dataDir: string): string[] {
   const recovered: string[] = [];
   for (const conversationId of listConversationIds(dataDir)) {
-    const ledger = loadLedger(dataDir, conversationId);
-    if (ledger.status !== "running") continue;
-    const turnId = ledger.active?.turnId;
-    if (turnId && existsSync(join(paths(dataDir, conversationId).turns, `${turnId}.json`))) {
-      const turn = loadTurn(dataDir, conversationId, turnId);
-      turn.status = "failed";
-      turn.completedAt = nowIso();
-      turn.stopReason = { kind: "interrupted", initiatedBy: "service", detail: "服务重启前该轮未正常收尾" };
-      saveTurn(dataDir, turn);
-    }
-    ledger.status = "paused";
-    ledger.active = null;
-    ledger.pendingAsk = null;
-    saveLedger(dataDir, ledger);
-    recovered.push(conversationId);
+    if (recoverStaleRun(dataDir, conversationId)) recovered.push(conversationId);
   }
   return recovered;
 }
 
-export function stopTurn(dataDir: string, targetConversationId?: string | null): SessionView {
+export function stopTurn(dataDir: string, targetConversationId?: string | null, initiatedBy: "user" | "service" = "user"): SessionView {
   // Stop the caller's conversation; the global pointer stays the fallback.
   const session = { conversationId: targetConversationId || loadSession(dataDir)?.conversationId };
   if (!session.conversationId) return currentSessionView(dataDir);
@@ -507,7 +516,7 @@ export function stopTurn(dataDir: string, targetConversationId?: string | null):
     const turn = loadTurn(dataDir, session.conversationId, turnId);
     turn.status = "failed";
     turn.completedAt = nowIso();
-    turn.stopReason = { kind: "interrupted", initiatedBy: "user" };
+    turn.stopReason = { kind: "interrupted", initiatedBy };
     saveTurn(dataDir, turn);
     appendEvent(dataDir, session.conversationId, { kind: "turn-stop-reason", turnId, data: { stopReason: turn.stopReason } });
   }

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "delegate_subagent",
-    "description": "把一个或多个结构化 Task Packet 委派给受限 Subagent 执行；支持依赖 DAG、有限并行和失败阻断。主 Agent 必须根据返回的结构化结果自行验收。返回体的 ok 仅在全部 packet 都 success 时为 true，并汇总 total/success/failed/blocked。",
+    "description": "把一个或多个结构化 Task Packet 委派给受限 Subagent 执行；支持依赖 DAG、有限并行和失败阻断。主 Agent 必须根据返回的结构化结果自行验收。返回体的 ok 仅在全部 packet 都 success 时为 true，并汇总 total/success/failed/blocked；未全部成功时带 faultCode（subagent_partial_failure 部分失败 / subagent_failed 全部失败）。",
     "parameters": {
       "type": "object",
       "properties": {

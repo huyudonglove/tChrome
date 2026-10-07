@@ -4,6 +4,16 @@
     "user": "本轮执行遇到错误，未能完成。详细错误已保留在服务日志中。",
     "recovery": "inspect_state"
   },
+  "subagent_failed": {
+    "model": "委派的 Subagent 全部失败，没有任何 packet 成功。逐项查看返回体的 results 与 errors，再决定重试、缩小任务或改派。",
+    "user": "委派的任务全部失败，逐项原因已保留在返回结果中。",
+    "recovery": "inspect_state"
+  },
+  "subagent_partial_failure": {
+    "model": "部分委派任务未成功（total/success/failed/blocked 见返回体）。成功项可复用，失败与阻断项逐项看 results 后决定重试或调整。",
+    "user": "部分委派任务未完成，逐项原因已保留在返回结果中。",
+    "recovery": "inspect_state"
+  },
   "stopped": {
     "model": "本回合已取消，停止后续操作。",
     "user": "已停止",
@@ -262,6 +272,81 @@
   "provider_forbidden": {
     "model": "模型服务拒绝请求（HTTP 403）。检查错误详情以区分权限与上游账号可用性问题，不直接认定密钥失效。",
     "user": "模型服务拒绝请求（403），可能涉及权限或上游账号可用性。具体原因已保留在服务日志中。",
+    "recovery": "inspect_state"
+  },
+  "ambiguous_target": {
+    "model": "定位到多个匹配元素。用 matchIndex 指定序号，或收窄 name/文字后重试。",
+    "user": "目标不唯一，存在多个匹配项。",
+    "recovery": "correct_arguments"
+  },
+  "assertion_failed": {
+    "model": "页面断言未通过。逐项查看失败条件，确认页面实际状态后再决定重试或调整操作。",
+    "user": "页面断言未通过。",
+    "recovery": "inspect_state"
+  },
+  "dialog_handle_failed": {
+    "model": "原生弹窗处理失败。确认弹窗类型与要执行的动作后再调用。",
+    "user": "处理浏览器弹窗失败。",
+    "recovery": "inspect_state"
+  },
+  "empty_input": {
+    "model": "输入为空。补齐必填内容后再提交。",
+    "user": "请求内容为空。",
+    "recovery": "user_action"
+  },
+  "executor_version_mismatch": {
+    "model": "扩展执行器版本与服务不匹配。重新构建并加载扩展后再试。",
+    "user": "浏览器扩展版本与服务不匹配，请重新构建并加载扩展。",
+    "recovery": "user_action"
+  },
+  "invalid_mode": {
+    "model": "mode 取值无效。按工具定义改用受支持的取值。",
+    "user": "工具参数取值无效。",
+    "recovery": "correct_arguments"
+  },
+  "local_git_failed": {
+    "model": "本地 git 命令执行失败。查看错误详情与仓库状态后再决定下一步。",
+    "user": "本地 git 操作失败。",
+    "recovery": "inspect_state"
+  },
+  "missing_conversation": {
+    "model": "缺少会话标识。确认调用上下文后再重试。",
+    "user": "缺少会话标识。",
+    "recovery": "inspect_state"
+  },
+  "not_found": {
+    "model": "未找到目标。检查路径、名称或页面状态是否已变化后再重试。",
+    "user": "未找到目标对象。",
+    "recovery": "inspect_state"
+  },
+  "provider_unavailable": {
+    "model": "模型服务不可用。检查服务配置与网络后再决定是否重试。",
+    "user": "模型服务当前不可用。",
+    "recovery": "inspect_state"
+  },
+  "recheck_failed": {
+    "model": "页面复验条件未满足。确认页面实际状态后再决定下一步。",
+    "user": "页面复验未通过。",
+    "recovery": "inspect_state"
+  },
+  "target_not_found": {
+    "model": "未定位到目标元素。重新读取页面获取有效引用后再操作。",
+    "user": "未找到目标页面元素。",
+    "recovery": "inspect_state"
+  },
+  "unknown_conversation": {
+    "model": "会话不存在或已失效。确认会话标识后再重试。",
+    "user": "指定的会话不存在。",
+    "recovery": "inspect_state"
+  },
+  "wait_condition_pending": {
+    "model": "等待条件在超时前未满足。确认页面状态与等待条件后再决定是否重试。",
+    "user": "等待条件超时未满足。",
+    "recovery": "inspect_state"
+  },
+  "task_gate_required": {
+    "model": "该操作需要活动 Task：先用 task_set 写清步骤创建任务，再执行；收口、提问与记忆类工具无需 Task。",
+    "user": "该操作需要先创建任务步骤。",
     "recovery": "inspect_state"
   }
 }

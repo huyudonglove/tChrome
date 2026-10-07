@@ -186,5 +186,5 @@ test("agent_compress reports unavailable runtime support", async () => {
   });
   const payload = JSON.parse(execution.text);
   expect(payload.ok).toBe(false);
-  expect(payload.faultCode).toBe("compress_failed");
+  expect(payload.faultCode).toBe("compression_failed");
 });

@@ -71,6 +71,15 @@ export function cancelExecution(dataDir: string, conversationId: string): void {
   executions.get(keyFor(dataDir, conversationId))?.cancel();
 }
 
+/**
+ * 本进程是否仍持有该会话的活跃执行。
+ * 账本 status=running 只说明「上一次写入时有人开着轮次」；硬杀后新进程的内存里没有任何执行，
+ * 用它就能把「真的在跑」与「上一进程留下的脏 running」区分开。
+ */
+export function hasActiveExecution(dataDir: string, conversationId: string): boolean {
+  return executions.get(keyFor(dataDir, conversationId))?.state === "active";
+}
+
 export function cancelAllExecutions(dataDir?: string): void {
   for (const execution of executions.values()) {
     if (dataDir === undefined || execution.dataDir === resolve(dataDir)) execution.cancel();

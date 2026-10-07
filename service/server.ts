@@ -290,12 +290,13 @@ export function createServer(options: ServeOptions = {}) {
       }
       if (request.method === "POST" && url.pathname === "/stop") {
         const raw = await request.text();
-        const target = raw ? (JSON.parse(raw) as { conversationId?: string | null }).conversationId : undefined;
-        const conversationId = target ?? loadSession(dataDir)?.conversationId;
+        const body = raw ? (JSON.parse(raw) as { conversationId?: string | null; initiatedBy?: string }) : undefined;
+        const conversationId = body?.conversationId ?? loadSession(dataDir)?.conversationId;
         if (conversationId && !listConversationIds(dataDir).includes(conversationId)) {
           return respond({ error: "没有这个会话" }, 404);
         }
-        const stopped = stopTurn(dataDir, conversationId);
+        // 谁发起的停止：脚本安排的优雅重启传 service，其余（侧栏停止按钮）仍是 user。
+        const stopped = stopTurn(dataDir, conversationId, body?.initiatedBy === "service" ? "service" : "user");
         if (conversationId) host.abort?.(conversationId);
         return respond(stopped);
       }
