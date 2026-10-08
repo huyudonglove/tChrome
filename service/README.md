@@ -56,3 +56,15 @@ conversationHistorySummary 展示历史轮次或执行片段的 {summary, userRe
 Compression Agent 的每次模型请求独立写入 `conversations/<cvId>/agent-logs/compression/<时间戳>-<唯一标识>.jsonl`。请求发送前记录完整 messages 与 tools；收到后记录 Provider 返回的完整 CompletionResult（正文、工具调用、解析错误等），并记录成功摘要或异常。schema 校验失败包含字段路径、规则和预期类型，轮次覆盖错误包含预期与实际 turnId；会话的 compress-error 附日志路径。日志不包含模型密钥或请求认证头，也不进入主模型上下文。
 
 网络配置统一在 `service/config/runtime.json`，修改后重启服务生效。`network.idleTimeoutMs=90000` 表示等待响应头或响应体连续 90 秒没有数据才超时，非请求总耗时；收到非空数据块重置计时。`network.maxAttempts=10` 包含首次请求，`retryDelayMs=200` 为尝试间隔。测试经 `bunfig.toml` 预载把 `TCHROME_RETRY_DELAY_MS` 置为 1，重试循环不按生产间隔硬等；`TCHROME_MAX_ATTEMPTS` 可覆盖尝试次数。通用 HTTP 工具和主/辅助模型请求共用该策略，用户停止立即取消传输及等待；模型继续采用统一失败分类决定哪些错误可重试，HTTP 工具对空闲超时和连接中断重试，收到 HTTP 错误状态则直接返回。持续响应会继续消费，普通 HTTP 工具完整保留正文与响应头，搜索完整保留返回内容，再由发送前上下文门禁处理；probe_http 保持只检查响应头。Tavily SDK 的 `sdk.tavilyTimeoutSeconds` 和 TLS 握手的 `tls.timeoutMs` 属于专用超时，独立配置在同一文件，不冒充流式空闲计时。
+
+### 模型请求网络计时
+
+会话 `events.jsonl` 中，`provider-timing` 记录逻辑请求开始、结果及结束耗时；`provider-network` 记录该请求每次实际 HTTP 尝试的阶段。二者用持久递增的 `requestId` 和 `turnId` 关联，覆盖主模型、压缩、查询及子代理，并发请求独立计时。每次实际发送的 `attempt` 独立编号，保留重试前的失败数据。
+
+网络阶段包含发送开始、响应头、首个非空响应体数据、完成/失败/取消；耗时使用单调时钟。记录可测请求体的 UTF-8 字节数、已接收响应体字节数及 HTTP 状态，不记录请求正文、认证头或 URL。响应头和首块等待包含网络及服务端处理，不能解释为纯上传或模型思考耗时。普通 fetch 无法测出 DNS、建连、TLS 和上传完成时刻，上传字段明确为 null；流式请求体无法无损预先计量时大小为 null。首块也不等于首个内容 token。日志只用于诊断，不进入模型上下文，不改变请求、超时和重试规则。
+
+### 最近 100 次模型出网内容
+
+服务数据目录 `provider-requests/out_NN.json` 保存最近 100 次实际模型 HTTP 发送的请求快照，所有会话共用此保留数量；一次重试也算一次发送。每条包含 `conversationId`、`turnId`、`requestId`、`attempt`、时间、HTTP 方法、不带查询参数与认证信息的 endpoint，以及最终序列化请求体 `body`。body 保留原样，包含实际发送的 System/User、工具 schema、模型参数及图片数据（如有），不截断、不进入模型上下文。请求头不保存。
+
+`events.jsonl` 的 `provider-outbound` 记录快照路径，可与 `provider-network` 的请求编号和尝试序号关联。超过 100 条时按持久递增编号删除最旧快照，重启后继续累计。文件权限为仅本用户读写。日志失败或无法无损记录的非文本请求体通过 `request-log-error` 标记，原请求继续执行；当前模型适配器使用序列化 JSON 文本。历史请求无法补录，服务重启启用后开始收集。

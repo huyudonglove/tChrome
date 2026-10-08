@@ -4,7 +4,7 @@ import { completeResponses } from "./responses.ts";
 import { sseDataEvents } from "./sse.ts";
 import { ProviderFailure, classifyProviderFailure, isToolChoiceRejection } from "./failures.ts";
 import { runtimeConfig } from "../config/runtime.ts";
-import { fetchWithIdleTimeout } from "../network/idle-fetch.ts";
+import { fetchWithIdleTimeout } from "../network/timed-fetch.ts";
 import { readImageDataUrl } from "../images/store.ts";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { parseToolArguments } from "../tools/arguments.ts";

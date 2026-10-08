@@ -35,12 +35,12 @@ test("registry loads XML modules and system text uses angle-bracket tags", () =>
   expect(system).toContain("<identity>");
   expect(system).toContain("</identity>");
   expect(system).toContain("<runtimeProtocol>\n<purpose>");
-  expect(system).not.toContain("<runtimeNotices>\n<purpose>");
+  expect(system).toContain("<runtimeNotices>\n<purpose>");
   expect(modules.userOrder).toContain("#runtimeNotices");
   expect(system).toContain("GUIDE");
   expect(system).not.toContain("#identity");
   expect(system).not.toMatch(/\{\{(?:currentDate|dataDir|cwd|os)\}\}/);
-  expect([...system.matchAll(/^<purpose>$/gm)]).toHaveLength(modules.systemOrder.length);
+  expect([...system.matchAll(/^<purpose>$/gm)]).toHaveLength(modules.systemOrder.length + modules.userOrder.length);
   for (const tag of modules.systemOrder) {
     const purpose = modules.systemSlots[tag]!.purpose
       .replaceAll("{{currentDate}}", "2026-09-06")
@@ -51,7 +51,7 @@ test("registry loads XML modules and system text uses angle-bracket tags", () =>
   }
 });
 
-test("user window renders XML purpose modules with data after purpose", () => {
+test("module descriptions appear once in System while User contains only data", () => {
   const modules = loadContextModules(root);
   const ledger = emptyLedger("cv_xml");
   const turn: Turn = {
@@ -61,19 +61,28 @@ test("user window renders XML purpose modules with data after purpose", () => {
     stopReason: null,
     assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [], workspace: [] },
   };
-  const output = userText({ contextModules: modules, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: "技能正文" });
-  expect(output).toContain("<runtimeNotices>\n<purpose>");
+  const output = userText({ contextModules: modules, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: "LOADED_SKILL_BODY_SENTINEL" });
+  expect(output).toContain("<runtimeNotices>\n");
   expect(output).not.toContain("完整原文保持原样保存");
   expect(output).toContain("<skill>");
-  expect(output).toContain("<purpose>");
-  expect(output).toContain("</purpose>");
-  expect(output).toContain("</purpose>\n\n技能正文");
+  expect(output).not.toContain("<purpose>");
+  expect(output).not.toContain("</purpose>");
+  expect(output).toContain("<skill>\nLOADED_SKILL_BODY_SENTINEL\n</skill>");
   expect(output).toContain("用户输入");
   expect(output).toContain('<conversation id="cv_xml">');
   expect(output).toContain('<turn turnId="tn_01">');
   expect(output).toContain("</turn>");
-  const topTags = Array.from(output.matchAll(/^<([A-Za-z][A-Za-z0-9]*)(?: [a-z]+="[^"]*")*>\n<purpose>/gm), m => m[1]);
-  expect(topTags).toEqual(modules.userOrder.map(tag => tag.slice(1)));
+  const system = systemTextFromModules(modules, "2026-10-08");
+  expect(system).not.toContain("LOADED_SKILL_BODY_SENTINEL");
+  let previousIndex = -1;
+  for (const tag of modules.userOrder) {
+    const module = modules.userSlots[tag]!;
+    expect(system.split(module.purpose)).toHaveLength(2);
+    expect(output).not.toContain(module.purpose);
+    const index = output.indexOf(`<${tag.slice(1)}`);
+    expect(index).toBeGreaterThan(previousIndex);
+    previousIndex = index;
+  }
 });
 
 test("<conversation> reports its conversation id and window occupancy", () => {

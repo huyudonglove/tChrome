@@ -2,7 +2,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { ProviderFailure, classifyProviderFailure, isToolChoiceRejection } from "./failures.ts";
 import { sseDataEvents } from "./sse.ts";
 import { runtimeConfig } from "../config/runtime.ts";
-import { fetchWithIdleTimeout } from "../network/idle-fetch.ts";
+import { fetchWithIdleTimeout } from "../network/timed-fetch.ts";
 import { readImageDataUrl } from "../images/store.ts";
 import { parseToolArguments } from "../tools/arguments.ts";
 import type { ChatMessage, ChatTool, CompletionResult, ProviderGrounding, ToolCall, ToolCallFault } from "../types.ts";

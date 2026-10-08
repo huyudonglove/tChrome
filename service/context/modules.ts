@@ -171,7 +171,10 @@ export function renderSlots(
   return order.map(tag => {
     const module = files[tag];
     if (!module) throw new Error(`missing slot file ${tag}`);
-    return renderXmlModule(module, data[tag] ?? "", attributes[tag]);
+    const id = module.tag.replace(/^#/, "");
+    const attrs = Object.entries(attributes[tag] ?? {})
+      .map(([key, value]) => ` ${key}="${xmlAttr(value)}"`).join("");
+    return `<${id}${attrs}>\n${data[tag] ?? ""}\n</${id}>`;
   }).join("\n\n");
 }
 
@@ -239,6 +242,7 @@ export function systemTextFromModules(
       : [module.template, extra].filter(Boolean).join("\n\n");
     parts.push(renderXmlModule({ ...module, purpose }, data || undefined));
   }
+  parts.push(renderInventory("User", modules.userOrder, modules.userSlots));
   return parts.join("\n\n");
 }
 

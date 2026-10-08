@@ -18,7 +18,7 @@ test("resident and dynamic guides remain separate, persist loaded schemas across
     const user = messages[1]!.content;
     const baseBlock = system.match(/<baseTools>\n([\s\S]*?)\n<\/baseTools>/)![1]!;
     const baseGuide = baseBlock.split(/\n\nSample[\s\S]*$/)[0]!.split("\n\n").at(-1)!;
-    const dynamicGuide = user.match(/<tools>\n<purpose>\n[\s\S]*?\n<\/purpose>\n\n([\s\S]*?)\n<\/tools>/)![1]!;
+    const dynamicGuide = user.match(/<tools>\n([\s\S]*?)\n<\/tools>/)![1]!;
     const names = (guide: string) => [...guide.matchAll(/^- ([^：]+)：/gm)].map(match => match[1]);
     expect(names(baseGuide)).toEqual(registry.toolGroups.baseToolsIds);
     expect(names(dynamicGuide)).toEqual([...coreToolIds(registry), ...([2, 3, 5].includes(requests) ? ["send_http"] : [])]);

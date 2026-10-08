@@ -19,7 +19,7 @@ const repoRoot = join(import.meta.dir, "..");
 const reply = (toolCalls: CompletionResult["toolCalls"]): CompletionResult => ({ content: "", finish: "tool_calls", toolCalls, attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] });
 const finish = () => reply([{ id: "finish", name: "finishTurn", arguments: { reason: "已核对", text: "完成"} }]);
 const section = (user: string, tag: string) => {
-  const m = user.match(new RegExp(`<${tag}>\\n<purpose>\\n[\\s\\S]*?\\n</purpose>\\n\\n([\\s\\S]*?)\\n</${tag}>`));
+  const m = user.match(new RegExp(`<${tag}>\\n([\\s\\S]*?)\\n</${tag}>`));
   if (m) return JSON.parse(m[1]!);
   const all = collectNested(user, tag === "toolIO" ? "call" : tag);
   if (tag === "toolIO" || tag === "query") return all;
@@ -100,7 +100,7 @@ test("query insertion triggers the 200K gate, protects current evidence, rotates
         expect(sessionView(dataDir, f.cv).activity).toBeNull();
         const values = Object.fromEntries(modules.userOrder.map(tag => {
           const id = tag.slice(1);
-          const m = input.messages[1]!.content.match(new RegExp(`<${id}(?:\\s[^>]*)?>\\n<purpose>\\n[\\s\\S]*?\\n</purpose>\\n\\n([\\s\\S]*?)\\n</${id}>`));
+          const m = input.messages[1]!.content.match(new RegExp(`<${id}(?:\\s[^>]*)?>\\n([\\s\\S]*?)\\n</${id}>`));
           const body = m![1]!;
           return [id, id === "skill" || id === "tools" || id === "conversation" || id === "projectMemory" || id === "runtimeNotices" ? body : JSON.parse(body)];
         }));

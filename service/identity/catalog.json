@@ -194,5 +194,19 @@
     "scope": "conversation",
     "allocation": "counter",
     "description": "任务步骤"
+  },
+  "providerRequest": {
+    "field": "requestId",
+    "prefix": "req",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "模型请求诊断"
+  },
+  "outboundRequest": {
+    "field": "outboundId",
+    "prefix": "out",
+    "scope": "service",
+    "allocation": "counter",
+    "description": "模型出网请求快照"
   }
 }

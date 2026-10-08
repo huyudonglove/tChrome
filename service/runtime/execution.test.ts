@@ -1,6 +1,50 @@
 import { expect, test } from "bun:test";
 import { beginExecution, cancelExecution, cancelAllExecutions } from "./execution.ts";
 import type { CompletionResult, Provider } from "../types.ts";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fetchWithIdleTimeout } from "../network/timed-fetch.ts";
+
+test("execution persists correlated network attempts without request content", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "provider-timing-"));
+  const server = Bun.serve({ port: 0, fetch: () => new Response("ok") });
+  const provider: Provider = { complete: async () => {
+    for (let i = 0; i < 2; i++) {
+      const response = await fetchWithIdleTimeout(`http://127.0.0.1:${server.port}/?key=secret-query`, {
+        method: "POST", headers: { authorization: "Bearer secret-token" }, body: "私密正文",
+      });
+      await response.text();
+    }
+    return result;
+  } };
+  const execution = beginExecution(dataDir, "cv_01", "tn_01", provider);
+  try {
+    await Promise.all([execution.provider.complete(input), execution.provider.complete(input)]);
+    const text = readFileSync(join(dataDir, "conversations/cv_01/events.jsonl"), "utf8");
+    const events = text.trim().split("\n").map(line => JSON.parse(line));
+    const network = events.filter(event => event.kind === "provider-network" && event.data.stage === "complete");
+    expect(network).toHaveLength(4);
+    expect(new Set(network.map(event => event.data.requestId)).size).toBe(2);
+    for (const requestId of new Set(network.map(event => event.data.requestId))) {
+      expect(network.filter(event => event.data.requestId === requestId).map(event => event.data.attempt)).toEqual([1, 2]);
+    }
+    expect(network.every(event => event.turnId === "tn_01")).toBe(true);
+    const outbound = events.filter(event => event.kind === "provider-outbound");
+    expect(outbound).toHaveLength(4);
+    for (const event of outbound) {
+      const snapshotText = readFileSync(event.data.path, "utf8");
+      const snapshot = JSON.parse(snapshotText);
+      expect(snapshot).toMatchObject({ conversationId: "cv_01", turnId: "tn_01", requestId: event.data.requestId,
+        attempt: event.data.attempt, method: "POST", body: "私密正文" });
+      expect(snapshotText).not.toContain("secret-query");
+      expect(snapshotText).not.toContain("secret-token");
+    }
+    expect(text).not.toContain("secret-query");
+    expect(text).not.toContain("secret-token");
+    expect(text).not.toContain("私密正文");
+  } finally { execution.finish(); server.stop(true); rmSync(dataDir, { recursive: true, force: true }); }
+});
 
 const input = { messages: [], tools: [] };
 const result: CompletionResult = { content: "", toolCalls: [], finish: "stop", attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] };

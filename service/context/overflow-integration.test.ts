@@ -18,7 +18,7 @@ const response = (...toolCalls: ToolCall[]): CompletionResult => ({ finish: "too
 const finish = () => response(call("finishTurn", { text: "完成"}));
 const xmlSlots = (user: string): Record<string, unknown> => {
   const values: Record<string, unknown> = {};
-  const re = /<([A-Za-z][A-Za-z0-9]*)(?:\s[^>]*)?>\n<purpose>\n[\s\S]*?\n<\/purpose>\n\n([\s\S]*?)\n<\/\1>/g;
+  const re = /<([A-Za-z][A-Za-z0-9]*)(?:\s[^>]*)?>\n([\s\S]*?)\n<\/\1>/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(user))) {
     const name = m[1]!, body = m[2]!;

@@ -8,16 +8,25 @@ export class HttpIdleTimeoutError extends Error {
   }
 }
 
+export type NetworkObserver = {
+  headers(status: number): void;
+  chunk(bytes: number): void;
+  complete(): void;
+  error(kind: string): void;
+  cancel(): void;
+};
+
 /** Fetch with an inactivity deadline shared by headers and streamed body reads. */
 export async function fetchWithIdleTimeout(
   input: RequestInfo | URL,
   init?: RequestInit,
-  options?: { idleTimeoutMs?: number },
+  options?: { idleTimeoutMs?: number; timing?: NetworkObserver },
 ): Promise<Response> {
   const idleTimeoutMs = options?.idleTimeoutMs ?? runtimeConfig.network.idleTimeoutMs;
   if (!Number.isFinite(idleTimeoutMs) || idleTimeoutMs <= 0) {
     throw new RangeError('idleTimeoutMs must be a positive finite number');
   }
+  const timing = options?.timing;
   const upstreamSignal = init?.signal === undefined
     ? (input instanceof Request ? input.signal : undefined)
     : init.signal;
@@ -36,6 +45,8 @@ export async function fetchWithIdleTimeout(
     if (finished) return;
     finished = true;
     failure = reason;
+    if (upstreamSignal?.aborted) timing?.cancel();
+    else timing?.error(reason instanceof HttpIdleTimeoutError ? 'idle_timeout' : 'transport');
     cleanup();
     abort.abort(reason);
     stream?.error(reason);
@@ -59,8 +70,10 @@ export async function fetchWithIdleTimeout(
       void response.body?.cancel(failure).catch(() => {});
       throw failure;
     }
+    timing?.headers(response.status);
     if (!response.body) {
       finished = true;
+      timing?.complete();
       cleanup();
       return response;
     }
@@ -78,12 +91,14 @@ export async function fetchWithIdleTimeout(
             if (finished) return;
             if (chunk.done) {
               finished = true;
+              timing?.complete();
               cleanup();
               controller.close();
               reader!.releaseLock();
               return;
             }
             if (chunk.value.byteLength > 0) {
+              timing?.chunk(chunk.value.byteLength);
               resetDeadline();
               controller.enqueue(chunk.value);
               return;
@@ -96,6 +111,7 @@ export async function fetchWithIdleTimeout(
       async cancel(reason) {
         if (finished) return;
         finished = true;
+        timing?.cancel();
         cleanup();
         abort.abort(reason);
         await reader!.cancel(reason).catch(() => {});
@@ -114,6 +130,7 @@ export async function fetchWithIdleTimeout(
   } catch (error) {
     if (!finished) {
       finished = true;
+      timing?.error('transport');
       cleanup();
       abort.abort(error);
     }

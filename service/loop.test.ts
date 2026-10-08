@@ -124,6 +124,9 @@ test("finishTurn 收口回复", async () => {
     "normalize",
     "assemble",
     "provider-request",
+    "provider-timing",
+    "provider-timing",
+    "provider-timing",
     "provider-response",
     "turn-stop-reason",
   ]);

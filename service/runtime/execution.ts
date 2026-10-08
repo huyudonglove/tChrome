@@ -1,5 +1,9 @@
 import { resolve } from "node:path";
 import type { CompletionResult, Provider } from "../types.ts";
+import { withNetworkTiming } from "../network/timing.ts";
+import { allocateRecordId } from "./ids.ts";
+import { appendEvent } from "./store.ts";
+import { saveOutboundRequest } from "../network/outbound-log.ts";
 
 export type ExecutionState = "active" | "cancelled" | "finished";
 const executions = new Map<string, Execution>();
@@ -25,6 +29,13 @@ class Execution {
       if (this.current !== "active") return Promise.resolve(stopped());
       const signal = input.signal ? AbortSignal.any([this.signal, input.signal]) : this.signal;
       if (signal.aborted) return Promise.resolve(stopped());
+      const requestId = allocateRecordId(dataDir, conversationId, "providerRequest");
+      const started = performance.now();
+      const log = (kind: string, data: Record<string, unknown>) => {
+        try { appendEvent(dataDir, conversationId, { kind, turnId, data: { requestId, ...data } }); }
+        catch { /* Diagnostics do not change request execution. */ }
+      };
+      log("provider-timing", { stage: "start", messageChars: input.messages.reduce((sum, message) => sum + message.content.length, 0), toolCount: input.tools.length });
       // The transport receives the same signal. Racing it also releases callers of
       // injected providers that ignore cancellation, without accepting their late results.
       return new Promise<CompletionResult>((resolveRequest, reject) => {
@@ -33,12 +44,20 @@ class Execution {
           if (settled) return;
           settled = true;
           signal.removeEventListener("abort", onAbort);
+          log("provider-timing", { stage: signal.aborted ? "cancel" : "complete", elapsedMs: performance.now() - started });
           if (signal.aborted || this.current !== "active") resolveRequest(stopped());
           else complete();
         };
         const onAbort = () => settle(() => resolveRequest(stopped()));
         signal.addEventListener("abort", onAbort, { once: true });
-        try { Promise.resolve(source.complete({ ...input, conversationId: this.conversationId, signal })).then(result => settle(() => resolveRequest(result)), error => settle(() => reject(error))); }
+        try { Promise.resolve(withNetworkTiming(event => log("provider-network", event), () => source.complete({ ...input, conversationId: this.conversationId, signal }), snapshot => {
+          const path = saveOutboundRequest(dataDir, { conversationId, turnId, requestId, ...snapshot });
+          log("provider-outbound", { attempt: snapshot.attempt, path });
+        })).then(result => {
+          if (settled) return;
+          log("provider-timing", { stage: "result", finish: result.finish, attempts: result.attempts, faultCode: result.faultCode });
+          settle(() => resolveRequest(result));
+        }, error => settle(() => reject(error))); }
         catch (error) { settle(() => reject(error)); }
       });
     } };

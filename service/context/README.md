@@ -11,7 +11,7 @@
 | [modules.json](modules.json) | 注册表：id、role、order、file、consumers、archiveField |
 | [system/overview.md](system/overview.md) | `<overview>`：Agent loop、装配顺序、模块粗览与日期 |
 | [system/](system/) | 主 Agent System 模块 XML 正文 |
-| [user/](user/) | 主 Agent User 模块 XML 正文 + `{{data}}` |
+| [user/](user/) | 主 Agent 动态模块定义：说明注入 System，数据注入 User |
 | [modules.ts](modules.ts) | 按注册表加载/渲染 XML；生成压缩字段说明 |
 | [window.ts](window.ts) | 拼装主 Agent System/User（仅 `consumers∋main`） |
 | [projections/](projections/) | 模块字段投影 |
@@ -68,7 +68,7 @@
 
 ## 模型可见格式（XML）
 
-每个模块以 `<purpose>` 包裹完整功能说明；含动态数据的模块在 `</purpose>` 后直接放数据正文。
+所有模块的 `<purpose>` 说明统一注入 System。动态模块的说明由同一份模块定义生成，在 System 常规模块之后按 User 模块顺序排列；User 仅包含模块标签、属性和动态数据。技能正文与具体运行时提醒仍在 User，数据结构、保留和压缩规则不变。
 
 System 模块：
 
@@ -81,15 +81,10 @@ System 模块：
 </identity>
 ```
 
-User 模块（含数据）：
+User 模块（仅数据）：
 
 ```xml
 <conversation>
-<purpose>
-本模块是本会话过程记录——按 turn 嵌套原文与 calls，摘要和任务位于会话级。
-本会话过程记录。…
-</purpose>
-
 <ConversationMemories memoryId="mm_01" turnId="tn_01">…</ConversationMemories>
 <turn turnId="tn_01" start="call_01" end="call_12">
 <userInput id="input_01">{"turnId":"tn_01","userInput":"…"}</userInput>
