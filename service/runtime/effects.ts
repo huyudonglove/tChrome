@@ -1,5 +1,6 @@
 import { saveContextRecord } from "./records.ts";
-import { deleteMemory, saveMemory, updateMemory } from "../memory/store.ts";
+import { deleteMemory, loadMemory, saveMemory, updateMemory } from "../memory/store.ts";
+import { isExpired } from "../memory/expiry.ts";
 import type { Ledger, MemoryRecord, RuntimeExecutionContext, ToolQueueItem, Turn, TurnStopReason } from "../types.ts";
 import type { ToolEffect } from "../tools/effects.ts";
 import { allocateRecordId, nowIso } from "./ids.ts";
@@ -24,6 +25,42 @@ export function archiveTurnReflection(ledger: Ledger, turn: Turn): void {
     return;
   }
   ledger.reflectHistory.push({ turnId: turn.turnId, items, at });
+}
+
+/** Retire memories whose expiry conditions have already been met.
+ *  Judged from the persisted task ledger, never from the write call's intent. Project records are
+ *  owned by the conversation that wrote them: each conversation numbers its tasks from task_01, so
+ *  a condition naming `task_04` must not retire another conversation's unrelated `task_04`.
+ *  Returns the ids removed this pass, so a caller can tell "nothing left" from "just retired". */
+export function sweepExpiredMemories(dataDir: string, ledger: Ledger, turn: Turn): string[] {
+  const candidates = new Set<string>([
+    ...ledger.memoryIds.conversation,
+    ...ledger.memoryIds.project,
+    ...turn.assembled.projectMemoryIds,
+  ]);
+  const retired: string[] = [];
+  for (const memoryId of candidates) {
+    if (!/^(?:mm|lm)_[0-9]{2,}$/.test(memoryId)) continue;
+    let record: MemoryRecord;
+    try {
+      record = loadMemory(dataDir, ledger.conversationId, memoryId);
+    } catch {
+      continue;
+    }
+    if (!isExpired(record, ledger.tasks, ledger.conversationId)) continue;
+    const removed = deleteMemory(dataDir, ledger.conversationId, memoryId);
+    if (!removed.existed) continue;
+    ledger.memoryIds.conversation = ledger.memoryIds.conversation.filter((id) => id !== memoryId);
+    ledger.memoryIds.project = ledger.memoryIds.project.filter((id) => id !== memoryId);
+    turn.assembled.conversationMemoryIds = turn.assembled.conversationMemoryIds.filter((id) => id !== memoryId);
+    turn.assembled.projectMemoryIds = turn.assembled.projectMemoryIds.filter((id) => id !== memoryId);
+    appendEvent(dataDir, ledger.conversationId, {
+      kind: "memory", turnId: turn.turnId,
+      data: { memoryId, layer: removed.layer, action: "expire" },
+    });
+    retired.push(memoryId);
+  }
+  return retired;
 }
 
 export function applyToolEffects(input: {
@@ -73,6 +110,7 @@ export function applyToolEffects(input: {
           items: effect.items,
         });
         setTaskResult({ ...(result.plan.status === "completed" ? { task: structuredClone(result.plan) } : { taskRef: { id: result.plan.id } }), ...(result.replacedPlanId ? { replacedTask: structuredClone(ledger.tasks.find(task => task.id === result.replacedPlanId)) } : {}) });
+        sweepExpiredMemories(dataDir, ledger, turn);
         break;
       }
       case "task_update": {
@@ -81,6 +119,7 @@ export function applyToolEffects(input: {
           items: effect.items,
         });
         setTaskResult(result.plan.status === "completed" ? { task: structuredClone(result.plan) } : { taskRef: { id: result.plan.id } });
+        sweepExpiredMemories(dataDir, ledger, turn);
         break;
       }
       case "task_complete": {
@@ -89,15 +128,17 @@ export function applyToolEffects(input: {
           reason: effect.reason,
         });
         setTaskResult(result.plan.status === "completed" ? { task: structuredClone(result.plan) } : { taskRef: { id: result.plan.id } });
+        sweepExpiredMemories(dataDir, ledger, turn);
         break;
       }
       case "memory.append":
-        for (const { layer, text, scope, summary } of effect.entries) {
+        for (const { layer, text, scope, summary, expiresWhen } of effect.entries) {
           const memoryId = allocateRecordId(dataDir, ledger.conversationId, layer === "project" ? "projectMemory" : "conversationMemory");
           const record: MemoryRecord = {
             memoryId, turnId: turn.turnId, layer, text,
             ...(scope ? { scope } : {}),
             ...(summary ? { summary } : {}),
+            ...(expiresWhen ? { expiresWhen } : {}),
             createdAt: nowIso(), sourceCallId: call.callId,
           };
           saveMemory(dataDir, ledger.conversationId, record);

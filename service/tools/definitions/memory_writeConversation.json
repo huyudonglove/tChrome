@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "memory_writeConversation",
-    "description": "保存当前会话的重要事实、约束和决定。会话记忆随来源轮次参与压缩；对应原文被覆盖后，模型窗口改用摘要，不再展示该条记忆全文，落盘原记录仍保留。结束一轮或重新打开同一会话不会自动删除记忆，不跨会话共享。\n参数：conversationMemory 为字符串数组，逐条追加。需要跨会话保留且不参与压缩的信息用 memory_writeProject；调用显式设置 keepInCalls=true 时，Runtime 自动把工具操作及结果内容记录到 notes，再按运行时规则归入 workspace，观察判断与方案取舍分别用 observation_write 和 reflect_write 保存。\n返回：写入条数。",
+    "description": "保存当前会话的重要事实、约束和决定。会话记忆随来源轮次参与压缩；对应原文被覆盖后，模型窗口改用摘要，不再展示该条记忆全文，落盘原记录仍保留。结束一轮或重新打开同一会话不会自动删除记忆，不跨会话共享。\n参数：conversationMemory 为字符串数组，逐条追加。需要跨会话保留且不参与压缩的信息用 memory_writeProject；调用显式设置 keepInCalls=true 时，Runtime 自动把工具操作及结果内容记录到 notes，再按运行时规则归入 workspace，观察判断与方案取舍分别用 observation_write 和 reflect_write 保存。\nexpiresWhen 可选，为与 conversationMemory 等长的平行数组：第 i 项是该条记忆的过期条件（null 表示不设），形如 {taskId, itemId?, on}，on 取 task_complete / item_done / task_cancelled 且 on=item_done 时必须带 itemId；Runtime 在对应任务状态变更时自动删除该条记忆，条件永不满足则永久保留。\n返回：写入条数。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -13,6 +13,36 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        },
+        "expiresWhen": {
+          "type": "array",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "taskId": {
+                "type": "string"
+              },
+              "itemId": {
+                "type": "string"
+              },
+              "on": {
+                "type": "string",
+                "enum": [
+                  "task_complete",
+                  "item_done",
+                  "task_cancelled"
+                ]
+              }
+            },
+            "required": [
+              "taskId",
+              "on"
+            ],
+            "additionalProperties": false
           }
         }
       },

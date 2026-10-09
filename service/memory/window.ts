@@ -109,4 +109,4 @@ export function renderScopeIndex(memories: Memories, activeScopes: readonly stri
   return `记忆目录（未注入的 scope，按最近活跃排序）:\n${shown.join("\n")}${tail}`;
 }
 
-const memoryView = ({ memoryId, turnId, sourceCallId, sourceConversationId, text }: MemoryRecord) => ({ memoryId, turnId, sourceCallId, sourceConversationId, text });
+const memoryView = ({ memoryId, turnId, sourceCallId, sourceConversationId, text, expiresWhen }: MemoryRecord) => ({ memoryId, turnId, sourceCallId, sourceConversationId, text, ...(expiresWhen ? { expiresWhen } : {}) });

@@ -2,7 +2,7 @@ import { errorMessage } from "../../shared/errors.ts";
 import { errorDetail } from "../../shared/error-details.ts";
 import type { QueryModule, QueryResult } from "../agents/query/types.ts";
 import type { ToolEffect, ToolExecution } from "./effects.ts";
-import type { BrowserHost, ChatTool, CurrentPage, Provider, ToolArguments } from "../types.ts";
+import type { BrowserHost, ChatTool, CurrentPage, ExpiryCondition, Provider, ToolArguments } from "../types.ts";
 import { createTaskPacket, runSubagentDag, createSubagentExecutor, type SubagentCapability, type TaskPacket } from "../agents/subagent/index.ts";
 import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
 import { STREAM_TOOL_NAMES, runStreamTool } from "./stream-tools.ts";
@@ -59,6 +59,35 @@ export function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
 }
+
+/** Pair the optional expiresWhen parallel array with the memory texts it belongs to.
+ *  Undefined means the caller declared no expiry; a provided array must match the memory count.
+ *  item_done requires itemId — the model picks the exact sub-item, the runtime only judges it. */
+const parseExpiries = (
+  value: unknown,
+  count: number,
+  tool: string,
+): { ok: true; conditions: (ExpiryCondition | null)[] } | { ok: false; failure: ToolExecution } => {
+  if (value === undefined) return { ok: true, conditions: [] };
+  const invalid = (detail: string) => ({
+    ok: false as const,
+    failure: failedTool(errorDetail("conflicting_params", { tool, fields: detail }), "invalid_arguments", { toolName: tool }),
+  });
+  if (!Array.isArray(value) || value.length !== count) return invalid("expiresWhen 与记忆正文长度");
+  const conditions: (ExpiryCondition | null)[] = [];
+  for (const raw of value) {
+    if (raw === null || raw === undefined) { conditions.push(null); continue; }
+    if (typeof raw !== "object" || Array.isArray(raw)) return invalid("expiresWhen 项格式");
+    const entry = raw as Record<string, unknown>;
+    const taskId = typeof entry.taskId === "string" ? entry.taskId.trim() : "";
+    const itemId = typeof entry.itemId === "string" ? entry.itemId.trim() : "";
+    const on = entry.on;
+    if (!taskId || (on !== "task_complete" && on !== "item_done" && on !== "task_cancelled")) return invalid("expiresWhen.taskId/on");
+    if (on === "item_done" && !itemId) return invalid("expiresWhen.itemId");
+    conditions.push({ taskId, ...(itemId ? { itemId } : {}), on });
+  }
+  return { ok: true, conditions };
+};
 
 /** Any call that targets a tab is a page observation, including failures; url/title are optional. */
 export const pageFromBrowser = (result: {
@@ -433,9 +462,17 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     return result(JSON.stringify({ ok: true, tools: lookup.unusedTools }));
   }
   if (name === "memory_writeConversation") {
-    const entries = asStringArray(args.conversationMemory).map((text) => ({
-      layer: "conversation" as const, text,
-    }));
+    const texts = asStringArray(args.conversationMemory);
+    const parsed = parseExpiries(args.expiresWhen, texts.length, name);
+    if (!parsed.ok) return parsed.failure;
+    const entries = texts.map((text, index) => {
+      const condition = parsed.conditions[index] ?? null;
+      return {
+        layer: "conversation" as const,
+        text,
+        ...(condition ? { expiresWhen: [condition] } : {}),
+      };
+    });
     const effects: ToolEffect[] = entries.length ? [{ type: "memory.append", entries }] : [];
     return result(`落下 conversation=${entries.length} project=0`, effects);
   }
@@ -450,12 +487,18 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       );
     }
     const scope = String(args.scope ?? "").trim();
-    const entries = texts.map((text, index) => ({
-      layer: "project" as const,
-      text,
-      ...(scope ? { scope } : {}),
-      ...(summaries[index] ? { summary: summaries[index] } : {}),
-    }));
+    const parsed = parseExpiries(args.expiresWhen, texts.length, name);
+    if (!parsed.ok) return parsed.failure;
+    const entries = texts.map((text, index) => {
+      const condition = parsed.conditions[index] ?? null;
+      return {
+        layer: "project" as const,
+        text,
+        ...(scope ? { scope } : {}),
+        ...(summaries[index] ? { summary: summaries[index] } : {}),
+        ...(condition ? { expiresWhen: [condition] } : {}),
+      };
+    });
     const effects: ToolEffect[] = entries.length ? [{ type: "memory.append", entries }] : [];
     const withSummary = entries.filter((entry) => entry.summary).length;
     return result(`落下 conversation=0 project=${entries.length} scope=${scope || "(空)"} summary=${withSummary}`, effects);

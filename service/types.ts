@@ -1,4 +1,4 @@
-export type { MemoryLayer, MemoryRecord } from "./memory/types.ts";
+export type { ExpiryCondition, ExpiryTrigger, MemoryLayer, MemoryRecord } from "./memory/types.ts";
 import type { ImageReference } from "./images/store.ts";
 import type { QueryEvidence } from "./context/projections/queries.ts";
 export type LedgerStatus = "idle" | "running" | "waiting_human" | "paused" | "failed";

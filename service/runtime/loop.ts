@@ -58,7 +58,7 @@ const OBSERVATION_NUDGE_EXCLUDED = new Set([
   "finishTurn",
 ]);
 import type { ToolExecution } from "../tools/effects.ts";
-import { applyToolEffects, archiveTurnReflection } from "./effects.ts";
+import { applyToolEffects, archiveTurnReflection, sweepExpiredMemories } from "./effects.ts";
 import type {
   Assembled,
   BrowserHost,
@@ -639,6 +639,8 @@ export async function handleTurn(
         }
       const currentLoop = inputLoop(deps.dataDir, ledger, turnId);
       saveTurn(deps.dataDir, turn);
+      // 兜底：条件已成立但上轮未及删除的记忆（同批顺序、进程重启、上轮中断）在此清掉，再装载。
+      sweepExpiredMemories(deps.dataDir, ledger, turn);
       const memories = loadMemories(deps.dataDir, ledger.conversationId, ledger.memoryIds);
       turn.assembled.projectMemoryIds = memories.project.map(item => item.memoryId);
       // Tool results already contain persisted image paths. Select attachments before

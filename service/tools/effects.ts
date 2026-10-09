@@ -1,11 +1,11 @@
 import type { BlockIndex } from "../evidence/index.ts";
-import type { CurrentPage, MemoryLayer } from "../types.ts";
+import type { CurrentPage, ExpiryCondition, MemoryLayer } from "../types.ts";
 import type { QueryEvidence } from "../context/projections/queries.ts";
 
 // Tools describe domain changes; only the runtime applies and persists them.
 export type ToolEffect =
   | { type: "query.set"; query: Omit<QueryEvidence, "queryId" | "turnId" | "sourceCallId"> }
-  | { type: "memory.append"; entries: { layer: MemoryLayer; scope?: string; summary?: string; text: string }[] }
+  | { type: "memory.append"; entries: { layer: MemoryLayer; scope?: string; summary?: string; text: string; expiresWhen?: ExpiryCondition[] }[] }
   | { type: "memory_update"; memoryId: string; text: string }
   | { type: "memory_delete"; memoryId: string }
   | { type: "tools.enable"; names: string[] }
