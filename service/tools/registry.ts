@@ -225,16 +225,3 @@ export function toolGuideFor(registry: ToolRegistry, ids: string[], nav = true):
   }).join("\n");
 }
 
-/**
- * Loaded dynamic tools this conversation never called. Retirement is the model's own call, so the
- * facts belong in the prompt: without them it picks the list from impression and gets it wrong.
- * Counts are call-based, so an amended row still counts once.
- */
-export function zeroCallToolNote(registry: ToolRegistry, loadedToolIds: readonly string[], calls: readonly { name: string }[]): string {
-  const dynamic = loadedToolIds.filter((id) => registry.tools[id] && !coreToolIds(registry).includes(id));
-  if (dynamic.length === 0) return "";
-  const called = new Set(calls.map((call) => call.name));
-  const idle = dynamic.filter((id) => !called.has(id));
-  if (idle.length === 0) return "";
-  return `本会话加载的动态工具 ${dynamic.length} 个，零调用 ${idle.length} 个：${idle.join("、")}。`;
-}

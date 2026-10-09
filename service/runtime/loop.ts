@@ -16,7 +16,7 @@ import { systemText, userText, windowChars } from "../context/window.ts";
 import { beginExecution, hasActiveExecution } from "./execution.ts";
 import { skillGuide, loadedSkillText } from "../skills/loader.ts";
 import { loadContextModules, type ContextModules } from "../context/modules.ts";
-import { loadToolRegistry, coreToolIds, dynamicToolIds, toolSchemas, toolGuideFor, zeroCallToolNote, type ToolRegistry } from "../tools/registry.ts";
+import { loadToolRegistry, coreToolIds, dynamicToolIds, toolSchemas, toolGuideFor, type ToolRegistry } from "../tools/registry.ts";
 import { executeTool } from "../tools/execute.ts";
 import { SUBAGENT_TOOL_CAPABILITIES } from "../agents/subagent/tool-capabilities.ts";
 
@@ -171,7 +171,6 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
   // 只在本次请求准备阶段按 kind 更新；已发送的历史不改写。
   onNotice?.("image", deferredImageNote(deferred) + (thumbs.length ? " 已附缩略图，细节仍需 image_crop 或 mode=element|rect。" : ""));
   onNotice?.("memory", renderScopeIndex(memories, activeScopes));
-  onNotice?.("tools", zeroCallToolNote(toolRegistry, ledger.loadedToolIds, allCalls));
   return [
     { role: "system", content: system },
     { role: "user", content: userText({
