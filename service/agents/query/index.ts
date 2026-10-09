@@ -1,3 +1,4 @@
+import { loadLedger } from "../../runtime/store.ts";
 import { errorInfo } from "../../../shared/errors.ts";
 import { runtimeConfig } from "../../config/runtime.ts";
 import { createHash } from "node:crypto";
@@ -20,23 +21,24 @@ const recordKeyFor = (record: RecordValue): string => {
 /** Only traverse the requested summary's immutable source graph; retrieval never writes archive state. */
 export async function queryContext(input: QueryInput): Promise<QueryResult> {
   const file = normalizeFileQuery(input.file);
-  const base = { sumId: input.sumId, module: input.module, intent: input.intent, ...(file ? { file } : {}), records: [] };
+  const base = { ...(input.sumId ? { sumId: input.sumId } : { loopId: input.loopId }), module: input.module, intent: input.intent, ...(file ? { file } : {}), records: [] };
   const cancelled = (): QueryResult => ({ ...base, ok: false, status: "cancelled", faultCode: "stopped", detail: "查询已取消。" });
   try {
-    if (!queryModules.includes(input.module) || typeof input.sumId !== "string" || !/^[A-Za-z0-9_-]{1,100}$/.test(input.sumId)
+    if (!queryModules.includes(input.module) || (Boolean(input.sumId) === Boolean(input.loopId)) || !/^[A-Za-z0-9_-]{1,100}$/.test(input.sumId ?? input.loopId ?? "")
       || typeof input.intent !== "string" || !input.intent.trim() || input.intent.length > runtimeConfig.results.inlineChars) throw new Error("查询参数无效。");
     if (input.isCancelled?.()) return cancelled();
     const index = loadIndex(input.dataDir, input.conversationId, "conversationHistory");
     const byId = new Map(index.entries.map(entry => [entry.id, entry]));
-    if (!byId.has(input.sumId)) throw new Error("sumId 不属于本会话的归档。");
-    const sources = resolveSources(input.dataDir, input.conversationId, "conversationHistory", [input.sumId]);
+    if (input.sumId && !byId.has(input.sumId)) throw new Error("sumId 不属于本会话的归档。");
+    const directLoop = input.loopId ? loadLedger(input.dataDir, input.conversationId).loops.find(loop => loop.id === input.loopId) : undefined;
+    if (input.loopId && !directLoop) return { ...base, ok: true, status: "not_found", detail: "本会话没有指定 loop。" };
+    const sources = input.sumId ? resolveSources(input.dataDir, input.conversationId, "conversationHistory", [input.sumId]) : [{ id: directLoop!.id, content: directLoop! }];
     const records: RecordValue[] = [];
     const seen = new Set<string>();
-    const add = (value: unknown, turnId: string) => {
+    const add = (value: unknown, loopId: string) => {
       if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("归档模块记录格式无效。");
       const original = value as RecordValue;
-      if (original.turnId !== undefined && original.turnId !== turnId) throw new Error("归档记录 turnId 与来源轮次不一致。");
-      const record = { ...original, turnId };
+      const record = { ...original, loopId };
       const key = JSON.stringify(record);
       if (!seen.has(key)) { seen.add(key); records.push(record); }
     };
@@ -46,48 +48,50 @@ export async function queryContext(input: QueryInput): Promise<QueryResult> {
         if (visited.has(id)) return; visited.add(id);
         const entry = byId.get(id); if (!entry) return;
         const { id: sumId, ...fields } = entry;
-        add({ sumId, ...fields }, entry.turnId);
+        add({ sumId, ...fields }, entry.loopIds[0]!);
         entry.sourceIds.forEach(visit);
       };
-      visit(input.sumId);
+      if (input.sumId) visit(input.sumId);
+      else for (const entry of index.entries) if (entry.loopIds.includes(input.loopId!)) visit(entry.id);
     } else for (const source of sources) {
-      const turn = source.content as RecordValue;
-      if (!turn || typeof turn.turnId !== "string") throw new Error("归档缺少来源 turnId。");
-      const values = turn[input.module];
+      const loop = source.content as RecordValue;
+      if (!loop || typeof loop.id !== "string") throw new Error("归档缺少来源 loop ID。");
+      const values = input.module === "loops" ? loop : loop[input.module];
       if (values == null) continue;
-      for (const value of Array.isArray(values) ? values : [values]) add(value, turn.turnId);
+      for (const value of Array.isArray(values) ? values : [values]) add(value, loop.id);
     }
+
     if (!records.length) return { ...base, ok: true, status: "not_found", detail: "指定摘要来源中没有匹配的模块记录。" };
     // File pre-filter: narrow candidates to records touching the file before the
     // agent sees them. A miss short-circuits without spending a model roundtrip.
     let candidates = records;
     if (file) {
       if (!(FILE_FILTER_MODULES as readonly string[]).includes(input.module)) {
-        return { ...base, ok: true, status: "not_found", detail: `module=${input.module} 的记录不带文件归因，file 只支持 workspace / notes / toolIO / summaries。` };
+        return { ...base, ok: true, status: "not_found", detail: `module=${input.module} 的记录不带文件归因，file 支持 loops / runtime / helm / summaries。` };
       }
       candidates = records.filter((record) => recordTouchesFile(record, input.module, file));
       if (!candidates.length) return { ...base, ok: true, status: "not_found", detail: `指定摘要来源中没有涉及文件 ${file} 的模块记录（module=${input.module}）。` };
     }
     if (input.isCancelled?.()) return cancelled();
-    const byTurn = new Map<string, QueryCandidate>();
+    const byLoop = new Map<string, QueryCandidate>();
     for (const record of candidates) {
-      const turnId = record.turnId as string;
+      const loopId = record.loopId as string;
       const recordKey = recordKeyFor(record);
-      const candidate = byTurn.get(turnId);
+      const candidate = byLoop.get(loopId);
       if (candidate) {
         candidate.records.push(record);
         candidate.recordKeys?.push(recordKey);
       } else {
-        byTurn.set(turnId, { turnId, records: [record], recordKeys: [recordKey] });
+        byLoop.set(loopId, { loopId, records: [record], recordKeys: [recordKey] });
       }
     }
     const selection = await requestMatches({ provider: input.provider, repoRoot: input.repoRoot,
-      request: { sumId: input.sumId, module: input.module, intent: input.intent, ...(file ? { file } : {}) }, candidates: [...byTurn.values()] });
-    const selected = selection.turnIds;
+      request: { ...(input.sumId ? { sumId: input.sumId } : { loopId: input.loopId }), module: input.module, intent: input.intent, ...(file ? { file } : {}) }, candidates: [...byLoop.values()] });
+    const selected = selection.loopIds;
     if (input.isCancelled?.()) return cancelled();
     if (!selected.length) return { ...base, ok: true, status: "not_found", detail: "指定摘要来源中没有匹配的模块记录。" };
     const selectedRecordKeys = selection.recordKeys;
-    const matches = candidates.filter(record => selected.includes(record.turnId as string)
+    const matches = candidates.filter(record => selected.includes(record.loopId as string)
       && (!selectedRecordKeys?.length || selectedRecordKeys.includes(recordKeyFor(record))));
     // Runtime applies the unified inline gate; Query Agent may narrow to selected record keys.
     return { ...base, ok: true, status: "complete", records: matches };

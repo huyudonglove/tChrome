@@ -6,7 +6,7 @@
 
 每项调用有自己的 arguments JSON 对象，只放该调用的参数。工具支持数组时，将多个目标放进同一调用，例如 evidence_search 的 windows、local_fs_read / local_fs_search 的 items；这些数组各最多 8 项。多次独立调用则分别放进 tool_calls。
 
-keepInCalls 可覆盖工具默认记录设置：显式 true/false 优先，省略时采用工具元数据 defaultKeepInCalls。业务读取、写入、执行和网页操作默认记录；目录、能力加载、等待、状态轮询及已有专属模块的记录默认不记录。后续需要引用证据可设 true，一次性结果可设 false。有效值为 true 时，Runtime 记录到 notes，再按配置阈值归入 workspace；false 时结果只在下一次模型请求展示一次，原始调用仍落盘可回查。存储、压缩和取证细节见 <runtimeProtocol>，记录分工见 <output>。
+keepInCalls 可覆盖工具默认记录设置：显式 true/false 优先，省略时采用工具元数据 defaultKeepInCalls。业务读取、写入、执行和网页操作默认记录；目录、能力加载、等待、状态轮询及已有专属模块的记录默认不记录。后续需要引用证据可设 true，一次性结果可设 false。Runtime 在执行时固定最终保留值。true 的调用与结果在所属 loop 保留至压缩；false 仅在最近结果 loop 展示一次，原始调用仍落盘可回查。存储、压缩和取证细节见 <runtimeProtocol>，记录分工见 <output>。
 
 参数已确定且互不依赖的调用放在同一批；需要根据前一步结果决定参数时，等待返回后再调用。工具支持数组时优先合并目标。证据足够就执行或验证，不为凑批次继续读取，也不设每批最低调用数量。
 
@@ -31,7 +31,7 @@ execution 是工具的固定调度属性，不能通过参数修改：parallel �
 | mutations.newAlerts | 新出现的白名单提示条文字 |
 | domChange | 忽略样式后的结构 HTML 差异摘要，使用 -旧 / +新 |
 
-effects 是可选证据，不会自动改写 ok；缺少字段只说明没捕获到这类信息，仍要检查用户可见结果。调用参数和返回可在 <conversation> 各 <turn> 内的 <calls> 中查看，记账类工具只留指针。返回已包含写入后的状态时，直接核对该状态；仍缺少验收证据时，再读取对应记录或目标文件。
+effects 是可选证据，不会自动改写 ok；缺少字段只说明没捕获到这类信息，仍要检查用户可见结果。调用参数在 helm，返回在后续 loop 的 runtime type=callsResult，通过 callId 关联。任务创建和更新返回留指针，完成或取消返回最终完整任务。返回已包含写入后的状态时，直接核对该状态；仍缺少验收证据时，再读取对应记录或目标文件。
 
 ## 浏览器目标与交互
 

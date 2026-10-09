@@ -6,6 +6,7 @@ export interface OutboundRequestRecord {
   conversationId: string;
   turnId: string;
   requestId: string;
+  loopId?: string;
   attempt: number;
   method: string;
   endpoint: string;

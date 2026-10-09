@@ -121,14 +121,14 @@ for (const resetTool of ["local_fs_write", "checkContinue"]) {
       const ledger = loadLedger(dataDir, session.conversationId);
       ledger.loadedToolIds = ["local_fs_list", "local_fs_write", "local_run"];
       // A previous turn's reminder must not leak into this turn's first request.
-      ledger.runtimeNotices.push({ id: "rt_999", kind: "budget", scope: "turn", text: BUDGET_NUDGE_MARKER });
+      ledger.loops.push({ id: "loop_999", conversationId: session.conversationId, turnId: "tn_old", createdAt: "now", sentAt: "now", completedAt: "now", runtime: [{ id: "rt_999", type: "notice", content: { kind: "budget", scope: "loop", text: BUDGET_NUDGE_MARKER } }] });
       saveLedger(dataDir, ledger);
       let request = 0;
       const provider = {
         complete: async (input: { messages: { content: string }[] }) => {
           request++;
-          const runtime = input.messages[1]!.content.match(/<runtimeNotices\b[\s\S]*?<\/runtimeNotices>/)?.[0] ?? "";
-          const hasBudget = runtime.includes('kind="budget"');
+          const runtime = [...input.messages[1]!.content.matchAll(/<loop\b[^>]*>([\s\S]*?)<\/loop>/g)].at(-1)?.[1] ?? "";
+          const hasBudget = runtime.includes('"kind":"budget"');
           expect(hasBudget).toBe(request >= 2 && request <= 4);
           const toolCalls = request === 1
             ? Array.from({ length: READ_ONLY_PROMPT }, (_, index) => ({

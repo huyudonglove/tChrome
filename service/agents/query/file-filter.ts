@@ -35,27 +35,18 @@ export function toolArgFiles(args: unknown): string[] {
   return out;
 }
 
-/**
- * True when an archived module record touches the file query.
- * workspace and notes match their files[] attribution, toolIO matches the call's file
- * arguments, summaries matches prose mentions; other modules carry no file
- * attribution and never match.
- */
+/** File attribution follows original call arguments and runtime payloads. */
 export function recordTouchesFile(record: Record<string, unknown>, module: string, file: string): boolean {
-  if (module === "workspace" || module === "notes") {
-    const files = record.files;
-    if (!Array.isArray(files)) return false;
-    return files.some((f) => typeof f === "string" && !!f.trim() && touches(f.trim(), file));
-  }
-  if (module === "toolIO") {
-    return toolArgFiles(record.arguments).some((f) => touches(f, file));
-  }
-  if (module === "summaries") {
-    return ["summary", "userRequest", "actions", "result", "reflection"]
-      .some((key) => typeof record[key] === "string" && (record[key] as string).includes(file));
-  }
-  return false;
+  if (module === "summaries") return ["summary", "userRequest", "actions", "result", "reflection"].some(key => typeof record[key] === "string" && (record[key] as string).includes(file));
+  if (!["loops", "runtime", "helm"].includes(module)) return false;
+  const visit = (value: unknown): boolean => {
+    if (!value || typeof value !== "object") return false;
+    if (Array.isArray(value)) return value.some(visit);
+    const row = value as Record<string, unknown>;
+    if (toolArgFiles(row).some(path => touches(path, file))) return true;
+    if (Array.isArray(row.files) && row.files.some(path => typeof path === "string" && touches(path, file))) return true;
+    return Object.values(row).some(visit);
+  };
+  return visit(record);
 }
-
-/** Modules whose records carry (or mention) file attribution; others reject file filters. */
-export const FILE_FILTER_MODULES = ["workspace", "notes", "toolIO", "summaries"] as const;
+export const FILE_FILTER_MODULES = ["loops", "runtime", "helm", "summaries"] as const;

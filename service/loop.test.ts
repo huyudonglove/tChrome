@@ -497,13 +497,13 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
   const memoryIdsBefore = structuredClone(ledger.memoryIds);
   ledger.toolIO.unshift({ callId: "call_old", name: "web_search", turnId: turn.turnId, arguments: {}, return: { stage: "complete", text: "旧证据", totalChars: 3 } });
   await compressRecords({ dataDir: dir, conversationId: ledger.conversationId, repoRoot,
-    module: "conversationHistory", records: [{ id: "call_old", content: ledger.toolIO[0]! }],
-    provider: { complete: async () => ok({ finish: "tool_calls", toolCalls: [{id:"summary",name:"submitTurnSummaries",arguments:{summary:"旧查询取得旧证据。",actions:"旧工具提供了旧证据",result:"已取得旧证据"}}] }) },
+    module: "conversationHistory", records: [{ id: ledger.loops[0]!.id, content: ledger.loops[0]! }],
+    provider: { complete: async () => ok({ finish: "tool_calls", toolCalls: [{id:"summary",name:"submitLoopSummaries",arguments:{summary:"旧查询取得旧证据。",actions:"旧工具提供了旧证据",result:"已取得旧证据"}}] }) },
   });
   expect(turn.assembled.toolIds).toEqual(["see_page", "web_search", "capture_page", "cookies_get"]);
   expect(ledger.memoryIds).toEqual(memoryIdsBefore);
   expect(ledger.toolIO).toHaveLength(4);
-  expect(loadIndex(dir, ledger.conversationId, "conversationHistory").coveredSourceIds).toEqual(["call_old"]);
+  expect(loadIndex(dir, ledger.conversationId, "conversationHistory").coveredSourceIds).toEqual([ledger.loops[0]!.id]);
   expect(loadMemory(dir, "cv_01", ledger.memoryIds.conversation[0]!).text).toBe("本轮用户要查鼠标价");
 
   rmSync(dir, { recursive: true, force: true });
@@ -613,7 +613,7 @@ test("队列和正在跑的工具出现在 /session", () => {
       conversationMemoryIds: [],
       projectMemoryIds: [],
       mcpIds: [],
-      currentPage: null, observations: [], workspace: [],
+      currentPage: null, observations: [],
       currentTabs: { ok: true, windows: [] },
     },
     stopReason: null,
@@ -765,15 +765,15 @@ test(`观察提醒按证据类工具调用计数：累计 ${OBS_FIRST} 次证据
     let step = 0;
     const provider: Provider = { complete: async input => {
       step++;
-      const body = input.messages[1]!.content;
+      const body = [...input.messages[1]!.content.matchAll(/<loop\b[^>]*>([\s\S]*?)<\/loop>/g)].at(-1)?.[1] ?? "";
       if (step <= OBS_FIRST) {
-        expect(body).not.toContain('kind="observation"');
+        expect(body).not.toContain('"kind":"observation"');
         // 每步只发 1 个证据类调用，避免硬收口；bookkeeping 不计数的断言见下一个用例
         return ok({ finish: "tool_calls", toolCalls: [
           { id: `e_${step}`, name: "page_get_summary", arguments: { tabId: 12 } },
         ] });
       }
-      expect(body).toContain('kind="observation"');
+      expect(body).toContain('"kind":"observation"');
       expect(body).toContain(`page_get_summary×${OBS_FIRST}`);
       expect(body).toContain("次产出证据的工具调用");
       expect(body).toContain(`下次提示门槛收紧到 ${OBS_GATE_2} 次`);
@@ -793,19 +793,19 @@ test(`观察提醒门槛在同一轮内 ${OBS_FIRST} → ${OBS_GATE_2} → ${OBS
     const secondNudge = firstNudge + OBS_GATE_2;
     const provider: Provider = { complete: async input => {
       step++;
-      const body = input.messages[1]!.content;
+      const body = [...input.messages[1]!.content.matchAll(/<loop\b[^>]*>([\s\S]*?)<\/loop>/g)].at(-1)?.[1] ?? "";
       if (step === firstNudge) {
         // 第 OBS_FIRST 次证据类调用后已提示一次，门槛收紧到 OBS_GATE_2
-        expect(body).toContain('kind="observation"');
+        expect(body).toContain('"kind":"observation"');
         expect(body).toContain(`下次提示门槛收紧到 ${OBS_GATE_2} 次`);
       }
       if (step > firstNudge && step < secondNudge) {
         // 门槛已是 OBS_GATE_2，这段区间内不应再提示
-        expect(body).not.toContain('kind="observation"');
+        expect(body).not.toContain('"kind":"observation"');
       }
       if (step === secondNudge) {
         // 门槛收紧到下限 OBS_MIN 并再次提示
-        expect(body).toContain('kind="observation"');
+        expect(body).toContain('"kind":"observation"');
         expect(body).toContain(`下次提示门槛收紧到 ${OBS_MIN} 次`);
       }
       if (step <= secondNudge) {
@@ -826,15 +826,15 @@ test(`写一次 observation_write 后计数与门槛重置回 ${OBS_FIRST}`, asy
     const firstNudge = OBS_FIRST + 1;
     const provider: Provider = { complete: async input => {
       step++;
-      const body = input.messages[1]!.content;
+      const body = [...input.messages[1]!.content.matchAll(/<loop\b[^>]*>([\s\S]*?)<\/loop>/g)].at(-1)?.[1] ?? "";
       if (step === firstNudge) {
-        expect(body).toContain('kind="observation"');
+        expect(body).toContain('"kind":"observation"');
         expect(body).toContain(`下次提示门槛收紧到 ${OBS_GATE_2} 次`);
         return ok({ finish: "tool_calls", toolCalls: [{ id: "w", name: "observation_write", arguments: { reason: "固化", type: "code", result: "状态" } }] });
       }
       if (step > firstNudge && step <= firstNudge + OBS_FIRST) {
         // 写观察后门槛重置回 OBS_FIRST，这段区间内不应再提示
-        expect(body).not.toContain('kind="observation"');
+        expect(body).not.toContain('"kind":"observation"');
         return ok({ finish: "tool_calls", toolCalls: [{ id: `e_${step}`, name: "page_get_summary", arguments: { tabId: 12 } }] });
       }
       if (step <= OBS_FIRST) {
@@ -856,82 +856,12 @@ test("只有 bookkeeping 工具时观察提醒保持安静", async () => {
       step++;
       const body = input.messages[1]!.content;
       if (step <= 40) {
-        expect(body).not.toContain('kind="observation"');
+        expect(body).not.toContain('"kind":"observation"');
         return ok({ finish: "tool_calls", toolCalls: [{ id: `n_${step}`, name: "reflect_write", arguments: { reason: "草稿", text: "v" } }] });
       }
       return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
     } };
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "只写笔记", submittedAt: "now" });
-    expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
-  } finally { rmSync(dir, { recursive: true, force: true }); }
-});
-
-test("压缩前若无观察则先提示一次，下一轮才压缩", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "tchrome-compress-nudge-"));
-  primeActiveTask(dir);
-  try {
-    // 第一轮只用来量窗口大小：initialChars 就是 system + user 两段
-    let measured = 0;
-    const probe: Provider = { complete: async input => {
-      measured = input.messages[0]!.content.length + input.messages[1]!.content.length;
-      return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "第一轮结束" } }] });
-    } };
-    await handleTurn({ dataDir: dir, repoRoot, provider: probe }, { userInput: "量一下窗口", submittedAt: "now" });
-    // loadLedger 返回的是冻结对象，saveLedger 内部会写 updatedAt，需先克隆再改
-    const patched = structuredClone(loadLedger(dir, "cv_01"));
-    // 令窗口刚好越过压缩阈值，且仍留 headroom 之内
-    patched.compressAt = Math.max(1, measured - 3000);
-    saveLedger(dir, patched);
-    let step = 0;
-    const provider: Provider = { complete: async input => {
-      step++;
-      const body = input.messages[1]!.content;
-      if (step === 1) {
-        expect(body).toContain("上下文即将被压缩");
-        expect(body).toContain('kind="compress"');
-        return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "e_1", name: "page_get_summary", arguments: { tabId: 12 } }] });
-      }
-      if (step === 2) {
-        // compressNudgeSent 已置位，这一轮照常压缩
-        expect(body).not.toContain("上下文即将被压缩");
-        return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "e_2", name: "page_get_summary", arguments: { tabId: 13 } }] });
-      }
-      return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
-    } };
-    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "第二轮取证", submittedAt: "now" });
-    expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
-    expect(step).toBeGreaterThanOrEqual(3);
-  } finally { rmSync(dir, { recursive: true, force: true }); }
-});
-
-test("本轮写过 observation_write 时压缩前不再提示", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "tchrome-compress-nudge-obs-"));
-  primeActiveTask(dir);
-  try {
-    let measured = 0;
-    const probe: Provider = { complete: async input => {
-      measured = input.messages[0]!.content.length + input.messages[1]!.content.length;
-      return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "第一轮结束" } }] });
-    } };
-    await handleTurn({ dataDir: dir, repoRoot, provider: probe }, { userInput: "量一下窗口", submittedAt: "now" });
-    const patched = structuredClone(loadLedger(dir, "cv_01"));
-    patched.compressAt = Math.max(1, measured - 3000);
-    saveLedger(dir, patched);
-    let step = 0;
-    const provider: Provider = { complete: async input => {
-      step++;
-      const body = input.messages[1]!.content;
-      if (step === 1) {
-        expect(body).not.toContain("上下文即将被压缩");
-        return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "o_1", name: "observation_write", arguments: { reason: "固化", type: "code", result: "已确认窗口结构" } }] });
-      }
-      if (step === 2) {
-        expect(body).not.toContain("上下文即将被压缩");
-        return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
-      }
-      return ok({ finish: "tool_calls", content: "", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "完成" } }] });
-    } };
-    const reply = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "第二轮取证", submittedAt: "now" });
     expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

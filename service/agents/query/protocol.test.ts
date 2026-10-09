@@ -1,90 +1,90 @@
 import { expect, test } from "bun:test";
 import { resolve } from "node:path";
 import type { CompletionResult, Provider } from "../../types.ts";
-import { requestMatches, querySystemPrompt, queryUserPrompt, queryTurnsFromUserMessage } from "./protocol.ts";
+import { requestMatches, querySystemPrompt, queryUserPrompt, queryLoopsFromUserMessage } from "./protocol.ts";
 
 const repoRoot = resolve(import.meta.dir, "../../..");
 function response(overrides: Partial<CompletionResult> = {}): CompletionResult {
-  return { finish: "tool_calls", content: "", toolCalls: [{ id: "tool_matches", name: "submitMatches", arguments: { turnIds: ["tn_1"] } }],
+  return { finish: "tool_calls", content: "", toolCalls: [{ id: "tool_matches", name: "submitMatches", arguments: { loopIds: ["loop_01"] } }],
     attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [], ...overrides };
 }
 function run(result: CompletionResult, observe?: (input: Parameters<Provider["complete"]>[0]) => void) {
-  return requestMatches({ repoRoot, request: { sumId: "sum_01", module: "toolIO", intent: "是否可以修改状态" }, candidates: ["tn_1", "tn_2"].map(id => ({ turnId: id, records: [{ callId: "call_01", text: "状态" }], recordKeys: ["record_1"] })),
+  return requestMatches({ repoRoot, request: { sumId: "sum_01", module: "runtime", intent: "是否可以修改状态" }, candidates: ["loop_01", "loop_02"].map(id => ({ loopId: id, records: [{ callId: "call_01", text: "状态" }], recordKeys: ["record_1"] })),
     provider: { async complete(input) { observe?.(input); return result; } } });
 }
 
-test("query uses dedicated system and raw {request,turns} user XML", () => {
+test("query uses dedicated system and raw {request,loops} user XML", () => {
   const system = querySystemPrompt(repoRoot);
   expect(system.startsWith("<overview>")).toBe(true);
   expect(system).toContain("</overview>");
   expect(system).toContain("<identity>");
   expect(system).toContain("<queryRole>");
   expect(system).toContain("<queryModules>");
-  expect(system).toContain("<queryTurns>");
+  expect(system).toContain("<queryLoops>");
   expect(system).toContain("submitMatches");
   expect(system).toContain("runtime:");
   expect(system).not.toContain("<agentPosition>");
-  const request = { sumId: "sum_01", module: "toolIO", intent: "是否可以修改状态" };
-  const turns = ["tn_1", "tn_2"].map(id => ({ turnId: id, records: [{ callId: "call_01", text: "状态" }], recordKeys: ["record_1"] }));
-  const user = queryUserPrompt(request, turns);
-  expect(user).toBe(`<queryTurns>\n${JSON.stringify({ request, turns })}\n</queryTurns>`);
+  const request = { sumId: "sum_01", module: "runtime", intent: "是否可以修改状态" };
+  const loops = ["loop_01", "loop_02"].map(id => ({ loopId: id, records: [{ callId: "call_01", text: "状态" }], recordKeys: ["record_1"] }));
+  const user = queryUserPrompt(request, loops);
+  expect(user).toBe(`<queryLoops>\n${JSON.stringify({ request, loops })}\n</queryLoops>`);
   expect(user).not.toContain("能力：");
-  expect(queryTurnsFromUserMessage(user).turns.map(row => row.turnId)).toEqual(["tn_1", "tn_2"]);
+  expect(queryLoopsFromUserMessage(user).loops.map(row => row.loopId)).toEqual(["loop_01", "loop_02"]);
 });
 
 test("query assembles only its return tool and ignores conflicting content", async () => {
-  const value = await run(response({ content: '{"turnIds":["outside"]}' }), input => {
+  const value = await run(response({ content: '{"loopIds":["outside"]}' }), input => {
     expect(input.tools.map(tool => tool.function.name)).toEqual(["submitMatches"]);
-    expect(input.tools[0]!.function.parameters).toMatchObject({ required: ["turnIds"], additionalProperties: false });
+    expect(input.tools[0]!.function.parameters).toMatchObject({ required: ["loopIds"], additionalProperties: false });
     expect(input.messages[0]!.content).toContain("<queryRole>");
     expect(input.messages[0]!.content).toContain("submitMatches");
-    const data = queryTurnsFromUserMessage(input.messages[1]!.content);
-    expect(data.request).toEqual({sumId:"sum_01",module:"toolIO",intent:"是否可以修改状态"});
-    expect(data.request).not.toHaveProperty("turnIds");
-    expect(data.turns.map(row => row.turnId)).toEqual(["tn_1","tn_2"]);
+    const data = queryLoopsFromUserMessage(input.messages[1]!.content);
+    expect(data.request).toEqual({sumId:"sum_01",module:"runtime",intent:"是否可以修改状态"});
+    expect(data.request).not.toHaveProperty("loopIds");
+    expect(data.loops.map(row => row.loopId)).toEqual(["loop_01","loop_02"]);
   });
-  expect(value).toMatchObject({ turnIds: ["tn_1"] });
+  expect(value).toMatchObject({ loopIds: ["loop_01"] });
 });
 
 test("query accepts empty matches and deduplicates selected IDs", async () => {
-  for (const turnIds of [[], ["tn_1", "tn_1", "tn_2"]]) {
-    expect(await run(response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: { turnIds } }] }))).toMatchObject({ turnIds: [...new Set(turnIds)] });
+  for (const loopIds of [[], ["loop_01", "loop_01", "loop_02"]]) {
+    expect(await run(response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: { loopIds } }] }))).toMatchObject({ loopIds: [...new Set(loopIds)] });
   }
 });
 
 test("query rejects plaintext JSON, wrong name, multiple calls and failed provider flags", async () => {
   const valid = response().toolCalls[0]!;
   const cases: Partial<CompletionResult>[] = [
-    { finish: "stop", content: '{"turnIds":["tn_1"]}', toolCalls: [] },
+    { finish: "stop", content: '{"loopIds":["loop_01"]}', toolCalls: [] },
     { toolCalls: [] }, { toolCalls: [valid, valid] },
     { toolCalls: [{ ...valid, name: "finishTurn" }] }, { toolCalls: [{ ...valid, id: " " }] },
     { parseOk: false }, { schemaOk: false }, { faultCode: "invalid_arguments" },
-    { missing: ["turnIds"] }, { finish: "error" },
+    { missing: ["loopIds"] }, { finish: "error" },
     { toolCallFaults: [{ callId: "broken", name: "submitMatches", rawArguments: "{", detail: "invalid JSON" }] },
   ];
   for (const item of cases) await expect(run(response(item))).rejects.toThrow();
 });
 
 test("query enforces return schema and module membership even if provider reports valid", async () => {
-  const values: unknown[] = [{}, { turnIds: "tn_1" }, { turnIds: [1] }, { turnIds: [""] }, { turnIds: ["outside"] },
-    { turnIds: ["tn_1"], answer: "extra" }, [], null];
+  const values: unknown[] = [{}, { loopIds: "loop_01" }, { loopIds: [1] }, { loopIds: [""] }, { loopIds: ["outside"] },
+    { loopIds: ["loop_01"], answer: "extra" }, [], null];
   for (const args of values) {
     await expect(run(response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: args as Record<string, unknown> }] }))).rejects.toThrow();
   }
 });
 
-test("stringified turnIds array is unwrapped once and accepted", async () => {
-  expect(await run(response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: { turnIds: JSON.stringify(["tn_1"]) } }] }))).toMatchObject({ turnIds: ["tn_1"] });
+test("stringified loopIds array is unwrapped once and accepted", async () => {
+  expect(await run(response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: { loopIds: JSON.stringify(["loop_01"]) } }] }))).toMatchObject({ loopIds: ["loop_01"] });
 });
 
 test("query supports optional record-level selection", async () => {
-  const result = await run(response({ toolCalls: [{ id: "call_record", name: "submitMatches", arguments: { turnIds: ["tn_1"], recordKeys: ["record_1"] } }] }));
-  expect(result).toEqual({ turnIds: ["tn_1"], recordKeys: ["record_1"] });
+  const result = await run(response({ toolCalls: [{ id: "call_record", name: "submitMatches", arguments: { loopIds: ["loop_01"], recordKeys: ["record_1"] } }] }));
+  expect(result).toEqual({ loopIds: ["loop_01"], recordKeys: ["record_1"] });
 });
 
 test("query format errors return to the model for self-repair up to three attempts", async () => {
   let calls = 0;
-  const broken = response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: { turnIds: ["outside"] } }] });
+  const broken = response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: { loopIds: ["outside"] } }] });
   await expect(run(broken, input => {
     calls++;
     if (calls > 1) {
@@ -93,12 +93,12 @@ test("query format errors return to the model for self-repair up to three attemp
       expect(repair.fault.startsWith("runtime: ")).toBe(true);
       expect(repair.instruction.startsWith("runtime: ")).toBe(true);
       expect(repair.instruction).toContain("超出候选");
-      expect(repair.instruction).toContain("tn_1");
+      expect(repair.instruction).toContain("loop_01");
     }
   })).rejects.toMatchObject({ faultCode: "query_failed" });
   expect(calls).toBe(3);
   let fixed = 0;
-  const value = await run(response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: { turnIds: "bad" as unknown as string[] } }] }), () => {
+  const value = await run(response({ toolCalls: [{ id: "call_1", name: "submitMatches", arguments: { loopIds: "bad" as unknown as string[] } }] }), () => {
     fixed++;
     return undefined;
   }).catch(() => null);
@@ -110,14 +110,14 @@ test("query self-repair can recover on the third format attempt", async () => {
   let calls = 0;
   const result = await requestMatches({
     repoRoot,
-    request: { sumId: "sum_01", module: "toolIO", intent: "查状态" },
-    candidates: [{ turnId: "tn_1", records: [] }],
+    request: { sumId: "sum_01", module: "runtime", intent: "查状态" },
+    candidates: [{ loopId: "loop_01", records: [] }],
     provider: { async complete() {
       calls++;
       if (calls < 3) return response({ toolCalls: [{ id: "c", name: "submitMatches", arguments: { summaries: "no" } }] as never });
-      return response({ toolCalls: [{ id: "c", name: "submitMatches", arguments: { turnIds: ["tn_1"] } }] });
+      return response({ toolCalls: [{ id: "c", name: "submitMatches", arguments: { loopIds: ["loop_01"] } }] });
     } },
   });
   expect(calls).toBe(3);
-  expect(result).toMatchObject({ turnIds: ["tn_1"] });
+  expect(result).toMatchObject({ loopIds: ["loop_01"] });
 });

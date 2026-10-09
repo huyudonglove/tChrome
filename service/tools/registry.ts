@@ -115,7 +115,7 @@ function injectCallRetention(tool: ChatTool, defaultKeepInCalls: boolean): ChatT
           keepInCalls: {
             type: "boolean",
             default: defaultKeepInCalls,
-            description: `是否保留本次执行证据。省略使用本工具默认值 ${defaultKeepInCalls}；可显式 true 或 false 覆盖。true 写入 notes，后续归入 workspace，calls 保留证据引用；false 不记录，结果仍供下一次模型请求查看一次。原始调用始终落盘，不影响工具执行。`,
+            description: `是否保留本次执行证据。省略使用本工具默认值 ${defaultKeepInCalls}；可显式 true 或 false 覆盖。true 将本次调用及最终结果保留在所属 loop，直到压缩；false 仅随最近结果 loop 展示一次。Runtime 在执行时固定保留值，后续不因默认值变化重新解释历史。原始调用始终落盘，不影响工具执行。`,
           },
         },
       } as ChatTool["function"]["parameters"],

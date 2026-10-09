@@ -7,7 +7,7 @@ import { applyToolEffects } from "../runtime/effects.ts";
 import { emptyLedger, loadLedger } from "../runtime/store.ts";
 import { loadToolRegistry, toolSchemas } from "./registry.ts";
 import { checkToolCalls } from "./schema.ts";
-import { autoCompleteActiveTask, executionContext, pauseActiveTask } from "../runtime/tasks.ts";
+import { executionContext, pauseActiveTask } from "../runtime/tasks.ts";
 import { hasActiveTask } from "../runtime/task-gate.ts";
 import type { Turn } from "../types.ts";
 
@@ -26,7 +26,7 @@ const fixture = () => {
     stopReason: null,     assembled: {
       baseToolsIds: [], toolIds: [],
       conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [],
-      currentPage: null, currentTabs: { ok: true, windows: [] }, observations: [], workspace: [],
+      currentPage: null, currentTabs: { ok: true, windows: [] }, observations: [],
     },
   };
   const execute = async (name: string, args: Record<string, unknown>) => executeTool({
@@ -41,13 +41,15 @@ const fixture = () => {
       unusedTools: [],
     },
   });
-  const apply = (execution: Awaited<ReturnType<typeof executeTool>>, callId: string, name: string) =>
+  const apply = (execution: Awaited<ReturnType<typeof executeTool>>, callId: string, name: string) => {
+    const row = { callId, name, arguments: {}, turnId: turn.turnId, return: { stage: "complete" as const, totalChars: execution.text.length, text: execution.text } };
+    ledger.toolIO.push(row);
     applyToolEffects({
-      dataDir, ledger, turn,
-      call: { callId, name, arguments: {} },
-      effects: execution.effects,
+      dataDir, ledger, turn, call: row, effects: execution.effects,
       execCtx: executionContext(ledger),
     });
+    return JSON.parse(row.return.text);
+  };
   return { dataDir, ledger, turn, execute, apply, cleanup: () => rmSync(dataDir, { recursive: true, force: true }) };
 };
 
@@ -64,10 +66,10 @@ test("task tools are resident and schema-valid", () => {
       items: [{ text: "打开页" }, { text: "定位控件", status: "doing" }],
     } },
     { id: "c2", name: "task_update", arguments: {
-      reason: "更新进度",
+      taskId: "task_01", reason: "更新进度",
       items: [{ id: "item_01", status: "done" }],
     } },
-    { id: "c3", name: "task_complete", arguments: { reason: "收口" } },
+    { id: "c3", name: "task_complete", arguments: { taskId: "task_01", reason: "收口" } },
   ], tools, registry.toolGroups.baseToolsIds, ["task_set", "task_update", "task_complete"]).schemaOk).toBe(true);
 });
 
@@ -110,14 +112,14 @@ test("task persists, single doing, history append-only", async () => {
     const historyIds = fx.ledger.taskHistory.map((row) => row.id);
     expect(new Set(historyIds).size).toBe(historyIds.length);
 
-    const doubleDoing = await fx.execute("task_update", {
+    const doubleDoing = await fx.execute("task_update", { taskId: "task_02",
       reason: "错误双 doing",
       items: [{ id: "item_03", status: "doing" }, { id: "item_02", status: "doing" }],
     });
     expect(doubleDoing.effects.length).toBe(1);
     expect(() => fx.apply(doubleDoing, "c2", "task_update")).toThrow(/最多一个 doing/);
 
-    const step = await fx.execute("task_update", {
+    const step = await fx.execute("task_update", { taskId: "task_02",
       reason: "推进",
       items: [{ id: "item_02", status: "done" }, { id: "item_03", status: "doing", blockedReason: "网络超时" }],
     });
@@ -132,12 +134,12 @@ test("task persists, single doing, history append-only", async () => {
     const ctx = executionContext(fx.ledger);
     expect(ctx).toEqual({ activeTaskId: "task_02", activeTaskItemId: "item_03" });
 
-    const early = await fx.execute("task_complete", { reason: "提前" });
+    const early = await fx.execute("task_complete", { taskId: "task_02", reason: "提前" });
     expect(() => fx.apply(early, "c4", "task_complete")).toThrow(/未完成步骤/);
 
-    const done2 = await fx.execute("task_update", { reason: "完成步骤", items: [{ id: "item_03", status: "done" }] });
+    const done2 = await fx.execute("task_update", { taskId: "task_02", reason: "完成步骤", items: [{ id: "item_03", status: "done" }] });
     fx.apply(done2, "c5", "task_update");
-    const complete = await fx.execute("task_complete", { reason: "步骤齐" });
+    const complete = await fx.execute("task_complete", { taskId: "task_02", reason: "步骤齐" });
     fx.apply(complete, "c6", "task_complete");
     expect(fx.ledger.tasks[1]!.status).toBe("completed");
     // The pointer is a context tag now: task_complete keeps it, the gate reads plan.status.
@@ -154,7 +156,7 @@ test("task persists, single doing, history append-only", async () => {
     expect(fx.ledger.tasks[2]).toMatchObject({ id: "task_03", status: "active" });
 
     const saved = loadLedger(fx.dataDir, fx.ledger.conversationId);
-    expect(saved.schemaVersion).toBe(2);
+    expect(saved.schemaVersion).toBe(3);
     expect(saved.tasks.length).toBeGreaterThanOrEqual(2);
     expect(saved.taskHistory.length).toBeGreaterThan(0);
     expect(saved).not.toHaveProperty("checklist");
@@ -176,39 +178,6 @@ test("task_set replace marks previous task cancelled reason=replaced", async () 
   }
 });
 
-test("autoCompleteActiveTask closes a finished plan and skips open ones", async () => {
-  const fx = fixture();
-  try {
-    fx.apply(await fx.execute("task_set", { reason: "自动收口", items: [{ text: "a" }, { text: "b" }] }), "c1", "task_set");
-    expect(fx.ledger.activeTaskId).toBe("task_01");
-    // Still open: no auto close, the plan stays active.
-    expect(autoCompleteActiveTask(fx.dataDir, fx.ledger, "tn_plan")).toBe(false);
-    expect(fx.ledger.tasks[0]!.status).toBe("active");
-
-    fx.apply(await fx.execute("task_update", { reason: "全部完成", items: [
-      { id: "item_01", status: "done" },
-      { id: "item_02", status: "done" },
-    ] }), "c2", "task_update");
-    expect(autoCompleteActiveTask(fx.dataDir, fx.ledger, "tn_plan")).toBe(true);
-    expect(fx.ledger.tasks[0]!.status).toBe("completed");
-    expect(fx.ledger.tasks[0]!.completedAt).toBeTruthy();
-    // Auto-completion keeps the pointer but clears the item id; high-risk gating now reads status.
-    expect(fx.ledger.activeTaskId).toBe("task_01");
-    expect(fx.ledger.activeTaskItemId).toBeNull();
-    expect(executionContext(fx.ledger)).toEqual({ activeTaskId: null, activeTaskItemId: null });
-    expect(fx.ledger.taskHistory.at(-1)).toMatchObject({
-      taskId: "task_01",
-      type: "task_completed",
-      reason: "auto_closed",
-      after: { status: "completed" },
-    });
-    // Idempotent: nothing left to close.
-    expect(autoCompleteActiveTask(fx.dataDir, fx.ledger, "tn_plan")).toBe(false);
-  } finally {
-    fx.cleanup();
-  }
-});
-
 test("task_update supports atomic batch transition regardless of item order", async () => {
   const fx = fixture();
   try {
@@ -223,7 +192,7 @@ test("task_update supports atomic batch transition regardless of item order", as
     expect(fx.ledger.activeTaskItemId).toBe("item_01");
 
     // 关键：乱序传入（第二步先置 doing，第一步置 done），批次内原子生效，不应因循环顺序抛出 task_multi_doing_update
-    const atomicTransition = await fx.execute("task_update", {
+    const atomicTransition = await fx.execute("task_update", { taskId: "task_01",
       reason: "原子流转推进",
       items: [
         { id: "item_02", status: "doing" },
@@ -252,7 +221,7 @@ test("task_update supports recording outcome on done", async () => {
       ],
     }), "c1", "task_set");
 
-    const update = await fx.execute("task_update", {
+    const update = await fx.execute("task_update", { taskId: "task_01",
       reason: "完成并记录产出成果",
       items: [
         {
@@ -284,7 +253,7 @@ test("unfinished active task pauses at turn close and resumes on update", async 
 
     expect(pauseActiveTask(fx.dataDir, fx.ledger, "tn_plan")).toBe(true);
     expect(fx.ledger.tasks[0]?.status).toBe("paused");
-    // Pausing keeps the pointer so the next turn can pick the Task up without an explicit taskId;
+    // Pausing keeps the attribution pointer; updates still require an explicit taskId;
     // hasActiveTask still reports false, so the high-risk gate stays closed.
     expect(fx.ledger.activeTaskId).toBe("task_01");
     expect(fx.ledger.activeTaskItemId).toBeNull();
@@ -296,8 +265,7 @@ test("unfinished active task pauses at turn close and resumes on update", async 
       after: { status: "paused" },
     });
 
-    fx.apply(await fx.execute("task_update", {
-      taskId: "task_01",
+    fx.apply(await fx.execute("task_update", { taskId: "task_01",
       reason: "恢复任务",
       items: [{ id: "item_01", status: "doing" }],
     }), "c2", "task_update");
@@ -330,12 +298,10 @@ test("hasActiveTask follows plan status, so a kept pointer still gates high risk
     expect(fx.ledger.activeTaskId).toBe("task_01");
     expect(hasActiveTask(fx.ledger)).toBe(false);
 
-    fx.apply(await fx.execute("task_update", {
-      taskId: "task_01",
+    fx.apply(await fx.execute("task_update", { taskId: "task_01",
       reason: "全部完成",
       items: [{ id: "item_01", status: "done" }, { id: "item_02", status: "done" }],
     }), "g2", "task_update");
-    expect(autoCompleteActiveTask(fx.dataDir, fx.ledger, "tn_plan")).toBe(true);
     expect(fx.ledger.tasks[0]?.status).toBe("completed");
     expect(fx.ledger.activeTaskId).toBe("task_01");
     expect(hasActiveTask(fx.ledger)).toBe(false);
@@ -351,4 +317,53 @@ test("hasActiveTask follows plan status, so a kept pointer still gates high risk
   } finally {
     fx.cleanup();
   }
+});
+
+test("task results retain pointers until completion and freeze terminal snapshots", async () => {
+  const fx = fixture();
+  try {
+    const created = fx.apply(await fx.execute("task_set", { reason: "plan", items: [{ text: "a" }, { text: "b" }] }), "create", "task_set");
+    expect(created).toEqual({ ok: true, taskRef: { id: "task_01" } });
+    const updated = fx.apply(await fx.execute("task_update", { taskId: "task_01", items: [{ id: "item_01", status: "done" }] }), "update", "task_update");
+    expect(updated).toEqual({ ok: true, taskRef: { id: "task_01" } });
+    const completed = fx.apply(await fx.execute("task_update", { taskId: "task_01", items: [{ id: "item_02", status: "done", outcome: "verified" }] }), "complete", "task_update");
+    expect(completed.task.status).toBe("completed");
+    expect(completed.task.items[1].outcome).toBe("verified");
+    expect(fx.ledger.tasks[0]?.status).toBe("completed");
+    fx.ledger.tasks[0]!.title = "later mutation";
+    expect(JSON.parse(fx.ledger.toolIO.find(row => row.callId === "complete")!.return.text).task.title).toBeUndefined();
+    expect(JSON.parse(fx.ledger.toolIO.find(row => row.callId === "create")!.return.text)).toEqual(created);
+    const saved = loadLedger(fx.dataDir, fx.ledger.conversationId);
+    expect(JSON.parse(saved.toolIO.find(row => row.callId === "complete")!.return.text)).toEqual(completed);
+  } finally { fx.cleanup(); }
+});
+
+test("task updates require explicit ID and failed patches do not mutate task or history", async () => {
+  const fx = fixture();
+  try {
+    fx.apply(await fx.execute("task_set", { items: [{ text: "a", status: "doing" }, { text: "b" }] }), "create", "task_set");
+    const missing = await fx.execute("task_update", { items: [{ id: "item_01", status: "done" }] });
+    expect(missing.effects).toHaveLength(0);
+    expect(JSON.parse(missing.text).ok).toBe(false);
+    const before = JSON.stringify({ tasks: fx.ledger.tasks, history: fx.ledger.taskHistory });
+    const invalid = await fx.execute("task_update", { taskId: "task_01", items: [{ id: "item_02", status: "doing" }] });
+    expect(() => fx.apply(invalid, "invalid", "task_update")).toThrow();
+    expect(JSON.stringify({ tasks: fx.ledger.tasks, history: fx.ledger.taskHistory })).toBe(before);
+    const replaced = fx.apply(await fx.execute("task_set", { items: [{ text: "c" }] }), "replace", "task_set");
+    expect(replaced.taskRef.id).toBe("task_02");
+    expect(replaced.replacedTask).toMatchObject({ id: "task_01", status: "cancelled" });
+  } finally { fx.cleanup(); }
+});
+
+test("task created with every step done is immediately terminal and queryable by ID", async () => {
+  const fx = fixture();
+  try {
+    const completed = fx.apply(await fx.execute("task_set", { items: [{ text: "a", status: "done" }] }), "create", "task_set");
+    expect(completed.task).toMatchObject({ id: "task_01", status: "completed" });
+    expect(hasActiveTask(fx.ledger)).toBe(false);
+    const found = await fx.execute("context_query", { taskId: "task_01" });
+    expect(JSON.parse(found.text).task).toEqual(completed.task);
+    const absent = await fx.execute("context_query", { taskId: "task_02" });
+    expect(JSON.parse(absent.text).status).toBe("not_found");
+  } finally { fx.cleanup(); }
 });

@@ -1,8 +1,8 @@
 {
   "type": "function",
   "function": {
-    "name": "submitTurnSummaries",
-    "description": "提交本次压缩或摘要折叠的结果。每次调用是一条 {summary, actions, result}，summary 用一句话说明工作与结论。输入为 compressionTurns 时，可在同一次回复中提交多条摘要，全部归属提供的轮次；输入为 summaryFold 时提交一条合并纪要。不要提交 turnId 或 userRequest，Runtime 会填写。",
+    "name": "submitLoopSummaries",
+    "description": "提交本次压缩或摘要折叠的结果。每次调用是一条 {summary, actions, result}，summary 用一句话说明工作与结论。输入为 compressionLoops 时，可在同一次回复中提交多条摘要，全部归属提供的loop 批次；输入为 summaryFold 时提交一条合并纪要。不要提交 loopIds 或 userRequest，Runtime 会填写。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,7 @@
           "type": "string",
           "minLength": 1,
           "pattern": "\\S",
-          "description": "一句话汇总：本轮做了什么、结论是什么。"
+          "description": "一句话汇总：本批做了什么、结论是什么。"
         },
         "actions": {
           "type": "string",
@@ -22,7 +22,7 @@
           "type": "string",
           "minLength": 1,
           "pattern": "\\S",
-          "description": "本轮已验证结果、最终回复、错误或等待状态的文字摘要。保留回复与执行证据的差异；查询结论注明来自历史证据。"
+          "description": "本批已验证结果、最终回复、错误或等待状态的文字摘要。保留回复与执行证据的差异；查询结论注明来自历史证据。"
         },
         "reflection": {
           "type": "string",

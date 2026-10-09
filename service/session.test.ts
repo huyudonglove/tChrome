@@ -11,7 +11,7 @@ const makeTurn = (output: TurnStopReason | null): Turn => ({   turnId: "tn_01", 
   createdAt: "2026-09-07T00:00:00.000Z", completedAt: null,
   input: { id: "input_fixture", text: "查看当前页面", submittedAt: "2026-09-07T00:00:00.000Z" },
   assembled: { baseToolsIds: [], toolIds: [],
-     conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, observations: [], workspace: [], currentTabs: { ok: true, windows: [] } },
+     conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, observations: [], currentTabs: { ok: true, windows: [] } },
   stopReason: output,
   // session view reads stopReason.text for panel display
 });
@@ -41,14 +41,14 @@ test("session compression activity follows the active turn and clears after comp
   expect(view().activity).toEqual({ kind: "compressing", source: "runtime", phase: null, completed: 0, total: null, fold: null });
   emit("compress-progress", { completed: 0, total: 5 });
   expect(view().activity).toEqual({ kind: "compressing", source: "runtime", phase: null, completed: 0, total: 5, fold: null });
-  emit("compress-progress", { merged: 3, level: 1, turnIds: 7 });
-  expect(view().activity).toEqual({ kind: "compressing", source: "runtime", phase: null, completed: 0, total: 5, fold: { merged: 3, level: 1, turnIds: 7 } });
+  emit("compress-progress", { merged: 3, level: 1, loopIds: 7 });
+  expect(view().activity).toEqual({ kind: "compressing", source: "runtime", phase: null, completed: 0, total: 5, fold: { merged: 3, level: 1, loopIds: 7 } });
   emit("compress-error");
   emit("compress-start", { source: "agent" });
   expect(view().activity).toEqual({ kind: "compressing", source: "agent", phase: null, completed: 0, total: null, fold: null });
-  emit("compress-phase", { phase: "history" });
+  emit("compress-phase", { phase: "loops" });
   emit("compress-progress", { completed: 2, total: 5, turnId: "tn_02" });
-  expect(view().activity).toEqual({ kind: "compressing", source: "agent", phase: "history", completed: 2, total: 5, fold: null });
+  expect(view().activity).toEqual({ kind: "compressing", source: "agent", phase: "loops", completed: 2, total: 5, fold: null });
   emit("compress", {}, "tn_old");
   expect(view().activity?.completed).toBe(2);
   emit("compress");
@@ -57,7 +57,7 @@ test("session compression activity follows the active turn and clears after comp
   emit("compress-progress", { completed: 1, total: 2 });
   emit("compress-error");
   expect(view().activity).toBeNull();
-  emit("compress-phase", { phase: "history" });
+  emit("compress-phase", { phase: "loops" });
   expect(view().activity).toBeNull();
   emit("compress-start");
   for (const status of ["idle", "waiting_human", "paused", "failed"] as const) {

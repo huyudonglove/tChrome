@@ -11,9 +11,9 @@
 | 目录 | 层 |
 |---|---|
 | `runtime/` | 账本、循环、工具证据归档、`session.json`、浏览器桥 |
-| `context/` | modules.ts 加载上下文模块；window.ts 纯投影当轮数据、记忆和已提供的工具说明 |
+| `context/` | modules.ts 加载上下文模块；window.ts 投影 loop 数据、记忆和已提供的工具说明 |
 | `tools/` | registry.ts 读取本模块 definitions/ 内工具定义、分组和分类；参数检查、工具执行及结构化效果 |
-| `agents/compression/` | Compression Agent 的 context 模块、输入输出协议、校验与逐轮压缩流程 |
+| `agents/compression/` | Compression Agent 的 context 模块、输入输出协议、校验与 loop 分区压缩流程 |
 | `agents/query/` | Query Agent 的 context 模块、输入输出协议、校验与语义检索流程 |
 | `context-archive/` | 会话历史归档存储、覆盖索引与来源展开 |
 | `provider/` | 模型通信、传输重试与响应解析 |
@@ -29,9 +29,9 @@ HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`�
 
 存储层保留持久化和会话命令，读取 ledger / events / turns 后调用 presentation 投影，命令返回行为保持不变。浏览器执行实现在 `extension/tools/browser-tools.js`，由后台 worker 调用。
 
-记忆只有两层：conversation 保存本会话的过程发现、已确认事实、偏好和决定，本地持久化并跨轮读取，新会话不继承，删除会话时删除；project 保存跨会话共享的长期背景与约束，删除来源会话后仍保留。notes 是 Runtime 自动记录的操作证据缓冲，接收有效 keepInCalls 为 true 的调用参数与门禁处理后的最终返回；调用显式值优先，省略时使用工具元数据 defaultKeepInCalls。达到 context.notesFlushRows 后，过滤结果与内容均为空的条目，将其余原始证据转入来源轮次的 workspace，保留 ws 编号及来源。workspace 按对象归组、合并重复证据展示；calls 的 workspaceIds 同时支持引用缓冲或已转存证据。
+记忆分 conversation 与 project 两层。会话记忆按来源 loop 随历史压缩，项目记忆跨会话并保持完整。主模型 User 依次为 skill、projectMemory、tools、conversation、contextUsage；所有模块 purpose 在 System。conversation 的 loop 记录 runtime 输入与 helm 响应，两者均有独立 ID；runtime type 为 userInput、interrupt、callsResult、notice。调用与结果按 callId 关联，判断与执行事实分开。
 
-每次发送主模型前，Runtime 检测 System + User 文本长度；达到压缩阈值（由 `service/config/runtime.json` 的 `context.compressAtChars` 给出）才触发压缩。按 turnId 汇集当轮输入、目标变化、工具调用与完整返回、页面观察、会话记忆写入、查询历史和最终输出，所有已结束轮次均可归档，当前轮次按完整工具批次处理。较早轮次可批量提交，但每轮分别生成 summary、userRequest、actions、result，追加到 conversationHistorySummary。若归档较早轮次后仍达到阈值，再归档当前轮次较早的执行片段，保留最近 1 个完整工具批次（keepToolBatches）。notes 与 workspace 随来源轮次或工具批次归档；当前输入、目标、当前页面、长期记忆和 <query> 保持可见；queryHistory 作为取证参考，结论合入 result。摘要按层折叠（同轮 L1 合并仍为 L1，跨轮升 L2，最高到 L6），最新轮次保留。
+每次发送主模型前，Runtime 按 System + User 字符数判断压缩阈值。最近 1 个 loop 完整保留，其余按 userInput / interrupt 分区，顺序逐区请求；无输入分界时按条数分前后两半分别发送。loop 不拆、不递归。每批摘要全部合法才覆盖，失败停止后续批次并保留原文。摘要记录准确 loopIds，按层折叠至最高 L6；无新来源不单独折叠。
 
 主 Agent 固定配套两个职责单一的子 Agent：Compression Agent 在主模型请求前按需压缩历史材料，Query Agent 在主 Agent 调用 `context_query` 时按意图定位历史证据。两者都复用现有无状态 `provider.complete` 请求能力，包括模型配置、协议适配、重试和响应解析，不另建 LLM 请求层。两个子 Agent 各自通过 `protocol.ts` 组装提示词并校验专用返回工具调用，通过 `index.ts` 执行业务流程，提示词保存在各自的 `context/`；主 Agent 只提交查询意图或消费压缩结果，不直接承担子 Agent 的候选筛选与摘要生成。主 Agent 的工具提交由 `runtime/loop.ts` 的 `validateCompletion` 调用 `tools/schema.ts` 校验；provider 不承担业务输出校验、工具加载策略或批次执行决策。
 
@@ -49,11 +49,11 @@ Responses 适配器负责文本、图片 input_image、扁平 function schema �
 
 Chat 与 Responses 的失败分类和重试决策统一由 `provider/failures.ts` 管理。连接错误、超时、HTTP 408/429/5xx、Responses 的 server_error/rate_limit_exceeded，以及响应格式无效（provider_invalid_response，含空回包）按 `network.maxAttempts` 静默重试（默认 10 次含首次），重试成功则正常继续，不向模型回灌错误文案。输出超限、内容拒绝、未完整结束分别返回 `provider_output_limit`、`provider_refused`、`provider_incomplete`，不自动重试，也不执行部分工具调用。401 返回密钥错误，403 返回请求被拒绝并保留上游原因；重试耗尽后面板展示失败，本轮不执行工具。请求附带 tools 列表，tool_choice 默认 auto；仅在 needFinishTurn 重试或无效提交自救等「必须再调工具」的路径试发 required，网关或 thinking 模式拒绝（报文含 tool_choice / functionCallingConfig）则当场降级 auto 重试，不按模型是否 thinking 写死支持与否。Gemini 对应 `functionCallingConfig.mode`：required→ANY，默认 AUTO。
 
-conversationHistorySummary 展示历史轮次或执行片段的 {summary, userRequest, actions, result}，与近期原文配合阅读。描述进入 System，摘要数据放在当前输入之后。常驻 `context_query(sumId, module, intent[, file])` 从指定摘要的来源中查询一个模块。模块为 userInput、toolIO、observations、workspace、memoryWrites、stopReason、queryHistory 或 summaries（file 只支持 workspace / toolIO / summaries，按文件过滤候选）。Runtime 装配候选原文，Query Agent 通过 submitMatches 返回命中的 turnIds，Runtime 校验后把完整 records 追加进本轮 `<query>`；`<calls>` 只投影指针。查询结果与其它工具返回共用统一内联门禁（默认 6000 字符，inlineChars），超出时通过来源 callId 读取统一块目录；完整原文原样保存。evidence_search 的 windows 每项选择 callId 或 pageId，不传 blockId/keyword 时读根目录，传 keyword 搜索匹配块，传 blockId 读子目录或完整原文块；搜索返回 nextOffset 时用 offset 继续。每次最多 8 个窗口，原文块完整返回且不再次外置。查询不会刷新页面。
+summaries 展示历史 loop 的 summary、userRequest、actions、result 与准确 loopIds。context_query / agent_query 按 sumId 或 loopId 查询 loops、runtime、helm、summaries，支持 file 过滤；无匹配直接 not_found。Query Agent 返回候选 loopIds，Runtime 校验后读取完整来源记录。查询结果留在 callsResult，遵守统一返回门禁；原文凭 callId / pageId 使用 evidence_search 的 blockId 或 keyword 获取，返回 nextOffset 时继续分页。
 
-输入和页面观察以稳定 ID 写入 context-records；记忆保留本地 memoryId。模型投影保留记录 ID、轮次与来源关联以及内容和操作字段，不修改本地记录。记忆投影保留完整文本；归档覆盖由 runtime 管理。窗口不注入标签快照；需要当前窗口/标签时调用 tabs_current。observations 是本轮观察统一数组（id、type、result，页面/代码/截图等，旧→新）；toolIO 中产生观察的调用只投影 observationId 引用，完整观察结果只出现在 `<observations>`。
+未完成任务在 conversation 底部 tasks 展示完整最新状态；创建和更新返回 task ID 指针，完成或取消后从 tasks 移出，最终任务保留在完成操作返回。工具 keepInCalls 在执行时解析并持久化，true 保留到压缩，false 仅在结果返回后的下一次请求展示一次。大结果保留既有索引和原文路径，不另建证据正文副本。历史 loop 正常追加不回写，容量读数放在整条 User 最末尾；压缩时接受缓存前缀重建。
 
-Compression Agent 的每次模型请求独立写入 `conversations/<cvId>/agent-logs/compression/<时间戳>-<唯一标识>.jsonl`。请求发送前记录完整 messages 与 tools；收到后记录 Provider 返回的完整 CompletionResult（正文、工具调用、解析错误等），并记录成功摘要或异常。schema 校验失败包含字段路径、规则和预期类型，轮次覆盖错误包含预期与实际 turnId；会话的 compress-error 附日志路径。日志不包含模型密钥或请求认证头，也不进入主模型上下文。
+Compression Agent 的每次模型请求独立写入 `conversations/<cvId>/agent-logs/compression/<时间戳>-<唯一标识>.jsonl`。请求发送前记录完整 messages 与 tools；收到后记录 Provider 返回的完整 CompletionResult（正文、工具调用、解析错误等），并记录成功摘要或异常。schema 校验失败包含字段路径、规则和预期类型，来源覆盖关联准确 loopIds；会话的 compress-error 附日志路径。日志不包含模型密钥或请求认证头，也不进入主模型上下文。
 
 网络配置统一在 `service/config/runtime.json`，修改后重启服务生效。`network.idleTimeoutMs=90000` 表示等待响应头或响应体连续 90 秒没有数据才超时，非请求总耗时；收到非空数据块重置计时。`network.maxAttempts=10` 包含首次请求，`retryDelayMs=200` 为尝试间隔。测试经 `bunfig.toml` 预载把 `TCHROME_RETRY_DELAY_MS` 置为 1，重试循环不按生产间隔硬等；`TCHROME_MAX_ATTEMPTS` 可覆盖尝试次数。通用 HTTP 工具和主/辅助模型请求共用该策略，用户停止立即取消传输及等待；模型继续采用统一失败分类决定哪些错误可重试，HTTP 工具对空闲超时和连接中断重试，收到 HTTP 错误状态则直接返回。持续响应会继续消费，普通 HTTP 工具完整保留正文与响应头，搜索完整保留返回内容，再由发送前上下文门禁处理；probe_http 保持只检查响应头。Tavily SDK 的 `sdk.tavilyTimeoutSeconds` 和 TLS 握手的 `tls.timeoutMs` 属于专用超时，独立配置在同一文件，不冒充流式空闲计时。
 

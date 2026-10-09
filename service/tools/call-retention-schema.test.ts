@@ -54,11 +54,11 @@ test("retention accepts and preserves literal booleans, leaves omission absent, 
 });
 
 test("retention resolves tool defaults, both explicit overrides, and invalid calls", () => {
-  for (const name of ["local_fs_read", "local_run", "local_apply_patch", "see_page"]) {
+  for (const name of ["local_fs_read", "local_run", "local_apply_patch", "see_page", "observation_write", "task_set", "task_update", "task_complete", "reflect_write"]) {
     expect(resolveKeepInCalls(name)).toBe(true);
     expect(resolveKeepInCalls(name, false)).toBe(false);
   }
-  for (const name of ["skill_load", "wait", "observation_write", "task_set", "local_process_status"]) {
+  for (const name of ["skill_load", "wait", "local_process_status"]) {
     expect(resolveKeepInCalls(name)).toBe(false);
     expect(resolveKeepInCalls(name, true)).toBe(true);
   }

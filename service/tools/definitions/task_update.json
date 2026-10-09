@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "task_update",
-    "description": "按稳定 itemId 更新当前 Task 步骤。\n参数：必填 items（每项 id 必填，status/text/expectedEffect/verification/blockedReason/outcome 至少一项）；可选 taskId（默认活动 Task）。\nstatus：todo|doing|done。同一 Task 至多一个 doing；多 doing 拒绝。done 不可回退。验证失败时保持 doing 并写 blockedReason；完成时可填 outcome 记录关键交付成果与因果结论。\n工具成功不等于 done，须验证通过后再标 done。不传 taskId 时关联 ID 由 Runtime 注入；传入且不一致会拒绝。\n返回：ok、updated。Task 全部 done 后才可 task_complete；",
+    "description": "按显式 taskId 和步骤 id 更新任务。items 至少一项，支持 status、text、expectedEffect、verification、blockedReason、outcome。同一任务至多一个 doing，done 不可回退。验证通过后标记 done，失败时保持 doing 并记录 blockedReason。未完成时返回 taskRef 指针；所有步骤 done 时立即完成任务，完整最终 task 返回到本次调用结果，并移出未完成 tasks。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -11,7 +11,7 @@
         },
         "taskId": {
           "type": "string",
-          "description": "默认当前活动 Task"
+          "description": "需要更新的任务 ID"
         },
         "items": {
           "type": "array",
@@ -58,7 +58,8 @@
       },
       "required": [
         "reason",
-        "items"
+        "items",
+        "taskId"
       ],
       "additionalProperties": false
     }

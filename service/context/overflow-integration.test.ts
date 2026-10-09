@@ -6,11 +6,11 @@ import { runtimeConfig } from "../config/runtime.ts";
 import { handleTurn } from "../runtime/loop.ts";
 import { loadLedger, loadSession, newConversation, primeActiveTask, saveLedger, saveTurn } from "../runtime/store.ts";
 import { loadMemories } from "../memory/store.ts";
-import type { CompletionResult, Provider, ToolCall, Turn, Ledger } from "../types.ts";
+import type { CompletionResult, Provider, ToolCall, Turn } from "../types.ts";
 import { inputRecord } from "../runtime/ids.ts";
 import { loadIndex } from "../context-archive/store.ts";
 import { validateUserData } from "./data-schema.ts";
-import { compressionTurnsFromUserMessage } from "../agents/compression/protocol.ts";
+import { compressionLoopsFromUserMessage } from "../agents/compression/protocol.ts";
 
 const repoRoot = join(import.meta.dir, "../..");
 const call = (name: string, args: Record<string, unknown> = {}): ToolCall => ({ id: name, name, arguments: { reason: "容量回归测试", ...args } });
@@ -22,63 +22,18 @@ const xmlSlots = (user: string): Record<string, unknown> => {
   let m: RegExpExecArray | null;
   while ((m = re.exec(user))) {
     const name = m[1]!, body = m[2]!;
-    values[name] = name === "skill" || name === "tools" || name === "conversation" || name === "projectMemory" || name === "runtimeNotices" ? body : JSON.parse(body);
+    values[name] = name === "skill" || name === "tools" || name === "conversation" || name === "projectMemory" || name === "contextUsage" ? body : JSON.parse(body);
   }
   return values;
 };
-const nestedTag = (user: string, name: string): any => {
-  const conversation = String(xmlSlots(user).conversation ?? "");
-  const m = conversation.match(new RegExp(`<${name}>\\n([\\s\\S]*?)\\n</${name}>`));
-  return m ? JSON.parse(m[1]!) : undefined;
-};
-// <calls> 池渲染成 <call ...> 兄弟元素：元数据在属性、result 在正文 JSON。
-const callRows = (xml: string): any[] => {
-  const rows: any[] = [];
-  const re = /<call\s+([^>]*)>\n([\s\S]*?)\n<\/call>/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(xml))) {
-    const attrs: Record<string, string> = {};
-    for (const am of m[1]!.matchAll(/([A-Za-z][A-Za-z0-9]*)=\"([^\"]*)\"/g)) attrs[am[1]!] = am[2]!;
-    let payload: any;
-    try { payload = JSON.parse(m[2]!); } catch { payload = { body: m[2]! }; }
-    const { ok, callId, ...rest } = attrs;
-    // 窗口里调用编号叫 callId，取回时作 callId 传（见 conversation.md toolIO 说明）。
-    rows.push({ ...rest, callId: callId, ok: ok === "true", ...payload });
-  }
-  return rows;
-};
-const workspaceOperations = (xml: string): any[] => [...xml.matchAll(/<workspace\s+[^>]*>\n([\s\S]*?)\n<\/workspace>/g)]
-  .flatMap(match => JSON.parse(match[1]!).operations);
-const operationsFor = (xml: string, callId: string): any[] => [...workspaceOperations(xml), ...noteRows(xml).map(note => ({ ...note, sources: [{callId: note.callId}] }))]
-  .filter(operation => operation.sources.some((source: { callId: string }) => source.callId === callId));
+const callRows = (xml: string): any[] => [...xml.matchAll(/<runtime[^>]*type="callsResult"[^>]*>\n([\s\S]*?)\n<\/runtime>/g)]
+  .flatMap(match => JSON.parse(match[1]!)).map(row => ({ ...row, ok: row.result?.ok, return: row.result }));
 const storedReturn = (dataDir: string, callId: string): any => JSON.parse(loadLedger(dataDir, loadSession(dataDir)!.conversationId!).toolIO.find(row => row.callId === callId)!.return.text);
-const noteRows = (xml: string): Ledger["notes"] => [...xml.matchAll(/<note\s+([^>]*)>\n([\s\S]*?)\n<\/note>/g)]
-  .map(match => ({ ...JSON.parse(match[2]!), id: /id="([^"]*)"/.exec(match[1]!)![1]! }));
-const slot = (user: string, name: string): any => {
-  const key = name.replace(/^#/, "");
-  const conversation = String(xmlSlots(user).conversation ?? "");
-  // calls pool at the bottom of <conversation>, not inside a turn slice.
-  if (key === "toolIO" || key === "calls") {
-    const pool = conversation.match(/<calls(?:\s[^>]*)?>\n([\s\S]*?)\n<\/calls>/);
-    return pool ? callRows(pool[1]!) : [];
-  }
-  if (key === "notes") {
-    const notes = conversation.match(/<notes(?:\s[^>]*)?>\n([\s\S]*?)\n<\/notes>/);
-    return notes ? noteRows(notes[1]!) : [];
-  }
-  if (key === "userInput" || key === "goal" || key === "task") {
-    const turn = conversation.match(/<turn[^>]*>\n([\s\S]*?)\n<\/turn>/);
-    const body = turn?.[1] ?? conversation;
-    const m = body.match(new RegExp(`<${key}(?:\\s[^>]*)?>\\n([\\s\\S]*?)\\n</${key}>`));
-    if (!m) return [];
-    try { return JSON.parse(m[1]!); } catch { return m[1]!; }
-  }
-  return xmlSlots(user)[key];
-};
+const slot = (user: string, name: string): any => ["calls", "#toolIO"].includes(name) ? callRows(user) : [];
 const provider = (run: (user: string) => CompletionResult): Provider => ({ complete: async ({ messages, tools }) => {
-  if (tools.some(tool => tool.function.name === "submitTurnSummaries")) {
-    const turns = compressionTurnsFromUserMessage(messages[1]!.content);
-    return response({ id: "summary", name: "submitTurnSummaries", arguments: { summary: "容量测试保存和读取文件成功。", actions: "保存和读取文件", result: "成功" } });
+  if (tools.some(tool => tool.function.name === "submitLoopSummaries")) {
+    const turns = compressionLoopsFromUserMessage(messages[1]!.content);
+    return response({ id: "summary", name: "submitLoopSummaries", arguments: { summary: "容量测试保存和读取文件成功。", actions: "保存和读取文件", result: "成功" } });
   }
   expect(messages.reduce((size, message) => size + message.content.length, 0)).toBeLessThanOrEqual(runtimeConfig.context.hardLimitChars);
   const values = xmlSlots(messages[1]!.content);
@@ -141,15 +96,10 @@ test("mixed file read failures stay visible after externalization and originals 
     const row = slot(user, "calls").find((item: any) => item.name === "local_fs_read");
     sourceCallId = row.callId;
     expect(row.ok).toBe(false);
-    expect(row.return.workspaceIds.length).toBeGreaterThan(0);
-    const operations = operationsFor(user, sourceCallId);
-    const success = operations.find(operation => operation.target.key === path)!;
-    const failure = operations.find(operation => operation.target.key === missing)!;
-    expect(success.content).toBeUndefined();
+    expect(row.return).toMatchObject({ externalized: true, ok: false });
+    expect(callRows(user).filter(item => item.callId === sourceCallId)).toHaveLength(1);
+    expect(user.split(JSON.stringify(row.return.path))).toHaveLength(2);
     expect(user).not.toContain(content);
-    expect(operations.find(operation => operation.result.externalized)?.result).toMatchObject({ externalized: true, ok: false });
-    expect(failure.result).toMatchObject({ ok: false, faultCode: "file_not_found" });
-    expect(failure.result.error).toContain(missing);
     const stub = storedReturn(dataDir, sourceCallId);
     expect(stub).toMatchObject({ ok: false, externalized: true });
     const original = JSON.parse(readFileSync(stub.path, "utf8"));
@@ -174,9 +124,8 @@ test("large script results use evidence_search while small follow-up pages stay 
       const toolIO = slot(user, "#toolIO");
       const row = toolIO.find((item: any) => item.name === "script_read");
       expect(row).toBeDefined();
-      expect(row.return.workspaceIds.length).toBeGreaterThan(0);
-      expect(operationsFor(user, row.callId)[0]!.result).toMatchObject({ externalized: true });
-      expect(operationsFor(user, row.callId)[0]!.result).not.toHaveProperty("code");
+      expect(row.return).toMatchObject({ externalized: true });
+      expect(row.return).not.toHaveProperty("code");
       expect(user).not.toContain(code);
       const stub = storedReturn(dataDir, row.callId);
       expect(stub.externalized).toBe(true);
@@ -189,8 +138,7 @@ test("large script results use evidence_search while small follow-up pages stay 
     const toolIO = slot(user, "#toolIO");
     const search = toolIO.find((row: any) => row.name === "evidence_search");
     expect(search).toBeDefined();
-    expect(search.return.workspaceIds.length).toBeGreaterThan(0);
-    const hit = operationsFor(user, search.callId).find(operation => operation.result.kind === "search")!.result;
+    const hit = search.return.results[0];
     expect(search.ok).toBe(true);
     expect(hit.kind).toBe("search");
     expect(hit.matches[0].snippet).toContain("PAGE_SENTINEL");
@@ -215,23 +163,23 @@ test("history above the compress threshold is compressed before the main model r
     conversationId, turnId: `tn_${String(i + 1).padStart(2, "0")}`, status: "completed",
     createdAt: "2026-09-11", completedAt: "2026-09-11",
     input: {id: `input_${String(i + 1).padStart(2, "0")}`, text: "H".repeat(35000), submittedAt: "2026-09-11"},
-    assembled: {baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [], workspace: []},
+    assembled: {baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: []},
     stopReason: { kind: "reply", text: "已完成" },
   }));
   ledger.turnIds = turns.map(turn => turn.turnId);
   ledger.userInputHistory = turns.map(inputRecord);
   turns.forEach(turn => saveTurn(dataDir, turn));
+  ledger.loops = turns.map((turn, index) => ({ id: `loop_${index + 1}`, conversationId, turnId: turn.turnId, createdAt: turn.createdAt, completedAt: turn.completedAt!, runtime: [{ id: `rt_${index + 1}`, type: "userInput", content: turn.input.text }], helm: { id: `helm_${index + 1}`, content: "已完成", calls: [], finish: "stop" } }));
   saveLedger(dataDir, ledger);
   let summaries = 0, main = 0;
   const base = provider(user => {
     main++;
     expect(summaries).toBeGreaterThan(0);
-    const notesView = slot(user, "#notes") as Ledger["notes"];
-    expect(notesView).toEqual([]);
+    expect(user).toContain("<summaries>");
     return finish();
   });
   const reply = await handleTurn({ dataDir, repoRoot, host, provider: {complete: async input => {
-    if (input.tools.some(tool => tool.function.name === "submitTurnSummaries")) {
+    if (input.tools.some(tool => tool.function.name === "submitLoopSummaries")) {
       summaries++;
       expect(main).toBe(0);
     } else {

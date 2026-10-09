@@ -14,35 +14,92 @@
     "contextWindowChars": 250000
   },
   "gates": {
-    "compressAtChars": { "follow": "contextWindowChars", "ratio": 1.0 },
-    "hardLimitChars": { "follow": "contextWindowChars", "ratio": 1.25 },
-    "inlineChars": { "follow": "contextWindowChars", "ratio": 0.024, "cap": 6000 },
-    "intentMaxChars": { "follow": "contextWindowChars", "ratio": 0.02, "cap": 4000 },
-    "imageInlineBytes": { "fixed": 262144 },
-    "pointerShellReserve": { "follow": "inlineChars", "ratio": 0.1, "cap": 400, "floor": 100 },
-    "summaryRecompressMinActive": { "fixed": 10 },
-    "summaryFoldMinRows": { "fixed": 20 },
-    "foldL1ToL2Chunk": { "fixed": 10 },
-    "foldHigherChunk": { "fixed": 10 },
-    "foldMaxLevel": { "fixed": 6 },
-    "keepToolBatches": { "fixed": 1 },
-    "notesFlushRows": { "fixed": 200 },
-    "turnRotateAtChars": { "follow": "compressAtChars", "ratio": 0.8 },
-    "maxTurnRotations": { "fixed": 3 },
-    "skillCatalogLimit": { "fixed": 10 },
-    "processOutputRetain": { "fixed": 200 },
-    "readOnlyPrompt": { "fixed": 30 },
-    "readOnlySecond": { "fixed": 60 },
-    "readOnlyGrace": { "fixed": 3 },
-    "readOnlyHard": { "fixed": 66 },
-    "repeatWindow": { "fixed": 8 },
-    "repeatCallLimit": { "fixed": 2 },
-    "repeatDuplicateCalls": { "fixed": 6 },
-    "repeatDuplicateSignatures": { "fixed": 2 },
-    "repeatFaultLimit": { "fixed": 2 },
-    "observationNudgeFirstGate": { "fixed": 20 },
-    "observationNudgeMinGate": { "fixed": 10 },
-    "observationNudgeStep": { "fixed": 10 },
-    "compressNudgeHeadroom": { "follow": "contextWindowChars", "ratio": 0.1, "floor": 1000 }
+    "compressAtChars": {
+      "follow": "contextWindowChars",
+      "ratio": 1.0
+    },
+    "hardLimitChars": {
+      "follow": "contextWindowChars",
+      "ratio": 1.25
+    },
+    "inlineChars": {
+      "follow": "contextWindowChars",
+      "ratio": 0.024,
+      "cap": 6000
+    },
+    "intentMaxChars": {
+      "follow": "contextWindowChars",
+      "ratio": 0.02,
+      "cap": 4000
+    },
+    "imageInlineBytes": {
+      "fixed": 262144
+    },
+    "pointerShellReserve": {
+      "follow": "inlineChars",
+      "ratio": 0.1,
+      "cap": 400,
+      "floor": 100
+    },
+    "summaryRecompressMinActive": {
+      "fixed": 10
+    },
+    "summaryFoldMinRows": {
+      "fixed": 20
+    },
+    "foldL1ToL2Chunk": {
+      "fixed": 10
+    },
+    "foldHigherChunk": {
+      "fixed": 10
+    },
+    "foldMaxLevel": {
+      "fixed": 6
+    },
+    "skillCatalogLimit": {
+      "fixed": 10
+    },
+    "processOutputRetain": {
+      "fixed": 200
+    },
+    "readOnlyPrompt": {
+      "fixed": 30
+    },
+    "readOnlySecond": {
+      "fixed": 60
+    },
+    "readOnlyGrace": {
+      "fixed": 3
+    },
+    "readOnlyHard": {
+      "fixed": 66
+    },
+    "repeatWindow": {
+      "fixed": 8
+    },
+    "repeatCallLimit": {
+      "fixed": 2
+    },
+    "repeatDuplicateCalls": {
+      "fixed": 6
+    },
+    "repeatDuplicateSignatures": {
+      "fixed": 2
+    },
+    "repeatFaultLimit": {
+      "fixed": 2
+    },
+    "observationNudgeFirstGate": {
+      "fixed": 20
+    },
+    "observationNudgeMinGate": {
+      "fixed": 10
+    },
+    "observationNudgeStep": {
+      "fixed": 10
+    },
+    "keepLoops": {
+      "fixed": 1
+    }
   }
 }

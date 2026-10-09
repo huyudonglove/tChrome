@@ -20,28 +20,16 @@ const sectionTableIds = (markdown: string, section: string, next: string) => {
 
 test("module registry owns consumers and archive fields", () => {
   const registry = loadModuleRegistry(root);
-  expect(compressedArchiveFields(registry)).toEqual([
-    "userInput",
-    "toolIO",
-    "observations",
-    "workspace",
-    "memoryWrites",
-    "reflection",
-    "notes",
-    "queryHistory",
-    "stopReason",
-  ]);
+  expect(compressedArchiveFields(registry)).toEqual(["loops"]);
   const mainSystem = registryModules(registry, { role: "system", consumer: "main" }).map(row => row.id);
   expect(mainSystem).toContain("runtimeProtocol");
   expect(mainSystem).not.toContain("runtimeNotices");
   expect(mainSystem).not.toContain("compressionModules");
   const mainUser = registryModules(registry, { role: "user", consumer: "main" }).map(row => row.id);
-  expect(mainUser).toEqual(["skill", "projectMemory", "tools", "conversation", "runtimeNotices"]);
+  expect(mainUser).toEqual(["skill", "projectMemory", "tools", "conversation", "contextUsage"]);
   const md = compressionArchiveFieldsMarkdown(root);
-  expect(md).toContain("- toolIO:");
-  expect(md).toContain("- observations:");
-  expect(md).toContain("arguments");
-  expect(md).toContain("return.text");
+  expect(md).toContain("- loops:");
+  expect(md).toContain("callId");
   expect(md).not.toContain("modules.json");
   expect(md).not.toContain("archiveField");
 });

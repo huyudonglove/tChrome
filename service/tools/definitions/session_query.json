@@ -2,30 +2,36 @@
   "type": "function",
   "function": {
     "name": "session_query",
-    "description": "会话数据聚合查询：按工具名/轮次/关键字统计或列出本机 tChrome 会话的调用记录。替代手搓 glob+python 解析 toolio.jsonl，典型场景是「本会话各工具调用了多少次」「哪些轮次调用最密」「哪些返回超量被外置」「有哪些会话、各占多大」。返回 ok、mode 与对应 payload（外置全文仍用 evidence_search 取回）。\n",
+    "description": "查询本机会话的 loop 原文、runtime 输入、helm 响应、任务及底层工具调用日志。按 loopId/runtimeId/helmId/taskId 精确回溯记录，也可按关键字检索。已压缩 loop 原文仍可查。tools/calls/externalized 统计或列出工具日志；大结果沿统一门禁外置，使用返回的 callId 和 evidence_search 读取。",
     "parameters": {
       "type": "object",
       "properties": {
         "mode": {
           "type": "string",
-          "enum": ["summary", "conversations", "tools", "turns", "calls", "externalized"],
-          "description": "summary=整会话总览；conversations=列出全部会话（含轮数与体积）；tools=按工具聚合（可带 argumentKey 看取值分布）；turns=按轮聚合；calls=按 callId 列出匹配行；externalized=超量外置清单。"
+          "enum": [
+            "summary",
+            "conversations",
+            "loops",
+            "runtime",
+            "helm",
+            "tasks",
+            "tools",
+            "calls",
+            "externalized"
+          ],
+          "description": "summary=总览；conversations=会话目录；loops/runtime/helm/tasks=完整记录；tools=工具聚合；calls=调用目录；externalized=大结果目录。"
         },
         "conversationId": {
           "type": "string",
-          "description": "目标会话编号；缺省回落当前会话。仅 summary/conversations 之外的 mode 需要。"
+          "description": "目标会话编号，省略使用当前会话；conversations 模式无需指定。"
         },
         "tool": {
           "type": "string",
           "description": "可选过滤：只看某个工具名。"
         },
-        "turnId": {
-          "type": "string",
-          "description": "可选过滤：只看某一轮，如 tn_042。"
-        },
         "keyword": {
           "type": "string",
-          "description": "可选过滤：对工具名、callId、arguments 与返回文本做小写子串匹配。"
+          "description": "按记录内容、调用参数或返回文本做不区分大小写的子串匹配。"
         },
         "argumentKey": {
           "type": "string",
@@ -33,11 +39,11 @@
         },
         "top": {
           "type": "number",
-          "description": "mode=tools/turns 的返回条数上限，默认 40/30。"
+          "description": "tools 聚合的条数上限，默认40。"
         },
         "limit": {
           "type": "number",
-          "description": "mode=calls/externalized 的返回条数上限，默认 50。"
+          "description": "loops/runtime/helm/tasks/calls/externalized 返回条数上限，默认50。"
         },
         "reason": {
           "type": "string",
@@ -45,11 +51,33 @@
         },
         "risk": {
           "type": "string",
-          "enum": ["low", "medium", "high"],
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
           "description": "风险等级；只读聚合用 low。"
+        },
+        "loopId": {
+          "type": "string",
+          "description": "过滤指定 loop，适用于 loops/runtime/helm/tools/calls/externalized"
+        },
+        "runtimeId": {
+          "type": "string",
+          "description": "runtime 模式按输入记录 ID 精确查询"
+        },
+        "helmId": {
+          "type": "string",
+          "description": "helm 模式按模型响应 ID 精确查询"
+        },
+        "taskId": {
+          "type": "string",
+          "description": "tasks 模式按任务 ID 查询完整最新状态，包括已完成或已取消任务"
         }
       },
-      "required": ["mode"],
+      "required": [
+        "mode"
+      ],
       "additionalProperties": false
     }
   },

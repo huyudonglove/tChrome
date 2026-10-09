@@ -2,9 +2,8 @@ import { expect, test } from "bun:test";
 import { admitExecution, admitImages, admitText, admitReturn, deferredImageNote, retrievalWindowChars } from "./admission.ts";
 import { buildBlockIndex, readBlock, searchBlocks, type BlockIndex } from "./evidence/index.ts";
 import { runtimeConfig } from "./config/runtime.ts";
-import { toolHistoryView } from "./context/projections/tools.ts";
 
-test("externalization preserves failures and their original message through call projection", () => {
+test("externalization preserves failures and their original message in the admitted result", () => {
   const failure = { ok: false, faultCode: "file_not_found", error: "Missing source", message: "Read failed", recovery: "inspect_state", details: { path: "/missing.ts" } };
   const full = JSON.stringify({ ...failure, content: "x".repeat(runtimeConfig.results.inlineChars) });
   const admitted = admitReturn(full, { callId: "call_01", path: "call_01.txt" });
@@ -12,11 +11,7 @@ test("externalization preserves failures and their original message through call
   expect(admitted.payload).toMatchObject({ ...failure, externalized: true });
   expect(admitted.payload.externalizationHint).toBeString();
   expect(admitted.payload).not.toHaveProperty("content");
-  const projected = toolHistoryView([{ callId: "call_01", turnId: "tn_01", name: "local_fs_read", arguments: {}, return: { stage: "complete", text: JSON.stringify(admitted.payload), totalChars: full.length } }]);
-  expect(projected[0]!.return.result).toMatchObject(failure);
-  const observed = toolHistoryView([{ callId: "call_01", turnId: "tn_01", name: "observation_write", arguments: {}, return: { stage: "complete", text: "{\"ok\":true}", totalChars: 11 } }],
-    [{ id: "page_01", turnId: "tn_01", callId: "call_01", observedAt: "now", type: "check", result: admitted.payload }]);
-  expect(observed[0]!.return.result).toMatchObject(failure);
+
 });
 
 test("externalized batch keeps every item status and failed path candidates visible", () => {

@@ -1,7 +1,6 @@
 import { errorMessage } from "../../shared/errors.ts";
 import { errorDetail } from "../../shared/error-details.ts";
 import type { QueryModule, QueryResult } from "../agents/query/types.ts";
-import type { QueryRecord, QueryEvidence } from "../context/projections/queries.ts";
 import type { ToolEffect, ToolExecution } from "./effects.ts";
 import type { BrowserHost, ChatTool, CurrentPage, Provider, ToolArguments } from "../types.ts";
 import { createTaskPacket, runSubagentDag, createSubagentExecutor, type SubagentCapability, type TaskPacket } from "../agents/subagent/index.ts";
@@ -19,7 +18,7 @@ import { readScript } from "../scripts/store.ts";
 import { failedTool, normalizeToolExecution } from "./result.ts";
 import { allocateRecordId } from "../runtime/ids.ts";
 import { join } from "node:path";
-import { loadFullReturn, loadReturnBlockIndex, saveReturnBlockIndex, paths } from "../runtime/store.ts";
+import { loadLedger, loadFullReturn, loadReturnBlockIndex, saveReturnBlockIndex, paths } from "../runtime/store.ts";
 import { loadContextRecord } from "../runtime/records.ts";
 import { buildBlockIndex, readBlock, searchBlocks, type BlockIndex } from "../evidence/index.ts";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -99,12 +98,12 @@ export type ExecuteInput = {
   subagentTools?: readonly ChatTool[];
   subagentToolCapabilities?: Readonly<Record<string, readonly SubagentCapability[]>>;
   signal?: AbortSignal;
-  queryContext?: (args: {sumId: string; module: QueryModule; intent: string; file?: string}) => Promise<QueryResult>;
-  compressContext?: (args: { phase: "history" | "current" }) => Promise<{
+  queryContext?: (args: {sumId?: string; loopId?: string; module: QueryModule; intent: string; file?: string}) => Promise<QueryResult>;
+  compressContext?: () => Promise<{
     status: "completed" | "stopped" | "noop";
-    committedTurnIds: string[];
-    failedTurnId?: string;
-    totalTurns: number;
+    committedLoopIds: string[];
+    failedLoopIds?: string[];
+    totalLoops: number;
     windowChars?: { before: number | null; after: number | null };
   }>;
   lookup: {
@@ -310,6 +309,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     }).filter((row) => row.id && (row.status !== undefined || row.text !== undefined || row.expectedEffect !== undefined || row.verification !== undefined || row.blockedReason !== undefined || row.outcome !== undefined));
     if (!updates.length) return failedTool(errorDetail("task_update_patch"), "invalid_arguments");
     const taskId = typeof args.taskId === "string" && args.taskId.trim() ? args.taskId.trim() : undefined;
+    if (!taskId) return failedTool("task_update 需要显式 taskId", "invalid_arguments");
     const hasBlocked = updates.some((row) => Boolean(row.blockedReason));
     return result(JSON.stringify({
       ok: true,
@@ -320,6 +320,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   }
   if (name === "task_complete") {
     const taskId = typeof args.taskId === "string" && args.taskId.trim() ? args.taskId.trim() : undefined;
+    if (!taskId) return failedTool("task_complete 需要显式 taskId", "invalid_arguments");
     const reason = typeof args.reason === "string" && args.reason.trim() ? args.reason.trim() : undefined;
     return result(JSON.stringify({ ok: true, ...(taskId ? { taskId } : {}) }),
       [{ type: "task_complete", ...(taskId ? { taskId } : {}), ...(reason ? { reason } : {}) }]);
@@ -486,33 +487,28 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     }), [{ type: "memory_delete", memoryId }]);
   }
   if (name === "context_query" || name === "agent_query") {
+    const ids = [args.sumId, args.loopId, args.taskId].filter(value => value !== undefined);
+    if (ids.length !== 1 || typeof ids[0] !== "string" || !ids[0].trim()) {
+      return failedTool("必须提供且仅提供一个非空 sumId、loopId 或 taskId", "invalid_arguments");
+    }
+    if (args.taskId !== undefined) {
+      if (!input.conversationId) return failedTool("任务查询需要当前会话", "invalid_arguments");
+      const task = loadLedger(dataDir, input.conversationId).tasks.find(item => item.id === args.taskId);
+      return result(JSON.stringify(task
+        ? { ok: true, status: "complete", taskId: task.id, task }
+        : { ok: false, status: "not_found", faultCode: "not_found", taskId: args.taskId }));
+    }
     if (!input.queryContext) return failedTool(errorDetail("query_agent_unavailable"), "query_failed");
     const file = typeof args.file === "string" && args.file.trim() ? args.file.trim() : undefined;
-    const queried = await input.queryContext({ sumId: String(args.sumId), module: args.module as QueryModule,
-      intent: String(args.intent), ...(file ? { file } : {}) });
-    if (queried.status === "cancelled") return result(JSON.stringify({ ok: false, status: "cancelled" }));
-    const status: QueryEvidence["status"] = queried.status === "not_found" || queried.status === "error" ? queried.status : "complete";
-    const query = { sumId: queried.sumId, module: queried.module, intent: queried.intent,
-      status,
-      records: queried.records as QueryRecord[],
-      detail: queried.detail };
-    // Full records go to the queryHistory array + <query>; toolIO projection keeps a pointer only.
-    return result(JSON.stringify({
-      ok: queried.ok,
-      status: query.status,
-      ...(queried.ok ? {} : { faultCode: queried.faultCode ?? "query_failed" }),
-      sumId: query.sumId,
-      module: query.module,
-      intent: query.intent,
-      ...(file ? { file } : {}),
-      records: query.records,
-      detail: query.detail,
-    }), [{ type: "query.set", query }]);
+    const queried = await input.queryContext({
+      ...(typeof args.sumId === "string" ? { sumId: args.sumId } : { loopId: args.loopId as string }),
+      module: args.module as QueryModule, intent: String(args.intent), ...(file ? { file } : {}),
+    });
+    return result(JSON.stringify({ ...queried, ...(file ? { file } : {}) }));
   }
   if (name === "agent_compress") {
     if (!input.compressContext) return failedTool(errorDetail("compression_agent_unavailable"), "compression_failed");
-    const phase = args.phase === "current" ? "current" : "history";
-    const outcome = await input.compressContext({ phase });
+    const outcome = await input.compressContext();
     return result(JSON.stringify({ ok: outcome.status === "completed" || outcome.status === "noop", ...outcome }));
   }
   if ((JOB_TOOL_NAMES as readonly string[]).includes(name)) {

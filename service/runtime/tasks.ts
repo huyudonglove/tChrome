@@ -97,19 +97,21 @@ export function prepareTaskSet(dataDir: string, context: TaskContext, args: Tool
   }
 
   const previous = ledger.activeTaskId
-    ? ledger.tasks.find((row) => row.id === ledger.activeTaskId && row.status === "active")
+    ? ledger.tasks.find((row) => row.id === ledger.activeTaskId && (row.status === "active" || row.status === "paused"))
     : undefined;
   let replacedPlanId: string | undefined;
   const history: TaskHistoryRecord[] = [];
   if (previous) {
     replacedPlanId = previous.id;
+    const previousStatus = previous.status;
     previous.status = "cancelled";
+    previous.completedAt = nowIso();
     touchPlan(previous, context.turnId);
     const record = {
       taskId: previous.id,
       type: "task_cancelled" as const,
       reason: "replaced",
-      before: { status: "active" },
+      before: { status: previousStatus },
       after: { status: "cancelled" },
     };
     pushHistory(dataDir, ledger, record, context.turnId);
@@ -120,7 +122,8 @@ export function prepareTaskSet(dataDir: string, context: TaskContext, args: Tool
   const now = nowIso();
   const plan: Task = {
     id: taskId,
-    status: "active",
+    status: items.every(item => item.status === "done") ? "completed" : "active",
+    ...(items.every(item => item.status === "done") ? { completedAt: now } : {}),
     items,
     createdAt: now,
     updatedAt: now,
@@ -136,6 +139,10 @@ export function prepareTaskSet(dataDir: string, context: TaskContext, args: Tool
     ...(replacedPlanId ? { reason: `replaced:${replacedPlanId}` } : {}),
   }, context.turnId);
   history.push(ledger.taskHistory.at(-1)!);
+  if (plan.status === "completed") {
+    pushHistory(dataDir, ledger, { taskId: plan.id, type: "task_completed", after: { status: "completed" }, reason: "items_completed" }, context.turnId);
+    history.push(ledger.taskHistory.at(-1)!);
+  }
   const doing = activeDoing(plan);
   if (doing) {
     pushHistory(dataDir, ledger, {
@@ -155,26 +162,12 @@ export function prepareTaskUpdate(dataDir: string, context: TaskContext, args: T
   history: TaskHistoryRecord[];
 } {
   const { ledger } = context;
-  const taskId = typeof args.taskId === "string" && args.taskId.trim() ? args.taskId.trim() : ledger.activeTaskId;
-  if (!taskId) throw new Error(errorDetail("task_update_need_active"));
+  const taskId = typeof args.taskId === "string" && args.taskId.trim() ? args.taskId.trim() : undefined;
+  if (!taskId) throw new Error("task_update 需要显式 taskId");
   const plan = findPlan(ledger, taskId);
   if (plan.status !== "active" && plan.status !== "paused") {
     throw new Error(errorDetail("task_update_terminal", { id: plan.id }));
   }
-  const wasPaused = plan.status === "paused";
-  if (wasPaused) {
-    plan.status = "active";
-    delete plan.completedAt;
-    touchPlan(plan, context.turnId);
-    pushHistory(dataDir, ledger, {
-      taskId: plan.id,
-      type: "task_resumed",
-      before: { status: "paused" },
-      after: { status: "active" },
-      reason: "task_update",
-    }, context.turnId);
-  }
-
   const raw = Array.isArray(args.items) ? args.items : [];
   if (!raw.length) throw new Error(errorDetail("task_update_empty_items"));
   const patches = raw.map((entry, i) => {
@@ -208,6 +201,12 @@ export function prepareTaskUpdate(dataDir: string, context: TaskContext, args: T
 
   const working = structuredClone(plan) as Task;
   const history: TaskHistoryRecord[] = [];
+  const pendingHistory: Parameters<typeof pushHistory>[2][] = [];
+  if (working.status === "paused") {
+    working.status = "active";
+    touchPlan(working, context.turnId);
+    pendingHistory.push({ taskId: working.id, type: "task_resumed", before: { status: "paused" }, after: { status: "active" }, reason: "task_update" });
+  }
   for (const patch of patches) {
     const item = working.items.find((row) => row.id === patch.itemId);
     if (!item) throw new Error(errorDetail("task_item_missing", { id: patch.itemId, taskId: plan.id }));
@@ -215,7 +214,6 @@ export function prepareTaskUpdate(dataDir: string, context: TaskContext, args: T
     const now = nowIso();
     if (patch.text !== undefined) item.text = patch.text;
     if (patch.expectedEffect !== undefined) item.expectedEffect = patch.expectedEffect;
-    else if (patch.expectedEffect === undefined && "expectedEffect" in patch) delete item.expectedEffect;
     if (patch.verification !== undefined) item.verification = patch.verification;
     if (patch.blockedReason !== undefined) item.blockedReason = patch.blockedReason;
     if (patch.outcome !== undefined) item.outcome = patch.outcome;
@@ -247,17 +245,27 @@ export function prepareTaskUpdate(dataDir: string, context: TaskContext, args: T
       : item.status === "done" && before.status !== "done"
         ? "item_completed" as const
         : "item_updated" as const;
-    pushHistory(dataDir, ledger, {
+    pendingHistory.push({
       taskId: working.id,
       taskItemId: item.id,
       type,
       before,
       after: structuredClone(item),
       ...(item.blockedReason ? { reason: item.blockedReason } : {}),
-    }, context.turnId);
-    history.push(ledger.taskHistory.at(-1)!);
+    });
   }
   ensureSingleDoing(working);
+  if (working.items.every(item => item.status === "done")) {
+    const before = { status: working.status };
+    working.status = "completed";
+    working.completedAt = nowIso();
+    touchPlan(working, context.turnId);
+    pendingHistory.push({ taskId: working.id, type: "task_completed", before, after: { status: "completed" }, reason: "items_completed" });
+  }
+  for (const record of pendingHistory) {
+    pushHistory(dataDir, ledger, record, context.turnId);
+    history.push(ledger.taskHistory.at(-1)!);
+  }
   const index = ledger.tasks.findIndex((row) => row.id === working.id);
   ledger.tasks[index] = working;
   setLedgerActive(ledger, working);
@@ -269,8 +277,8 @@ export function prepareTaskComplete(dataDir: string, context: TaskContext, args:
   history: TaskHistoryRecord[];
 } {
   const { ledger } = context;
-  const taskId = typeof args.taskId === "string" && args.taskId.trim() ? args.taskId.trim() : ledger.activeTaskId;
-  if (!taskId) throw new Error(errorDetail("task_complete_need_active"));
+  const taskId = typeof args.taskId === "string" && args.taskId.trim() ? args.taskId.trim() : undefined;
+  if (!taskId) throw new Error("task_complete 需要显式 taskId");
   const plan = findPlan(ledger, taskId);
   if (plan.status === "completed") return { plan, history: [] };
   if (plan.status === "cancelled") throw new Error(errorDetail("task_complete_cancelled", { id: plan.id }));
@@ -293,11 +301,6 @@ export function prepareTaskComplete(dataDir: string, context: TaskContext, args:
   return { plan, history: [ledger.taskHistory.at(-1)!] };
 }
 
-/**
- * Close an active Task whose items are all done. A finished turn must not leave a
- * zombie plan behind, so the loop closes it instead of relying on the model to call
- * task_complete. Returns true when the ledger changed and needs persisting.
- */
 export function pauseActiveTask(dataDir: string, ledger: Ledger, turnId: string): boolean {
   const taskId = ledger.activeTaskId;
   if (!taskId) return false;
@@ -313,28 +316,6 @@ export function pauseActiveTask(dataDir: string, ledger: Ledger, turnId: string)
     before,
     after: { status: "paused" },
     reason: "turn_closed",
-  }, turnId);
-  setLedgerActive(ledger, plan);
-  return true;
-}
-
-export function autoCompleteActiveTask(dataDir: string, ledger: Ledger, turnId: string): boolean {
-  const taskId = ledger.activeTaskId;
-  if (!taskId) return false;
-  const plan = ledger.tasks.find((row) => row.id === taskId);
-  if (!plan || plan.status !== "active") return false;
-  if (!plan.items.length) return false;
-  if (plan.items.some((item) => item.status !== "done")) return false;
-  const before = { status: plan.status };
-  plan.status = "completed";
-  plan.completedAt = nowIso();
-  touchPlan(plan, turnId);
-  pushHistory(dataDir, ledger, {
-    taskId: plan.id,
-    type: "task_completed",
-    before,
-    after: { status: "completed" },
-    reason: "auto_closed",
   }, turnId);
   setLedgerActive(ledger, plan);
   return true;

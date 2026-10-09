@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "task_complete",
-    "description": "将当前 Task 标为 completed。\n前置：全部 items 为 done；仍有 todo/doing 会失败。可选 taskId（默认活动 Task）。\n返回：ok、taskId。",
+    "description": "按显式 taskId 确认任务完成。全部 items 必须为 done；仍有 todo/doing 则失败。返回完整最终 task，供完成位置保留。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,11 +10,13 @@
           "type": "string"
         },
         "taskId": {
-          "type": "string"
+          "type": "string",
+          "description": "需要更新的任务 ID"
         }
       },
       "required": [
-        "reason"
+        "reason",
+        "taskId"
       ],
       "additionalProperties": false
     }

@@ -2,11 +2,10 @@ import { expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { CompletionResult, Provider, Turn } from "../types.ts";
+import type { CompletionResult, Provider, Turn, LoopRecord } from "../types.ts";
 import { commitArchive, loadIndex } from "../context-archive/store.ts";
-import { compressionTurnsFromUserMessage } from "../agents/compression/protocol.ts";
 import { handleTurn } from "./loop.ts";
-import { inputRecord } from "./ids.ts";
+import { allocateRecordId, inputRecord } from "./ids.ts";
 import { deleteConversation, ensureSession, listConversationIds, loadLedger, loadTurn, newConversation, openConversation, saveLedger, saveTurn, stopTurn } from "./store.ts";
 
 const repoRoot = join(import.meta.dir, "../..");
@@ -28,10 +27,17 @@ function aborted(signal: AbortSignal | undefined): Promise<never> {
 }
 function seed(dataDir: string, large = false) {
   const { conversationId: cv } = ensureSession(dataDir), ledger = loadLedger(dataDir, cv);
-  const turns = Array.from({ length: 5 }, (_, i): Turn => ({ conversationId: cv, turnId: `tn_0${i + 1}`, status: "completed", createdAt: "2026-09-12", completedAt: "2026-09-12", input: { id: `input_0${i + 1}`, text: large ? "历史要求".repeat(12000) : `历史要求${i}`, submittedAt: "2026-09-12" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [], workspace: [] }, stopReason: { kind: "reply", text: "完成" } }));
+  const turns = Array.from({ length: 5 }, (_, i): Turn => ({ conversationId: cv, turnId: allocateRecordId(dataDir, cv, "turn"), status: "completed", createdAt: "2026-09-12", completedAt: "2026-09-12", input: { id: `input_0${i + 1}`, text: large ? "历史要求".repeat(12000) : `历史要求${i}`, submittedAt: "2026-09-12" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [] }, stopReason: { kind: "reply", text: "完成" } }));
   ledger.turnIds = turns.map(turn => turn.turnId); ledger.userInputHistory = turns.slice(0, -1).map(inputRecord);
-  turns.forEach(turn => saveTurn(dataDir, turn)); saveLedger(dataDir, ledger);
-  return { cv, turns };
+  turns.forEach(turn => saveTurn(dataDir, turn));
+  ledger.loops = turns.map((turn): LoopRecord => ({
+    id: allocateRecordId(dataDir, cv, "loop"), conversationId: cv, turnId: turn.turnId,
+    createdAt: turn.createdAt, sentAt: turn.createdAt, completedAt: turn.completedAt!,
+    runtime: [{ id: allocateRecordId(dataDir, cv, "runtime"), type: "userInput", content: turn.input.text }],
+    helm: { id: allocateRecordId(dataDir, cv, "helm"), content: "完成", calls: [], finish: "stop" },
+  }));
+  saveLedger(dataDir, ledger);
+  return { cv, turns, loops: ledger.loops };
 }
 
 test("stopping a main request aborts its signal and returns stopped without persisting a provider error", async () => {
@@ -53,7 +59,7 @@ test("stopping compression aborts the auxiliary model and leaves archive coverag
   const dataDir = mkdtempSync(join(tmpdir(), "model-stop-compression-")), entered = deferred<AbortSignal | undefined>();
   try {
     const { cv } = seed(dataDir, true);
-    const provider: Provider = { complete: input => { expect(input.tools[0]?.function.name).toBe("submitTurnSummaries"); entered.resolve(input.signal); return aborted(input.signal); } };
+    const provider: Provider = { complete: input => { expect(input.tools[0]?.function.name).toBe("submitLoopSummaries"); entered.resolve(input.signal); return aborted(input.signal); } };
     const running = handleTurn({ dataDir, repoRoot, provider }, body), signal = await within(entered.promise);
     stopTurn(dataDir); expect(signal?.aborted).toBe(true);
     expect((await within(running)).stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
@@ -65,20 +71,20 @@ test("stopping compression aborts the auxiliary model and leaves archive coverag
 test("query uses the main request's signal and cancellation cannot install query evidence", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "model-stop-query-")), entered = deferred<AbortSignal | undefined>();
   try {
-    const { cv, turns } = seed(dataDir);
-    const summary = { id: "sum_01", module: "conversationHistory" as const, level: 1, turnId: "tn_01", summary: "历史要求已处理。", userRequest: "要求", actions: "已处理", result: "已完成", sourceIds: ["turn_tn_01"], createdAt: "2026-09-12" };
-    commitArchive(dataDir, cv, { version: 1, module: "conversationHistory", entries: [summary], activeIds: [summary.id], coveredSourceIds: summary.sourceIds }, [{ id: "turn_tn_01", content: { turnId: "tn_01", userInput: inputRecord(turns[0]!) } }], [summary]);
+    const { cv, loops } = seed(dataDir);
+    const summary = { id: "sum_01", module: "conversationHistory" as const, level: 1, loopIds: [loops[0]!.id], summary: "历史要求已处理。", userRequest: "要求", actions: "已处理", result: "已完成", sourceIds: [loops[0]!.id], createdAt: "2026-09-12" };
+    commitArchive(dataDir, cv, { version: 1, module: "conversationHistory", entries: [summary], activeIds: [summary.id], coveredSourceIds: summary.sourceIds }, [{ id: loops[0]!.id, content: loops[0]! }], [summary]);
     let mainSignal: AbortSignal | undefined, mainCalls = 0;
     const provider: Provider = { complete: async input => {
       if (input.tools[0]?.function.name === "submitMatches") { expect(input.signal).toBe(mainSignal); entered.resolve(input.signal); return aborted(input.signal); }
       mainCalls++; mainSignal = input.signal;
-      return completion([{ id: "query", name: "context_query", arguments: { reason: "核对历史", sumId: summary.id, module: "userInput", intent: "读取要求" } }]);
+      return completion([{ id: "query", name: "context_query", arguments: { reason: "核对历史", sumId: summary.id, module: "runtime", intent: "读取要求" } }]);
     } };
     const running = handleTurn({ dataDir, repoRoot, provider }, body), signal = await within(entered.promise);
     stopTurn(dataDir); expect(signal?.aborted).toBe(true);
     expect((await within(running)).stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
     const ledger = loadLedger(dataDir, cv);
-    expect(ledger.queryHistory).toEqual([]); expect(mainCalls).toBe(1);
+    expect(ledger.loops.flatMap(loop => loop.runtime).filter(row => row.type === "callsResult")).toEqual([]); expect(mainCalls).toBe(1);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
@@ -128,9 +134,9 @@ test("immediately restarting during cancelled compression allows the new turn to
     let compressed = 0;
     const b = handleTurn({ dataDir, repoRoot, provider: { complete: async input => {
       expect(input.signal).not.toBe(signalA); expect(input.signal?.aborted).toBe(false);
-      if (input.tools[0]?.function.name !== "submitTurnSummaries") return finish("重启后完成");
+      if (input.tools[0]?.function.name !== "submitLoopSummaries") return finish("重启后完成");
       compressed++;
-      return completion([{ id: "summaries", name: "submitTurnSummaries", arguments: { summary: "历史要求已处理完成。", actions: "已处理", result: "已完成" } }]);
+      return completion([{ id: "summaries", name: "submitLoopSummaries", arguments: { summary: "历史要求已处理完成。", actions: "已处理", result: "已完成" } }]);
     } } }, body);
     expect((await within(a)).stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
     const reply = await within(b);

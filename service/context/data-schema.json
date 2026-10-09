@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "User 模块数据契约",
-  "description": "模型窗口各标签的逻辑值。skill / conversation / tools / runtimeNotices 为文本，其余标签取 JSON 解析后的值。conversation 为按 turnId 嵌套的 XML 时间线正文。ID 前缀与分配范围由 service/identity/catalog.json 定义。发送前受 hardLimitChars 字符内联预算约束，除 tools 和 skill 外的数据模块可用本地文件引用替代；skill 始终保留完整文本，不参与压缩或裁剪。",
+  "description": "User XML模块正文的逻辑值。conversation按loop组织，contextUsage位于整条User末尾。所有模块说明仅在System。",
   "type": "object",
   "properties": {
     "skill": {
@@ -16,7 +16,7 @@
     "conversation": {
       "type": "string"
     },
-    "runtimeNotices": {
+    "contextUsage": {
       "type": "string"
     }
   },
@@ -25,44 +25,7 @@
     "projectMemory",
     "tools",
     "conversation",
-    "runtimeNotices"
+    "contextUsage"
   ],
-  "additionalProperties": false,
-  "$defs": {
-    "turnId": {
-      "$ref": "tchrome:identity#/$defs/turn"
-    },
-    "memoryId": {
-      "$ref": "tchrome:identity#/$defs/projectMemory"
-    },
-    "callId": {
-      "$ref": "tchrome:identity#/$defs/call"
-    },
-    "memory": {
-      "type": "object",
-      "properties": {
-        "memoryId": {
-          "$ref": "#/$defs/memoryId"
-        },
-        "turnId": {
-          "$ref": "#/$defs/turnId"
-        },
-        "sourceCallId": {
-          "$ref": "#/$defs/callId"
-        },
-        "sourceConversationId": {
-          "type": "string"
-        },
-        "text": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "memoryId",
-        "turnId",
-        "text"
-      ],
-      "additionalProperties": true
-    }
-  }
+  "additionalProperties": false
 }

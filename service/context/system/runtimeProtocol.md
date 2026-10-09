@@ -1,18 +1,18 @@
 <runtimeProtocol>
 <purpose>
-Runtime 负责选择图片、计算窗口大小、压缩历史和外置大结果。这里说明稳定规则；User 的 <runtimeNotices> 提供当前状态与提醒。
+Runtime 负责选择图片、计算窗口大小、压缩历史和外置大结果。这里说明稳定规则；各 loop 的 runtime type=notice 提供当次状态与提醒。
 
 运行状态提醒：
 
-- Runtime 按调用显式 keepInCalls 或工具默认 defaultKeepInCalls 决定记录；显式 true/false 优先，省略采用默认值。有效值为 true 时，调用操作及结果内容自动记录到 notes；false 不写入 notes 或 workspace。notes 达到配置条数阈值后，Runtime 过滤结果与内容均为空的条目，将其余原始证据转入来源轮次的 workspace，保留 ID 与来源。已记录证据统一按 target 对象归组：file、browser、script、process 或 tool。同一对象的操作证据在会话级合并展示，每项保留操作、参数、结果、内容、范围、变更及来源编号；文件按明确路径归因，shell 命令不推断文件路径。notes 与 workspace 保存现有门禁处理后的返回：小结果保留正文，大结果保留状态、错误、索引和原文路径，完整原文沿用 returns 落盘，不重新放回窗口。workspace 保存工具返回的执行事实，模型的观察判断与方案取舍分别写入 observation 和 reflection。每项证据仍归属来源 turn，随该轮压缩归档；calls 对已有正文只保留 workspaceIds 引用，可指向 notes 或 workspace 中的同一证据。已有证据足够就实施并验证，只缺原文时沿来源调用取回。
+- Runtime 在执行时解析 keepInCalls，并把最终值与实际工具结果一起保存。true 的调用和结果保留至所属 loop 压缩；false 的调用和结果仅在结果返回后的下一次请求展示一次。原始调用始终完整落盘。工具结果只保留入窗门禁处理后的内容，不另建 notes 或 workspace 正文副本。
 - 重复调用提醒指出等价调用、相同返回或重复错误。核对上次是否已生效及已有证据，只补影响下一步决定的缺口。
-- observation 提醒出现时，若跨步骤状态尚未保存，记录当前进度、未验证项和继续位置；已有 workspace 执行事实直接复用。reflect 提醒用于判断变化和方案取舍。
+- observation 提醒出现时，若跨步骤状态尚未保存，记录当前进度、未验证项和继续位置；已有 callsResult 执行事实直接复用。reflect 提醒用于判断变化和方案取舍。
 - 只读计数在 {{readOnlyPrompt}} 次和 {{readOnlySecond}} 次提示，最后通牒后到 {{readOnlyHard}} 次会中断本轮。记账调用不增加或清零计数；local_run 也保持中性，明确写入等实质性操作清零。确需继续调查时用 checkContinue(cont=true) 显式确认并清零，之后重新累计；cont=false 结束本轮，不提交最终答复。
 
 需要补充证据时，按来源选工具：
 
 - 要核对历史约定、某轮的判断依据或摘要省略的细节，用 agent_query，传 sumId、module、intent。context_query 提供相同的查询能力。
-- 只关心某个文件时，可加 file：notes 与 workspace 按 files[] 匹配，toolIO 按调用中的文件参数匹配，summaries 按正文提及匹配；其余模块不支持 file。没有匹配记录时直接返回 not_found，不调用查询模型。
+- 只关心某个文件时，可加 file：loops、runtime、helm 按调用与结果中的明确文件字段匹配，summaries 按正文提及匹配。没有匹配记录时直接返回 not_found，不调用查询模型。
 - 要读取某次工具返回或页面观察中的原文片段，用 evidence_search。windows 中每项选择 callId 或 pageId，不能同时指定两者。
 - 要继续读取分页结果，用原工具的分页参数：skill_list 使用 offset/limit；local_fs_read 的 items 中使用 offset/limit 按字节读，或 startLine/endLine 按行读。
 - 要读取归档资产，已知 assetId 时直接 asset_read；需要定位资产时用 asset_list 查 assetId、名称、大小和摘要。文本用 blockId 读目录或完整原文块，或用 keyword 搜索、offset 继续搜索；图片用 x、y、width、height 裁切。
@@ -39,11 +39,10 @@ externalized 只说明正文存放方式，工具是否成功仍看原始 ok、f
 
 上下文接近预算时，按以下规则安排工作：
 
-- System 与 User 合计达到 {{compressAt}} 字符时，Runtime 自动压缩。所有已结束轮次均可进入压缩；当前轮保留最近 {{keepBatches}} 个完整工具批次，较早批次可归档。
-- 压缩按历史顺序逐轮进行，每轮一次发送、一次返回。返回可包含同一 turnId 的多条摘要，全部合法才保存并覆盖对应原文；任一条非法则该轮不保存，并停止本批后续请求。失败轮及后续轮次保留原文，再次达到压缩阈值时继续。外层分别处理 history/current 阶段，模型传输层的重试独立执行。
-- 未覆盖原文先生成 L1 摘要。各层超过 {{summaryFoldMin}} 条才折叠：同 turnId 的 L1 合并后仍为 L1，不同 turnId 的 L1 合并为 L2；L2 及以上逐层升级，最高 L6。每层独立判断，升级时保留该层最新一条。没有新来源时，不单独重压已有摘要，也不显示压缩活动。
-- 摘要替代窗口中的已覆盖原文，原文仍可查询。长任务预计还会产生大量结果、且历史工具记录占主要预算时，可调用 agent_compress，phase=history 压缩已结束轮次。只有当前结果的原文已不再需要时，才使用 phase=current。
-- 本轮自身新增的上下文达到 {{turnRotateAt}} 字符时，Runtime 会闭合该轮，并从压缩后的历史续接，最多连续 {{maxRotations}} 轮。强制闭合不会生成结论文本；接近轮转线时，先用 observation_write 记录当前状态、已确认结论、未验证事项和下一步。
+- System 与 User 合计达到 {{compressAt}} 字符时，Runtime 自动压缩。最近 1 个 loop 完整保留，其余按历史顺序处理；单个 loop 始终不拆。
+- 候选优先按 userInput 或 interrupt 分区。没有输入分界时，按 loop 条数分为前后两半，分别一次发送、一次返回；只有一条直接处理，不递归拆分。每批摘要明确记录来源 loopIds，全部合法才覆盖对应原文；失败保留该批及后续原文并停止后续批次。网络重试仍属于同一次逻辑请求。
+- 未覆盖 loop 生成 L1 摘要，各层超过 {{summaryFoldMin}} 条才折叠，最高 L6；合并后仍保留准确的来源 loopIds 和来源摘要 ID。没有新来源时不单独重压已有摘要，也不显示压缩活动。
+- 原始 loop 始终落盘可回溯。长任务历史记录占主要预算时，可调用 agent_compress。压缩会重建缓存前缀；正常追加不回写历史 loop。
 - 压缩后仍超过 {{hardLimitChars}} 字符时，本轮以 context_limit 失败，不再通过裁剪标签或外置内容继续缩减窗口。
 - <skill> 始终保留完整正文，不参与压缩、裁剪或文件外置。<baseTools>、<tools> 和编号规则保持内联。
 </purpose>

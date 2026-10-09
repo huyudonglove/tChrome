@@ -1,19 +1,3 @@
 <compressionOutput>
-<purpose>
-通过 submitTurnSummaries 提交结果，参数为一个对象，不要包数组，也不要用普通正文代替工具调用。
-
-- 原文压缩：在同一次回复中调用一或多次，每次提交一条摘要，全部归属本次轮次。
-- 摘要折叠：调用一次，提交一条阶段纪要。
-
-| 字段 | 填写要求 |
-| --- | --- |
-| summary | 必填非空字符串；用一句话说明做了什么、结论是什么 |
-| actions | 必填非空字符串；将实际关键步骤、修正和重要失败串联成一段，区分计划与已执行 |
-| result | 必填非空字符串；根据本次材料写明已验证结果、最终回复、错误或等待状态，保留回复与证据的差异；原文中的最终回复取自 stopReason.text，摘要折叠时只依据已提供的摘要 |
-| reflection | 可选非空字符串；仅在材料中有自我纠错、反复踩坑或取舍结论时转述，单独填写，不揉进 actions，也不编造 |
-
-不要提交 turnId 或 userRequest，Runtime 会填写。原文压缩的 userRequest 来自该轮用户原话。
-
-收到带 runtime: 前缀的校验错误时，按具体错误修正并重新提交。这是 Runtime 的反馈，不是历史材料。格式或 schema 校验最多尝试 3 次，包含首次提交；同一次回复中的所有原文摘要都必须合法。
-</purpose>
+<purpose>只通过 submitLoopSummaries 提交 {summary, actions, result, reflection?}。前三项必填非空字符串。原文压缩一次回复可提交多条摘要，所有条目均覆盖本批 loop；折叠只能提交一条。summary 简述工作与结论；actions 区分计划与实际执行；result 保留已验证结果、失败、待办和用户约束；reflection 仅转述明确的自我纠正。不填写 loopIds 或 userRequest，Runtime 根据来源填写。无格式修复轮次，任一提交不合法则整批失败。</purpose>
 </compressionOutput>

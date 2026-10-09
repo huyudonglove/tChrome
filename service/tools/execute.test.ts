@@ -90,19 +90,19 @@ test("JavaScript values with a target tabId are recorded as page observations", 
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
-test("agent_query reuses the Query Agent and emits query.set", async () => {
+test("agent_query returns Query Agent records directly in its tool result", async () => {
   const records = [{ id: "call_01", turnId: "tn_01", name: "local_run" }];
   const queryContext = async () => ({
     ok: true as const,
     status: "complete" as const,
     sumId: "sum_01",
-    module: "toolIO" as const,
+    module: "runtime" as const,
     intent: "核对历史调用参数",
     records,
   });
   const execution = await executeTool({
     name: "agent_query",
-    arguments: { reason: "核对历史", sumId: "sum_01", module: "toolIO", intent: "核对历史调用参数" },
+    arguments: { reason: "核对历史", sumId: "sum_01", module: "runtime", intent: "核对历史调用参数" },
     dataDir: "",
     browserNames: [],
     queryContext,
@@ -111,10 +111,8 @@ test("agent_query reuses the Query Agent and emits query.set", async () => {
   const payload = JSON.parse(execution.text);
   expect(payload.ok).toBe(true);
   expect(payload.status).toBe("complete");
-  expect(execution.effects).toEqual([{ type: "query.set", query: {
-    sumId: "sum_01", module: "toolIO", intent: "核对历史调用参数", status: "complete",
-    records, detail: undefined,
-  } }]);
+  expect(execution.effects).toEqual([]);
+  expect(payload.records).toEqual(records);
 });
 
 test("agent_query passes file through to the Query Agent and echoes it", async () => {
@@ -122,40 +120,40 @@ test("agent_query passes file through to the Query Agent and echoes it", async (
   const records = [{ id: "ws01", turnId: "tn_01", files: ["src/auth.ts"] }];
   const execution = await executeTool({
     name: "agent_query",
-    arguments: { reason: "查鉴权结论", sumId: "sum_01", module: "workspace", intent: "鉴权结论", file: "auth.ts" },
+    arguments: { reason: "查鉴权结论", sumId: "sum_01", module: "runtime", intent: "鉴权结论", file: "auth.ts" },
     dataDir: "",
     browserNames: [],
     queryContext: async (args) => {
       seen.push(args);
-      return { ok: true as const, status: "complete" as const, sumId: "sum_01", module: "workspace" as const, intent: "鉴权结论", file: "auth.ts", records };
+      return { ok: true as const, status: "complete" as const, sumId: "sum_01", module: "runtime" as const, intent: "鉴权结论", file: "auth.ts", records };
     },
     lookup: { unusedTools: [], knownTools: [], enabledTools: [] },
   });
-  expect(seen).toEqual([{ sumId: "sum_01", module: "workspace", intent: "鉴权结论", file: "auth.ts" }]);
+  expect(seen).toEqual([{ sumId: "sum_01", module: "runtime", intent: "鉴权结论", file: "auth.ts" }]);
   expect(JSON.parse(execution.text)).toMatchObject({ ok: true, status: "complete", file: "auth.ts" });
 });
 
 
 
-test("agent_compress invokes the Compression Agent with the selected phase", async () => {
-  const calls: Array<{ phase: "history" | "current" }> = [];
+test("agent_compress invokes the Compression Agent with loop-based batches", async () => {
+  let calls = 0;
   const execution = await executeTool({
     name: "agent_compress",
-    arguments: { reason: "长任务主动降低历史上下文", phase: "current" },
+    arguments: { reason: "长任务主动降低历史上下文" },
     dataDir: "",
     browserNames: [],
-    compressContext: async args => {
-      calls.push(args);
-      return { status: "completed", committedTurnIds: ["tn_01"], totalTurns: 1 };
+    compressContext: async () => {
+      calls++;
+      return { status: "completed", committedLoopIds: ["loop_01"], totalLoops: 1 };
     },
     lookup: { unusedTools: [], knownTools: [], enabledTools: [] },
   });
-  expect(calls).toEqual([{ phase: "current" }]);
+  expect(calls).toBe(1);
   expect(JSON.parse(execution.text)).toEqual({
     ok: true,
     status: "completed",
-    committedTurnIds: ["tn_01"],
-    totalTurns: 1,
+    committedLoopIds: ["loop_01"],
+    totalLoops: 1,
   });
 });
 
@@ -167,8 +165,8 @@ test("agent_compress passes through the measured windowChars before and after", 
     browserNames: [],
     compressContext: async () => ({
       status: "completed",
-      committedTurnIds: ["tn_01"],
-      totalTurns: 1,
+      committedLoopIds: ["loop_01"],
+      totalLoops: 1,
       windowChars: { before: 182000, after: 96000 },
     }),
     lookup: { unusedTools: [], knownTools: [], enabledTools: [] },

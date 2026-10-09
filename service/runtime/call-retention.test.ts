@@ -4,7 +4,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { handleTurn } from "./loop.ts";
 import { ensureSession, loadLedger, loadTurn, saveLedger } from "./store.ts";
-import { assembleTurnHistory } from "./turn-history.ts";
 import type { CompletionResult, Provider } from "../types.ts";
 
 const repoRoot = join(import.meta.dir, "../..");
@@ -13,7 +12,8 @@ const response = (toolCalls: CompletionResult["toolCalls"]): CompletionResult =>
   parseOk: true, schemaOk: true, faultCode: null, missing: [],
 });
 const finish = () => response([{ id: "finish", name: "finishTurn", arguments: { reason: "完成", text: "完成" } }]);
-const callIds = (text: string) => [...text.matchAll(/<call\s+callId="([^"]+)"/g)].map(match => match[1]!);
+const callIds = (text: string): string[] => [...text.matchAll(/<runtime[^>]*type="callsResult">\n([\s\S]*?)\n<\/runtime>/g)]
+  .flatMap(match => (JSON.parse(match[1]!) as {callId: string}[]).map(row => row.callId));
 const setup = () => {
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-call-retention-"));
   const { conversationId } = ensureSession(dataDir);
@@ -58,14 +58,14 @@ test("latest batch is visible once, default and explicit keeps survive turns, st
     const reloaded = loadLedger(dataDir, conversationId);
     expect(reloaded.toolIO.slice(0, 3).map(row => row.arguments.keepInCalls)).toEqual([true, false, undefined]);
     expect(reloaded.toolIO).toHaveLength(5);
-    const archive = assembleTurnHistory(reloaded, loadTurn(dataDir, conversationId, first.turnId));
-    expect(archive.toolIO).toEqual(reloaded.toolIO);
+    expect(reloaded.loops.flatMap(loop => loop.runtime.filter(rt => rt.type === "callsResult").flatMap(rt => rt.content as unknown[]))).toHaveLength(5);
     const secondProvider: Provider = { complete: async input => {
       const window = input.messages[1]!.content;
-      expect(callIds(window)).toEqual([firstCallIds[0]!, firstCallIds[2]!]);
-      const historical = [...window.matchAll(/<turn\s+turnId="([^"]+)"[^>]*>([\s\S]*?)<\/turn>/g)].find(match => match[1] === first.turnId);
-      expect(historical).toBeDefined();
-      expect(callIds(historical![2]!)).toEqual([firstCallIds[0]!, firstCallIds[2]!]);
+      expect(callIds(window)).toContain(firstCallIds[0]!);
+      expect(callIds(window)).toContain(firstCallIds[2]!);
+      expect(callIds(window)).not.toContain(firstCallIds[1]!);
+      expect(window).toContain('<loop id="loop_01">');
+      expect(window).not.toContain('<turn ');
       return finish();
     } };
     const second = await handleTurn({ dataDir, repoRoot, provider: secondProvider, host }, { userInput: "继续", submittedAt: "now" });
@@ -95,7 +95,7 @@ test("invalid keepInCalls replaces previous transient results with a visible sch
         expect(failedCallId).not.toBe(oldCallId);
         expect(callIds(window)).toEqual([failedCallId]);
         expect(window).toContain("keepInCalls");
-        expect(window).toContain('ok="false"');
+        expect(window).toContain('"ok":false');
         return response([{ id: "corrected", name: "page_get_summary", arguments: { reason: "修正类型", tabId: 2, keepInCalls: true } }]);
       }
       const corrected = loadLedger(dataDir, conversationId).toolIO.at(-1)!;

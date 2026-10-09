@@ -147,7 +147,7 @@
         "finishTurn"
       ],
       "readOnly": false,
-      "defaultKeepInCalls": false
+      "defaultKeepInCalls": true
     },
     "asset_list": {
       "purpose": "列出本会话归档资产的 L1 目录（assetId、name、kind、bytes、summary、path）",
@@ -1396,7 +1396,7 @@
         "task_set"
       ],
       "readOnly": false,
-      "defaultKeepInCalls": false
+      "defaultKeepInCalls": true
     },
     "focus": {
       "purpose": "把焦点放到匹配 text 的元素上",
@@ -2608,16 +2608,16 @@
       "defaultKeepInCalls": true
     },
     "session_query": {
-      "purpose": "会话数据聚合查询：一条调用回答「本会话各工具用了几次、哪些轮最密、哪些返回被外置、有哪些会话各占多大」，省去手搓 glob + python 解析 toolio.jsonl",
+      "purpose": "查询会话 loop/runtime/helm 原文、完整任务状态和工具日志；按记录 ID 回溯，按工具统计调用与外置结果",
       "triggers": [
         "session_query",
-        "要统计或回溯本会话/全部会话的工具调用分布、轮次密度、超量外置清单",
-        "想先看整体量级再决定要不要展开某轮原文"
+        "要按 loopId/runtimeId/helmId/taskId 回溯记录，或统计工具调用和外置结果",
+        "想先看会话整体量级再展开 loop 原文"
       ],
       "outputs": [
-        "summary=总会览（调用数、distinctTools、轮数、总量与外置量）",
-        "conversations=各会话轮数与目录体积",
-        "tools/turns=按工具或按轮的聚合（可带 argumentKey 看参数取值分布）",
+        "summary=会话总览（调用数、distinctTools、loop 数、未完成任务数、总量与外置量）",
+        "conversations=各会话 loop 数与目录体积",
+        "loops/runtime/helm/tasks=完整记录；tools=按工具聚合（可带 argumentKey 看参数取值分布）",
         "calls/externalized=匹配行清单与超量外置清单"
       ],
       "preconditions": [
@@ -2934,7 +2934,7 @@
         "reflect_write"
       ],
       "readOnly": false,
-      "defaultKeepInCalls": false
+      "defaultKeepInCalls": true
     },
     "open_tab": {
       "purpose": "在指定 windowId 窗口后台新开标签，不激活新页",
@@ -3959,7 +3959,7 @@
         "page_recheck"
       ],
       "readOnly": false,
-      "defaultKeepInCalls": false
+      "defaultKeepInCalls": true
     },
     "reflect_write": {
       "purpose": "记录当前 turn 的总结与反思（做了什么、依据、风险与下一步）",
@@ -3992,7 +3992,7 @@
         "finishTurn"
       ],
       "readOnly": false,
-      "defaultKeepInCalls": false
+      "defaultKeepInCalls": true
     },
     "reload": {
       "purpose": "刷新指定页",
@@ -5398,7 +5398,7 @@
         "finishTurn"
       ],
       "readOnly": false,
-      "defaultKeepInCalls": false
+      "defaultKeepInCalls": true
     },
     "task_update": {
       "purpose": "按稳定 itemId 更新当前 Task 步骤",
@@ -5423,7 +5423,7 @@
         "finishTurn"
       ],
       "readOnly": false,
-      "defaultKeepInCalls": false
+      "defaultKeepInCalls": true
     },
     "task_complete": {
       "purpose": "在全部步骤 done 后完成当前 Task",
@@ -5448,7 +5448,7 @@
         "finishTurn"
       ],
       "readOnly": false,
-      "defaultKeepInCalls": false
+      "defaultKeepInCalls": true
     },
     "tabs_current": {
       "purpose": "查询当前浏览器窗口与标签列表",

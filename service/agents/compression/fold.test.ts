@@ -17,7 +17,7 @@ const provider: Provider = {
   complete: async () => ({
     finish: "tool_calls",
     content: "",
-    toolCalls: [{ id: "s", name: "submitTurnSummaries", arguments: { summary: "两轮合并纪要。", actions: "A", result: "R" } }],
+    toolCalls: [{ id: "s", name: "submitLoopSummaries", arguments: { summary: "两轮合并纪要。", actions: "A", result: "R" } }],
     attempts: 1,
     parseOk: true,
     schemaOk: true,
@@ -26,26 +26,26 @@ const provider: Provider = {
   }),
 };
 
-const l1 = (id: string, turnId: string, minute: number): CompressionRecord => ({
+const l1 = (id: string, loopId: string, minute: number): CompressionRecord => ({
   id,
   module: "conversationHistory",
   level: 1,
-  turnId,
-  summary: `第 ${turnId} 轮汇总。`,
-  userRequest: `req-${turnId}`,
-  actions: `act-${turnId}`,
-  result: `res-${turnId}`,
+  loopIds: [loopId],
+  summary: `第 ${loopId} 轮汇总。`,
+  userRequest: `req-${loopId}`,
+  actions: `act-${loopId}`,
+  result: `res-${loopId}`,
   sourceIds: [],
   createdAt: `2026-09-20T00:${String(minute).padStart(2, "0")}:00.000Z`,
 });
 
-test("cross-turn fold keeps the newest turn and rolls older L1s into L2 spans", async () => {
+test("cross-loop fold keeps the newest loop and rolls older L1s into L2 spans", async () => {
   const dataDir = dir();
   const conversationId = "cv_fold";
   const pad = runtimeConfig.context.summaryFoldMinRows + 5;
   const rows: CompressionRecord[] = [];
-  for (let i = 1; i <= pad; i++) rows.push(l1(`sum_pad_${i}`, `tn_${String(i).padStart(2, "0")}`, i));
-  const protect = l1("sum_live", "tn_live", 99);
+  for (let i = 1; i <= pad; i++) rows.push(l1(`sum_pad_${i}`, `loop_${String(i).padStart(2, "0")}`, i));
+  const protect = l1("sum_live", "loop_live", 99);
   rows.push(protect);
   const index = {
     version: 1 as const,
@@ -58,7 +58,7 @@ test("cross-turn fold keeps the newest turn and rolls older L1s into L2 spans", 
 
   const merged = await foldActiveSummaries({
     dataDir, conversationId, repoRoot, provider,
-    module: "conversationHistory", records: [], protectTurnId: "tn_live",
+    module: "conversationHistory", records: [], protectLoopId: "loop_live",
   });
 
   expect(merged).toBeGreaterThan(0);
@@ -69,7 +69,7 @@ test("cross-turn fold keeps the newest turn and rolls older L1s into L2 spans", 
   // Newest remaining L1 is kept; older L1s folded into L2 spans.
   const l2 = active.filter((e) => e.level === 2);
   expect(l2.length).toBeGreaterThan(0);
-  expect(l2.every((e) => (e.turnIds?.length ?? 0) > 1)).toBe(true);
+  expect(l2.every((e) => (e.loopIds?.length ?? 0) > 1)).toBe(true);
   expect(l2.every((e) => e.summary === "两轮合并纪要。")).toBe(true);
   // Active count shrank: most pads are gone from the active list.
   expect(active.length).toBeLessThan(rows.length);
@@ -82,12 +82,12 @@ test("fold is a no-op while a level stays at or below the per-level gate", async
   const gate = runtimeConfig.context.summaryFoldMinRows;
   // Exactly gate rows: "more than" the gate is required, so nothing upgrades.
   const rows: CompressionRecord[] = [];
-  for (let i = 1; i <= gate; i++) rows.push(l1(`sum_a_${i}`, `tn_${String(i).padStart(2, "0")}`, i));
+  for (let i = 1; i <= gate; i++) rows.push(l1(`sum_a_${i}`, `loop_${String(i).padStart(2, "0")}`, i));
   const index = { version: 1 as const, module: "conversationHistory" as const, entries: rows, activeIds: rows.map((r) => r.id), coveredSourceIds: [] };
   commitArchive(dataDir, conversationId, index, [], rows);
   const merged = await foldActiveSummaries({
     dataDir, conversationId, repoRoot, provider,
-    module: "conversationHistory", records: [], protectTurnId: null,
+    module: "conversationHistory", records: [], protectLoopId: null,
   });
   expect(merged).toBe(0);
   const after = loadIndex(dataDir, conversationId, "conversationHistory");
@@ -100,7 +100,7 @@ test("fold upgrades a level once it exceeds the per-level gate", async () => {
   const conversationId = "cv_over_gate";
   const gate = runtimeConfig.context.summaryFoldMinRows;
   const rows: CompressionRecord[] = [];
-  for (let i = 1; i <= gate + 1; i++) rows.push(l1(`sum_b_${i}`, `tn_${String(i).padStart(2, "0")}`, i));
+  for (let i = 1; i <= gate + 1; i++) rows.push(l1(`sum_b_${i}`, `loop_${String(i).padStart(2, "0")}`, i));
   commitArchive(dataDir, conversationId, {
     version: 1 as const, module: "conversationHistory" as const,
     entries: rows, activeIds: rows.map((r) => r.id), coveredSourceIds: [],
@@ -108,7 +108,7 @@ test("fold upgrades a level once it exceeds the per-level gate", async () => {
 
   const merged = await foldActiveSummaries({
     dataDir, conversationId, repoRoot, provider,
-    module: "conversationHistory", records: [], protectTurnId: null,
+    module: "conversationHistory", records: [], protectLoopId: null,
   });
   expect(merged).toBeGreaterThan(0);
   const after = loadIndex(dataDir, conversationId, "conversationHistory");
@@ -116,16 +116,16 @@ test("fold upgrades a level once it exceeds the per-level gate", async () => {
   expect(after.activeIds.length).toBeLessThan(gate + 1);
 });
 
-test("same-turn L1+L1 stays L1; cross-turn L1 becomes L2", async () => {
+test("same-loop L1+L1 stays L1; cross-loop L1 becomes L2", async () => {
   const dataDir = dir();
   const conversationId = "cv_rules";
   const pad = runtimeConfig.context.summaryFoldMinRows + 5;
   const rows: CompressionRecord[] = [];
-  for (let i = 1; i <= pad; i++) rows.push(l1(`sum_pad_${i}`, `tn_${String(i).padStart(2, "0")}`, i));
+  for (let i = 1; i <= pad; i++) rows.push(l1(`sum_pad_${i}`, `loop_${String(i).padStart(2, "0")}`, i));
   // Two extra L1s on one turn: same-ID merge must stay L1.
-  rows.push(l1("sum_same_a", "tn_same", 50));
-  rows.push(l1("sum_same_b", "tn_same", 51));
-  rows.push(l1("sum_live", "tn_live", 99));
+  rows.push(l1("sum_same_a", "loop_same", 50));
+  rows.push(l1("sum_same_b", "loop_same", 51));
+  rows.push(l1("sum_live", "loop_live", 99));
   commitArchive(dataDir, conversationId, {
     version: 1 as const, module: "conversationHistory" as const,
     entries: rows, activeIds: rows.map((r) => r.id), coveredSourceIds: [],
@@ -133,7 +133,7 @@ test("same-turn L1+L1 stays L1; cross-turn L1 becomes L2", async () => {
 
   await foldActiveSummaries({
     dataDir, conversationId, repoRoot, provider,
-    module: "conversationHistory", records: [], protectTurnId: "tn_live",
+    module: "conversationHistory", records: [], protectLoopId: "loop_live",
   });
 
   const after = loadIndex(dataDir, conversationId, "conversationHistory");
@@ -144,9 +144,9 @@ test("same-turn L1+L1 stays L1; cross-turn L1 becomes L2", async () => {
   expect(after.entries.every((e) => e.level <= 2)).toBe(true);
   const l2 = active.filter((e) => e.level === 2);
   expect(l2.length).toBeGreaterThan(0);
-  expect(l2.every((e) => (e.turnIds?.length ?? 0) > 1)).toBe(true);
-  const sameTurn = active.filter((e) => e.turnIds?.includes("tn_same") || e.turnId === "tn_same");
-  expect(sameTurn.every((e) => e.level === 1)).toBe(true);
+  expect(l2.every((e) => (e.loopIds?.length ?? 0) > 1)).toBe(true);
+  const sameLoop = active.filter((e) => e.loopIds?.includes("loop_same"));
+  expect(sameLoop.every((e) => e.level === 1)).toBe(true);
 });
 
 test("L2 is not terminal: enough L2 rows upgrade one of them to L3", async () => {
@@ -156,9 +156,9 @@ test("L2 is not terminal: enough L2 rows upgrade one of them to L3", async () =>
   const rows: CompressionRecord[] = [];
   for (let i = 1; i <= gate + 1; i++) {
     rows.push({
-      ...l1(`sum_l2_${i}`, `tn_${String(i).padStart(2, "0")}`, i),
+      ...l1(`sum_l2_${i}`, `loop_${String(i).padStart(2, "0")}`, i),
       level: 2,
-      turnIds: [`tn_${String(i).padStart(2, "0")}_a`, `tn_${String(i).padStart(2, "0")}_b`],
+      loopIds: [`loop_${String(i).padStart(2, "0")}_a`, `loop_${String(i).padStart(2, "0")}_b`],
     });
   }
   commitArchive(dataDir, conversationId, {
@@ -168,10 +168,23 @@ test("L2 is not terminal: enough L2 rows upgrade one of them to L3", async () =>
 
   const merged = await foldActiveSummaries({
     dataDir, conversationId, repoRoot, provider,
-    module: "conversationHistory", records: [], protectTurnId: null,
+    module: "conversationHistory", records: [], protectLoopId: null,
   });
   expect(merged).toBeGreaterThan(0);
   const after = loadIndex(dataDir, conversationId, "conversationHistory");
   expect(after.entries.some((e) => e.level === 3)).toBe(true);
   expect(after.entries.every((e) => e.level <= 3)).toBe(true);
+});
+
+test("multiple L1 summaries spanning the same batch advance to L2 when folded", async () => {
+  const dataDir = dir(), conversationId = "cv_batch_fold";
+  const rows = Array.from({ length: runtimeConfig.context.summaryFoldMinRows + 1 }, (_, i) => ({
+    ...l1(`sum_${i + 1}`, "loop_01", i), loopIds: ["loop_01", "loop_02"],
+  }));
+  commitArchive(dataDir, conversationId, { version: 1, module: "conversationHistory", entries: rows,
+    activeIds: rows.map(row => row.id), coveredSourceIds: [] }, [], rows);
+  await foldActiveSummaries({ dataDir, conversationId, repoRoot, provider, module: "conversationHistory", records: [], protectLoopId: null });
+  const added = loadIndex(dataDir, conversationId, "conversationHistory").entries.slice(rows.length);
+  expect(added.length).toBeGreaterThan(0);
+  expect(added.every(row => row.level === 2 && row.loopIds.join(",") === "loop_01,loop_02")).toBe(true);
 });

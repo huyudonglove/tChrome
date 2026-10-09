@@ -1,148 +1,72 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runtimeConfig } from "./config/runtime.ts";
 import { handleTurn } from "./runtime/loop.ts";
-import { ensureSession, loadLedger, saveLedger, saveTurn, stopTurn, sessionView } from "./runtime/store.ts";
-import { allocateRecordId, inputRecord, localDate } from "./runtime/ids.ts";
-import { archiveDir, commitArchive, loadIndex } from "./context-archive/store.ts";
-import { loadContextModules } from "./context/modules.ts";
-import { validateUserData } from "./context/data-schema.ts";
-import { systemText, userText } from "./context/window.ts";
-import { loadToolRegistry, coreToolIds, toolGuideFor } from "./tools/registry.ts";
-import { skillGuide, loadSkills } from "./skills/loader.ts";
-import { contextState } from "./runtime/context-state.ts";
-import { compressionTurnsFromUserMessage } from "./agents/compression/protocol.ts";
-import type { CompletionResult, Provider, Turn } from "./types.ts";
+import { ensureSession, loadLedger, saveLedger, stopTurn, sessionView, loadFullReturn } from "./runtime/store.ts";
+import { allocateRecordId } from "./runtime/ids.ts";
+import { commitArchive, loadIndex } from "./context-archive/store.ts";
+import type { CompletionResult, Provider, LoopRecord, LoopToolResult } from "./types.ts";
 const repoRoot = join(import.meta.dir, "..");
 const reply = (toolCalls: CompletionResult["toolCalls"]): CompletionResult => ({ content: "", finish: "tool_calls", toolCalls, attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] });
-const finish = () => reply([{ id: "finish", name: "finishTurn", arguments: { reason: "已核对", text: "完成"} }]);
-const section = (user: string, tag: string) => {
-  const m = user.match(new RegExp(`<${tag}>\\n([\\s\\S]*?)\\n</${tag}>`));
-  if (m) return JSON.parse(m[1]!);
-  const all = collectNested(user, tag === "toolIO" ? "call" : tag);
-  if (tag === "toolIO" || tag === "query") return all;
-  return all.length ? all.at(-1) : tag === "notes" ? {} : null;
-};
-const collectNested = (user: string, tag: string): any[] => {
-  const rows: any[] = [];
-  // Record elements carry their scalar fields (id/externalized/...) as attributes, and
-  // a body is raw JSON or an externalization notice. Scan open tags by hand and pair
-  // each with its own closing tag: a lazy regex can swallow the following record and lose attributes.
-  const open = new RegExp(`<${tag}(\\s[^>]*?)?>`, "g");
-  for (let m = open.exec(user); m; m = open.exec(user)) {
-    const attrs = attrRecord(m[1] ?? "");
-    // Rendered descriptions mention bare tag names (e.g. "<query>：本轮查询"); skip those.
-    if (!Object.keys(attrs).length) continue;
-    const bodyStart = open.lastIndex;
-    const close = user.indexOf(`</${tag}>`, bodyStart);
-    const raw = close === -1 ? user.slice(bodyStart) : user.slice(bodyStart, close);
-    const body = raw;
-    let parsed: any;
-    try { parsed = JSON.parse(body.trim()); } catch { rows.push({ ...attrs, __unparsed: body.trim() }); continue; }
-    for (const row of Array.isArray(parsed) ? parsed : [parsed]) rows.push({ ...attrs, ...row });
-  }
-  return rows;
-};
-// Record elements carry their scalar fields (name/stage/ok/externalized/...) as
-// attributes, so a body-only parse loses exactly the fields the assertions read.
-const attrRecord = (raw: string): Record<string, any> => {
-  const attrs: Record<string, any> = {};
-  for (const m of raw.matchAll(/([A-Za-z_][\w-]*)="([^"]*)"/g)) {
-    attrs[m[1]!] = m[2] === "true" ? true : m[2] === "false" ? false : m[2];
-  }
-  return attrs;
-};
-function fixture(dataDir: string, text = "精确证据".repeat(250)) {
+const finish = () => reply([{ id: "finish", name: "finishTurn", arguments: { reason: "已核对", text: "完成" } }]);
+const queryCall = (sumId: string) => reply([{ id: "query", name: "context_query", arguments: { keepInCalls: true, reason: "查原文", sumId, module: "runtime", intent: "读取详细证据" } }]);
+const queryResults = (dataDir: string, cv: string) => loadLedger(dataDir, cv).loops.flatMap(loop => loop.runtime)
+  .filter(row => row.type === "callsResult").flatMap(row => row.content as LoopToolResult[]).filter(row => row.name === "context_query");
+function fixture(dataDir: string, text: string, largeHistory = false) {
   const { conversationId: cv } = ensureSession(dataDir), ledger = loadLedger(dataDir, cv);
-  const turns = Array.from({ length: 6 }, (_, i): Turn => ({ conversationId: cv, turnId: allocateRecordId(dataDir, cv, "turn"), status: "completed", createdAt: "2026-09-12", completedAt: "2026-09-12", input: { id: allocateRecordId(dataDir, cv, "input"), text: `要求${i}`, submittedAt: "2026-09-12" }, assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [], workspace: [] }, stopReason: { kind: "reply", text: "完成" } }));
-  ledger.turnIds = turns.map(row => row.turnId); ledger.userInputHistory = turns.slice(0, -1).map(inputRecord);
-  turns.forEach(turn => saveTurn(dataDir, turn));
-  const tool = { callId: allocateRecordId(dataDir, cv, "call"), turnId: "tn_01", batchId: allocateRecordId(dataDir, cv, "batch"), name: "page_get_summary", arguments: {}, return: { stage: "complete", totalChars: text.length, text } };
+  const makeLoop = (content: unknown, type: "userInput" | "callsResult"): LoopRecord => ({
+    id: allocateRecordId(dataDir, cv, "loop"), conversationId: cv, turnId: "tn_history", createdAt: "2026-09-12",
+    sentAt: "2026-09-12", completedAt: "2026-09-12",
+    runtime: [{ id: allocateRecordId(dataDir, cv, "runtime"), type, content }],
+    helm: { id: allocateRecordId(dataDir, cv, "helm"), content: "已处理", calls: [], finish: "stop" },
+  });
+  const tool = { callId: allocateRecordId(dataDir, cv, "call"), name: "page_get_summary", result: { ok: true, text }, keepInCalls: true };
+  const archived = makeLoop([tool], "callsResult");
+  ledger.loops.push(archived);
+  if (largeHistory) for (let i = 0; i < 5; i++) ledger.loops.push(makeLoop(`要求${i}:` + "历史内容".repeat(12000), "userInput"));
   const sumId = allocateRecordId(dataDir, cv, "sum");
-  const sourceId = allocateRecordId(dataDir, cv, "source");
-  const summary = { id: sumId, module: "conversationHistory" as const, level: 1, turnId: "tn_01", summary: "详情读取完成。", userRequest: "读取详情", actions: "读取页面", result: "已取得证据", sourceIds: [sourceId], createdAt: "2026-09-12" };
-  commitArchive(dataDir, cv, { version: 1, module: "conversationHistory", entries: [summary], activeIds: [sumId], coveredSourceIds: [sourceId] }, [{ id: sourceId, content: { turnId: "tn_01", userInput: inputRecord(turns[0]!), toolIO: [tool] } }], [summary]);
-  writeFileSync(join(archiveDir(dataDir, cv, "conversationHistory"), "source-ids.json"), JSON.stringify({ [JSON.stringify(["turn", "tn_01"])]: sourceId }));
+  const summary = { id: sumId, module: "conversationHistory" as const, level: 1, loopIds: [archived.id], summary: "详情读取完成。", userRequest: "读取详情", actions: "读取页面", result: "已取得证据", sourceIds: [archived.id], createdAt: "2026-09-12" };
+  commitArchive(dataDir, cv, { version: 1, module: "conversationHistory", entries: [summary], activeIds: [sumId], coveredSourceIds: [archived.id] }, [{ id: archived.id, content: archived }], [summary]);
   saveLedger(dataDir, ledger);
-  return { cv, ledger, turns, sumId, tool };
+  return { cv, sumId, tool, archived };
 }
-const queryCall = (sumId: string, module = "toolIO") => reply([{ id: "query", name: "context_query", arguments: { keepInCalls: true, reason: "查原文", sumId, module, intent: "读取详细证据" } }]);
 
-test("query insertion triggers the 200K gate, protects current evidence, rotates and persists history", async () => {
+test("loop compression preserves retrievable sources and query results persist directly in runtime", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "query-loop-"));
   try {
-    const f = fixture(dataDir), registry = loadToolRegistry(repoRoot), modules = loadContextModules(repoRoot);
-    const next: Turn = { ...f.turns[5]!, turnId: "tn_07", input: { id: "input_07", text: "读取详情", submittedAt: "2026-09-12" }, assembled: { ...f.turns[5]!.assembled, baseToolsIds: registry.toolGroups.baseToolsIds, toolIds: coreToolIds(registry) } };
-    const previewLedger = { ...f.ledger, userInputHistory: f.turns.map(inputRecord) };
-    const view = contextState(dataDir, previewLedger, next, { project: [], conversation: [] });
-    const overhead = systemText(modules, localDate(), toolGuideFor(registry, next.assembled.baseToolsIds), {}, skillGuide(repoRoot)).length + userText({ contextModules: modules, ledger: view.ledger, turn: next, conversationSummaries: view.summaries, memories: { project: "[]", conversation: "[]" }, skillText: "", toolGuide: toolGuideFor(registry, next.assembled.toolIds) }).length;
-    f.turns[1]!.input.text += "x".repeat(runtimeConfig.context.compressAtChars - overhead - 500);
-    saveTurn(dataDir, f.turns[1]!); f.ledger.userInputHistory = f.turns.slice(0, -1).map(inputRecord); saveLedger(dataDir, f.ledger);
+    const f = fixture(dataDir, "精确证据".repeat(100), true);
     let main = 0, compressed = 0;
     const provider: Provider = { complete: async input => {
-      if (input.tools[0]?.function.name === "submitMatches") return reply([{ id: "matches", name: "submitMatches", arguments: { turnIds: ["tn_01"] } }]);
-      if (input.tools[0]?.function.name === "submitTurnSummaries") {
+      if (input.tools[0]?.function.name === "submitMatches") return reply([{ id: "matches", name: "submitMatches", arguments: { loopIds: [f.archived.id] } }]);
+      if (input.tools[0]?.function.name === "submitLoopSummaries") {
         compressed++;
-        expect(input.messages[1]!.content).not.toContain(f.tool.return.text);
-        // Compression runs on the send after the one-shot nudge deferral (main===2 already sent).
-        expect(main).toBe(2);
-        expect(sessionView(dataDir, f.cv).activity).toMatchObject({ kind: "compressing", phase: "history" });
-        expect(sessionView(dataDir, f.cv).activity?.total).toBeGreaterThan(0);
-        return reply([{ id: "summaries", name: "submitTurnSummaries", arguments: { summary: "早期要求已处理完成。", actions: "已处理", result: "已完成" } }]);
+        expect(input.messages[1]!.content).not.toContain(f.tool.result.text);
+        expect(sessionView(dataDir, f.cv).activity?.kind).toBe("compressing");
+        return reply([{ id: "summaries", name: "submitLoopSummaries", arguments: { summary: "早期要求已处理完成。", actions: "已处理", result: "已完成" } }]);
       }
       main++;
-      if (main === 1) { expect(compressed).toBe(0); return queryCall(f.sumId); }
-      if (main === 2) {
-        // Compress-prep nudge defers the 200K gate by one send when no observation is written yet.
-        expect(compressed).toBe(0);
-        expect(sessionView(dataDir, f.cv).activity).toBeNull();
-        const values = Object.fromEntries(modules.userOrder.map(tag => {
-          const id = tag.slice(1);
-          const m = input.messages[1]!.content.match(new RegExp(`<${id}(?:\\s[^>]*)?>\\n([\\s\\S]*?)\\n</${id}>`));
-          const body = m![1]!;
-          return [id, id === "skill" || id === "tools" || id === "conversation" || id === "projectMemory" || id === "runtimeNotices" ? body : JSON.parse(body)];
-        }));
-        expect(validateUserData(values), JSON.stringify(validateUserData.errors)).toBe(true);
-        // 查询直接塞进数组： main===2 时第一次查询已落账，在 <query> 里可见。
-        const queries = section(input.messages[1]!.content, "query");
-        const current = queries.at(-1);
-        if (current.externalized) {
-          expect(current.search).toBe("evidence_search");
-          expect(String(current.head ?? current.summary).length).toBeGreaterThan(0);
-        } else {
-          expect(current.records).toEqual([f.tool]);
-        }
-        return queryCall(f.sumId, "userInput");
-      }
-      if (main === 3) {
-        expect(compressed).toBeGreaterThan(0);
-        expect(sessionView(dataDir, f.cv).activity).toBeNull();
-        const toolIO = section(input.messages[1]!.content, "toolIO");
-        const queryRow = toolIO.find((row: any) => row.name === "context_query");
-        expect(queryRow.return.workspaceIds.length).toBeGreaterThan(0);
-        const operations = collectNested(input.messages[1]!.content, "workspace").flatMap(group => group.operations);
-        const evidence = collectNested(input.messages[1]!.content, "note").find(note => queryRow.return.workspaceIds.includes(note.id))
-          ?? operations.find(operation => operation.sources.some((source: { id: string }) => queryRow.return.workspaceIds.includes(source.id)));
-        expect(evidence.result).toMatchObject({ status: "complete", sumId: f.sumId });
-        expect(JSON.stringify(toolIO)).not.toContain(f.tool.return.text);
-        expect(section(input.messages[1]!.content, "query")).toHaveLength(2);
-        expect(section(input.messages[1]!.content, "query").map((q: any) => q.id)).toEqual(["query_01", "query_02"]);
-      } else {
-        expect(section(input.messages[1]!.content, "query").map((q: {turnId:string}) => q.turnId)).toEqual(["tn_07", "tn_07"]);
-      }
+      if (main === 1) { expect(compressed).toBeGreaterThan(0); return queryCall(f.sumId); }
+      const user = input.messages[1]!.content;
+      expect(user).toContain('type="callsResult"');
+      expect(user).toContain(f.tool.result.text);
+      expect(user).not.toContain("<query ");
+      expect(user).not.toContain("<notes>");
+      expect(user).not.toContain("<workspaces>");
+      expect(sessionView(dataDir, f.cv).activity).toBeNull();
       return finish();
     } };
     expect((await handleTurn({ repoRoot, dataDir, provider }, { userInput: "读取详情", submittedAt: "2026-09-12" })).stopReason).toEqual({ kind: "reply", text: "完成" });
-    expect(loadLedger(dataDir, f.cv).queryHistory.at(-1)?.queryId).toBe("query_02");
-    expect(loadIndex(dataDir, f.cv, "conversationHistory").coveredSourceIds).toContain("src_02");
+    const results = queryResults(dataDir, f.cv);
+    expect(results).toHaveLength(1);
+    expect(results[0]!.result).toMatchObject({ status: "complete", sumId: f.sumId, records: [{ id: f.archived.runtime[0]!.id, content: [f.tool] }] });
+    expect(loadIndex(dataDir, f.cv, "conversationHistory").coveredSourceIds.length).toBeGreaterThan(1);
     await handleTurn({ repoRoot, dataDir, provider }, { userInput: "继续", submittedAt: "2026-09-12" });
-    expect(loadLedger(dataDir, f.cv).queryHistory.map(q => q.queryId)).toEqual(["query_01", "query_02"]);
+    expect(queryResults(dataDir, f.cv)).toEqual(results);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });
 
-test("unified gate externalizes large query and cancellation preserves prior queries", async () => {
+test("large query uses the unified result gate and cancelling the next query preserves previous runtime evidence", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "query-pages-"));
   try {
     const f = fixture(dataDir, "原始证据".repeat(1800)); let main = 0, aux = 0;
@@ -153,27 +77,23 @@ test("unified gate externalizes large query and cancellation preserves prior que
       if (input.tools[0]?.function.name === "submitMatches") {
         aux++;
         if (aux === 2) { started(); await blocked; }
-        return reply([{ id: "matches", name: "submitMatches", arguments: { turnIds: ["tn_01"] } }]);
+        return reply([{ id: "matches", name: "submitMatches", arguments: { loopIds: [f.archived.id] } }]);
       }
       main++;
       if (main === 1) return queryCall(f.sumId);
-      const queries = section(input.messages[1]!.content, "query");
-      const current = queries.at(-1);
-      expect(current.externalized).toBe(true);
-      expect(current.search).toBe("evidence_search");
-      expect(current.sourceCallId).toBeDefined();
-      expect(current.externalizationHint).toContain("blockId");
-      expect(current.records).toEqual([]);
-      return queryCall(f.sumId, "userInput");
+      const results = queryResults(dataDir, f.cv);
+      expect(results).toHaveLength(1);
+      expect(results[0]!.result).toMatchObject({ ok: true, status: "complete", externalized: true, search: "evidence_search" });
+      expect(input.messages[1]!.content).not.toContain(f.tool.result.text);
+      expect(loadFullReturn(dataDir, f.cv, results[0]!.callId)).toContain(f.tool.result.text);
+      return queryCall(f.sumId);
     } };
     const running = handleTurn({ repoRoot, dataDir, provider }, { userInput: "读取详情", submittedAt: "2026-09-12" });
     await entered;
-    const before = loadLedger(dataDir, f.cv).queryHistory;
+    const before = queryResults(dataDir, f.cv);
     stopTurn(dataDir); release();
     expect((await running).stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
-    const after = loadLedger(dataDir, f.cv);
-    expect(after.queryHistory).toEqual(before);
-    // Second query was cancelled mid-flight; only the first query is stored.
-    expect(after.queryHistory).toHaveLength(1);
+    expect(queryResults(dataDir, f.cv)).toEqual(before);
+    expect(before).toHaveLength(1);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });

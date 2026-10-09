@@ -5,7 +5,6 @@ import { join, resolve } from "node:path";
 import { loadContextModules, parseModule, renderSlots, systemTextFromModules } from "./modules.ts";
 import { systemText, userText, windowChars } from "./window.ts";
 import { emptyLedger } from "../runtime/store.ts";
-import { SUMMARY_RECOMPRESS_MIN_ACTIVE } from "../agents/compression/index.ts";
 import { runtimeConfig } from "../config/runtime.ts";
 import type { Turn } from "../types.ts";
 
@@ -24,7 +23,6 @@ test("registry loads XML modules and system text uses angle-bracket tags", () =>
   expect(system).toContain("服务数据目录（脚本 scripts/、进程输出 process-output/、会话落盘、临时文件）：/tmp/tchrome-data");
   expect(system).toContain("当前开发工作区：/tmp/tchrome-test");
   expect(system).toContain("操作系统：macOS (darwin/arm64)");
-  expect(SUMMARY_RECOMPRESS_MIN_ACTIVE).toBe(runtimeConfig.context.summaryRecompressMinActive);
   const runtimePurpose = modules.systemSlots["#runtimeProtocol"]!.purpose;
   expect(runtimePurpose).toContain(String(runtimeConfig.results.inlineChars));
   expect(runtimePurpose).toContain(String(runtimeConfig.context.compressAtChars));
@@ -35,8 +33,8 @@ test("registry loads XML modules and system text uses angle-bracket tags", () =>
   expect(system).toContain("<identity>");
   expect(system).toContain("</identity>");
   expect(system).toContain("<runtimeProtocol>\n<purpose>");
-  expect(system).toContain("<runtimeNotices>\n<purpose>");
-  expect(modules.userOrder).toContain("#runtimeNotices");
+  expect(system).toContain("<contextUsage>\n<purpose>");
+  expect(modules.userOrder).toContain("#contextUsage");
   expect(system).toContain("GUIDE");
   expect(system).not.toContain("#identity");
   expect(system).not.toMatch(/\{\{(?:currentDate|dataDir|cwd|os)\}\}/);
@@ -59,10 +57,11 @@ test("module descriptions appear once in System while User contains only data", 
     createdAt: "", completedAt: null,
     input: { id: "input_01", text: "用户输入", submittedAt: "" },
     stopReason: null,
-    assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [], workspace: [] },
+    assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [] },
   };
+  ledger.loops = [{ id: "loop_01", conversationId: ledger.conversationId, turnId: turn.turnId, createdAt: "", runtime: [{ id: "rt_01", type: "userInput", content: "用户输入" }] }];
   const output = userText({ contextModules: modules, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: "LOADED_SKILL_BODY_SENTINEL" });
-  expect(output).toContain("<runtimeNotices>\n");
+  expect(output).toContain("<contextUsage>\n");
   expect(output).not.toContain("完整原文保持原样保存");
   expect(output).toContain("<skill>");
   expect(output).not.toContain("<purpose>");
@@ -70,8 +69,8 @@ test("module descriptions appear once in System while User contains only data", 
   expect(output).toContain("<skill>\nLOADED_SKILL_BODY_SENTINEL\n</skill>");
   expect(output).toContain("用户输入");
   expect(output).toContain('<conversation id="cv_xml">');
-  expect(output).toContain('<turn turnId="tn_01">');
-  expect(output).toContain("</turn>");
+  expect(output).toContain('<loop id="loop_01">');
+  expect(output).toContain("</loop>");
   const system = systemTextFromModules(modules, "2026-10-08");
   expect(system).not.toContain("LOADED_SKILL_BODY_SENTINEL");
   let previousIndex = -1;
@@ -85,7 +84,7 @@ test("module descriptions appear once in System while User contains only data", 
   }
 });
 
-test("<conversation> reports its conversation id and window occupancy", () => {
+test("capacity and task updates preserve the history prefix and report exact window occupancy", () => {
   const modules = loadContextModules(root);
   const ledger = emptyLedger("cv_budget");
   const turn: Turn = {
@@ -93,20 +92,28 @@ test("<conversation> reports its conversation id and window occupancy", () => {
     createdAt: "", completedAt: null,
     input: { id: "input_01", text: "用户输入", submittedAt: "" },
     stopReason: null,
-    assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [], workspace: [] },
+    assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentTabs: { ok: true, windows: [] }, currentPage: null, observations: [] },
   };
   const system = "系统窗口文本";
   const dataDir = mkdtempSync(join(tmpdir(), "tchrome-window-"));
   try {
-    const output = userText({ contextModules: modules, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: "技能正文", inlineBudget: { dataDir, system } });
-    const head = output.match(/^<conversation ([^>]*)>/m)?.[1] ?? "";
-    expect(head).toContain('id="cv_budget"');
+    ledger.loops = [{ id: "loop_01", conversationId: ledger.conversationId, turnId: turn.turnId, createdAt: "", runtime: [{ id: "rt_01", type: "userInput", content: "用户输入" }] }];
+  const output = userText({ contextModules: modules, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: "技能正文", inlineBudget: { dataDir, system } });
+    const head = output.match(/^<contextUsage ([^>]*)>/m)?.[1] ?? "";
+    expect(output).toContain('<conversation id="cv_budget">');
+    expect(output.indexOf('<contextUsage')).toBeGreaterThan(output.indexOf('</conversation>'));
     const chars = Number(head.match(/chars="(\d+)"/)?.[1]);
-    const limit = Number(head.match(/limit="(\d+)"/)?.[1]);
+    const limit = Number(head.match(/compressAt="(\d+)"/)?.[1]);
     expect(limit).toBe(runtimeConfig.context.compressAtChars);
     expect(head).toContain(`used="${Math.round((chars / limit) * 100)}%"`);
     // The read-out must describe the very window it is rendered into, attributes included.
     expect(chars).toBe(windowChars(system, output));
+    ledger.tasks.push({ id: "task_01", status: "active", title: "new task", items: [], createdAt: "", updatedAt: "" });
+    const next = userText({ contextModules: modules, ledger, turn, memories: { project: "[]", conversation: "[]" }, skillText: "技能正文", inlineBudget: { dataDir, system } });
+    const historyEnd = output.indexOf("</conversation>");
+    expect(next.slice(0, historyEnd)).toBe(output.slice(0, historyEnd));
+    expect(next.indexOf("<tasks>")).toBeGreaterThan(next.indexOf("</loop>"));
+    expect(next.indexOf("<contextUsage")).toBeGreaterThan(next.indexOf("</conversation>"));
   } finally {
     rmSync(dataDir, { recursive: true, force: true });
   }

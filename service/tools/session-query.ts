@@ -1,7 +1,7 @@
 import { readdirSync, statSync, type Dirent } from "node:fs";
 import { join } from "node:path";
-import type { ToolIOItem } from "../types.ts";
-import { listConversationIds, loadToolRows, paths } from "../runtime/store.ts";
+import type { ToolIOItem, LoopRecord, LoopToolResult } from "../types.ts";
+import { listConversationIds, loadLedger, loadToolRows, paths } from "../runtime/store.ts";
 import { runtimeConfig } from "../config/runtime.ts";
 
 /**
@@ -91,13 +91,13 @@ const countFiles = (dir: string): number => {
   }
 };
 
-const filterRows = (rows: Row[], input: Record<string, unknown>, keyword: string): Row[] => {
+const filterRows = (rows: Row[], input: Record<string, unknown>, keyword: string, callLoops: Map<string, string[]>): Row[] => {
   const tool = textOf(input, "tool");
-  const turnId = textOf(input, "turnId");
+  const loopId = textOf(input, "loopId");
   const needle = keyword.toLowerCase();
   return rows.filter((row) => {
     if (tool && row.name !== tool) return false;
-    if (turnId && row.turnId !== turnId) return false;
+    if (loopId && !callLoops.get(row.callId)?.includes(loopId)) return false;
     if (needle) {
       const haystack = [row.name, row.callId, JSON.stringify(argsOf(row)), row.return?.text ?? ""].join("\n").toLowerCase();
       if (!haystack.includes(needle)) return false;
@@ -111,7 +111,7 @@ const listConversations = (dataDir: string): Record<string, unknown> => {
   const withStats = ids.map((id) => {
     const p = paths(dataDir, id);
     const { bytes, truncated } = dirBytes(p.conv);
-    return { conversationId: id, turns: countFiles(p.turns), bytes, sizeTruncated: truncated };
+    return { conversationId: id, loops: loadLedger(dataDir, id).loops.length, bytes, sizeTruncated: truncated };
   });
   return { ok: true, mode: "conversations", conversations: withStats };
 };
@@ -129,33 +129,34 @@ export function runSessionQuery(
     return { ok: false, faultCode: "missing_conversation", error: "缺 conversationId：未提供也无法回落到当前会话" };
   }
   const known = listConversationIds(dataDir);
-  if (known.length && !known.includes(cvId)) {
+  if (!known.includes(cvId)) {
     return { ok: false, faultCode: "unknown_conversation", error: `会话 ${cvId} 不存在`, conversations: known };
   }
 
+  const ledger = loadLedger(dataDir, cvId);
+  const callLoops = new Map<string, string[]>();
+  for (const loop of ledger.loops) {
+    const ids = new Set([...(loop.helm?.calls.map(call => call.id) ?? []), ...loop.runtime.flatMap(row => row.type === "callsResult" ? (row.content as LoopToolResult[]).map(result => result.callId) : [])]);
+    for (const id of ids) callLoops.set(id, [...(callLoops.get(id) ?? []), loop.id]);
+  }
   const rows = rowsOf(dataDir, cvId);
   const keyword = textOf(input, "keyword");
-  const scoped = filterRows(rows, input, keyword);
+  const scoped = filterRows(rows, input, keyword, callLoops);
   const externalized = scoped.filter(isExternalized);
   const totalChars = scoped.reduce((sum, row) => sum + (row.return?.totalChars ?? 0), 0);
 
   if (mode === "summary") {
-    const byTurn = new Map<string, number>();
-    const byTool = new Map<string, number>();
-    for (const row of rows) {
-      byTurn.set(row.turnId, (byTurn.get(row.turnId) ?? 0) + 1);
-      byTool.set(row.name, (byTool.get(row.name) ?? 0) + 1);
-    }
-    const turnIds = [...byTurn.keys()].sort();
+    const byTool = new Set(rows.map(row => row.name));
     return {
       ok: true,
       mode,
       conversationId: cvId,
       calls: rows.length,
       distinctTools: byTool.size,
-      turns: byTurn.size,
-      firstTurnId: turnIds[0] ?? null,
-      lastTurnId: turnIds[turnIds.length - 1] ?? null,
+      loops: ledger.loops.length,
+      firstLoopId: ledger.loops[0]?.id ?? null,
+      lastLoopId: ledger.loops.at(-1)?.id ?? null,
+      activeTasks: ledger.tasks.filter(task => task.status === "active" || task.status === "paused").length,
       externalizedCalls: rows.filter(isExternalized).length,
       totalReturnChars: rows.reduce((sum, row) => sum + (row.return?.totalChars ?? 0), 0),
       events: countFiles(paths(dataDir, cvId).events),
@@ -195,22 +196,21 @@ export function runSessionQuery(
     return { ok: true, mode, conversationId: cvId, distinctTools: buckets.size, tools };
   }
 
-  if (mode === "turns") {
-    const limit = intOf(input, "top", 30);
-    const buckets = new Map<string, { calls: number; tools: Set<string>; externalized: number; returnChars: number }>();
-    for (const row of scoped) {
-      const hit = buckets.get(row.turnId) ?? { calls: 0, tools: new Set<string>(), externalized: 0, returnChars: 0 };
-      hit.calls += 1;
-      hit.tools.add(row.name);
-      if (isExternalized(row)) hit.externalized += 1;
-      hit.returnChars += row.return?.totalChars ?? 0;
-      buckets.set(row.turnId, hit);
-    }
-    const turns = [...buckets.entries()]
-      .map(([turnId, hit]) => ({ turnId, calls: hit.calls, distinctTools: hit.tools.size, externalized: hit.externalized, returnChars: hit.returnChars }))
-      .sort((a, b) => (a.turnId < b.turnId ? 1 : -1))
-      .slice(0, limit);
-    return { ok: true, mode, conversationId: cvId, totalTurns: buckets.size, turns };
+  if (mode === "loops" || mode === "runtime" || mode === "helm" || mode === "tasks") {
+    const loopId = textOf(input, "loopId");
+    const runtimeId = textOf(input, "runtimeId");
+    const helmId = textOf(input, "helmId");
+    const taskId = textOf(input, "taskId");
+    const loops = ledger.loops.filter(loop => !loopId || loop.id === loopId);
+    let records: unknown[];
+    if (mode === "tasks") records = ledger.tasks.filter(task => !taskId || task.id === taskId);
+    else if (mode === "runtime") records = loops.flatMap(loop => loop.runtime.filter(row => !runtimeId || row.id === runtimeId).map(row => ({ ...row, loopId: loop.id })));
+    else if (mode === "helm") records = loops.filter((loop): loop is LoopRecord & { helm: NonNullable<LoopRecord["helm"]> } => Boolean(loop.helm) && (!helmId || loop.helm!.id === helmId)).map(loop => ({ ...loop.helm, loopId: loop.id }));
+    else records = loops;
+    const needle = keyword.toLowerCase();
+    if (needle) records = records.filter(record => JSON.stringify(record).toLowerCase().includes(needle));
+    const items = records.slice(0, intOf(input, "limit", 50));
+    return { ok: true, mode, conversationId: cvId, status: records.length ? "complete" : "not_found", matched: records.length, returned: items.length, items };
   }
 
   if (mode === "externalized") {
@@ -221,7 +221,7 @@ export function runSessionQuery(
       .map((row) => ({
         callId: row.callId,
         name: row.name,
-        turnId: row.turnId,
+        loopIds: callLoops.get(row.callId) ?? [],
         totalChars: row.return?.totalChars ?? 0,
         ...(row.return?.path ? { path: row.return.path } : {}),
       }));
@@ -243,7 +243,7 @@ export function runSessionQuery(
       .map((row) => ({
         callId: row.callId,
         name: row.name,
-        turnId: row.turnId,
+        loopIds: callLoops.get(row.callId) ?? [],
         stage: row.return?.stage ?? null,
         totalChars: row.return?.totalChars ?? 0,
         externalized: isExternalized(row),

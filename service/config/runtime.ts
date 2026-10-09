@@ -97,14 +97,7 @@ const context = {
   foldL1ToL2Chunk: resolveGate("foldL1ToL2Chunk"),
   foldHigherChunk: resolveGate("foldHigherChunk"),
   foldMaxLevel: resolveGate("foldMaxLevel"),
-  keepToolBatches: resolveGate("keepToolBatches"),
-  notesFlushRows: resolveGate("notesFlushRows"),
-  // A turn whose own injected content reaches this share of the window is closed early and
-  // continued in a fresh turn, so one long turn cannot crowd out the history it depends on.
-  turnRotateAtChars: resolveGate("turnRotateAtChars"),
-  // Hard cap on chained continuations: past it the turn ends normally instead of rotating again,
-  // so an incompressible window surfaces as context_limit rather than looping forever.
-  maxTurnRotations: resolveGate("maxTurnRotations"),
+  keepLoops: resolveGate("keepLoops"),
   // How many dynamic skills the System-side catalog lists by default; the rest stay
   // reachable through skill_list (which pages over the full set).
   skillCatalogLimit: resolveGate("skillCatalogLimit"),
@@ -125,7 +118,6 @@ const context = {
   observationNudgeFirstGate: resolveGate("observationNudgeFirstGate"),
   observationNudgeMinGate: resolveGate("observationNudgeMinGate"),
   observationNudgeStep: resolveGate("observationNudgeStep"),
-  compressNudgeHeadroom: resolveGate("compressNudgeHeadroom"),
 };
 
 // Relational invariants: a mis-scaled pair must fail at startup, not at runtime.

@@ -32,7 +32,7 @@ class Execution {
       const requestId = allocateRecordId(dataDir, conversationId, "providerRequest");
       const started = performance.now();
       const log = (kind: string, data: Record<string, unknown>) => {
-        try { appendEvent(dataDir, conversationId, { kind, turnId, data: { requestId, ...data } }); }
+        try { appendEvent(dataDir, conversationId, { kind, turnId, data: { requestId, ...(input.loopId ? { loopId: input.loopId } : {}), ...data } }); }
         catch { /* Diagnostics do not change request execution. */ }
       };
       log("provider-timing", { stage: "start", messageChars: input.messages.reduce((sum, message) => sum + message.content.length, 0), toolCount: input.tools.length });
@@ -51,7 +51,7 @@ class Execution {
         const onAbort = () => settle(() => resolveRequest(stopped()));
         signal.addEventListener("abort", onAbort, { once: true });
         try { Promise.resolve(withNetworkTiming(event => log("provider-network", event), () => source.complete({ ...input, conversationId: this.conversationId, signal }), snapshot => {
-          const path = saveOutboundRequest(dataDir, { conversationId, turnId, requestId, ...snapshot });
+          const path = saveOutboundRequest(dataDir, { conversationId, turnId, requestId, ...(input.loopId ? { loopId: input.loopId } : {}), ...snapshot });
           log("provider-outbound", { attempt: snapshot.attempt, path });
         })).then(result => {
           if (settled) return;

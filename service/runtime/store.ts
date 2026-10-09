@@ -9,6 +9,7 @@ import { appendAsset, textSummary } from "../assets/catalog.ts";
 import { abortLocalProcesses } from "../tools/local-process.ts";
 import { abortJobsForScope, jobScope } from "../tools/job-registry.ts";
 import { localScope } from "../tools/local-tools.ts";
+import { appendRuntime } from "./loop-records.ts";
 import { cancelExecution } from "./execution.ts";
 import { emptySessionView, projectConversationList, projectSessionView } from "../presentation/session-view.ts";
 import type { ConversationItem, SessionView } from "../presentation/session-view.ts";
@@ -63,7 +64,8 @@ export function listConversationIds(dataDir: string): string[] {
 export function emptyLedger(conversationId: string): Ledger {
   const t = nowIso();
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
+    loops: [],
     conversationId,
     createdAt: t,
     updatedAt: t,
@@ -83,38 +85,20 @@ export function emptyLedger(conversationId: string): Ledger {
     liveTools: [],
     toolIO: [],
     lastAction: null,
-    runtimeNotices: [],
     boundSeq: 0,
     contextTab: null,
-    notes: [],
     queryHistory: [],
     windowChars: 0,
     compressAt: runtimeConfig.context.compressAtChars,
-    turnRotateAt: runtimeConfig.context.turnRotateAtChars,
     memoryIds: { conversation: [], project: [] },
   };
 }
 
-function normalizeLedger(raw: Partial<Ledger> & { conversationId?: string }, conversationId: string): Ledger {
-  const base = emptyLedger(conversationId);
-  return {
-    ...base,
-    ...raw,
-    schemaVersion: 2,
-    conversationId,
-    userInputHistory: raw.userInputHistory ?? [],
-    reflectHistory: raw.reflectHistory ?? [],
-    tasks: raw.tasks ?? [],
-    taskHistory: raw.taskHistory ?? [],
-    activeTaskId: raw.activeTaskId ?? null,
-    activeTaskItemId: raw.activeTaskItemId ?? null,
-    loadedSkillIds: raw.loadedSkillIds ?? [],
-  };
-}
 
 export function loadLedger(dataDir: string, cvId: string): Ledger {
   const raw = readJson<Partial<Ledger>>(paths(dataDir, cvId).ledger, emptyLedger(cvId));
-  const ledger = normalizeLedger(raw, cvId);
+  if (raw.schemaVersion !== 3 || !Array.isArray(raw.loops)) throw new Error("unsupported_conversation_schema: 请创建新会话，旧数据不支持读取");
+  const ledger = raw as Ledger;
   const cache = toolRowCache(dataDir, cvId);
   ledger.toolIO = cache.rows;
   return ledger;
@@ -487,6 +471,9 @@ export function recoverStaleRun(dataDir: string, conversationId: string, detail 
     turn.stopReason = { kind: "interrupted", initiatedBy: "service", detail };
     saveTurn(dataDir, turn);
   }
+  const lastLoop = ledger.loops.at(-1);
+  if (lastLoop?.sentAt && !lastLoop.completedAt) lastLoop.completedAt = nowIso();
+  appendRuntime(dataDir, ledger, turnId ?? "", "interrupt", { initiatedBy: "service", detail });
   ledger.status = "paused";
   ledger.active = null;
   ledger.pendingAsk = null;
@@ -520,6 +507,9 @@ export function stopTurn(dataDir: string, targetConversationId?: string | null, 
     saveTurn(dataDir, turn);
     appendEvent(dataDir, session.conversationId, { kind: "turn-stop-reason", turnId, data: { stopReason: turn.stopReason } });
   }
+  const lastLoop = ledger.loops.at(-1);
+  if (lastLoop?.sentAt && !lastLoop.completedAt) lastLoop.completedAt = nowIso();
+  appendRuntime(dataDir, ledger, turnId ?? "", "interrupt", { initiatedBy });
   ledger.status = "paused";
   ledger.active = null;
   ledger.pendingAsk = null;

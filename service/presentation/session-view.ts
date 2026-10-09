@@ -1,5 +1,4 @@
 import { errorMessage } from "../../shared/errors.ts";
-import { isContinuationInput, stripContinuationPrefix } from "../../shared/continuation.ts";
 import type { Ledger, LogEvent, Turn } from "../types.ts";
 
 const stopReasonText = (output: Turn["stopReason"]): string => {
@@ -12,9 +11,6 @@ const stopReasonText = (output: Turn["stopReason"]): string => {
   if (output.kind === "interrupted") {
     const who = output.initiatedBy === "user" ? "用户" : output.initiatedBy === "budget" ? "预算" : "服务";
     return [`已中断（${who}）`, output.detail || ""].filter(Boolean).join("\n");
-  }
-  if (output.kind === "rotated") {
-    return [`已闭合（单轮注入 ${output.turnDeltaChars} 字符）`, output.detail || ""].filter(Boolean).join("\n");
   }
   return `${output.name} ${output.callId}`;
 };
@@ -33,7 +29,7 @@ export type SessionView = {
   status: Ledger["status"] | "idle";
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
   liveTools: { name: string; callId: string; reason?: string }[];
-  activity: { kind: "compressing"; source: "agent" | "runtime"; phase: "history" | "current" | "summaries" | null; completed: number; total: number | null; fold: { merged: number; level: number; turnIds: number } | null } | null;
+  activity: { kind: "compressing"; source: "agent" | "runtime"; phase: "loops" | "summaries" | null; completed: number; total: number | null; fold: { merged: number; level: number; loopIds: number } | null } | null;
   task: {
     activeTaskId: string | null;
     activeTaskItemId: string | null;
@@ -93,7 +89,7 @@ const compressionActivity = (ledger: Ledger, events: LogEvent[]): SessionView["a
     if (event.kind === "compress-start") activity = { kind: "compressing", source: event.data.source === "agent" ? "agent" : "runtime", phase: null, completed: 0, total: null, fold: null };
     if (event.kind === "compress-phase" && activity) {
       const phase = event.data.phase;
-      if (phase === "history" || phase === "current" || phase === "summaries") activity.phase = phase;
+      if (phase === "loops" || phase === "summaries") activity.phase = phase;
     }
     if (event.kind === "compress-progress" && activity) {
       const completed = event.data.completed;
@@ -102,12 +98,12 @@ const compressionActivity = (ledger: Ledger, events: LogEvent[]): SessionView["a
       if (typeof total === "number" && total >= 0) activity.total = total;
       const merged = event.data.merged;
       const level = event.data.level;
-      const turnIds = event.data.turnIds;
-      if (typeof merged === "number" || typeof level === "number" || typeof turnIds === "number") {
+      const loopIds = event.data.loopIds;
+      if (typeof merged === "number" || typeof level === "number" || typeof loopIds === "number") {
         activity.fold = {
           merged: typeof merged === "number" ? merged : 0,
           level: typeof level === "number" ? level : 0,
-          turnIds: typeof turnIds === "number" ? turnIds : 0,
+          loopIds: typeof loopIds === "number" ? loopIds : 0,
         };
       }
     }
@@ -124,9 +120,7 @@ export function projectSessionView({ ledger, events, turns }: {
   const messages: SessionMessage[] = [];
   for (const turn of turns) {
     const turnId = turn.turnId;
-    if (!isContinuationInput(turn.input.text)) {
-      messages.push({ turnId, role: "user", text: turn.input.text });
-    }
+    messages.push({ turnId, role: "user", text: turn.input.text });
     const turnEvents = events.filter((event) => event.turnId === turnId);
     // Tool arguments supply progress; only turn.stopReason supplies the final reply.
     // Provider content and raw tool results stay in the logs.
@@ -200,7 +194,7 @@ export function projectConversationList(rows: { ledger: Ledger; lastTurn: Turn |
   return rows
     .map(({ ledger, lastTurn }) => {
       let preview = "新会话";
-      if (lastTurn) preview = stripContinuationPrefix(lastTurn.input.text);
+      if (lastTurn) preview = lastTurn.input.text;
       else if (ledger.userInputHistory.at(-1)) preview = ledger.userInputHistory.at(-1)?.userInput ?? "新会话";
       return {
         conversationId: ledger.conversationId,

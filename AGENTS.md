@@ -11,22 +11,20 @@
 
 ## 已确认的具体边界
 
-- 压缩按历史顺序逐轮处理：每轮一次发送、一次返回；一次返回可含一或多条摘要（同一 turnId），全部合法才落盘并覆盖该轮原文，任一条非法则整轮不落盘。失败则停止本批后续请求，失败轮及其后轮次保留原文，等再次达到 compressAt 后从未覆盖轮次继续。不得恢复同轮内部 60K 分批、8K 字段分片或递归摘要合并。外层现有 history/current 阶段与传输层重试需分别说明。未覆盖原文随时做 L1 首压（同一 turnId 可多条 L1）；摘要折叠按层独立判断，每层超过 summaryFoldMinRows（20）才折叠：同 turnId 的 L1 合并后仍为 L1，不同 turnId 的 L1 升为 L2；L2 及以上按同层递进升级（L2→L3、L3→L4），最高到 L6（foldMaxLevel）。
+- 压缩以 loop 为最小不可拆单位，最近 1 个 loop 完整保留。其余候选优先按 userInput / interrupt 分区，按历史顺序逐区发送；无输入分界时按 loop 条数分为前后两批，前半取 ceil(n/2)，只有一条直接处理，不递归切分。每批一次发送、一次返回，全部摘要合法才覆盖对应原文；失败则停止后续批次并保留原文。摘要保存准确 loopIds，可回溯落盘原始 loop。首压生成 L1；每层超过 summaryFoldMinRows（20）才折叠，单一来源 loop 的 L1 仍为 L1，跨 loop 升为 L2，后续逐层升至最高 L6。无新来源不单独重压摘要，不显示压缩活动。网络重试属于原逻辑请求。
+- User 的 conversation 包含会话记忆、summaries、loop 历史和末尾 tasks。loop 对应一次主模型请求；runtime / helm 各有独立 ID，runtime type=userInput|interrupt|callsResult|notice，helm 保存实际模型响应与调用，结果通过 callId 关联。无 turn XML 或独立 notes、workspaces、observations、reflections、queries、runtimeNotices 模块。所有 purpose 在 System；contextUsage 位于整条 User 末尾，以 chars / compressAt / used 统计 System + User。conversation 头仅保留稳定 id。正常追加保持历史 loop 稳定，接受压缩导致 KV cache 前缀重建。
+- 不兼容或迁移任何旧数据，只实现新结构。任务创建及更新返回 task ID 指针，完整最新任务进入末尾 tasks；完成或取消时从 tasks 移出，将最终完整任务回填完成或取消操作的返回。
 - 发送主模型前先按最近一次模型返回的工具批次选择图片：同批图片随调用发送，旧批次只保留路径；再按 runtimeConfig 的窗口、压缩与外置阈值判断是否压缩或外置。新图片 ID 复用统一会话计数器，采用 img_01 格式，内容哈希仅内部使用。
-- 自有记录 ID 使用统一短前缀和持久自增编号，不使用随机 ID，不复用已分配编号。旧数据已清理，不增加旧 ID 兼容或迁移；外部 API 原始 ID 和内容校验哈希保留原用途。
+- 自有记录 ID 使用统一短前缀和持久自增编号，不使用随机 ID，不复用已分配编号。不增加旧 ID 兼容或迁移；外部 API 原始 ID 和内容校验哈希保留原用途。
 - 保留常驻 baseTools 与动态 tools 的模块划分，以及模型可见的编号规则表；整理描述不等于删除能力。
 - 不擅自增加参数兜底、旧字段兼容或定位参数强转。
 - 验证应与风险相称，优先维护已有测试；仅为实际故障或必要行为补回归用例，避免重复断言、锁文案测试和无需求的泛化测试。
 
 以上约束的增删应以用户后续明确要求为准。
 
-- 所有已结束轮次可进入压缩；当前轮保留最近 1 个完整工具批次（keepToolBatches=1），较早批次可归档。没有新来源时不单独重压已有摘要，也不显示压缩活动。
-
-- 动态工具加载以会话为范围，跨 turn、重新打开与服务重启后保持；首次加载仍需下一次模型请求取得 schema。finishTurn 必填非空 text；同一 text 进入侧栏/trace、toolIO 投影与压缩 turns.stopReason，Agent 材料 reply 为 `{kind:"reply", text}`。script_patch 统一使用 git apply --recount 计算补丁块行数，不猜测修复结构或上下文。
+- 动态工具加载以会话为范围，跨 loop、重新打开与服务重启后保持；首次加载仍需下一次模型请求取得 schema。finishTurn 必填非空 text，同一 text 进入侧栏、trace 与 loop 历史。script_patch 统一使用 git apply --recount 计算补丁块行数，不猜测修复结构或上下文。
 
 - skill 模块始终保留完整正文，不参与压缩，也不参与文件外置。
 
-- 每个工具在元数据中声明 defaultKeepInCalls；调用显式设置的 keepInCalls=true/false 优先，省略时采用工具默认值。业务读取、写入、执行和网页操作默认 true；目录、能力加载、等待、状态轮询及已有专属模块的记录默认 false，模型可逐次覆盖。最终为 true 时，Runtime 根据真实工具参数和最终返回自动生成 notes；false 不写入 notes 或 workspace，其返回仍在最近工具批次的下一次模型请求展示一次，完整调用始终落盘。notes 使用 WorkspaceEntry 记录结构，达到配置 context.notesFlushRows 后过滤结果与内容均为空的条目，将其余原始证据转入来源轮次的 workspace，保留 ws 编号与来源。notes 与 workspace 统一记录 file/browser/script/process/tool 对象的操作、输入、结果、内容与来源；没有明确对象标识则按调用独立保存，不猜测文件或页面归属。会话级按对象归组，重复证据合并来源，写入、执行、页面操作与导航区分证据版本；原始条目随来源 turn/工具批次压缩归档，calls 的 workspaceIds 只引用已记录证据，可指向 notes 或 workspace，完整调用仍落盘。context_query / agent_query 可选 file 按文件过滤候选（notes 与 workspace 按 files[]、toolIO 按调用的文件参数、summaries 按正文提及，其余模块不支持），无命中直接 not_found，不花模型轮次。
-- toolIO 投影带调用参数 args（大小超内联门禁时只留 files 路径；记账类指针调用与观察调用不带，正文已在对应模块）。
-
-- notes 与 workspace 记录现有门禁处理后的最终返回：小结果保留正文，大结果保留门禁返回的状态、错误、索引及原文路径；完整原文沿用 returns 落盘，不重新塞回 workspace。calls 只引用对应 workspace，不增加另一层门禁。
+- 每个工具声明 defaultKeepInCalls，调用显式 keepInCalls 优先，省略用默认值；Runtime 执行时解析并持久化，不在历史投影时重新解释元数据。true 的调用及结果保留至 loop 压缩，false 仅在结果返回后的下一次请求展示一次，完整原始调用始终落盘。业务读取、写入、执行、网页操作、观察反思、任务记录、最终回复和提问默认保留；目录、加载、等待、轮询默认不保留，模型可覆盖。task 返回保留指针或最终完整状态。
+- callsResult 记录现有门禁后的最终返回：小结果保留正文，大结果保留状态、错误、索引及原文路径；完整原文沿用 returns 落盘，不另设正文副本或门禁。调用参数在 helm，实际结果在 runtime。context_query / agent_query 按 loops、runtime、helm 或 summaries 查询，可按 file 过滤，无命中直接 not_found，不花模型轮次。

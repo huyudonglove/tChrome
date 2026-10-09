@@ -24,7 +24,7 @@ function setup() {
     stopReason: null, assembled: {
       baseToolsIds: ["finishTurn"], toolIds: ["page_click"],
       conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, currentTabs: { ok: true, windows: [] },
-      observations: [], workspace: [],
+      observations: [],
     },
   };
   const execute = (name: string, args: ToolArguments, options: Partial<ExecuteInput> = {}) => executeTool({

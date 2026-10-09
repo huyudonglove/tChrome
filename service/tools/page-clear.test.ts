@@ -26,8 +26,7 @@ const setup = () => {
         observedAt: "now", tabId: 12, type: "page_inspect_element",
         result: { ok: true, tabId: 12, element: { id: "e_01", rect: { x: 1, y: 2, w: 3, h: 4 } } },
       }],
-      workspace: [],
-    },
+        },
   };
   return { dataDir, ledger, turn };
 };

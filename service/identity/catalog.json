@@ -118,26 +118,12 @@
     "allocation": "counter",
     "description": "本轮反思记录"
   },
-  "workspace": {
-    "field": "id",
-    "prefix": "ws",
-    "scope": "conversation",
-    "allocation": "counter",
-    "description": "因果工作区条目"
-  },
   "note": {
     "field": "id",
     "prefix": "nt",
     "scope": "conversation",
     "allocation": "counter",
     "description": "工作草稿条目"
-  },
-  "notice": {
-    "field": "id",
-    "prefix": "rt",
-    "scope": "conversation",
-    "allocation": "counter",
-    "description": "Runtime 提醒条目"
   },
   "action": {
     "field": "id",
@@ -208,5 +194,26 @@
     "scope": "service",
     "allocation": "counter",
     "description": "模型出网请求快照"
+  },
+  "loop": {
+    "field": "id",
+    "prefix": "loop",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "主模型交互"
+  },
+  "runtime": {
+    "field": "id",
+    "prefix": "rt",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "运行时输入"
+  },
+  "helm": {
+    "field": "id",
+    "prefix": "helm",
+    "scope": "conversation",
+    "allocation": "counter",
+    "description": "模型响应"
   }
 }

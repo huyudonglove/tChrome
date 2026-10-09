@@ -1,6 +1,6 @@
 <projectMemory>
 <purpose>
-这里保存跨会话仍适用的领域背景、术语、项目事实和长期约束。长期记忆不参与压缩，被选入窗口时保留全文；会话记忆则随来源轮次参与压缩，后续可能只在摘要中出现。只在当前任务需要的信息用 memory_writeConversation，值得跨会话保留的信息才用 memory_writeProject。每条 <memory> 的 id 是 lm_ 记忆编号，scope 是归属项目，正文含 summary 和 text。记忆记录保存来源调用和来源会话，当前展示的是摘要与正文。
+这里保存跨会话仍适用的领域背景、术语、项目事实和长期约束。长期记忆不参与压缩，被选入窗口时保留全文；会话记忆则随来源 loop参与压缩，后续可能只在摘要中出现。只在当前任务需要的信息用 memory_writeConversation，值得跨会话保留的信息才用 memory_writeProject。每条 <memory> 的 id 是 lm_ 记忆编号，scope 是归属项目，正文含 summary 和 text。记忆记录保存来源调用和来源会话，当前展示的是摘要与正文。
 
 写入和维护：
 - 用 memory_writeProject 写入。projectMemory 是正文数组，scope 必填，表示本批记忆所属的工作区或仓库目录名；可选 summary 数组须与正文一一对应。summary 应是一句可独立理解的结论，跨项目阅读时也能看出归属。

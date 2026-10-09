@@ -6,7 +6,7 @@ import { allocateRecordId, nowIso } from "./ids.ts";
 import { prepareTaskComplete, prepareTaskSet, prepareTaskUpdate } from "./tasks.ts";
 import { join } from "node:path";
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
-import { appendEvent, paths, saveLedger, saveTurn } from "./store.ts";
+import { appendEvent, paths, saveFullReturn, saveLedger, saveTurn } from "./store.ts";
 import { admitReturn } from "../admission.ts";
 
 const recordDirectory = (dataDir: string, conversationId: string, kind: string) =>
@@ -51,6 +51,12 @@ export function applyToolEffects(input: {
     activeTaskId: ledger.activeTaskId,
     activeTaskItemId: ledger.activeTaskItemId,
   };
+  const setTaskResult = (result: Record<string, unknown>): void => {
+    const text = JSON.stringify({ ok: true, ...result });
+    const row = ledger.toolIO.find(item => item.callId === call.callId);
+    if (row) row.return = { stage: "complete", totalChars: text.length, text };
+    saveFullReturn(dataDir, ledger.conversationId, call.callId, text);
+  };
   let output: TurnStopReason | null = null;
   for (const effect of effects) {
     switch (effect.type) {
@@ -62,24 +68,27 @@ export function applyToolEffects(input: {
         break;
       }
       case "task_set": {
-        prepareTaskSet(dataDir, { ledger, turnId: turn.turnId, sourceCallId: call.callId }, {
+        const result = prepareTaskSet(dataDir, { ledger, turnId: turn.turnId, sourceCallId: call.callId }, {
           title: effect.title,
           items: effect.items,
         });
+        setTaskResult({ ...(result.plan.status === "completed" ? { task: structuredClone(result.plan) } : { taskRef: { id: result.plan.id } }), ...(result.replacedPlanId ? { replacedTask: structuredClone(ledger.tasks.find(task => task.id === result.replacedPlanId)) } : {}) });
         break;
       }
       case "task_update": {
-        prepareTaskUpdate(dataDir, { ledger, turnId: turn.turnId, sourceCallId: call.callId }, {
+        const result = prepareTaskUpdate(dataDir, { ledger, turnId: turn.turnId, sourceCallId: call.callId }, {
           taskId: effect.taskId,
           items: effect.items,
         });
+        setTaskResult(result.plan.status === "completed" ? { task: structuredClone(result.plan) } : { taskRef: { id: result.plan.id } });
         break;
       }
       case "task_complete": {
-        prepareTaskComplete(dataDir, { ledger, turnId: turn.turnId, sourceCallId: call.callId }, {
+        const result = prepareTaskComplete(dataDir, { ledger, turnId: turn.turnId, sourceCallId: call.callId }, {
           taskId: effect.taskId,
           reason: effect.reason,
         });
+        setTaskResult(result.plan.status === "completed" ? { task: structuredClone(result.plan) } : { taskRef: { id: result.plan.id } });
         break;
       }
       case "memory.append":

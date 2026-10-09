@@ -32,7 +32,7 @@ function formatDuration(ms?: number): string {
 type SessionView = {
   conversationId: string | null;
   status: string;
-  activity: { kind: "compressing"; phase: "history" | "current" | "summaries" | null; completed?: number; total?: number | null; source?: "agent" | "runtime"; fold?: { merged: number; level: number; turnIds: number } | null } | null;
+  activity: { kind: "compressing"; phase: "loops" | "summaries" | null; completed?: number; total?: number | null; source?: "agent" | "runtime"; fold?: { merged: number; level: number; loopIds: number } | null } | null;
   pendingAsk: { turnId: string; question: string; choice: string[] } | null;
   liveTools: { name: string; callId: string; reason?: string }[];
   task: {
@@ -354,7 +354,7 @@ export function App() {
   const running = sending || session.status === "running";
   const compressing = session.status === "running" && session.activity?.kind === "compressing";
   const phaseText = session.activity?.phase
-    ? { history: "正在压缩历史记录", current: "正在压缩当前轮记录", summaries: "正在压缩已有摘要" }[session.activity.phase]
+    ? { loops: "正在压缩交互记录", summaries: "正在压缩已有摘要" }[session.activity.phase]
     : "正在压缩上下文";
   const progress = session.activity && typeof session.activity.total === "number" && session.activity.total > 0
     ? ` ${session.activity.completed ?? 0}/${session.activity.total}`

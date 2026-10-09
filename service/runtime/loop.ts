@@ -4,14 +4,13 @@ import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
 import { admitExecution, admitImages, deferredImageNote } from "../admission.ts";
 import { escalate } from "./escalation.ts";
-import { recordWorkspaceEvidence } from "./workspace.ts";
+import { appendRuntime, inputLoop, recordHelm, recordToolResult, setLoopNotice } from "./loop-records.ts";
 import { hasActiveTask, requiresActiveTask } from "./task-gate.ts";
 import { repeatHint } from "./repeat-detect.ts";
 import { ensureThumb, loadThumbRef } from "../images/thumb.ts";
 import { deriveActiveScopes, projectMemories, renderScopeIndex } from "../memory/window.ts";
 import { errorInfo, errorMessage } from "../../shared/errors.ts";
 import { errorDetail } from "../../shared/error-details.ts";
-import { continuationInputText } from "../../shared/continuation.ts";
 import { failedTool, toolFailure } from "../tools/result.ts";
 import { systemText, userText, windowChars } from "../context/window.ts";
 import { beginExecution, hasActiveExecution } from "./execution.ts";
@@ -32,9 +31,6 @@ const REFLECT_NUDGE_MARKER = "runtime: 本回合尚未落反思";
 const OBSERVATION_NUDGE_FIRST_GATE = runtimeConfig.context.observationNudgeFirstGate;
 const OBSERVATION_NUDGE_MIN_GATE = runtimeConfig.context.observationNudgeMinGate;
 const OBSERVATION_NUDGE_STEP = runtimeConfig.context.observationNudgeStep;
-// Compress-prep checkpoint: how much room above compressAt still allows deferring compression once
-// (below the hard inline limit at hardLimitChars, deferring further would risk context_limit).
-const COMPRESS_NUDGE_HEADROOM = runtimeConfig.context.compressNudgeHeadroom;
 // Management / bookkeeping tools: their returns add no new evidence worth checkpointing.
 const OBSERVATION_NUDGE_EXCLUDED = new Set([
   "observation_write",
@@ -95,7 +91,7 @@ import {
   saveTurn,
   appendEvent,
 } from "./store.ts";
-import { autoCompleteActiveTask, executionContext, pauseActiveTask } from "./tasks.ts";
+import { executionContext, pauseActiveTask } from "./tasks.ts";
 
 // stopTurn already persists cancellation. A superseded worker must never write
 // its stale ledger back over a newer turn (or recreate a deleted conversation).
@@ -152,7 +148,6 @@ const assemble = (toolRegistry: ToolRegistry, loadedToolIds: string[]): Assemble
   mcpIds: [],
   currentPage: null,
   observations: [],
-  workspace: [],
   currentTabs: { ok: false, error: "尚未读取标签列表" },
 });
 const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, ledger: Ledger, turn: Turn, memories: ReturnType<typeof loadMemories>, skillText: string, images: ChatMessage["images"], summaries: Parameters<typeof userText>[0]["conversationSummaries"] = [], dataDir?: string, skillNav = "", historyDataDir?: string, onNotice?: (kind: string, text: string | null) => void, allCalls: readonly { name: string; arguments?: unknown }[] = ledger.toolIO): ChatMessage[] => {
@@ -172,8 +167,8 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
   // evidence-based (paths in the recent tool calls), never a declared guess.
   const activeScopes = deriveActiveScopes(allCalls);
   // 图片附件、未注入的记忆范围、零调用的已加载工具这三条附注，与其他运行时提醒同一承载：
-  // 经 onNotice 交给 <runtimeNotices> 容器（带 id/kind），不再作为裸文本缀在 User 正文尾。
-  // 同 kind 只保留最新一条，空文本即清除；测量路径不传 onNotice，保持只读。
+  // 交给当前未发送 loop 的 runtime notice，每条独立编号。
+  // 只在本次请求准备阶段按 kind 更新；已发送的历史不改写。
   onNotice?.("image", deferredImageNote(deferred) + (thumbs.length ? " 已附缩略图，细节仍需 image_crop 或 mode=element|rect。" : ""));
   onNotice?.("memory", renderScopeIndex(memories, activeScopes));
   onNotice?.("tools", zeroCallToolNote(toolRegistry, ledger.loadedToolIds, allCalls));
@@ -377,16 +372,16 @@ const runQueue = async (input: {
             defaultTabId: ledger.contextTab?.tabId ?? null,
             queryContext: args => queryContext({ dataDir, conversationId: ledger.conversationId, repoRoot: input.repoRoot, provider: input.provider, ...args, isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId) }),
             // Manual compress answers a question the outcome alone cannot: did it actually shrink the window?
-            compressContext: async ({ phase }) => {
+            compressContext: async () => {
               const before = input.measureWindow?.() ?? null;
               let started = false;
               try {
                 const outcome = await compressContext({ dataDir, repoRoot: input.repoRoot, provider: input.provider, ledger, turn,
                   memories: loadMemories(dataDir, ledger.conversationId, ledger.memoryIds),
                   isCancelled: () => wasStopped(dataDir, ledger.conversationId, turn.turnId),
-                  onStart: () => { started = true; appendEvent(dataDir, ledger.conversationId, { kind: "compress-start", turnId: turn.turnId, data: { source: "agent", phase } }); },
+                  onStart: () => { started = true; appendEvent(dataDir, ledger.conversationId, { kind: "compress-start", turnId: turn.turnId, data: { source: "agent" } }); },
                   onProgress: (progress) => appendEvent(dataDir, ledger.conversationId, { kind: "compress-progress", turnId: turn.turnId, data: { source: "agent", ...progress } }),
-                }, phase);
+                });
                 // GUI 指示由 kind:"compress"/"compress-error" 清除；agent 路径此前只发 start/progress，
                 // 压缩结束后指示一直停留，必须补完成事件（noop 时从未 start，无须发）。
                 if (started) appendEvent(dataDir, ledger.conversationId, { kind: "compress", turnId: turn.turnId, data: { source: "agent", beforeChars: before, afterChars: input.measureWindow?.() ?? null } });
@@ -477,18 +472,14 @@ const runQueue = async (input: {
       }
       const escalation = escalate(turnRows, item.name, readOnlyTools);
       if (escalation.action === "interrupt") {
-        recordWorkspaceEvidence(dataDir, ledger, turn, row);
+        recordToolResult(dataDir, ledger, row);
+        appendRuntime(dataDir, ledger, turn.turnId, "notice", { kind: "budget", scope: "loop", text: escalation.text });
         closeForcedReply(ledger, turn, escalation.text);
         saveTurn(dataDir, turn);
         saveLedger(dataDir, ledger);
         return { kind: "reply", text: escalation.text };
       }
-      if (escalation.action === "hint") {
-        ledger.runtimeNotices = ledger.runtimeNotices.filter((notice) => notice.kind !== "budget");
-        ledger.runtimeNotices.push({ id: allocateRecordId(dataDir, ledger.conversationId, "notice"), kind: "budget", scope: "turn", text: escalation.text });
-      } else {
-        ledger.runtimeNotices = ledger.runtimeNotices.filter((notice) => notice.kind !== "budget");
-      }
+      setLoopNotice(dataDir, ledger, turn.turnId, "budget", escalation.action === "hint" ? escalation.text : null);
       let output: TurnStopReason | null = null;
       try {
         output = applyToolEffects({
@@ -505,7 +496,7 @@ const runQueue = async (input: {
         saveTurn(dataDir, turn);
         saveLedger(dataDir, ledger);
       }
-      recordWorkspaceEvidence(dataDir, ledger, turn, row);
+      recordToolResult(dataDir, ledger, row);
       saveTurn(dataDir, turn);
       // Tool calls are not written to events.jsonl: toolio.jsonl is the single source of truth
       // (it carries turnId/batchId/risk/taskId and is amended in place to the final return), and
@@ -564,10 +555,6 @@ export async function handleTurn(
     userInput: string;
     submittedAt: string;
     conversationId?: string;
-    /** Set on a turn opened to continue a rotated one; forces its first send to compress. */
-    continuationOfTurnId?: string;
-    /** How many chained rotations already happened before this turn, for the cap check. */
-    rotations?: number;
   },
 ): Promise<TurnReply> {
   // Route by the caller's conversation; the global pointer is only a fallback.
@@ -613,6 +600,7 @@ export async function handleTurn(
   saveContextRecord(deps.dataDir, ledger.conversationId, "userInput", inputRecord(turn));
   turn.assembled.conversationMemoryIds = [...ledger.memoryIds.conversation];
   turn.assembled.projectMemoryIds = loadMemories(deps.dataDir, ledger.conversationId, ledger.memoryIds).project.map(item => item.memoryId);
+  appendRuntime(deps.dataDir, ledger, turnId, "userInput", { text: body.userInput, submittedAt: body.submittedAt });
   ledger.turnIds.push(turnId);
   ledger.status = "running";
   ledger.active = { turnId };
@@ -644,34 +632,13 @@ export async function handleTurn(
     // Reflect rides the same tightening chain as the observation nudge: it starts at the same gate
     // and is reset by the same observation_write, so the two never stack on the same 20-call window.
     let reflectNudgeGate = OBSERVATION_NUDGE_FIRST_GATE;
-    // Compress-prep checkpoint: at most one deferred compression per turn.
-    let compressNudgeSent = false;
-    // Rotation-prep checkpoint: at most one deferred forced close per turn.
-    let rotateNudgeSent = false;
-    // This turn's own baseline: its first settled window (user input only, no tool returns yet).
-    // Captured at the rotation check rather than at the first assembly so a continuation turn
-    // measures from *after* its forced compression — otherwise the compression it just paid for
-    // reads as negative growth and the turn never rotates. Rotation is judged on settledChars
-    // minus this baseline rather than the window total, so a turn opened on top of an already
-    // large history does not rotate on arrival.
-    let baseChars: number | null = null;
-    // A continuation turn inherits a window that is still over the rotation threshold.
-    // Compress it on the first send even while it is still below compressAt, otherwise it
-    // would rotate again immediately and the chain would never settle.
-    let forceCompress = body.continuationOfTurnId !== undefined;
     let imageBatchId: string | undefined;
-    // Runtime 提醒统一进 User <runtimeNotices> 模块（与 conversation 平级），不再缀到各条返回后面。
-    // 发送前重算临时提醒；budget 由工具返回更新，保留到下一次请求，同 kind 只保留最新一条。
-    const setNotice = (kind: string, text: string | null) => {
-      ledger.runtimeNotices = ledger.runtimeNotices.filter((notice) => notice.kind !== kind);
-      if (text) ledger.runtimeNotices.push({ id: allocateRecordId(deps.dataDir, ledger.conversationId, "notice"), kind, scope: "turn", text });
-    };
-    // 连续只读计数以 turn 为范围，不携带上一轮的预算提醒。
-    setNotice("budget", null);
+    const setNotice = (kind: string, text: string | null) => setLoopNotice(deps.dataDir, ledger, turnId, kind, text);
     while (true) {
       if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
           return stoppedReply(ledger, turn);
         }
+      const currentLoop = inputLoop(deps.dataDir, ledger, turnId);
       saveTurn(deps.dataDir, turn);
       const memories = loadMemories(deps.dataDir, ledger.conversationId, ledger.memoryIds);
       turn.assembled.projectMemoryIds = memories.project.map(item => item.memoryId);
@@ -706,7 +673,7 @@ export async function handleTurn(
         for (const row of evidenceRows) tally.set(row.name, (tally.get(row.name) ?? 0) + 1);
         const detail = [...tally.entries()].sort((a, b) => b[1] - a[1]).map(([name, n]) => `${name}×${n}`).join("、");
         setNotice("observation",
-          `${OBSERVATION_NUDGE_MARKER} ${evidenceCallsSinceObservation} 次产出证据的工具调用（${detail}），尚未写阶段观察。已写入 workspace 的事实可直接复用；压缩会保留摘要，原文仍可回查。若跨步骤状态尚未记录，可用 observation_write 补充当前进度、未验证项与衔接点，不重复搬运 workspace 或工具返回；已有信息足够时继续执行。下次提示门槛收紧到 ${observationNudgeGate} 次。`);
+          `${OBSERVATION_NUDGE_MARKER} ${evidenceCallsSinceObservation} 次产出证据的工具调用（${detail}），尚未写阶段观察。已有工具结果可直接复用；压缩会保留摘要，原文仍可回查。若跨步骤状态尚未记录，可用 observation_write 补充当前进度、未验证项与衔接点，不重复搬运工具返回；已有信息足够时继续执行。下次提示门槛收紧到 ${observationNudgeGate} 次。`);
       }
       // Reflect nudge: counted on raw calls for the turn rather than evidence calls, because
       // reflection tracks judgement changes and repeated dead ends, which pure reading also triggers.
@@ -718,115 +685,25 @@ export async function handleTurn(
       let state = contextState(deps.dataDir, ledger, turn, memories);
       let messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir, setNotice, ledger.toolIO);
       const initialChars = windowChars(messages[0]!.content, messages[1]!.content);
-      // Compress-prep checkpoint: compression turns this turn's tool returns into summaries and
-      // pointers, so ask for one observation first — but only while the window still has headroom
-      // below the hard inline limit, and only once per turn (compressNudgeSent). The next
-      // loop iteration compresses as usual; the gate is deferred by one send, never dropped.
-      const deferForCheckpoint = !compressNudgeSent && writeCount === 0 && rows.length > 0
-        && initialChars >= ledger.compressAt && initialChars < ledger.compressAt + COMPRESS_NUDGE_HEADROOM;
-      if (deferForCheckpoint) {
-        compressNudgeSent = true;
-        setNotice("compress",
-          `${OBSERVATION_NUDGE_MARKER} 上下文即将被压缩（当前窗口 ${initialChars} 字符，阈值 ${ledger.compressAt}）。压缩会保留摘要，原文仍可回查；已写入 workspace 的事实也随轮次归档。本轮尚未写阶段观察，若还有未记录的跨步骤状态，可用 observation_write 补充进度、未验证项与衔接点，不重复搬运已有事实。本轮的下一次循环仍会照常压缩，不会一直推迟。`);
-        state = contextState(deps.dataDir, ledger, turn, memories);
-        messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir, setNotice, ledger.toolIO);
-      }
-      if (!deferForCheckpoint && (forceCompress || initialChars >= ledger.compressAt)) {
+      if (initialChars >= ledger.compressAt) {
         let compressionStarted = false;
         try {
-          for (const phase of ["history", "current"] as const) {
-            // A forced compress runs even while the window is still below compressAt, then the
-            // flag is consumed so later sends of this turn compress on the normal threshold.
-            const forced = forceCompress;
-            forceCompress = false;
-            if (!forced && windowChars(messages[0]!.content, messages[1]!.content) < ledger.compressAt) break;
-            const outcome = await compressContext({ ...deps, ledger, turn, memories, isCancelled: () => wasStopped(deps.dataDir, ledger.conversationId, turn.turnId), onStart: () => {
-              if (!compressionStarted) appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-start", turnId, data: { source: "runtime", windowChars: initialChars } });
+          await compressContext({ ...deps, ledger, turn, memories,
+            isCancelled: () => wasStopped(deps.dataDir, ledger.conversationId, turnId),
+            onStart: () => {
               compressionStarted = true;
-              appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-phase", turnId, data: { phase } });
-            }, onProgress: (progress) => {
-              compressionStarted = true;
-              if (progress.type === "start") {
-                appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-progress", turnId, data: { completed: 0, total: progress.total } });
-                return;
-              }
-              if (progress.type === "turn") {
-                appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-progress", turnId, data: { completed: progress.completed, total: progress.total, turnId: progress.turnId } });
-                return;
-              }
-              if (progress.type === "stopped") {
-                appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-progress", turnId, data: { completed: progress.completed, total: progress.total, failedTurnId: progress.failedTurnId } });
-                return;
-              }
-              if (progress.type === "fold") {
-                appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-progress", turnId, data: { merged: progress.merged, level: progress.level, turnIds: progress.turnIds } });
-                return;
-              }
-            } }, phase);
-            if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
-          return stoppedReply(ledger, turn);
-        }
-            state = contextState(deps.dataDir, ledger, turn, memories);
-            skillText = skillTextOf();
-            messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir, setNotice, ledger.toolIO);
-            // Sequential compression: a failed turn keeps originals; this boundary stops compressing and still sends the main model.
-            if (outcome?.status === "stopped") break;
-          }
-          if (compressionStarted) appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress", turnId, data: { beforeChars: initialChars, afterChars: windowChars(messages[0]!.content, messages[1]!.content) } });
-        } catch (error) {
-          if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
-          return stoppedReply(ledger, turn);
-        }
-          turn.status = "failed";
-          turn.completedAt = nowIso();
-          const cause = errorInfo(error, "compression_failed");
-          turn.stopReason = { kind: "error", faultCode: "compression_failed",
-            ...(cause.faultCode !== "compression_failed" ? { causeCode: cause.faultCode } : {}),
-            ...(cause.detail ? { detail: cause.detail } : {}) };
-          ledger.status = "failed";
-          ledger.active = null;
-          saveTurn(deps.dataDir, turn);
-          saveLedger(deps.dataDir, ledger);
-          appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-error", turnId, data: { ...cause } });
-          return { conversationId: ledger.conversationId, turnId, stopReason: turn.stopReason };
-        }
-      }
-      // Rotation: once this turn's own injected content passes the threshold, close it and let
-      // the caller reopen a continuation turn on the compressed history. Judged on the delta from
-      // this turn's own baseline, so a turn opened on an already large history does not rotate on
-      // arrival. Over the rotation cap the turn keeps running on the normal path and fails with
-      // context_limit rather than being cut off from its own answer.
-      const settledChars = windowChars(messages[0]!.content, messages[1]!.content);
-      // Baseline = this turn's first settled window, so the first send always reads as zero
-      // growth and a continuation turn does not count its own forced compression as shrinkage.
-      if (baseChars === null) baseChars = settledChars;
-      const turnDeltaChars = settledChars - baseChars;
-      if (turnDeltaChars >= ledger.turnRotateAt && (body.rotations ?? 0) < runtimeConfig.context.maxTurnRotations) {
-        // Close-prep checkpoint: a rotated turn ends without finishTurn, so whatever it concluded
-        // only survives if it was written down. Defer one send to ask for an observation first.
-        if (!rotateNudgeSent && writeCount === 0 && rows.length > 0) {
-          rotateNudgeSent = true;
-          setNotice("rotate",
-            `${OBSERVATION_NUDGE_MARKER} 本轮自身注入已达 ${turnDeltaChars} 字符（阈值 ${ledger.turnRotateAt}），下一轮将闭合本轮并从压缩后的历史续接。压缩会保留摘要，原文仍可回查，已写入 workspace 的事实随轮次归档。若还有未记录的跨步骤状态，可用 observation_write 补充进度、未验证项与衔接点，不重复搬运已有事实。`);
+              appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-start", turnId, data: {} });
+            },
+            onProgress: progress => appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-progress", turnId, data: { ...progress } }),
+          });
+          if (wasStopped(deps.dataDir, ledger.conversationId, turnId)) return stoppedReply(ledger, turn);
           state = contextState(deps.dataDir, ledger, turn, memories);
           messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir, setNotice, ledger.toolIO);
-        } else {
-          // Same close path as a normal reply, so loadSettledTurnHistory sees this turn and the
-          // next turn is not blocked by a busy ledger.
-          const stopReason: TurnStopReason = { kind: "rotated", turnChars: settledChars, turnDeltaChars };
-          turn.status = "completed";
-          turn.completedAt = nowIso();
-          turn.stopReason = stopReason;
-          ledger.status = "idle";
-          ledger.active = null;
-          ledger.pendingAsk = null;
-          ledger.toolQueue = [];
-          ledger.liveTools = [];
-          archiveTurnReflection(ledger, turn);
-          saveTurn(deps.dataDir, turn);
-          saveLedger(deps.dataDir, ledger);
-          appendEvent(deps.dataDir, ledger.conversationId, { kind: "turn-stop-reason", turnId, data: { output: stopReason } });
-          return { conversationId: ledger.conversationId, turnId, stopReason };
+          if (compressionStarted) appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress", turnId, data: { beforeChars: initialChars, afterChars: windowChars(messages[0]!.content, messages[1]!.content) } });
+        } catch (error) {
+          if (wasStopped(deps.dataDir, ledger.conversationId, turnId)) return stoppedReply(ledger, turn);
+          if (compressionStarted) appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-error", turnId, data: errorInfo(error, "compression_failed") });
+          throw error;
         }
       }
       // The send boundary compresses first, then fails the turn when the settled view is
@@ -858,7 +735,11 @@ export async function handleTurn(
         turnId,
         data: { windowChars: ledger.windowChars, toolIds: [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds], usage: { ...turn.usage } },
       });
+      currentLoop.turnId = turnId;
+      currentLoop.sentAt = nowIso();
+      saveLedger(deps.dataDir, ledger);
       const providerResult = await deps.provider.complete({
+        loopId: currentLoop.id,
         messages,
         tools,
         imageContext: { dataDir: deps.dataDir, conversationId: ledger.conversationId },
@@ -882,6 +763,8 @@ export async function handleTurn(
         toolCalls: providerResult.toolCalls.map(call => ({ ...call, id: localCallId(call.id) })),
         ...(providerResult.toolCallFaults ? { toolCallFaults: providerResult.toolCallFaults.map(fault => ({ ...fault, callId: localCallId(fault.callId) })) } : {}),
       };
+      recordHelm(deps.dataDir, ledger, currentLoop, rawResult);
+      saveLedger(deps.dataDir, ledger);
       const batchId = allocateRecordId(deps.dataDir, ledger.conversationId, "batch");
       const batchStart = ledger.toolIO.length;
       // Every response's records, including rejected calls and provider evidence,
@@ -890,7 +773,7 @@ export async function handleTurn(
         const rows = ledger.toolIO.slice(batchStart);
         const observations = new Map(turn.assembled.observations
           .filter(item => item.turnId === turnId).map(item => [item.callId, item.id]));
-        for (const row of rows) row.batchId = batchId;
+        for (const row of rows) { row.batchId = batchId; recordToolResult(deps.dataDir, ledger, row); }
         ledger.lastAction = {
           batchId, turnId,
           calls: rows.map(row => ({ callId: row.callId, name: row.name,
@@ -1109,7 +992,7 @@ export async function handleTurn(
       saveTurn(deps.dataDir, turn);
       // A plan whose items are all done is finished work; close it here so a
       // finished turn never leaves a zombie task behind. Persisted below.
-      autoCompleteActiveTask(deps.dataDir, ledger, turnId);
+
       if (closed) pauseActiveTask(deps.dataDir, ledger, turnId);
       saveLedger(deps.dataDir, ledger);
       if (closed) {
@@ -1148,7 +1031,10 @@ export async function handleTurn(
     if (wasStopped(deps.dataDir, ledger.conversationId, turn.turnId)) {
           return stoppedReply(ledger, turn);
         }
+    const failedLoop = ledger.loops.at(-1);
+    if (failedLoop?.sentAt && !failedLoop.completedAt) failedLoop.completedAt = nowIso();
     const cause = errorInfo(error);
+    appendRuntime(deps.dataDir, ledger, turnId, "notice", { kind: "error", scope: "loop", ...cause });
     const liveTool = ledger.liveTools[0];
     turn.status = "failed";
     turn.completedAt = nowIso();
@@ -1167,6 +1053,7 @@ export async function handleTurn(
           details: { ...cause.details, executionState: "部分操作可能已生效，请先检查已保存记录与当前状态，不要直接重放整批操作。" } }));
         row.return = { stage: "complete", totalChars: text.length, text };
         saveFullReturn(deps.dataDir, ledger.conversationId, row.callId, text);
+        recordToolResult(deps.dataDir, ledger, row);
       }
     }
     saveTurn(deps.dataDir, turn);
@@ -1180,26 +1067,10 @@ export async function handleTurn(
   } finally { execution.finish(); }
 }
 
-/**
- * One submission can span several turns: a turn that crosses the rotation threshold closes with
- * stopReason "rotated" and this opens a continuation turn carrying the original user input plus a
- * runtime prefix, so the work keeps going on the compressed history. handleTurn itself already
- * refuses to rotate past the cap, so this loop is bounded by maxTurnRotations.
- */
+/** Host/UI submission boundary; model history is organized exclusively by loop. */
 export async function runTurnWithContinuation(
   deps: LoopDeps,
   body: { userInput: string; submittedAt: string; conversationId?: string },
 ): Promise<TurnReply> {
-  let userInput = body.userInput;
-  let submittedAt = body.submittedAt;
-  let continuationOfTurnId: string | undefined;
-  let rotations = 0;
-  for (;;) {
-    const reply = await handleTurn(deps, { userInput, submittedAt, conversationId: body.conversationId, continuationOfTurnId, rotations });
-    if (reply.stopReason.kind !== "rotated" || rotations >= runtimeConfig.context.maxTurnRotations) return reply;
-    rotations += 1;
-    userInput = continuationInputText(body.userInput);
-    submittedAt = nowIso();
-    continuationOfTurnId = reply.turnId;
-  }
+  return handleTurn(deps, body);
 }

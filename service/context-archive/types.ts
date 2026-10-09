@@ -6,13 +6,11 @@ export type CompressionRecord = {
   module: CompressionModule;
   level: number;
   summary: string;
-  turnId: string;
+  loopIds: string[];
   userRequest: string;
   actions: string;
   result: string;
   reflection?: string;
-  /** Cross-turn folds: every turn this record covers (span rows also carry turnId). */
-  turnIds?: string[];
   sourceIds: string[];
   createdAt: string;
 };

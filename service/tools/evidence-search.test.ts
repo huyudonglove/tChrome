@@ -172,7 +172,7 @@ test("externalized observation directory IDs retrieve the exact archived page bl
   const turn: Turn = {
     turnId: "tn_01", conversationId: "cv_01", status: "inferring", createdAt: "now", completedAt: null,
     input: { id: "input_01", text: "观察", submittedAt: "now" }, stopReason: null,
-    assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, currentTabs: { ok: true, windows: [] }, observations: [], workspace: [] },
+    assembled: { baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [], currentPage: null, currentTabs: { ok: true, windows: [] }, observations: [] },
   };
   const body = { elements: Array.from({ length: 100 }, (_, i) => ({ name: `button_${i}`, description: "text".repeat(60) })) };
   applyToolEffects({ dataDir, ledger, turn, call: { callId: "call_01", name: "observation_write", arguments: {}, batchId: "batch_01" }, effects: [{ type: "observation_write", observationType: "page_list_interactive_elements", tabId: 1, result: body }] });

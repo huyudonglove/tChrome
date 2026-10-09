@@ -6,7 +6,7 @@
     { "id": "identity", "order": 2, "file": "system/identity.md", "consumers": ["query"], "description": "Identity only; do not repeat elsewhere" },
     { "id": "queryRole", "order": 3, "file": "system/role.md", "consumers": ["query"], "description": "Role, evidence rules, sample submit" },
     { "id": "queryModules", "order": 4, "file": "system/modules.md", "consumers": ["query"], "description": "Request and candidate field semantics" },
-    { "id": "queryTurns", "order": 5, "file": "system/turns.md", "consumers": ["query"], "description": "User payload semantics" },
+    { "id": "queryLoops", "order": 5, "file": "system/loops.md", "consumers": ["query"], "description": "User payload semantics" },
     { "id": "queryOutput", "order": 6, "file": "system/output.md", "consumers": ["query"], "description": "submitMatches contract" }
   ]
 }

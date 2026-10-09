@@ -42,26 +42,6 @@ export type Observation = {  id: string;
   validUntilTurn?: number;
 };
 
-/** Runtime-generated immutable operation evidence, archived with its source turn. */
-export type WorkspaceEntry = import("./runtime/workspace-extract.ts").WorkspaceEvidence & {
-  id: string;
-  turnId: string;
-  boundId: string;
-  callId: string;
-  callIds: string[];
-};
-
-/** Runtime 运行时提醒：与 <turn> 平级的新模块，不再零散缀在各条返回后面。
- * 一次性提醒只出现在返回里，不进这里；半长久（turn 级）随 turn 消亡；长久的修好即消。 */
-export type RuntimeNoticeScope = "turn" | "persistent";
-export type RuntimeNotice = {
-  id: string;
-  /** budget | observation | reflect | compress | rotate | image | memory | tools */
-  kind: string;
-  scope: RuntimeNoticeScope;
-  text: string;
-};
-
 /** Most recent model-returned tool batch; replaced before the next model request. */
 export type LastAction = {
   batchId: string;
@@ -140,8 +120,6 @@ export type Assembled = {
   mcpIds: string[];
   currentPage: (CurrentPage & Partial<Observation>) | null;
   observations: Observation[];
-  /** 因果工作区：本轮写下的 ws 条目，窗口不限量，压缩时跟 turn 一起归档。 */
-  workspace: WorkspaceEntry[];
   currentTabs: CurrentTabs;
 };
 
@@ -150,10 +128,6 @@ export type TurnStopReason =
   | { kind: "ask"; question: string }
   | { kind: "reply"; text: string }
   | { kind: "interrupted"; initiatedBy: "user" | "budget" | "service"; detail?: string }
-  // The turn was force-closed by the single-turn rotation gate; the caller may open
-  // a continuation turn. turnChars is the window size at closure, turnDeltaChars the
-  // part this turn itself injected.
-  | { kind: "rotated"; turnChars: number; turnDeltaChars: number; detail?: string }
   | { kind: "error"; faultCode: string; causeCode?: string; toolName?: string; detail?: string };
 
 export type Turn = {
@@ -205,8 +179,47 @@ export type ToolIOItem = ToolQueueItem & {
   riskSource?: "model" | "fixed";
 };
 
+/** One main-model request and its response; transport retries share this record. */
+export type RuntimeRecord = {
+  id: string;
+  type: "userInput" | "callsResult" | "interrupt" | "notice";
+  content: unknown;
+};
+export type LoopToolResult = {
+  sourceLoopId?: string;
+  callId: string;
+  name: string;
+  result: unknown;
+  keepInCalls: boolean;
+};
+export type HelmRecord = {
+  id: string;
+  content: string;
+  calls: ToolCall[];
+  finish: CompletionResult["finish"];
+  faultCode?: string | null;
+  detail?: string;
+  parseOk?: boolean;
+  schemaOk?: boolean;
+  missing?: string[];
+  grounding?: ProviderGrounding;
+  toolCallFaults?: ToolCallFault[];
+};
+export type LoopRecord = {
+  id: string;
+  conversationId: string;
+  /** Host request ownership for UI/cancellation, not a context grouping boundary. */
+  turnId: string;
+  createdAt: string;
+  runtime: RuntimeRecord[];
+  helm?: HelmRecord;
+  sentAt?: string;
+  completedAt?: string;
+};
+
 export type Ledger = {
-  schemaVersion: 2;
+  schemaVersion: 3;
+  loops: LoopRecord[];
   conversationId: string;
   createdAt: string;
   updatedAt: string;
@@ -226,18 +239,12 @@ export type Ledger = {
   liveTools: { name: string; callId: string; reason?: string }[];
   toolIO: ToolIOItem[];
   lastAction: LastAction | null;
-  /** Runtime 运行时提醒（与 turn 平级展示）；turn 级随 turn 消亡。 */
-  runtimeNotices: RuntimeNotice[];
   /** 本 Conversation 内模型请求计数（boundId 来源）。 */
   boundSeq: number;
   contextTab: TabContext;
-  /** Runtime-written evidence buffer; drained into its source turn's workspace at the threshold. */
-  notes: WorkspaceEntry[];
   queryHistory: QueryEvidence[];
   windowChars: number;
   compressAt: number;
-  /** Window size at which a turn whose own injected content crosses it is force-closed. */
-  turnRotateAt: number;
   memoryIds: { conversation: string[]; project: string[] };
 };
 
@@ -299,6 +306,8 @@ export type Provider = {
   complete(input: {
     messages: ChatMessage[];
     tools: ChatTool[];
+    /** Main-model loop correlation; auxiliary requests do not create a main loop. */
+    loopId?: string;
     /** Stable owning conversation, supplied by the runtime execution scope. */
     conversationId?: string;
     imageContext?: { dataDir: string; conversationId: string };

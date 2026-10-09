@@ -1,92 +1,22 @@
-import { expect, test } from "bun:test";
-import { resolve } from "node:path";
+import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { requestTurnSummaries, compressionSystemPrompt, compressionUserPrompt, compressionTurnsFromUserMessage } from "./protocol.ts";
-import type { CompletionResult } from "../../types.ts";
-import { readdirSync, readFileSync } from "node:fs";
-const dataDir = mkdtempSync(join(tmpdir(), "compression-protocol-"));
-const repoRoot = resolve(import.meta.dir, "../../..");
-const turn = { turnId: "tn_01", userInput: { userInput: "打开导出页" }, toolIO: [] };
-const valid = (args: Record<string, unknown> = { summary: "打开导出页，确认支持 CSV。", actions: "打开并读取", result: "支持 CSV" }): CompletionResult => ({
-  finish: "tool_calls", content: "忽略正文",
-  toolCalls: [{ id: "result", name: "submitTurnSummaries", arguments: args }],
-  attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [],
+import { requestLoopSummaries, requestLoopFold, compressionLoopsFromUserMessage } from "./protocol.ts";
+import { loop, model, repoRoot } from "./test-fixtures.ts";
+const dirs: string[] = [];
+afterEach(() => dirs.splice(0).forEach(dir => rmSync(dir, { recursive: true, force: true })));
+const setup = () => { const dataDir = mkdtempSync(`${tmpdir()}/loop-protocol-`); dirs.push(dataDir); return { dataDir, conversationId: "cv_test", repoRoot }; };
+test("source loop IDs are filled by runtime and complete loop bodies reach compression", async () => {
+ const loops = [loop("loop_01", "userInput"), loop("loop_02")];
+ const result = await requestLoopSummaries({ ...setup(), loops, provider: model(request => expect(compressionLoopsFromUserMessage(request.messages[1]!.content)).toEqual(loops), 2) });
+ expect(result).toHaveLength(2); expect(result.every(row => row.loopIds.join() === "loop_01,loop_02")).toBe(true);
+ expect(result[0]!.userRequest).toBe("修复并验证");
 });
-const validMany = (items: Record<string, unknown>[]): CompletionResult => ({
-  finish: "tool_calls", content: "忽略正文",
-  toolCalls: items.map((args, index) => ({ id: `result_${index + 1}`, name: "submitTurnSummaries", arguments: args })),
-  attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [],
+test("one bad submission rejects all summaries in the response", async () => {
+ const good = model(undefined, 2); let calls = 0;
+ await expect(requestLoopSummaries({ ...setup(), loops: [loop("loop_01")], provider: { async complete(request) { calls++; const response = await good.complete(request); response.toolCalls[1]!.arguments = { summary: "bad" }; return response; } } })).rejects.toThrow();
+ expect(calls).toBe(1);
 });
-const input = { dataDir, conversationId: "cv_01", repoRoot, turn };
-
-test("compression system stays layered and user payload is one-turn JSON", () => {
-  const system = compressionSystemPrompt(repoRoot);
-  expect(system.startsWith("<overview>")).toBe(true);
-  expect(system).toContain("<identity>");
-  expect(system).toContain("<compressionRole>");
-  expect(system).toContain("<compressionModules>");
-  expect(system).toContain("<compressionTurns>");
-  expect(system).toContain("<compressionOutput>");
-  expect(system).toContain("submitTurnSummaries");
-  expect(system).not.toContain("{{archiveFields}}");
-  const user = compressionUserPrompt(repoRoot, [turn]);
-  expect(user).toBe(`<compressionTurns>\n${JSON.stringify({ turns: [turn] })}\n</compressionTurns>`);
-  expect(compressionTurnsFromUserMessage(user).map(row => row.turnId)).toEqual(["tn_01"]);
-});
-
-test("single-turn submission fills userRequest from the turn shell", async () => {
-  const result = await requestTurnSummaries({ ...input, provider: { complete: async request => {
-    expect(request.tools.map(tool => tool.function.name)).toEqual(["submitTurnSummaries"]);
-    expect(request.messages[1]!.content).toBe(`<compressionTurns>\n${JSON.stringify({ turns: [turn] })}\n</compressionTurns>`);
-    return valid({ summary: "打开导出页，确认支持 CSV。", actions: "打开导出页", result: "支持 CSV" });
-  } } });
-  expect(result).toEqual([{ turnId: "tn_01", summary: "打开导出页，确认支持 CSV。", userRequest: "打开导出页", actions: "打开导出页", result: "支持 CSV" }]);
-});
-
-test("one response may submit several summaries for the same turn", async () => {
-  const result = await requestTurnSummaries({ ...input, provider: { complete: async () => validMany([
-    { summary: "读 diff 确认删除 SSE。", actions: "读 diff", result: "确认删除 SSE" },
-    { summary: "跑测试通过。", actions: "跑测试", result: "通过" },
-  ]) } });
-  expect(result.map(row => row.turnId)).toEqual(["tn_01", "tn_01"]);
-  expect(result.map(row => row.summary)).toEqual(["读 diff 确认删除 SSE。", "跑测试通过。"]);
-  expect(result[0]!.userRequest).toBe("打开导出页");
-});
-
-test("format errors self-repair up to three attempts for one turn", async () => {
-  let calls = 0;
-  const result = await requestTurnSummaries({ ...input, provider: { complete: async request => {
-    calls++;
-    if (calls < 3) return valid({ summaries: [{ turnId: "tn_01" }] });
-    const repair = JSON.parse(request.messages.at(-1)!.content);
-    expect(repair).toMatchObject({ selfRepair: true, attempt: 3 });
-    expect(repair.instruction).toContain("tn_01");
-    return valid();
-  } } });
-  expect(calls).toBe(3);
-  expect(result[0]!.turnId).toBe("tn_01");
-});
-
-test("rejects array/string/object submissions after three attempts", async () => {
-  for (const args of [{ summaries: [] }, { summaries: "no" }, { summary: " ", actions: "a", result: "b" }, { summary: "t", actions: "", result: "r" }, { summary: "t", actions: "a", result: "r", turnId: "tn_01" }]) {
-    let calls = 0;
-    await expect(requestTurnSummaries({ ...input, provider: { complete: async () => { calls++; return valid(args as Record<string, unknown>); } } })).rejects.toThrow();
-    expect(calls).toBe(3);
-  }
-  await expect(requestTurnSummaries({ ...input, provider: { complete: async () => ({ ...valid(), finish: "stop", toolCalls: [], content: "{}" }) } })).rejects.toThrow();
-});
-
-test("logs keep request/response and provider faults", async () => {
-  const conversationId = "cv_02";
-  await expect(requestTurnSummaries({ ...input, conversationId, provider: { complete: async () => valid({ summary: "t", actions: true as unknown as string, result: "r" }) } })).rejects.toThrow("compression log:");
-  const dir = join(dataDir, "conversations", conversationId, "agent-logs", "compression");
-  const rows = readFileSync(join(dir, readdirSync(dir)[0]!), "utf8").trim().split("\n").map(line => JSON.parse(line));
-  expect(rows[0].stage).toBe("start");
-  expect(rows.filter(row => row.stage === "validation-error")).toHaveLength(3);
-  expect(rows.at(-1).stage).toBe("error");
-  await expect(requestTurnSummaries({ ...input, conversationId: "cv_03", provider: { complete: async () => { throw new Error("network unavailable"); } } })).rejects.toThrow("network unavailable");
-  await expect(requestTurnSummaries({ ...input, conversationId: "cv_04", provider: { complete: async () => ({ ...valid(), finish: "error", faultCode: "provider_key_invalid" }) } }))
-    .rejects.toMatchObject({ faultCode: "provider_key_invalid", message: expect.stringContaining("compression log:") });
+test("fold rejects multiple submissions instead of silently ignoring later entries", async () => {
+ await expect(requestLoopFold({ ...setup(), level: 2, loopIds: ["loop_01", "loop_02"], rows: [], provider: model(undefined, 2) })).rejects.toThrow();
 });

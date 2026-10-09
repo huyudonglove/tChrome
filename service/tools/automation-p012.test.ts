@@ -54,7 +54,7 @@ test("tab_context sets default tab and fills later browser calls", async () => {
     createdAt: new Date().toISOString(), completedAt: null,
     input: { id: "input_01", text: "ctx", submittedAt: "now" }, stopReason: null,     assembled: {
       baseToolsIds: [], toolIds: [], conversationMemoryIds: [], projectMemoryIds: [], mcpIds: [],
-      currentPage: null, currentTabs: { ok: true, windows: [] }, observations: [], workspace: [],
+      currentPage: null, currentTabs: { ok: true, windows: [] }, observations: [],
     },
   };
   const exec = executeTool;

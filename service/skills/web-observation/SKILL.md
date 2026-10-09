@@ -40,6 +40,6 @@ capture_page 的选择：
 
 执行顺序、中断续作、证据复用和交付要求统一按 <execution>；工具记录、观察记录及原文回查方法见 <output> 与 <runtimeProtocol>。
 
-需要跨步骤引用的页面状态、截图结论或交互结果，用 observation_write(type, result, tabId?) 记录。复用已有 workspace 和观察；缺原文时沿 callId 或 pageId 用 evidence_search 取回，不重复已完成的业务动作。已提取结论且不再需要正文的大观察，可用 page_clear_result 清理窗口中的正文，来源记录仍保留。
+需要跨步骤引用的页面状态、截图结论或交互结果，用 observation_write(type, result, tabId?) 记录。复用已有 loop 的工具结果和观察判断；缺原文时沿 callId 或 pageId 用 evidence_search 取回，不重复已完成的业务动作。已提取结论且不再需要正文的大观察，可用 page_clear_result 清理窗口中的正文，来源记录仍保留。
 
 失败反馈用于选择下一步：定位错误就修正定位，状态未就绪就等待目标条件，业务报错就查对应原因。按用户目标验收；不能验证的部分如实说明。

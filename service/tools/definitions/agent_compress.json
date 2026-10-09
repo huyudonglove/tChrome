@@ -2,20 +2,13 @@
   "type": "function",
   "function": {
     "name": "agent_compress",
-    "description": "主动调用 Compression Agent 压缩当前会话的历史上下文。适用于长任务中可预判还会产生大量工具返回、且较早轮次原文暂时不再需要的情况。默认只压缩已结束轮次；仅当当前工具结果已确认无需回查时才选择 current。Runtime 达到压缩阈值时仍会自动压缩。返回体带 windowChars = {before, after}（压缩前后的窗口字符数），null 表示本次未能测得；用它当场判断这次压缩值不值、有没有压掉仍要的东西。",
+    "description": "按 loop 压缩会话历史，最近一个 loop 保留原文。其余按 userInput/interrupt 分区顺序处理；无分界时按 loop 条数分成前后两批分别发送，单个 loop 不拆。每批摘要全部合法才覆盖，失败停止后续批次。返回 committedLoopIds、failedLoopIds、totalLoops 和 windowChars（压缩前后窗口字符数），可按 loop ID 回查原文。Runtime 达到阈值仍会自动压缩。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string",
           "minLength": 1
-        },
-        "phase": {
-          "type": "string",
-          "enum": [
-            "history",
-            "current"
-          ]
         }
       },
       "required": [
