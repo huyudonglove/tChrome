@@ -6,6 +6,8 @@ JS/TS 系列源码通过已有 TypeScript 解析器识别声明和内部语句�
 
 块地址 `blk_01` 在单棵快照树内顺序分配并随索引持久化。访问时必须同时指定来源 callId/pageId，或通过 asset_read 指定 assetId。目录和搜索命中带 parentBlockId，可回父目录读取相邻块。
 
+目录自身的 blockId 标识当前节点；继续展开时选择 children 中目标子块的 blockId。已经附在返回中的目录可以直接用于选择，无需再读同一目录。代码内部块的标题列出所包含的同层符号，完整声明使用声明名。文件读取结果的目录与关键词命中优先展示解码后的源码（source.representation=fileContent），原始工具返回（toolResult）排在后面，可用于检查返回包装和状态字段；两种表示均可按块读取，完整快照保留原样。
+
 - `evidence_search(windows=[{callId}])`：读取根块。
 - `evidence_search(windows=[{callId, blockId}])`：目录返回 `kind=directory` 和子块；叶子返回 `kind=content` 和完整原文。
 - `evidence_search(windows=[{callId, keyword}])`：返回 `kind=search`、命中片段和块 ID；跨块命中映射到相交叶子。出现 nextOffset 时，以相同关键词和 offset 继续。

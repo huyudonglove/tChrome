@@ -54,12 +54,14 @@ test("call snapshots preserve unwrapped text and JSON values can be searched and
   expect(readFileSync(join(dataDir, "conversations/cv_01/returns/call_01.txt"), "utf8")).toBe(full);
   const found = await query(dataDir, [{ callId: "call_01", keyword: "needle" }]);
   expect(found.results[0].matches.length).toBeGreaterThan(0);
+  expect(found.results[0].matches[0].source.representation).toBe("fileContent");
   const index = loadReturnBlockIndex(dataDir, "cv_01", "call_01")!;
   const blockId = found.results[0].matches[0].blockId;
   const expected = readBlock(index, blockId)!;
   const row = (await query(dataDir, [{ callId: "call_01", blockId }])).results[0];
   expect(row.kind).toBe(expected.kind);
   if (expected.kind === "content") expect(row.content).toBe(expected.content);
+  expect(row).toMatchObject({ content: "const needle = 42;\n", location: { path: "sample.ts", representation: "fileContent" } });
 }));
 
 test("page observations use the same search and complete block interface", () => fixture(async dataDir => {

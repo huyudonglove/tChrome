@@ -2,7 +2,7 @@ import ts from "typescript";
 import { cssStructure } from "./css.ts";
 import { runtimeConfig } from "../config/runtime.ts";
 
-export type BlockSource = { id: string; text: string; path?: string; jsonPath?: string; startLine?: number };
+export type BlockSource = { id: string; text: string; path?: string; jsonPath?: string; startLine?: number; representation?: "fileContent" | "toolResult" };
 export type BlockNode = {
   id: string;
   parentId?: string;
@@ -13,7 +13,7 @@ export type BlockNode = {
   children: string[];
 };
 export type BlockIndex = { rootId: string; sources: BlockSource[]; nodes: BlockNode[] };
-export type BlockLocation = { path?: string; jsonPath?: string; startLine?: number; endLine?: number };
+export type BlockLocation = { path?: string; jsonPath?: string; startLine?: number; endLine?: number; representation?: "fileContent" | "toolResult" };
 export type BlockSummary = { blockId: string; parentBlockId?: string; title: string; chars: number; kind: "directory" | "content"; source: BlockLocation };
 export type BlockRead =
   | { kind: "directory"; blockId: string; parentBlockId?: string; title: string; children: BlockSummary[] }
@@ -29,6 +29,7 @@ function location(source: BlockSource | undefined, node: BlockNode): BlockLocati
   if (!source) return {};
   const firstLine = source.startLine ?? 1;
   return {
+    ...(source.representation ? { representation: source.representation } : {}),
     ...(source.path ? { path: source.path } : {}),
     ...(source.jsonPath ? { jsonPath: source.jsonPath } : {}),
     startLine: firstLine + countLines(source, node.start),
@@ -77,7 +78,10 @@ export function searchBlocks(index: BlockIndex, keyword: string): BlockSearchHit
   if (!keyword) return [];
   const needle = keyword.toLocaleLowerCase();
   const hits = new Map<string, BlockSearchHit>();
-  for (const source of index.sources) {
+  // Decoded file content is the useful editing surface. Keep raw-result matches
+  // available after it for inspecting status fields and the original envelope.
+  const sources = [...index.sources].sort((a, b) => Number(b.representation === "fileContent") - Number(a.representation === "fileContent"));
+  for (const source of sources) {
     const text = source.text.toLocaleLowerCase();
     const leaves = index.nodes.filter((node) => node.sourceId === source.id && !node.children.length);
     let at = text.indexOf(needle);
@@ -182,15 +186,14 @@ export function buildBlockIndex(full: string, options: { maxChars?: number; path
     function titleFor(start: number, end: number): string {
       const label = structure.labels.filter((item) => item.start <= start && item.end >= end)
         .sort((a, b) => (a.end - a.start) - (b.end - b.start))[0];
-      // CSS containers often span many selector groups. Name those groups by their
-      // contained rules instead of repeating the enclosing @media label at every level.
-      if (label && (!/\.css$/i.test(source.path ?? "") || (label.start === start && label.end === end))) return label.title;
+      // A whole declaration keeps its name; an internal range describes the
+      // symbols it actually contains instead of repeating its enclosing function.
+      if (label && label.start === start && label.end === end) return label.title;
       const contained = structure.labels.filter((item) => item.start >= start && item.end <= end);
       if (contained.length) {
         const depth = contained.reduce((depth, item) => Math.min(depth, item.depth), Infinity);
         const peers = contained.filter((item) => item.depth === depth);
-        const first = peers[0]!.title; const last = peers[peers.length - 1]!.title;
-        return (first === last ? first : `${first} … ${last}`).slice(0, 100);
+        return [...new Set(peers.map((item) => item.title))].join(", ").slice(0, 100);
       }
       if (label) return label.title;
       return (source.path?.split(/[\\/]/).pop() || source.jsonPath || "Result").slice(0, 100);
@@ -243,7 +246,7 @@ export function buildBlockIndex(full: string, options: { maxChars?: number; path
     }
     return split(0, text.length);
   }
-  const sourceRoots = [addSource(full, options.path ? { path: options.path } : {})];
+  const decoded: { text: string; path: string; jsonPath: string; startLine: number }[] = [];
   // local_fs_read JSON carries escaped source. Preserve its immutable raw snapshot and expose
   // decoded file content as independently addressable sources with precise file line locations.
   try {
@@ -253,12 +256,16 @@ export function buildBlockIndex(full: string, options: { maxChars?: number; path
         if (!item || typeof item !== "object" || !("content" in item) || typeof item.content !== "string"
           || !("path" in item) || typeof item.path !== "string") return;
         const startLine = "startLine" in item && typeof item.startLine === "number" ? item.startLine : 1;
-        sourceRoots.push(addSource(item.content, { path: item.path, jsonPath: `$.results[${i}].content`, startLine }));
+        decoded.push({ text: item.content, path: item.path, jsonPath: `$.results[${i}].content`, startLine });
       });
     }
   } catch (error) {
     if (!(error instanceof SyntaxError)) throw error;
   }
+  const rawRoot = addSource(full, { ...(options.path ? { path: options.path } : {}),
+    ...(decoded.length ? { representation: "toolResult" as const } : {}) });
+  const sourceRoots = decoded.map(({ text, ...metadata }) => addSource(text, { ...metadata, representation: "fileContent" }));
+  sourceRoots.push(rawRoot);
   if (sourceRoots.length === 1) index.rootId = sourceRoots[0]!.id;
   else {
     const root = addNode({ title: "Result sources", start: 0, end: full.length, children: [] });

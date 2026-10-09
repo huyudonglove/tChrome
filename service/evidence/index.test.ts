@@ -163,4 +163,31 @@ describe("uniform immutable evidence blocks", () => {
     }
     expect(buildBlockIndex(full, { maxChars: 1000 })).toEqual(original);
   });
+
+  test("internal code blocks name their helper symbols instead of only the enclosing function", () => {
+    const helpers = "const roleOf = node => node.role;\nconst labelOf = node => node.label;\nconst statesOf = node => node.states;\n";
+    const code = `function runPageTool() {\n${helpers}${Array.from({ length: 35 }, (_, i) => `const field${i} = '${"x".repeat(40)}';\n`).join("")}return statesOf(node);\n}`;
+    const index = buildBlockIndex(code, { path: "/repo/browser-tools.js", maxChars: 900 });
+    assertCoverage(index, 900);
+    const hit = searchBlocks(index, "const labelOf")[0]!;
+    expect(hit.title).toContain("roleOf");
+    expect(hit.title).toContain("labelOf");
+    expect(hit.title).toContain("statesOf");
+    expect(readBlock(index, hit.blockId)).toMatchObject({ kind: "content", content: expect.stringContaining(helpers) });
+  });
+
+  test("decoded source precedes explicitly identified raw results in navigation and search", () => {
+    const code = "function statesOf(node) { return node.states; }\n";
+    const full = JSON.stringify({ ok: true, diagnostics: "envelopeOnly", results: [{ path: "/repo/a.js", content: code }] });
+    const index = buildBlockIndex(full, { maxChars: 1000 });
+    assertCoverage(index, 1000);
+    const root = readBlock(index, index.rootId)!;
+    expect(root.kind).toBe("directory");
+    if (root.kind !== "directory") throw new Error("Expected source directory");
+    expect(root.children.map(child => child.source.representation)).toEqual(["fileContent", "toolResult"]);
+    const hits = searchBlocks(index, "statesOf");
+    expect(hits.map(hit => hit.source.representation)).toEqual(["fileContent", "toolResult"]);
+    expect(readBlock(index, hits[0]!.blockId)).toMatchObject({ kind: "content", content: code });
+    expect(searchBlocks(index, "envelopeOnly")[0]!.source.representation).toBe("toolResult");
+  });
 });

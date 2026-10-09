@@ -50,7 +50,7 @@ export function admitText(full: string, meta: SourceMeta & { index?: BlockIndex;
       ...(meta.indexPath ? { indexPath: meta.indexPath } : {}),
       rootBlockId: index.rootId,
       directory,
-      externalizationHint: `runtime: 返回超过 ${runtimeConfig.results.inlineChars} 字符，完整原文已保存。directory 是块目录；用 evidence_search(windows=[${JSON.stringify({ ...source, blockId: index.rootId })}]) 导航，或传 keyword 查找块。kind=directory 返回子块，kind=content 返回该块完整原文。按返回的 blockId 继续读取，无需换算行号；取回结果直接内联，不会再次外置。`,
+      externalizationHint: `runtime: 返回超过 ${runtimeConfig.results.inlineChars} 字符，完整原文已保存。directory 已附根目录；目录自身的 blockId 是当前节点，下一步从 children[].blockId 选择子块，用 evidence_search 传相同来源和该 blockId 读取。已知符号或关键字时直接传 keyword 定位。kind=directory 返回目录及子块信息，kind=content 才返回该块完整原文。无需换算行号；取回结果直接内联，不会再次外置。`,
       search: "evidence_search",
     },
   };
