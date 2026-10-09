@@ -12,6 +12,8 @@ cpSync(join(root, "extension", "ui", "tokens.css"), join(dist, "ui", "tokens.css
 cpSync(join(root, "extension", "sidepanel", "library.css"), join(dist, "ui", "library.css"));
 cpSync(join(root, "extension", "sidepanel.html"), join(dist, "sidepanel.html"));
 cpSync(join(root, "extension", "content-console.js"), join(dist, "content-console.js"));
+cpSync(join(root, "extension", "offscreen.html"), join(dist, "offscreen.html"));
+cpSync(join(root, "extension", "offscreen.js"), join(dist, "offscreen.js"));
 
 const background = await Bun.build({
   entrypoints: [join(root, "extension", "background.ts")],

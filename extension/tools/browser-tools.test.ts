@@ -20,6 +20,16 @@ test("export_data downloads Unicode text through a worker-compatible data URL", 
   expect(await (await fetch(options.url)).text()).toBe("中文 & #\nnext");
 });
 
+test("export_data picks a MIME matching the requested extension", async () => {
+  let options: any;
+  globals.chrome = { downloads: { download: async (input: any) => { options = input; return 8; } } };
+  expect(await runBrowserTool("export_data", { data: { ok: 1 }, filename: "result.json" })).toEqual({ ok: true, downloadId: 8 });
+  expect(options.filename).toBe("result.json");
+  expect(options.url.startsWith("data:application/json;charset=utf-8,")).toBe(true);
+  const body = options.url.slice(options.url.indexOf(",") + 1);
+  expect(JSON.parse(decodeURIComponent(body))).toEqual({ ok: 1 });
+});
+
 test("set_cookie passes Chrome SameSite enum values", async () => {
   const values: string[] = [];
   globals.chrome = { cookies: { set: async (input: any) => { values.push(input.sameSite); } } };
@@ -1001,4 +1011,24 @@ test('HAR stop waits for persistence and clears the snapshot', async () => {
   await expect(stopped).resolves.toMatchObject({ ok: true, stopped: true, entryCount: 1 });
   expect(mock.removeCalls).toBe(1);
   expect(mock.snapshots.size).toBe(0);
+});
+
+test("clipboard_page_write routes through the offscreen document", async () => {
+  const sent: any[] = [];
+  globals.chrome = {
+    offscreen: { hasDocument: async () => true, createDocument: async () => {} },
+    runtime: { sendMessage: async (message: any) => { sent.push(message); return { ok: true, bytes: 5 }; } },
+  };
+  expect(await runBrowserTool("clipboard_page_write", { tabId: 5, text: "hello" })).toEqual({ ok: true, bytes: 5 });
+  expect(sent).toEqual([{ target: "offscreen", type: "clipboard_write", text: "hello" }]);
+});
+
+test("clipboard_page_read creates the offscreen document when missing", async () => {
+  const created: any[] = [];
+  globals.chrome = {
+    offscreen: { hasDocument: async () => false, createDocument: async (options: any) => { created.push(options); } },
+    runtime: { sendMessage: async () => ({ ok: true, text: "hi", bytes: 2 }) },
+  };
+  expect(await runBrowserTool("clipboard_page_read", { tabId: 5 })).toEqual({ ok: true, text: "hi", bytes: 2 });
+  expect(created).toEqual([{ url: "offscreen.html", reasons: ["CLIPBOARD"], justification: "在无需页面聚焦的情况下读写系统剪贴板" }]);
 });

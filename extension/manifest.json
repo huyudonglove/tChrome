@@ -16,7 +16,8 @@
     "downloads",
     "clipboardRead",
     "clipboardWrite",
-    "debugger"
+    "debugger",
+    "offscreen"
   ],
   "host_permissions": [
     "<all_urls>"

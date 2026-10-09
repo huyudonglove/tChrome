@@ -874,6 +874,21 @@ const runPageTool = async (name, input = {}) => {
           if (isEditable(node)) return clip(editableFallback(node));
           return clip(node.innerText || node.value || node.alt || node.name);
         };
+        const axNode = (node, depth = 0) => {
+          if (!(node instanceof Element)) return null;
+          const entry = {
+            role: roleOf(node),
+            name: labelOf(node),
+            tag: node.tagName.toLowerCase(),
+            states: statesOf(node),
+          };
+          if (depth < 12) {
+            const children = [...node.children].filter(visible).slice(0, 20)
+              .map((child) => axNode(child, depth + 1)).filter(Boolean);
+            if (children.length) entry.children = children;
+          }
+          return entry;
+        };
         const regionRoots = [...document.querySelectorAll('header,nav,main,aside,footer,section,article,form,[role="banner"],[role="navigation"],[role="main"],[role="complementary"],[role="contentinfo"],[role="region"],[role="search"]')].filter(visible);
         const used = new Set();
         const regions = [];
@@ -1284,6 +1299,35 @@ const runOnTab = async (tabId, args, func) => {
   }
 };
 
+// Clipboard access must not depend on the target page having focus: a background
+// tab's navigator.clipboard rejects every call with "Document is not focused".
+// An offscreen document provides a context the browser lets touch the clipboard,
+// so clipboard reads and writes are routed there instead of into the page.
+const offscreenClipboard = async (type, text) => {
+  try {
+    const offscreen = globalThis.chrome?.offscreen;
+    if (!offscreen) return {ok: false, error: '当前 Chrome 不支持 offscreen API'};
+    if (!(await offscreen.hasDocument())) {
+      try {
+        await offscreen.createDocument({
+          url: 'offscreen.html',
+          reasons: ['CLIPBOARD'],
+          justification: '在无需页面聚焦的情况下读写系统剪贴板',
+        });
+      } catch (error) {
+        // A concurrent call may have created the document first; only fail when
+        // it is genuinely still missing afterwards.
+        if (!(await offscreen.hasDocument())) throw error;
+      }
+    }
+    const response = await chrome.runtime.sendMessage({target: 'offscreen', type, text});
+    if (!response) return {ok: false, error: 'offscreen 文档未返回结果'};
+    return response;
+  } catch (error) {
+    return {ok: false, error: error instanceof Error ? error.message : String(error)};
+  }
+};
+
 const capturePage = async (input) => {
   const tabId = input.tabId;
   if (!['viewport', 'full_page', 'element', 'som', 'rect'].includes(input.mode)) return {ok: false, error: 'capture_page 需要 mode=viewport|full_page|element|som|rect'};
@@ -1406,7 +1450,8 @@ const executeBrowserTool = async (name, input = {}) => {
       return {ok: false, tabId: tab.id, error: `执行表达式失败：${e instanceof Error ? e.message : String(e)}`};
     }
   }
-  if (name.startsWith('page_')) return runPageTool(name, input);
+  // page_storage / page_find 在下面有自己的执行分支，不能被 page_ 前缀分发提前吞掉（否则会落到 runPageTool 的「未接」）。
+  if (name.startsWith('page_') && name !== 'page_storage' && name !== 'page_find') return runPageTool(name, input);
   if (name === 'see_page' || name === 'watch_page') return inspectTab(tabId);
   if (['snapshot_page', 'find_on_page', 'click', 'double_click', 'focus', 'hover', 'type', 'select'].includes(name)) {
     const tab = await getTab(tabId);
@@ -1618,26 +1663,10 @@ const executeBrowserTool = async (name, input = {}) => {
     }
   }
   if (name === 'clipboard_page_write') {
-    return runOnTab(tabId, [String(input.text ?? '')], async (text) => {
-      try {
-        if (!navigator.clipboard?.writeText) return {ok: false, error: '页面环境不支持 clipboard.writeText'};
-        await navigator.clipboard.writeText(text);
-        return {ok: true, bytes: text.length};
-      } catch (error) {
-        return {ok: false, error: error instanceof Error ? error.message : String(error)};
-      }
-    });
+    return offscreenClipboard('clipboard_write', String(input.text ?? ''));
   }
   if (name === 'clipboard_page_read') {
-    return runOnTab(tabId, [], async () => {
-      try {
-        if (!navigator.clipboard?.readText) return {ok: false, error: '页面环境不支持 clipboard.readText'};
-        const text = await navigator.clipboard.readText();
-        return {ok: true, text, bytes: String(text).length};
-      } catch (error) {
-        return {ok: false, error: error instanceof Error ? error.message : String(error)};
-      }
-    });
+    return offscreenClipboard('clipboard_read');
   }
   if (name === 'tab_context') {
     return {ok: false, tabId, error: 'tab_context 由 Runtime 处理，不应进入扩展'};
@@ -2337,8 +2366,15 @@ const executeBrowserTool = async (name, input = {}) => {
     if (!data) return {ok: false, error: '缺 data'};
     const text = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
     // MV3 Service Worker 不提供 createObjectURL；data URL 可直接交给下载 API。
-    const url = `data:text/plain;charset=utf-8,${encodeURIComponent(text)}`;
-    const id = await chrome.downloads.download({url, filename: filename || 'export.txt'});
+    // MIME 决定 Chrome 落盘时的扩展名改写，按目标扩展名给出对应类型（否则 .json 会被写成 .txt）。
+    const downloadName = filename || 'export.txt';
+    const ext = downloadName.slice(downloadName.lastIndexOf('.') + 1).toLowerCase();
+    const mime = ext === 'json' ? 'application/json'
+      : ext === 'csv' ? 'text/csv'
+      : (ext === 'html' || ext === 'htm') ? 'text/html'
+      : 'text/plain';
+    const url = `data:${mime};charset=utf-8,${encodeURIComponent(text)}`;
+    const id = await chrome.downloads.download({url, filename: downloadName});
     return {ok: true, downloadId: id};
   }
   if (name === 'cookies') {
@@ -2863,7 +2899,7 @@ const executeBrowserTool = async (name, input = {}) => {
 
 
 // A native dialog releases the caller without replaying the blocked operation.
-const browserOnly = new Set(['open_tab', 'duplicate_tab', 'bind_tab', 'list_browser_tools', 'list_tabs', 'list_windows', 'see_env', 'close_tab', 'close_window', 'switch_tab', 'move_tab', 'update_tab', 'create_window', 'update_window', 'group_tabs', 'ungroup_tabs', 'list_downloads', 'download', 'export_data', 'control_download', 'wait_download', 'wait_new_tab', 'profile_vault', 'detach_debugger', 'set_cookie', 'delete_cookie', 'clear_cookies']);
+const browserOnly = new Set(['open_tab', 'duplicate_tab', 'bind_tab', 'list_browser_tools', 'list_tabs', 'list_windows', 'see_env', 'close_tab', 'close_window', 'switch_tab', 'move_tab', 'update_tab', 'create_window', 'update_window', 'group_tabs', 'ungroup_tabs', 'list_downloads', 'download', 'export_data', 'control_download', 'wait_download', 'wait_new_tab', 'profile_vault', 'detach_debugger', 'image_crop_pixels', 'clipboard_page_write', 'clipboard_page_read', 'set_cookie', 'delete_cookie', 'clear_cookies']);
 export const runBrowserTool = async (name, input = {}) => {
   let unwatch;
   let targetTab;
