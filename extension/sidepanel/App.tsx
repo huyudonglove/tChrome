@@ -760,7 +760,8 @@ export function App() {
 
             for (let i = 0; i < visible.length; i++) {
               const msg = visible[i]!;
-              if (msg.role === "tool") {
+              // delegate_subagent 保持独立成行，不并入普通工具步骤抽屉
+              if (msg.role === "tool" && msg.name !== "delegate_subagent") {
                 if (currentTools.length === 0) {
                   toolStartIndex = i;
                 }
@@ -804,7 +805,15 @@ export function App() {
                       {message.role === "tool" ? null : <Avatar who={message.role === "user" ? "user" : "assistant"} />}
                       <div className="message-body">
                         {message.role === "tool" ? (
-                          <p className={`tool-step${message.live ? " live" : ""}`}>
+                          <p className={`tool-step${message.name === "delegate_subagent" ? " subagent-step" : ""}${message.live ? " live" : ""}`}>
+                            {message.name === "delegate_subagent" ? (
+                              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="subagent-icon">
+                                <rect x="5" y="8" width="14" height="10" rx="2" />
+                                <path d="M12 8V5" />
+                                <circle cx="12" cy="4" r="1" />
+                                <path d="M9 12.5h.01M15 12.5h.01" />
+                              </svg>
+                            ) : null}
                             {message.text || (message.live ? "正在处理" : "处理步骤")}
                             {message.live ? " …" : ""}
                           </p>

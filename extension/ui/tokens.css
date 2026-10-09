@@ -541,6 +541,15 @@ svg.face {
 .tool-step.live span {
   color: #fff;
 }
+.tool-step.subagent-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent-text);
+}
+.tool-step.subagent-step svg {
+  flex-shrink: 0;
+}
 .message-row.muted p {
   color: var(--muted);
 }

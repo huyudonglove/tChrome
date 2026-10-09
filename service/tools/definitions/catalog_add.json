@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "catalog_add",
-    "description": "为当前会话加载或卸载动态工具，names 为工具名数组。\nmode='add'（默认）加载缺少的动态工具；mode='remove' 卸载本会话已加载的动态工具以回收上下文；返回 removed 为成功卸载，notLoaded 为从未加载，protectedKept 为常驻工具（不可卸载）。新增工具须在下一次请求收到其 schema 后调用，不与加载操作放在同一批；成功加载后在本会话后续 turn、重新打开会话和服务重启后保持，新会话独立加载；后续以当前 tools[] 为准。\n已加载的工具每次请求都占预算，我应在确定本会话不会再用时主动 mode='remove' 卸载，不等人提醒；退场名单的依据是本会话的真实调用记录（toolio/ledger 的调用计数），不是印象或全量工具表。",
+    "description": "为当前会话加载或卸载动态工具，names 为工具名数组。\nmode='add'（默认）加载缺少的动态工具；mode='remove' 卸载本会话已加载的动态工具以回收上下文；返回 removed 为成功卸载，notLoaded 为从未加载，protectedKept 为常驻工具（不可卸载）。新增工具须在下一次请求收到其 schema 后调用，不与加载操作放在同一批；成功加载后在本会话后续 turn、重新打开会话和服务重启后保持，新会话独立加载；后续以当前 tools[] 为准。\n已加载的工具每次请求都占预算，但原则上保持已加载清单稳定、非必要不卸载，避免 load/remove 往复造成上下文波动；仅当用户明确要求清理，或确认某工具本会话不会再用时才主动 mode='remove' 卸载。退场名单的依据是本会话的真实调用记录（toolio/ledger 的调用计数），不是印象或全量工具表。",
     "parameters": {
       "type": "object",
       "properties": {
