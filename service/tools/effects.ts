@@ -6,7 +6,7 @@ import type { QueryEvidence } from "../context/projections/queries.ts";
 export type ToolEffect =
   | { type: "query.set"; query: Omit<QueryEvidence, "queryId" | "turnId" | "sourceCallId"> }
   | { type: "memory.append"; entries: { layer: MemoryLayer; scope?: string; summary?: string; text: string; expiresWhen?: ExpiryCondition[] }[] }
-  | { type: "memory_update"; memoryId: string; text: string }
+  | { type: "memory_update"; memoryId: string; text?: string; summary?: string; scope?: string }
   | { type: "memory_delete"; memoryId: string }
   | { type: "tools.enable"; names: string[] }
   | { type: "tools.disable"; names: string[] }

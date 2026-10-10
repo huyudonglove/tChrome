@@ -28,7 +28,7 @@
   "skill_resident": "技能 {id} 为常驻技能，正文已在 <systemSkill>",
   "skill_unknown": "未知技能 {id}",
   "memory_id_pattern": "memoryId 必须是 mm_ 或 lm_ 记忆编号",
-  "memory_text_empty": "text 不能为空",
+  "memory_update_empty": "memory_update 需要 text、summary、scope 至少一项",
   "memory_update_missing_session": "memory_update 缺少会话标识",
   "query_agent_unavailable": "本机服务未接入历史查询能力，暂时无法执行查询工具。",
   "compression_agent_unavailable": "本机服务未接入上下文压缩能力，暂时无法执行压缩。",

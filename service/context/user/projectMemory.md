@@ -5,7 +5,7 @@
 写入和维护：
 - 用 memory_writeProject 写入。projectMemory 是正文数组，scope 必填，表示本批记忆所属的工作区或仓库目录名；可选 summary 数组须与正文一一对应。summary 应是一句可独立理解的结论，跨项目阅读时也能看出归属。
 - 只对某个项目成立的事实写入该项目的 scope。scope 决定默认展示范围，不是内容分类标签。没有 scope 或 scope 为空的记录按全局展示；字符串 global 本身不具有全局展示的特殊含义。
-- 同一事实发生变化时，用 memory_update(memoryId, text) 改写已有正文；明确不再需要时，用 memory_delete(memoryId) 删除。不要追加互相冲突的版本。
+- 同一事实发生变化时，用 memory_update(memoryId, text?/summary?/scope?) 改写已有字段（至少提供一项，其余保持原状）；明确不再需要时，用 memory_delete(memoryId) 删除。不要追加互相冲突的版本。
 - 记忆默认不过期，展示时保留完整正文。只保存以后仍会用到的信息；每条被展示的记忆都会占用上下文预算，且会话记忆不会自动退出窗口，不再需要的记录要主动用 memory_delete 删除或设 expiresWhen 条件过期。
 
 阅读范围：

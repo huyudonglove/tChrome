@@ -2684,7 +2684,7 @@
       "readOnly": false
     },
     "memory_update": {
-      "purpose": "按 memoryId 更新已有记忆正文（会话 mm_ 或长久 lm_）",
+      "purpose": "按 memoryId 更新已有记忆的正文、摘要或归属（会话 mm_ 或长久 lm_）",
       "triggers": [
         "memory_update",
         "需要保存、更新或清理跨轮事实与工作草稿"

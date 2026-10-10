@@ -52,8 +52,46 @@ test("memory_update and memory_delete operate by mm_/lm_ id", async () => {
     applyToolEffects({ dataDir, ledger, turn: t, call: { callId: "call_02", name: "memory_delete", arguments: {} }, effects: del.effects });
     expect(() => loadMemory(dataDir, conversationId, "lm_01")).toThrow();
     expect(ledger.memoryIds.conversation).toEqual(["mm_01"]);
-    expect(updateMemory(dataDir, conversationId, "mm_01", "再改", { turnId: "tn_02", sourceCallId: "call_03" }).sourceCallId).toBe("call_03");
+    const reText = updateMemory(dataDir, conversationId, "mm_01", { text: "再改" }, { turnId: "tn_02", sourceCallId: "call_03" });
+    expect(reText.sourceCallId).toBe("call_03");
+    expect(reText.text).toBe("再改");
     expect(deleteMemory(dataDir, conversationId, "mm_01")).toMatchObject({ layer: "conversation", existed: true });
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test("memory_update rewrites only the provided fields", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "memory-patch-"));
+  try {
+    const conversationId = "cv_01";
+    saveMemory(dataDir, conversationId, { memoryId: "lm_07", turnId: "tn_01", layer: "project", scope: "tChrome", summary: "旧摘要", text: "旧正文", createdAt: "now", sourceCallId: "call_00" });
+    const lookup = { unusedTools: [], knownTools: ["memory_update"], enabledTools: ["memory_update"] };
+
+    const summaryOnly = await executeTool({
+      name: "memory_update",
+      arguments: { reason: "改摘要", memoryId: "lm_07", summary: "新摘要" },
+      dataDir, conversationId, browserNames: [], lookup,
+    });
+    expect(JSON.parse(summaryOnly.text)).toMatchObject({ ok: true, memoryId: "lm_07", layer: "project", summary: "新摘要" });
+    applyToolEffects({ dataDir, ledger: emptyLedger(conversationId), turn: turn(conversationId), call: { callId: "call_01", name: "memory_update", arguments: {} }, effects: summaryOnly.effects });
+    const afterSummary = loadMemory(dataDir, conversationId, "lm_07");
+    expect(afterSummary.summary).toBe("新摘要");
+    expect(afterSummary.text).toBe("旧正文");
+    expect(afterSummary.scope).toBe("tChrome");
+
+    const scopeOnly = await executeTool({
+      name: "memory_update",
+      arguments: { reason: "换归属", memoryId: "lm_07", scope: "other" },
+      dataDir, conversationId, browserNames: [], lookup,
+    });
+    applyToolEffects({ dataDir, ledger: emptyLedger(conversationId), turn: turn(conversationId), call: { callId: "call_02", name: "memory_update", arguments: {} }, effects: scopeOnly.effects });
+    const afterScope = loadMemory(dataDir, conversationId, "lm_07");
+    expect(afterScope.scope).toBe("other");
+    expect(afterScope.summary).toBe("新摘要");
+    expect(afterScope.text).toBe("旧正文");
+
+    expect(() => applyToolEffects({ dataDir, ledger: emptyLedger(conversationId), turn: turn(conversationId), call: { callId: "call_03", name: "memory_update", arguments: {} }, effects: [{ type: "memory_update", memoryId: "lm_07" }] })).toThrow();
   } finally {
     rmSync(dataDir, { recursive: true, force: true });
   }

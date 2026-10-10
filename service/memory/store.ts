@@ -24,18 +24,23 @@ export function saveMemory(dataDir: string, conversationId: string, record: Memo
   writeFileSync(join(dir, `${record.memoryId}.json`), `${JSON.stringify(stored, null, 2)}\n`, exclusive ? { flag: "wx" } : {});
 }
 
+/** Fields memory_update may rewrite; omitted keys keep the stored value. */
+export type MemoryPatch = { text?: string; summary?: string; scope?: string };
+
 export function updateMemory(
   dataDir: string,
   conversationId: string,
   memoryId: string,
-  text: string,
+  patch: MemoryPatch,
   source: { turnId: string; sourceCallId: string },
 ): MemoryRecord {
   const existing = loadMemory(dataDir, conversationId, memoryId);
-  // Refresh the origin so the record tracks the update call, not the original one:
-  // conversation memories leave the window once their source loop is compressed away.
+  // Refresh the origin so the record tracks the most recent edit, not the original write.
   const record: MemoryRecord = {
-    ...existing, memoryId, layer: existing.layer, text,
+    ...existing, memoryId, layer: existing.layer,
+    ...(patch.text !== undefined ? { text: patch.text } : {}),
+    ...(patch.summary !== undefined ? { summary: patch.summary } : {}),
+    ...(patch.scope !== undefined ? { scope: patch.scope } : {}),
     turnId: source.turnId, sourceCallId: source.sourceCallId,
   };
   saveMemory(dataDir, conversationId, record, { overwrite: true });

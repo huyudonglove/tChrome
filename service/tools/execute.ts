@@ -504,18 +504,24 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   }
   if (name === "memory_update") {
     const memoryId = String(args.memoryId ?? "").trim();
-    const text = String(args.text ?? "").trim();
     if (!/^(?:mm|lm)_[0-9]{2,}$/.test(memoryId)) {
       return failedTool(errorDetail("memory_id_pattern"), "invalid_arguments", { toolName: name });
     }
-    if (!text) return failedTool(errorDetail("memory_text_empty"), "invalid_arguments", { toolName: name });
+    const patch: { text?: string; summary?: string; scope?: string } = {};
+    for (const key of ["text", "summary", "scope"] as const) {
+      const value = String(args[key] ?? "").trim();
+      if (value) patch[key] = value;
+    }
+    if (Object.keys(patch).length === 0) {
+      return failedTool(errorDetail("memory_update_empty"), "invalid_arguments", { toolName: name });
+    }
     if (!input.conversationId) return failedTool(errorDetail("memory_update_missing_session"), "invalid_arguments");
     return result(JSON.stringify({
       ok: true,
       memoryId,
       layer: memoryId.startsWith("lm_") ? "project" : "conversation",
-      text,
-    }), [{ type: "memory_update", memoryId, text }]);
+      ...patch,
+    }), [{ type: "memory_update", memoryId, ...patch }]);
   }
   if (name === "memory_delete") {
     const memoryId = String(args.memoryId ?? "").trim();

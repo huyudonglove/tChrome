@@ -152,12 +152,19 @@ export function applyToolEffects(input: {
       case "memory_update": {
         const memoryId = effect.memoryId;
         if (!/^(?:mm|lm)_[0-9]{2,}$/.test(memoryId)) throw new Error("memory_update 需要 mm_/lm_ 记忆编号");
-        const text = String(effect.text ?? "").trim();
-        if (!text) throw new Error("memory_update 需要非空 text");
-        const updated = updateMemory(dataDir, ledger.conversationId, memoryId, text, { turnId: turn.turnId, sourceCallId: call.callId });
+        const patch: { text?: string; summary?: string; scope?: string } = {};
+        for (const key of ["text", "summary", "scope"] as const) {
+          const raw = effect[key];
+          if (raw === undefined) continue;
+          const value = String(raw).trim();
+          if (!value) throw new Error(`memory_update 需要非空 ${key}`);
+          patch[key] = value;
+        }
+        if (Object.keys(patch).length === 0) throw new Error("memory_update 需要 text、summary、scope 至少一项");
+        const updated = updateMemory(dataDir, ledger.conversationId, memoryId, patch, { turnId: turn.turnId, sourceCallId: call.callId });
         appendEvent(dataDir, ledger.conversationId, {
           kind: "memory", turnId: turn.turnId,
-          data: { memoryId, layer: updated.layer, sourceCallId: call.callId, action: "update" },
+          data: { memoryId, layer: updated.layer, sourceCallId: call.callId, action: "update", fields: Object.keys(patch) },
         });
         break;
       }

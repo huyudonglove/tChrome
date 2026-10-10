@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "memory_update",
-    "description": "按 memoryId 更新已有记忆正文（会话 mm_ 或长久 lm_）。\n参数：必填 memoryId、text（新的完整正文）。ID 从 <conversationMemory> / <projectMemory> 取，不编造。返回 ok、memoryId、layer、text。不改变记忆 ID 与层级。",
+    "description": "按 memoryId 更新已有记忆（会话 mm_ 或长久 lm_）。\n参数：必填 memoryId；text、summary、scope 至少提供一项——text 替换完整正文，summary 替换目录里的一行摘要，scope 替换归属项目；未提供的字段保持原状。空串会被归一化当作省略，因此无法用空串清空字段。ID 从 <conversationMemory> / <projectMemory> 取，不编造。返回 ok、memoryId、layer 与本批改动的字段。不改变记忆 ID 与层级。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -18,15 +18,70 @@
           "type": "string",
           "minLength": 1,
           "pattern": "\\S",
-          "description": "更新后的完整记忆正文"
+          "description": "更新后的完整记忆正文；省略时保持原状"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "更新后的一行摘要，用于未注入 scope 的目录线索；省略时保持原状。仅项目记忆的目录会展示它"
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "更新后的归属项目（项目目录名，如 tChrome）；省略时保持原状。仅项目记忆按 scope 决定是否注入"
         }
       },
       "required": [
         "reason",
-        "memoryId",
-        "text"
+        "memoryId"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "text"
+          ],
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S",
+              "description": "更新后的完整记忆正文；省略时保持原状"
+            }
+          }
+        },
+        {
+          "required": [
+            "summary"
+          ],
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S",
+              "description": "更新后的一行摘要，用于未注入 scope 的目录线索；省略时保持原状。仅项目记忆的目录会展示它"
+            }
+          }
+        },
+        {
+          "required": [
+            "scope"
+          ],
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S",
+              "description": "更新后的归属项目（项目目录名，如 tChrome）；省略时保持原状。仅项目记忆按 scope 决定是否注入"
+            }
+          }
+        }
+      ]
     }
   },
   "execution": "serial"
