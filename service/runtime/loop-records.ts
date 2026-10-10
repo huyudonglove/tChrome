@@ -1,6 +1,5 @@
 import type { CompletionResult, Ledger, LoopRecord, LoopToolResult, RuntimeRecord, ToolIOItem } from "../types.ts";
 import { allocateRecordId, nowIso } from "./ids.ts";
-import { resolveKeepInCalls } from "../tools/capability.ts";
 
 /** An unsent input envelope can accumulate results and user messages before its request. */
 export function inputLoop(dataDir: string, ledger: Ledger, turnId: string): LoopRecord {
@@ -40,7 +39,6 @@ export function recordToolResult(dataDir: string, ledger: Ledger, row: ToolIOIte
   const item: LoopToolResult = {
     ...(origin ? { sourceLoopId: origin.id } : {}),
     callId: row.callId, name: row.name, result,
-    keepInCalls: resolveKeepInCalls(row.name, row.arguments.keepInCalls),
   };
   for (const prior of ledger.loops) for (const rt of prior.runtime) {
     if (rt.type !== "callsResult") continue;

@@ -111,7 +111,6 @@ const hostArgs = (args: ToolArguments): Record<string, unknown> => {
   const extra: Record<string, unknown> = { ...args };
   delete extra.reason;
   delete extra.execution;
-  delete extra.keepInCalls;
   return extra;
 };
 

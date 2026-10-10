@@ -1,4 +1,4 @@
-import type { Ledger, LoopRecord, LoopToolResult, Task } from "../../types.ts";
+import type { Ledger, LoopRecord, Task } from "../../types.ts";
 import type { MemoryRecord } from "../../memory/types.ts";
 import { loopSummaryView, type LoopSummary } from "./records.ts";
 
@@ -13,11 +13,6 @@ export type ConversationPayload = {
   loops: LoopRecord[];
 };
 
-type CallResult = LoopToolResult;
-const results = (loop: LoopRecord): CallResult[] => loop.runtime.flatMap(row =>
-  row.type === "callsResult" && Array.isArray(row.content) ? row.content as CallResult[] : []);
-
-/** Retention is the resolved execution-time value, never re-read from mutable tool metadata. */
 export function conversationPayload(input: {
   ledger: Ledger;
   memories: { conversation: MemoryRecord[] | string };
@@ -26,13 +21,6 @@ export function conversationPayload(input: {
   memoryPointers?: Record<string, string[]>;
 }): ConversationPayload {
   const loops = input.ledger.loops;
-  const currentLoop = loops.at(-1);
-  const visible = new Set<string>();
-  const known = new Set<string>();
-  for (const loop of loops) for (const row of results(loop)) {
-    known.add(row.callId);
-    if (row.keepInCalls || loop.id === currentLoop?.id) visible.add(row.callId);
-  }
   return {
     conversationMemory: input.memories.conversation,
     conversationHistorySummary: Array.isArray(input.conversationSummaries)
@@ -40,10 +28,7 @@ export function conversationPayload(input: {
     tasks: input.ledger.tasks.filter(task => task.status === "active" || task.status === "paused").map(taskView),
     loops: loops.map(loop => ({
       ...loop,
-      runtime: loop.runtime.map(row => row.type === "callsResult" && Array.isArray(row.content)
-        ? { ...row, content: (row.content as CallResult[]).filter(result => visible.has(result.callId)) } : row)
-        .filter(row => row.type !== "callsResult" || !Array.isArray(row.content) || row.content.length > 0),
-      ...(loop.helm ? { helm: { ...loop.helm, calls: loop.helm.calls.filter(call => !known.has(call.id) || visible.has(call.id)).map(call => {
+      ...(loop.helm ? { helm: { ...loop.helm, calls: loop.helm.calls.map(call => {
         const ids = input.memoryPointers?.[call.id];
         if (!ids || !ids.length) return call;
         // 投影只替换送模型的副本：落盘 helm 仍保留完整正文。

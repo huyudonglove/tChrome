@@ -40,7 +40,7 @@ conversation 依次包含 ConversationMemories、summaries、loop 历史和末�
 
 未完成任务集中放在 tasks；创建及中间更新返回只留 task ID 指针，完成或取消返回最终完整任务并从 tasks 移出。观察、反思、查询与操作证据直接保留在产生它们的调用及结果中，不另设重复模块。
 
-keepInCalls 在执行时解析并固定：true 保留到压缩，false 只在最近结果 loop 展示。完整历史仍落盘。大结果沿用返回门禁的索引与原文路径，不重新展开。
+调用与结果一并记录并保留到压缩；完整历史仍落盘。大结果沿用返回门禁的索引与原文路径，不重新展开。
 
 contextUsage 是整条 User 最末尾的模块，其 chars、compressAt、used 属性统计 System + User 的字符容量。conversation 头只有稳定 id；历史 loop 不回写，任务状态与容量读数在尾部变化。
 

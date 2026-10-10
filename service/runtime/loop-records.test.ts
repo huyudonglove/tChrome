@@ -28,7 +28,6 @@ test("published loops are immutable; results, notices and new input assemble in 
     expect(ledger.loops).toHaveLength(2);
     expect(JSON.stringify(first)).toBe(frozen);
     expect(ledger.loops[1]!.runtime.map(row => row.type)).toEqual(["callsResult", "interrupt"]);
-    expect((ledger.loops[1]!.runtime[0]!.content as LoopToolResult[])[0]!.keepInCalls).toBe(true);
     saveLedger(dir, ledger);
     expect(loadLedger(dir, "cv_01").loops).toEqual(ledger.loops);
     const ids = ledger.loops.flatMap(loop => [loop.id, ...loop.runtime.map(row => row.id), ...(loop.helm ? [loop.helm.id] : [])]);

@@ -14,7 +14,7 @@
 
 <tasks> 固定在 conversation 底部，只展示未完成任务的完整最新状态。创建和中间更新的工具返回保留 task ID 指针；任务完成或取消后从这里移出，最终完整内容进入完成或取消操作的返回。其他指针按同一 task ID 回查。
 
-大结果在 callsResult 中保留现有门禁生成的状态、错误、索引和原文路径，正文只存一处。keepInCalls 的保留规则见 toolProtocol。用户输入的指令身份与优先级不因放入 runtime 而改变。
+大结果在 callsResult 中保留现有门禁生成的状态、错误、索引和原文路径，正文只存一处。调用与结果的记录规则见 toolProtocol。用户输入的指令身份与优先级不因放入 runtime 而改变。
 </purpose>
 
 {{data}}

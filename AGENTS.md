@@ -26,5 +26,5 @@
 
 - skill 模块始终保留完整正文，不参与压缩，也不参与文件外置。
 
-- 每个工具声明 defaultKeepInCalls，调用显式 keepInCalls 优先，省略用默认值；Runtime 执行时解析并持久化，不在历史投影时重新解释元数据。true 的调用及结果保留至 loop 压缩，false 仅在结果返回后的下一次请求展示一次，完整原始调用始终落盘。业务读取、写入、执行、网页操作、观察反思、任务记录、最终回复和提问默认保留；目录、加载、等待、轮询默认不保留，模型可覆盖。task 返回保留指针或最终完整状态。
+- 每次调用的结果与调用一起落盘，保留至 loop 压缩；完整原始调用始终落盘。task 返回保留指针或最终完整状态。
 - callsResult 记录现有门禁后的最终返回：小结果保留正文，大结果保留状态、错误、索引及原文路径；完整原文沿用 returns 落盘，不另设正文副本或门禁。调用参数在 helm，实际结果在 runtime。context_query / agent_query 按 loops、runtime、helm 或 summaries 查询，可按 file 过滤，无命中直接 not_found，不花模型轮次。

@@ -44,7 +44,7 @@ test("real registry has complete metadata for every tool", () => {
   expect(skillCapabilities.find((item) => item.id === "reply-format")?.risk).toBe("low");
 });
 
-test("capability catalog unifies tools and skills with explicit tool retention", () => {
+test("capability catalog unifies tools and skills", () => {
   const root = mkdtempSync(join(tmpdir(), "tchrome-capabilities-"));
   const skills = join(root, "service/skills");
   try {
@@ -54,7 +54,7 @@ test("capability catalog unifies tools and skills with explicit tool retention",
     writeFileSync(join(root, "service/skills/index.json"), JSON.stringify({ residentSkillIds: ["resident"], dynamicSkillIds: ["dynamic"] }));
 
     mkdirSync(join(root, "service/capabilities"), { recursive: true });
-    writeFileSync(join(root, "service/capabilities/metadata.json"), JSON.stringify({ version: 1, tools: { page: { defaultKeepInCalls: true }, local: { defaultKeepInCalls: true } } }));
+    writeFileSync(join(root, "service/capabilities/metadata.json"), JSON.stringify({ version: 1, tools: { page: {}, local: {} } }));
     const catalog = loadCapabilityCatalog(root, {
       tools: {
         page: toolDefinition("page", "查看页面摘要。\n更多说明。"),
@@ -89,14 +89,12 @@ test("capability sidecar enriches metadata and rejects unknown or invalid entrie
     writeFileSync(join(skills, "skill/SKILL.md"), "# 技能\nBODY");
     writeFileSync(join(root, "service/skills/index.json"), JSON.stringify({ residentSkillIds: [], dynamicSkillIds: ["skill"] }));
     mkdirSync(join(root, "service/capabilities"), { recursive: true });
-    writeFileSync(join(root, "service/capabilities/metadata.json"), JSON.stringify({ version: 1, tools: { page: { defaultKeepInCalls: true, purpose: "读取页面状态", triggers: ["页面诊断"], risk: "low", verification: ["页面摘要匹配"] } } }));
+    writeFileSync(join(root, "service/capabilities/metadata.json"), JSON.stringify({ version: 1, tools: { page: { purpose: "读取页面状态", triggers: ["页面诊断"], risk: "low", verification: ["页面摘要匹配"] } } }));
     const page = loadCapabilityCatalog(root, source).find(item => item.id === "page");
     expect(page).toMatchObject({ purpose: "读取页面状态", triggers: ["页面诊断"], risk: "low", verification: ["页面摘要匹配"], metadataComplete: true });
 
-    writeFileSync(join(root, "service/capabilities/metadata.json"), JSON.stringify({ version: 1, tools: { page: {} } }));
-    expect(() => loadCapabilityCatalog(root, source)).toThrow("missing capability metadata page.defaultKeepInCalls");
-    writeFileSync(join(root, "service/capabilities/metadata.json"), JSON.stringify({ version: 1, tools: { page: { defaultKeepInCalls: "true" } } }));
-    expect(() => loadCapabilityCatalog(root, source)).toThrow("invalid capability metadata page.defaultKeepInCalls");
+    writeFileSync(join(root, "service/capabilities/metadata.json"), JSON.stringify({ version: 1, tools: { page: { purpose: 1 } } }));
+    expect(() => loadCapabilityCatalog(root, source)).toThrow("invalid capability metadata page.purpose");
     writeFileSync(join(root, "service/capabilities/metadata.json"), JSON.stringify({ version: 1, tools: { missing: {} } }));
     expect(() => loadCapabilityCatalog(root, source)).toThrow("unknown tool in capability metadata missing");
     writeFileSync(join(root, "service/capabilities/metadata.json"), JSON.stringify({ version: 1, tools: { page: { triggers: ["ok", 1] } } }));

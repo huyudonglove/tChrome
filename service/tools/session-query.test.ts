@@ -34,7 +34,7 @@ beforeAll(async () => {
   const ledger = emptyLedger("cv_01");
   ledger.loops = [
     { id: "loop_01", conversationId: "cv_01", turnId: "tn_01", createdAt: "now", completedAt: "now", runtime: [{ id: "rt_01", type: "userInput", content: "inspect code" }], helm: { id: "helm_01", content: "read files", finish: "tool_calls", calls: [{ id: "call_01", name: "local_run", arguments: { command: "ls" } }, { id: "call_02", name: "local_run", arguments: { command: "du" } }] } },
-    { id: "loop_02", conversationId: "cv_01", turnId: "tn_02", createdAt: "now", completedAt: "now", runtime: [{ id: "rt_02", type: "callsResult", content: [{ callId: "call_03", name: "local_fs_read", result: "read evidence", keepInCalls: true }] }], helm: { id: "helm_02", content: "query source", finish: "tool_calls", calls: [{ id: "call_03", name: "local_fs_read", arguments: {} }, { id: "call_04", name: "evidence_search", arguments: { windows: [{ callId: "call_03" }] } }] } },
+    { id: "loop_02", conversationId: "cv_01", turnId: "tn_02", createdAt: "now", completedAt: "now", runtime: [{ id: "rt_02", type: "callsResult", content: [{ callId: "call_03", name: "local_fs_read", result: "read evidence" }] }], helm: { id: "helm_02", content: "query source", finish: "tool_calls", calls: [{ id: "call_03", name: "local_fs_read", arguments: {} }, { id: "call_04", name: "evidence_search", arguments: { windows: [{ callId: "call_03" }] } }] } },
   ];
   ledger.tasks = [{ id: "task_01", status: "completed", title: "inspect", items: [{ id: "item_01", index: 0, text: "read", status: "done", createdAt: "now" }], createdAt: "now", updatedAt: "now" }];
   saveLedger(dataDir, ledger);

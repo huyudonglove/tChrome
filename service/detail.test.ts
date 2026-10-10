@@ -10,7 +10,7 @@ import type { CompletionResult, Provider, LoopRecord, LoopToolResult } from "./t
 const repoRoot = join(import.meta.dir, "..");
 const reply = (toolCalls: CompletionResult["toolCalls"]): CompletionResult => ({ content: "", finish: "tool_calls", toolCalls, attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] });
 const finish = () => reply([{ id: "finish", name: "finishTurn", arguments: { reason: "已核对", text: "完成" } }]);
-const queryCall = (sumId: string) => reply([{ id: "query", name: "context_query", arguments: { keepInCalls: true, reason: "查原文", sumId, module: "runtime", intent: "读取详细证据" } }]);
+const queryCall = (sumId: string) => reply([{ id: "query", name: "context_query", arguments: { reason: "查原文", sumId, module: "runtime", intent: "读取详细证据" } }]);
 const queryResults = (dataDir: string, cv: string) => loadLedger(dataDir, cv).loops.flatMap(loop => loop.runtime)
   .filter(row => row.type === "callsResult").flatMap(row => row.content as LoopToolResult[]).filter(row => row.name === "context_query");
 function fixture(dataDir: string, text: string, largeHistory = false) {
@@ -21,7 +21,7 @@ function fixture(dataDir: string, text: string, largeHistory = false) {
     runtime: [{ id: allocateRecordId(dataDir, cv, "runtime"), type, content }],
     helm: { id: allocateRecordId(dataDir, cv, "helm"), content: "已处理", calls: [], finish: "stop" },
   });
-  const tool = { callId: allocateRecordId(dataDir, cv, "call"), name: "page_get_summary", result: { ok: true, text }, keepInCalls: true };
+  const tool = { callId: allocateRecordId(dataDir, cv, "call"), name: "page_get_summary", result: { ok: true, text } };
   const archived = makeLoop([tool], "callsResult");
   ledger.loops.push(archived);
   if (largeHistory) for (let i = 0; i < 5; i++) ledger.loops.push(makeLoop(`要求${i}:` + "历史内容".repeat(12000), "userInput"));

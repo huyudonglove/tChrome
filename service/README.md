@@ -51,7 +51,7 @@ Chat 与 Responses 的失败分类和重试决策统一由 `provider/failures.ts
 
 summaries 展示历史 loop 的 summary、userRequest、actions、result 与准确 loopIds。context_query / agent_query 按 sumId 或 loopId 查询 loops、runtime、helm、summaries，支持 file 过滤；无匹配直接 not_found。Query Agent 返回候选 loopIds，Runtime 校验后读取完整来源记录。查询结果留在 callsResult，遵守统一返回门禁；原文凭 callId / pageId 使用 evidence_search 的 blockId 或 keyword 获取，返回 nextOffset 时继续分页。
 
-未完成任务在 conversation 底部 tasks 展示完整最新状态；创建和更新返回 task ID 指针，完成或取消后从 tasks 移出，最终任务保留在完成操作返回。工具 keepInCalls 在执行时解析并持久化，true 保留到压缩，false 仅在结果返回后的下一次请求展示一次。大结果保留既有索引和原文路径，不另建证据正文副本。历史 loop 正常追加不回写，容量读数放在整条 User 最末尾；压缩时接受缓存前缀重建。
+未完成任务在 conversation 底部 tasks 展示完整最新状态；创建和更新返回 task ID 指针，完成或取消后从 tasks 移出，最终任务保留在完成操作返回。工具调用与结果一律落盘并保留到压缩。大结果保留既有索引和原文路径，不另建证据正文副本。历史 loop 正常追加不回写，容量读数放在整条 User 最末尾；压缩时接受缓存前缀重建。
 
 Compression Agent 的每次模型请求独立写入 `conversations/<cvId>/agent-logs/compression/<时间戳>-<唯一标识>.jsonl`。请求发送前记录完整 messages 与 tools；收到后记录 Provider 返回的完整 CompletionResult（正文、工具调用、解析错误等），并记录成功摘要或异常。schema 校验失败包含字段路径、规则和预期类型，来源覆盖关联准确 loopIds；会话的 compress-error 附日志路径。日志不包含模型密钥或请求认证头，也不进入主模型上下文。
 

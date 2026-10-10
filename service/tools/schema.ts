@@ -207,8 +207,6 @@ export function checkToolCalls(
     // Runtime owns execution scheduling; never accept a model-submitted override.
     const { execution: _ignored, ...bare } = call.arguments ?? {};
     const normalized = normalizeArguments(bare, schema) as ToolCall["arguments"];
-    // Retention requires a literal boolean decision; do not coerce or supply it.
-    if (Object.prototype.hasOwnProperty.call(bare, "keepInCalls")) normalized.keepInCalls = bare.keepInCalls;
     if (!validate(normalized)) {
       const { missing, detail } = validationDetails(validate.errors ?? [], schema);
       return {

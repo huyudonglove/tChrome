@@ -20,18 +20,18 @@ test("loop inputs and response retain separate identities; only unfinished tasks
   expect(xml).not.toMatch(/<(?:turn|notes|workspaces|observations|reflections|queries|runtimeNotices)\b/);
 });
 
-test("resolved retention keeps false results and paired calls only for the current request loop", () => {
+test("all loop results and paired calls stay visible without retention filtering", () => {
   const ledger = emptyLedger("cv_01");
   ledger.loops = [
     { ...loop(1), helm: { finish: "tool_calls", id: "helm_01", content: "read", calls: [{ id: "call_01", name: "local_fs_read", arguments: {} }, { id: "call_02", name: "local_fs_read", arguments: {} }] } },
-    { ...loop(2), runtime: [{ id: "rt_02", type: "callsResult", content: [{ callId: "call_01", name: "local_fs_read", result: { text: "temporary" }, keepInCalls: false }, { callId: "call_02", name: "local_fs_read", result: { text: "retained" }, keepInCalls: true }] }], helm: { finish: "tool_calls", id: "helm_02", content: "next", calls: [{ id: "call_03", name: "local_fs_read", arguments: {} }] } },
-    { ...loop(3), runtime: [{ id: "rt_03", type: "callsResult", content: [{ callId: "call_03", name: "local_fs_read", result: { ok: false, error: "denied" }, keepInCalls: false }] }] },
+    { ...loop(2), runtime: [{ id: "rt_02", type: "callsResult", content: [{ callId: "call_01", name: "local_fs_read", result: { text: "temporary" } }, { callId: "call_02", name: "local_fs_read", result: { text: "retained" } }] }], helm: { finish: "tool_calls", id: "helm_02", content: "next", calls: [{ id: "call_03", name: "local_fs_read", arguments: {} }] } },
+    { ...loop(3), runtime: [{ id: "rt_03", type: "callsResult", content: [{ callId: "call_03", name: "local_fs_read", result: { ok: false, error: "denied" } }] }] },
   ];
   const projected = project(ledger);
-  expect(projected.loops[0]!.helm!.calls.map(row => row.id)).toEqual(["call_02"]);
+  expect(projected.loops[0]!.helm!.calls.map(row => row.id)).toEqual(["call_01", "call_02"]);
   expect(projected.loops[1]!.helm!.calls.map(row => row.id)).toEqual(["call_03"]);
   const xml = conversationXml(projected);
-  expect(xml).not.toContain("temporary");
+  expect(xml).toContain("temporary");
   expect(xml).toContain("retained");
   expect(xml).toContain("denied");
   expect(ledger.loops[0]!.helm!.calls).toHaveLength(2);
@@ -40,10 +40,10 @@ test("resolved retention keeps false results and paired calls only for the curre
     { id: "rt_05", type: "notice", content: { kind: "budget", text: "current only", scope: "loop" } },
   ] });
   const afterInput = project(ledger);
-  expect(afterInput.loops[1]!.helm!.calls).toEqual([]);
+  expect(afterInput.loops[1]!.helm!.calls.map(row => row.id)).toEqual(["call_03"]);
   const nextXml = conversationXml(afterInput);
-  expect(nextXml).not.toContain("denied");
-  expect(nextXml).not.toContain("call_03");
+  expect(nextXml).toContain("denied");
+  expect(nextXml).toContain("call_03");
   expect(nextXml).toContain("retained");
   expect(ledger.loops[1]!.helm!.calls).toHaveLength(1);
 });

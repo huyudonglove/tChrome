@@ -25,7 +25,7 @@ test("assembled User slots follow the shared data contract", () => {
   ledger.loops = [
     { id: "loop_01", conversationId: "cv_01", turnId: "tn_01", createdAt: "", runtime: [{ id: "rt_01", type: "userInput", content: "检查状态" }], helm: { id: "helm_01", content: "核对页面", finish: "tool_calls", calls: [{ id: "call_01", name: "page_get_summary", arguments: { reason: "核对状态", tabId: 42 } }] } },
     { id: "loop_02", conversationId: "cv_01", turnId: "tn_02", createdAt: "", runtime: [
-      { id: "rt_02", type: "callsResult", content: [{ callId: "call_01", name: "page_get_summary", result: { ok: true, tabId: 42, description: "PAGE_EVIDENCE_SENTINEL" }, keepInCalls: true }] },
+      { id: "rt_02", type: "callsResult", content: [{ callId: "call_01", name: "page_get_summary", result: { ok: true, tabId: 42, description: "PAGE_EVIDENCE_SENTINEL" } }] },
       { id: "rt_03", type: "interrupt", content: "当时状态是什么？" },
     ] },
   ];
