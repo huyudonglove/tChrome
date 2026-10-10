@@ -113,7 +113,7 @@ svg.face {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.05) 0%, transparent 70%), var(--canvas);
+  background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 5%, transparent) 0%, transparent 70%), var(--canvas);
 }
 
 /* 顶部晶莹毛玻璃导航栏 */
@@ -124,7 +124,7 @@ svg.face {
   gap: 10px;
   padding: 8px 14px;
   color: var(--text);
-  background: rgba(9, 10, 16, 0.82);
+  background: color-mix(in srgb, var(--canvas) 82%, transparent);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--line);
@@ -137,8 +137,8 @@ svg.face {
   height: 32px;
   place-items: center;
   color: var(--accent-text);
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.16) 0%, rgba(139, 92, 246, 0.08) 100%);
-  border: 1px solid rgba(99, 102, 241, 0.28);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, transparent) 0%, color-mix(in srgb, var(--accent-text) 8%, transparent) 100%);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
   font: 800 13px/1 var(--mono);
   border-radius: 9px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
@@ -301,8 +301,8 @@ svg.face {
   margin: 0 auto 16px;
   place-items: center;
   color: var(--accent-text);
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%);
-  border: 1px solid rgba(99, 102, 241, 0.3);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 20%, transparent) 0%, color-mix(in srgb, var(--accent-text) 10%, transparent) 100%);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
   border-radius: 14px;
   font: 800 18px/1 var(--mono);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
@@ -357,7 +357,7 @@ svg.face {
 .icon-button.accent {
   color: var(--accent-text);
   background: var(--accent-soft);
-  border-color: rgba(99, 102, 241, 0.3);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 .icon-button.accent:hover:not(:disabled) {
   color: #fff;
@@ -426,9 +426,9 @@ svg.face {
 }
 
 .message-row.assistant .message-avatar {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.18) 0%, rgba(139, 92, 246, 0.1) 100%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent) 0%, color-mix(in srgb, var(--accent-text) 10%, transparent) 100%);
   color: var(--accent-text);
-  border: 1px solid rgba(99, 102, 241, 0.25);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 .message-content {
@@ -464,7 +464,7 @@ svg.face {
   max-width: 92%;
   background: linear-gradient(135deg, var(--user-bubble-from) 0%, var(--user-bubble-to) 100%);
   color: var(--text);
-  border: 1px solid rgba(99, 102, 241, 0.24);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   border-top-right-radius: 3px;
 }
@@ -508,7 +508,7 @@ svg.face {
 }
 
 .duration-badge:hover {
-  color: var(--text-subtle);
+  color: var(--text);
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.15);
 }
@@ -604,6 +604,8 @@ svg.face {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  max-height: 40vh;
+  overflow-y: auto;
   border-color: var(--accent);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--accent-soft);
 }
@@ -786,8 +788,8 @@ svg.face {
 }
 
 .composer:focus-within {
-  border-color: rgba(99, 102, 241, 0.55);
-  box-shadow: 0 6px 24px -2px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(99, 102, 241, 0.35), 0 0 16px -2px var(--accent-glow);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: 0 6px 24px -2px rgba(0, 0, 0, 0.5), 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), 0 0 16px -2px var(--accent-glow);
 }
 
 .composer textarea {
@@ -984,9 +986,9 @@ svg.face {
 }
 
 .conversation-item.active {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.14) 0%, rgba(139, 92, 246, 0.08) 100%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, transparent) 0%, color-mix(in srgb, var(--accent-text) 8%, transparent) 100%);
   color: #fff;
-  border-color: rgba(99, 102, 241, 0.28);
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
@@ -1007,6 +1009,8 @@ svg.face {
 /* 快捷计划看板 (Plan items) 与状态指示 - 现代卡片与折叠微交互 */
 .plan-panel {
   padding: 10px 12px;
+  max-height: 40vh;
+  overflow-y: auto;
   background: linear-gradient(180deg, rgba(22, 23, 38, 0.95) 0%, rgba(18, 19, 30, 0.98) 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
@@ -1017,7 +1021,7 @@ svg.face {
 }
 
 .plan-panel:hover {
-  border-color: rgba(99, 102, 241, 0.3);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
   box-shadow: 0 6px 20px -2px rgba(0, 0, 0, 0.5), 0 0 16px -4px var(--accent-glow);
 }
 
@@ -1133,7 +1137,7 @@ svg.face {
 
 /* 状态标记 - 进行态 */
 .plan-mark.status-doing {
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
   color: #fff;
   box-shadow: 0 0 10px var(--accent-soft);
 }
@@ -1225,9 +1229,9 @@ svg.face {
 }
 
 .plan-status-badge.status-doing {
-  background: rgba(99, 102, 241, 0.15);
-  color: #a5b4fc;
-  border: 1px solid rgba(99, 102, 241, 0.3);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent-text);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
   animation: pulse-badge 2s infinite ease-in-out;
 }
 
@@ -1469,7 +1473,8 @@ svg.face {
   }
 
   .app-identity small {
-    display: none;
+    font-size: 9px;
+    letter-spacing: 0.04em;
   }
 
   .messages {
@@ -1520,106 +1525,6 @@ svg.face {
   .conversation-item .delete {
     opacity: 1;
   }
-}
-
-/* ============================================================
-   多主题：给 <html> 加 data-theme="teal|amber|mono|indigo" 即可整站换色
-   默认（不写 data-theme）即 indigo
-   ============================================================ */
-html[data-theme="indigo"] {
-  color-scheme: dark;
-  --canvas: #090a10;
-  --surface: #12131e;
-  --surface-hover: #191b2b;
-  --surface-active: #212438;
-  --surface-elevated: #161726;
-  --text: #f3f5fa;
-  --muted: #8b90a6;
-  --muted-soft: #5e6378;
-  --accent: #6366f1;
-  --accent-hover: #4f46e5;
-  --accent-soft: rgba(99, 102, 241, 0.14);
-  --accent-glow: rgba(99, 102, 241, 0.28);
-  --accent-text: #818cf8;
-  --user-avatar-from: #4f46e5;
-  --user-avatar-to: #3730a3;
-  --user-bubble-from: #1c1e33;
-  --user-bubble-to: #151728;
-  --code-bg: #07080d;
-  --code-text: #e2e8f0;
-  --code-accent: #c7d2fe;
-}
-
-html[data-theme="teal"] {
-  color-scheme: dark;
-  --canvas: #07100f;
-  --surface: #0f1a19;
-  --surface-hover: #162423;
-  --surface-active: #1d2f2e;
-  --surface-elevated: #132120;
-  --text: #eef7f5;
-  --muted: #86a09c;
-  --muted-soft: #5b7571;
-  --accent: #14b8a6;
-  --accent-hover: #0d9488;
-  --accent-soft: rgba(20, 184, 166, 0.14);
-  --accent-glow: rgba(20, 184, 166, 0.28);
-  --accent-text: #5eead4;
-  --user-avatar-from: #0d9488;
-  --user-avatar-to: #115e59;
-  --user-bubble-from: #0f2322;
-  --user-bubble-to: #0c1b1a;
-  --code-bg: #05100f;
-  --code-text: #dcefe9;
-  --code-accent: #99f6e4;
-}
-
-html[data-theme="amber"] {
-  color-scheme: dark;
-  --canvas: #100b06;
-  --surface: #1a120b;
-  --surface-hover: #241a10;
-  --surface-active: #2f2215;
-  --surface-elevated: #1f160d;
-  --text: #f8f1e5;
-  --muted: #a3907a;
-  --muted-soft: #74614c;
-  --accent: #f59e0b;
-  --accent-hover: #d97706;
-  --accent-soft: rgba(245, 158, 11, 0.14);
-  --accent-glow: rgba(245, 158, 11, 0.28);
-  --accent-text: #fbbf24;
-  --user-avatar-from: #d97706;
-  --user-avatar-to: #92400e;
-  --user-bubble-from: #2a1d0f;
-  --user-bubble-to: #1f1509;
-  --code-bg: #0d0805;
-  --code-text: #f4e6d2;
-  --code-accent: #fcd34d;
-}
-
-html[data-theme="mono"] {
-  color-scheme: dark;
-  --canvas: #0c0c0c;
-  --surface: #161616;
-  --surface-hover: #1e1e1e;
-  --surface-active: #262626;
-  --surface-elevated: #1a1a1a;
-  --text: #ededed;
-  --muted: #9a9a9a;
-  --muted-soft: #6e6e6e;
-  --accent: #e5e5e5;
-  --accent-hover: #ffffff;
-  --accent-soft: rgba(255, 255, 255, 0.08);
-  --accent-glow: rgba(255, 255, 255, 0.16);
-  --accent-text: #ffffff;
-  --user-avatar-from: #3a3a3a;
-  --user-avatar-to: #1c1c1c;
-  --user-bubble-from: #202020;
-  --user-bubble-to: #171717;
-  --code-bg: #000000;
-  --code-text: #e0e0e0;
-  --code-accent: #d4d4d4;
 }
 
 /* 全局键盘焦点环：此前只有 .icon-button 有 :focus-visible，

@@ -15,7 +15,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  background: rgba(9, 10, 16, 0.85);
+  background: color-mix(in srgb, var(--canvas) 85%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--line);
@@ -120,7 +120,7 @@
   width: 100%;
   min-width: 0;
   padding: 7px 10px;
-  background: #090a10;
+  background: var(--canvas);
   color: var(--text);
   border: 1px solid var(--line-strong);
   border-radius: 8px;
@@ -166,7 +166,7 @@
 .library-filters button[aria-pressed="true"] {
   background: var(--accent-soft);
   color: var(--accent-text);
-  border-color: rgba(99, 102, 241, 0.4);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
   font-weight: 500;
 }
 
@@ -205,16 +205,6 @@
   color: var(--text);
 }
 
-.library-tag {
-  display: inline-block;
-  padding: 2px 7px;
-  border-radius: 4px;
-  font-size: 11px;
-  background: var(--surface-hover);
-  color: var(--muted);
-  border: 1px solid var(--line-subtle);
-}
-
 /* ---- 以下类名此前在 LibraryPanel.tsx 中使用但完全没有样式定义 ---- */
 
 /* 资料条目右侧操作区（编辑 / 删除） */
@@ -235,7 +225,7 @@
   letter-spacing: 0.02em;
   color: var(--accent-text);
   background: var(--accent-soft);
-  border: 1px solid rgba(99, 102, 241, 0.32);
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
 }
 
 /* 键值字段行（网址 / 账号 / 密码 / 内容） */
@@ -247,10 +237,10 @@
 .library-field > span {
   display: block;
   margin-bottom: 3px;
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--muted-soft);
+  color: var(--muted);
 }
 
 .library-field > div {

@@ -673,7 +673,7 @@ export function App() {
               onClick={() => setListOpen((open) => !open)}>
               <Icon path="M4 6h16M4 12h16M4 18h10" />
             </button>
-            <button className="icon-button accent" type="button" title="新会话" onClick={() => void startNew()}>
+            <button className="icon-button accent" type="button" title="新会话" aria-label="新会话" onClick={() => void startNew()}>
               <Icon path="M12 5v14M5 12h14" />
             </button>
             <button className={`icon-button${settingsOpen ? " accent" : ""}`} type="button"
@@ -684,7 +684,7 @@ export function App() {
           </div>
         </header>
         {settingsOpen ? (
-          <section className="settings-popover" id="connection-settings" aria-label="设置">
+          <section className="settings-popover" id="connection-settings" role="dialog" aria-modal="true" aria-label="设置">
             <strong>设置</strong>
             <div className="connection-settings" aria-busy={connectionBusy}>
               <label className="provider-picker">
@@ -722,6 +722,9 @@ export function App() {
       <div className="conversation-pane">
         <div
           className="messages"
+          role="log"
+          aria-live="polite"
+          aria-busy={running}
           ref={listRef}
           onScroll={(event) => {
             const list = event.currentTarget;
@@ -1018,7 +1021,7 @@ export function App() {
 
       {libraryOpen ? <LibraryPanel onClose={() => setLibraryOpen(false)} /> : null}
       {pendingDelete ? (
-        <div className="confirm-layer">
+        <div className="confirm-layer" role="dialog" aria-modal="true" aria-label="删除会话确认">
           <button className="confirm-backdrop" type="button" onClick={() => setPendingDelete(null)} />
           <div className="confirm-card">
             <strong>删除会话</strong>
