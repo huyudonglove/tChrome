@@ -46,12 +46,13 @@ test("overview skims and README tables match registries; hierarchy tags stay in 
 
   const compressionRegistry = readRegistryJson("service/agents/compression/context/modules.json");
   const queryRegistry = readRegistryJson("service/agents/query/context/modules.json");
-  const compressionIds = compressionRegistry.modules.map(row => row.id);
-  const queryIds = queryRegistry.modules.map(row => row.id);
   const compressionSkim = skimTags(readFileSync(resolve(root, "service/agents/compression/context/system/overview.md"), "utf8"));
   const querySkim = skimTags(readFileSync(resolve(root, "service/agents/query/context/system/overview.md"), "utf8"));
-  expect(new Set(compressionSkim)).toEqual(new Set(compressionIds.filter(id => id !== "overview")));
-  expect(new Set(querySkim)).toEqual(new Set(queryIds.filter(id => id !== "overview")));
+  // 子代理 overview 同样不再重复模块清单：模块集合的唯一来源是各自 modules.json。
+  expect(compressionSkim).toEqual([]);
+  expect(querySkim).toEqual([]);
+  expect(compressionRegistry.modules.map(row => row.id)).toContain("overview");
+  expect(queryRegistry.modules.map(row => row.id)).toContain("overview");
 
   const readme = readFileSync(resolve(root, "service/context/README.md"), "utf8");
   expect(new Set(sectionTableIds(readme, "### System", "### User"))).toEqual(new Set(mainSystem));
