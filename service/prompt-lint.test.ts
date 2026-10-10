@@ -102,7 +102,7 @@ test("<tools> wording names the same sources the assembler renders", () => {
   const registry = loadToolRegistry(root);
   const loopSource = readFileSync(join(root, "service/runtime/loop.ts"), "utf8");
   // 实际渲染集合由 loop.ts 的 assemble 决定：核心工具 ∪ 本会话加载的动态工具。
-  expect(loopSource).toMatch(/toolIds:\s*\[\.\.\.new Set\(\[\.\.\.coreToolIds\([^)]*\),\s*\.\.\.loadedToolIds\]\)\]/);
+  expect(loopSource).toMatch(/toolIds:\s*\[\.\.\.new Set\(\[\.\.\.coreToolIds\([^)]*\),\s*\.\.\.loadedToolIds\.filter\(/);
   const tools = loadContextModules(root).userSlots["#tools"]!;
   const wording = `${tools.purpose}\n${tools.template}`;
   expect(wording).toContain("核心工具");

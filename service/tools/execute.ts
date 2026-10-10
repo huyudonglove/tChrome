@@ -534,7 +534,7 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       layer: memoryId.startsWith("lm_") ? "project" : "conversation",
     }), [{ type: "memory_delete", memoryId }]);
   }
-  if (name === "context_query" || name === "agent_query") {
+  if (name === "agent_query") {
     const ids = [args.sumId, args.loopId, args.taskId].filter(value => value !== undefined);
     if (ids.length !== 1 || typeof ids[0] !== "string" || !ids[0].trim()) {
       return failedTool("必须提供且仅提供一个非空 sumId、loopId 或 taskId", "invalid_arguments");

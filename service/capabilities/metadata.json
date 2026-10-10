@@ -79,9 +79,7 @@
       "composesWith": [
         "evidence_search"
       ],
-      "similar": [
-        "context_query"
-      ],
+      "similar": [],
       "deeper": [
         "evidence_search"
       ],
@@ -467,34 +465,6 @@
       ],
       "readOnly": false
     },
-    "click": {
-      "purpose": "按元素编号或目标文字点击控件",
-      "triggers": [
-        "click",
-        "需要打开、观察、定位、填写或操作网页"
-      ],
-      "outputs": [
-        "页面摘要、控件状态或交互结果"
-      ],
-      "preconditions": [
-        "目标 tabId 有效",
-        "操作已获当前范围授权"
-      ],
-      "risk": "low",
-      "verification": [
-        "使用页面断言、重新观察或截图确认目标状态"
-      ],
-      "alternatives": [
-        "A11y 角色定位",
-        "可见文字定位",
-        "坐标交互"
-      ],
-      "composesWith": [
-        "page_assert",
-        "page_recheck"
-      ],
-      "readOnly": false
-    },
     "click_captcha": {
       "purpose": "点击可访问验证码 frame 内的实际勾选框，不点击 iframe 或页面普通复选框",
       "triggers": [
@@ -686,38 +656,6 @@
         "page_recheck"
       ],
       "readOnly": false
-    },
-    "context_query": {
-      "purpose": "按 sumId、模块和意图精准回查摘要来源",
-      "triggers": [
-        "context_query",
-        "历史证据不足、关键结果外置或需要回查已归档记录"
-      ],
-      "outputs": [
-        "候选记录或精确历史证据"
-      ],
-      "preconditions": [
-        "已知 sumId、模块与查询意图"
-      ],
-      "risk": "low",
-      "verification": [
-        "status=complete 且记录与意图和记录键一致"
-      ],
-      "alternatives": [
-        "使用当前可见 toolIO",
-        "重新执行只读检查"
-      ],
-      "composesWith": [
-        "agent_query",
-        "evidence_search"
-      ],
-      "similar": [
-        "agent_query"
-      ],
-      "deeper": [
-        "evidence_search"
-      ],
-      "readOnly": true
     },
     "context_menu": {
       "purpose": "触发页面右键菜单",
@@ -2980,7 +2918,6 @@
         "page_recheck"
       ],
       "similar": [
-        "click",
         "page_click_role",
         "page_click_text"
       ],
@@ -3018,8 +2955,7 @@
         "page_recheck"
       ],
       "similar": [
-        "page_click",
-        "click"
+        "page_click"
       ],
       "deeper": [
         "page_get_summary",
@@ -3110,8 +3046,7 @@
         "page_recheck"
       ],
       "similar": [
-        "page_type",
-        "type"
+        "page_type"
       ],
       "deeper": [
         "page_get_summary",
@@ -3566,7 +3501,6 @@
         "page_recheck"
       ],
       "similar": [
-        "type",
         "page_fill_role",
         "page_fill_submit"
       ],
@@ -3628,34 +3562,6 @@
         "用户手动登录"
       ],
       "composesWith": [],
-      "readOnly": false
-    },
-    "press": {
-      "purpose": "按下键盘键",
-      "triggers": [
-        "press",
-        "需要打开、观察、定位、填写或操作网页"
-      ],
-      "outputs": [
-        "页面摘要、控件状态或交互结果"
-      ],
-      "preconditions": [
-        "目标 tabId 有效",
-        "操作已获当前范围授权"
-      ],
-      "risk": "low",
-      "verification": [
-        "使用页面断言、重新观察或截图确认目标状态"
-      ],
-      "alternatives": [
-        "A11y 角色定位",
-        "可见文字定位",
-        "坐标交互"
-      ],
-      "composesWith": [
-        "page_assert",
-        "page_recheck"
-      ],
       "readOnly": false
     },
     "probe_dns": {
@@ -4175,34 +4081,6 @@
       "composesWith": [],
       "readOnly": true
     },
-    "see_env": {
-      "purpose": "读取所有普通浏览器窗口及其完整标签列表，不改变焦点",
-      "triggers": [
-        "see_env",
-        "需要打开、观察、定位、填写或操作网页"
-      ],
-      "outputs": [
-        "页面摘要、控件状态或交互结果"
-      ],
-      "preconditions": [
-        "目标 tabId 有效",
-        "操作已获当前范围授权"
-      ],
-      "risk": "low",
-      "verification": [
-        "使用页面断言、重新观察或截图确认目标状态"
-      ],
-      "alternatives": [
-        "A11y 角色定位",
-        "可见文字定位",
-        "坐标交互"
-      ],
-      "composesWith": [
-        "page_assert",
-        "page_recheck"
-      ],
-      "readOnly": true
-    },
     "see_page": {
       "purpose": "读指定页标题、地址和可见正文",
       "triggers": [
@@ -4290,34 +4168,6 @@
       ],
       "composesWith": [],
       "readOnly": true
-    },
-    "select": {
-      "purpose": "（兼容入口，优先用 combo_select）在下拉框选择精确 value",
-      "triggers": [
-        "select",
-        "需要打开、观察、定位、填写或操作网页"
-      ],
-      "outputs": [
-        "页面摘要、控件状态或交互结果"
-      ],
-      "preconditions": [
-        "目标 tabId 有效",
-        "操作已获当前范围授权"
-      ],
-      "risk": "low",
-      "verification": [
-        "使用页面断言、重新观察或截图确认目标状态"
-      ],
-      "alternatives": [
-        "A11y 角色定位",
-        "可见文字定位",
-        "坐标交互"
-      ],
-      "composesWith": [
-        "page_assert",
-        "page_recheck"
-      ],
-      "readOnly": false
     },
     "send_http": {
       "purpose": "向完整 HTTP/HTTPS URL 发送请求，跟随重定向；method 默认 GET",
@@ -4562,9 +4412,7 @@
       ],
       "deeper": [
         "page_click",
-        "page_type",
-        "click",
-        "type"
+        "page_type"
       ],
       "readOnly": true
     },
@@ -4763,34 +4611,6 @@
       "purpose": "勾选或取消匹配 text 的复选框",
       "triggers": [
         "tick",
-        "需要打开、观察、定位、填写或操作网页"
-      ],
-      "outputs": [
-        "页面摘要、控件状态或交互结果"
-      ],
-      "preconditions": [
-        "目标 tabId 有效",
-        "操作已获当前范围授权"
-      ],
-      "risk": "low",
-      "verification": [
-        "使用页面断言、重新观察或截图确认目标状态"
-      ],
-      "alternatives": [
-        "A11y 角色定位",
-        "可见文字定位",
-        "坐标交互"
-      ],
-      "composesWith": [
-        "page_assert",
-        "page_recheck"
-      ],
-      "readOnly": false
-    },
-    "type": {
-      "purpose": "向指定可编辑控件输入 text",
-      "triggers": [
-        "type",
         "需要打开、观察、定位、填写或操作网页"
       ],
       "outputs": [

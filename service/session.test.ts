@@ -17,7 +17,7 @@ const makeTurn = (output: TurnStopReason | null): Turn => ({   turnId: "tn_01", 
 });
 
 const outputs: { stopReason: TurnStopReason; expected: string }[] = [
-  { stopReason: { kind: "error", faultCode: "missing_required", toolName: "click", detail: "click missing required: tabId; data/text must be string" }, expected: "工具调用缺少必填参数。" },
+  { stopReason: { kind: "error", faultCode: "missing_required", toolName: "double_click", detail: "double_click missing required: tabId; data/text must be string" }, expected: "工具调用缺少必填参数。" },
   { stopReason: { kind: "reply", text: "这是商品详情页。" }, expected: "这是商品详情页。" },
   { stopReason: { kind: "ask", question: "选择哪个商品？" }, expected: "选择哪个商品？" },
   { stopReason: { kind: "interrupted", initiatedBy: "user" }, expected: "已中断（用户）" },

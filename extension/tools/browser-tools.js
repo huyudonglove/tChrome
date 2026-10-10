@@ -14,9 +14,9 @@ export const BROWSER_TOOL_NAMES = [
   'page_click', 'page_type',
   'see_page', 'find_on_page', 'extract_table', 'check_page',
   'snapshot_page', 'watch_page', 'see_page_info',
-  'click', 'double_click', 'focus', 'hover',
-  'tick', 'select', 'drag', 'calibrate_drag', 'click_xy',
-  'type', 'submit', 'press', 'scroll', 'scroll_to',
+  'double_click', 'focus', 'hover',
+  'tick', 'drag', 'calibrate_drag', 'click_xy',
+  'submit', 'scroll', 'scroll_to',
   'wait', 'wait_network', 'wait_response', 'attach_file', 'clear_file',
   'page_get_by_role',
   'open_url', 'reload', 'go_history',
@@ -28,7 +28,7 @@ export const BROWSER_TOOL_NAMES = [
   'cookies', 'read_page_credentials', 'page_storage', 'indexeddb',
   'cache_storage', 'capture_network_traffic', 'profile_vault',
   'execute_javascript', 'handle_dialog', 'see_zoom', 'set_zoom',
-  'bind_tab', 'see_env', 'list_downloads', 'see_diag', 'see_console', 'wait_new_tab',
+  'bind_tab', 'list_downloads', 'see_diag', 'see_console', 'wait_new_tab',
   'list_browser_tools', 'measure_timing', 'measure_paint', 'measure_files',
   'see_captcha', 'wait_captcha', 'click_captcha', 'solve_captcha', 'solve_slider',
   'emulate_device', 'network_throttle', 'set_cookie', 'delete_cookie', 'clear_cookies',
@@ -2269,7 +2269,7 @@ const executeBrowserTool = async (name, input = {}) => {
     if (!tab?.id || !tab.url || isBlocked(tab.url)) return {ok: false, error: '没有可绑定的普通网页标签'};
     return {ok: true, tabId: tab.id, windowId: tab.windowId, url: tab.url, title: tab.title};
   }
-  if (name === 'see_env' || name === 'list_tabs') return readOpenTabs();
+  if (name === 'list_tabs') return readOpenTabs();
   if (name === 'list_windows') {
     const windows = await chrome.windows.getAll();
     return {ok: true, windows: windows.map((item) => ({windowId: item.id, focused: item.focused, type: item.type}))};
@@ -2899,7 +2899,7 @@ const executeBrowserTool = async (name, input = {}) => {
 
 
 // A native dialog releases the caller without replaying the blocked operation.
-const browserOnly = new Set(['open_tab', 'duplicate_tab', 'bind_tab', 'list_browser_tools', 'list_tabs', 'list_windows', 'see_env', 'close_tab', 'close_window', 'switch_tab', 'move_tab', 'update_tab', 'create_window', 'update_window', 'group_tabs', 'ungroup_tabs', 'list_downloads', 'download', 'export_data', 'control_download', 'wait_download', 'wait_new_tab', 'profile_vault', 'detach_debugger', 'image_crop_pixels', 'clipboard_page_write', 'clipboard_page_read', 'set_cookie', 'delete_cookie', 'clear_cookies']);
+const browserOnly = new Set(['open_tab', 'duplicate_tab', 'bind_tab', 'list_browser_tools', 'list_tabs', 'list_windows', 'close_tab', 'close_window', 'switch_tab', 'move_tab', 'update_tab', 'create_window', 'update_window', 'group_tabs', 'ungroup_tabs', 'list_downloads', 'download', 'export_data', 'control_download', 'wait_download', 'wait_new_tab', 'profile_vault', 'detach_debugger', 'image_crop_pixels', 'clipboard_page_write', 'clipboard_page_read', 'set_cookie', 'delete_cookie', 'clear_cookies']);
 export const runBrowserTool = async (name, input = {}) => {
   let unwatch;
   let targetTab;

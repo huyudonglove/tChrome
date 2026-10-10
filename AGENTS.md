@@ -27,4 +27,4 @@
 - skill 模块始终保留完整正文，不参与压缩，也不参与文件外置。
 
 - 每次调用的结果与调用一起落盘，保留至 loop 压缩；完整原始调用始终落盘。task 返回保留指针或最终完整状态。
-- callsResult 记录现有门禁后的最终返回：小结果保留正文，大结果保留状态、错误、索引及原文路径；完整原文沿用 returns 落盘，不另设正文副本或门禁。调用参数在 helm，实际结果在 runtime。context_query / agent_query 按 loops、runtime、helm 或 summaries 查询，可按 file 过滤，无命中直接 not_found，不花模型轮次。
+- callsResult 记录现有门禁后的最终返回：小结果保留正文，大结果保留状态、错误、索引及原文路径；完整原文沿用 returns 落盘，不另设正文副本或门禁。调用参数在 helm，实际结果在 runtime。agent_query 按 loops、runtime、helm 或 summaries 查询，可按 file 过滤，无命中直接 not_found，不花模型轮次。

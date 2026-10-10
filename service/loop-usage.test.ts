@@ -105,19 +105,19 @@ test("finishTurn missing required text is rejected before execution three times"
 });
 
 test("mixed missing and type errors reach model feedback and final output", async () => {
-  const invalidClick = () => result({ toolCalls: [{ id: "bad_click", name: "click", arguments: { reason: "点击文字", targetText: true } }] });
-  await run([result({ toolCalls: [call("enable", "catalog_add", { names: ["click"] })] }), invalidClick(), invalidClick(), invalidClick()], ({ reply, ledger, browserCalls }) => {
+  const invalidClick = () => result({ toolCalls: [{ id: "bad_click", name: "double_click", arguments: { reason: "点击文字", text: true } }] });
+  await run([result({ toolCalls: [call("enable", "catalog_add", { names: ["double_click"] })] }), invalidClick(), invalidClick(), invalidClick()], ({ reply, ledger, browserCalls }) => {
     if (reply.stopReason.kind === "error") {
-      expect(reply.stopReason.detail).toContain("data/targetText must be string");
+      expect(reply.stopReason.detail).toContain("data/text must be string");
       expect(reply.stopReason.detail).toContain("at least one alternative");
     }
-    expect(reply.stopReason).toMatchObject({ kind: "error", faultCode: "missing_required", toolName: "click" });
-    const feedback = ledger.toolIO.filter(row => row.name === "click");
+    expect(reply.stopReason).toMatchObject({ kind: "error", faultCode: "missing_required", toolName: "double_click" });
+    const feedback = ledger.toolIO.filter(row => row.name === "double_click");
     expect(feedback).toHaveLength(3);
     for (const row of feedback) {
       const failure = JSON.parse(row.return.text);
       expect(failure.missing).toEqual(["tabId"]);
-      expect(failure.details.reason).toContain("data/targetText must be string");
+      expect(failure.details.reason).toContain("data/text must be string");
     }
     expect(browserCalls).toEqual([]);
   });

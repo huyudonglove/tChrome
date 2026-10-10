@@ -52,7 +52,6 @@ const OBSERVATION_NUDGE_EXCLUDED = new Set([
   "tab_context",
   "agent_compress",
   "agent_query",
-  "context_query",
   "checkContinue",
   "askUser",
   "finishTurn",
@@ -141,7 +140,9 @@ export type LoopDeps = {
 
 const assemble = (toolRegistry: ToolRegistry, loadedToolIds: string[]): Assembled => ({
   baseToolsIds: [...toolRegistry.toolGroups.baseToolsIds],
-  toolIds: [...new Set([...coreToolIds(toolRegistry), ...loadedToolIds])],
+  // A tool retired from the definitions can still sit in a session's loadedToolIds history,
+  // and toolSchemas throws on unknown ids — keep only ids the registry still defines.
+  toolIds: [...new Set([...coreToolIds(toolRegistry), ...loadedToolIds.filter(id => id in toolRegistry.tools)])],
 
   conversationMemoryIds: [],
   projectMemoryIds: [],

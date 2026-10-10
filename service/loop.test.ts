@@ -592,7 +592,7 @@ test("队列和正在跑的工具出现在 /session", () => {
   ledger.liveTools = [{ name: "see_page", callId: "call_01" }];
   ledger.toolQueue = [
     { callId: "call_01", name: "page_get_summary", arguments: { tabId: 12, reason: "看当前页" } },
-    { callId: "call_02", name: "click", arguments: { tabId: 12, reason: "点分类" } },
+    { callId: "call_02", name: "page_click", arguments: { tabId: 12, reason: "点分类" } },
   ];
   ledger.toolIO = [
     { callId: "call_00", name: "open_url", turnId: "tn_01", arguments: { reason: "打开站点" }, return: { stage: "complete", totalChars: 2, text: "ok" } },
@@ -623,7 +623,7 @@ test("队列和正在跑的工具出现在 /session", () => {
     { role: "user", name: undefined, live: undefined },
     { role: "tool", name: "open_url", live: undefined },
     { role: "tool", name: "see_page", live: true },
-    { role: "tool", name: "click", live: undefined },
+    { role: "tool", name: "page_click", live: undefined },
   ]);
   expect(view.messages[1]?.text).toBe("打开站点");
   rmSync(dir, { recursive: true, force: true });

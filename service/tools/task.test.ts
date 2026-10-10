@@ -361,9 +361,9 @@ test("task created with every step done is immediately terminal and queryable by
     const completed = fx.apply(await fx.execute("task_set", { items: [{ text: "a", status: "done" }] }), "create", "task_set");
     expect(completed.task).toMatchObject({ id: "task_01", status: "completed" });
     expect(hasActiveTask(fx.ledger)).toBe(false);
-    const found = await fx.execute("context_query", { taskId: "task_01" });
+    const found = await fx.execute("agent_query", { taskId: "task_01" });
     expect(JSON.parse(found.text).task).toEqual(completed.task);
-    const absent = await fx.execute("context_query", { taskId: "task_02" });
+    const absent = await fx.execute("agent_query", { taskId: "task_02" });
     expect(JSON.parse(absent.text).status).toBe("not_found");
   } finally { fx.cleanup(); }
 });

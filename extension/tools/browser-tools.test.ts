@@ -539,7 +539,6 @@ test("open tabs snapshot keeps per-window activation and focus without choosing 
   const expected = {ok: true, windows: windows.map(w => ({windowId: w.id, focused: w.focused,
     tabs: w.tabs.map(t => ({tabId: t.id, active: t.active, url: t.url, title: t.title}))}))};
   expect(await readOpenTabs()).toEqual(expected);
-  expect(await runBrowserTool('see_env')).toEqual(expected);
   expect(await runBrowserTool('list_tabs')).toEqual(expected);
 });
 

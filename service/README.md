@@ -33,7 +33,7 @@ HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`�
 
 每次发送主模型前，Runtime 按 System + User 字符数判断压缩阈值。最近 1 个 loop 完整保留，其余按 userInput / interrupt 分区，顺序逐区请求；无输入分界时按条数分前后两半分别发送。loop 不拆、不递归。每批摘要全部合法才覆盖，失败停止后续批次并保留原文。摘要记录准确 loopIds，按层折叠至最高 L6；无新来源不单独折叠。
 
-主 Agent 固定配套两个职责单一的子 Agent：Compression Agent 在主模型请求前按需压缩历史材料，Query Agent 在主 Agent 调用 `context_query` 时按意图定位历史证据。两者都复用现有无状态 `provider.complete` 请求能力，包括模型配置、协议适配、重试和响应解析，不另建 LLM 请求层。两个子 Agent 各自通过 `protocol.ts` 组装提示词并校验专用返回工具调用，通过 `index.ts` 执行业务流程，提示词保存在各自的 `context/`；主 Agent 只提交查询意图或消费压缩结果，不直接承担子 Agent 的候选筛选与摘要生成。主 Agent 的工具提交由 `runtime/loop.ts` 的 `validateCompletion` 调用 `tools/schema.ts` 校验；provider 不承担业务输出校验、工具加载策略或批次执行决策。
+主 Agent 固定配套两个职责单一的子 Agent：Compression Agent 在主模型请求前按需压缩历史材料，Query Agent 在主 Agent 调用 `agent_query` 时按意图定位历史证据。两者都复用现有无状态 `provider.complete` 请求能力，包括模型配置、协议适配、重试和响应解析，不另建 LLM 请求层。两个子 Agent 各自通过 `protocol.ts` 组装提示词并校验专用返回工具调用，通过 `index.ts` 执行业务流程，提示词保存在各自的 `context/`；主 Agent 只提交查询意图或消费压缩结果，不直接承担子 Agent 的候选筛选与摘要生成。主 Agent 的工具提交由 `runtime/loop.ts` 的 `validateCompletion` 调用 `tools/schema.ts` 校验；provider 不承担业务输出校验、工具加载策略或批次执行决策。
 
 运行中的请求由 `runtime/execution.ts` 按数据目录、会话和回合统一管理，状态只允许 `active → cancelled` 或 `active → finished`，终态不能再次发出请求。Runtime 在回合入口给 Provider 绑定同一个 AbortSignal，主模型、压缩和查询自动共享；停止、删除会话或服务退出触发取消，Chat/Responses 网络请求及重试等待同时中止。新回合使用独立状态，切换或新建会话不取消其他会话。持久化 ledger 继续管理会话业务状态并检查迟到写入；执行状态机负责内存中的请求生命周期，回合退出统一释放。
 
@@ -49,7 +49,7 @@ Responses 适配器负责文本、图片 input_image、扁平 function schema �
 
 Chat 与 Responses 的失败分类和重试决策统一由 `provider/failures.ts` 管理。连接错误、超时、HTTP 408/429/5xx、Responses 的 server_error/rate_limit_exceeded，以及响应格式无效（provider_invalid_response，含空回包）按 `network.maxAttempts` 静默重试（默认 10 次含首次），重试成功则正常继续，不向模型回灌错误文案。输出超限、内容拒绝、未完整结束分别返回 `provider_output_limit`、`provider_refused`、`provider_incomplete`，不自动重试，也不执行部分工具调用。401 返回密钥错误，403 返回请求被拒绝并保留上游原因；重试耗尽后面板展示失败，本轮不执行工具。请求附带 tools 列表，tool_choice 默认 auto；仅在 needFinishTurn 重试或无效提交自救等「必须再调工具」的路径试发 required，网关或 thinking 模式拒绝（报文含 tool_choice / functionCallingConfig）则当场降级 auto 重试，不按模型是否 thinking 写死支持与否。Gemini 对应 `functionCallingConfig.mode`：required→ANY，默认 AUTO。
 
-summaries 展示历史 loop 的 summary、userRequest、actions、result 与准确 loopIds。context_query / agent_query 按 sumId 或 loopId 查询 loops、runtime、helm、summaries，支持 file 过滤；无匹配直接 not_found。Query Agent 返回候选 loopIds，Runtime 校验后读取完整来源记录。查询结果留在 callsResult，遵守统一返回门禁；原文凭 callId / pageId 使用 evidence_search 的 blockId 或 keyword 获取，返回 nextOffset 时继续分页。
+summaries 展示历史 loop 的 summary、userRequest、actions、result 与准确 loopIds。agent_query 按 sumId 或 loopId 查询 loops、runtime、helm、summaries，支持 file 过滤；无匹配直接 not_found。Query Agent 返回候选 loopIds，Runtime 校验后读取完整来源记录。查询结果留在 callsResult，遵守统一返回门禁；原文凭 callId / pageId 使用 evidence_search 的 blockId 或 keyword 获取，返回 nextOffset 时继续分页。
 
 未完成任务在 conversation 底部 tasks 展示完整最新状态；创建和更新返回 task ID 指针，完成或取消后从 tasks 移出，最终任务保留在完成操作返回。工具调用与结果一律落盘并保留到压缩。大结果保留既有索引和原文路径，不另建证据正文副本。历史 loop 正常追加不回写，容量读数放在整条 User 最末尾；压缩时接受缓存前缀重建。
 

@@ -11,7 +11,7 @@ Runtime 负责选择图片、计算窗口大小、压缩历史和外置大结果
 
 需要补充证据时，按来源选工具：
 
-- 要核对历史约定、某轮的判断依据或摘要省略的细节，用 agent_query，传 sumId、module、intent。context_query 提供相同的查询能力。
+- 要核对历史约定、某轮的判断依据或摘要省略的细节，用 agent_query，传 sumId、module、intent。
 - 只关心某个文件时，可加 file：loops、runtime、helm 按调用与结果中的明确文件字段匹配，summaries 按正文提及匹配。没有匹配记录时直接返回 not_found，不调用查询模型。
 - 要读取某次工具返回或页面观察中的原文片段，用 evidence_search。windows 中每项选择 callId 或 pageId，不能同时指定两者。
 - 要继续读取分页结果，用原工具的分页参数：skill_list 使用 offset/limit；local_fs_read 的 items 中使用 offset/limit 按字节读，或 startLine/endLine 按行读。

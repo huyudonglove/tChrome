@@ -5,7 +5,7 @@ import { sseResponse } from "./sse.ts";
 const dottedTools = [{
   type: "function" as const,
   function: {
-    name: "context_query",
+    name: "agent_query",
     description: "查询历史",
     parameters: { type: "object", properties: { sumId: { type: "string" } }, required: ["sumId"] },
   },
@@ -23,7 +23,7 @@ test("sanitizeToolNames sends underscore names and restores dots on return", asy
     async fetch(request) {
       sent = await request.json();
       return sseResponse([
-        toolCallEvent("context_query", JSON.stringify({ sumId: "sum_01", module: "toolIO", intent: "查" })),
+        toolCallEvent("agent_query", JSON.stringify({ sumId: "sum_01", module: "toolIO", intent: "查" })),
         { choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] },
       ]);
     },
@@ -36,9 +36,9 @@ test("sanitizeToolNames sends underscore names and restores dots on return", asy
       sanitizeToolNames: true,
     });
     const result = await provider.complete({ messages: [{ role: "user", content: "查" }], tools: dottedTools });
-    expect(sent.tools[0].function.name).toBe("context_query");
+    expect(sent.tools[0].function.name).toBe("agent_query");
     expect(sent.tool_choice).toBeUndefined();
-    expect(result.toolCalls[0]?.name).toBe("context_query");
+    expect(result.toolCalls[0]?.name).toBe("agent_query");
     expect(result.parseOk).toBe(true);
   } finally { server.stop(true); }
 });
@@ -59,7 +59,7 @@ test("without sanitizeToolNames original dotted names are sent", async () => {
   try {
     const provider = createProvider({ apiKey: "local-test", baseURL: `http://127.0.0.1:${server.port}/v1`, proxy: "" });
     await provider.complete({ messages: [{ role: "user", content: "hi" }], tools: dottedTools });
-    expect(sent.tools[0].function.name).toBe("context_query");
+    expect(sent.tools[0].function.name).toBe("agent_query");
     expect(sent.tool_choice).toBeUndefined();
   } finally { server.stop(true); }
 });

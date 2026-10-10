@@ -10,9 +10,9 @@ import type { CompletionResult, Provider, LoopRecord, LoopToolResult } from "./t
 const repoRoot = join(import.meta.dir, "..");
 const reply = (toolCalls: CompletionResult["toolCalls"]): CompletionResult => ({ content: "", finish: "tool_calls", toolCalls, attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] });
 const finish = () => reply([{ id: "finish", name: "finishTurn", arguments: { reason: "已核对", text: "完成" } }]);
-const queryCall = (sumId: string) => reply([{ id: "query", name: "context_query", arguments: { reason: "查原文", sumId, module: "runtime", intent: "读取详细证据" } }]);
+const queryCall = (sumId: string) => reply([{ id: "query", name: "agent_query", arguments: { reason: "查原文", sumId, module: "runtime", intent: "读取详细证据" } }]);
 const queryResults = (dataDir: string, cv: string) => loadLedger(dataDir, cv).loops.flatMap(loop => loop.runtime)
-  .filter(row => row.type === "callsResult").flatMap(row => row.content as LoopToolResult[]).filter(row => row.name === "context_query");
+  .filter(row => row.type === "callsResult").flatMap(row => row.content as LoopToolResult[]).filter(row => row.name === "agent_query");
 function fixture(dataDir: string, text: string, largeHistory = false) {
   const { conversationId: cv } = ensureSession(dataDir), ledger = loadLedger(dataDir, cv);
   const makeLoop = (content: unknown, type: "userInput" | "callsResult"): LoopRecord => ({

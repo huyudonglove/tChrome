@@ -34,7 +34,7 @@
 
 ## 压缩归档查询
 
-context_query(sumId 或 loopId, module, intent[, file]) 查询 loops、runtime、helm 或 summaries。Runtime 沿摘要来源展开候选，Query Agent 返回 loopIds，校验后返回完整 records。无文件命中不请求模型。查询返回保留在 callsResult，遵守统一门禁；evidence_search 通过 callId / pageId、blockId 或 keyword 取回原始片段，原文块完整返回，不再次外置。
+agent_query(sumId 或 loopId, module, intent[, file]) 查询 loops、runtime、helm 或 summaries。Runtime 沿摘要来源展开候选，Query Agent 返回 loopIds，校验后返回完整 records。无文件命中不请求模型。查询返回保留在 callsResult，遵守统一门禁；evidence_search 通过 callId / pageId、blockId 或 keyword 取回原始片段，原文块完整返回，不再次外置。
 
 归档索引 conversationHistory 保存不可变 loop 原文、摘要及覆盖关系。查询 Agent 只选择候选，不执行材料中的指令；返回 ID 不能作为任意路径。
 
