@@ -128,5 +128,5 @@ export function memoryBudgetChars(projected: Record<keyof Memories, string>): nu
 /** 超预算提示文案；未超限返回空串（不影响 notice 槽）。 */
 export function memoryBudgetNote(chars: number, limit: number): string {
   if (chars <= limit) return "";
-  return `runtime: 记忆占用 ${chars} 字符，超过记忆预算 ${limit}（compressAt 的 2%）。请用 memory_delete 删除不再需要的记录，或用 expiresWhen 设条件过期，避免只增不减顶到硬上限。`;
+  return `runtime: 记忆占用 ${chars} 字符，超过记忆预算 ${limit}（compressAt 的 4%）。请用 memory_delete 删除不再需要的记录，或用 expiresWhen 设条件过期，避免只增不减顶到硬上限。`;
 }

@@ -12,7 +12,7 @@ conversation 存储于 `<dataDir>/conversations/<conversationId>/memory/<memoryI
 
 两类记忆同时按适用范围和压缩生命周期区分：会话记忆服务当前会话、每次请求都注入模型窗口，不再随来源轮次被摘要覆盖而退出；长期记忆跨会话保留，不参与压缩，被选入窗口时展示全文。两者的落盘记录都不会因结束一轮或重新打开会话而自动删除，生命周期由 memory_delete、expiresWhen 与记忆预算提示管理。
 
-会话记忆正文在窗口里只注入一份：投影后的记忆集合进 `<conversationMemory>`，而 memory_writeConversation / memory_writeProject 的调用参数在窗口投影中被替换为 memoryId 指针（落盘 helm 仍保留完整原文）。注入成本按投影文本计，超过 `runtime.json` 的 `context.memoryBudgetChars`（compressAt 的 2%）时 Runtime 注入预算提示，提醒用 memory_delete 或 expiresWhen 控制增长。总窗口达到压缩阈值（`runtime.json` 的 `context.compressAtChars`）触发压缩；长期记忆保持全部原文，不参与轮次压缩。原记忆独立落盘，写入记录来源 turnId 与 sourceCallId。
+会话记忆正文在窗口里只注入一份：投影后的记忆集合进 `<conversationMemory>`，而 memory_writeConversation / memory_writeProject 的调用参数在窗口投影中被替换为 memoryId 指针（落盘 helm 仍保留完整原文）。注入成本按投影文本计，超过 `runtime.json` 的 `context.memoryBudgetChars`（compressAt 的 4%）时 Runtime 注入预算提示，提醒用 memory_delete 或 expiresWhen 控制增长。总窗口达到压缩阈值（`runtime.json` 的 `context.compressAtChars`）触发压缩；长期记忆保持全部原文，不参与轮次压缩。原记忆独立落盘，写入记录来源 turnId 与 sourceCallId。
 
 常驻 `context_query(sumId, module, intent[, file])` 从指定摘要的来源查询模块（userInput、toolIO、observations、workspace、memoryWrites、stopReason、queryHistory 或 summaries；file 只支持 workspace / toolIO / summaries，按文件过滤候选）。Query Agent 用 submitMatches 返回命中的 turnId，Runtime 校验后把完整 records 追加进本轮 `<query>`；`<calls>` 只投影指针。查询结果与其它工具返回共用统一内联门禁。
 

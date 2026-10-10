@@ -29,7 +29,7 @@ HTTP：`GET /health`，`POST /turn`，`GET /tool-request`，`POST /tool-result`�
 
 存储层保留持久化和会话命令，读取 ledger / events / turns 后调用 presentation 投影，命令返回行为保持不变。浏览器执行实现在 `extension/tools/browser-tools.js`，由后台 worker 调用。
 
-记忆分 conversation 与 project 两层。会话记忆每次请求都注入窗口、不随历史压缩退出，项目记忆跨会话并保持完整；注入超过记忆预算（`context.memoryBudgetChars`，compressAt 的 2%）时 Runtime 会提示清理。主模型 User 依次为 skill、projectMemory、tools、conversation、contextUsage；所有模块 purpose 在 System。conversation 的 loop 记录 runtime 输入与 helm 响应，两者均有独立 ID；runtime type 为 userInput、interrupt、callsResult、notice。调用与结果按 callId 关联，判断与执行事实分开。
+记忆分 conversation 与 project 两层。会话记忆每次请求都注入窗口、不随历史压缩退出，项目记忆跨会话并保持完整；注入超过记忆预算（`context.memoryBudgetChars`，compressAt 的 4%）时 Runtime 会提示清理。主模型 User 依次为 skill、projectMemory、tools、conversation、contextUsage；所有模块 purpose 在 System。conversation 的 loop 记录 runtime 输入与 helm 响应，两者均有独立 ID；runtime type 为 userInput、interrupt、callsResult、notice。调用与结果按 callId 关联，判断与执行事实分开。
 
 每次发送主模型前，Runtime 按 System + User 字符数判断压缩阈值。最近 1 个 loop 完整保留，其余按 userInput / interrupt 分区，顺序逐区请求；无输入分界时按条数分前后两半分别发送。loop 不拆、不递归。每批摘要全部合法才覆盖，失败停止后续批次并保留原文。摘要记录准确 loopIds，按层折叠至最高 L6；无新来源不单独折叠。
 

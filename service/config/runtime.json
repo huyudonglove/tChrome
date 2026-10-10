@@ -20,7 +20,7 @@
     },
     "memoryBudgetChars": {
       "follow": "compressAtChars",
-      "ratio": 0.02
+      "ratio": 0.04
     },
     "hardLimitChars": {
       "follow": "contextWindowChars",
