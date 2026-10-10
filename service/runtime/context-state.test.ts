@@ -23,7 +23,7 @@ test("only newest loop survives projection; immutable originals and memory sourc
  expect(await compressContext(input)).toMatchObject({ status: "completed", committedLoopIds: ["loop_01", "loop_02", "loop_03"] });
  const view = contextState(input.dataDir, input.ledger, input.turn, input.memories);
  expect(view.ledger.loops.map(row => row.id)).toEqual(["loop_04"]);
- expect(view.memories.conversation.map(row => row.memoryId)).toEqual(["mm_02"]);
+ expect(view.memories.conversation.map(row => row.memoryId)).toEqual(["mm_01", "mm_02"]);
  expect(JSON.stringify(input.ledger)).toBe(before);
  const index = loadIndex(input.dataDir, "cv_test", "conversationHistory");
  expect(resolveSources(input.dataDir, "cv_test", "conversationHistory", index.activeIds).map(row => row.id)).toEqual(["loop_01", "loop_02", "loop_03"]);

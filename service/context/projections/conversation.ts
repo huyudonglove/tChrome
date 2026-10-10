@@ -22,6 +22,8 @@ export function conversationPayload(input: {
   ledger: Ledger;
   memories: { conversation: MemoryRecord[] | string };
   conversationSummaries?: LoopSummary[] | string;
+  /** callId → 该调用写入的记忆编号：窗口里写入调用正文只留指针。 */
+  memoryPointers?: Record<string, string[]>;
 }): ConversationPayload {
   const loops = input.ledger.loops;
   const currentLoop = loops.at(-1);
@@ -41,7 +43,16 @@ export function conversationPayload(input: {
       runtime: loop.runtime.map(row => row.type === "callsResult" && Array.isArray(row.content)
         ? { ...row, content: (row.content as CallResult[]).filter(result => visible.has(result.callId)) } : row)
         .filter(row => row.type !== "callsResult" || !Array.isArray(row.content) || row.content.length > 0),
-      ...(loop.helm ? { helm: { ...loop.helm, calls: loop.helm.calls.filter(call => !known.has(call.id) || visible.has(call.id)) } } : {}),
+      ...(loop.helm ? { helm: { ...loop.helm, calls: loop.helm.calls.filter(call => !known.has(call.id) || visible.has(call.id)).map(call => {
+        const ids = input.memoryPointers?.[call.id];
+        if (!ids || !ids.length) return call;
+        // 投影只替换送模型的副本：落盘 helm 仍保留完整正文。
+        const args = { ...((call.arguments ?? {}) as Record<string, unknown>) };
+        // memory_update 的 text 同属记忆正文，同样只留指针，避免第二份正文进窗口。
+        delete args.conversationMemory; delete args.projectMemory; delete args.summary; delete args.text;
+        args.memoryPointers = ids;
+        return { ...call, arguments: args as typeof call.arguments };
+      }) } } : {}),
     })),
   };
 }

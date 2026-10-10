@@ -18,6 +18,10 @@
       "follow": "contextWindowChars",
       "ratio": 1.0
     },
+    "memoryBudgetChars": {
+      "follow": "compressAtChars",
+      "ratio": 0.02
+    },
     "hardLimitChars": {
       "follow": "contextWindowChars",
       "ratio": 1.25

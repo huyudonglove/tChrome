@@ -8,7 +8,7 @@ import { appendRuntime, inputLoop, recordHelm, recordToolResult, setLoopNotice }
 import { hasActiveTask, requiresActiveTask } from "./task-gate.ts";
 import { repeatHint } from "./repeat-detect.ts";
 import { ensureThumb, loadThumbRef } from "../images/thumb.ts";
-import { deriveActiveScopes, projectMemories, renderScopeIndex } from "../memory/window.ts";
+import { deriveActiveScopes, memoryBudgetChars, memoryBudgetNote, memoryPointerMap, projectMemories, renderScopeIndex } from "../memory/window.ts";
 import { errorInfo, errorMessage } from "../../shared/errors.ts";
 import { errorDetail } from "../../shared/error-details.ts";
 import { failedTool, toolFailure } from "../tools/result.ts";
@@ -169,12 +169,14 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
   // 图片附件、未注入的记忆范围、零调用的已加载工具这三条附注，与其他运行时提醒同一承载：
   // 交给当前未发送 loop 的 runtime notice，每条独立编号。
   // 只在本次请求准备阶段按 kind 更新；已发送的历史不改写。
+  const projectedMemories = projectMemories(memories, activeScopes);
+  const memoryBudget = memoryBudgetNote(memoryBudgetChars(projectedMemories), runtimeConfig.context.memoryBudgetChars);
   onNotice?.("image", deferredImageNote(deferred) + (thumbs.length ? " 已附缩略图，细节仍需 image_crop 或 mode=element|rect。" : ""));
-  onNotice?.("memory", renderScopeIndex(memories, activeScopes));
+  onNotice?.("memory", [renderScopeIndex(memories, activeScopes), memoryBudget].filter(Boolean).join("\n"));
   return [
     { role: "system", content: system },
     { role: "user", content: userText({
-      contextModules, ledger, turn, memories: projectMemories(memories, activeScopes), skillText, conversationSummaries: summaries,
+      contextModules, ledger, turn, memories: projectedMemories, skillText, conversationSummaries: summaries, memoryPointers: memoryPointerMap(memories),
       queryHistory: ledger.queryHistory,
       toolGuide: toolGuideFor(toolRegistry, turn.assembled.toolIds, false),
       dataDir: historyDataDir ?? dataDir,
@@ -651,7 +653,7 @@ export async function handleTurn(
       // Nudge on evidence-producing tool calls: count this turn's toolIO, skipping bookkeeping tools.
       const rows = ledger.toolIO.filter((r) => r.turnId === turn.turnId);
       // 临时提醒每次发送前重算；budget 保留 runQueue 按最新工具返回计算的状态。
-      for (const kind of ["observation", "reflect", "compress", "rotate"]) {
+      for (const kind of ["observation", "reflect", "compress", "rotate", "memory"]) {
         setNotice(kind, null);
       }
       const writeCount = rows.filter((r) => r.name === "observation_write").length;

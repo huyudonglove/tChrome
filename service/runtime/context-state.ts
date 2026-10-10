@@ -10,7 +10,6 @@ export const HISTORY_MODULE = "conversationHistory" as const;
 export function contextState(dataDir: string, ledger: Ledger, turn: Turn, memories: Memories) {
   const index = loadIndex(dataDir, ledger.conversationId, HISTORY_MODULE);
   const covered = new Set(index.coveredSourceIds);
-  const coveredCalls = new Set(ledger.loops.filter(loop => covered.has(loop.id)).flatMap(loop => loop.helm?.calls.map(call => call.id) ?? []));
   const entries = new Map(index.entries.map(entry => [entry.id, entry]));
   const order = new Map(ledger.loops.map((loop, position) => [loop.id, position]));
   const summaries = index.activeIds.map(id => {
@@ -21,7 +20,7 @@ export function contextState(dataDir: string, ledger: Ledger, turn: Turn, memori
   return {
     ledger: { ...ledger, loops: ledger.loops.filter(loop => !covered.has(loop.id)) },
     turn,
-    memories: { ...memories, conversation: memories.conversation.filter(row => !coveredCalls.has(row.sourceCallId)) },
+    memories,
     summaries,
   };
 }

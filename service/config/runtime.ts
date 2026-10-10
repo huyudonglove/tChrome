@@ -89,6 +89,8 @@ const results = {
 };
 const context = {
   compressAtChars: resolveGate("compressAtChars"),
+  // 记忆预算：注入窗口的记忆渲染（project + conversation）超过此值就提示清理。
+  memoryBudgetChars: resolveGate("memoryBudgetChars"),
   hardLimitChars: resolveGate("hardLimitChars"),
   summaryRecompressMinActive: resolveGate("summaryRecompressMinActive"),
   // A summary level only folds into the next one once it holds more than this many rows.

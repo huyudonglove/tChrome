@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadMemories, loadMemory, saveMemory } from "./store.ts";
-import { projectMemories } from "./window.ts";
+import { memoryBudgetChars, memoryBudgetNote, memoryPointerMap, projectMemories } from "./window.ts";
 import type { Memories, MemoryRecord } from "./types.ts";
 
 const record = (memoryId: string, layer: MemoryRecord["layer"] = "conversation", overrides: Partial<MemoryRecord> = {}): MemoryRecord => ({
@@ -63,4 +63,16 @@ test("projection keeps every original memory with identities and without clippin
   }
   expect(JSON.stringify(memories)).toBe(before);
   expect(projectMemories({ conversation: [], project: [] })).toEqual({ conversation: "[]", project: "" });
+});
+
+test("pointers map each write call to its records and the budget measures the rendered injection", () => {
+  const memories: Memories = {
+    conversation: [record("mm_01", "conversation", { sourceCallId: "call_09" }), record("mm_02", "conversation", { sourceCallId: "call_09" }), record("mm_03", "conversation", { sourceCallId: "call_10" })],
+    project: [record("mm_04", "project", { sourceCallId: "call_11" })],
+  };
+  expect(memoryPointerMap(memories)).toEqual({ call_09: ["mm_01", "mm_02"], call_10: ["mm_03"], call_11: ["mm_04"] });
+  const projected = projectMemories(memories);
+  expect(memoryBudgetChars(projected)).toBe(projected.conversation.length + projected.project.length);
+  expect(memoryBudgetNote(5001, 5000)).toContain("超过记忆预算");
+  expect(memoryBudgetNote(5000, 5000)).toBe("");
 });

@@ -110,3 +110,23 @@ export function renderScopeIndex(memories: Memories, activeScopes: readonly stri
 }
 
 const memoryView = ({ memoryId, turnId, sourceCallId, sourceConversationId, text, expiresWhen }: MemoryRecord) => ({ memoryId, turnId, sourceCallId, sourceConversationId, text, ...(expiresWhen ? { expiresWhen } : {}) });
+
+/** callId → 该调用写入的记忆编号；窗口投影据此把写入调用正文换成指针。 */
+export function memoryPointerMap(memories: Memories): Record<string, string[]> {
+  const map: Record<string, string[]> = {};
+  for (const layer of ["conversation", "project"] as const) {
+    for (const record of memories[layer]) (map[record.sourceCallId] ??= []).push(record.memoryId);
+  }
+  return map;
+}
+
+/** 记忆注入成本：真正占用窗口的是渲染后的投影文本。 */
+export function memoryBudgetChars(projected: Record<keyof Memories, string>): number {
+  return projected.conversation.length + projected.project.length;
+}
+
+/** 超预算提示文案；未超限返回空串（不影响 notice 槽）。 */
+export function memoryBudgetNote(chars: number, limit: number): string {
+  if (chars <= limit) return "";
+  return `runtime: 记忆占用 ${chars} 字符，超过记忆预算 ${limit}（compressAt 的 2%）。请用 memory_delete 删除不再需要的记录，或用 expiresWhen 设条件过期，避免只增不减顶到硬上限。`;
+}
