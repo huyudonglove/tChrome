@@ -154,7 +154,7 @@ export function applyToolEffects(input: {
         if (!/^(?:mm|lm)_[0-9]{2,}$/.test(memoryId)) throw new Error("memory_update 需要 mm_/lm_ 记忆编号");
         const text = String(effect.text ?? "").trim();
         if (!text) throw new Error("memory_update 需要非空 text");
-        const updated = updateMemory(dataDir, ledger.conversationId, memoryId, text);
+        const updated = updateMemory(dataDir, ledger.conversationId, memoryId, text, { turnId: turn.turnId, sourceCallId: call.callId });
         appendEvent(dataDir, ledger.conversationId, {
           kind: "memory", turnId: turn.turnId,
           data: { memoryId, layer: updated.layer, sourceCallId: call.callId, action: "update" },

@@ -24,9 +24,20 @@ export function saveMemory(dataDir: string, conversationId: string, record: Memo
   writeFileSync(join(dir, `${record.memoryId}.json`), `${JSON.stringify(stored, null, 2)}\n`, exclusive ? { flag: "wx" } : {});
 }
 
-export function updateMemory(dataDir: string, conversationId: string, memoryId: string, text: string): MemoryRecord {
+export function updateMemory(
+  dataDir: string,
+  conversationId: string,
+  memoryId: string,
+  text: string,
+  source: { turnId: string; sourceCallId: string },
+): MemoryRecord {
   const existing = loadMemory(dataDir, conversationId, memoryId);
-  const record: MemoryRecord = { ...existing, memoryId, layer: existing.layer, text };
+  // Refresh the origin so the record tracks the update call, not the original one:
+  // conversation memories leave the window once their source loop is compressed away.
+  const record: MemoryRecord = {
+    ...existing, memoryId, layer: existing.layer, text,
+    turnId: source.turnId, sourceCallId: source.sourceCallId,
+  };
   saveMemory(dataDir, conversationId, record, { overwrite: true });
   return record;
 }
