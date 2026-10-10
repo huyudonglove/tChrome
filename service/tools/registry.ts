@@ -186,13 +186,13 @@ export function toolSchemas(registry: ToolRegistry, ids: string[]): ChatTool[] {
   });
 }
 
-/** Purpose line shares its source with the API description, without copying parameter/return details. 类似/深入导航默认带上；用户 <tools> 清单不需要，只写用途。 */
+/** Purpose line shares its source with the API description, without copying parameter/return details. 导航（类似/深入）默认带上；用户 <tools> 清单只列名字，用途与参数以请求附带的 tools[] 定义为准。 */
 export function toolGuideFor(registry: ToolRegistry, ids: string[], nav = true): string {
   return toolSchemas(registry, ids).map(tool => {
     const description = tool.function.description?.trim();
     if (!description) throw new Error(`missing tool description ${tool.function.name}`);
     const purpose = description.split(/[。\n]/, 1)[0]!.trim();
-    if (!nav) return `- ${tool.function.name}：${purpose}。`;
+    if (!nav) return `- ${tool.function.name}`;
     const cap = registry.capabilities.find((row) => row.kind === "tool" && row.id === tool.function.name);
     const chain = [
       cap?.similar?.length ? `类似 ${cap.similar.join("/")}` : "",
