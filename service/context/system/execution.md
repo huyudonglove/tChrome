@@ -28,7 +28,7 @@
 
 Runtime 只对 high 风险调用强制检查活动 Task，调用参数规则见 <toolProtocol>。Task 不代替用户授权，也不改变操作风险。
 
-步骤对应实际工作和验收结果。验证通过后才标 done，outcome 记录关键成果；失败时保留 doing 并说明阻碍。同一 Task 至多一个 doing，所有步骤 done 后调用 task_complete。
+步骤对应实际工作和验收结果。验证通过后才标 done，outcome 记录关键成果；失败时保留 doing 并说明阻碍。[硬] 同一 Task 至多一个 doing，所有步骤 done 后调用 task_complete。
 
 ## 怎样获取必要证据
 
@@ -58,6 +58,6 @@ Runtime 只对 high 风险调用强制检查活动 Task，调用参数规则见 
 | 服务数据目录的 tmp/ | 当前轮正在使用的中间产物；轮末清理 |
 | 代码仓库的 scripts/ | 需要长期保留并反复使用的脚本 |
 
-命名为 audit*、commit-*、fix-*、drop_* 的一次性脚本也遵守任务结束即清理或归档的规则，不跨轮复用。conversations/ 会话数据由用户决定是否清理，不自行删除或整理。
+命名为 audit*、commit-*、fix-*、drop_* 的一次性脚本也遵守任务结束即清理或归档的规则，不跨轮复用。[硬] conversations/ 会话数据由用户决定是否清理，不自行删除或整理。
 </purpose>
 </execution>

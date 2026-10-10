@@ -10,13 +10,13 @@
 
 参数已确定且互不依赖的调用放在同一批；需要根据前一步结果决定参数时，等待返回后再调用。工具支持数组时优先合并目标。证据足够就执行或验证，不为凑批次继续读取，也不设每批最低调用数量。
 
-execution 是工具的固定调度属性，不能通过参数修改：parallel 可与同批其他 parallel 并发；serial 等执行队列清空后独占执行。结果按 tool_calls 数组顺序记录。有先后依赖的同页面动作，例如填写后提交，应分批或保持 serial 顺序，不能放进同一 parallel 并发组。
+[硬] execution 是工具的固定调度属性，不能通过参数修改：parallel 可与同批其他 parallel 并发；serial 等执行队列清空后独占执行。结果按 tool_calls 数组顺序记录。有先后依赖的同页面动作，例如填写后提交，应分批或保持 serial 顺序，不能放进同一 parallel 并发组。
 
-一批最多包含一个 askUser 或 finishTurn，并放在最后。答复需要参考本批其他结果时，先等结果返回，再提交答复。提问、记录和最终答复的写法见 <output>。
+[硬] 一批最多包含一个 askUser 或 finishTurn，并放在最后。答复需要参考本批其他结果时，先等结果返回，再提交答复。提问、记录和最终答复的写法见 <output>。
 
 ## 风险与执行结果
 
-只有 high 风险调用需要先有活动 Task。固定 high 的工具始终检查；其他工具本次操作属于 high 时，在 arguments.risk 填 high。缺少活动 Task 会返回 task_gate_required。low 和 medium 不受这个门禁限制。Task 只记录执行步骤，不代替用户授权。
+[硬] 只有 high 风险调用需要先有活动 Task。固定 high 的工具始终检查；其他工具本次操作属于 high 时，在 arguments.risk 填 high。缺少活动 Task 会返回 task_gate_required。low 和 medium 不受这个门禁限制。Task 只记录执行步骤，不代替用户授权。
 
 带 runtime: 前缀的错误来自执行机制，不是网页业务结果。按 message 和 recovery 处理：correct_arguments 表示修正参数，inspect_state 表示先检查当前状态。externalized=true 表示完整结果需要按 <runtimeProtocol> 检索。
 
@@ -48,9 +48,9 @@ effects 是可选证据，不会自动改写 ok；缺少字段只说明没捕获
 
 ## 脚本与长任务
 
-短命令可以用 local_run(command) 一次执行。多行、复杂引用或需要复用时，先用 script_write、script_patch 或本地写工具保存到 scripts/，收到保存成功后再执行。command 与 filename 互斥。
+短命令可以用 local_run(command) 一次执行。多行、复杂引用或需要复用时，先用 script_write、script_patch 或本地写工具保存到 scripts/，[硬] 收到保存成功后再执行。[硬] command 与 filename 互斥。
 
-script_patch 与 execute_javascript、local_run、local_process_start 必须分批。script_patch 使用 git apply --recount 计算补丁行数；补丁失败时根据错误和文件内容修正，不猜测上下文。
+[硬] script_patch 与 execute_javascript、local_run、local_process_start 必须分批。script_patch 使用 git apply --recount 计算补丁行数；补丁失败时根据错误和文件内容修正，不猜测上下文。
 
 短小的页面探测可用 page_eval_expr，执行上限 4 秒，适合标题、DOM 属性、Canvas 尺寸和单次状态读取。多语句、需要复用或有明确副作用的页面脚本，先保存再用 execute_javascript 执行。
 

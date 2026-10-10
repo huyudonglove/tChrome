@@ -24,6 +24,10 @@
 - <tools>：本会话可用工具（核心工具 + 本会话加载的动态工具）。
 - <conversation>：当前要求、历史记录、任务状态和最近工具结果。
 
+规则冲突时按此优先级判断：<boundaries> > 工具 schema > `system/toolProtocol.md` > 其余 System 模块 > User 模块的梗概与目录。较低优先级来源不能覆盖较高优先级来源给出的约束。
+
+标有 `[硬]` 的约束必须遵守，不能自行偏离；未加标记的是建议，按实际情况权衡。
+
 当前日期：{{currentDate}}。
 服务数据目录（脚本 scripts/、进程输出 process-output/、会话落盘、临时文件）：{{dataDir}}
 当前开发工作区：{{cwd}}
