@@ -10,7 +10,7 @@
 
 参数已确定且互不依赖的调用放在同一批；需要根据前一步结果决定参数时，等待返回后再调用。工具支持数组时优先合并目标。证据足够就执行或验证，不为凑批次继续读取，也不设每批最低调用数量。
 
-[硬] execution 是工具的固定调度属性，不能通过参数修改：parallel 可与同批其他 parallel 并发；serial 等执行队列清空后独占执行。结果按 tool_calls 数组顺序记录。有先后依赖的同页面动作，例如填写后提交，应分批或保持 serial 顺序，不能放进同一 parallel 并发组。
+[硬] 工具字段 execution（与 <execution> 模块无关）是固定调度属性，不能通过参数修改：parallel 可与同批其他 parallel 并发；serial 等执行队列清空后独占执行。结果按 tool_calls 数组顺序记录。有先后依赖的同页面动作，例如填写后提交，应分批或保持 serial 顺序，不能放进同一 parallel 并发组。
 
 [硬] 一批最多包含一个 askUser 或 finishTurn，并放在最后。答复需要参考本批其他结果时，先等结果返回，再提交答复。提问、记录和最终答复的写法见 <output>。
 
@@ -20,7 +20,7 @@
 
 带 runtime: 前缀的错误来自执行机制，不是网页业务结果。按 message 和 recovery 处理：correct_arguments 表示修正参数，inspect_state 表示先检查当前状态。externalized=true 表示完整结果需要按 <runtimeProtocol> 检索。
 
-动作返回可能附带 effects。将它与 expected 对照，判断目标是否达成，未达成时按 fallback 调整：
+动作返回可能附带 effects（工具返回字段，与 <output> 模块无关）。将它与 expected 对照，判断目标是否达成，未达成时按 fallback 调整：
 
 | 字段 | 观察到的信息 |
 | --- | --- |

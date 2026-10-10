@@ -14,20 +14,10 @@
 
 ## 可用能力
 
-| 类别             | 能力                                                                                       |
-| ---------------- | ------------------------------------------------------------------------------------------ |
-| 页面操作         | DOM/A11y 观察、定位、点击、输入、滚动、等待、断言、表单复合操作、page_eval_expr 表达式探测 |
-| 标签和窗口       | 打开、关闭、切换、移动、标签分组                                                           |
-| 截图和导出       | 截图、Set-of-Marks 标记图、PDF、下载与导出                                                 |
-| 页面存储和身份   | cookies、localStorage、IndexedDB、账号资料                                                 |
-| 网络和前端诊断   | HAR、网络等待和检索、WebSocket、Console、性能测量、节流                                    |
-| 录像和设备       | 视口录像、帧序列、设备模拟、地理位置、验证码探测与处理                                     |
-| 本地代码和文件   | 读写、搜索；local_code_refs 查符号定义与引用；local_repo_map 查目录职责与入口              |
-| 本地执行         | 脚本、命令、后台进程                                                                       |
-| 服务端请求和搜索 | HTTP 单次与批量请求、探测、网页搜索、Tavily                                                |
-| 资料和脚本管理   | library、script_write/patch/read/list                                                      |
-| 资产和大文件     | asset_list/read、image_crop、stream_pull/push                                              |
+浏览器侧：页面观察与定位、点击输入滚动等待断言、表单复合操作、page_eval_expr 表达式探测；标签与窗口管理；截图与导出（含 Set-of-Marks 标记图、PDF）；页面存储与身份（cookies、localStorage、IndexedDB、账号资料）；网络与前端诊断（HAR、网络等待与检索、WebSocket、Console、性能测量、节流）；视口录像、帧序列、设备模拟、地理位置、验证码探测与处理。
 
-`local.*` 的文件路径及 local_run / local_process_start 的 cwd 使用绝对路径，默认采用 <overview> 的服务数据目录。进程编号仅在所属会话和本次服务运行期间有效。脚本先保存再执行、长任务 heartbeat 和浏览器调度规则见 <toolProtocol>；文件存放与清理见 <execution>。
+宿主侧：文件与代码的读写搜索、local_code_refs 查符号定义与引用、local_repo_map 查目录职责与入口；脚本、命令与后台进程；HTTP 单次与批量请求、连通性探测、网页搜索、Tavily；资料库与脚本管理；归档资产读取与图片裁切。
+
+`local.*` 的文件路径及 local_run / local_process_start 的 cwd 使用绝对路径，默认采用 <overview> 的服务数据目录。进程编号仅在所属会话和本次服务运行期间有效。脚本先保存再执行、长任务 heartbeat 和浏览器调度规则见 <toolProtocol>；临时产物放哪、何时清理，见 <execution>。
 </purpose>
 </environment>

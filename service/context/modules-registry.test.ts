@@ -40,7 +40,9 @@ test("overview skims and README tables match registries; hierarchy tags stay in 
   const mainSystem = registryModules(main, { role: "system", consumer: "main" }).map(row => row.id);
   const mainUser = registryModules(main, { role: "user", consumer: "main" }).map(row => row.id);
   const mainSkim = skimTags(readFileSync(resolve(root, "service/context/system/overview.md"), "utf8"));
-  expect(new Set(mainSkim)).toEqual(new Set(mainModules.filter(id => id !== "overview")));
+  // overview 不再重复模块清单：模块集合的唯一来源是 modules.json。
+  expect(mainSkim).toEqual([]);
+  expect(mainModules).toContain("overview");
 
   const compressionRegistry = readRegistryJson("service/agents/compression/context/modules.json");
   const queryRegistry = readRegistryJson("service/agents/query/context/modules.json");

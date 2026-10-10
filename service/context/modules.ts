@@ -168,9 +168,8 @@ export function renderInventory(role: "System" | "User", order: string[], module
   return order.map(tag => {
     const module = modules[tag];
     if (!module) throw new Error(`missing slot file ${tag}`);
-    const payload = data[tag] ?? (tag === "#recordIdentity" ? identityRulesText() : undefined);
-    const showPayload = payload !== undefined && payload !== "" &&
-      ((role === "System" && tag === "#baseTools") || tag === "#recordIdentity");
+    const payload = data[tag];
+    const showPayload = payload !== undefined && payload !== "" && role === "System" && tag === "#baseTools";
     return renderXmlModule(module, showPayload ? payload : undefined);
   }).join("\n\n");
 }
@@ -211,7 +210,7 @@ export function systemTextFromModules(
   for (const tag of modules.systemOrder) {
     const module = modules.systemSlots[tag]!;
     const extra = tag === "#baseTools" ? baseToolGuide
-      : tag === "#recordIdentity" ? identityRulesText()
+      : tag === "#runtimeProtocol" ? identityRulesText()
       : tag === "#systemSkill" ? skillGuide
       : "";
     let purpose = module.purpose;

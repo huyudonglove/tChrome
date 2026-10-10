@@ -10,13 +10,14 @@ modules.json 是模块顺序、用途说明及压缩材料的唯一注册表。�
 | 2 | identity | system/identity.md |
 | 3 | environment | system/environment.md |
 | 4 | runtimeProtocol | system/runtimeProtocol.md |
-| 5 | recordIdentity | system/recordIdentity.md |
-| 6 | execution | system/execution.md |
-| 7 | toolProtocol | system/toolProtocol.md |
-| 8 | boundaries | system/boundaries.md |
-| 9 | output | system/output.md |
-| 10 | baseTools | system/baseTools.md |
-| 11 | systemSkill | system/systemSkill.md |
+| 5 | resultEnvelope | system/resultEnvelope.md |
+| 6 | contextBudget | system/contextBudget.md |
+| 7 | execution | system/execution.md |
+| 8 | toolProtocol | system/toolProtocol.md |
+| 9 | boundaries | system/boundaries.md |
+| 10 | output | system/output.md |
+| 11 | baseTools | system/baseTools.md |
+| 12 | systemSkill | system/systemSkill.md |
 
 ### User
 

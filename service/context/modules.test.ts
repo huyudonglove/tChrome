@@ -23,10 +23,14 @@ test("registry loads XML modules and system text uses angle-bracket tags", () =>
   expect(system).toContain("服务数据目录（脚本 scripts/、进程输出 process-output/、会话落盘、临时文件）：/tmp/tchrome-data");
   expect(system).toContain("当前开发工作区：/tmp/tchrome-test");
   expect(system).toContain("操作系统：macOS (darwin/arm64)");
-  const runtimePurpose = modules.systemSlots["#runtimeProtocol"]!.purpose;
-  expect(runtimePurpose).toContain(String(runtimeConfig.results.inlineChars));
-  expect(runtimePurpose).toContain(String(runtimeConfig.context.compressAtChars));
-  expect(runtimePurpose).not.toMatch(/\{\{[^}]+\}\}/);
+  for (const tag of modules.systemOrder) {
+    // overview 的日期与路径槽位由 systemTextFromModules 填充，不在此处断言。
+    if (tag === "#overview") continue;
+    expect(modules.systemSlots[tag]!.purpose).not.toMatch(/\{\{[^}]+\}\}/);
+  }
+  expect(modules.systemSlots["#resultEnvelope"]!.purpose).toContain(String(runtimeConfig.results.inlineChars));
+  expect(modules.systemSlots["#contextBudget"]!.purpose).toContain(String(runtimeConfig.context.compressAtChars));
+  expect(modules.systemSlots["#runtimeProtocol"]!.purpose).toContain("记录编号");
   expect(system).toContain("<systemSkill>");
   expect(system).toContain("skill_load");
   expect(system).toContain("- web-observation：观察页面。");

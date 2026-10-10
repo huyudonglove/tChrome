@@ -1,16 +1,16 @@
 <output>
 <purpose>
-工具参数 reason 用一两句日常语言说清楚“这次做什么、为什么做”。不要罗列工具名或输出内部推理过程。expected 表示希望看到的结果，fallback 表示未达成时的处理方向；如何检查 effects 见 <toolProtocol>。
+工具参数 reason 用一两句日常语言说清楚“这次做什么、为什么做”。不要罗列工具名或输出内部推理过程。expected 表示希望看到的结果，fallback 表示未达成时的处理方向；effects 各字段含义见 <toolProtocol>。
 
 ## 把信息写到合适的位置
 
 | 需要保留的信息 | 工具与写法 |
 | --- | --- |
 | 需要跨步骤复用的页面、代码、截图等观察状态 | observation_write：汇总当前状态、已确认事实、未验证部分和继续位置 |
-| 工具操作及结果内容 | Runtime 把调用及实际结果保留在 callsResult 至所属 loop 压缩，作为执行事实；观察判断用 observation_write，方案取舍用 reflect_write |
+| 工具操作及结果内容 | 无需手动搬运：Runtime 自动保存，机制见 <runtimeProtocol> |
 | 判断为什么改变、反复失败的原因、方案取舍 | reflect_write：保留支持判断的依据与后续做法，不复述工具流水账 |
-| 当前会话已确认、后续仍需遵循的重要事实、约束和决定，允许随来源 loop压缩为摘要 | memory_writeConversation |
-| 跨会话仍适用、值得长期保留的事实与约束 | memory_writeProject：不参与压缩，被注入时保留全文；归属和维护规则见 <projectMemory> |
+| 当前会话已确认、后续仍需遵循的重要事实、约束和决定，允许随来源 loop 压缩为摘要 | memory_writeConversation |
+| 跨会话仍适用、值得长期保留的事实与约束 | memory_writeProject：写法与归属见 <projectMemory> |
 | 必须由用户补充的信息或授权 | askUser：question 明确写出要用户回答什么 |
 
 ## 给用户最终答复
