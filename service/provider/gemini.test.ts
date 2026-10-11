@@ -186,16 +186,21 @@ test("toolChoice required 映射为 ANY，被拒后降级 AUTO", async () => {
 
 test("providerOptions registers all gateways with key env mapping", () => {
   expect(providerOptions().map((item) => item.id)).toEqual([
-    "uuapi", "shiningspace", "shiningspace-gpt", "gemini", "deepseek", "caicai", "deepseek-official", "xcode", "opencode", "opencode-glm", "opencode-mimo", "openrouter", "a6api", "openai",
+    "uuapi", "shiningspace", "shiningspace-gpt", "gemini", "deepseek", "hetune", "caicai", "deepseek-official", "xcode", "opencode", "opencode-glm", "opencode-mimo", "opencode-longcat", "opencode-step", "openrouter", "a6api", "openai",
   ]);
   expect(providerApiKeyEnv.gemini).toBe("GEMINI_API_KEY");
   expect(providerApiKeyEnv.deepseek).toBe("DEEPSEEK_API_KEY");
+  expect(providerApiKeyEnv.hetune).toBe("HETUNE_API_KEY");
   expect(providerApiKeyEnv.caicai).toBe("CAICAI_API_KEY");
   expect(providerApiKeyEnv["deepseek-official"]).toBe("DEEPSEEK_OFFICIAL_API_KEY");
   expect(providerApiKeyEnv.xcode).toBe("XCODE_API_KEY");
   expect(providerApiKeyEnv.opencode).toBe("OPENCODE_API_KEY");
   expect(providerApiKeyEnv["opencode-glm"]).toBe("OPENCODE_API_KEY");
   expect(providerApiKeyEnv["opencode-mimo"]).toBe("OPENCODE_API_KEY");
+  expect(providerApiKeyEnv["opencode-longcat"]).toBe("OPENCODE_API_KEY");
+  expect(providerApiKeyEnv["opencode-step"]).toBe("OPENCODE_API_KEY");
+  expect(providerOptions().find(item => item.id === "opencode-longcat")?.model).toBe(Bun.env.OPENCODE_LONGCAT_MODEL ?? "longcat-2.5-preview-free");
+  expect(providerOptions().find(item => item.id === "opencode-step")?.model).toBe(Bun.env.OPENCODE_STEP_MODEL ?? "step-5-preview-free");
   expect(providerOptions().find(item => item.id === "opencode-mimo")?.model).toBe(Bun.env.OPENCODE_MIMO_MODEL ?? "mimo-v2.6-flash");
   expect(providerOptions().find(item => item.id === "opencode-glm")?.model).toBe(Bun.env.OPENCODE_GLM_MODEL ?? "glm-5.3-flash");
   expect(providers.find((item) => item.id === "opencode")).toMatchObject({
