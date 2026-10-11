@@ -37,3 +37,15 @@ export async function compressContext(input: CompressionInput): Promise<Compress
   input.onStart?.();
   return compressRecords({ ...input, conversationId: input.ledger.conversationId, module: HISTORY_MODULE, records });
 }
+
+/** 自动压缩的可见化文案：主模型据此知道压缩发生过、压掉多少、是否只压了一半。 */
+export function compressNotice(outcome: CompressOutcome, before: number, after: number): string | null {
+  if (outcome.status === "noop") return null;
+  const saved = before - after;
+  const delta = saved >= 0 ? `减少 ${saved}` : `增加 ${-saved}`;
+  const head = `runtime: 自动压缩已触发，窗口 ${before} → ${after} 字符（${delta}），已覆盖 ${outcome.committedLoopIds.length}/${outcome.totalLoops} 个 loop。`;
+  if (outcome.status === "completed") return `${head} 被压缩的原文仍可按来源回查。`;
+  const failed = outcome.failedLoopIds ?? [];
+  const reason = outcome.failure?.reason ?? "未知原因";
+  return `${head} 压缩未完成：${failed.length} 个 loop 未能生成摘要（${failed.join("、")}），原因：${reason}。这些 loop 仍以原文留在窗口里，内容没有丢失。`;
+}

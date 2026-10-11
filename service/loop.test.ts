@@ -1082,3 +1082,33 @@ test(`本轮写过 reflect_write 就整轮不再提醒（走过 ${REFLECT_CALLS}
     expect(reply.stopReason).toEqual({ kind: "reply", text: "完成" });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("自动压缩后主模型收到 compress notice（含前后字符数与覆盖情况）", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-compress-notice-"));
+  primeActiveTask(dir);
+  try {
+    const first = await handleTurn({ dataDir: dir, repoRoot, provider: mock([
+      ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "第一轮" } }] }),
+    ]) }, { userInput: "第一轮", submittedAt: "now" });
+    expect(first.stopReason).toEqual({ kind: "reply", text: "第一轮" });
+    // 让第二次发送边界必定触发自动压缩
+    const ledger = loadLedger(dir, "cv_01");
+    ledger.compressAt = 1;
+    saveLedger(dir, ledger);
+    let sawNotice = false;
+    const provider: Provider = { complete: async input => {
+      const body = input.messages[1]!.content;
+      if (body.startsWith("<compressionLoops>")) {
+        return ok({ finish: "tool_calls", toolCalls: [{ id: "summary", name: "submitLoopSummaries",
+          arguments: { userRequest: "第一轮目标", state: "已完成", constraints: [], pending: [], decisions: [] } }] });
+      }
+      expect(body).toContain("自动压缩已触发");
+      expect(body).toContain("已覆盖 1/1 个 loop");
+      sawNotice = true;
+      return ok({ finish: "tool_calls", toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "第二轮" } }] });
+    } };
+    const second = await handleTurn({ dataDir: dir, repoRoot, provider }, { userInput: "第二轮", submittedAt: "now" });
+    expect(second.stopReason).toEqual({ kind: "reply", text: "第二轮" });
+    expect(sawNotice).toBe(true);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

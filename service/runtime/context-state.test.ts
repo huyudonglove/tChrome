@@ -2,7 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { emptyLedger } from "./store.ts";
-import { contextState, compressContext } from "./context-state.ts";
+import { contextState, compressContext, compressNotice } from "./context-state.ts";
 import { loop, model, repoRoot } from "../agents/compression/test-fixtures.ts";
 import { loadIndex, resolveSources } from "../context-archive/store.ts";
 import type { Turn } from "../types.ts";
@@ -39,4 +39,17 @@ test("subsequent compression covers newly eligible loops without rewriting prior
  input.ledger.loops.push(loop("loop_05"));
  expect(await compressContext(input)).toMatchObject({ committedLoopIds: ["loop_04"], totalLoops: 1 });
  expect(contextState(input.dataDir, input.ledger, input.turn, input.memories).ledger.loops.map(row => row.id)).toEqual(["loop_05"]);
+});
+test("compress notice states the window delta and coverage, and names the failed loops on a stopped run", () => {
+ expect(compressNotice({ status: "noop", committedLoopIds: [], totalLoops: 0 }, 100, 100)).toBeNull();
+ const completed = compressNotice({ status: "completed", committedLoopIds: ["loop_01", "loop_02"], totalLoops: 2 }, 240000, 60000)!;
+ expect(completed).toContain("240000 → 60000");
+ expect(completed).toContain("减少 180000");
+ expect(completed).toContain("已覆盖 2/2 个 loop");
+ const stopped = compressNotice({ status: "stopped", committedLoopIds: ["loop_01"], failedLoopIds: ["loop_03"],
+  failure: { loopIds: ["loop_03"], reason: "Invalid compression submission" }, totalLoops: 2 }, 240000, 180000)!;
+ expect(stopped).toContain("压缩未完成");
+ expect(stopped).toContain("loop_03");
+ expect(stopped).toContain("Invalid compression submission");
+ expect(stopped).toContain("仍以原文留在窗口里");
 });

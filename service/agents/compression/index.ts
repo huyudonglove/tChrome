@@ -6,7 +6,7 @@ import { commitArchive, loadIndex } from "../../context-archive/store.ts";
 import type { CompressionModule, CompressionRecord, SourceRecord } from "../../context-archive/types.ts";
 
 type Input = { dataDir: string; conversationId: string; repoRoot: string; provider: Provider; module: CompressionModule; records: SourceRecord[]; isCancelled?: () => boolean; onProgress?: (event: CompressProgress) => void };
-export type CompressOutcome = { status: "completed" | "stopped" | "noop"; committedLoopIds: string[]; failedLoopIds?: string[]; totalLoops: number; windowChars?: { before: number | null; after: number | null } };
+export type CompressOutcome = { status: "completed" | "stopped" | "noop"; committedLoopIds: string[]; failedLoopIds?: string[]; failure?: { loopIds: string[]; reason: string }; totalLoops: number; windowChars?: { before: number | null; after: number | null } };
 export type CompressProgress =
   | { type: "start"; total: number }
   | { type: "batch"; completed: number; total: number; loopIds: string[] }
@@ -72,7 +72,8 @@ async function compress(input: Input): Promise<CompressOutcome> {
     catch (error) {
       if (input.isCancelled?.() || (error instanceof Error && /cancel/i.test(error.message))) throw error;
       input.onProgress?.({ type: "stopped", completed, total: batches.length, failedLoopIds: loopIds });
-      return { status: "stopped", committedLoopIds, failedLoopIds: loopIds, totalLoops };
+      return { status: "stopped", committedLoopIds, failedLoopIds: loopIds,
+        failure: { loopIds, reason: error instanceof Error ? error.message : String(error) }, totalLoops };
     }
     check();
     const records: CompressionRecord[] = summaries.map(summary => ({ ...summary, id: allocateRecordId(input.dataDir, input.conversationId, "sum"), module: input.module, level: 1, sourceIds: [...loopIds], createdAt: new Date().toISOString() }));

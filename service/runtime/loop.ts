@@ -73,7 +73,7 @@ import type {
   RuntimeExecutionContext,
 } from "../types.ts";
 import { checkToolCalls } from "../tools/schema.ts";
-import { contextState, compressContext } from "./context-state.ts";
+import { contextState, compressContext, compressNotice } from "./context-state.ts";
 import { queryContext } from "../agents/query/index.ts";
 import { nowIso, localDate } from "./ids.ts";
 import { join } from "node:path";
@@ -699,7 +699,7 @@ export async function handleTurn(
       if (initialChars >= ledger.compressAt) {
         let compressionStarted = false;
         try {
-          await compressContext({ ...deps, ledger, turn, memories,
+          const compressionOutcome = await compressContext({ ...deps, ledger, turn, memories,
             isCancelled: () => wasStopped(deps.dataDir, ledger.conversationId, turnId),
             onStart: () => {
               compressionStarted = true;
@@ -710,7 +710,10 @@ export async function handleTurn(
           if (wasStopped(deps.dataDir, ledger.conversationId, turnId)) return stoppedReply(ledger, turn);
           state = contextState(deps.dataDir, ledger, turn, memories);
           messages = messagesOf(contextModules, toolRegistry, state.ledger, state.turn, state.memories, skillText, images, state.summaries, undefined, skillNav, deps.dataDir, setNotice, ledger.toolIO);
-          if (compressionStarted) appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress", turnId, data: { beforeChars: initialChars, afterChars: windowChars(messages[0]!.content, messages[1]!.content) } });
+          const afterChars = windowChars(messages[0]!.content, messages[1]!.content);
+          if (compressionStarted) appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress", turnId, data: { beforeChars: initialChars, afterChars } });
+          // 压缩此前只落在事件日志里，主模型看不见；这里把结果写成本次请求可见的 notice。
+          setNotice("compress", compressNotice(compressionOutcome, initialChars, afterChars));
         } catch (error) {
           if (wasStopped(deps.dataDir, ledger.conversationId, turnId)) return stoppedReply(ledger, turn);
           if (compressionStarted) appendEvent(deps.dataDir, ledger.conversationId, { kind: "compress-error", turnId, data: errorInfo(error, "compression_failed") });

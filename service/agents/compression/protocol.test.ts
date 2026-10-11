@@ -81,8 +81,29 @@ test("model-authored fields survive initial compression, storage, projection and
  }
 });
 
+test("shaped drift in list fields is normalized before validation instead of dropping the batch", async () => {
+ const input = setup();
+ const provider: Provider = { async complete(request) {
+  const response = await model().complete(request);
+  response.toolCalls[0]!.arguments = {
+   userRequest: "推进压缩改进",
+   state: "改动已落盘，测试待补",
+   constraints: "保留用户未提交的改动",
+   pending: ["跑四项验证"],
+   decisions: [{ decision: "先归一再校验", reason: "避免单个字段漂移就整批丢弃", fallback: "仍不合法就保留原文" }],
+  };
+  return response;
+ } };
+ const rows = await requestLoopSummaries({ ...input, loops: [loop("loop_01")], provider });
+ expect(rows[0]).toMatchObject({
+  userRequest: "推进压缩改进",
+  constraints: ["保留用户未提交的改动"],
+  pending: ["跑四项验证"],
+  decisions: ["先归一再校验；避免单个字段漂移就整批丢弃；仍不合法就保留原文"],
+ });
+});
 test.each([
- { constraints: "限制" }, { pending: [" "] }, { decisions: [123] }, { state: " " }, { userRequest: "" },
+ { pending: [" "] }, { decisions: [123] }, { state: " " }, { userRequest: "" },
 ])("malformed structured fields reject every submission atomically: %j", async invalid => {
  const input = setup();
  let calls = 0;
