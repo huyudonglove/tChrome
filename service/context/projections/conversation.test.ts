@@ -48,6 +48,21 @@ test("all loop results and paired calls stay visible without retention filtering
   expect(ledger.loops[1]!.helm!.calls).toHaveLength(1);
 });
 
+test("stale notices only survive in the newest loop", () => {
+  const ledger = emptyLedger("cv_01");
+  ledger.loops = [
+    { ...loop(1), runtime: [{ id: "rt_01", type: "notice", content: { kind: "reflect", text: "stale reminder" } }] },
+    { ...loop(2), runtime: [{ id: "rt_02", type: "notice", content: { kind: "reflect", text: "current reminder" } }] },
+  ];
+  const ledgerCopy = JSON.stringify(ledger);
+  const xml = conversationXml(project(ledger));
+  expect(xml).toContain('<runtime id="rt_02" type="notice">');
+  expect(xml).toContain("current reminder");
+  expect(xml).not.toContain('id="rt_01"');
+  expect(xml).not.toContain("stale reminder");
+  expect(JSON.stringify(ledger)).toBe(ledgerCopy);
+});
+
 test("memory write calls project to pointers while the ledger keeps the original body", () => {
   const ledger = emptyLedger("cv_01");
   ledger.loops = [{ ...loop(1), helm: { finish: "tool_calls", id: "helm_01", content: "write", calls: [{ id: "call_07", name: "memory_writeConversation", arguments: { reason: "r", conversationMemory: ["secret text"] } }] } }];
@@ -76,6 +91,17 @@ test("write-disk calls drop the bulky body once executed while keeping the file 
   expect(projected.loops[0]!.helm!.calls[0]!.arguments).toEqual({ filename: "probe.py" });
   expect(JSON.stringify(projected)).not.toContain("long body");
   expect(ledger.loops[0]!.helm!.calls[0]!.arguments).toEqual({ filename: "probe.py", code: "print('long body')" });
+});
+
+test("local_replace_block drops its edit bodies once executed and keeps the file pointer", () => {
+  const ledger = emptyLedger("cv_01");
+  ledger.loops = [
+    { ...loop(9), helm: { finish: "tool_calls", id: "helm_09", content: "edit", calls: [{ id: "call_11", name: "local_replace_block", arguments: { path: "/tmp/a.ts", search: "const a = 1", replace: "const a = 2" } }] } },
+    { ...loop(10), runtime: [{ id: "rt_07", type: "callsResult", content: [{ callId: "call_11", name: "local_replace_block", result: { ok: true } }] }] },
+  ];
+  const projected = conversationPayload({ ledger, memories: { conversation: [] } });
+  expect(projected.loops[0]!.helm!.calls[0]!.arguments).toEqual({ path: "/tmp/a.ts" });
+  expect(ledger.loops[0]!.helm!.calls[0]!.arguments).toEqual({ path: "/tmp/a.ts", search: "const a = 1", replace: "const a = 2" });
 });
 
 test("write-disk calls that were never executed keep the full body", () => {

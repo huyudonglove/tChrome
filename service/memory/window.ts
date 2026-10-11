@@ -109,7 +109,8 @@ export function renderScopeIndex(memories: Memories, activeScopes: readonly stri
   return `记忆目录（未注入的 scope，按最近活跃排序）:\n${shown.join("\n")}${tail}`;
 }
 
-const memoryView = ({ memoryId, turnId, sourceCallId, sourceConversationId, text, expiresWhen }: MemoryRecord) => ({ memoryId, turnId, sourceCallId, sourceConversationId, text, ...(expiresWhen ? { expiresWhen } : {}) });
+/** 窗口里只留可操作与有信息量的部分：编号（供 memory_update/delete）、正文、过期条件；溯源由写入调用的 memoryPointers 承担。 */
+const memoryView = ({ memoryId, text, expiresWhen }: MemoryRecord) => ({ memoryId, text, ...(expiresWhen ? { expiresWhen } : {}) });
 
 /** callId → 该调用写入的记忆编号；窗口投影据此把写入调用正文换成指针。 */
 export function memoryPointerMap(memories: Memories): Record<string, string[]> {

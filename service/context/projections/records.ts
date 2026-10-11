@@ -18,9 +18,9 @@ export const compactLoopIds = (ids: string[] = []): string[] => {
   }
   return parts;
 };
-/** 归档侧列（module/sourceIds）只服务落盘与查询，不进窗口；摘要正文、loopIds、createdAt、level/from 照旧保留。 */
-type ArchiveColumns = { module?: string; sourceIds?: string[] };
+/** 归档侧列（module/sourceIds/createdAt）只服务落盘与查询，不进窗口；摘要正文、loopIds、level/from 照旧保留。 */
+type ArchiveColumns = { module?: string; sourceIds?: string[]; createdAt?: string };
 export const loopSummaryView = (records: LoopSummary[] = []) =>
-  records.map(({ id, loopIds, module: _module, sourceIds: _sourceIds, ...record }: LoopSummary & ArchiveColumns) => ({
+  records.map(({ id, loopIds, module: _module, sourceIds: _sourceIds, createdAt: _createdAt, ...record }: LoopSummary & ArchiveColumns) => ({
     sumId: id, loopIds: compactLoopIds(loopIds), ...record,
   }));

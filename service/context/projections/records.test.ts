@@ -20,9 +20,11 @@ test("loopSummaryView keeps summary fields plus traceability and drops archive-s
   const view = loopSummaryView([record])[0]!;
   expect(view.level).toBe(2);
   expect(view.from).toEqual(["sum_01"]);
-  expect(JSON.stringify(view)).toContain("2026-10-11");
+  // createdAt 是归档侧的落盘时间，摘要顺序本身已编码新旧，窗口里属零信息量字段。
+  expect(JSON.stringify(view)).not.toContain("2026-10-11");
   expect("module" in view).toBe(false);
   expect("sourceIds" in view).toBe(false);
+  expect("createdAt" in view).toBe(false);
 });
 
 test("loopSummaryView omits optional traceability fields when absent", () => {

@@ -16,6 +16,7 @@ export type ConversationPayload = {
 /** 写盘类工具的大块正文参数：调用执行完后，窗口里只留文件名或路径。 */
 const writeBodyKeys: Record<string, string[]> = {
   script_write: ["code"], script_patch: ["patch"], local_fs_write: ["content"], local_apply_patch: ["patch"],
+  local_replace_block: ["search", "replace"],
 };
 
 export function conversationPayload(input: {
@@ -37,8 +38,10 @@ export function conversationPayload(input: {
     conversationHistorySummary: Array.isArray(input.conversationSummaries)
       ? loopSummaryView(input.conversationSummaries) : input.conversationSummaries ?? [],
     tasks: input.ledger.tasks.filter(task => task.status === "active" || task.status === "paused").map(taskView),
-    loops: loops.map(loop => ({
+    loops: loops.map((loop, index) => ({
       ...loop,
+      // notice 是每次发送前重算的临时提醒，只对尚未发送的那条 loop 有效；历史副本已过期，不进窗口。
+      runtime: index === loops.length - 1 ? loop.runtime : loop.runtime.filter(row => row.type !== "notice"),
       ...(loop.helm ? { helm: { ...loop.helm, calls: loop.helm.calls.map(call => {
         // 投影只替换送模型的副本：落盘 helm 仍保留完整正文。
         const args = { ...((call.arguments ?? {}) as Record<string, unknown>) };
