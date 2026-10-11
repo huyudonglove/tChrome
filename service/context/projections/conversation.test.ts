@@ -140,3 +140,27 @@ test("userInput runtime keeps the text and drops the storage timestamp", () => {
   expect(xml).toContain("继续");
   expect(xml).not.toContain("submittedAt");
 });
+
+test("only the newest loop carries a day-granularity date", () => {
+  const ledger = emptyLedger("cv_01");
+  // 本地时间构造：投影按本地时区取日期，断言不依赖运行环境时区。
+  ledger.loops = [
+    { ...loop(1), createdAt: new Date(2026, 9, 9, 8, 30).toISOString() },
+    { ...loop(2), createdAt: new Date(2026, 9, 11, 9, 45).toISOString() },
+  ];
+  const xml = conversationXml(project(ledger));
+  expect(xml).toContain('<loop id="loop_2" date="2026-10-11">');
+  expect(xml).not.toContain("2026-10-09");
+  expect(xml).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
+});
+
+test("the summaries block carries a persistent compression marker", () => {
+  const ledger = emptyLedger("cv_01");
+  ledger.loops = [loop(1)];
+  const withSummary = conversationXml(conversationPayload({ ledger, memories: { conversation: [] },
+    conversationSummaries: [{ id: "sum_01", loopIds: ["loop_01"], userRequest: "u", state: "s", constraints: [], pending: [], decisions: [] }] }));
+  expect(withSummary).toContain("<summaries");
+  expect(withSummary).toContain("已压缩为摘要");
+  const withoutSummary = conversationXml(project(ledger));
+  expect(withoutSummary).not.toContain("<summaries");
+});

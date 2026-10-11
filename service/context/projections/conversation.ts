@@ -1,6 +1,6 @@
 import type { HelmRecord, Ledger, LoopRecord, LoopToolResult, RuntimeRecord, Task } from "../../types.ts";
 import type { MemoryRecord } from "../../memory/types.ts";
-import { loopSummaryView, type LoopSummary } from "./records.ts";
+import { dateOnly, loopSummaryView, type LoopSummary } from "./records.ts";
 
 const taskView = (task: Task) => ({
   id: task.id, title: task.title, status: task.status, items: task.items,
@@ -98,17 +98,22 @@ const runtimeView = (row: RuntimeRecord) => {
   return rest;
 };
 
+/** 摘要存在即代表更早的 loop 已被压缩：这是持久标记，不随 notice 每轮重算消失。 */
+const SUMMARY_NOTE = "更早的 loop 已压缩为摘要，原文可按 loopIds 回查";
+
 /** Immutable loops retain input/response order; mutable active tasks sit at the suffix. */
 export function conversationXml(payload: ConversationPayload): string {
   const summaries = list("summary", payload.conversationHistorySummary, "sumId");
   const parts = [list("ConversationMemories", payload.conversationMemory, "memoryId"),
-    summaries ? tag("summaries", summaries) : ""];
-  for (const loop of payload.loops) {
+    summaries ? tag("summaries", summaries, { note: SUMMARY_NOTE }) : ""];
+  for (const [index, loop] of payload.loops.entries()) {
     const rows = loop.runtime.map(row => tag("runtime", runtimeView(row), { id: row.id, type: row.type }));
     if (loop.helm) {
       rows.push(tag("helm", helmView(loop.helm), { id: loop.helm.id }));
     }
-    parts.push(tag("loop", rows.join("\n"), { id: loop.id }));
+    // 只有最新 loop 带日期：它与最早摘要的日期一起界定窗口跨度，逐条加日期属无谓噪音。
+    const date = index === payload.loops.length - 1 ? dateOnly(loop.createdAt) : undefined;
+    parts.push(tag("loop", rows.join("\n"), { id: loop.id, ...(date ? { date } : {}) }));
   }
   if (payload.tasks.length) parts.push(tag("tasks", list("task", payload.tasks, "id")));
   return parts.filter(Boolean).join("\n");

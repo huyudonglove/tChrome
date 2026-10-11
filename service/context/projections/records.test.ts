@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { compactLoopIds, loopSummaryView } from "./records.ts";
+import { compactLoopIds, dateOnly, loopSummaryView } from "./records.ts";
 
 test("compactLoopIds collapses consecutive ids into ranges and leaves the rest alone", () => {
   expect(compactLoopIds(["loop_01", "loop_02", "loop_03", "loop_07"])).toEqual(["loop_01–loop_03", "loop_07"]);
@@ -14,17 +14,29 @@ test("loopSummaryView compacts the window copy while the ledger record keeps eve
   expect(record.loopIds).toEqual(["loop_01", "loop_02"]);
 });
 
-test("loopSummaryView keeps summary fields plus traceability and drops archive-side columns", () => {
+test("loopSummaryView keeps summary fields plus traceability and swaps the archive timestamp for a day-granularity date", () => {
+  // 本地时间构造：投影与断言都不依赖运行环境时区。
+  const createdAt = new Date(2026, 9, 11, 8, 30).toISOString();
   const record = { id: "sum_02", loopIds: ["loop_01"], userRequest: "u", constraints: [], state: "s", pending: [], decisions: [],
-    module: "conversationHistory" as const, level: 2, sourceIds: ["sum_01"], createdAt: "2026-10-11", from: ["sum_01"] };
+    module: "conversationHistory" as const, level: 2, sourceIds: ["sum_01"], createdAt, from: ["sum_01"] };
   const view = loopSummaryView([record])[0]!;
   expect(view.level).toBe(2);
   expect(view.from).toEqual(["sum_01"]);
-  // createdAt 是归档侧的落盘时间，摘要顺序本身已编码新旧，窗口里属零信息量字段。
-  expect(JSON.stringify(view)).not.toContain("2026-10-11");
+  // 归档时间戳只留到天：完整时刻在窗口里没有消费方，粗粒度日期足够界定历史跨度。
+  expect(view.date).toBe("2026-10-11");
+  expect(JSON.stringify(view)).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
   expect("module" in view).toBe(false);
   expect("sourceIds" in view).toBe(false);
   expect("createdAt" in view).toBe(false);
+});
+
+test("dateOnly keeps day granularity in the local time zone and ignores non-timestamps", () => {
+  // 本地时间构造，断言不依赖运行环境时区。
+  expect(dateOnly(new Date(2026, 9, 11, 8, 30).toISOString())).toBe("2026-10-11");
+  expect(dateOnly("2026-10-11")).toBe("2026-10-11");
+  expect(dateOnly("now")).toBeUndefined();
+  expect(dateOnly("")).toBeUndefined();
+  expect(dateOnly(undefined)).toBeUndefined();
 });
 
 test("loopSummaryView omits optional traceability fields when absent", () => {
@@ -32,4 +44,5 @@ test("loopSummaryView omits optional traceability fields when absent", () => {
   const view = loopSummaryView([record])[0]!;
   expect("level" in view).toBe(false);
   expect("from" in view).toBe(false);
+  expect("date" in view).toBe(false);
 });

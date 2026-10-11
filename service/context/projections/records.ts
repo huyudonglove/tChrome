@@ -18,9 +18,20 @@ export const compactLoopIds = (ids: string[] = []): string[] => {
   }
   return parts;
 };
-/** 归档侧列（module/sourceIds/createdAt）只服务落盘与查询，不进窗口；摘要正文、loopIds、level/from 照旧保留。 */
+/** 日期只保留到天，且与提示词注入的当前日期同一口径：按运行环境本地时区取年月日。 */
+export const dateOnly = (value?: string): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  const parts = new Intl.DateTimeFormat("en-US", { year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
+  const part = (type: string) => parts.find(item => item.type === type)!.value;
+  return `${part("year")}-${part("month")}-${part("day")}`;
+};
+/** 归档侧列（module/sourceIds）只服务落盘与查询，不进窗口；摘要正文、loopIds、level/from 与粗粒度 date 照旧保留。 */
 type ArchiveColumns = { module?: string; sourceIds?: string[]; createdAt?: string };
 export const loopSummaryView = (records: LoopSummary[] = []) =>
-  records.map(({ id, loopIds, module: _module, sourceIds: _sourceIds, createdAt: _createdAt, ...record }: LoopSummary & ArchiveColumns) => ({
-    sumId: id, loopIds: compactLoopIds(loopIds), ...record,
-  }));
+  records.map(({ id, loopIds, module: _module, sourceIds: _sourceIds, createdAt, ...record }: LoopSummary & ArchiveColumns) => {
+    const date = dateOnly(createdAt);
+    return { sumId: id, loopIds: compactLoopIds(loopIds), ...(date ? { date } : {}), ...record };
+  });

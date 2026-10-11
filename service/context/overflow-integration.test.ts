@@ -175,7 +175,7 @@ test("history above the compress threshold is compressed before the main model r
   const base = provider(user => {
     main++;
     expect(summaries).toBeGreaterThan(0);
-    expect(user).toContain("<summaries>");
+    expect(user).toContain("<summaries");
     return finish();
   });
   const reply = await handleTurn({ dataDir, repoRoot, host, provider: {complete: async input => {
