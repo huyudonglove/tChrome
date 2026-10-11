@@ -13,3 +13,21 @@ test("loopSummaryView compacts the window copy while the ledger record keeps eve
   expect(loopSummaryView([record])[0]!.sumId).toBe("sum_01");
   expect(record.loopIds).toEqual(["loop_01", "loop_02"]);
 });
+
+test("loopSummaryView keeps summary fields plus traceability and drops archive-side columns", () => {
+  const record = { id: "sum_02", loopIds: ["loop_01"], userRequest: "u", constraints: [], state: "s", pending: [], decisions: [],
+    module: "conversationHistory" as const, level: 2, sourceIds: ["sum_01"], createdAt: "2026-10-11", from: ["sum_01"] };
+  const view = loopSummaryView([record])[0]!;
+  expect(view.level).toBe(2);
+  expect(view.from).toEqual(["sum_01"]);
+  expect(JSON.stringify(view)).toContain("2026-10-11");
+  expect("module" in view).toBe(false);
+  expect("sourceIds" in view).toBe(false);
+});
+
+test("loopSummaryView omits optional traceability fields when absent", () => {
+  const record = { id: "sum_03", loopIds: ["loop_01"], userRequest: "u", constraints: [], state: "s", pending: [], decisions: [] };
+  const view = loopSummaryView([record])[0]!;
+  expect("level" in view).toBe(false);
+  expect("from" in view).toBe(false);
+});

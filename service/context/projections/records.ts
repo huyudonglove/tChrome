@@ -18,4 +18,9 @@ export const compactLoopIds = (ids: string[] = []): string[] => {
   }
   return parts;
 };
-export const loopSummaryView = (records: LoopSummary[] = []) => records.map(({ id, loopIds, ...record }) => ({ sumId: id, loopIds: compactLoopIds(loopIds), ...record }));
+/** 归档侧列（module/sourceIds）只服务落盘与查询，不进窗口；摘要正文、loopIds、createdAt、level/from 照旧保留。 */
+type ArchiveColumns = { module?: string; sourceIds?: string[] };
+export const loopSummaryView = (records: LoopSummary[] = []) =>
+  records.map(({ id, loopIds, module: _module, sourceIds: _sourceIds, ...record }: LoopSummary & ArchiveColumns) => ({
+    sumId: id, loopIds: compactLoopIds(loopIds), ...record,
+  }));

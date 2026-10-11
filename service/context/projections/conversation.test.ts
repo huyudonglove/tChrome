@@ -85,3 +85,32 @@ test("write-disk calls that were never executed keep the full body", () => {
   expect(projected.loops[0]!.helm!.calls[0]!.arguments).toEqual({ path: "/tmp/a.txt", content: "pending body" });
   expect(JSON.stringify(projected)).toContain("pending body");
 });
+
+test("helm default fields stay out of the window while diagnostics still render", () => {
+  const ledger = emptyLedger("cv_01");
+  ledger.loops = [
+    { ...loop(1), helm: { finish: "tool_calls", id: "helm_01", content: "", calls: [], parseOk: true, schemaOk: true, faultCode: null, missing: [] } },
+    { ...loop(2), helm: { finish: "error", id: "helm_02", content: "请求失败", calls: [], parseOk: false, schemaOk: false, faultCode: "provider_error", missing: ["calls"] } },
+  ];
+  const xml = conversationXml(project(ledger));
+  const defaults = xml.slice(xml.indexOf('<helm id="helm_01">'), xml.indexOf('<helm id="helm_02">'));
+  expect(defaults).not.toContain("finish");
+  expect(defaults).not.toContain("parseOk");
+  expect(defaults).not.toContain("schemaOk");
+  expect(defaults).not.toContain("faultCode");
+  expect(defaults).not.toContain("missing");
+  expect(xml).toContain('"finish":"error"');
+  expect(xml).toContain('"faultCode":"provider_error"');
+  expect(xml).toContain('"parseOk":false');
+  expect(xml).toContain('"schemaOk":false');
+  expect(xml).toContain('"missing":["calls"]');
+  expect(xml).toContain("请求失败");
+});
+
+test("userInput runtime keeps the text and drops the storage timestamp", () => {
+  const ledger = emptyLedger("cv_01");
+  ledger.loops = [{ ...loop(3), runtime: [{ id: "rt_03", type: "userInput", content: { text: "继续", submittedAt: "now" } }] }];
+  const xml = conversationXml(project(ledger));
+  expect(xml).toContain("继续");
+  expect(xml).not.toContain("submittedAt");
+});

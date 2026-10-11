@@ -1,4 +1,4 @@
-import type { Ledger, LoopRecord, LoopToolResult, Task } from "../../types.ts";
+import type { HelmRecord, Ledger, LoopRecord, LoopToolResult, RuntimeRecord, Task } from "../../types.ts";
 import type { MemoryRecord } from "../../memory/types.ts";
 import { loopSummaryView, type LoopSummary } from "./records.ts";
 
@@ -70,16 +70,40 @@ const list = (name: string, value: unknown, id: string) => {
   return value.map(row => { const { [id]: key, ...rest } = row; return tag(name, rest, { [id]: key }); }).join("\n");
 };
 
+/**
+ * helm 记录的默认值不进窗口：正常态只剩 content 与 calls；finish 非 tool_calls、parseOk/schemaOk 为
+ * false、有 faultCode/missing 时仍完整渲染，失败诊断线索不丢。落盘记录与查询侧不受影响。
+ */
+const helmView = (helm: HelmRecord) => ({
+  ...(helm.content ? { content: helm.content } : {}),
+  calls: helm.calls,
+  ...(helm.finish !== "tool_calls" ? { finish: helm.finish } : {}),
+  ...(helm.faultCode ? { faultCode: helm.faultCode } : {}),
+  ...(helm.detail ? { detail: helm.detail } : {}),
+  ...(helm.parseOk === false ? { parseOk: helm.parseOk } : {}),
+  ...(helm.schemaOk === false ? { schemaOk: helm.schemaOk } : {}),
+  ...(helm.missing?.length ? { missing: helm.missing } : {}),
+  ...(helm.grounding ? { grounding: helm.grounding } : {}),
+  ...(helm.toolCallFaults?.length ? { toolCallFaults: helm.toolCallFaults } : {}),
+});
+/** userInput 的运行时正文只保留 text：submittedAt 是落盘时间戳，模型侧不需要。 */
+const runtimeView = (row: RuntimeRecord) => {
+  const content = row.content;
+  if (row.type !== "userInput" || !content || typeof content !== "object" || Array.isArray(content)) return content;
+  const rest = { ...(content as Record<string, unknown>) };
+  delete rest.submittedAt;
+  return rest;
+};
+
 /** Immutable loops retain input/response order; mutable active tasks sit at the suffix. */
 export function conversationXml(payload: ConversationPayload): string {
   const summaries = list("summary", payload.conversationHistorySummary, "sumId");
   const parts = [list("ConversationMemories", payload.conversationMemory, "memoryId"),
     summaries ? tag("summaries", summaries) : ""];
   for (const loop of payload.loops) {
-    const rows = loop.runtime.map(row => tag("runtime", row.content, { id: row.id, type: row.type }));
+    const rows = loop.runtime.map(row => tag("runtime", runtimeView(row), { id: row.id, type: row.type }));
     if (loop.helm) {
-      const { id, ...response } = loop.helm;
-      rows.push(tag("helm", response, { id }));
+      rows.push(tag("helm", helmView(loop.helm), { id: loop.helm.id }));
     }
     parts.push(tag("loop", rows.join("\n"), { id: loop.id }));
   }
