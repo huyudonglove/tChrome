@@ -26,7 +26,7 @@ function fixture(dataDir: string, text: string, largeHistory = false) {
   ledger.loops.push(archived);
   if (largeHistory) for (let i = 0; i < 5; i++) ledger.loops.push(makeLoop(`要求${i}:` + "历史内容".repeat(12000), "userInput"));
   const sumId = allocateRecordId(dataDir, cv, "sum");
-  const summary = { id: sumId, module: "conversationHistory" as const, level: 1, loopIds: [archived.id], summary: "详情读取完成。", userRequest: "读取详情", actions: "读取页面", result: "已取得证据", sourceIds: [archived.id], createdAt: "2026-09-12" };
+  const summary = { id: sumId, module: "conversationHistory" as const, level: 1, loopIds: [archived.id], userRequest: "读取详情", state: "已取得证据", constraints: [], pending: [], decisions: [], sourceIds: [archived.id], createdAt: "2026-09-12" };
   commitArchive(dataDir, cv, { version: 1, module: "conversationHistory", entries: [summary], activeIds: [sumId], coveredSourceIds: [archived.id] }, [{ id: archived.id, content: archived }], [summary]);
   saveLedger(dataDir, ledger);
   return { cv, sumId, tool, archived };
@@ -43,7 +43,7 @@ test("loop compression preserves retrievable sources and query results persist d
         compressed++;
         expect(input.messages[1]!.content).not.toContain(f.tool.result.text);
         expect(sessionView(dataDir, f.cv).activity?.kind).toBe("compressing");
-        return reply([{ id: "summaries", name: "submitLoopSummaries", arguments: { summary: "早期要求已处理完成。", actions: "已处理", result: "已完成" } }]);
+        return reply([{ id: "summaries", name: "submitLoopSummaries", arguments: { userRequest: "修复并验证", state: "早期要求已处理完成。", constraints: [], pending: [], decisions: [] } }]);
       }
       main++;
       if (main === 1) { expect(compressed).toBeGreaterThan(0); return queryCall(f.sumId); }

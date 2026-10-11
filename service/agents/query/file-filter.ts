@@ -37,7 +37,11 @@ export function toolArgFiles(args: unknown): string[] {
 
 /** File attribution follows original call arguments and runtime payloads. */
 export function recordTouchesFile(record: Record<string, unknown>, module: string, file: string): boolean {
-  if (module === "summaries") return ["summary", "userRequest", "actions", "result", "reflection"].some(key => typeof record[key] === "string" && (record[key] as string).includes(file));
+  if (module === "summaries") return ["userRequest", "state", "constraints", "pending", "decisions"].some(key => {
+    const value = record[key];
+    return typeof value === "string" ? value.includes(file)
+      : Array.isArray(value) && value.some(item => typeof item === "string" && item.includes(file));
+  });
   if (!["loops", "runtime", "helm"].includes(module)) return false;
   const visit = (value: unknown): boolean => {
     if (!value || typeof value !== "object") return false;

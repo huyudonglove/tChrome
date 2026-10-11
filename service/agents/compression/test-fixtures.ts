@@ -7,6 +7,6 @@ export function loop(id: string, type?: "userInput" | "interrupt"): LoopRecord {
 export function model(observe?: Parameters<Provider["complete"]>[0] extends infer R ? (request: R) => void : never, count = 1): Provider {
   return { async complete(request) {
     observe?.(request);
-    return { finish: "tool_calls", content: "", toolCalls: Array.from({ length: count }, (_, i) => ({ id: `call_${i}`, name: "submitLoopSummaries", arguments: { summary: "检查完成", actions: "已读取", result: "验证通过" } })), attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] };
+    return { finish: "tool_calls", content: "", toolCalls: Array.from({ length: count }, (_, i) => ({ id: `call_${i}`, name: "submitLoopSummaries", arguments: { userRequest: "修复并验证", state: "检查完成", constraints: [], pending: [], decisions: [] } })), attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] };
   } };
 }

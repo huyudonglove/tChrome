@@ -15,7 +15,7 @@ function fixture() {
  const loops = [loop("loop_01"), loop("loop_02")];
  loops[0]!.runtime = [{ id: "rt_01", type: "callsResult", content: { callId: "call_01", args: { path: "src/auth.ts" }, result: "token 校验" } }];
  const ledger = emptyLedger("cv_test"); ledger.loops = loops; saveLedger(dataDir, ledger);
- const entries: CompressionRecord[] = loops.map((row, i) => ({ id: `sum_0${i + 1}`, module: "conversationHistory", loopIds: [row.id], level: 1, summary: "检查", userRequest: "检查", actions: "读取", result: "通过", sourceIds: [row.id], createdAt: "2026-10-09" }));
+ const entries: CompressionRecord[] = loops.map((row, i) => ({ id: `sum_0${i + 1}`, module: "conversationHistory", loopIds: [row.id], level: 1, userRequest: "检查", state: "通过", constraints: [], pending: [], decisions: [], sourceIds: [row.id], createdAt: "2026-10-09" }));
  commitArchive(dataDir, "cv_test", { version: 1, module: "conversationHistory", entries, activeIds: entries.map(row => row.id), coveredSourceIds: loops.map(row => row.id) }, loops.map(row => ({ id: row.id, content: row })), entries);
  return { dataDir, conversationId: "cv_test", repoRoot, module: "runtime" as const, intent: "token 校验" };
 }

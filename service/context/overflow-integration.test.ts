@@ -33,7 +33,7 @@ const slot = (user: string, name: string): any => ["calls", "#toolIO"].includes(
 const provider = (run: (user: string) => CompletionResult): Provider => ({ complete: async ({ messages, tools }) => {
   if (tools.some(tool => tool.function.name === "submitLoopSummaries")) {
     const turns = compressionLoopsFromUserMessage(messages[1]!.content);
-    return response({ id: "summary", name: "submitLoopSummaries", arguments: { summary: "容量测试保存和读取文件成功。", actions: "保存和读取文件", result: "成功" } });
+    return response({ id: "summary", name: "submitLoopSummaries", arguments: { userRequest: "修复并验证", state: "容量测试保存和读取文件成功。", constraints: [], pending: [], decisions: [] } });
   }
   expect(messages.reduce((size, message) => size + message.content.length, 0)).toBeLessThanOrEqual(runtimeConfig.context.hardLimitChars);
   const values = xmlSlots(messages[1]!.content);

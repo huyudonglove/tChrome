@@ -498,7 +498,7 @@ test("归档历史工具结果保留工具能力、记忆索引和原始记忆",
   ledger.toolIO.unshift({ callId: "call_old", name: "web_search", turnId: turn.turnId, arguments: {}, return: { stage: "complete", text: "旧证据", totalChars: 3 } });
   await compressRecords({ dataDir: dir, conversationId: ledger.conversationId, repoRoot,
     module: "conversationHistory", records: [{ id: ledger.loops[0]!.id, content: ledger.loops[0]! }],
-    provider: { complete: async () => ok({ finish: "tool_calls", toolCalls: [{id:"summary",name:"submitLoopSummaries",arguments:{summary:"旧查询取得旧证据。",actions:"旧工具提供了旧证据",result:"已取得旧证据"}}] }) },
+    provider: { complete: async () => ok({ finish: "tool_calls", toolCalls: [{id:"summary",name:"submitLoopSummaries",arguments:{userRequest:"查询旧证据",state:"已取得旧证据",constraints:[],pending:[],decisions:[]}}] }) },
   });
   expect(turn.assembled.toolIds).toEqual(["see_page", "web_search", "capture_page", "cookies_get"]);
   expect(ledger.memoryIds).toEqual(memoryIdsBefore);

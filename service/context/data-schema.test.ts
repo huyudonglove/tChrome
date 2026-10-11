@@ -29,7 +29,7 @@ test("assembled User slots follow the shared data contract", () => {
       { id: "rt_03", type: "interrupt", content: "当时状态是什么？" },
     ] },
   ];
-  const rendered = userText({ contextModules, ledger, turn, memories, skillText: "核对方法", conversationSummaries: [{ id: "sum_01", loopIds: ["loop_01"], summary: "状态检查完成。", userRequest: "检查状态", actions: "读取详情", result: "待处理" }] });
+  const rendered = userText({ contextModules, ledger, turn, memories, skillText: "核对方法", conversationSummaries: [{ id: "sum_01", loopIds: ["loop_01"], userRequest: "检查状态", state: "待处理", constraints: [], pending: [], decisions: [] }] });
   const values: Record<string, any> = {};
   const re = /<([A-Za-z][A-Za-z0-9]*)(?:\s[^>]*)?>\n([\s\S]*?)\n<\/\1>/g;
   let m: RegExpExecArray | null;

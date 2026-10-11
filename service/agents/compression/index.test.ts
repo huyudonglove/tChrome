@@ -34,7 +34,7 @@ test("multiple valid summaries cover the whole batch atomically", async () => {
 test("failure stops later batches without covering failed sources or retrying format", async () => {
  const input = setup(); let calls = 0;
  const good = model();
- const outcome = await compressRecords({ ...input, records: [source("loop_01", "userInput"), source("loop_02", "interrupt"), source("loop_03", "userInput")], provider: { async complete(request) { calls++; const response = await good.complete(request); if (calls === 2) response.toolCalls[0]!.arguments = { summary: "invalid" }; return response; } } });
+ const outcome = await compressRecords({ ...input, records: [source("loop_01", "userInput"), source("loop_02", "interrupt"), source("loop_03", "userInput")], provider: { async complete(request) { calls++; const response = await good.complete(request); if (calls === 2) response.toolCalls[0]!.arguments = { userRequest: "invalid" }; return response; } } });
  expect(calls).toBe(2);
  expect(outcome).toMatchObject({ status: "stopped", committedLoopIds: ["loop_01"], failedLoopIds: ["loop_02"] });
  expect(loadIndex(input.dataDir, input.conversationId, input.module).coveredSourceIds).toEqual(["loop_01"]);

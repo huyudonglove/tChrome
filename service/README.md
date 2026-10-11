@@ -49,7 +49,7 @@ Responses 适配器负责文本、图片 input_image、扁平 function schema �
 
 Chat 与 Responses 的失败分类和重试决策统一由 `provider/failures.ts` 管理。连接错误、超时、HTTP 408/429/5xx、Responses 的 server_error/rate_limit_exceeded，以及响应格式无效（provider_invalid_response，含空回包）按 `network.maxAttempts` 静默重试（默认 10 次含首次），重试成功则正常继续，不向模型回灌错误文案。输出超限、内容拒绝、未完整结束分别返回 `provider_output_limit`、`provider_refused`、`provider_incomplete`，不自动重试，也不执行部分工具调用。401 返回密钥错误，403 返回请求被拒绝并保留上游原因；重试耗尽后面板展示失败，本轮不执行工具。请求附带 tools 列表，tool_choice 默认 auto；仅在 needFinishTurn 重试或无效提交自救等「必须再调工具」的路径试发 required，网关或 thinking 模式拒绝（报文含 tool_choice / functionCallingConfig）则当场降级 auto 重试，不按模型是否 thinking 写死支持与否。Gemini 对应 `functionCallingConfig.mode`：required→ANY，默认 AUTO。
 
-summaries 展示历史 loop 的 summary、userRequest、actions、result 与准确 loopIds。agent_query 按 sumId 或 loopId 查询 loops、runtime、helm、summaries，支持 file 过滤；无匹配直接 not_found。Query Agent 返回候选 loopIds，Runtime 校验后读取完整来源记录。查询结果留在 callsResult，遵守统一返回门禁；原文凭 callId / pageId 使用 evidence_search 的 blockId 或 keyword 获取，返回 nextOffset 时继续分页。
+summaries 展示模型归纳的 userRequest、state、constraints、pending、decisions 与 Runtime 填写的准确 loopIds；约束和未决事项逐条保留，只有明确完成、撤销或替代时才移除。agent_query 按 sumId 或 loopId 查询 loops、runtime、helm、summaries，支持 file 过滤；无匹配直接 not_found。Query Agent 返回候选 loopIds，Runtime 校验后读取完整来源记录。查询结果留在 callsResult，遵守统一返回门禁；原文凭 callId / pageId 使用 evidence_search 的 blockId 或 keyword 获取，返回 nextOffset 时继续分页。
 
 未完成任务在 conversation 底部 tasks 展示完整最新状态；创建和更新返回 task ID 指针，完成或取消后从 tasks 移出，最终任务保留在完成操作返回。工具调用与结果一律落盘并保留到压缩。大结果保留既有索引和原文路径，不另建证据正文副本。历史 loop 正常追加不回写，容量读数放在整条 User 最末尾；压缩时接受缓存前缀重建。
 

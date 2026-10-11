@@ -2,36 +2,57 @@
   "type": "function",
   "function": {
     "name": "submitLoopSummaries",
-    "description": "提交本次压缩或摘要折叠的结果。每次调用是一条 {summary, actions, result}，summary 用一句话说明工作与结论。输入为 compressionLoops 时，可在同一次回复中提交多条摘要，全部归属提供的loop 批次；输入为 summaryFold 时提交一条合并纪要。不要提交 loopIds 或 userRequest，Runtime 会填写。",
+    "description": "提交本次压缩或摘要折叠的结果。每次调用是一条 {userRequest, state, constraints, pending, decisions}，五项均由模型归纳。输入为 compressionLoops 时，可在同一次回复中提交多条摘要，全部归属提供的 loop 批次；输入为 summaryFold 时提交一条合并纪要。归纳而不截断，合并重复事实，逐条核对仍有效约束与未决事项，区分历史引用、旧状态和当前状态。不要提交 loopIds 或在正文罗列来源编号，Runtime 会填写准确 loopIds。",
     "parameters": {
       "type": "object",
       "properties": {
-        "summary": {
+        "userRequest": {
           "type": "string",
           "minLength": 1,
           "pattern": "\\S",
-          "description": "一句话汇总：本批做了什么、结论是什么。"
+          "description": "归纳用户要求与目标，不逐字拼接或截断输入。"
         },
-        "actions": {
+        "state": {
           "type": "string",
           "minLength": 1,
           "pattern": "\\S",
-          "description": "实际执行的关键步骤、修正和重要失败，整理为一段字符串。多个步骤用文字串联，区分计划与已执行操作。"
+          "description": "归纳实际执行、已验证结果、重要失败与当前进展；区分计划、执行证据和模型声明，明确历史引用和旧状态。"
         },
-        "result": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "\\S",
-          "description": "本批已验证结果、最终回复、错误或等待状态的文字摘要。保留回复与执行证据的差异；查询结论注明来自历史证据。"
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "description": "逐条保留仍有效的用户约束，合并重复项；只有材料明确表明完成、撤销或替代时才能移除，不因后文未提及而遗漏。没有内容时填 []。"
         },
-        "reflection": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "\\S",
-          "description": "可选。仅当材料里的 reflection 记录了自我纠错、反复踩同一坑或取舍决策时填写，原样转述其结论，不要展开过程；没有则省略，不要为凑字段编造。"
+        "pending": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "description": "逐条保留尚未解决、完成或确认的事项，合并重复项；只有材料明确表明完成、撤销或替代时才能移除，不因后文未提及而遗漏。没有内容时填 []。"
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "description": "归纳关键决策及原因和明确的自我纠正，合并重复项，不编造决策。没有内容时填 []。"
         }
       },
-      "required": ["summary", "actions", "result"],
+      "required": [
+        "userRequest",
+        "state",
+        "constraints",
+        "pending",
+        "decisions"
+      ],
       "additionalProperties": false
     }
   }

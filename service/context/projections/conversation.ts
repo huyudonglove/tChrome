@@ -1,4 +1,4 @@
-import type { Ledger, LoopRecord, Task } from "../../types.ts";
+import type { Ledger, LoopRecord, LoopToolResult, Task } from "../../types.ts";
 import type { MemoryRecord } from "../../memory/types.ts";
 import { loopSummaryView, type LoopSummary } from "./records.ts";
 
@@ -13,6 +13,11 @@ export type ConversationPayload = {
   loops: LoopRecord[];
 };
 
+/** 写盘类工具的大块正文参数：调用执行完后，窗口里只留文件名或路径。 */
+const writeBodyKeys: Record<string, string[]> = {
+  script_write: ["code"], script_patch: ["patch"], local_fs_write: ["content"], local_apply_patch: ["patch"],
+};
+
 export function conversationPayload(input: {
   ledger: Ledger;
   memories: { conversation: MemoryRecord[] | string };
@@ -21,6 +26,12 @@ export function conversationPayload(input: {
   memoryPointers?: Record<string, string[]>;
 }): ConversationPayload {
   const loops = input.ledger.loops;
+  // 只有执行完（callsResult 里出现过）的写盘调用才剥离正文，被打断的调用仍完整保留。
+  const executedCallIds = new Set<string>();
+  for (const loop of loops) for (const row of loop.runtime) {
+    if (row.type !== "callsResult" || !Array.isArray(row.content)) continue;
+    for (const item of row.content as LoopToolResult[]) if (item?.callId) executedCallIds.add(item.callId);
+  }
   return {
     conversationMemory: input.memories.conversation,
     conversationHistorySummary: Array.isArray(input.conversationSummaries)
@@ -29,14 +40,21 @@ export function conversationPayload(input: {
     loops: loops.map(loop => ({
       ...loop,
       ...(loop.helm ? { helm: { ...loop.helm, calls: loop.helm.calls.map(call => {
-        const ids = input.memoryPointers?.[call.id];
-        if (!ids || !ids.length) return call;
         // 投影只替换送模型的副本：落盘 helm 仍保留完整正文。
         const args = { ...((call.arguments ?? {}) as Record<string, unknown>) };
-        // memory_update 的 text 同属记忆正文，同样只留指针，避免第二份正文进窗口。
-        delete args.conversationMemory; delete args.projectMemory; delete args.summary; delete args.text;
-        args.memoryPointers = ids;
-        return { ...call, arguments: args as typeof call.arguments };
+        let projected = false;
+        const ids = input.memoryPointers?.[call.id];
+        if (ids?.length) {
+          // memory_update 的 text 同属记忆正文，同样只留指针，避免第二份正文进窗口。
+          delete args.conversationMemory; delete args.projectMemory; delete args.summary; delete args.text;
+          args.memoryPointers = ids;
+          projected = true;
+        }
+        // 写盘类调用执行完，窗口只留文件名或路径。
+        if (executedCallIds.has(call.id)) {
+          for (const key of writeBodyKeys[call.name] ?? []) if (key in args) { delete args[key]; projected = true; }
+        }
+        return projected ? { ...call, arguments: args as typeof call.arguments } : call;
       }) } } : {}),
     })),
   };

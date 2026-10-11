@@ -65,3 +65,23 @@ test("memory update calls drop the rewritten body in favour of the pointer", () 
   expect(JSON.stringify(projected)).not.toContain("rewritten body");
   expect(ledger.loops[0]!.helm!.calls[0]!.arguments).toEqual({ reason: "r", memoryId: "mm_09", text: "rewritten body" });
 });
+
+test("write-disk calls drop the bulky body once executed while keeping the file pointer", () => {
+  const ledger = emptyLedger("cv_01");
+  ledger.loops = [
+    { ...loop(6), helm: { finish: "tool_calls", id: "helm_06", content: "write", calls: [{ id: "call_09", name: "script_write", arguments: { filename: "probe.py", code: "print('long body')" } }] } },
+    { ...loop(7), runtime: [{ id: "rt_06", type: "callsResult", content: [{ callId: "call_09", name: "script_write", result: { ok: true } }] }] },
+  ];
+  const projected = conversationPayload({ ledger, memories: { conversation: [] } });
+  expect(projected.loops[0]!.helm!.calls[0]!.arguments).toEqual({ filename: "probe.py" });
+  expect(JSON.stringify(projected)).not.toContain("long body");
+  expect(ledger.loops[0]!.helm!.calls[0]!.arguments).toEqual({ filename: "probe.py", code: "print('long body')" });
+});
+
+test("write-disk calls that were never executed keep the full body", () => {
+  const ledger = emptyLedger("cv_01");
+  ledger.loops = [{ ...loop(8), helm: { finish: "tool_calls", id: "helm_08", content: "write", calls: [{ id: "call_10", name: "local_fs_write", arguments: { path: "/tmp/a.txt", content: "pending body" } }] } }];
+  const projected = conversationPayload({ ledger, memories: { conversation: [] } });
+  expect(projected.loops[0]!.helm!.calls[0]!.arguments).toEqual({ path: "/tmp/a.txt", content: "pending body" });
+  expect(JSON.stringify(projected)).toContain("pending body");
+});

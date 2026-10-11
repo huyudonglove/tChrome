@@ -6,8 +6,10 @@ import { compressionLog } from "./log.ts";
 import { compressionSystemFromModules } from "./context/loader.ts";
 import type { ChatTool, LoopRecord, Provider } from "../../types.ts";
 
-export type LoopSummary = { loopIds: string[]; summary: string; userRequest: string; actions: string; result: string; reflection?: string };
-export type SubmittedSummaryFields = { summary: string; actions: string; result: string; reflection?: string };
+import type { SummaryFields } from "../../context-archive/types.ts";
+
+export type LoopSummary = SummaryFields & { loopIds: string[] };
+export type SubmittedSummaryFields = SummaryFields;
 export type FoldRow = LoopSummary;
 export function compressionSystemPrompt(repoRoot: string): string { return compressionSystemFromModules(repoRoot); }
 export function compressionUserPrompt(_repoRoot: string, loops: LoopRecord[]): string {
@@ -17,11 +19,6 @@ export function compressionLoopsFromUserMessage(content: string): LoopRecord[] {
   const match = content.trim().match(/^<compressionLoops>\n([\s\S]*?)\n<\/compressionLoops>$/);
   if (!match) throw new Error("Invalid compressionLoops payload");
   return (JSON.parse(match[1]!) as { loops: LoopRecord[] }).loops;
-}
-function requestExcerpt(loops: LoopRecord[]): string {
-  const inputs = loops.flatMap(loop => loop.runtime.filter(row => row.type === "userInput" || row.type === "interrupt").map(row => typeof row.content === "string" ? row.content : JSON.stringify(row.content)));
-  const text = inputs.join("\n");
-  return text ? (text.length > 200 ? `${text.slice(0, 200)}…` : text) : "本批未提供用户输入";
 }
 async function submit(input: { provider: Provider; repoRoot: string; dataDir: string; conversationId: string; user: string; single: boolean }): Promise<SubmittedSummaryFields[]> {
   const log = compressionLog(input.dataDir, input.conversationId);
@@ -38,7 +35,9 @@ async function submit(input: { provider: Provider; repoRoot: string; dataDir: st
   for (const call of response.toolCalls) {
     if (!call.id?.trim() || call.name !== tool.function.name || !validate(call.arguments)) throw new Error(`Invalid compression submission: ${JSON.stringify(validate.errors)}`);
     const value = call.arguments as SubmittedSummaryFields;
-    result.push({ summary: value.summary.trim(), actions: value.actions.trim(), result: value.result.trim(), ...(value.reflection ? { reflection: value.reflection.trim() } : {}) });
+    result.push({ userRequest: value.userRequest.trim(), state: value.state.trim(),
+      constraints: value.constraints.map(text => text.trim()), pending: value.pending.map(text => text.trim()),
+      decisions: value.decisions.map(text => text.trim()) });
   }
   return result;
 }
@@ -46,9 +45,9 @@ async function submit(input: { provider: Provider; repoRoot: string; dataDir: st
 export async function requestLoopSummaries(input: { provider: Provider; repoRoot: string; loops: LoopRecord[]; dataDir: string; conversationId: string; module?: string }): Promise<LoopSummary[]> {
   if (!input.loops.length || input.loops.some(loop => !loop.id?.trim())) throw new Error("Missing compression loop identity");
   const values = await submit({ ...input, user: compressionUserPrompt(input.repoRoot, input.loops), single: false });
-  return values.map(value => ({ ...value, loopIds: input.loops.map(loop => loop.id), userRequest: requestExcerpt(input.loops) }));
+  return values.map(value => ({ ...value, loopIds: input.loops.map(loop => loop.id) }));
 }
 export async function requestLoopFold(input: { provider: Provider; repoRoot: string; level: number; loopIds: string[]; rows: FoldRow[]; dataDir: string; conversationId: string; module?: string }): Promise<LoopSummary> {
   const values = await submit({ ...input, single: true, user: `<summaryFold>\n${JSON.stringify({ level: input.level, loopIds: input.loopIds, summaries: input.rows })}\n</summaryFold>` });
-  return { ...values[0]!, loopIds: [...input.loopIds], userRequest: input.rows.length === 1 ? input.rows[0]!.userRequest : `覆盖 ${input.loopIds.length} 个 loop` };
+  return { ...values[0]!, loopIds: [...input.loopIds] };
 }

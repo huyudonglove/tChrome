@@ -17,7 +17,7 @@ const provider: Provider = {
   complete: async () => ({
     finish: "tool_calls",
     content: "",
-    toolCalls: [{ id: "s", name: "submitLoopSummaries", arguments: { summary: "两轮合并纪要。", actions: "A", result: "R" } }],
+    toolCalls: [{ id: "s", name: "submitLoopSummaries", arguments: { userRequest: "修复并验证", state: "两轮合并纪要。", constraints: [], pending: [], decisions: [] } }],
     attempts: 1,
     parseOk: true,
     schemaOk: true,
@@ -31,10 +31,11 @@ const l1 = (id: string, loopId: string, minute: number): CompressionRecord => ({
   module: "conversationHistory",
   level: 1,
   loopIds: [loopId],
-  summary: `第 ${loopId} 轮汇总。`,
   userRequest: `req-${loopId}`,
-  actions: `act-${loopId}`,
-  result: `res-${loopId}`,
+  state: `res-${loopId}`,
+  constraints: [],
+  pending: [],
+  decisions: [],
   sourceIds: [],
   createdAt: `2026-09-20T00:${String(minute).padStart(2, "0")}:00.000Z`,
 });
@@ -70,7 +71,7 @@ test("cross-loop fold keeps the newest loop and rolls older L1s into L2 spans", 
   const l2 = active.filter((e) => e.level === 2);
   expect(l2.length).toBeGreaterThan(0);
   expect(l2.every((e) => (e.loopIds?.length ?? 0) > 1)).toBe(true);
-  expect(l2.every((e) => e.summary === "两轮合并纪要。")).toBe(true);
+  expect(l2.every((e) => e.state === "两轮合并纪要。")).toBe(true);
   // Active count shrank: most pads are gone from the active list.
   expect(active.length).toBeLessThan(rows.length);
   expect(active.filter((e) => e.level === 1 && e.id !== "sum_live").length).toBeLessThanOrEqual(1);
