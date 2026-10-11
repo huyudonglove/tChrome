@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { admitExecution, admitImages, admitText, admitReturn, deferredImageNote, retrievalWindowChars } from "./admission.ts";
-import { buildBlockIndex, readBlock, searchBlocks, type BlockIndex } from "./evidence/index.ts";
+import { buildBlockIndex, expandBlock, readBlock, searchBlocks, type BlockIndex } from "./evidence/index.ts";
 import { runtimeConfig } from "./config/runtime.ts";
 
 test("externalization preserves failures and their original message in the admitted result", () => {
@@ -61,7 +61,7 @@ test("small returns stay inline; large plain text uses the same block directory 
     });
     expect(admitted.mode).toBe("preview");
     if (admitted.mode !== "preview" || !saved) throw new Error("Index was not persisted");
-    expect(admitted.payload.directory).toEqual(readBlock(saved, saved.rootId));
+    expect(admitted.payload.directory).toEqual(expandBlock(saved, saved.rootId));
     expect(admitted.payload.rootBlockId).toBe(saved.rootId);
     expect(admitted.payload.indexPath).toBe("call_01.index.json");
     expect(admitted.payload.levels).toBeUndefined();

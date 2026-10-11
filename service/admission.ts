@@ -1,6 +1,6 @@
 import { runtimeConfig } from "./config/runtime.ts";
 import type { ImageReference } from "./images/store.ts";
-import { buildBlockIndex, readBlock, type BlockIndex } from "./evidence/index.ts";
+import { buildBlockIndex, expandBlock, type BlockIndex } from "./evidence/index.ts";
 
 /** 原文块与检索结果共用现有内联预算，给来源和返回包装留位。 */
 export const retrievalWindowChars = (): number =>
@@ -36,7 +36,7 @@ function visibleExecutionStatus(full: string): Record<string, unknown> {
 export function admitText(full: string, meta: SourceMeta & { index?: BlockIndex; indexPath?: string }): Admission {
   if (full.length <= runtimeConfig.results.inlineChars) return { mode: "inline", text: full };
   const index = meta.index ?? buildBlockIndex(full, { maxChars: retrievalWindowChars() });
-  const directory = readBlock(index, index.rootId);
+  const directory = expandBlock(index, index.rootId);
   const source = meta.pageId ? { pageId: meta.pageId } : meta.callId ? { callId: meta.callId } : {};
   return {
     mode: "preview",
@@ -95,4 +95,20 @@ export function deferredImageNote(deferred: Pick<ImageReference, "id" | "path" |
   if (!deferred.length) return "";
   const rows = deferred.map((image) => `${image.id} ${image.width}x${image.height} ${image.bytes}B`).join(", ");
   return `runtime: 图片超过入窗门槛未附带像素（${rows}）。要画面请更精准：image_crop 或 capture_page(mode=element|rect) 只取目标区域；${IMAGE_REFLOW_NOTE}`;
+}
+
+/**
+ * 工具返回图片时的确定性事实：按字节门槛，同一批图片在下一次请求要么附带像素、要么只留元数据。
+ * 明确写出来，模型就不必靠反复截图去猜自己到底有没有看到画面。
+ */
+export function imageAttachmentNote(images: Pick<ImageReference, "id" | "bytes">[]): string {
+  if (!images.length) return "";
+  const { inline, deferred } = admitImages(images);
+  const ids = (rows: Pick<ImageReference, "id">[]): string => rows.map((row) => row.id).join(" ");
+  const parts = [
+    inline.length ? `附带像素 ${inline.length} 张（${ids(inline)}）` : "",
+    deferred.length ? `未附带像素 ${deferred.length} 张（${ids(deferred)}）` : "",
+  ].filter(Boolean);
+  const detail = deferred.length ? `要画面请更精准：image_crop 或 capture_page(mode=element|rect)。${IMAGE_REFLOW_NOTE}` : "";
+  return `runtime: 本批图片 ${parts.join("，")}。${detail}`;
 }

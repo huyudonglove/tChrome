@@ -20,7 +20,7 @@ import { allocateRecordId } from "../runtime/ids.ts";
 import { join } from "node:path";
 import { loadLedger, loadFullReturn, loadReturnBlockIndex, saveReturnBlockIndex, paths } from "../runtime/store.ts";
 import { loadContextRecord } from "../runtime/records.ts";
-import { buildBlockIndex, readBlock, searchBlocks, type BlockIndex } from "../evidence/index.ts";
+import { buildBlockIndex, expandBlock, searchBlocks, type BlockIndex } from "../evidence/index.ts";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 const retrieveEvidenceBlock = (index: BlockIndex, win: Record<string, unknown>, source: string, path: string): Record<string, unknown> => {
@@ -44,7 +44,7 @@ const retrieveEvidenceBlock = (index: BlockIndex, win: Record<string, unknown>, 
     };
   }
   const blockId = win.blockId === undefined ? index.rootId : win.blockId as string;
-  const block = readBlock(index, blockId);
+  const block = expandBlock(index, blockId);
   return block
     ? { ok: true, path, ...block, ...(block.kind === "content" ? { location: block.source } : {}), source }
     : { ok: false, source, path, blockId, faultCode: "not_found", detail: "未找到原文块" };
@@ -135,7 +135,7 @@ export type ExecuteInput = {
     windowChars?: { before: number | null; after: number | null };
   }>;
   lookup: {
-    unusedTools: string[];
+    unusedTools: { id: string; purpose?: string }[];
     knownTools: string[];
     enabledTools: string[];
     protectedTools?: string[];
@@ -458,7 +458,11 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
       added.length ? [{ type: "tools.enable", names: added }] : []);
   }
   if (name === "list_browser_tools") {
-    return result(JSON.stringify({ ok: true, tools: lookup.unusedTools }));
+    const keyword = typeof args.keyword === "string" ? args.keyword.trim().toLocaleLowerCase() : "";
+    const tools = keyword
+      ? lookup.unusedTools.filter((tool) => `${tool.id} ${tool.purpose ?? ""}`.toLocaleLowerCase().includes(keyword))
+      : lookup.unusedTools;
+    return result(JSON.stringify({ ok: true, total: lookup.unusedTools.length, ...(keyword ? { keyword } : {}), tools }));
   }
   if (name === "memory_writeConversation") {
     const texts = asStringArray(args.conversationMemory);

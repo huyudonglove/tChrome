@@ -30,7 +30,7 @@ function setup() {
   const execute = (name: string, args: ToolArguments, options: Partial<ExecuteInput> = {}) => executeTool({
     name, arguments: args, dataDir, browserNames: [], conversationId: ledger.conversationId,
     lookup: {
-      unusedTools: ["capture_page"],
+      unusedTools: [{ id: "capture_page" }],
       knownTools: ["finishTurn", "page_click", "capture_page", "actions_write"],
       enabledTools: [...turn.assembled.baseToolsIds, ...turn.assembled.toolIds, "actions_write"],
       protectedTools: [...turn.assembled.baseToolsIds],

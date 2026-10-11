@@ -2,7 +2,7 @@ import { saveContextRecord } from "./records.ts";
 import { allocateRecordId, inputRecord } from "./ids.ts";
 import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
-import { admitExecution, admitImages, deferredImageNote } from "../admission.ts";
+import { admitExecution, admitImages, deferredImageNote, imageAttachmentNote } from "../admission.ts";
 import { escalate } from "./escalation.ts";
 import { appendRuntime, inputLoop, recordHelm, recordToolResult, setLoopNotice } from "./loop-records.ts";
 import { hasActiveTask, requiresActiveTask } from "./task-gate.ts";
@@ -172,7 +172,8 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
   // 只在本次请求准备阶段按 kind 更新；已发送的历史不改写。
   const projectedMemories = projectMemories(memories, activeScopes);
   const memoryBudget = memoryBudgetNote(memoryBudgetChars(projectedMemories), runtimeConfig.context.memoryBudgetChars);
-  onNotice?.("image", deferredImageNote(deferred) + (thumbs.length ? " 已附缩略图，细节仍需 image_crop 或 mode=element|rect。" : ""));
+  const attachedImages = [...inline, ...thumbs];
+  onNotice?.("image", [deferredImageNote(deferred), attachedImages.length ? `本次请求已附带图片 ${attachedImages.length} 张（${attachedImages.map((image) => image.id).join(" ")}）${thumbs.length ? `，其中 ${thumbs.length} 张为缩略图` : ""}。` : ""].filter(Boolean).join(" "));
   onNotice?.("memory", [renderScopeIndex(memories, activeScopes), memoryBudget].filter(Boolean).join("\n"));
   return [
     { role: "system", content: system },
@@ -396,7 +397,9 @@ const runQueue = async (input: {
             lookup: {
               knownTools: Object.keys(toolRegistry.tools),
               enabledTools: [...turn.assembled.toolIds, ...toolRegistry.toolGroups.baseToolsIds],
-              unusedTools: dynamicToolIds(toolRegistry).filter((id) => !turn.assembled.toolIds.includes(id) && !toolRegistry.toolGroups.baseToolsIds.includes(id)),
+              unusedTools: dynamicToolIds(toolRegistry)
+                .filter((id) => !turn.assembled.toolIds.includes(id) && !toolRegistry.toolGroups.baseToolsIds.includes(id))
+                .map((id) => ({ id, purpose: toolRegistry.capabilities.find((row) => row.kind === "tool" && row.id === id)?.purpose ?? "" })),
               protectedTools: toolRegistry.toolGroups.baseToolsIds,
             },
           });
@@ -471,6 +474,10 @@ const runQueue = async (input: {
       const repeated = repeatHint(turnRows, ledger.toolIO);
       if (repeated) {
         row.runtimeHints = [repeated];
+      }
+      const imageHint = imageAttachmentNote(stored.images);
+      if (imageHint) {
+        row.runtimeHints = [...(row.runtimeHints ?? []), imageHint];
       }
       const escalation = escalate(turnRows, item.name, readOnlyTools);
       if (escalation.action === "interrupt") {

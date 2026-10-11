@@ -2,12 +2,16 @@
   "type": "function",
   "function": {
     "name": "list_browser_tools",
-    "description": "列出尚未加载的动态工具名称。能力大类见 System <environment>。选定后用 catalog_add 加载，下一次拿到 schema 再调用。",
+    "description": "列出尚未加载的动态工具名称与各自用途（每项含 id 与 purpose）。能力大类见 System <environment>。可选 keyword 按能力关键词过滤，避免在不认识的工具名里试错。选定后用 catalog_add 加载，下一次拿到 schema 再调用。",
     "parameters": {
       "type": "object",
       "properties": {
         "reason": {
           "type": "string"
+        },
+        "keyword": {
+          "type": "string",
+          "description": "可选；按能力关键词过滤，同时匹配工具名与用途说明（大小写不敏感）"
         }
       },
       "required": [

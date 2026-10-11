@@ -2904,7 +2904,7 @@
         "目标 tabId 有效",
         "操作已获当前范围授权"
       ],
-      "risk": "high",
+      "risk": "medium",
       "verification": [
         "使用页面断言、重新观察或截图确认目标状态"
       ],
@@ -2941,7 +2941,7 @@
         "目标 tabId 有效",
         "操作已获当前范围授权"
       ],
-      "risk": "high",
+      "risk": "medium",
       "verification": [
         "使用页面断言、重新观察或截图确认目标状态"
       ],
@@ -2976,7 +2976,7 @@
         "目标 tabId 有效",
         "操作已获当前范围授权"
       ],
-      "risk": "high",
+      "risk": "medium",
       "verification": [
         "使用页面断言、重新观察或截图确认目标状态"
       ],

@@ -58,6 +58,31 @@ function summarize(index: BlockIndex, node: BlockNode): BlockSummary {
     kind: node.children.length ? "directory" : "content", source: location(source, node) };
 }
 
+/** 目录展开后的返回仍须留在同一次内联预算内，否则「少一次往返」会反过来撑大上下文。 */
+const retrievalBudget = (): number => runtimeConfig.results.inlineChars - runtimeConfig.results.pointerShellReserve;
+
+/** 展开层级上限：足够穿透分组层，又不至于在异常深的索引上做无谓遍历。 */
+const MAX_EXPAND_DEPTH = 12;
+
+/**
+ * 目录自动展开：逐层下探，返回仍然放得进预算、且离原文最近的一层。
+ * 这样「读一次目录 → 直接读原文块」成为常态，而不是目录里再套目录。
+ */
+function expandDirectory(index: BlockIndex, node: BlockNode, nodes: Map<string, BlockNode>): BlockSummary[] {
+  const levels: BlockNode[][] = [];
+  let level = node.children.map((id) => nodes.get(id)!);
+  while (level.length && levels.length < MAX_EXPAND_DEPTH) {
+    levels.push(level);
+    level = level.flatMap((item) => item.children.map((id) => nodes.get(id)!));
+  }
+  for (let depth = levels.length - 1; depth >= 0; depth--) {
+    const children = levels[depth]!.map((item) => summarize(index, item));
+    const size = JSON.stringify({ kind: "directory", blockId: node.id, parentBlockId: node.parentId, title: node.title, children }).length;
+    if (size <= retrievalBudget()) return children;
+  }
+  return levels[0]!.map((item) => summarize(index, item));
+}
+
 /** A directory always identifies itself; a content block always contains its entire original range. */
 export function readBlock(index: BlockIndex, blockId: string): BlockRead | undefined {
   const node = index.nodes.find((item) => item.id === blockId);
@@ -71,6 +96,18 @@ export function readBlock(index: BlockIndex, blockId: string): BlockRead | undef
   if (!source) throw new Error(`Content block ${blockId} has no source`);
   return { kind: "content", blockId, ...(node.parentId ? { parentBlockId: node.parentId } : {}), title: node.title,
     content: source.text.slice(node.start, node.end), source: location(source, node) };
+}
+
+/**
+ * 读取侧的展开版本：一次就看到放得进预算的最深一层，减少「目录里再套目录」的往返。
+ * readBlock 保持「目录只给直接子节点」的不变量，消费方按需改用这里。
+ */
+export function expandBlock(index: BlockIndex, blockId: string): BlockRead | undefined {
+  const node = index.nodes.find((item) => item.id === blockId);
+  if (!node || !node.children.length) return readBlock(index, blockId);
+  const nodes = new Map(index.nodes.map((item) => [item.id, item]));
+  return { kind: "directory", blockId, ...(node.parentId ? { parentBlockId: node.parentId } : {}), title: node.title,
+    children: expandDirectory(index, node, nodes) };
 }
 
 /** Search only original content, returning IDs that readBlock resolves to full content. */
