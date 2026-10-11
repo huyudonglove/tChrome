@@ -3,6 +3,7 @@ import { errorDetail } from "../../shared/error-details.ts";
 import type { QueryModule, QueryResult } from "../agents/query/types.ts";
 import type { ToolEffect, ToolExecution } from "./effects.ts";
 import type { BrowserHost, ChatTool, CurrentPage, ExpiryCondition, Provider, ToolArguments } from "../types.ts";
+import type { ToolCategory } from "./capability-types.ts";
 import { createTaskPacket, runSubagentDag, createSubagentExecutor, type SubagentCapability, type TaskPacket } from "../agents/subagent/index.ts";
 import { SERVICE_TOOL_NAMES, runServiceTool } from "./service-tools.ts";
 import { STREAM_TOOL_NAMES, runStreamTool } from "./stream-tools.ts";
@@ -139,6 +140,8 @@ export type ExecuteInput = {
     knownTools: string[];
     enabledTools: string[];
     protectedTools?: string[];
+    /** Functional categories for group-level discovery/loading; tests that omit it fall back to name-based flows. */
+    categories?: ToolCategory[];
   };
   observationIds?: string[];
   defaultTabId?: number | null;
@@ -441,7 +444,20 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
     return result(JSON.stringify({ ok: true, id: hit.id, summary: hit.summary, purpose: hit.purpose }), [{ type: "skill_load", id }]);
   }
   if (name === "catalog_add") {
-    const names = [...new Set(asStringArray(args.names))];
+    // groups：把功能类 id 展开成成员名后与显式 names 合并去重；未知类不猜测，直接报错。
+    const groupIds = asStringArray(args.groups);
+    const unknownGroups: string[] = [];
+    const groupTools: string[] = [];
+    const byCategory = new Map((lookup.categories ?? []).map((category) => [category.id, category]));
+    for (const groupId of groupIds) {
+      const category = byCategory.get(groupId);
+      if (!category) { unknownGroups.push(groupId); continue; }
+      groupTools.push(...category.tools);
+    }
+    if (unknownGroups.length) {
+      return result(JSON.stringify({ ok: false, faultCode: "unknown_group", unknownGroups }), []);
+    }
+    const names = [...new Set([...asStringArray(args.names), ...groupTools])];
     const mode = args.mode === "remove" ? "remove" : "add";
     if (mode === "remove") {
       const protectedNames = lookup.protectedTools ?? [];
@@ -459,6 +475,17 @@ async function dispatchTool(input: ExecuteInput): Promise<ToolExecution> {
   }
   if (name === "list_browser_tools") {
     const keyword = typeof args.keyword === "string" ? args.keyword.trim().toLocaleLowerCase() : "";
+    const group = typeof args.group === "string" ? args.group.trim() : "";
+    if (group) {
+      // 按功能类查看：以 unusedTools 作为「尚未加载」集合，只列该类的未加载成员。
+      const category = (lookup.categories ?? []).find((row) => row.id === group);
+      if (!category) {
+        return result(JSON.stringify({ ok: false, faultCode: "unknown_group", group }), []);
+      }
+      const purposeOf = new Map(lookup.unusedTools.map((tool) => [tool.id, tool.purpose ?? ""]));
+      const tools = category.tools.filter((id) => purposeOf.has(id)).map((id) => ({ id, purpose: purposeOf.get(id) ?? "" }));
+      return result(JSON.stringify({ ok: true, total: lookup.unusedTools.length, group, tools }));
+    }
     const tools = keyword
       ? lookup.unusedTools.filter((tool) => `${tool.id} ${tool.purpose ?? ""}`.toLocaleLowerCase().includes(keyword))
       : lookup.unusedTools;

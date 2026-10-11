@@ -2,8 +2,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ChatTool, ExecutionMode } from "../types.ts";
 import { promptNumberSlots, fillPromptNumbers } from "../context/prompt-numbers.ts";
-import { loadCapabilityCatalog } from "./capability.ts";
-import type { CapabilityRecord, CapabilityRisk } from "./capability-types.ts";
+import { loadCapabilityCatalog, loadCategories } from "./capability.ts";
+import type { CapabilityRecord, CapabilityRisk, ToolCategory } from "./capability-types.ts";
 
 export type ToolIndex = {
   browser: string[];
@@ -25,6 +25,8 @@ export type ToolRegistry = {
   mutex: Record<string, string[][]>;
   /** Unified metadata for tools and skills, without changing tool execution contracts. */
   capabilities: CapabilityRecord[];
+  /** Functional grouping of dynamic tools, loaded from service/capabilities/categories.json. */
+  categories: ToolCategory[];
 };
 
 /** Optional causal backfill shared by every tool schema; models may omit them. */
@@ -167,7 +169,10 @@ export function loadToolRegistry(root: string): ToolRegistry {
       tools[name] = risk === "low" ? relaxReasonRequirement(tools[name]) : enforceReasonRequirement(tools[name]);
     }
   }
-  return { tools, index, toolGroups, execution, mutex, capabilities };
+  return {
+    tools, index, toolGroups, execution, mutex, capabilities,
+    categories: loadCategories(root, [...index.browser, ...index.service]),
+  };
 }
 
 export function dynamicToolIds(registry: ToolRegistry): string[] {
@@ -200,5 +205,17 @@ export function toolGuideFor(registry: ToolRegistry, ids: string[], nav = true):
     ].filter(Boolean).join("｜");
     return `- ${tool.function.name}：${purpose}。${chain || ""}`;
   }).join("\n");
+}
+
+/** Unloaded dynamic tools grouped by function, so the model can discover a whole class in one line. */
+export function toolCategoryGuide(registry: ToolRegistry, loadedIds: readonly string[]): string {
+  const loaded = new Set(loadedIds);
+  const lines: string[] = [];
+  for (const category of registry.categories) {
+    const members = category.tools.filter((id) => !loaded.has(id));
+    if (members.length === 0) continue;
+    lines.push(`- ${category.label}（${members.length}）：${category.purpose}。${members.join(" ")}`);
+  }
+  return lines.join("\n");
 }
 

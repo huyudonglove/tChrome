@@ -52,3 +52,11 @@ export type CapabilityMetadata = {
   similar?: string[];
   deeper?: string[];
 };
+
+/** A functional grouping of dynamic tools, used by the unloaded-capability index and class loading. */
+export type ToolCategory = {
+  id: string;
+  label: string;
+  purpose: string;
+  tools: string[];
+};

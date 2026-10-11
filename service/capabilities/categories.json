@@ -1,0 +1,279 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "id": "page-observe",
+      "label": "页面观察与定位",
+      "purpose": "读取页面结构、区域、元素与表达式探测",
+      "tools": [
+        "page_eval_expr",
+        "page_get_summary",
+        "page_list_regions",
+        "page_list_interactive_elements",
+        "page_inspect_region",
+        "page_inspect_element",
+        "page_get_dom",
+        "page_get_accessibility_tree",
+        "page_get_element_state",
+        "page_get_by_role",
+        "see_page",
+        "snapshot_page",
+        "see_page_info",
+        "find_on_page",
+        "page_find",
+        "extract_table",
+        "watch_page",
+        "frame_list"
+      ]
+    },
+    {
+      "id": "page-interact",
+      "label": "页面交互",
+      "purpose": "点击、输入、选择、滚动、拖拽与导航",
+      "tools": [
+        "page_click",
+        "page_type",
+        "page_click_role",
+        "page_fill_role",
+        "page_select_role",
+        "page_click_text",
+        "page_fill_submit",
+        "page_submit_wait",
+        "double_click",
+        "focus",
+        "hover",
+        "tick",
+        "drag",
+        "calibrate_drag",
+        "click_xy",
+        "submit",
+        "scroll",
+        "scroll_to",
+        "long_press",
+        "context_menu",
+        "page_drag_to_id",
+        "open_url",
+        "reload",
+        "go_history"
+      ]
+    },
+    {
+      "id": "wait-assert",
+      "label": "等待与断言",
+      "purpose": "等待页面或网络条件、断言与复核页面状态",
+      "tools": [
+        "wait",
+        "wait_response",
+        "wait_network",
+        "wait_new_tab",
+        "page_recheck",
+        "page_assert",
+        "check_page"
+      ]
+    },
+    {
+      "id": "tabs-windows",
+      "label": "标签与窗口",
+      "purpose": "列出、切换、开关标签与窗口，设置默认标签",
+      "tools": [
+        "list_tabs",
+        "list_windows",
+        "switch_tab",
+        "open_tab",
+        "close_tab",
+        "duplicate_tab",
+        "move_tab",
+        "update_tab",
+        "create_window",
+        "update_window",
+        "close_window",
+        "group_tabs",
+        "ungroup_tabs",
+        "bind_tab",
+        "tab_context"
+      ]
+    },
+    {
+      "id": "capture-export",
+      "label": "截图与导出",
+      "purpose": "截图、录屏、保存 PDF 与下载、读取归档资产、性能测量",
+      "tools": [
+        "capture_page",
+        "save_pdf",
+        "image_crop",
+        "asset_list",
+        "asset_read",
+        "export_data",
+        "download",
+        "wait_download",
+        "control_download",
+        "list_downloads",
+        "video_capture_sequence",
+        "video_record",
+        "measure_timing",
+        "measure_paint",
+        "measure_files"
+      ]
+    },
+    {
+      "id": "storage-identity",
+      "label": "存储与身份",
+      "purpose": "管理 Cookie、页面存储、账号资料与浏览器凭据",
+      "tools": [
+        "cookies",
+        "set_cookie",
+        "delete_cookie",
+        "clear_cookies",
+        "page_storage",
+        "indexeddb",
+        "cache_storage",
+        "read_page_credentials",
+        "profile_vault",
+        "account_vault"
+      ]
+    },
+    {
+      "id": "network-diag",
+      "label": "网络与诊断",
+      "purpose": "抓取网络流量、读控制台与诊断、WebSocket 与流",
+      "tools": [
+        "capture_network_traffic",
+        "har",
+        "network_grep",
+        "network_mock",
+        "see_console",
+        "see_diag",
+        "websocket_monitor",
+        "service_worker_list",
+        "stream_pull",
+        "stream_push",
+        "detach_debugger"
+      ]
+    },
+    {
+      "id": "device-fingerprint",
+      "label": "设备与指纹",
+      "purpose": "模拟设备、节流网络、设置地理位置与指纹、缩放",
+      "tools": [
+        "emulate_device",
+        "network_throttle",
+        "set_geolocation",
+        "fingerprint_read",
+        "fingerprint_apply",
+        "see_zoom",
+        "set_zoom"
+      ]
+    },
+    {
+      "id": "captcha",
+      "label": "验证码",
+      "purpose": "探测与处理验证码",
+      "tools": [
+        "see_captcha",
+        "wait_captcha",
+        "click_captcha",
+        "solve_captcha",
+        "solve_slider"
+      ]
+    },
+    {
+      "id": "form-misc",
+      "label": "表单附件与杂项",
+      "purpose": "上传文件、剪贴板、原生下拉与日期、对话框、工具与技能目录",
+      "tools": [
+        "attach_file",
+        "clear_file",
+        "clipboard_page_write",
+        "clipboard_page_read",
+        "combo_select",
+        "date_select",
+        "handle_dialog",
+        "dialog_wait",
+        "list_browser_tools",
+        "catalog_add",
+        "local_capabilities"
+      ]
+    },
+    {
+      "id": "local-files",
+      "label": "本地文件",
+      "purpose": "读写、搜索、移动、删除本地文件与目录",
+      "tools": [
+        "local_fs_read",
+        "local_fs_write",
+        "local_fs_copy",
+        "local_fs_move",
+        "local_fs_delete",
+        "local_fs_mkdir",
+        "local_fs_list",
+        "local_fs_stat",
+        "local_fs_search",
+        "local_fs_grep",
+        "local_fs_outline",
+        "local_tsx_outline",
+        "local_open"
+      ]
+    },
+    {
+      "id": "code-eng",
+      "label": "代码工程",
+      "purpose": "查符号与仓库结构、诊断、改代码与查看 Git",
+      "tools": [
+        "local_code_refs",
+        "local_repo_map",
+        "local_diagnose",
+        "local_replace_block",
+        "local_apply_patch",
+        "local_git_status",
+        "local_git_diff"
+      ]
+    },
+    {
+      "id": "process-scripts",
+      "label": "进程与脚本",
+      "purpose": "运行命令与后台进程、保存复用脚本、在页面执行 JS、资料库",
+      "tools": [
+        "local_run",
+        "local_process_start",
+        "local_process_status",
+        "local_process_stop",
+        "local_process_write",
+        "script_write",
+        "script_patch",
+        "script_read",
+        "script_list",
+        "execute_javascript",
+        "library"
+      ]
+    },
+    {
+      "id": "net-request",
+      "label": "网络请求与探测",
+      "purpose": "发起 HTTP 请求与连通性探测、网页搜索",
+      "tools": [
+        "send_http",
+        "send_http_batch",
+        "probe_http",
+        "probe_dns",
+        "probe_ssl",
+        "web_search",
+        "tavily_search"
+      ]
+    },
+    {
+      "id": "memory-skill-session",
+      "label": "记忆·技能·会话",
+      "purpose": "管理记忆与技能、清理观察、查询会话、子代理与任务停止",
+      "tools": [
+        "memory_update",
+        "memory_delete",
+        "page_clear_result",
+        "skill_load",
+        "reflect_delete",
+        "job_stop",
+        "session_query",
+        "delegate_subagent"
+      ]
+    }
+  ]
+}

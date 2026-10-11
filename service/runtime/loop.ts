@@ -16,7 +16,7 @@ import { systemText, userText, windowChars } from "../context/window.ts";
 import { beginExecution, hasActiveExecution } from "./execution.ts";
 import { skillGuide, loadedSkillText } from "../skills/loader.ts";
 import { loadContextModules, type ContextModules } from "../context/modules.ts";
-import { loadToolRegistry, coreToolIds, dynamicToolIds, toolSchemas, toolGuideFor, type ToolRegistry } from "../tools/registry.ts";
+import { loadToolRegistry, coreToolIds, dynamicToolIds, toolSchemas, toolGuideFor, toolCategoryGuide, type ToolRegistry } from "../tools/registry.ts";
 import { executeTool } from "../tools/execute.ts";
 import { SUBAGENT_TOOL_CAPABILITIES } from "../agents/subagent/tool-capabilities.ts";
 
@@ -180,7 +180,8 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
     { role: "user", content: userText({
       contextModules, ledger, turn, memories: projectedMemories, skillText, conversationSummaries: summaries, memoryPointers: memoryPointerMap(memories),
       queryHistory: ledger.queryHistory,
-      toolGuide: toolGuideFor(toolRegistry, turn.assembled.toolIds, false),
+      // <tools> 已加载清单下方追加「未加载能力（按类）」索引：让未加载工具在主动扫描前就可见。
+      toolGuide: [toolGuideFor(toolRegistry, turn.assembled.toolIds, false), toolCategoryGuide(toolRegistry, turn.assembled.toolIds)].filter(Boolean).join("\n"),
       dataDir: historyDataDir ?? dataDir,
       ...(dataDir ? { inlineBudget: { dataDir, system } } : {}),
     }), images: [...inline, ...thumbs] },
@@ -401,6 +402,7 @@ const runQueue = async (input: {
                 .filter((id) => !turn.assembled.toolIds.includes(id) && !toolRegistry.toolGroups.baseToolsIds.includes(id))
                 .map((id) => ({ id, purpose: toolRegistry.capabilities.find((row) => row.kind === "tool" && row.id === id)?.purpose ?? "" })),
               protectedTools: toolRegistry.toolGroups.baseToolsIds,
+              categories: toolRegistry.categories,
             },
           });
         }

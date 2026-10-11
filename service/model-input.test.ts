@@ -19,7 +19,9 @@ test("resident and dynamic guides remain separate, persist loaded schemas across
     const baseBlock = system.match(/<baseTools>\n([\s\S]*?)\n<\/baseTools>/)![1]!;
     const baseGuide = baseBlock.split(/\n\nSample[\s\S]*$/)[0]!.split("\n\n").at(-1)!;
     const dynamicGuide = user.match(/<tools>\n([\s\S]*?)\n<\/tools>/)![1]!;
-    const names = (guide: string) => [...guide.matchAll(/^- ([^：\n]+)/gm)].map(match => match[1]);
+    // 行格式三类：工具行 `- 名字`、base 行 `- 名字：用途。…`、分类行 `- 类名（N）：用途。成员`。
+    // 捕获到冒号或行尾且不允许全角括号：两类工具名都命中，分类行在（处截断而不匹配。
+    const names = (guide: string) => [...guide.matchAll(/^- ([^：\n（]+)(?:：|$)/gm)].map(match => match[1]);
     expect(names(baseGuide)).toEqual(registry.toolGroups.baseToolsIds);
     expect(names(dynamicGuide)).toEqual([...coreToolIds(registry), ...([2, 3, 5].includes(requests) ? ["send_http"] : [])]);
     expect(user).not.toContain("<baseTools>\n<purpose>");

@@ -9,6 +9,7 @@ import {
   type CapabilityMetadata,
   type CapabilityRecord,
   type CapabilityRisk,
+  type ToolCategory,
 } from "./capability-types.ts";
 
 type ToolSource = {
@@ -156,4 +157,43 @@ export function loadCapabilityCatalog(repoRoot: string, source: ToolSource): Cap
     }
   }
   return records.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/**
+ * Functional groupings of dynamic tools. Single source of truth: service/capabilities/categories.json.
+ * Every dynamic tool id must appear in exactly one category; unknown or duplicate ids throw, so the
+ * grouping can never silently drift from the tool index.
+ */
+export function loadCategories(repoRoot: string, dynamicIds: readonly string[]): ToolCategory[] {
+  const path = join(repoRoot, "service/capabilities/categories.json");
+  if (!existsSync(path)) return [];
+  const raw = JSON.parse(readFileSync(path, "utf8"));
+  if (!raw || typeof raw !== "object" || Array.isArray(raw) || (raw as { version?: unknown }).version !== 1) {
+    throw new Error("invalid tool categories file");
+  }
+  const entries = (raw as { categories?: unknown }).categories;
+  if (!Array.isArray(entries) || entries.length === 0) throw new Error("invalid tool categories");
+  const known = new Set(dynamicIds);
+  const seen = new Set<string>();
+  const rows: ToolCategory[] = [];
+  for (const entry of entries) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error("invalid tool category entry");
+    const { id, label, purpose, tools } = entry as Record<string, unknown>;
+    if (typeof id !== "string" || !id.trim()) throw new Error("invalid tool category id");
+    if (typeof label !== "string" || !label.trim()) throw new Error(`invalid tool category label ${id}`);
+    if (typeof purpose !== "string" || !purpose.trim()) throw new Error(`invalid tool category purpose ${id}`);
+    if (!Array.isArray(tools) || tools.some((tool) => typeof tool !== "string" || !tool.trim())) {
+      throw new Error(`invalid tool category tools ${id}`);
+    }
+    for (const tool of tools as string[]) {
+      if (!known.has(tool)) throw new Error(`unknown tool in category ${id}: ${tool}`);
+      if (seen.has(tool)) throw new Error(`duplicate tool in categories: ${tool}`);
+      seen.add(tool);
+    }
+    rows.push({ id, label, purpose, tools: [...(tools as string[])] });
+  }
+  for (const tool of dynamicIds) {
+    if (!seen.has(tool)) throw new Error(`tool missing from categories: ${tool}`);
+  }
+  return rows;
 }

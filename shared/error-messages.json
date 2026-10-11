@@ -99,6 +99,11 @@
     "user": "请求的工具不存在或尚未加载。",
     "recovery": "correct_arguments"
   },
+  "unknown_group": {
+    "model": "功能类 id 不存在。先用 list_browser_tools 或 <tools> 未加载能力索引确认类 id。",
+    "user": "请求的功能类不存在。",
+    "recovery": "correct_arguments"
+  },
   "script_steps_separate": {
     "model": "脚本修改与执行必须分批调用。先检查写入状态，再决定是否执行。",
     "user": "脚本修改和执行需要分步进行。",

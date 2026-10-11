@@ -186,3 +186,36 @@ test("agent_compress reports unavailable runtime support", async () => {
   expect(payload.ok).toBe(false);
   expect(payload.faultCode).toBe("compression_failed");
 });
+
+test("catalog_add expands groups into member names and rejects unknown groups", async () => {
+  const categories = [{ id: "net", label: "网络", purpose: "网络请求", tools: ["send_http", "web_search"] }];
+  const invoke = async (args: ExecuteInput["arguments"]) => JSON.parse((await executeTool({
+    name: "catalog_add", arguments: args, dataDir: "", browserNames: [],
+    lookup: { unusedTools: [], knownTools: ["send_http", "web_search"], enabledTools: [], categories },
+  })).text);
+  const added = await invoke({ reason: "整类加载", groups: ["net"] });
+  expect(added.ok).toBe(true);
+  expect(added.added).toEqual(["send_http", "web_search"]);
+  const unknown = await invoke({ reason: "整类加载", groups: ["nope"] });
+  expect(unknown.ok).toBe(false);
+  expect(unknown.faultCode).toBe("unknown_group");
+  expect(unknown.unknownGroups).toEqual(["nope"]);
+});
+
+test("list_browser_tools filters one group to its unloaded members", async () => {
+  const categories = [{ id: "net", label: "网络", purpose: "网络请求", tools: ["send_http", "web_search", "tavily_search"] }];
+  const invoke = async (args: ExecuteInput["arguments"]) => JSON.parse((await executeTool({
+    name: "list_browser_tools", arguments: args, dataDir: "", browserNames: [],
+    lookup: {
+      unusedTools: [{ id: "send_http", purpose: "发请求" }, { id: "tavily_search", purpose: "搜索" }],
+      knownTools: [], enabledTools: [], categories,
+    },
+  })).text);
+  const page = await invoke({ reason: "查一类", group: "net" });
+  expect(page.ok).toBe(true);
+  expect(page.group).toBe("net");
+  expect(page.tools.map((tool: { id: string }) => tool.id)).toEqual(["send_http", "tavily_search"]);
+  const unknown = await invoke({ reason: "查一类", group: "nope" });
+  expect(unknown.ok).toBe(false);
+  expect(unknown.faultCode).toBe("unknown_group");
+});
