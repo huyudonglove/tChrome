@@ -52,9 +52,25 @@ function countLines(source: BlockSource, end: number): number {
   return low;
 }
 
+/** 内容线索：取块内首个非空行、压缩空白并截断，作为目录标题的补充，便于在目录里辨别内容。 */
+function firstLine(text: string, max = 60): string {
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim().replace(/\s+/g, " ");
+    if (line) return line.length > max ? `${line.slice(0, max)}…` : line;
+  }
+  return "";
+}
+
+/** 目录标题的内容线索：仅对叶子内容块追加首行摘要，避免与结构标签重复。 */
+function titleWithPreview(base: string, preview: string): string {
+  return preview && !base.includes(preview) ? `${base} · ${preview}` : base;
+}
+
 function summarize(index: BlockIndex, node: BlockNode): BlockSummary {
   const source = index.sources.find((item) => item.id === node.sourceId);
-  return { blockId: node.id, ...(node.parentId ? { parentBlockId: node.parentId } : {}), title: node.title, chars: node.end - node.start,
+  const preview = node.children.length || !source ? "" : firstLine(source.text.slice(node.start, node.end));
+  const title = titleWithPreview(node.title, preview);
+  return { blockId: node.id, ...(node.parentId ? { parentBlockId: node.parentId } : {}), title, chars: node.end - node.start,
     kind: node.children.length ? "directory" : "content", source: location(source, node) };
 }
 
@@ -237,8 +253,9 @@ export function buildBlockIndex(full: string, options: { maxChars?: number; path
     }
     function fits(start: number, end: number): boolean {
       // Include JSON escaping and the actual result envelope, not just source character count.
+      // 渲染时叶子标题会带上首行线索，预算必须一并计入，否则「估算能放下」的块会在 summarize 后超限。
       const candidate: BlockNode = { id: `blk_${String(sequence + 1).padStart(2, "0")}`, sourceId: source.id,
-        start, end, title: titleFor(start, end), children: [] };
+        start, end, title: titleWithPreview(titleFor(start, end), firstLine(text.slice(start, end))), children: [] };
       return JSON.stringify({ kind: "content", blockId: candidate.id, parentBlockId: parentBudgetId, title: candidate.title,
         content: text.slice(start, end), source: location(source, candidate) }).length <= maxChars;
     }

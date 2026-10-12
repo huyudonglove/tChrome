@@ -24,7 +24,8 @@ const query = async (dataDir: string, windows: unknown) => {
 test("root directory navigates to complete source blocks without re-externalization", () => fixture(async dataDir => {
   const full = Array.from({ length: 40 }, (_, i) => `function task${i}() { return "${"x".repeat(100)}"; }\n`).join("");
   saveFullReturn(dataDir, "cv_01", "call_01", full);
-  saveReturnBlockIndex(dataDir, "cv_01", "call_01", buildBlockIndex(full, { maxChars: 500, path: "code.ts" }));
+  // 标题带首行内容线索后，目录元数据变大；700 仍是远小于原文（5310 字符）的紧张预算。
+  saveReturnBlockIndex(dataDir, "cv_01", "call_01", buildBlockIndex(full, { maxChars: 700, path: "code.ts" }));
   const first = await query(dataDir, [{ callId: "call_01" }]);
   expect(first.results[0].kind).toBe("directory");
   const visit = async (blockId: string): Promise<string> => {
@@ -35,6 +36,18 @@ test("root directory navigates to complete source blocks without re-externalizat
     return (await Promise.all(row.children.map((child: { blockId: string }) => visit(child.blockId)))).join("");
   };
   expect(await visit(first.results[0].blockId)).toBe(full);
+}));
+
+test("content titles carry a preview and small keyword hits return full content", () => fixture(async dataDir => {
+  const full = 'export function useful() { return "needle and full expression"; }\n';
+  saveFullReturn(dataDir, "cv_01", "call_01", full);
+  saveReturnBlockIndex(dataDir, "cv_01", "call_01", buildBlockIndex(full, { maxChars: 500, path: "code.ts" }));
+  const found = await query(dataDir, [{ callId: "call_01", keyword: "needle" }]);
+  const match = found.results[0].matches[0];
+  // 标题附了首行内容线索，便于在目录里辨认块内容。
+  expect(match.title).toContain("needle");
+  // 命中块放得下预算时，直接返回完整正文，省掉第二趟取回。
+  expect(match.content).toBe(full);
 }));
 
 test("search returns block references whose complete text comes from the immutable snapshot", () => fixture(async dataDir => {

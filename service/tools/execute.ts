@@ -21,19 +21,25 @@ import { allocateRecordId } from "../runtime/ids.ts";
 import { join } from "node:path";
 import { loadLedger, loadFullReturn, loadReturnBlockIndex, saveReturnBlockIndex, paths } from "../runtime/store.ts";
 import { loadContextRecord } from "../runtime/records.ts";
-import { buildBlockIndex, expandBlock, searchBlocks, type BlockIndex } from "../evidence/index.ts";
+import { buildBlockIndex, expandBlock, readBlock, searchBlocks, type BlockIndex } from "../evidence/index.ts";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 const retrieveEvidenceBlock = (index: BlockIndex, win: Record<string, unknown>, source: string, path: string): Record<string, unknown> => {
   if (win.keyword !== undefined) {
     const all = searchBlocks(index, win.keyword as string);
     const offset = (win.offset as number | undefined) ?? 0;
-    const matches: typeof all = [];
+    const matches: Record<string, unknown>[] = [];
     let chars = 0;
     for (const hit of all.slice(offset)) {
-      const size = JSON.stringify(hit).length;
+      const block = readBlock(index, hit.blockId);
+      const full = block?.kind === "content" ? block.content : undefined;
+      // 命中块整体放得下预算时直接带上完整正文，省掉「先看片段、再取一次」的第二趟；太大仍只给片段。
+      const entry: Record<string, unknown> = full !== undefined && chars + JSON.stringify({ ...hit, content: full }).length <= retrievalWindowChars()
+        ? { ...hit, content: full }
+        : { ...hit };
+      const size = JSON.stringify(entry).length;
       if (matches.length > 0 && chars + size > retrievalWindowChars()) break;
-      matches.push(hit);
+      matches.push(entry);
       chars += size;
     }
     const nextOffset = offset + matches.length;
