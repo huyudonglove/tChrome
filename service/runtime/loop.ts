@@ -477,7 +477,7 @@ const runQueue = async (input: {
       if (repeated) {
         row.runtimeHints = [repeated];
       }
-      const imageHint = imageAttachmentNote(stored.images);
+      const imageHint = imageAttachmentNote(stored.images, turn.assembled.observations);
       if (imageHint) {
         row.runtimeHints = [...(row.runtimeHints ?? []), imageHint];
       }

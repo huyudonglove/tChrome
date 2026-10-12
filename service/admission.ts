@@ -101,7 +101,10 @@ export function deferredImageNote(deferred: Pick<ImageReference, "id" | "path" |
  * 工具返回图片时的确定性事实：按字节门槛，同一批图片在下一次请求要么附带像素、要么只留元数据。
  * 明确写出来，模型就不必靠反复截图去猜自己到底有没有看到画面。
  */
-export function imageAttachmentNote(images: Pick<ImageReference, "id" | "bytes">[]): string {
+export function imageAttachmentNote(
+  images: Pick<ImageReference, "id" | "bytes">[],
+  observations: { id: string; type: string }[] = [],
+): string {
   if (!images.length) return "";
   const { inline, deferred } = admitImages(images);
   const ids = (rows: Pick<ImageReference, "id">[]): string => rows.map((row) => row.id).join(" ");
@@ -110,5 +113,12 @@ export function imageAttachmentNote(images: Pick<ImageReference, "id" | "bytes">
     deferred.length ? `未附带像素 ${deferred.length} 张（${ids(deferred)}）` : "",
   ].filter(Boolean);
   const detail = deferred.length ? `要画面请更精准：image_crop 或 capture_page(mode=element|rect)。${IMAGE_REFLOW_NOTE}` : "";
-  return `runtime: 本批图片 ${parts.join("，")}。${detail}`;
+  // 像素只在附带它的那一次请求里可见，过后只剩路径：当场写下画面结论，否则下一轮只能重截。
+  const record = inline.length
+    ? "像素只在本次请求可见，过后只剩路径：请用 observation_write 记下画面结论（画面是什么、与上一次相比有无变化），不要复制原文或复述工具返回。"
+    : "";
+  const seen = inline.length && observations.length
+    ? `本轮已有观察：${observations.slice(-6).map((row) => `${row.id}(${row.type})`).join("、")}；先读它们再决定是否重截。`
+    : "";
+  return `runtime: 本批图片 ${parts.join("，")}。${detail}${record}${seen}`;
 }

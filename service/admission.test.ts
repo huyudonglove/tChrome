@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { admitExecution, admitImages, admitText, admitReturn, deferredImageNote, retrievalWindowChars } from "./admission.ts";
+import { admitExecution, admitImages, admitText, admitReturn, deferredImageNote, imageAttachmentNote, retrievalWindowChars } from "./admission.ts";
 import { buildBlockIndex, expandBlock, readBlock, searchBlocks, type BlockIndex } from "./evidence/index.ts";
 import { runtimeConfig } from "./config/runtime.ts";
 
@@ -114,4 +114,23 @@ test("admitExecution rejects a truthy-but-not-true admitted flag from falling th
     expect(admitExecution(full, flag, { path: "/tmp/x.txt" }).mode).toBe("preview");
   }
   expect(admitExecution(full, true, { path: "/tmp/x.txt" }).mode).toBe("inline");
+});
+
+test("image attachment note asks for a written scene conclusion and lists this turn's observations", () => {
+  const note = imageAttachmentNote(
+    [{ id: "img_01", bytes: 10 }, { id: "img_02", bytes: 5_000_000 }],
+    [{ id: "page_01", type: "screenshot" }],
+  );
+  expect(note).toContain("img_01");
+  expect(note).toContain("未附带像素");
+  expect(note).toContain("像素只在本次请求可见");
+  expect(note).toContain("与上一次相比");
+  expect(note).toContain("page_01(screenshot)");
+  expect(imageAttachmentNote([])).toBe("");
+
+  // 只有超门槛的大图时，本次请求里根本没有像素可看，不该要求写画面结论。
+  const deferredOnly = imageAttachmentNote([{ id: "img_02", bytes: 5_000_000 }], [{ id: "page_01", type: "screenshot" }]);
+  expect(deferredOnly).toContain("未附带像素");
+  expect(deferredOnly).not.toContain("像素只在本次请求可见");
+  expect(deferredOnly).not.toContain("page_01");
 });
