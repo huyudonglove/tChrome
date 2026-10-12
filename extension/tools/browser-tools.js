@@ -359,7 +359,8 @@ const cdpDrag = async (tabId, fromX, fromY, toX, toY, options = {}) => {
       await new Promise((r) => setTimeout(r, 8));
     }
     await cdpMouse(tabId, 'mouseMoved', toX, toY, {button: 'left', buttons: 1});
-    await cdpMouse(tabId, 'mouseReleased', toX, toY, {button: 'left', clickCount: 1, buttons: 0});
+    try { if (options.onBeforeRelease) await options.onBeforeRelease(); }
+    finally { await cdpMouse(tabId, 'mouseReleased', toX, toY, {button: 'left', clickCount: 1, buttons: 0}); }
     return;
   }
 
@@ -419,59 +420,69 @@ const cdpDrag = async (tabId, fromX, fromY, toX, toY, options = {}) => {
     const jitterY = Math.round(toY + (Math.random() - 0.5) * 1.5);
     await cdpMouse(tabId, 'mouseMoved', jitterX, jitterY, {button: 'left', buttons: 1});
     await new Promise((r) => setTimeout(r, 15));
-    await cdpMouse(tabId, 'mouseReleased', jitterX, jitterY, {button: 'left', clickCount: 1, buttons: 0});
+    try { if (options.onBeforeRelease) await options.onBeforeRelease(); }
+    finally { await cdpMouse(tabId, 'mouseReleased', jitterX, jitterY, {button: 'left', clickCount: 1, buttons: 0}); }
     return;
   }
-  await cdpMouse(tabId, 'mouseReleased', toX, toY, {button: 'left', clickCount: 1, buttons: 0});
+  try { if (options.onBeforeRelease) await options.onBeforeRelease(); }
+  finally { await cdpMouse(tabId, 'mouseReleased', toX, toY, {button: 'left', clickCount: 1, buttons: 0}); }
 };
 
 // ============ 滑块拼图验证码求解：页内缺口定位 + CDP 拟人拖动 + 重试闭环 ============
 // 页内函数：自包含（会被序列化注入，不能引用模块作用域），返回几何 + 匹配结果 + 状态
-const sliderProbe = (sliderSelector, bgSelector, pieceSelector) => {
+const sliderProbe = (sliderSelector, bgSelector, pieceSelector, geometryOnly = false) => {
   const pick = (s) => { if (!s) return null; try { return document.querySelector(s); } catch (e) { return null; } };
   const rectOf = (el) => { const r = el.getBoundingClientRect(); return {left: r.left, top: r.top, width: r.width, height: r.height, cx: r.left + r.width / 2, cy: r.top + r.height / 2}; };
   const area = (r) => r.width * r.height;
 
   const imgs = Array.from(document.querySelectorAll('img')).filter((im) => {
     const r = im.getBoundingClientRect();
-    return r.width >= 60 && r.height >= 30;
+    if (!im.isConnected || r.width <= 0 || r.height <= 0) return false;
+    return r.width >= 20 && r.height >= 30;
   });
   let bgEl = pick(bgSelector);
   if (!bgEl) {
     const sorted = imgs.slice().sort((a, b) => area(rectOf(b)) - area(rectOf(a)));
-    bgEl = sorted[0] || null;
+    bgEl = sorted.find((im) => {
+      const r = rectOf(im);
+      return r.width >= 120 && imgs.some((other) => other !== im &&
+        other.parentElement?.parentElement === im.parentElement?.parentElement &&
+        rectOf(other).width < r.width * 0.6 && Math.abs(rectOf(other).top - r.top) < r.height);
+    }) || null;
   }
   if (!bgEl) return {ok: false, error: 'no-bg'};
   const bgRect = rectOf(bgEl);
+  const root = bgEl.parentElement?.parentElement || bgEl.parentElement || document.body;
 
   let pieceEl = pick(pieceSelector);
   if (!pieceEl) {
     const overlap = imgs
-      .filter((im) => im !== bgEl)
+      .filter((im) => im !== bgEl && root.contains(im))
       .map((im) => ({im, r: rectOf(im)}))
       .filter((o) => o.r.width < bgRect.width * 0.6 && o.r.left < bgRect.left + bgRect.width * 0.35 && Math.abs(o.r.top - bgRect.top) < bgRect.height)
       .sort((a, b) => area(a.r) - area(b.r));
     pieceEl = overlap.length ? overlap[0].im : null;
   }
 
-  const cands = Array.from(document.querySelectorAll('div,span,i,img'))
+  const rail = pick(sliderSelector) || root.parentElement || root;
+  const cands = Array.from(rail.querySelectorAll('div,span,i,button,[role="slider"]'))
     .map((el) => ({el, r: rectOf(el)}))
-    .filter((o) => o.r.width >= 18 && o.r.width <= Math.max(60, bgRect.width * 0.22)
-      && o.r.height >= 18 && o.r.height <= bgRect.height + 30
-      && o.r.cx > bgRect.left - 50 && o.r.cx < bgRect.left + bgRect.width * 0.35
-      && o.r.cy > bgRect.top - 50 && o.r.cy < bgRect.top + bgRect.height + 50);
-  cands.sort((a, b) => area(a.r) - area(b.r));
-  const handleEl = pieceEl && cands.some((c) => c.el === pieceEl) ? pieceEl : (cands[0] ? cands[0].el : pieceEl);
+    .filter((o) => o.el !== rail && o.r.width >= 18 && o.r.width <= Math.max(60, bgRect.width * 0.22)
+      && o.r.height >= 18 && o.r.height <= 80
+      && o.r.cx >= bgRect.left - 40 && o.r.cx <= bgRect.left + bgRect.width * (geometryOnly ? 1.15 : 0.35)
+      && o.r.top >= bgRect.top + bgRect.height - 30 && o.r.top <= bgRect.top + bgRect.height + 110);
+  cands.sort((a, b) => {
+    const priority = (o) => Number(/handle|thumb|slider|drag/i.test(String(o.el.className || ''))) * 3 +
+      Number(o.el.tagName === 'BUTTON' || o.el.getAttribute?.('role') === 'slider') * 2;
+    return priority(b) - priority(a) || area(b.r) - area(a.r);
+  });
+  const handleEl = cands[0]?.el || null;
 
   const readState = () => {
-    if (!bgEl || !bgEl.isConnected) return 'gone';
-    const root = bgEl.closest('div') || document.body;
-    const handleCls = handleEl && handleEl.isConnected ? String(handleEl.className || '') : '';
-    const cls = (String(root.className || '') + ' ' + String(bgEl.className || '') + ' ' + handleCls).toLowerCase();
-    if (/success|passed|verified|checked/.test(cls)) return 'success';
-    if (!handleEl || !handleEl.isConnected) return 'gone';
-    const hr = rectOf(handleEl);
-    if (hr.left > bgRect.left + bgRect.width * 0.7) return 'atRight';
+    if (!bgEl.isConnected) return 'gone';
+    const handleCls = handleEl?.isConnected ? String(handleEl.className || '') : '';
+    const cls = (String(rail?.className || '') + ' ' + String(bgEl.className || '') + ' ' + handleCls).toLowerCase();
+    if (/(?:^|[\s_-])(?:success|passed|verified)(?:$|[\s_-])/.test(cls)) return 'success';
     return 'pending';
   };
 
@@ -480,6 +491,7 @@ const sliderProbe = (sliderSelector, bgSelector, pieceSelector) => {
     bgRect, pieceRect: pieceEl ? rectOf(pieceEl) : null, handleRect: handleEl ? rectOf(handleEl) : null,
     state: readState(),
   };
+  if (geometryOnly) return base;
   if (base.state !== 'pending') return base;
   if (!pieceEl) return {...base, error: 'no-piece'};
 
@@ -499,13 +511,17 @@ const sliderProbe = (sliderSelector, bgSelector, pieceSelector) => {
   };
   const bg = toData(bgEl);
   const piece = toData(pieceEl);
-  if (!bg || !piece || bg.w <= piece.w || bg.h <= piece.h) return {...base, error: 'bitmap-unavailable'};
+  if (!bg || !piece || bg.w <= piece.w || bg.h < piece.h) return {...base, error: 'bitmap-unavailable'};
 
   const W = bg.w, H = bg.h, pw = piece.w, ph = piece.h;
   const px = [], py = [];
-  for (let y = 0; y < ph; y++) {
-    for (let x = 0; x < pw; x++) {
-      if (piece.alpha[(y * pw + x) * 4 + 3] > 24) { px.push(x); py.push(y); }
+  // Only opaque, locally distinctive pixels carry useful alignment information.
+  for (let y = 1; y < ph - 1; y++) {
+    for (let x = 1; x < pw - 1; x++) {
+      const i = y * pw + x;
+      if (piece.alpha[i * 4 + 3] < 128) continue;
+      const edge = Math.abs(piece.gray[i] - piece.gray[i - 1]) + Math.abs(piece.gray[i] - piece.gray[i - pw]);
+      if (edge > 18) { px.push(x); py.push(y); }
     }
   }
   if (px.length < 20) return {...base, error: 'piece-mask'};
@@ -517,25 +533,14 @@ const sliderProbe = (sliderSelector, bgSelector, pieceSelector) => {
   for (let k = 0; k < px.length; k++) { pdev[k] = piece.gray[py[k] * pw + px[k]] - mp; vp += pdev[k] * pdev[k]; }
   if (vp <= 1e-6) return {...base, error: 'piece-flat'};
 
-  const I1 = new Float64Array((W + 1) * (H + 1));
-  const I2 = new Float64Array((W + 1) * (H + 1));
-  for (let y = 0; y < H; y++) {
-    let r1 = 0, r2 = 0;
-    for (let x = 0; x < W; x++) {
-      const v = bg.gray[y * W + x];
-      r1 += v; r2 += v * v;
-      I1[(y + 1) * (W + 1) + (x + 1)] = I1[y * (W + 1) + (x + 1)] + r1;
-      I2[(y + 1) * (W + 1) + (x + 1)] = I2[y * (W + 1) + (x + 1)] + r2;
-    }
-  }
   const scoreAt = (dx, dy) => {
     if (dx < 0 || dy < 0 || dx + pw > W || dy + ph > H) return -2;
-    const x2 = dx + pw, y2 = dy + ph;
-    const a = I1[y2 * (W + 1) + x2] - I1[dy * (W + 1) + x2] - I1[y2 * (W + 1) + dx] + I1[dy * (W + 1) + dx];
-    const mb = a / px.length;
+    let mean = 0;
+    for (let k = 0; k < px.length; k++) mean += bg.gray[(dy + py[k]) * W + dx + px[k]];
+    mean /= px.length;
     let num = 0, vb = 0;
     for (let k = 0; k < px.length; k++) {
-      const bv = bg.gray[(dy + py[k]) * W + (dx + px[k])] - mb;
+      const bv = bg.gray[(dy + py[k]) * W + dx + px[k]] - mean;
       num += pdev[k] * bv;
       vb += bv * bv;
     }
@@ -559,8 +564,22 @@ const sliderProbe = (sliderSelector, bgSelector, pieceSelector) => {
       if (s > refined.score) refined = {dx, dy, score: s};
     }
   }
+  // Compare separated peaks, not adjacent pixels around the same best alignment.
+  let second = -2;
+  for (let dx = 0; dx + pw <= W; dx += 2) {
+    if (Math.abs(dx - refined.dx) < Math.max(8, Math.floor(pw / 3))) continue;
+    const s = scoreAt(dx, refined.dy);
+    if (s > second) second = s;
+  }
+  const margin = refined.score - second;
   const scale = bgRect.width / W;
-  return {...base, dxImg: refined.dx, dyImg: refined.dy, score: Math.round(refined.score * 1000) / 1000, dxCss: Math.round(refined.dx * scale)};
+  const match = {dxImg: refined.dx, dyImg: refined.dy, score: Math.round(refined.score * 1000) / 1000,
+    secondScore: Math.round(second * 1000) / 1000, margin: Math.round(margin * 1000) / 1000};
+  if (refined.score < 0.65 || margin < 0.08) return {...base, ...match, error: 'ambiguous-match'};
+  // Image x is an absolute offset within the background; the foreground may start elsewhere.
+  const imageTarget = bgRect.left + refined.dx * scale;
+  const imageStart = rectOf(pieceEl).left;
+  return {...base, ...match, dxCss: Math.round(imageTarget - imageStart), imageTarget};
 };
 
 const runSolveSliderTool = async (tabId, input = {}) => {
@@ -573,14 +592,16 @@ const runSolveSliderTool = async (tabId, input = {}) => {
   const checkUrlContains = typeof input.checkUrlContains === 'string' && input.checkUrlContains ? input.checkUrlContains : '';
   const waitCheckMs = Math.max(500, Math.min(5000, Number(input.checkWaitMs) || 3000));
   let last = null;
-  let adjust = 0;
+  let movementRatio = 1;
   const verdictOf = (check) => {
-    if (!check || !check.body) return 'unknown';
-    const b = String(check.body);
-    if (/"(success|verified|passed|valid|result)"\s*:\s*(true|0)/i.test(b)) return 'passed';
-    if (/"code"\s*:\s*0/.test(b)) return 'passed';
-    if (/fail|reject|invalid|wrong|mismatch|error/i.test(b)) return 'rejected';
-    return 'unknown';
+    if (!check || check.status < 200 || check.status >= 300 || !check.body) return 'unknown';
+    let value;
+    try { value = JSON.parse(check.body); } catch { return 'unknown'; }
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return 'unknown';
+    const states = [value, value.data].filter((item) => item && typeof item === 'object' && !Array.isArray(item));
+    const flags = states.flatMap((item) => ['success', 'verified', 'passed', 'valid'].filter((key) => typeof item[key] === 'boolean').map((key) => item[key]));
+    if (flags.includes(false)) return 'rejected';
+    return flags.includes(true) ? 'passed' : 'unknown';
   };
   const watchCheck = (id) => {
     if (!checkUrlContains) return null;
@@ -610,61 +631,66 @@ const runSolveSliderTool = async (tabId, input = {}) => {
   };
   try {
     while (Date.now() < deadline && attempts.length < maxAttempts) {
-      const [{result}] = await chrome.scripting.executeScript({
-        target: {tabId},
-        func: sliderProbe,
-        args: [input.sliderSelector || null, input.bgSelector || null, input.pieceSelector || null],
-      });
+      const selectors = [input.sliderSelector || null, input.bgSelector || null, input.pieceSelector || null];
+      const [{result}] = await chrome.scripting.executeScript({target: {tabId}, func: sliderProbe, args: selectors});
       const probe = result || {};
       last = probe;
-      if (probe.state && probe.state !== 'pending') {
-        return {ok: true, status: 'solved', state: probe.state, attempts, confidence: 1, note: '观察到控件消失或出现通过态'};
+      if (probe.state === 'success') {
+        return {ok: true, status: 'solved', state: 'success', attempts, confidence: 1};
       }
-      if (probe.error) return {ok: false, status: 'unsupported', error: probe.error, requiresUser: true, attempts, note: '题型不是竖条对齐缺口或缺口无法定位，需人工处理'};
-      const hr = probe.handleRect || probe.pieceRect;
-      if (!hr || typeof probe.dxCss !== 'number') {
-        return {ok: false, status: 'unsupported', error: probe.error || 'no-handle', requiresUser: true, attempts};
+      if (probe.error) return {ok: false, status: 'unsupported', error: probe.error, requiresUser: true, attempts};
+      // Never drag the image itself: it may be a passive overlay above the actual thumb.
+      const hr = probe.handleRect;
+      if (!hr || !Number.isFinite(probe.dxCss)) {
+        return {ok: false, status: 'unsupported', error: 'no-handle', requiresUser: true, attempts};
       }
       const fromX = hr.cx;
       const fromY = hr.cy;
-      const dx = probe.dxCss + adjust;
+      const dx = Math.round(probe.dxCss / movementRatio);
       const toX = fromX + dx;
-      const attempt = {round: attempts.length + 1, dx, adjust, dxImg: probe.dxImg, score: probe.score, fromX, toX};
+      const attempt = {round: attempts.length + 1, dx, movementRatio, dxImg: probe.dxImg,
+        score: probe.score, margin: probe.margin, fromX, toX};
       const watcher = watchCheck(tabId);
       try {
         if (watcher) await withDebugger(tabId, () => chrome.debugger.sendCommand({tabId}, 'Network.enable', {}));
-        await cdpDrag(tabId, fromX, fromY, toX, fromY, hz);
+        await cdpDrag(tabId, fromX, fromY, toX, fromY, {...hz, onBeforeRelease: async () => {
+          // Measure while the mouse is still held: rejected sliders snap back on release.
+          const [{result: held}] = await chrome.scripting.executeScript({
+            target: {tabId}, func: sliderProbe, args: [...selectors, true],
+          });
+          if (!held?.handleRect || !held?.pieceRect || !probe.pieceRect) return;
+          const handleMoved = held.handleRect.left - hr.left;
+          const pieceMoved = held.pieceRect.left - probe.pieceRect.left;
+          attempt.handleMoved = Math.round(handleMoved * 10) / 10;
+          attempt.pieceMoved = Math.round(pieceMoved * 10) / 10;
+          if (Math.abs(handleMoved) > 3 && Math.abs(pieceMoved) > 3 && handleMoved * pieceMoved > 0) {
+            const ratio = pieceMoved / dx;
+            if (ratio >= 0.4 && ratio <= 2) {
+              movementRatio = ratio;
+              attempt.calibratedRatio = Math.round(ratio * 1000) / 1000;
+            }
+          }
+        }});
         if (watcher) attempt.check = await readCheck(tabId, watcher);
       } finally {
         if (watcher) watcher.stop();
       }
-      if (attempt.check && attempt.check.verdict === 'passed') {
-        return {ok: true, status: 'solved', state: 'server-passed', attempts, confidence: 1, note: 'check 接口响应体判定通过'};
-      }
-      if (attempt.check && attempt.check.verdict === 'rejected') attempt.serverRejected = true;
       await new Promise((r) => setTimeout(r, 500));
       const [{result: after}] = await chrome.scripting.executeScript({
-        target: {tabId},
-        func: sliderProbe,
-        args: [input.sliderSelector || null, input.bgSelector || null, input.pieceSelector || null],
+        target: {tabId}, func: sliderProbe, args: [...selectors, true],
       });
       attempt.state = after?.state || 'unknown';
-      if (after?.handleRect && probe.bgRect && after.state === 'pending') {
-        const target = probe.bgRect.left + probe.dxCss;
-        const actual = after.handleRect.left;
-        const moved = Math.abs(actual - hr.left);
-        attempt.targetLeft = Math.round(target * 10) / 10;
-        attempt.actualLeft = Math.round(actual * 10) / 10;
-        attempt.moved = Math.round(moved * 10) / 10;
-        if (moved > 3) {
-          const delta = Math.max(-20, Math.min(20, (target - actual) * 0.6));
-          if (delta) adjust = Math.max(-40, Math.min(40, adjust + delta));
-          attempt.nextAdjust = Math.round(adjust * 10) / 10;
-        }
-      }
+      attempt.serverRejected = attempt.check?.verdict === 'rejected';
       attempts.push(attempt);
-      if (attempt.state === 'success' || attempt.state === 'gone' || attempt.state === 'atRight') {
-        return {ok: true, status: 'solved', state: attempt.state, attempts, confidence: Math.max(0, Math.min(1, (probe.score || 0) / 0.6)), note: '拖动后控件消失或进入通过态'};
+      if (attempt.check?.verdict === 'passed' && !attempt.serverRejected) {
+        return {ok: true, status: 'solved', state: 'server-passed', attempts, confidence: 1};
+      }
+      if (attempt.state === 'success' && !attempt.serverRejected) {
+        return {ok: true, status: 'solved', state: 'success', attempts, confidence: 1};
+      }
+      // A removed/replaced image is not proof of success. Do not calibrate from a new puzzle.
+      if (attempt.state === 'gone' && !attempt.serverRejected) {
+        return {ok: false, status: 'unknown', requiresUser: true, attempts, error: '控件消失，但未取得明确通过证据'};
       }
     }
     return {ok: false, status: 'failed', attempts, requiresUser: true, error: `重试 ${attempts.length} 轮仍未通过`, last: last ? {dxCss: last.dxCss, score: last.score} : null};

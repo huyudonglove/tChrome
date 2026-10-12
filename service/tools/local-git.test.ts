@@ -177,6 +177,9 @@ test("local_apply_patch leaves all files unchanged when one hunk fails", async (
       reason: "test failed patch",
     });
     expect(result).toMatchObject({ ok: false, faultCode: "local_git_failed" });
+    if (!("message" in result)) throw new Error("expected patch failure message");
+    expect(result.message).toContain("patch does not apply");
+    expect(result.message).toContain("补丁上下文不匹配");
     expect(readFileSync(join(dir, "first.txt"), "utf8")).toBe("first\n");
     expect(readFileSync(join(dir, "second.txt"), "utf8")).toBe("second\n");
   } finally {
@@ -189,13 +192,27 @@ test("local_apply_patch rejects malformed patches without changing files", async
   try {
     execFileSync("git", ["init", "-b", "main"], { cwd: dir });
     writeFileSync(join(dir, "file.txt"), "original\n");
-    for (const patch of ["", "not a diff\n"]) {
+    for (const patch of ["", "not a diff\n", [
+      "diff --git a/file.txt b/file.txt",
+      "--- a/file.txt",
+      "+++ b/file.txt",
+      "@@",
+      "-original",
+      "+changed",
+      "",
+    ].join("\n")]) {
       const result = await runLocalGitTool("local_apply_patch", {
         path: dir,
         patch,
         reason: "test invalid patch",
       });
       expect(result).toMatchObject({ ok: false, faultCode: "local_git_failed" });
+      if (!("message" in result)) throw new Error("expected patch failure message");
+      if (patch.includes("@@")) {
+        expect(result.message).toContain("patch with only garbage");
+        expect(result.message).toContain("补丁格式无效");
+        expect(result.message).toContain("不要使用裸 @@");
+      }
       expect(readFileSync(join(dir, "file.txt"), "utf8")).toBe("original\n");
     }
   } finally {
