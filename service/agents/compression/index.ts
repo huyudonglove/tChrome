@@ -12,21 +12,45 @@ export type CompressProgress =
   | { type: "batch"; completed: number; total: number; loopIds: string[] }
   | { type: "fold"; merged: number; level: number; loopIds: number }
   | { type: "stopped"; completed: number; total: number; failedLoopIds?: string[] };
+/** Extra in-place attempts after a batch fails on an intermittent malformed submission. */
+const RETRY_ATTEMPTS = 3;
 const running = new Map<string, { isCancelled?: () => boolean }>();
 function asLoop(source: SourceRecord): LoopRecord {
   const loop = source.content as LoopRecord;
   if (!loop || loop.id !== source.id || !Array.isArray(loop.runtime)) throw new Error("Invalid compression loop source");
   return loop;
 }
-/** User inputs and interruptions start partitions. An unanchored span is split into two batches. */
+/** Request one batch's summaries, retrying the same batch in place up to RETRY_ATTEMPTS more
+ * times when the subagent intermittently mangles the tool arguments. Nothing is committed before
+ * a retry succeeds, so the covered set stays a contiguous prefix whether the batch recovers or
+ * finally stops at the first still-failing batch. */
+async function requestBatchWithRetry(input: Input, sources: SourceRecord[]) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= RETRY_ATTEMPTS; attempt++) {
+    if (input.isCancelled?.()) throw new Error("Compression cancelled");
+    try { return await requestLoopSummaries({ ...input, loops: sources.map(asLoop) }); }
+    catch (error) {
+      if (input.isCancelled?.() || (error instanceof Error && /cancel/i.test(error.message))) throw error;
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+/** User inputs and interruptions start partitions. An unanchored span is split into two batches,
+ * and any span wider than the per-batch cap is chunked further so one request never carries too
+ * many loops. Chunking only changes batch granularity; it never reorders the covered loops. */
 export function partitionLoops(records: SourceRecord[]): SourceRecord[][] {
   const batches: SourceRecord[][] = [];
+  const cap = runtimeConfig.context.compressionBatchMaxLoops;
   let current: SourceRecord[] = [];
   let anchored = false;
+  const pushSpan = (span: SourceRecord[]) => {
+    for (let start = 0; start < span.length; start += cap) batches.push(span.slice(start, start + cap));
+  };
   const flush = () => {
     if (!current.length) return;
-    if (anchored || current.length === 1) batches.push(current);
-    else { const middle = Math.ceil(current.length / 2); batches.push(current.slice(0, middle), current.slice(middle)); }
+    if (anchored || current.length === 1) pushSpan(current);
+    else { const middle = Math.ceil(current.length / 2); pushSpan(current.slice(0, middle)); pushSpan(current.slice(middle)); }
     current = [];
   };
   for (const record of records) {
@@ -68,7 +92,7 @@ async function compress(input: Input): Promise<CompressOutcome> {
     check();
     const loopIds = sources.map(source => source.id);
     let summaries;
-    try { summaries = await requestLoopSummaries({ ...input, loops: sources.map(asLoop) }); }
+    try { summaries = await requestBatchWithRetry(input, sources); }
     catch (error) {
       if (input.isCancelled?.() || (error instanceof Error && /cancel/i.test(error.message))) throw error;
       input.onProgress?.({ type: "stopped", completed, total: batches.length, failedLoopIds: loopIds });

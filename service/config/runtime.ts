@@ -100,6 +100,8 @@ const context = {
   foldHigherChunk: resolveGate("foldHigherChunk"),
   foldMaxLevel: resolveGate("foldMaxLevel"),
   keepLoops: resolveGate("keepLoops"),
+  // Upper bound on how many loops a single compression batch (one model request) may carry.
+  compressionBatchMaxLoops: resolveGate("compressionBatchMaxLoops"),
   // How many dynamic skills the System-side catalog lists by default; the rest stay
   // reachable through skill_list (which pages over the full set).
   skillCatalogLimit: resolveGate("skillCatalogLimit"),

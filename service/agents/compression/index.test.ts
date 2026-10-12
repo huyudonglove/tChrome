@@ -5,6 +5,7 @@ import { compressRecords, partitionLoops } from "./index.ts";
 import { loop, model, repoRoot } from "./test-fixtures.ts";
 import { loadIndex, resolveSources } from "../../context-archive/store.ts";
 import { compressionLoopsFromUserMessage } from "./protocol.ts";
+import { runtimeConfig } from "../../config/runtime.ts";
 const dirs: string[] = [];
 afterEach(() => dirs.splice(0).forEach(dir => rmSync(dir, { recursive: true, force: true })));
 const source = (id: string, type?: "userInput" | "interrupt") => ({ id, content: loop(id, type) });
@@ -13,6 +14,13 @@ test("boundaries partition by user input and interrupt; unanchored prefix splits
  const records = [source("loop_01"), source("loop_02"), source("loop_03"), source("loop_04", "userInput"), source("loop_05"), source("loop_06", "interrupt")];
  expect(partitionLoops(records).map(rows => rows.map(row => row.id))).toEqual([["loop_01", "loop_02"], ["loop_03"], ["loop_04", "loop_05"], ["loop_06"]]);
  expect(partitionLoops([source("loop_01")])).toHaveLength(1);
+});
+test("a span wider than the per-batch cap is chunked without reordering", () => {
+ const cap = runtimeConfig.context.compressionBatchMaxLoops;
+ const records = Array.from({ length: cap + 2 }, (_, i) => source(`loop_${String(i + 1).padStart(2, "0")}`, i === 0 ? "userInput" : undefined));
+ const batches = partitionLoops(records).map(rows => rows.map(row => row.id));
+ expect(batches.map(rows => rows.length)).toEqual([cap, 2]);
+ expect(batches.flat()).toEqual(records.map(row => row.id));
 });
 test("unanchored loops sent as two complete batches with exact archive provenance", async () => {
  const input = setup(), requests: string[][] = [];
@@ -31,11 +39,19 @@ test("multiple valid summaries cover the whole batch atomically", async () => {
  expect(index.entries).toHaveLength(3);
  expect(index.entries.every(row => JSON.stringify(row.loopIds) === '["loop_01","loop_02"]')).toBe(true);
 });
-test("failure stops later batches without covering failed sources or retrying format", async () => {
+test("a malformed batch is retried in place and the walk continues when the retry is valid", async () => {
  const input = setup(); let calls = 0;
  const good = model();
  const outcome = await compressRecords({ ...input, records: [source("loop_01", "userInput"), source("loop_02", "interrupt"), source("loop_03", "userInput")], provider: { async complete(request) { calls++; const response = await good.complete(request); if (calls === 2) response.toolCalls[0]!.arguments = { userRequest: "invalid" }; return response; } } });
- expect(calls).toBe(2);
+ expect(calls).toBe(4);
+ expect(outcome).toMatchObject({ status: "completed", committedLoopIds: ["loop_01", "loop_02", "loop_03"] });
+ expect(loadIndex(input.dataDir, input.conversationId, input.module).coveredSourceIds).toEqual(["loop_01", "loop_02", "loop_03"]);
+});
+test("a batch that keeps failing stops the walk at the first still-failing batch", async () => {
+ const input = setup(); let calls = 0;
+ const good = model();
+ const outcome = await compressRecords({ ...input, records: [source("loop_01", "userInput"), source("loop_02", "interrupt"), source("loop_03", "userInput")], provider: { async complete(request) { calls++; if (calls >= 2) throw new Error("offline"); return good.complete(request); } } });
+ expect(calls).toBe(5);
  expect(outcome).toMatchObject({ status: "stopped", committedLoopIds: ["loop_01"], failedLoopIds: ["loop_02"] });
  expect(loadIndex(input.dataDir, input.conversationId, input.module).coveredSourceIds).toEqual(["loop_01"]);
 });
@@ -53,7 +69,7 @@ test("a partially committed walk resumes uncovered sources and retains source or
  const input = setup(), records = [source("loop_01", "userInput"), source("loop_02", "interrupt"), source("loop_03")];
  let calls = 0;
  const good = model();
- await compressRecords({ ...input, records, provider: { async complete(request) { if (++calls === 2) throw new Error("offline"); return good.complete(request); } } });
+ await compressRecords({ ...input, records, provider: { async complete(request) { if (++calls >= 2 && calls <= 5) throw new Error("offline"); return good.complete(request); } } });
  const sent: string[][] = [];
  const result = await compressRecords({ ...input, records, provider: model(request => sent.push(compressionLoopsFromUserMessage(request.messages[1]!.content).map(row => row.id))) });
  expect(result.committedLoopIds).toEqual(["loop_02", "loop_03"]);

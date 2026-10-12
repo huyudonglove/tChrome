@@ -104,6 +104,9 @@
     },
     "keepLoops": {
       "fixed": 1
+    },
+    "compressionBatchMaxLoops": {
+      "fixed": 20
     }
   }
 }
