@@ -9,6 +9,8 @@ import type { CompressionRecord } from "../../context-archive/types.ts";
 import type { Provider } from "../../types.ts";
 
 const repoRoot = join(import.meta.dir, "../../..");
+// Per-level fold gates: recent levels hold more rows, older levels fold sooner.
+const foldGate = (level: number) => runtimeConfig.context.summaryFoldMinRowsByLevel[level - 1]!;
 const dirs: string[] = [];
 const dir = () => { const d = mkdtempSync(join(tmpdir(), "tchrome-fold-")); dirs.push(d); return d; };
 afterEach(() => { for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true }); });
@@ -43,7 +45,7 @@ const l1 = (id: string, loopId: string, minute: number): CompressionRecord => ({
 test("cross-loop fold keeps the newest loop and rolls older L1s into L2 spans", async () => {
   const dataDir = dir();
   const conversationId = "cv_fold";
-  const pad = runtimeConfig.context.summaryFoldMinRows + 5;
+  const pad = foldGate(1) + 5;
   const rows: CompressionRecord[] = [];
   for (let i = 1; i <= pad; i++) rows.push(l1(`sum_pad_${i}`, `loop_${String(i).padStart(2, "0")}`, i));
   const protect = l1("sum_live", "loop_live", 99);
@@ -80,7 +82,7 @@ test("cross-loop fold keeps the newest loop and rolls older L1s into L2 spans", 
 test("fold is a no-op while a level stays at or below the per-level gate", async () => {
   const dataDir = dir();
   const conversationId = "cv_small";
-  const gate = runtimeConfig.context.summaryFoldMinRows;
+  const gate = foldGate(1);
   // Exactly gate rows: "more than" the gate is required, so nothing upgrades.
   const rows: CompressionRecord[] = [];
   for (let i = 1; i <= gate; i++) rows.push(l1(`sum_a_${i}`, `loop_${String(i).padStart(2, "0")}`, i));
@@ -99,7 +101,7 @@ test("fold is a no-op while a level stays at or below the per-level gate", async
 test("fold upgrades a level once it exceeds the per-level gate", async () => {
   const dataDir = dir();
   const conversationId = "cv_over_gate";
-  const gate = runtimeConfig.context.summaryFoldMinRows;
+  const gate = foldGate(1);
   const rows: CompressionRecord[] = [];
   for (let i = 1; i <= gate + 1; i++) rows.push(l1(`sum_b_${i}`, `loop_${String(i).padStart(2, "0")}`, i));
   commitArchive(dataDir, conversationId, {
@@ -120,7 +122,7 @@ test("fold upgrades a level once it exceeds the per-level gate", async () => {
 test("same-loop L1+L1 stays L1; cross-loop L1 becomes L2", async () => {
   const dataDir = dir();
   const conversationId = "cv_rules";
-  const pad = runtimeConfig.context.summaryFoldMinRows + 5;
+  const pad = foldGate(1) + 5;
   const rows: CompressionRecord[] = [];
   for (let i = 1; i <= pad; i++) rows.push(l1(`sum_pad_${i}`, `loop_${String(i).padStart(2, "0")}`, i));
   // Two extra L1s on one turn: same-ID merge must stay L1.
@@ -153,7 +155,7 @@ test("same-loop L1+L1 stays L1; cross-loop L1 becomes L2", async () => {
 test("L2 is not terminal: enough L2 rows upgrade one of them to L3", async () => {
   const dataDir = dir();
   const conversationId = "cv_l3";
-  const gate = runtimeConfig.context.summaryFoldMinRows;
+  const gate = foldGate(2);
   const rows: CompressionRecord[] = [];
   for (let i = 1; i <= gate + 1; i++) {
     rows.push({
@@ -179,7 +181,7 @@ test("L2 is not terminal: enough L2 rows upgrade one of them to L3", async () =>
 
 test("multiple L1 summaries spanning the same batch advance to L2 when folded", async () => {
   const dataDir = dir(), conversationId = "cv_batch_fold";
-  const rows = Array.from({ length: runtimeConfig.context.summaryFoldMinRows + 1 }, (_, i) => ({
+  const rows = Array.from({ length: foldGate(1) + 1 }, (_, i) => ({
     ...l1(`sum_${i + 1}`, "loop_01", i), loopIds: ["loop_01", "loop_02"],
   }));
   commitArchive(dataDir, conversationId, { version: 1, module: "conversationHistory", entries: rows,

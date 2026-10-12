@@ -79,7 +79,7 @@ test("a partially committed walk resumes uncovered sources and retains source or
 });
 test("folded summaries preserve every original loop ID and resolve complete source history", async () => {
  const input = setup();
- const records = Array.from({ length: 24 }, (_, i) => source(`loop_${String(i + 1).padStart(2, "0")}`, "userInput"));
+ const records = Array.from({ length: runtimeConfig.context.summaryFoldMinRowsByLevel[0]! + 4 }, (_, i) => source(`loop_${String(i + 1).padStart(2, "0")}`, "userInput"));
  await compressRecords({ ...input, records, provider: model() });
  const index = loadIndex(input.dataDir, input.conversationId, input.module);
  const active = index.activeIds.map(id => index.entries.find(row => row.id === id)!);

@@ -136,8 +136,9 @@ export async function foldActiveSummaries(input: Input & { protectLoopId: string
     merged++;
     input.onProgress?.({ type: "fold", merged, level, loopIds: loopIds.length });
   };
-  const threshold = runtimeConfig.context.summaryFoldMinRows;
-  if (entries().filter(row => row.level === 1).length > threshold) {
+  const minRows = runtimeConfig.context.summaryFoldMinRowsByLevel;
+  const gate = (level: number) => minRows[Math.min(level, minRows.length) - 1]!;
+  if (entries().filter(row => row.level === 1).length > gate(1)) {
     const groups = new Map<string, CompressionRecord[]>();
     for (const row of entries().filter(row => row.level === 1 && row.loopIds.length === 1 && eligible(row))) {
       const key = JSON.stringify(row.loopIds);
@@ -147,7 +148,7 @@ export async function foldActiveSummaries(input: Input & { protectLoopId: string
   }
   for (let level = 1; level < runtimeConfig.context.foldMaxLevel; level++) {
     const rows = entries().filter(row => row.level === level && eligible(row)).sort(byTime);
-    if (rows.length <= threshold) continue;
+    if (rows.length <= gate(level)) continue;
     const chunk = level === 1 ? runtimeConfig.context.foldL1ToL2Chunk : runtimeConfig.context.foldHigherChunk;
     const candidates = rows.slice(0, -1);
     for (let start = 0; start < candidates.length; start += chunk) await fold(candidates.slice(start, start + chunk), level + 1);

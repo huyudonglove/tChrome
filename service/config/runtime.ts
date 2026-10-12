@@ -93,8 +93,16 @@ const context = {
   memoryBudgetChars: resolveGate("memoryBudgetChars"),
   hardLimitChars: resolveGate("hardLimitChars"),
   summaryRecompressMinActive: resolveGate("summaryRecompressMinActive"),
-  // A summary level only folds into the next one once it holds more than this many rows.
-  summaryFoldMinRows: resolveGate("summaryFoldMinRows"),
+  // A summary level only folds into the next one once it holds more than its own gate.
+  // Decreasing by depth: recent levels may accumulate more rows, older levels fold sooner.
+  summaryFoldMinRowsByLevel: [
+    resolveGate("summaryFoldMinRowsL1"),
+    resolveGate("summaryFoldMinRowsL2"),
+    resolveGate("summaryFoldMinRowsL3"),
+    resolveGate("summaryFoldMinRowsL4"),
+    resolveGate("summaryFoldMinRowsL5"),
+    resolveGate("summaryFoldMinRowsL6"),
+  ],
   // Rows folded per model call (L1→L2, and each higher level), and the level ceiling.
   foldL1ToL2Chunk: resolveGate("foldL1ToL2Chunk"),
   foldHigherChunk: resolveGate("foldHigherChunk"),

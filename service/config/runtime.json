@@ -48,8 +48,23 @@
     "summaryRecompressMinActive": {
       "fixed": 10
     },
-    "summaryFoldMinRows": {
+    "summaryFoldMinRowsL1": {
+      "fixed": 30
+    },
+    "summaryFoldMinRowsL2": {
       "fixed": 20
+    },
+    "summaryFoldMinRowsL3": {
+      "fixed": 15
+    },
+    "summaryFoldMinRowsL4": {
+      "fixed": 10
+    },
+    "summaryFoldMinRowsL5": {
+      "fixed": 10
+    },
+    "summaryFoldMinRowsL6": {
+      "fixed": 10
     },
     "foldL1ToL2Chunk": {
       "fixed": 10

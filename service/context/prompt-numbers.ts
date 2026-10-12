@@ -6,7 +6,7 @@ export function promptNumberSlots(): Record<string, string> {
   return {
     compressAt: String(ctx.compressAtChars),
     hardLimitChars: String(ctx.hardLimitChars),
-    summaryFoldMin: String(ctx.summaryFoldMinRows),
+    summaryFoldMin: ctx.summaryFoldMinRowsByLevel.join("/"),
     skillCatalogLimit: String(ctx.skillCatalogLimit),
     readOnlyPrompt: String(ctx.readOnlyPrompt),
     readOnlySecond: String(ctx.readOnlySecond),
