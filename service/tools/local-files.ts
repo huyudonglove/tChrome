@@ -315,7 +315,7 @@ export async function runLocalFileTool(name: string, input: Record<string, unkno
         const maxFileBytes = integer(input, "maxFileBytes", 1048576, 1, 1048576);
         const maxEntries = integer(input, "maxEntries", 10000, 1, 100000);
         const contextChars = integer(input, "contextChars", 80, 0, 200);
-        const contextLines = integer(input, "contextLines", 0, 0, 20);
+        const contextLines = integer(input, "contextLines", 0, 0, 50);
         const rootStat = await lstat(path);
         const singleFile = rootStat.isFile() ? path : null;
         if (!singleFile && !rootStat.isDirectory()) throw new Error("path must be a directory or a regular file, not a symlink or special file; pass the containing directory to search a whole tree, or a single file path to search only that file");

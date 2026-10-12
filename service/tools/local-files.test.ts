@@ -265,6 +265,23 @@ test("grep supports regex mode and multi-line context extraction", async () => {
   expect((literal.matches as unknown[]).length).toBe(0);
 });
 
+test("grep accepts the widened contextLines bound and rejects beyond it", async () => {
+  const dir = join(root, "grepb");
+  await mkdir(dir);
+  const file = join(dir, "wide.txt");
+  await writeFile(file, ["L20 a", "L21 b", "L22 hit", "L23 c", "L24 d"].join("\n"));
+
+  const wide = await run("local_fs_grep", { path: dir, query: "hit", contextLines: 50 });
+  expect(wide).toMatchObject({ ok: true });
+  expect(wide.matches).toMatchObject([
+    { path: file, line: 3, beforeLines: ["L20 a", "L21 b"], afterLines: ["L23 c", "L24 d"] },
+  ]);
+
+  const over = await run("local_fs_grep", { path: dir, query: "hit", contextLines: 51 });
+  expect(over).toMatchObject({ ok: false });
+  expect(String(over.error)).toContain("contextLines");
+});
+
 test("grep regex anchors line starts on non-first lines", async () => {
   const dir = join(root, "grepa");
   await mkdir(dir);
