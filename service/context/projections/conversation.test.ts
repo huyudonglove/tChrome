@@ -116,7 +116,8 @@ test("helm default fields stay out of the window while diagnostics still render"
   const ledger = emptyLedger("cv_01");
   ledger.loops = [
     { ...loop(1), helm: { finish: "tool_calls", id: "helm_01", content: "", calls: [], parseOk: true, schemaOk: true, faultCode: null, missing: [] } },
-    { ...loop(2), helm: { finish: "error", id: "helm_02", content: "请求失败", calls: [], parseOk: false, schemaOk: false, faultCode: "provider_error", missing: ["calls"] } },
+    // 用非 provider_ 的异常：provider 传输/协议失败的 loop 已整体不进窗口（另见下方专门用例）。
+    { ...loop(2), helm: { finish: "error", id: "helm_02", content: "请求失败", calls: [], parseOk: false, schemaOk: false, faultCode: "invalid_arguments", missing: ["calls"] } },
   ];
   const xml = conversationXml(project(ledger));
   const defaults = xml.slice(xml.indexOf('<helm id="helm_01">'), xml.indexOf('<helm id="helm_02">'));
@@ -126,7 +127,7 @@ test("helm default fields stay out of the window while diagnostics still render"
   expect(defaults).not.toContain("faultCode");
   expect(defaults).not.toContain("missing");
   expect(xml).toContain('"finish":"error"');
-  expect(xml).toContain('"faultCode":"provider_error"');
+  expect(xml).toContain('"faultCode":"invalid_arguments"');
   expect(xml).toContain('"parseOk":false');
   expect(xml).toContain('"schemaOk":false');
   expect(xml).toContain('"missing":["calls"]');
@@ -163,4 +164,20 @@ test("the summaries block carries a persistent compression marker", () => {
   expect(withSummary).toContain("已压缩为摘要");
   const withoutSummary = conversationXml(project(ledger));
   expect(withoutSummary).not.toContain("<summaries");
+});
+
+test("provider transport failures stay out of the window while tool failures still render", () => {
+  const ledger = emptyLedger("cv_01");
+  ledger.loops = [
+    { ...loop(1), helm: { finish: "error", id: "helm_01", content: "", calls: [], parseOk: false, schemaOk: false, faultCode: "provider_invalid_response", missing: ["calls"] } },
+    { ...loop(2), helm: { finish: "error", id: "helm_02", content: "bad args", calls: [], parseOk: true, schemaOk: false, faultCode: "invalid_arguments", missing: [] } },
+  ];
+  const xml = conversationXml(project(ledger));
+  // provider_ 前缀的传输/协议失败整体不进窗口。
+  expect(xml).not.toContain("provider_invalid_response");
+  expect(xml).not.toContain('id="loop_1"');
+  // 模型可自纠的失败仍完整渲染，诊断线索不丢。
+  expect(xml).toContain("invalid_arguments");
+  expect(xml).toContain("bad args");
+  expect(ledger.loops).toHaveLength(2);
 });

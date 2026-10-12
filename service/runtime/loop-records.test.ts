@@ -68,7 +68,7 @@ test("old conversation schema is rejected rather than normalized or migrated", (
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("closing reply and provider failure remain visible across later user inputs", async () => {
+test("closing reply stays visible while provider failures are filtered from later windows", async () => {
   const dir = mkdtempSync(join(tmpdir(), "loop-outcomes-"));
   const repoRoot = join(import.meta.dir, "../..");
   try {
@@ -81,7 +81,7 @@ test("closing reply and provider failure remain visible across later user inputs
     } } }, { userInput: "继续检查", submittedAt: "now", conversationId: first.conversationId });
     const reply = await handleTurn({ dataDir: dir, repoRoot, provider: { complete: async input => {
       expect(input.messages[1]!.content).toContain("修复已完成，未重启");
-      expect(input.messages[1]!.content).toContain("upstream HTTP 503");
+      expect(input.messages[1]!.content).not.toContain("upstream HTTP 503");
       return response("已恢复");
     } } }, { userInput: "重试", submittedAt: "now", conversationId: first.conversationId });
     expect(reply.stopReason).toEqual({ kind: "reply", text: "已恢复" });

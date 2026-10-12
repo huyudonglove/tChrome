@@ -19,6 +19,10 @@ const writeBodyKeys: Record<string, string[]> = {
   local_replace_block: ["search", "replace"],
 };
 
+/** provider 传输/协议失败：finish=error 且 faultCode 以 provider_ 开头。仅这类 loop 不进窗口。 */
+const isProviderFailure = (helm?: HelmRecord): boolean =>
+  helm?.finish === "error" && typeof helm.faultCode === "string" && helm.faultCode.startsWith("provider_");
+
 export function conversationPayload(input: {
   ledger: Ledger;
   memories: { conversation: MemoryRecord[] | string };
@@ -26,7 +30,9 @@ export function conversationPayload(input: {
   /** callId → 该调用写入的记忆编号：窗口里写入调用正文只留指针。 */
   memoryPointers?: Record<string, string[]>;
 }): ConversationPayload {
-  const loops = input.ledger.loops;
+  // provider 传输/协议失败（重试耗尽的空回包、超时、连接错误等）模型无能为力，渲染进窗口只是噪音：
+  // 这类 loop 整体不进窗口；模型可自纠的失败（工具参数/schema/缺字段）仍完整渲染。
+  const loops = input.ledger.loops.filter(loop => !isProviderFailure(loop.helm));
   // 只有执行完（callsResult 里出现过）的写盘调用才剥离正文，被打断的调用仍完整保留。
   const executedCallIds = new Set<string>();
   for (const loop of loops) for (const row of loop.runtime) {
@@ -76,6 +82,8 @@ const list = (name: string, value: unknown, id: string) => {
 /**
  * helm 记录的默认值不进窗口：正常态只剩 content 与 calls；finish 非 tool_calls、parseOk/schemaOk 为
  * false、有 faultCode/missing 时仍完整渲染，失败诊断线索不丢。落盘记录与查询侧不受影响。
+ * 例外：provider 传输/协议失败（faultCode 以 provider_ 开头）的 loop 在 conversationPayload 就被整体
+ * 排除，不会走到这里——这类失败模型无能为力，渲染进窗口只是噪音。
  */
 const helmView = (helm: HelmRecord) => ({
   ...(helm.content ? { content: helm.content } : {}),
