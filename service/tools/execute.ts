@@ -24,6 +24,17 @@ import { loadContextRecord } from "../runtime/records.ts";
 import { buildBlockIndex, expandBlock, readBlock, searchBlocks, type BlockIndex } from "../evidence/index.ts";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
+/** 内容类型友好呈现：整块就是一份 JSON 对象或数组时按缩进展开，避免取回原始工具结果时读到一长串转义文本。
+ *  decoded 的 fileContent 源保持逐字快照，只有原始结果信封（toolResult 或未标记的 JSON）才做可读化。 */
+const friendlyContent = (text: string, representation?: "fileContent" | "toolResult"): string => {
+  if (representation === "fileContent") return text;
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (parsed !== null && typeof parsed === "object") return JSON.stringify(parsed, null, 2);
+  } catch { /* 不是完整 JSON 的片段保持原文。 */ }
+  return text;
+};
+
 const retrieveEvidenceBlock = (index: BlockIndex, win: Record<string, unknown>, source: string, path: string): Record<string, unknown> => {
   if (win.keyword !== undefined) {
     const all = searchBlocks(index, win.keyword as string);
@@ -32,7 +43,7 @@ const retrieveEvidenceBlock = (index: BlockIndex, win: Record<string, unknown>, 
     let chars = 0;
     for (const hit of all.slice(offset)) {
       const block = readBlock(index, hit.blockId);
-      const full = block?.kind === "content" ? block.content : undefined;
+      const full = block?.kind === "content" ? friendlyContent(block.content, block.source.representation) : undefined;
       // 命中块整体放得下预算时直接带上完整正文，省掉「先看片段、再取一次」的第二趟；太大仍只给片段。
       const entry: Record<string, unknown> = full !== undefined && chars + JSON.stringify({ ...hit, content: full }).length <= retrievalWindowChars()
         ? { ...hit, content: full }
@@ -53,7 +64,7 @@ const retrieveEvidenceBlock = (index: BlockIndex, win: Record<string, unknown>, 
   const blockId = win.blockId === undefined ? index.rootId : win.blockId as string;
   const block = expandBlock(index, blockId);
   return block
-    ? { ok: true, path, ...block, ...(block.kind === "content" ? { location: block.source } : {}), source }
+    ? { ok: true, path, ...block, ...(block.kind === "content" ? { location: block.source, content: friendlyContent(block.content, block.source.representation) } : {}), source }
     : { ok: false, source, path, blockId, faultCode: "not_found", detail: "未找到原文块" };
 };
 

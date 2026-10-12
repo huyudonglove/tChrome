@@ -102,6 +102,15 @@ test("loop, runtime, helm and task IDs retrieve complete current-conversation re
   for (const mode of ["turns", "notes", "workspace"]) expect(runSessionQuery(dataDir, { mode }, "cv_01")).toMatchObject({ ok: false, faultCode: "invalid_mode" });
 });
 
+test("stored records come back as parsed values rather than JSON strings", () => {
+  const runtime = runSessionQuery(dataDir, { mode: "runtime", runtimeId: "rt_02" }, "cv_01") as {
+    items: { content: unknown }[];
+  };
+  // 台账里的 result 已由 recordToolResult 解析，查询直接回对象，不再多包一层 JSON 字符串。
+  expect(Array.isArray(runtime.items[0]!.content)).toBe(true);
+  expect(typeof runtime.items[0]!.content).not.toBe("string");
+});
+
 test("calls mode filters by loop, tool and keyword", () => {
   const byTurn = runSessionQuery(dataDir, { mode: "calls", loopId: "loop_01" }, "cv_01") as {
     matched: number;

@@ -50,6 +50,26 @@ test("content titles carry a preview and small keyword hits return full content"
   expect(match.content).toBe(full);
 }));
 
+test("JSON content blocks come back pretty-printed while decoded file sources stay verbatim", () => fixture(async dataDir => {
+  const payload = JSON.stringify({ ok: true, note: "needle", items: [1, 2, 3] });
+  saveFullReturn(dataDir, "cv_01", "call_01", payload);
+  saveReturnBlockIndex(dataDir, "cv_01", "call_01", buildBlockIndex(payload, { path: "payload.json" }));
+  const root = (await query(dataDir, [{ callId: "call_01" }])).results[0];
+  const blockId = root.kind === "content" ? root.blockId : root.children[0].blockId;
+  const row = (await query(dataDir, [{ callId: "call_01", blockId }])).results[0];
+  // 原始结果信封里的 JSON 缩进展开，取回时不再是转义成一整行的文本。
+  expect(row.content).toBe(JSON.stringify({ ok: true, note: "needle", items: [1, 2, 3] }, null, 2));
+  expect(row.content).toContain("\n");
+
+  const shell = JSON.stringify({ results: [{ path: "a.ts", content: "const needle = 1;\n" }], text: "a".repeat(400) });
+  saveFullReturn(dataDir, "cv_01", "call_02", shell);
+  saveReturnBlockIndex(dataDir, "cv_01", "call_02", buildBlockIndex(shell, { path: "shell.json" }));
+  const hit = (await query(dataDir, [{ callId: "call_02", keyword: "needle" }])).results[0].matches[0];
+  const fileBlock = (await query(dataDir, [{ callId: "call_02", blockId: hit.blockId }])).results[0];
+  // decoded 的 fileContent 源保持逐字快照，不做可读化改写。
+  expect(fileBlock.content).toBe("const needle = 1;\n");
+}));
+
 test("search returns block references whose complete text comes from the immutable snapshot", () => fixture(async dataDir => {
   const full = 'export function useful() { return "needle and full expression"; }\n';
   saveFullReturn(dataDir, "cv_01", "call_01", full);
