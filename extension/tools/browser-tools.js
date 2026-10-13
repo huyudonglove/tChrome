@@ -1239,13 +1239,23 @@ const runPageTool = async (name, input = {}) => {
             if (hits.length > 1 && payload.matchIndex === null && (payload.role || payload.name || payload.states)) {
               add(label, false, `ambiguous total=${hits.length}`);
             } else {
-              add(label, hits.length > 0, `count=${hits.length}${hits[0] ? ` states=${JSON.stringify(hits[0].states)}` : ''}`);
+              let detail = `count=${hits.length}${hits[0] ? ` states=${JSON.stringify(hits[0].states)}` : ''}`;
+              if (!hits.length && (payload.selector || id) && (payload.role || payload.name)) {
+                const candidates = payload.selector
+                  ? [...document.querySelectorAll(payload.selector)].filter((node) => !id || findElement(id)?.node === node || findRegion(id)?.node === node)
+                  : [findElement(id)?.node || findRegion(id)?.node].filter(Boolean);
+                const actual = candidates.slice(0, 3).map((node) => ({
+                  tag: node.tagName.toLowerCase(), role: roleOf(node), name: labelOf(node), states: statesOf(node),
+                }));
+                detail += `；组合定位要求 id/selector/role/name/states 同时匹配同一元素；id/selector 实际匹配 ${candidates.length} 个节点：${JSON.stringify(actual)}。若要检查不同控件，请拆成独立调用。`;
+              }
+              add(label, hits.length > 0, detail);
             }
           }
           const ok = checks.length > 0 && checks.every((row) => row.ok);
           return { ok, tool: toolName, url: location.href, title: document.title, checks,
             ...(ok ? {} : { faultCode: toolName === 'page_assert' ? 'assertion_failed' : 'recheck_failed',
-              error: '未满足：' + checks.filter((row) => !row.ok).map((row) => row.name).join(', ') }) };
+              error: '未满足：' + checks.filter((row) => !row.ok).map((row) => `${row.name} (${row.detail})`).join(', ') }) };
         }
         if (toolName === 'page_drag_to_id') {
           const src = findElement(payload.sourceId) || findRegion(payload.sourceId);

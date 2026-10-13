@@ -832,6 +832,11 @@ test("page_assert checks selector states on the matched DOM node", async () => {
     contains(node: unknown) { return node === this; }
   }
   const body = new AssertNode();
+  const button = new AssertNode("BUTTON");
+  button.innerText = "暂停动画";
+  const option = new AssertNode("OPTION");
+  option.innerText = "刚刚好";
+  option.selected = true;
   try {
     delete globals.__tChromePageIds;
     globals.Element = AssertNode;
@@ -844,7 +849,12 @@ test("page_assert checks selector states on the matched DOM node", async () => {
       body,
       title: "Example",
       querySelector: () => null,
-      querySelectorAll: (selector: string) => selector === "body" ? [body] : [],
+      querySelectorAll: (selector: string) => {
+        if (selector === "body") return [body];
+        if (selector === "#speed option:checked") return [option];
+        if (selector === "#play" || selector.startsWith("a[href]")) return [button];
+        return [];
+      },
     };
     globals.chrome = {
       runtime: {sendMessage: async ({kind}: any) => ({id: `${kind === "pageRegion" ? "r" : "e"}_01`})},
@@ -854,6 +864,27 @@ test("page_assert checks selector states on the matched DOM node", async () => {
     const result: any = await runBrowserTool("page_assert", {tabId: 1, selector: "body", states: {attached: true}});
     expect(result.ok, JSON.stringify(result)).toBe(true);
     expect(result.checks.map((check: any) => check.name), JSON.stringify(result)).toEqual(["selector:body", "selectorStates:body"]);
+    for (const tool of ["page_assert", "page_recheck"]) {
+      const incompatible: any = await runBrowserTool(tool, {
+        tabId: 1, selector: "#speed option:checked", role: "button", name: "暂停动画", states: {enabled: true},
+      });
+      expect(incompatible.ok).toBe(false);
+      expect(incompatible.faultCode).toBe(tool === "page_assert" ? "assertion_failed" : "recheck_failed");
+      expect(incompatible.checks[0].ok).toBe(true);
+      expect(incompatible.error).toContain("同一元素");
+      expect(incompatible.error).toContain('"tag":"option"');
+      expect(incompatible.error).toContain("拆成独立调用");
+      const compatible: any = await runBrowserTool(tool, {
+        tabId: 1, selector: "#play", role: "button", name: "暂停动画", states: {enabled: true},
+      });
+      expect(compatible.ok, JSON.stringify(compatible)).toBe(true);
+      const missing: any = await runBrowserTool(tool, {tabId: 1, selector: "#missing", role: "button"});
+      expect(missing.ok).toBe(false);
+      expect(missing.error).toContain("实际匹配 0 个节点");
+      const wrongName: any = await runBrowserTool(tool, {tabId: 1, selector: "#play", role: "button", name: "不存在"});
+      expect(wrongName.ok).toBe(false);
+      expect(wrongName.error).toContain('"name":"暂停动画"');
+    }
   } finally {
     keys.forEach((key, index) => {
       if (originals[index]) Object.defineProperty(globals, key, originals[index]!);
