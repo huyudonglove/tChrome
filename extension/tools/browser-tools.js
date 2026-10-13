@@ -6,7 +6,7 @@ import { waitForDownload } from './downloads.js';
 import { withDebugger, monitorDialogs, dialogState, watchDialog, handleDialog, detachDebugger } from './dialogs.js';
 import { streamCapture, streamReceive, imageShrink } from './stream-pipe.js';
 import { observeAction, initActionObserver } from './action-observer.js';
-import { waitForResponse, startPageFeedback, finishPageFeedback } from './response-wait.js';
+import { decodeResponseBody, waitForResponse, startPageFeedback, finishPageFeedback } from './response-wait.js';
 export const BROWSER_TOOL_NAMES = [
   'page_eval_expr',
   'page_get_summary', 'page_list_regions', 'page_list_interactive_elements',
@@ -294,21 +294,21 @@ const waitTabComplete = (tabId) => new Promise((resolve) => {
   const tabs = chrome.tabs;
   let finished = false;
   let timer;
-  const finish = () => {
+  const finish = (state = {ok: true, state: 'complete'}) => {
     if (finished) return;
     finished = true;
     clearTimeout(timer);
     tabs.onUpdated.removeListener(onUpdated);
-    resolve();
+    resolve(state);
   };
   const onUpdated = (id, info) => {
     if (id === tabId && info.status === 'complete') finish();
   };
-  timer = setTimeout(finish, 8000);
+  timer = setTimeout(() => finish({ok: false, state: 'timeout', timedOut: true}), 8000);
   tabs.onUpdated.addListener(onUpdated);
   tabs.get(tabId).then((tab) => {
     if (tab.status === 'complete') finish();
-  }).catch(finish);
+  }).catch(() => finish({ok: false, state: 'unavailable'}));
 });
 
 const cdpMouse = async (tabId, type, x, y, options = {}) => {
@@ -733,11 +733,11 @@ const waitNetworkIdle = async (tabId, quietMs = 500, maxMs = 4000) => {
       count = result?.count ?? 0;
       sample = result?.last || [];
     } catch {
-      break;
+      return {ok: false, state: 'unavailable', error: '网络采样失败', basis: 'completed_resource_count', inFlightVerified: false};
     }
     if (count === lastCount) {
       if (Date.now() - quietSince >= quietMs) {
-        return {ok: true, requests: count, quietMs, sample};
+        return {ok: true, state: 'quiet_sample', basis: 'completed_resource_count', inFlightVerified: false, requests: count, quietMs, sample};
       }
     } else {
       lastCount = count;
@@ -745,14 +745,15 @@ const waitNetworkIdle = async (tabId, quietMs = 500, maxMs = 4000) => {
     }
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
-  return {ok: false, error: '网络未安静', requests: Math.max(lastCount, 0), quietMs: 0, timedOut: true, sample};
+  return {ok: false, state: 'timeout', basis: 'completed_resource_count', inFlightVerified: false, error: '网络未安静', requests: Math.max(lastCount, 0), quietMs: 0, timedOut: true, sample};
 };
 
 const afterPageAction = async (tabId) => {
   const tab = await chrome.tabs.get(tabId).catch(() => null);
-  if (!tab?.id) return;
-  await waitTabComplete(tab.id);
-  await waitNetworkIdle(tab.id);
+  if (!tab?.id) return {ok: false, state: 'tab_unavailable'};
+  const load = await waitTabComplete(tab.id);
+  const network = await waitNetworkIdle(tab.id);
+  return {ok: load.ok && network.ok, load, network};
 };
 
 const viewportOf = async (tabId) => {
@@ -1145,9 +1146,12 @@ const runPageTool = async (name, input = {}) => {
             node.dispatchEvent(new KeyboardEvent('keypress', {key, keyCode: 13, bubbles: true}));
             node.dispatchEvent(new KeyboardEvent('keyup', {key, keyCode: 13, bubbles: true}));
           }
+          await Promise.resolve();
+          const finalValue = 'value' in node ? node.value : node.textContent;
           const ariaInvalid = node.getAttribute('aria-invalid') === 'true';
           const validationMessage = 'validationMessage' in node ? String(node.validationMessage || '') : '';
-          return {ok: true, id, value: 'value' in node ? node.value : node.textContent,
+          return {ok: finalValue === value, id, value: finalValue, requestedValue: value, verified: true,
+            ...(finalValue !== value ? {error: '页面事件处理后输入值已改变，请核对实际值'} : {}),
             clearBeforeType: payload.clearBeforeType, pressEnter: payload.pressEnter,
             ...(ariaInvalid || validationMessage
               ? { delta: { ariaInvalid, validationMessage: validationMessage.slice(0, 150) } }
@@ -1317,7 +1321,7 @@ const runPageTool = async (name, input = {}) => {
       },
     });
     const out = {tabId: tab.tabId, title: tab.title, url: tab.url, ...result};
-    if (out.ok && (name === 'page_click' || name === 'page_type' || name === 'page.press' || name === 'page.scroll_to')) await afterPageAction(tabId);
+    if (out.ok && (name === 'page_click' || name === 'page_type' || name === 'page.press' || name === 'page.scroll_to')) out.readiness = await afterPageAction(tabId);
     return out;
   } catch (error) {
     return {ok: false, tabId: tab.tabId, error: error instanceof Error ? error.message : String(error)};
@@ -1510,7 +1514,7 @@ const executeBrowserTool = async (name, input = {}) => {
         args: [name, input],
       });
       const out = {tabId: tab.id, ...result};
-      if (out.ok && ['click', 'double_click', 'type', 'select'].includes(name)) await afterPageAction(tab.id);
+      if (out.ok && ['click', 'double_click', 'type', 'select'].includes(name)) out.readiness = await afterPageAction(tab.id);
       return out;
     };
     if (!['click', 'double_click', 'type', 'select'].includes(name)) return run();
@@ -1552,7 +1556,7 @@ const executeBrowserTool = async (name, input = {}) => {
         el.dispatchEvent(new Event('change', {bubbles: true}));
         return {ok: true};
       });
-      if (result.ok) await afterPageAction(tabId);
+      if (result.ok) result.readiness = await afterPageAction(tabId);
       return result;
     };
     return observeAction(tabId, run);
@@ -1566,7 +1570,7 @@ const executeBrowserTool = async (name, input = {}) => {
         else form.submit();
         return {ok: true};
       });
-      if (result.ok) await afterPageAction(tabId);
+      if (result.ok) result.readiness = await afterPageAction(tabId);
       return result;
     };
     return observeAction(tabId, run);
@@ -1580,7 +1584,7 @@ const executeBrowserTool = async (name, input = {}) => {
         el.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true}));
         return {ok: true, key};
       });
-      if (result.ok) await afterPageAction(tabId);
+      if (result.ok) result.readiness = await afterPageAction(tabId);
       return result;
     };
     return observeAction(tabId, run);
@@ -1640,50 +1644,33 @@ const executeBrowserTool = async (name, input = {}) => {
     }
   }
   if (name === 'network_grep') {
-    const waited = await executeBrowserTool('wait_response', input);
-    if (!waited.ok) return waited;
-    const requestId = waited.requestId;
     const tab = await getTab(tabId);
-    if (!tab?.id || !requestId) return {ok: false, tabId, error: '未取得 requestId'};
+    if (!tab?.id) return {ok: false, tabId, error: '没有标签'};
     const keyword = String(input.keyword || '').trim();
     if (!keyword) return {ok: false, tabId, error: 'network_grep 需要 keyword'};
     const contextChars = Math.min(400, Math.max(20, Number(input.contextChars) || 400));
-    try {
-      return await withDebugger(tab.id, async () => {
-        const body = await chrome.debugger.sendCommand({tabId: tab.id}, 'Network.getResponseBody', { requestId });
-        const text = String(body?.body || '');
-        const hay = text.toLowerCase();
-        const needle = keyword.toLowerCase();
-        const matches = [];
-        let from = 0;
-        while (matches.length < 8) {
-          const at = hay.indexOf(needle, from);
-          if (at === -1) break;
-          matches.push({
-            offset: at,
-            before: text.slice(Math.max(0, at - contextChars), at),
-            hit: text.slice(at, at + keyword.length),
-            after: text.slice(at + keyword.length, at + keyword.length + contextChars),
-          });
-          from = at + Math.max(1, keyword.length);
-        }
-        return {
-          ok: matches.length > 0,
-          tabId: tab.id,
-          requestId,
-          url: waited.url,
-          status: waited.status,
-          keyword,
-          contextChars,
-          totalChars: text.length,
-          matchCount: matches.length,
-          matches,
-          ...(matches.length ? {} : { faultCode: 'not_found', error: '响应体中未命中关键字' }),
-        };
-      });
-    } catch (error) {
-      return {ok: false, tabId: tab.id, requestId, error: error instanceof Error ? error.message : String(error)};
-    }
+    const waited = await waitForResponse(tab.id, {...input, includeBody: true}, undefined, response => {
+      let text;
+      try { text = decodeResponseBody(response); }
+      catch { return {bodyUnavailable: 'base64_decode_failed'}; }
+      const hay = text.toLowerCase(), needle = keyword.toLowerCase();
+      const matches = [];
+      let from = 0;
+      while (matches.length < 8) {
+        const at = hay.indexOf(needle, from);
+        if (at === -1) break;
+        matches.push({offset: at, before: text.slice(Math.max(0, at - contextChars), at),
+          hit: text.slice(at, at + keyword.length), after: text.slice(at + keyword.length, at + keyword.length + contextChars)});
+        from = at + Math.max(1, keyword.length);
+      }
+      const truncated = hay.indexOf(needle, from) !== -1;
+      return {totalChars: text.length, matches, matchCount: matches.length, truncated,
+        ...(truncated ? {hasMore: true, matchesLimit: 8} : {})};
+    });
+    if (!waited.ok) return waited;
+    if (waited.bodyUnavailable) return {...waited, ok: false, faultCode: 'response_body_unavailable', keyword, contextChars};
+    return {...waited, ok: waited.matchCount > 0, keyword, contextChars,
+      ...(!waited.matchCount ? {faultCode: 'not_found', error: '已读取完整响应体，未命中关键字'} : {})};
   }
   if (name === 'dialog_wait') {
     const tab = await getTab(tabId);
@@ -1737,7 +1724,7 @@ const executeBrowserTool = async (name, input = {}) => {
     if (action === 'read') {
       const buf = harBuffers.get(tab.id);
       const snapshot = buf ? null : await readSnapshot();
-      return {ok: true, tabId: tab.id, recording: !!buf || !!snapshot, entryCount: buf?.requests?.size ?? snapshot?.requests?.length ?? 0};
+      return {ok: true, tabId: tab.id, recording: !!buf, snapshotAvailable: !!snapshot, state: buf ? 'recording' : snapshot ? 'snapshot_only' : 'idle', entryCount: buf?.requests?.size ?? snapshot?.requests?.length ?? 0};
     }
     if (action === 'start') {
       if (harBuffers.has(tab.id)) return {ok: true, tabId: tab.id, already: true, entryCount: harBuffers.get(tab.id).requests.size};
@@ -1756,16 +1743,20 @@ const executeBrowserTool = async (name, input = {}) => {
         if (source.tabId !== tab.id) return;
         if (method === 'Network.requestWillBeSent') {
           const r = params.request || {};
+          // CDP timestamp is monotonic; wallTime is Unix time in seconds.
+          const wallTime = params.wallTime;
+          const startedAt = Number.isFinite(wallTime) && wallTime >= 0 && wallTime <= 8.64e12
+            ? wallTime * 1000 : Date.now();
           requests.set(params.requestId, {
             id: params.requestId,
-            startedDateTime: new Date(params.timestamp ? params.timestamp * 1000 : Date.now()).toISOString(),
+            startedDateTime: new Date(startedAt).toISOString(),
             request: {
               method: r.method || 'GET',
               url: r.url || '',
               httpVersion: r.httpVersion || 'HTTP/1.1',
               headers: Object.entries(r.headers || {}).map(([name, value]) => ({ name, value: String(value) })),
               bodySize: r.postData ? String(r.postData).length : 0,
-              ...(r.postData ? { postData: { mimeType: r.headers?.['Content-Type'] || r.headers?.['content-type'] || 'application/json', text: String(r.postData).slice(0, 32000) } } : {}),
+              ...(r.postData ? { postData: { mimeType: r.headers?.['Content-Type'] || r.headers?.['content-type'] || 'application/json', text: String(r.postData).slice(0, 32000), _truncated: String(r.postData).length > 32000, _totalChars: String(r.postData).length } } : {}),
             },
           });
           persist();
@@ -1779,7 +1770,7 @@ const executeBrowserTool = async (name, input = {}) => {
             httpVersion: res.protocol || res.httpVersion || 'HTTP/1.1',
             headers: Object.entries(res.headers || {}).map(([name, value]) => ({ name, value: String(value) })),
             mimeType: res.mimeType || '',
-            content: { size: Number(res.encodedDataLength || 0), mimeType: res.mimeType || '' },
+            content: { size: Number(res.encodedDataLength || 0), mimeType: res.mimeType || '', _bodyUnavailable: 'not_collected' },
           };
           persist();
         } else if (method === 'Network.loadingFinished') {
@@ -1819,7 +1810,10 @@ const executeBrowserTool = async (name, input = {}) => {
       const rows = buf ? [...buf.requests.values()] : snapshot.requests;
       const entries = rows.map((row) => ({
         startedDateTime: row.startedDateTime,
-        time: row.time || 0,
+        time: row.time ?? -1,
+        _timingUnavailable: row.time == null,
+        _responseMissing: !row.response,
+        _loadingComplete: row.bytes !== undefined,
         request: row.request,
         response: row.response || { status: 0, statusText: '', httpVersion: 'HTTP/1.1', headers: [], mimeType: '', content: { size: 0, mimeType: '' } },
         ...(row.bytes !== undefined ? { _transferSize: row.bytes } : {}),
@@ -1834,7 +1828,7 @@ const executeBrowserTool = async (name, input = {}) => {
       };
       if (buf) await buf.cleanup({clearPersisted: true});
       else await clearSnapshot();
-      return {ok: true, tabId: tab.id, stopped: true, entryCount: entries.length, totalChars: JSON.stringify(har).length, har};
+      return {ok: true, tabId: tab.id, stopped: true, recording: false, completeness: {responseBodies: 'not_collected', timings: 'not_collected', requestBodyLimit: 32000}, entryCount: entries.length, totalChars: JSON.stringify(har).length, har};
     }
     return {ok: false, tabId: tab.id, error: 'har 需要 action=start|stop|read'};
   }
@@ -2208,28 +2202,28 @@ const executeBrowserTool = async (name, input = {}) => {
           files: paths,
           nodeId,
         });
-        const check = await chrome.debugger.sendCommand({tabId: tab.id}, 'Runtime.evaluate', {
-          expression: `(() => {
-            const inputs = [...document.querySelectorAll('input[type="file"]')];
-            const idx = ${index};
-            const el = inputs[idx] || inputs[0] || null;
-            return {
-              files: el ? el.files.length : 0,
-              names: el ? Array.from(el.files).map((f) => f.name) : [],
-            };
-          })()`,
-          returnByValue: true,
-        });
-        const state = check?.result?.value || {};
+        let objectId, state;
+        try {
+          const resolved = await chrome.debugger.sendCommand({tabId: tab.id}, 'DOM.resolveNode', {nodeId});
+          objectId = resolved?.object?.objectId;
+          if (objectId) {
+            const check = await chrome.debugger.sendCommand({tabId: tab.id}, 'Runtime.callFunctionOn', {
+              objectId, returnByValue: true,
+              functionDeclaration: `function() { return {connected: this.isConnected, names: Array.from(this.files || []).map(f => f.name)}; }`,
+            });
+            if (!check.exceptionDetails) state = check?.result?.value;
+          }
+        } catch { /* Setting succeeded; unavailable verification must not erase that fact. */ } finally {
+          if (objectId) await chrome.debugger.sendCommand({tabId: tab.id}, 'Runtime.releaseObject', {objectId}).catch(() => {});
+        }
+        const observed = state?.connected === true && Array.isArray(state.names);
+        const expectedNames = paths.map(p => p.split('/').pop());
+        const verified = observed && state.names.length === expectedNames.length && state.names.every((name, i) => name === expectedNames[i]);
         return {
-          ok: true,
-          tabId: tab.id,
-          files: paths,
-          selector,
-          ...(input.id ? { id: input.id } : {}),
-          ...(input.selector ? { selector: input.selector } : {}),
-          attached: state.files ?? paths.length,
-          fileNames: state.names && state.names.length ? state.names : paths.map((p) => p.split('/').pop()),
+          ok: verified, tabId: tab.id, files: paths, selector,
+          ...(input.id ? {id: input.id} : {}), actionCompleted: true, verified,
+          attached: observed ? state.names.length : null, fileNames: observed ? state.names : null,
+          ...(!verified ? {faultCode: 'attachment_unverified', error: observed ? '目标控件的实际文件与请求不一致' : '文件设置命令已执行，但目标控件回查不可用；先核对，不要盲目重试'} : {}),
         };
       });
     } catch (error) {
@@ -2250,17 +2244,15 @@ const executeBrowserTool = async (name, input = {}) => {
     if (!tab?.id) return {ok: false, error: '没有标签'};
     if (!input.url) return {ok: false, error: '缺 url'};
     await chrome.tabs.update(tab.id, {url: input.url});
-    await waitTabComplete(tab.id);
-    await waitNetworkIdle(tab.id);
-    return inspectTab(tab.id);
+    const readiness = await afterPageAction(tab.id);
+    return {...await inspectTab(tab.id), actionCompleted: true, readiness};
   }
   if (name === 'reload') {
     const tab = await getTab(tabId);
     if (!tab?.id) return {ok: false, error: '没有标签'};
     await chrome.tabs.reload(tab.id);
-    await waitTabComplete(tab.id);
-    await waitNetworkIdle(tab.id);
-    return inspectTab(tab.id);
+    const readiness = await afterPageAction(tab.id);
+    return {...await inspectTab(tab.id), actionCompleted: true, readiness};
   }
   if (name === 'go_history') {
     const tab = await getTab(tabId);
@@ -2270,9 +2262,8 @@ const executeBrowserTool = async (name, input = {}) => {
       return {ok: true, action};
     });
     if (result.ok && tab?.id) {
-      await waitTabComplete(tab.id);
-      await waitNetworkIdle(tab.id);
-      return inspectTab(tab.id);
+      const readiness = await afterPageAction(tab.id);
+      return {...await inspectTab(tab.id), actionCompleted: true, readiness};
     }
     return result;
   }

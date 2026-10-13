@@ -81,3 +81,24 @@ test('browser IDs persist across allocator and document restarts and keep node i
     });
   }
 });
+
+
+test('type returns the actual value after page event handlers reset input', async () => {
+  const {Window} = await import('happy-dom');
+  const w = new Window();
+  const g = globalThis as any;
+  const keys = ['document', 'getComputedStyle', 'HTMLInputElement', 'HTMLTextAreaElement', 'Event', '__tChromeElementRefs'];
+  const saved = keys.map(key => Object.getOwnPropertyDescriptor(g, key));
+  try {
+    g.document = w.document; g.getComputedStyle = () => ({display: 'block', visibility: 'visible'});
+    g.HTMLInputElement = w.HTMLInputElement; g.HTMLTextAreaElement = w.HTMLTextAreaElement; g.Event = w.Event;
+    const input = w.document.createElement('input'); input.type = 'text'; w.document.body.append(input);
+    input.getBoundingClientRect = () => ({x: 0, y: 0, width: 100, height: 30}) as any;
+    g.__tChromeElementRefs = {refs: new Map([['e_01', input]]), ids: new WeakMap()};
+    input.addEventListener('change', () => {queueMicrotask(() => {input.value = 'reset';});});
+    expect(await elementTool('type', {ref: 'e_01', text: 'requested'})).toMatchObject({ok: false, value: 'reset', requestedValue: 'requested', verified: true});
+  } finally {
+    keys.forEach((key, i) => saved[i] ? Object.defineProperty(g, key, saved[i]!) : delete g[key]);
+    await w.happyDOM.abort();
+  }
+});

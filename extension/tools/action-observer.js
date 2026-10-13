@@ -1,3 +1,4 @@
+import { summarizeResponseBody, redactUrl } from './response-wait.js';
 // Causal action observer: ring buffer of Network/Console errors + sparse effects merge.
 // Only wired for side-effectful actions; read-only tools skip this path.
 
@@ -18,7 +19,7 @@ const clip = (value, n = TRUNC) => String(value ?? "").slice(0, n);
 /** Sample alert/toast texts; best-effort, never throws. */
 async function sampleAlerts(tabId) {
   try {
-    if (!globalThis.chrome?.scripting?.executeScript) return [];
+    if (!globalThis.chrome?.scripting?.executeScript) return {ok: false, reason: 'scripting_unavailable', texts: []};
     const [{ result }] = await chrome.scripting.executeScript({
       target: { tabId },
       func: (selector) => {
@@ -33,9 +34,9 @@ async function sampleAlerts(tabId) {
       },
       args: [ALERT_SELECTORS],
     });
-    return Array.isArray(result) ? result : [];
+    return Array.isArray(result) ? {ok: true, texts: result, limited: result.length >= MAX_ALERTS} : {ok: false, reason: 'invalid_sample', texts: []};
   } catch {
-    return [];
+    return {ok: false, reason: 'sample_failed', texts: []};
   }
 }
 
@@ -47,7 +48,7 @@ const MAX_HTML_SNAPSHOT = 200_000;
  */
 async function sampleCleanHtml(tabId) {
   try {
-    if (!globalThis.chrome?.scripting?.executeScript) return null;
+    if (!globalThis.chrome?.scripting?.executeScript) return {ok: false, reason: 'scripting_unavailable', html: null};
     const [{ result }] = await chrome.scripting.executeScript({
       target: { tabId },
       func: (cap) => {
@@ -66,9 +67,9 @@ async function sampleCleanHtml(tabId) {
       },
       args: [MAX_HTML_SNAPSHOT],
     });
-    return typeof result === "string" && result ? result : null;
+    return typeof result === 'string' && result ? {ok: true, html: result, truncated: result.length >= MAX_HTML_SNAPSHOT} : {ok: false, reason: 'invalid_sample', html: null};
   } catch {
-    return null;
+    return {ok: false, reason: 'sample_failed', html: null};
   }
 }
 
@@ -109,7 +110,7 @@ export function initActionObserver() {
         event = {
           kind: "network",
           status,
-          url: clip(params?.response?.url || params?.response?.url || "", 160),
+          url: clip(redactUrl(params?.response?.url || ""), 160),
           method: params?.type || undefined,
           requestId: params?.requestId,
         };
@@ -164,17 +165,13 @@ async function ensureDomains(tabId) {
 
 /** Best-effort response body for failed requests; never throws. */
 async function fetchBody(tabId, requestId) {
-  if (!requestId) return undefined;
+  if (!requestId) return {bodyUnavailable: 'request_id_missing'};
   try {
-    const { withDebugger } = await import("./dialogs.js");
+    const { withDebugger } = await import('./dialogs.js');
     const res = await withDebugger(tabId, () =>
-      chrome.debugger.sendCommand({ tabId }, "Network.getResponseBody", { requestId }));
-    const body = typeof res?.body === "string" ? res.body : "";
-    if (!body) return undefined;
-    return clip(body);
-  } catch {
-    return undefined;
-  }
+      chrome.debugger.sendCommand({tabId}, 'Network.getResponseBody', {requestId}));
+    return summarizeResponseBody(res);
+  } catch { return {bodyUnavailable: 'get_response_body_failed'}; }
 }
 
 export async function beginActionObserve(tabId) {
@@ -187,19 +184,21 @@ export async function beginActionObserve(tabId) {
       tabId,
       mark: buf.seq,
       urlBefore: typeof tab?.url === "string" ? tab.url : null,
-      alertsBefore,
-      htmlBefore,
+      alertsBefore: alertsBefore.texts,
+      htmlBefore: htmlBefore.html,
+      samplesBefore: {alerts: alertsBefore, dom: htmlBefore},
     };
   } catch {
     // Observer is best-effort; never block the action when CDP domains cannot attach.
-    return { tabId, mark: -1, urlBefore: null, disabled: true, alertsBefore: [], htmlBefore: null };
+    return { tabId, mark: -1, urlBefore: null, disabled: true, unavailable: "observer_initialization_failed", alertsBefore: [], htmlBefore: null };
   }
 }
 
 export async function endActionObserve(session, result, extras = {}) {
-  if (!session || session.disabled || !result || typeof result !== "object") return result;
+  if (!result || typeof result !== 'object') return result;
+  if (!session || session.disabled) return {...result, observation: {status: 'unavailable', reason: session?.unavailable || 'observer_not_started'}};
   // Native dialogs block page scripts; return protocol evidence without another DOM probe.
-  if (result.dialogOpen) return result;
+  if (result.dialogOpen) return {...result, observation: {status: 'partial', reason: 'native_dialog_open', dom: 'unavailable'}};
   const buf = buffers.get(session.tabId);
   const fresh = buf ? buf.events.filter((e) => e.seq > session.mark) : [];
 
@@ -215,7 +214,7 @@ export async function endActionObserve(session, result, extras = {}) {
       };
       if (e.requestId && row.status >= 400) {
         const body = await fetchBody(session.tabId, e.requestId);
-        if (body) row.body = body;
+        Object.assign(row, body);
       }
       network.push(row);
     } else if (e.kind === "console") {
@@ -235,11 +234,11 @@ export async function endActionObserve(session, result, extras = {}) {
   // Phase 3: whitelist alert diff — only texts that appeared after the action.
   const alertsAfter = await sampleAlerts(session.tabId);
   const beforeSet = new Set(session.alertsBefore || []);
-  const newAlerts = alertsAfter.filter((text) => !beforeSet.has(text)).slice(0, MAX_ALERTS);
+  const newAlerts = alertsAfter.texts.filter((text) => !beforeSet.has(text)).slice(0, MAX_ALERTS);
 
   // Phase 3: cleaned-HTML structural diff in code; model only sees compact summary.
   const htmlAfter = await sampleCleanHtml(session.tabId);
-  const domChange = summarizeDomDiff(session.htmlBefore, htmlAfter);
+  const domChange = summarizeDomDiff(session.htmlBefore, htmlAfter.html);
 
   const delta = { ...extras };
   if (result.delta && typeof result.delta === "object") {
@@ -255,9 +254,18 @@ export async function endActionObserve(session, result, extras = {}) {
   if (newAlerts.length) effects.mutations = { newAlerts };
   if (domChange) effects.domChange = domChange;
 
-  if (!Object.keys(effects).length) return result;
+  const before = session.samplesBefore;
+  const observation = {
+    status: buf && before?.alerts.ok && before?.dom.ok && alertsAfter.ok && htmlAfter.ok && urlAfter ? 'observed' : 'partial',
+    coverage: 'action_window_errors_and_before_after_dom; not_business_success',
+    network: buf ? 'observed' : 'unavailable',
+    alerts: {before: before?.alerts.ok === true, after: alertsAfter.ok, limited: !!(before?.alerts.limited || alertsAfter.limited)},
+    dom: {before: before?.dom.ok === true, after: htmlAfter.ok, truncated: !!(before?.dom.truncated || htmlAfter.truncated)},
+    eventsTruncated: !!(buf && fresh.length && fresh[0].seq > session.mark + 1),
+  };
+  if (!Object.keys(effects).length) return {...result, observation};
   // Sparse: only merge when something is new; never emit empty arrays.
-  return { ...result, effects: { ...(result.effects && typeof result.effects === "object" ? result.effects : {}), ...effects } };
+  return { ...result, observation, effects: { ...(result.effects && typeof result.effects === "object" ? result.effects : {}), ...effects } };
 }
 
 /** Run a side-effectful action under observe → existing waits → sparse delta merge. */

@@ -83,6 +83,8 @@ async function clickAndWait(host: BrowserHost, tabId: unknown, id: string, args:
     ...(!result.ok ? { step: result.failureStage === "click" ? "page_click" : "wait_response" } : {}),
     ...(effects || clickResult.effects ? { effects: effects ?? clickResult.effects } : {}),
     ...(pageFeedback ? { pageFeedback } : {}),
+    ...(result.observation || clickResult.observation ? { observation: result.observation ?? clickResult.observation } : {}),
+    ...(clickResult.readiness ? { readiness: clickResult.readiness } : {}),
   };
 }
 
@@ -128,8 +130,8 @@ export async function runCompoundTool(
     const clicked = await host.execute("page_click", { tabId, id, reason, ...withFrame }) as HostResult;
     if (!clicked?.ok) return { ...clicked, step: "page_click", tabId, id };
     const wait = await optionalWait(host, tabId, args, reason, timeoutMs);
-    if (wait && !wait.ok) return { ...wait, step: "wait", tabId, id, clicked: true, ...(clicked.effects ? { effects: clicked.effects } : {}) };
-    return { ok: true, tabId, id, role, name: a11yName ?? null, matchIndex: located.index, clicked: true, wait: wait ?? null, ...(clicked.effects ? { effects: clicked.effects } : {}) };
+    if (wait && !wait.ok) return { ...wait, step: "wait", tabId, id, clicked: true, ...(clicked.effects ? { effects: clicked.effects } : {}), ...(clicked.observation ? { observation: clicked.observation } : {}), ...(clicked.readiness ? { readiness: clicked.readiness } : {}) };
+    return { ...clicked, ok: true, tabId, id, role, name: a11yName ?? null, matchIndex: located.index, clicked: true, wait: wait ?? null, ...(clicked.effects ? { effects: clicked.effects } : {}), ...(clicked.observation ? { observation: clicked.observation } : {}), ...(clicked.readiness ? { readiness: clicked.readiness } : {}) };
   }
 
   if (name === "page_fill_role") {
@@ -150,7 +152,7 @@ export async function runCompoundTool(
       reason,
     }) as HostResult;
     if (!typed?.ok) return { ...typed, step: "page_type", tabId, id };
-    return { ok: true, tabId, id, role, name: a11yName ?? null, matchIndex: located.index, value: typed.value ?? text };
+    return { ...typed, tabId, id, role, name: a11yName ?? null, matchIndex: located.index, requestedValue: text, value: typed.value ?? null };
   }
 
   if (name === "page_submit_wait") {
@@ -167,7 +169,7 @@ export async function runCompoundTool(
     const id = located.id!;
     const selected = await host.execute("combo_select", { tabId, id, value, reason, ...withFrame }) as HostResult;
     if (!selected?.ok) return { ...selected, step: "combo_select", tabId, id };
-    return { ok: true, tabId, id, role, name: a11yName ?? null, matchIndex: located.index, value: selected.value ?? value, text: selected.text ?? null };
+    return { ...selected, tabId, id, role, name: a11yName ?? null, matchIndex: located.index, requestedValue: value, value: selected.value ?? null, text: selected.text ?? null };
   }
 
   if (name === "page_click_text") {
@@ -183,22 +185,22 @@ export async function runCompoundTool(
     const clicked = await host.execute("page_click", { tabId, id, reason, ...withFrame }) as HostResult;
     if (!clicked?.ok) return { ...clicked, step: "page_click", tabId, id };
     const wait = await optionalWait(host, tabId, args, reason, timeoutMs);
-    if (wait && !wait.ok) return { ...wait, step: "wait", tabId, id, clicked: true, ...(clicked.effects ? { effects: clicked.effects } : {}) };
-    return { ok: true, tabId, id, text, matchIndex: picked.index, clicked: true, wait: wait ?? null, ...(clicked.effects ? { effects: clicked.effects } : {}) };
+    if (wait && !wait.ok) return { ...wait, step: "wait", tabId, id, clicked: true, ...(clicked.effects ? { effects: clicked.effects } : {}), ...(clicked.observation ? { observation: clicked.observation } : {}), ...(clicked.readiness ? { readiness: clicked.readiness } : {}) };
+    return { ...clicked, ok: true, tabId, id, text, matchIndex: picked.index, clicked: true, wait: wait ?? null, ...(clicked.effects ? { effects: clicked.effects } : {}), ...(clicked.observation ? { observation: clicked.observation } : {}), ...(clicked.readiness ? { readiness: clicked.readiness } : {}) };
   }
 
   if (name === "page_fill_submit") {
     const fields = Array.isArray(args.fields) ? args.fields : [];
     if (!fields.length) return fail(tabId, "invalid_arguments", "fields 不能为空数组");
-    const filled: { index: number; role: string; name: string | null; id: string; value: unknown }[] = [];
+    const filled: Record<string, unknown>[] = [];
     for (let i = 0; i < fields.length; i++) {
       const field = fields[i] as Record<string, unknown>;
       const role = String(field.role ?? "");
       const a11yName = typeof field.name === "string" ? field.name : undefined;
       const text = String(field.text ?? "");
       const located = await resolveByRole(host, tabId, reason, role, a11yName, typeof field.matchIndex === "number" ? field.matchIndex : undefined, withFrame);
-      if (located.error) return { ...located.error, tabId, step: "page_get_by_role", fieldIndex: i, role, name: a11yName };
-      if (!located.found?.ok) return { ...located.found, tabId, step: "page_get_by_role", fieldIndex: i, role, name: a11yName };
+      if (located.error) return { ...located.error, tabId, step: "page_get_by_role", fieldIndex: i, role, name: a11yName, filled };
+      if (!located.found?.ok) return { ...located.found, tabId, step: "page_get_by_role", fieldIndex: i, role, name: a11yName, filled };
       const typed = await host.execute("page_type", {
         tabId,
         id: located.id,
@@ -208,8 +210,8 @@ export async function runCompoundTool(
         ...(field.pressEnter === true ? { pressEnter: true } : {}),
         reason,
       }) as HostResult;
-      if (!typed?.ok) return { ...typed, step: "page_type", tabId, fieldIndex: i, id: located.id };
-      filled.push({ index: i, role, name: a11yName ?? null, id: located.id!, value: typed.value ?? text });
+      if (!typed?.ok) return { ...typed, step: "page_type", tabId, fieldIndex: i, id: located.id, filled };
+      filled.push({ ...typed, index: i, role, name: a11yName ?? null, id: located.id!, requestedValue: text, value: typed.value ?? null });
     }
 
     const submit = (args.submit && typeof args.submit === "object" ? args.submit : {}) as Record<string, unknown>;
@@ -249,8 +251,8 @@ export async function runCompoundTool(
     const clicked = await host.execute("page_click", { tabId, id: submitId, reason, ...withFrame }) as HostResult;
     if (!clicked?.ok) return { ...clicked, step: "page_click", tabId, id: submitId, filled };
     const wait = hasWait ? await optionalWait(host, tabId, waitArgs, reason, timeoutMs) : null;
-    if (wait && !wait.ok) return { ...wait, step: "wait", tabId, id: submitId, filled, clicked: true, ...(clicked.effects ? { effects: clicked.effects } : {}) };
-    return { ok: true, tabId, filled, submit: { id: submitId, clicked: true }, wait: wait ?? null, ...(clicked.effects ? { effects: clicked.effects } : {}) };
+    if (wait && !wait.ok) return { ...wait, step: "wait", tabId, id: submitId, filled, clicked: true, ...(clicked.effects ? { effects: clicked.effects } : {}), ...(clicked.observation ? { observation: clicked.observation } : {}), ...(clicked.readiness ? { readiness: clicked.readiness } : {}) };
+    return { ...clicked, ok: true, tabId, filled, submit: { id: submitId, clicked: true }, wait: wait ?? null, ...(clicked.effects ? { effects: clicked.effects } : {}), ...(clicked.observation ? { observation: clicked.observation } : {}), ...(clicked.readiness ? { readiness: clicked.readiness } : {}) };
   }
 
   return fail(tabId, "unknown_tool", `未知复合工具 ${name}`);

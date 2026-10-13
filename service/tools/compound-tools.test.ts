@@ -205,3 +205,26 @@ test("page_click_text omits frameId from find_on_page when the caller does not p
     expect("frameId" in call.args).toBe(false);
   }
 });
+
+
+test('compound fill/select and submit retain observed results rather than echo requests', async () => {
+  const observation = {status: 'partial'}, readiness = {ok: false};
+  let fail = false;
+  const host = {execute: async (name: string) => {
+    if (name === 'page_get_by_role') return {ok: true, elements: [{id: 'e_01'}], total: 1};
+    if (name === 'page_type') return fail ? {ok: false, value: 'reset', observation} : {ok: true, effects: {delta: {invalid: true}}, observation, readiness};
+    if (name === 'combo_select') return {ok: true, observation};
+    if (name === 'wait_response') return {ok: true, clicked: true, observation, click: {ok: true, readiness}};
+    return {ok: false};
+  }} as unknown as BrowserHost;
+  expect(await runCompoundTool('page_fill_role', {tabId: 1, role: 'textbox', text: 'wanted'}, host)).toMatchObject({value: null, requestedValue: 'wanted', observation, readiness});
+  expect(await runCompoundTool('page_select_role', {tabId: 1, value: 'wanted'}, host)).toMatchObject({value: null, requestedValue: 'wanted', observation});
+  expect(await runCompoundTool('page_submit_wait', {tabId: 1, id: 'e_01', urlContains: '/api'}, host)).toMatchObject({observation, readiness});
+  let calls = 0;
+  const partialHost = {execute: async (name: string, args: Record<string, unknown>) => {
+    if (name === 'page_type') {calls++; fail = calls === 2;}
+    return host.execute(name, args);
+  }} as unknown as BrowserHost;
+  const out = await runCompoundTool('page_fill_submit', {tabId: 1, fields: [{role: 'textbox', text: 'a'}, {role: 'textbox', text: 'b'}], submit: {id: 'e_01'}}, partialHost);
+  expect(out).toMatchObject({ok: false, fieldIndex: 1, value: 'reset', filled: [{index: 0, value: null, observation, readiness}]});
+});

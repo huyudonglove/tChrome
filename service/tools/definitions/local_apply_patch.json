@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local_apply_patch",
-    "description": "在 Git 仓库工作区应用单文件或多文件 unified diff。先用 git apply --recount --check 检查完整补丁，通过后应用；检查失败不修改文件。返回仓库根目录和补丁涉及的相对文件路径。",
+    "description": "在 Git 仓库工作区应用单文件或多文件 unified diff。仅对后续文件头和修改块可佐证的 diff --git 分界行移除误加的前导空格或制表符；若发生归一化，返回 normalization 类型及原补丁中的行号。先用 git apply --recount --check 检查完整补丁，通过后应用；检查失败不修改文件，不放宽上下文检查。返回仓库根目录和补丁涉及的相对文件路径。",
     "parameters": {
       "type": "object",
       "properties": {

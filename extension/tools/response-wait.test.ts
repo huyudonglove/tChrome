@@ -148,7 +148,7 @@ test('native dialog returns without attempting blocked page sampling', async () 
   });
   expect(out).toMatchObject({ ok: false, failureStage: 'dialog', dialogOpen: true, dialogs: [{ type: 'alert', message: 'Please retry' }] });
   g.chrome.scripting = { executeScript: () => { throw new Error('must not sample'); } };
-  expect(await endActionObserve({ tabId: b.id, mark: 0 }, out)).toEqual(out);
+  expect(await endActionObserve({ tabId: b.id, mark: 0 }, out)).toMatchObject({...out, observation: {status: "partial", reason: "native_dialog_open"}});
 });
 
 test('page probe catches removed transient alert, excludes baseline, bounds messages and cleans up', async () => {

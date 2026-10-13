@@ -103,3 +103,21 @@ test('script patches distinguish contextless edits, mismatches and malformed dif
   expect(eofResult.error).toBeUndefined();
   expect((await readScript(dir, 'demo.js')).code).toBe('before\nnew\nend\n');
 }));
+
+test('script patches report boundary normalization and retain scope and context checks', () => temp(async dir => {
+  const original = 'old\nkeep\n';
+  await writeScript(dir, {filename: 'demo.js', code: original});
+  const patch = ' \tdiff --git a/demo.js b/demo.js\n--- a/demo.js\n+++ b/demo.js\n@@ -1,2 +1,2 @@\n-old\n+new\n keep\n';
+  const normalization = {kind: 'diff_git_header_indent', lines: [1]};
+  const failed = await patchScript(dir, {filename: 'demo.js', patch: patch.replace('-old', '-wrong')});
+  expect(failed).toMatchObject({ok: false, normalization});
+  expect(failed.error).toContain('patch does not apply');
+  expect((await readScript(dir, 'demo.js')).code).toBe(original);
+  const scopeFailure = await patchScript(dir, {filename: 'demo.js', patch: patch + 'diff --git a/other.js b/other.js\n' + add('other.js')});
+  expect(scopeFailure).toMatchObject({ok: false, normalization});
+  expect(scopeFailure.error).toContain('补丁只能修改指定脚本文件');
+  expect((await readScript(dir, 'demo.js')).code).toBe(original);
+  const result = await patchScript(dir, {filename: 'demo.js', patch});
+  expect(result).toMatchObject({ok: true, operation: 'updated', normalization});
+  expect((await readScript(dir, 'demo.js')).code).toBe('new\nkeep\n');
+}));

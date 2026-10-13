@@ -1,5 +1,5 @@
 import { AppError, errorInfo } from "../../shared/errors.ts";
-import { describeGitPatchFailure } from "../../shared/git-patch.ts";
+import { describeGitPatchFailure, normalizeGitPatch, type PatchNormalization } from "../../shared/git-patch.ts";
 import { lstat, readdir, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -86,10 +86,14 @@ export async function patchScript(dataDir: string, input: {filename?: unknown; p
   const operation = previous.catch(() => {}).then(async () => {
     let scratch: string | undefined;
     let staging: string | undefined;
+    let normalization: PatchNormalization | undefined;
     try {
-      const {filename, patch} = input;
+      const {filename} = input;
       if (!validName(filename)) throw new Error('脚本文件名无效');
-      if (typeof patch !== 'string' || !patch.trim()) throw new Error('需要有效 unified diff');
+      if (typeof input.patch !== 'string' || !input.patch.trim()) throw new Error('需要有效 unified diff');
+      const normalized = normalizeGitPatch(input.patch);
+      const patch = normalized.patch;
+      normalization = normalized.normalization;
       // Git calculates hunk lengths from the body; structure and matching context remain required.
       if (/^(?:rename |copy |old mode |new mode |new file mode (?!100644$)|deleted file mode (?!100644$))/m.test(patch)) throw new Error('不允许重命名、复制或文件权限变更');
       scratch = await mkdtemp(join(tmpdir(), 'tchrome-script-'));
@@ -113,15 +117,15 @@ export async function patchScript(dataDir: string, input: {filename?: unknown; p
       if (!result) {
         if (!original) throw new Error('脚本不存在');
         await rm(path);
-        return {ok: true, filename, operation: 'deleted', bytes: 0};
+        return {ok: true, filename, operation: 'deleted', bytes: 0, ...(normalization ? {normalization} : {})};
       }
       staging = await mkdtemp(join(dir, '.patch-'));
       const next = join(staging, filename);
       const code = await readFile(resultPath, 'utf8');
       await writeFile(next, code, {mode: 0o600});
       await rename(next, path);
-      return {ok: true, filename, operation: original === null ? 'created' : 'updated', bytes: Buffer.byteLength(code, 'utf8')};
-    } catch (error) { return {ok: false, ...errorInfo(error), error: error instanceof Error ? error.message : String(error)}; }
+      return {ok: true, filename, operation: original === null ? 'created' : 'updated', bytes: Buffer.byteLength(code, 'utf8'), ...(normalization ? {normalization} : {})};
+    } catch (error) { return {ok: false, ...errorInfo(error), error: error instanceof Error ? error.message : String(error), ...(normalization ? {normalization} : {})}; }
     finally {
       if (scratch) await rm(scratch, {recursive: true, force: true}).catch(() => {});
       if (staging) await rm(staging, {recursive: true, force: true}).catch(() => {});

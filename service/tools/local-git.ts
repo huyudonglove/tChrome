@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { isAbsolute } from "node:path";
 import { errorInfo } from "../../shared/errors.ts";
-import { describeGitPatchFailure } from "../../shared/git-patch.ts";
+import { describeGitPatchFailure, normalizeGitPatch } from "../../shared/git-patch.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -185,17 +185,19 @@ export async function runApplyPatch(input: Record<string, unknown>) {
   }
   const { stdout } = await execFileAsync("git", ["rev-parse", "--show-toplevel"], { cwd: path });
   const repoPath = stdout.trim();
-  const patch = input.patch;
+  const {patch, normalization} = normalizeGitPatch(input.patch);
   try {
     await applyGitPatch(repoPath, patch, ["--check"]);
+    const numstat = await applyGitPatch(repoPath, patch, ["--numstat", "-z"]);
+    const files = numstat.split("\0").filter(Boolean).map(row => row.slice(row.indexOf("\t", row.indexOf("\t") + 1) + 1));
+    await applyGitPatch(repoPath, patch, []);
+    return { ok: true, path: repoPath, files, ...(normalization ? {normalization} : {}) };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(describeGitPatchFailure(patch, message));
+    const failure = new Error(describeGitPatchFailure(patch, message));
+    if (normalization) Object.assign(failure, {details: {normalization}});
+    throw failure;
   }
-  const numstat = await applyGitPatch(repoPath, patch, ["--numstat", "-z"]);
-  const files = numstat.split("\0").filter(Boolean).map(row => row.slice(row.indexOf("\t", row.indexOf("\t") + 1) + 1));
-  await applyGitPatch(repoPath, patch, []);
-  return { ok: true, path: repoPath, files };
 }
 
 export async function runLocalGitTool(name: string, input: Record<string, unknown>) {

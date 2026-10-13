@@ -137,7 +137,10 @@ const executeClaim = async (
       result = outcome.done ? outcome.value : {
         ok: false,
         faultCode: "tool_timeout",
-        error: `${request.name} 执行超时（${TOOL_EXEC_TIMEOUT_MS}ms 看门狗），页面或浏览器执行挂死；可停止本轮后换标签重试`,
+        execution: { state: "unknown", mayStillRun: true, cancelled: false },
+        actionOutcome: "unknown_do_not_retry",
+        recovery: "inspect_state",
+        error: `${request.name} 执行超时（${TOOL_EXEC_TIMEOUT_MS}ms 看门狗）；原执行未取消，可能仍在运行或已部分生效。先核对实际状态，不要盲目重复有副作用的动作`,
       };
     });
   } catch (error) {

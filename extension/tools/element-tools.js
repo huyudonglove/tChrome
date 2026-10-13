@@ -116,7 +116,10 @@ export async function elementTool(action, input = {}) {
     if (actual !== input.text) return {ok: false, value: actual, error: '控件未接受完整输入，请检查控件格式要求'};
     hit.dispatchEvent(new Event('input', {bubbles: true}));
     hit.dispatchEvent(new Event('change', {bubbles: true}));
-    return {ok: true, value: actual};
+    await Promise.resolve();
+    const finalValue = 'value' in hit ? hit.value : hit.textContent;
+    return {ok: finalValue === input.text, value: finalValue, requestedValue: input.text, verified: true,
+      ...(finalValue !== input.text ? {error: '页面事件处理后输入值已改变，请核对实际值'} : {})};
   }
   if (action === 'double_click') hit.dispatchEvent(new MouseEvent('dblclick', {bubbles: true}));
   else if (action === 'focus') hit.focus();

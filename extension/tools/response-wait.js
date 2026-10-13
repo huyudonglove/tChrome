@@ -3,7 +3,7 @@ import { withDebugger } from './dialogs.js';
 const SECRET_KEY = /password|passwd|secret|token|authorization|cookie|credential|api[-_]?key/i;
 const MAX_BODY = 8000;
 
-function redactUrl(value) {
+export function redactUrl(value) {
   try {
     const url = new URL(value);
     if (url.username) url.username = '[REDACTED]';
@@ -16,14 +16,17 @@ function redactUrl(value) {
   } catch { return String(value).replace(/([?&](?:[^=&]*(?:token|password|secret|credential|api[_-]?key)[^=&]*)=)[^&#]*/gi, '$1[REDACTED]'); }
 }
 
+export function decodeResponseBody(response) {
+  let text = String(response?.body ?? '');
+  if (response?.base64Encoded) text = new TextDecoder().decode(Uint8Array.from(atob(text), c => c.charCodeAt(0)));
+  return text;
+}
+
 /** Only structured JSON is exposed; arbitrary HTML/text may contain credentials. */
 export function summarizeResponseBody(response) {
-  let text = String(response?.body ?? '');
-  if (response?.base64Encoded) {
-    try {
-      text = new TextDecoder().decode(Uint8Array.from(atob(text), c => c.charCodeAt(0)));
-    } catch { return { bodyUnavailable: 'base64_decode_failed' }; }
-  }
+  let text;
+  try { text = decodeResponseBody(response); }
+  catch { return { bodyUnavailable: 'base64_decode_failed' }; }
   let value;
   try { value = JSON.parse(text); }
   catch { return { bodyUnavailable: text ? 'non_json_body_omitted' : 'empty_body' }; }
@@ -54,7 +57,7 @@ export function summarizeResponseBody(response) {
 /** One extension invocation: arm → initialize → optional click → response + loadingFinished.
  * Matching requests are candidates, not proof of causal or business success.
  */
-export async function waitForResponse(tabId, input, click) {
+export async function waitForResponse(tabId, input, click, bodyReader = summarizeResponseBody) {
   const urlPart = String(input.urlContains || input.url || '').trim();
   if (!urlPart) return { ok: false, tabId, error: 'wait_response 需要 urlContains' };
   const wantStatus = input.status === undefined || input.status === null || input.status === '' ? null : Number(input.status);
@@ -95,7 +98,7 @@ export async function waitForResponse(tabId, input, click) {
     reading = true;
     try {
       const response = await chrome.debugger.sendCommand({ tabId }, 'Network.getResponseBody', { requestId: matched.requestId });
-      settle({ ok: true, tabId, urlContains: redactUrl(urlPart), ...matched, ...summarizeResponseBody(response) });
+      settle({ ok: true, tabId, urlContains: redactUrl(urlPart), ...matched, ...bodyReader(response) });
     } catch {
       settle({ ok: true, tabId, urlContains: redactUrl(urlPart), ...matched, bodyUnavailable: 'get_response_body_failed' });
     }

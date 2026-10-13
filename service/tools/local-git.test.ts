@@ -263,3 +263,27 @@ test("local_apply_patch preserves Git-accepted contextless whole-file replacemen
     rmSync(dir, {recursive: true, force: true});
   }
 });
+
+test("local_apply_patch repairs indented file boundaries without relaxing Git checks", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-patch-test-"));
+  try {
+    execFileSync("git", ["init", "--quiet"], {cwd: dir});
+    writeFileSync(join(dir, "first.txt"), "old\nkeep\n");
+    writeFileSync(join(dir, "second file.txt"), "old\nkeep\n");
+    const first = "diff --git a/first.txt b/first.txt\n--- a/first.txt\n+++ b/first.txt\n@@ -1,2 +1,2 @@\n-old\n+new\n keep\n";
+    const second = " \tdiff --git a/second file.txt b/second file.txt\n--- a/second file.txt\n+++ b/second file.txt\n@@ -1,2 +1,2 @@\n-old\n+new\n keep\n";
+    const normalization = {kind: "diff_git_header_indent" as const, lines: [8]};
+    const failed = await runLocalGitTool("local_apply_patch", {
+      path: dir, patch: first + second.replace("-old", "-wrong"),
+    });
+    expect(failed).toMatchObject({ok: false, faultCode: "local_git_failed", details: {normalization}});
+    expect(readFileSync(join(dir, "first.txt"), "utf8")).toBe("old\nkeep\n");
+    expect(readFileSync(join(dir, "second file.txt"), "utf8")).toBe("old\nkeep\n");
+    const result = await runLocalGitTool("local_apply_patch", {path: dir, patch: first + second});
+    expect(result).toEqual({ok: true, path: realpathSync(dir), files: ["first.txt", "second file.txt"], normalization});
+    expect(readFileSync(join(dir, "first.txt"), "utf8")).toBe("new\nkeep\n");
+    expect(readFileSync(join(dir, "second file.txt"), "utf8")).toBe("new\nkeep\n");
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});

@@ -1,3 +1,40 @@
+export type PatchNormalization = {kind: 'diff_git_header_indent'; lines: number[]};
+
+/** Only repair a corroborated file boundary, never trim arbitrary hunk content. */
+export function normalizeGitPatch(patch: string): {patch: string; normalization?: PatchNormalization} {
+  const lines = patch.split('\n');
+  const changed: number[] = [];
+  const content = (i: number) => lines[i]?.replace(/\r$/, '') ?? '';
+  const isPath = (path: string, side: 'a' | 'b') =>
+    path.startsWith(`${side}/`) || (path.startsWith(`"${side}/`) && path.endsWith('"'));
+  const otherSide = (path: string, side: 'a' | 'b') => path.replace(/^("?)[ab]\//, `$1${side}/`);
+  for (let i = 0; i < lines.length; i++) {
+    const line = content(i);
+    if (!/^[ \t]+diff --git /.test(line)) continue;
+    let next = i + 1;
+    // Recognize only ordinary Git metadata, not arbitrary lines between headers.
+    while (/^(?:index [0-9a-f]+\.\.[0-9a-f]+(?: [0-7]{6})?|(?:new|deleted) file mode [0-7]{6})$/.test(content(next))) next++;
+    const oldHeader = content(next);
+    const newHeader = content(next + 1);
+    if (!oldHeader.startsWith('--- ') || !newHeader.startsWith('+++ ')
+      || !/^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@/.test(content(next + 2))) continue;
+    const oldPath = oldHeader.slice(4);
+    const newPath = newHeader.slice(4);
+    if (!(oldPath === '/dev/null' || isPath(oldPath, 'a'))
+      || !(newPath === '/dev/null' || isPath(newPath, 'b'))
+      || (oldPath === '/dev/null' && newPath === '/dev/null')) continue;
+    const a = oldPath === '/dev/null' ? otherSide(newPath, 'a') : oldPath;
+    const b = newPath === '/dev/null' ? otherSide(oldPath, 'b') : newPath;
+    const repaired = line.replace(/^[ \t]+/, '');
+    if (repaired !== `diff --git ${a} ${b}`) continue;
+    lines[i] = lines[i]!.replace(/^[ \t]+/, '');
+    changed.push(i + 1);
+  }
+  return changed.length ? {
+    patch: lines.join('\n'), normalization: {kind: 'diff_git_header_indent', lines: changed},
+  } : {patch};
+}
+
 /** Diagnose failed checks only; Git remains the authority on accepted patches. */
 export function describeGitPatchFailure(patch: string, message: string): string {
   if (/patch with only garbage|corrupt patch|unrecognized input|No valid patches/i.test(message)) {

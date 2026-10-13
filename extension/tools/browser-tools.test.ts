@@ -1062,3 +1062,108 @@ test("clipboard_page_read creates the offscreen document when missing", async ()
   expect(await runBrowserTool("clipboard_page_read", { tabId: 5 })).toEqual({ ok: true, text: "hi", bytes: 2 });
   expect(created).toEqual([{ url: "offscreen.html", reasons: ["CLIPBOARD"], justification: "在无需页面聚焦的情况下读写系统剪贴板" }]);
 });
+
+
+test('attachment checks the same CDP node and preserves executed-but-unverified states', async () => {
+  for (const mode of ['accepted', 'mismatch', 'unavailable']) {
+    const tab = mode === 'accepted' ? 5100 : mode === 'mismatch' ? 5101 : 5102;
+    mockSocketBrowser(tab);
+    const commands: any[] = [];
+    globals.chrome.debugger.sendCommand = async (_: any, cmd: string, args: any) => {
+      commands.push([cmd, args]);
+      if (cmd === 'DOM.getDocument') return {root: {nodeId: 1}};
+      if (cmd === 'DOM.querySelectorAll') return {nodeIds: [11, 22]};
+      if (cmd === 'DOM.querySelector') return {nodeId: 22};
+      if (cmd === 'DOM.resolveNode') { if (mode === 'unavailable') throw new Error('detached node'); return {object: {objectId: 'node22'}}; }
+      if (cmd === 'Runtime.callFunctionOn') return {result: {value: {connected: true, names: [mode === 'accepted' ? 'file.txt' : 'other.txt']}}};
+      return {};
+    };
+    const out = await runBrowserTool('attach_file', {tabId: tab, selector: '#second', path: '/data/file.txt'});
+    expect(commands.find(x => x[0] === 'DOM.setFileInputFiles')[1].nodeId).toBe(22);
+    expect(commands.find(x => x[0] === 'DOM.resolveNode')[1].nodeId).toBe(22);
+    expect(out).toMatchObject({ok: mode === 'accepted', actionCompleted: true, verified: mode === 'accepted'});
+    if (mode === 'unavailable') expect(out).toMatchObject({attached: null, fileNames: null, faultCode: 'attachment_unverified'});
+    else expect(commands.find(x => x[0] === 'Runtime.callFunctionOn')[1].objectId).toBe('node22');
+  }
+});
+
+test('network_grep waits for loaded body, decodes base64 and distinguishes limits from unreadable', async () => {
+  for (const mode of ['matches', 'none', 'unavailable']) {
+    const tab = mode === 'matches' ? 5110 : mode === 'none' ? 5111 : 5112;
+    const {onEvent} = mockSocketBrowser(tab);
+    globals.chrome.debugger.sendCommand = async (_: any, cmd: string) => {
+      if (cmd === 'Network.enable') setTimeout(() => {
+        onEvent.emit({tabId: tab}, 'Network.responseReceived', {requestId: 'r', response: {url: 'https://example.com/api', status: 200}});
+        onEvent.emit({tabId: tab}, 'Network.loadingFinished', {requestId: 'r'});
+      }, 0);
+      if (cmd === 'Network.getResponseBody') {
+        if (mode === 'unavailable') throw new Error('body lost');
+        return {body: btoa(mode === 'matches' ? 'hit '.repeat(12) : 'nothing'), base64Encoded: true};
+      }
+      return {};
+    };
+    const out = await runBrowserTool('network_grep', {tabId: tab, urlContains: '/api', keyword: 'hit'});
+    if (mode === 'matches') expect(out).toMatchObject({ok: true, matchCount: 8, truncated: true, hasMore: true, totalChars: 48});
+    else if (mode === 'none') expect(out).toMatchObject({ok: false, faultCode: 'not_found', matchCount: 0, truncated: false});
+    else expect(out).toMatchObject({ok: false, faultCode: 'response_body_unavailable', bodyUnavailable: 'get_response_body_failed'});
+  }
+});
+
+test('HAR distinguishes stored snapshot from active recorder and marks incomplete capture', async () => {
+  const tab = 5120, {onEvent} = mockSocketBrowser(tab);
+  const stored: Record<string, any> = {[`tchrome.har.${tab}`]: {requests: [{id: 'old', request: {}, startedDateTime: '2026-01-01T00:00:00.000Z'}]}};
+  globals.chrome.storage = {session: {get: async () => stored, set: async (v: any) => {Object.assign(stored, v);}, remove: async (k: string) => {delete stored[k];}}};
+  expect(await runBrowserTool('har', {tabId: tab, action: 'read'})).toMatchObject({recording: false, snapshotAvailable: true, state: 'snapshot_only'});
+  await runBrowserTool('har', {tabId: tab, action: 'start'});
+  expect(await runBrowserTool('har', {tabId: tab, action: 'read'})).toMatchObject({recording: true, state: 'recording'});
+  onEvent.emit({tabId: tab}, 'Network.requestWillBeSent', {requestId: 'new', request: {url: 'https://example.com/api', method: 'POST', postData: 'x'.repeat(32001)}});
+  onEvent.emit({tabId: tab}, 'Network.responseReceived', {requestId: 'new', response: {status: 200}});
+  const out = await runBrowserTool('har', {tabId: tab, action: 'stop'});
+  expect(out.completeness).toMatchObject({responseBodies: 'not_collected', timings: 'not_collected'});
+  expect(out.har.log.entries[0]).toMatchObject({_responseMissing: true, _timingUnavailable: true, _loadingComplete: false});
+  expect(out.har.log.entries[1].request.postData).toMatchObject({_truncated: true, _totalChars: 32001});
+  expect(out.har.log.entries[1].response.content._bodyUnavailable).toBe('not_collected');
+});
+
+test('HAR request dates use CDP wallTime rather than the monotonic timestamp', async () => {
+  const tab = 5140, {onEvent} = mockSocketBrowser(tab);
+  const stored: Record<string, any> = {};
+  globals.chrome.storage = {session: {get: async () => stored, set: async (v: any) => {Object.assign(stored, v);}, remove: async (k: string) => {delete stored[k];}}};
+  await runBrowserTool('har', {tabId: tab, action: 'start'});
+  const wallTime = Date.parse('2026-10-13T08:28:04.123Z') / 1000;
+  onEvent.emit({tabId: tab}, 'Network.requestWillBeSent', {
+    requestId: 'wall', timestamp: 78057.1, wallTime,
+    request: {url: 'https://example.com/wall'},
+  });
+  const before = Date.now();
+  const invalidWallTimes = [undefined, null, NaN, Infinity, -1, 9e12, '1791880084'];
+  for (const [index, invalid] of invalidWallTimes.entries()) {
+    onEvent.emit({tabId: tab}, 'Network.requestWillBeSent', {
+      requestId: `fallback-${index}`, timestamp: 78057.1, wallTime: invalid,
+      request: {url: 'https://example.com/fallback'},
+    });
+  }
+  const after = Date.now();
+  const out = await runBrowserTool('har', {tabId: tab, action: 'stop'});
+  expect(out.har.log.entries[0].startedDateTime).toBe('2026-10-13T08:28:04.123Z');
+  expect(out.har.log.pages[0].startedDateTime).toBe('2026-10-13T08:28:04.123Z');
+  for (const entry of out.har.log.entries.slice(1)) {
+    const time = Date.parse(entry.startedDateTime);
+    expect(time).toBeGreaterThanOrEqual(before);
+    expect(time).toBeLessThanOrEqual(after);
+  }
+});
+
+test('navigation preserves action completion and unavailable readiness evidence', async () => {
+  mockSocketBrowser(5130);
+  globals.chrome.tabs.onUpdated = eventBus();
+  globals.chrome.tabs.get = async () => ({id: 5130, status: 'complete', url: 'https://example.com'});
+  globals.chrome.tabs.update = async () => {};
+  globals.chrome.scripting = {executeScript: async ({func}: any) => {
+    if (String(func).includes("getEntriesByType")) throw new Error('sampling failed');
+    return [{result: {title: 'Example', url: 'https://example.com', text: ''}}];
+  }};
+  expect(await runBrowserTool('open_url', {tabId: 5130, url: 'https://example.com'})).toMatchObject({
+    actionCompleted: true, readiness: {ok: false, load: {ok: true, state: 'complete'}, network: {state: 'unavailable', inFlightVerified: false}},
+  });
+});

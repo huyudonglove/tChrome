@@ -90,7 +90,7 @@ test("observer attaches domains, drains 4xx and console errors sparsely", async 
   const out = await endActionObserve(session, { ok: true, clicked: true, id: "e_12" });
   expect(out.ok).toBe(true);
   expect(out.effects?.network?.[0]).toMatchObject({ status: 400, url: "https://api.example.com/save" });
-  expect(String(out.effects.network[0].body ?? "").length).toBeLessThanOrEqual(150);
+  expect(out.effects.network[0].bodyUnavailable).toBe("non_json_body_omitted");
   expect(out.effects.console?.[0]).toMatchObject({ level: "error", text: "TypeError: boom" });
   expect(out.effects.nav).toBeUndefined();
 });
@@ -100,7 +100,7 @@ test("clean action returns no effects key at all", async () => {
   initActionObserver();
   const session = await beginActionObserve(9);
   const out = await endActionObserve(session, { ok: true, clicked: true, id: "e_1" });
-  expect(out).toEqual({ ok: true, clicked: true, id: "e_1" });
+  expect(out).toMatchObject({ ok: true, clicked: true, id: "e_1", observation: {status: "partial", dom: {before: false, after: false}} });
   expect(Object.hasOwn(out, "effects")).toBe(false);
 });
 
@@ -167,4 +167,29 @@ test("summarizeDomDiff handles equal, insert, and delete", () => {
   expect(added).toContain("+");
   const removed = summarizeDomDiff("aYYb", "ab");
   expect(removed).toContain("-");
+});
+
+
+test('observer distinguishes unavailable from observed quiet action and redacts failed JSON', async () => {
+  setupChrome(); initActionObserver();
+  expect(await endActionObserve({tabId: 5000, disabled: true, unavailable: 'observer_initialization_failed'}, {ok: true}))
+    .toMatchObject({ok: true, observation: {status: 'unavailable', reason: 'observer_initialization_failed'}});
+  htmlSnapshots = ['<main>same</main>', '<main>same</main>'];
+  const session = await beginActionObserve(5001);
+  globals.chrome.debugger.sendCommand = async () => ({body: '{"code":"DENIED","password":"private","token":"private"}'});
+  listeners[0]!({tabId: 5001}, 'Network.responseReceived', {requestId: 'failed', response: {status: 403, url: 'https://example.com?token=private'}});
+  const out = await endActionObserve(session, {ok: true});
+  expect(out.observation.status).toBe('observed');
+  expect(out.effects.network[0]).toMatchObject({body: {code: 'DENIED', password: '[REDACTED]', token: '[REDACTED]'}, redacted: true});
+  expect(JSON.stringify(out)).not.toContain('private');
+});
+
+test('observer reports ring loss and sampling limits', async () => {
+  setupChrome(); initActionObserver();
+  htmlSnapshots = ['x'.repeat(200000), 'x'.repeat(200000)];
+  alertTexts = Array(8).fill('alert') as any;
+  const session = await beginActionObserve(5002);
+  for (let i = 0; i < 100; i++) listeners[0]!({tabId: 5002}, 'Network.loadingFailed', {requestId: String(i), errorText: 'lost'});
+  const out = await endActionObserve(session, {ok: true});
+  expect(out.observation).toMatchObject({eventsTruncated: true, dom: {truncated: true}});
 });

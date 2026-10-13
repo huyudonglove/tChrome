@@ -144,7 +144,7 @@ test("background dispatch continues without panel messages and resumes on alarms
     interval();
     await Bun.sleep(20);
     expect(results.at(-1)).toBe("hung-renderer");
-    expect(lastResult).toMatchObject({ ok: false, faultCode: "tool_timeout" });
+    expect(lastResult).toMatchObject({ ok: false, faultCode: "tool_timeout", execution: {state: "unknown", mayStillRun: true, cancelled: false}, actionOutcome: "unknown_do_not_retry", recovery: "inspect_state" });
     hanging = false;
     request = { id: "after-hang", name: "list_tabs" };
     interval();
