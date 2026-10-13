@@ -79,6 +79,7 @@ test('script patches distinguish contextless edits, mismatches and malformed dif
   const header = '--- a/demo.js\n+++ b/demo.js\n';
   const failures = [
     [header + '@@ -2 +2 @@\n-old\n+new\n', '缺少上下文行'],
+    [header + '@@ -1,2 +1,2 @@\n before\n-old\n+new\n', '可能缺少块尾上下文'],
     [header + '@@ -1,3 +1,3 @@\n before\n-wrong\n+new\n after\n', '补丁上下文不匹配'],
     [header + '@@\n-old\n+new\n', '补丁格式无效'],
   ];
@@ -93,4 +94,12 @@ test('script patches distinguish contextless edits, mismatches and malformed dif
   });
   expect(result.ok).toBe(true);
   expect((await readScript(dir, 'demo.js')).code).toBe('before\nnew\nafter\n');
+
+  // A real EOF edit needs no trailing context; Git still decides acceptance.
+  const eofResult = await patchScript(dir, {
+    filename: 'demo.js', patch: header + '@@ -2,2 +2,2 @@\n new\n-after\n+end\n',
+  });
+  expect(eofResult.ok).toBe(true);
+  expect(eofResult.error).toBeUndefined();
+  expect((await readScript(dir, 'demo.js')).code).toBe('before\nnew\nend\n');
 }));
