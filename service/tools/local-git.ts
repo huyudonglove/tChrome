@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { isAbsolute } from "node:path";
 import { errorInfo } from "../../shared/errors.ts";
+import { describeGitPatchFailure } from "../../shared/git-patch.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -189,13 +190,7 @@ export async function runApplyPatch(input: Record<string, unknown>) {
     await applyGitPatch(repoPath, patch, ["--check"]);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (/patch with only garbage|corrupt patch|unrecognized input/i.test(message)) {
-      throw new Error(`${message}\n补丁格式无效：检查完整的 diff 文件头、形如 @@ -1,1 +1,1 @@ 的块头及每行前缀；不要使用裸 @@。`);
-    }
-    if (/patch does not apply/i.test(message)) {
-      throw new Error(`${message}\n补丁上下文不匹配：重新读取当前文件并核对块中的所有空行和上下文行；不要仅调整 @@ 行号。`);
-    }
-    throw error;
+    throw new Error(describeGitPatchFailure(patch, message));
   }
   const numstat = await applyGitPatch(repoPath, patch, ["--numstat", "-z"]);
   const files = numstat.split("\0").filter(Boolean).map(row => row.slice(row.indexOf("\t", row.indexOf("\t") + 1) + 1));

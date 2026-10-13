@@ -1,4 +1,5 @@
 import { AppError, errorInfo } from "../../shared/errors.ts";
+import { describeGitPatchFailure } from "../../shared/git-patch.ts";
 import { lstat, readdir, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -46,7 +47,10 @@ const git = async (cwd: string, args: string[], patch?: string) => {
   const proc = Bun.spawn(['git', ...args], {cwd, env: {...env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null'},
     stdin: patch === undefined ? 'ignore' : new Blob([patch]), stdout: 'pipe', stderr: 'pipe'});
   const [code, out, err] = await Promise.all([proc.exited, new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
-  if (code !== 0) throw new Error(err.trim() || '补丁无效');
+  if (code !== 0) {
+    const message = err.trim() || '补丁无效';
+    throw new Error(patch === undefined ? message : describeGitPatchFailure(patch, message));
+  }
   return out;
 };
 

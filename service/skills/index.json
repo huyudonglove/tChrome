@@ -12,6 +12,7 @@
     "canvas-webgl-probing",
     "network-state-troubleshooting",
     "repo-browser-dual-audit",
-    "hypothesis-testing"
+    "hypothesis-testing",
+    "graphical-slider-verification"
   ]
 }

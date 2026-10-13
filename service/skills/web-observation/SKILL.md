@@ -3,7 +3,7 @@ SUMMARY: 网页观察与操作：按目标选择定位能力，执行交互，�
 
 常驻页面操作方法。先明确要操作的对象和预期结果；目标与授权明确时直接操作。页面概况、控件列表、截图和脚本分别回答不同问题，不必每次从整页观察重新开始。动态能力按需 catalog_add，取得 schema 后调用。
 
-需要专项方法时按问题 skill_load：表单与组件状态用 spa-state-sync，接口与后台任务用 api-causality-flow，画布用 canvas-webgl-probing，宿主联调用 host-browser-coordination。浏览器配置问题可用 chrome-host-environment；已有方法足够时直接执行。
+需要专项方法时按问题 skill_load：表单与组件状态用 spa-state-sync，接口与后台任务用 api-causality-flow，画布用 canvas-webgl-probing，图形滑块验证码用 graphical-slider-verification，宿主联调用 host-browser-coordination。浏览器配置问题可用 chrome-host-environment；已有方法足够时直接执行。
 
 ## 按缺口定位
 

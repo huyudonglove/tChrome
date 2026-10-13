@@ -14,7 +14,7 @@
         "patch": {
           "type": "string",
           "minLength": 1,
-          "description": "单文件 git unified diff，新增或删除使用 /dev/null；修改路径必须对应 filename。Git 按补丁正文重新计算 @@ 中的行数；仍需合法文件头、@@ 块头、每行的空格/+/- 前缀和匹配的原文上下文，补丁以换行结束"
+          "description": "单文件 git unified diff，路径必须对应 filename；新增或删除整个文件使用 /dev/null（无需上下文）。修改已有文件时请保留修改块前后未修改的原文行，以空格为前缀；不要只传 -旧行/+新行的零上下文局部修改块。使用 Git 默认检查，不启用 --unidiff-zero；--recount 仅按正文重算 @@ 行数，不放宽上下文检查。仍需合法文件头、块头、每行前缀及匹配的原文，补丁以换行结束"
         },
         "reason": {
           "type": "string"

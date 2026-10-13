@@ -71,3 +71,26 @@ test('writeScript writes, overwrites, and rejects invalid filename/symlinks', ()
   expect((await writeScript(dir, { filename: '../demo.js', code: 'bad' })).ok).toBe(false);
   expect((await writeScript(dir, { filename: 'demo.txt', code: 'bad' })).ok).toBe(false);
 }));
+
+
+test('script patches distinguish contextless edits, mismatches and malformed diffs', () => temp(async dir => {
+  const original = 'before\nold\nafter\n';
+  await writeScript(dir, {filename: 'demo.js', code: original});
+  const header = '--- a/demo.js\n+++ b/demo.js\n';
+  const failures = [
+    [header + '@@ -2 +2 @@\n-old\n+new\n', '缺少上下文行'],
+    [header + '@@ -1,3 +1,3 @@\n before\n-wrong\n+new\n after\n', '补丁上下文不匹配'],
+    [header + '@@\n-old\n+new\n', '补丁格式无效'],
+  ];
+  for (const [patch, detail] of failures) {
+    const result = await patchScript(dir, {filename: 'demo.js', patch});
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain(detail!);
+    expect((await readScript(dir, 'demo.js')).code).toBe(original);
+  }
+  const result = await patchScript(dir, {
+    filename: 'demo.js', patch: header + '@@ -1,3 +1,3 @@\n before\n-old\n+new\n after\n',
+  });
+  expect(result.ok).toBe(true);
+  expect((await readScript(dir, 'demo.js')).code).toBe('before\nnew\nafter\n');
+}));

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { loadCapabilityCatalog } from "./capability.ts";
 import { loadToolRegistry } from "./registry.ts";
+import { loadSkillManifest } from "../skills/loader.ts";
 
 function toolDefinition(name: string, description: string) {
   return {
@@ -25,8 +26,9 @@ test("real registry has complete metadata for every tool", () => {
   const toolIds = Object.keys(registry.tools);
   const toolCapabilities = registry.capabilities.filter((item) => item.kind === "tool");
   const skillCapabilities = registry.capabilities.filter((item) => item.kind === "skill");
+  const manifest = loadSkillManifest(join(import.meta.dir, "../.."));
   expect(toolCapabilities).toHaveLength(toolIds.length);
-  expect(skillCapabilities).toHaveLength(11);
+  expect(skillCapabilities.map((item) => item.id).sort()).toEqual([...manifest.residentSkillIds, ...manifest.dynamicSkillIds].sort());
   expect(toolCapabilities.every((item) => item.metadataComplete)).toBe(true);
   expect(skillCapabilities.every((item) => item.metadataComplete)).toBe(true);
   expect(toolCapabilities.find((item) => item.id === "account_vault")?.risk).toBe("high");

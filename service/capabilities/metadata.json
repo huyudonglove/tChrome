@@ -5433,6 +5433,39 @@
         "page_recheck"
       ]
     },
+    "graphical-slider-verification": {
+      "purpose": "图形滑块验证码的当前题识别、拖动校准与业务结果验收",
+      "triggers": [
+        "图形滑块",
+        "拼图验证码",
+        "拖动回弹",
+        "滑块换题",
+        "滑块速度"
+      ],
+      "outputs": [
+        "当前题的相对位移与可靠性判断",
+        "拖动后的页面、接口及业务验收结果"
+      ],
+      "preconditions": [
+        "验证码页面处于当前可观察状态",
+        "按用户授权操作后续业务步骤"
+      ],
+      "risk": "medium",
+      "alternatives": [
+        "匹配不明确时请用户手动完成"
+      ],
+      "verification": [
+        "确认未复用换题前的图像与坐标",
+        "页面通过态与实际业务结果相互印证"
+      ],
+      "composesWith": [
+        "capture_page",
+        "page_eval_expr",
+        "solve_slider",
+        "drag",
+        "page_recheck"
+      ]
+    },
     "hypothesis-testing": {
       "outputs": [
         "按场景执行的方法、步骤与验收约束"

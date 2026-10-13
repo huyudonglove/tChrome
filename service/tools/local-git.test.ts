@@ -155,8 +155,8 @@ test("local_apply_patch leaves all files unchanged when one hunk fails", async (
   const dir = mkdtempSync(join(tmpdir(), "tchrome-patch-test-"));
   try {
     execFileSync("git", ["init", "-b", "main"], { cwd: dir });
-    writeFileSync(join(dir, "first.txt"), "first\n");
-    writeFileSync(join(dir, "second.txt"), "second\n");
+    writeFileSync(join(dir, "first.txt"), "first\nkeep\n");
+    writeFileSync(join(dir, "second.txt"), "second\nkeep\n");
     const result = await runLocalGitTool("local_apply_patch", {
       path: dir,
       patch: [
@@ -166,12 +166,14 @@ test("local_apply_patch leaves all files unchanged when one hunk fails", async (
         "@@ -1 +1 @@",
         "-first",
         "+changed",
+        " keep",
         "diff --git a/second.txt b/second.txt",
         "--- a/second.txt",
         "+++ b/second.txt",
         "@@ -1 +1 @@",
         "-wrong context",
         "+changed",
+        " keep",
         "",
       ].join("\n"),
       reason: "test failed patch",
@@ -180,8 +182,8 @@ test("local_apply_patch leaves all files unchanged when one hunk fails", async (
     if (!("message" in result)) throw new Error("expected patch failure message");
     expect(result.message).toContain("patch does not apply");
     expect(result.message).toContain("补丁上下文不匹配");
-    expect(readFileSync(join(dir, "first.txt"), "utf8")).toBe("first\n");
-    expect(readFileSync(join(dir, "second.txt"), "utf8")).toBe("second\n");
+    expect(readFileSync(join(dir, "first.txt"), "utf8")).toBe("first\nkeep\n");
+    expect(readFileSync(join(dir, "second.txt"), "utf8")).toBe("second\nkeep\n");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -217,5 +219,47 @@ test("local_apply_patch rejects malformed patches without changing files", async
     }
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+
+test("local_apply_patch diagnoses contextless partial edits and accepts contextual retry", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-patch-test-"));
+  try {
+    execFileSync("git", ["init", "--quiet"], {cwd: dir});
+    writeFileSync(join(dir, "file.txt"), "before\nold\nafter\n");
+    const header = "--- a/file.txt\n+++ b/file.txt\n";
+    const failed = await runLocalGitTool("local_apply_patch", {
+      path: dir, patch: header + "@@ -2 +2 @@\n-old\n+new\n",
+    });
+    expect(failed).toMatchObject({ok: false, faultCode: "local_git_failed"});
+    if (!("message" in failed)) throw new Error("expected failure message");
+    expect(failed.message).toContain("缺少上下文行");
+    expect(failed.message).toContain("b/file.txt @@ -2 +2 @@");
+    expect(failed.message).toContain("未启用 --unidiff-zero");
+    expect(failed.message).toContain("以空格开头");
+    expect(readFileSync(join(dir, "file.txt"), "utf8")).toBe("before\nold\nafter\n");
+    const retried = await runLocalGitTool("local_apply_patch", {
+      path: dir, patch: header + "@@ -1,3 +1,3 @@\n before\n-old\n+new\n after\n",
+    });
+    expect(retried.ok).toBe(true);
+    expect(readFileSync(join(dir, "file.txt"), "utf8")).toBe("before\nnew\nafter\n");
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
+  }
+});
+
+test("local_apply_patch preserves Git-accepted contextless whole-file replacements", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tchrome-patch-test-"));
+  try {
+    execFileSync("git", ["init", "--quiet"], {cwd: dir});
+    writeFileSync(join(dir, "file.txt"), "old\n");
+    const result = await runLocalGitTool("local_apply_patch", {
+      path: dir, patch: "--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new\n",
+    });
+    expect(result.ok).toBe(true);
+    expect(readFileSync(join(dir, "file.txt"), "utf8")).toBe("new\n");
+  } finally {
+    rmSync(dir, {recursive: true, force: true});
   }
 });
