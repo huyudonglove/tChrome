@@ -145,11 +145,34 @@ test("every requested window survives even when full blocks exceed the combined 
   expect(result.execution.admitted).toBe(true);
 }));
 
-test("missing source, unknown block and search misses return explicit failures", () => fixture(async dataDir => {
+test("missing sources and unknown blocks fail while search misses stay successful", () => fixture(async dataDir => {
   saveFullReturn(dataDir, "cv_01", "call_01", "hello");
   const result = await query(dataDir, [{ callId: "call_missing" }, { callId: "call_01", blockId: "blk_missing" }, { callId: "call_01", keyword: "absent" }]);
   expect(result.ok).toBe(false);
-  expect(result.results.map((row: { faultCode: string }) => row.faultCode)).toEqual(["file_not_found", "not_found", "not_found"]);
+  expect(result.results.map((row: { faultCode?: string }) => row.faultCode)).toEqual(["file_not_found", "not_found", undefined]);
+  expect(result.results[2]).toMatchObject({ ok: true, kind: "search", totalMatches: 0, matches: [] });
+}));
+
+test("empty searches do not fail a batch containing hits and complete blocks", () => fixture(async dataDir => {
+  saveFullReturn(dataDir, "cv_01", "call_01", "hello needle");
+  const result = await query(dataDir, [
+    { callId: "call_01", keyword: "absent" },
+    { callId: "call_01", keyword: "needle" },
+    { callId: "call_01" },
+  ]);
+  expect(result.ok).toBe(true);
+  expect(result.faultCode).toBeUndefined();
+  expect(result.results[0]).toMatchObject({ ok: true, totalMatches: 0, matches: [] });
+  expect(result.results[0].faultCode).toBeUndefined();
+  expect(result.results[1].matches.length).toBeGreaterThan(0);
+  expect(result.results[2]).toMatchObject({ ok: true, kind: "content", content: "hello needle" });
+  const empty = await query(dataDir, [{ callId: "call_01", keyword: "absent" }]);
+  expect(empty.ok).toBe(true);
+  const exhausted = await query(dataDir, [{ callId: "call_01", keyword: "needle", offset: result.results[1].totalMatches }]);
+  expect(exhausted.ok).toBe(true);
+  expect(exhausted.results[0]).toMatchObject({ ok: true, matches: [] });
+  expect(exhausted.results[0].nextOffset).toBeUndefined();
+  expect(exhausted.results[0].faultCode).toBeUndefined();
 }));
 
 test("invalid modes and removed parameters are rejected without coercion", () => fixture(async dataDir => {
@@ -230,7 +253,7 @@ test("externalized observation directory IDs retrieve the exact archived page bl
   const updated = (await query(dataDir, [{ pageId: observation.id, blockId: refreshed.matches[0].blockId }])).results[0];
   expect(updated.content).toContain("refreshed-current-page");
   expect(updated.content).not.toContain("button_50");
-  expect((await query(dataDir, [{ pageId: observation.id, keyword: "button_50" }])).results[0].faultCode).toBe("not_found");
+  expect((await query(dataDir, [{ pageId: observation.id, keyword: "button_50" }])).results[0]).toMatchObject({ ok: true, totalMatches: 0, matches: [] });
 }));
 
 test("asset_read navigates both independent text assets and call-backed snapshots", () => fixture(async dataDir => {
@@ -254,5 +277,33 @@ test("asset_read navigates both independent text assets and call-backed snapshot
     expect(full).toContain(block.content);
     const found = await read({ keyword: "entry_50" });
     expect((await read({ blockId: found.matches[0].blockId })).content).toContain("entry_50");
+    const absent = await read({ keyword: "missing-entry" });
+    expect(absent).toMatchObject({ ok: true, kind: "search", totalMatches: 0, matches: [] });
+    expect(absent.faultCode).toBeUndefined();
   }
+}));
+
+test("mixed evidence searches remain successful through handleTurn normalization", () => fixture(async dataDir => {
+  primeActiveTask(dataDir);
+  const conversationId = ensureSession(dataDir).conversationId;
+  saveFullReturn(dataDir, conversationId, "call_fixture", "hello needle");
+  let step = 0;
+  const reply = await handleTurn({ dataDir, repoRoot: join(import.meta.dir, "../.."), provider: { complete: async input => {
+    if (++step === 1) return completion("evidence_search", { windows: [
+      { callId: "call_fixture", keyword: "absent" },
+      { callId: "call_fixture", keyword: "needle" },
+      { callId: "call_fixture" },
+    ] });
+    const evidence = loadLedger(dataDir, conversationId).toolIO.find(row => row.name === "evidence_search")!;
+    const retrieved = JSON.parse(evidence.return.text);
+    expect(retrieved.ok).toBe(true);
+    expect(retrieved.faultCode).toBeUndefined();
+    expect(retrieved.results[0]).toMatchObject({ ok: true, totalMatches: 0, matches: [] });
+    expect(retrieved.results[1].matches.length).toBeGreaterThan(0);
+    expect(retrieved.results[2].content).toBe("hello needle");
+    expect(input.messages[1]!.content).not.toContain("runtime: 工具执行失败");
+    return completion("finishTurn", { text: "批量取证完成" });
+  } } }, { userInput: "验证空搜索", submittedAt: new Date().toISOString() });
+  expect(reply.stopReason).toEqual({ kind: "reply", text: "批量取证完成" });
+  expect(step).toBe(2);
 }));

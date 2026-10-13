@@ -55,10 +55,10 @@ const retrieveEvidenceBlock = (index: BlockIndex, win: Record<string, unknown>, 
     }
     const nextOffset = offset + matches.length;
     return {
-      ok: matches.length > 0, kind: "search", source, path, keyword: win.keyword,
+      ok: true, kind: "search", source, path, keyword: win.keyword,
       totalMatches: all.length, offset, matches,
       ...(nextOffset < all.length ? { nextOffset } : {}),
-      ...(matches.length ? {} : { faultCode: "not_found", detail: "没有匹配的原文块" }),
+      ...(matches.length ? {} : { detail: all.length ? "当前 offset 后没有更多匹配" : "没有匹配的原文块" }),
     };
   }
   const blockId = win.blockId === undefined ? index.rootId : win.blockId as string;
