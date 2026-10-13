@@ -2,7 +2,7 @@ import { saveContextRecord } from "./records.ts";
 import { allocateRecordId, inputRecord } from "./ids.ts";
 import { loadMemories } from "../memory/store.ts";
 import { storeToolImages } from "../images/tool-result.ts";
-import { admitExecution, admitImages, deferredImageNote, imageAttachmentNote } from "../admission.ts";
+import { admitExecution, admitImages, deferredImageNote, imageAttachmentNote, evidenceRetrievalNote } from "../admission.ts";
 import { escalate } from "./escalation.ts";
 import { appendRuntime, inputLoop, recordHelm, recordToolResult, setLoopNotice } from "./loop-records.ts";
 import { hasActiveTask, requiresActiveTask } from "./task-gate.ts";
@@ -480,6 +480,11 @@ const runQueue = async (input: {
       const imageHint = imageAttachmentNote(stored.images, turn.assembled.observations);
       if (imageHint) {
         row.runtimeHints = [...(row.runtimeHints ?? []), imageHint];
+      }
+      const evidenceHint = admittedText.mode === "inline"
+        ? evidenceRetrievalNote(item.name, viewText, turn.assembled.observations) : "";
+      if (evidenceHint) {
+        row.runtimeHints = [...(row.runtimeHints ?? []), evidenceHint];
       }
       const escalation = escalate(turnRows, item.name, readOnlyTools);
       if (escalation.action === "interrupt") {

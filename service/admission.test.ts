@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { admitExecution, admitImages, admitText, admitReturn, deferredImageNote, imageAttachmentNote, retrievalWindowChars } from "./admission.ts";
+import { admitExecution, admitImages, admitText, admitReturn, deferredImageNote, imageAttachmentNote, evidenceRetrievalNote, retrievalWindowChars } from "./admission.ts";
 import { buildBlockIndex, expandBlock, readBlock, searchBlocks, type BlockIndex } from "./evidence/index.ts";
 import { runtimeConfig } from "./config/runtime.ts";
 
@@ -133,4 +133,37 @@ test("image attachment note asks for a written scene conclusion and lists this t
   expect(deferredOnly).toContain("未附带像素");
   expect(deferredOnly).not.toContain("像素只在本次请求可见");
   expect(deferredOnly).not.toContain("page_01");
+});
+
+test("evidence retrieval note counts complete blocks, including search content in a mixed failure", () => {
+  const block = { blockId: "blk_01", content: "complete source" };
+  const note = evidenceRetrievalNote("evidence_search", JSON.stringify({ ok: false, results: [
+    { ok: true, source: "call:call_01", kind: "content", ...block },
+    { ok: true, source: "call:call_01", kind: "search", matches: [block, { blockId: "blk_02", snippet: "partial" }, { blockId: "blk_03", content: "other source" }] },
+    { ok: true, kind: "directory", children: [block] },
+    { ok: false, kind: "content", blockId: "blk_04", content: "failed" },
+  ] }), [{ id: "page_01", type: "code" }]);
+  expect(note).toContain("2 个完整正文块");
+  expect(note).toContain("call:call_01/blk_01");
+  expect(note).not.toContain("blk_02");
+  expect(note).not.toContain("blk_04");
+  expect(note).toContain("page_01(code)");
+  expect(note).toContain("可直接交付时无需补记");
+});
+
+test("evidence retrieval note ignores directories, snippets, empty searches and malformed results", () => {
+  for (const row of [
+    { ok: true, kind: "directory", children: [] },
+    { ok: true, kind: "search", matches: [{ blockId: "blk_01", snippet: "partial" }] },
+    { ok: true, kind: "search", matches: [] },
+    { ok: false, kind: "content", blockId: "blk_01", content: "failed" },
+  ]) expect(evidenceRetrievalNote("evidence_search", JSON.stringify({ results: [row] }))).toBe("");
+  for (const text of ["not json", "null", "[]", "{}"]) expect(evidenceRetrievalNote("evidence_search", text)).toBe("");
+  expect(evidenceRetrievalNote("local_fs_read", JSON.stringify({ ok: true, kind: "content", blockId: "blk_01", content: "source" }))).toBe("");
+});
+
+test("asset text retrieval shares the hint while image metadata does not", () => {
+  const note = evidenceRetrievalNote("asset_read", JSON.stringify({ ok: true, source: "asset:ast_01", kind: "content", blockId: "blk_01", content: "asset text" }));
+  expect(note).toContain("asset:ast_01/blk_01");
+  expect(evidenceRetrievalNote("asset_read", JSON.stringify({ ok: true, image: "image path" }))).toBe("");
 });

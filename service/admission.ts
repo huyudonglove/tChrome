@@ -122,3 +122,39 @@ export function imageAttachmentNote(
     : "";
   return `runtime: 本批图片 ${parts.join("，")}。${detail}${record}${seen}`;
 }
+
+/** 取回正文时提示复用结论；目录、搜索片段和空结果不代表已经读到正文。 */
+export function evidenceRetrievalNote(
+  tool: string,
+  text: string,
+  observations: { id: string; type: string }[] = [],
+): string {
+  if (tool !== "evidence_search" && tool !== "asset_read") return "";
+  let parsed: unknown;
+  try { parsed = JSON.parse(text); } catch { return ""; /* 非结构化返回不推定读到正文。 */ }
+  const record = (value: unknown): Record<string, unknown> | null =>
+    value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+  const root = record(parsed);
+  if (!root) return "";
+  const rows = tool === "evidence_search" && Array.isArray(root.results) ? root.results : tool === "asset_read" ? [root] : [];
+  const blocks = new Set<string>();
+  for (const value of rows) {
+    const row = record(value);
+    if (!row || row.ok !== true) continue;
+    const source = typeof row.source === "string" ? row.source : tool;
+    const add = (value: unknown): void => {
+      const block = record(value);
+      if (block && typeof block.content === "string" && typeof block.blockId === "string") {
+        blocks.add(`${source}/${block.blockId}`);
+      }
+    };
+    if (row.kind === "content") add(row);
+    else if (row.kind === "search" && Array.isArray(row.matches)) row.matches.forEach(add);
+  }
+  if (!blocks.size) return "";
+  const refs = [...blocks].slice(0, 6).join("、");
+  const seen = observations.length
+    ? `已有观察：${observations.slice(-6).map(row => `${row.id}(${row.type})`).join("、")}；先复用已覆盖的结论。`
+    : "";
+  return `runtime: 本次已取回 ${blocks.size} 个完整正文块（${refs}${blocks.size > 6 ? "等" : ""}），不是仅有目录或搜索片段。正文仍可回查，优先复用本次内容；没有来源变化或新问题时，不必再次搜索或取回同一块。若后续步骤需要承接结论，可合并用 observation_write 归纳已确认事实、未解决问题和下一步，不要复制原文；已有记录覆盖或可直接交付时无需补记。${seen}`;
+}

@@ -112,6 +112,62 @@ test("mixed file read failures stay visible after externalization and originals 
   expect(JSON.parse(saved.return.text).ok).toBe(false);
 }));
 
+test("retrieved complete bodies reach the model with optional reuse hints, but directories do not", () => withDir(async dataDir => {
+  const path = join(dataDir, "source.ts");
+  const smallPath = join(dataDir, "small.ts");
+  const smallContent = 'export const SMALL_BODY_MARKER = 1;';
+  const content = Array.from({ length: 180 }, (_, i) => `export function fn${i}() { return "BODY_MARKER"; }`).join("\n");
+  writeFileSync(path, content);
+  writeFileSync(smallPath, smallContent);
+  let step = 0;
+  let sourceCallId = "";
+  let blockId = "";
+  const notices = (user: string, callId: string): string[] => [...user.matchAll(/<runtime[^>]*type="notice"[^>]*>\n([\s\S]*?)\n<\/runtime>/g)]
+    .map(match => JSON.parse(match[1]!))
+    .filter(note => note.callId === callId).map(note => note.text);
+  const reply = await handleTurn({ dataDir, repoRoot, provider: provider(user => {
+    if (++step === 1) return response(call("catalog_add", { names: ["local_fs_read", "evidence_search"] }));
+    if (step === 2) return response(call("local_fs_read", { items: [{ path }, { path: smallPath }] }));
+    if (step === 3) {
+      const row = callRows(user).find(item => item.name === "local_fs_read");
+      expect(row.return.externalized).toBe(true);
+      expect(notices(user, row.callId)).toEqual([]);
+      sourceCallId = row.callId;
+      const block = row.return.directory.children.find((child: any) => child.kind === "content" && child.source?.representation === "fileContent");
+      expect(block).toBeDefined();
+      blockId = block.blockId;
+      return response(call("evidence_search", { windows: [{ callId: sourceCallId }] }));
+    }
+    const row = callRows(user).filter(item => item.name === "evidence_search").at(-1)!;
+    expect(row.ok).toBe(true);
+    if (step === 4) {
+      expect(row.return.results[0].kind).toBe("directory");
+      expect(notices(user, row.callId)).toEqual([]);
+      return response(call("evidence_search", { windows: [{ callId: sourceCallId, blockId }] }));
+    }
+    expect(row.return.externalized).toBeUndefined();
+    expect(notices(user, row.callId).join(" ")).toContain("完整正文块");
+    expect(notices(user, row.callId).join(" ")).toContain("可直接交付时无需补记");
+    expect(row.return.runtimeHints).toBeUndefined();
+    if (step === 5) {
+      expect(row.return.results[0]).toMatchObject({ kind: "content", blockId });
+      expect(row.return.results[0].content).toContain("BODY_MARKER");
+      return response(call("evidence_search", { windows: [{ callId: sourceCallId, keyword: "SMALL_BODY_MARKER" }] }));
+    }
+    expect(row.return.results[0].kind).toBe("search");
+    expect(row.return.results[0].matches.some((hit: any) => hit.content === smallContent)).toBe(true);
+    return finish();
+  }) }, { userInput: "读取外置源码并复用正文结论", submittedAt: "now" });
+  expect(reply.stopReason).toMatchObject({ kind: "reply" });
+  expect(step).toBe(6);
+  const rows = loadLedger(dataDir, reply.conversationId).toolIO.filter(row => row.name === "evidence_search");
+  expect(rows).toHaveLength(3);
+  expect(rows[0]!.runtimeHints ?? []).toEqual([]);
+  expect(rows[1]!.runtimeHints!.join(" ")).toContain(`call:${sourceCallId}/${blockId}`);
+  expect(rows[2]!.runtimeHints!.join(" ")).toContain("完整正文块");
+  expect(readFileSync(path, "utf8")).toBe(content);
+}));
+
 test("large script results use evidence_search while small follow-up pages stay inline", () => withDir(async dataDir => {
   const code = "//PAGE_SENTINEL\n" + "x".repeat(305_000);
   mkdirSync(join(dataDir, "scripts"));
