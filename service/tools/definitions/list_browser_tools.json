@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "list_browser_tools",
-    "description": "列出尚未加载的动态工具名称与各自用途（每项含 id 与 purpose）。可选 group 按功能类查看（类 id 见 <tools> 未加载能力索引）；可选 keyword 按能力关键词过滤（匹配工具名与用途，大小写不敏感）。选定后用 catalog_add 加载，下一次拿到 schema 再调用。",
+    "description": "列出尚未加载的动态工具名称与各自用途（每项含 id 与 purpose）。可选 group 按功能类查看（类 id 见 <tools> 未加载能力索引）；可选 keyword 按能力关键词过滤（匹配工具名与用途，大小写不敏感）。选定后用 catalog_add 加载，下一次拿到 schema 再调用。\n返回：total 与 tools[]（每项 id、purpose）；传 group 时附 group，传 keyword 时附 keyword。",
     "parameters": {
       "type": "object",
       "properties": {

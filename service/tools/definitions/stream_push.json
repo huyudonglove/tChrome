@@ -39,7 +39,8 @@
             "kind",
             "url"
           ],
-          "additionalProperties": false
+          "additionalProperties": false,
+          "description": "提交目标：{kind:'http', url, method?, headers?}。"
         }
       },
       "required": [

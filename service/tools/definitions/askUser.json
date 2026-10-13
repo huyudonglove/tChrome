@@ -19,7 +19,8 @@
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "供用户选择的选项数组；无选项传 []。"
         }
       },
       "required": [

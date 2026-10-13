@@ -10,34 +10,44 @@
           "type": "string"
         },
         "tabId": {
-          "type": "integer"
+          "type": "integer",
+          "description": "目标标签编号（必填；从 tabs_current 等返回取得，不随前台切换）。"
         },
         "userAgent": {
-          "type": "string"
+          "type": "string",
+          "description": "要覆盖的 User-Agent。"
         },
         "platform": {
-          "type": "string"
+          "type": "string",
+          "description": "要覆盖的 navigator.platform。"
         },
         "acceptLanguage": {
-          "type": "string"
+          "type": "string",
+          "description": "要覆盖的 Accept-Language 与 navigator.languages。"
         },
         "timezone": {
-          "type": "string"
+          "type": "string",
+          "description": "要覆盖的时区。"
         },
         "locale": {
-          "type": "string"
+          "type": "string",
+          "description": "要覆盖的区域设置。"
         },
         "width": {
-          "type": "integer"
+          "type": "integer",
+          "description": "视口宽度。"
         },
         "height": {
-          "type": "integer"
+          "type": "integer",
+          "description": "视口高度。"
         },
         "deviceScaleFactor": {
-          "type": "number"
+          "type": "number",
+          "description": "设备像素比。"
         },
         "mobile": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "是否模拟移动端。"
         }
       },
       "required": [

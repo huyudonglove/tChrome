@@ -21,7 +21,8 @@
             "fast-3g",
             "4g",
             "online"
-          ]
+          ],
+          "description": "网络条件预设：offline、slow-3g、fast-3g、4g 或 online（默认 online）。"
         }
       },
       "required": [

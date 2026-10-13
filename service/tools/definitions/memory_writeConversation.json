@@ -13,7 +13,8 @@
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "要追加的会话记忆正文，字符串数组，逐条保存。"
         },
         "expiresWhen": {
           "type": "array",
@@ -43,7 +44,8 @@
               "on"
             ],
             "additionalProperties": false
-          }
+          },
+          "description": "与 conversationMemory 等长的过期条件数组；第 i 项形如 {taskId,itemId?,on}，null 表示不设。"
         }
       },
       "required": [

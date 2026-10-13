@@ -15,10 +15,12 @@
             "list",
             "get",
             "save"
-          ]
+          ],
+          "description": "操作类型：list 列出、get 读取、save 保存。"
         },
         "profileId": {
-          "type": "string"
+          "type": "string",
+          "description": "配置编号；get/save 必填。"
         },
         "data": {
           "type": "object",

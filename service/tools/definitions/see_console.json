@@ -20,7 +20,8 @@
             "warn",
             "log",
             "all"
-          ]
+          ],
+          "description": "日志级别：error、warn、log 或 all（默认 error）。"
         }
       },
       "required": [

@@ -13,7 +13,8 @@
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "要加载/卸载的工具名数组；与 groups 至少提供一个。"
         },
         "groups": {
           "type": "array",
@@ -40,7 +41,8 @@
           "properties": {
             "names": {
               "type": "array",
-              "items": { "type": "string" }
+              "items": { "type": "string" },
+              "description": "要加载/卸载的工具名数组；与 groups 至少提供一个。"
             }
           },
           "required": ["names"]
@@ -50,7 +52,8 @@
           "properties": {
             "groups": {
               "type": "array",
-              "items": { "type": "string" }
+              "items": { "type": "string" },
+              "description": "功能类 id 数组；与 names 至少提供一个。"
             }
           },
           "required": ["groups"]

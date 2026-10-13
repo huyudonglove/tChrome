@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "ungroup_tabs",
-    "description": "将指定标签移出分组。\n参数：必填 tabIds（标签编号列表）。\n返回：ok。",
+    "description": "将指定标签移出分组。\n参数：必填 tabIds（标签编号列表）。\n返回：ok；tabIds 为空或非数组时抛错失败。",
     "parameters": {
       "type": "object",
       "properties": {

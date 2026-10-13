@@ -10,7 +10,8 @@
           "type": "string"
         },
         "query": {
-          "type": "string"
+          "type": "string",
+          "description": "搜索词。"
         },
         "text": {
           "type": "string",

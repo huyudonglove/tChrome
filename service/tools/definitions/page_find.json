@@ -15,7 +15,8 @@
         },
         "query": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "要查找的文本，必填。"
         }
       },
       "required": [

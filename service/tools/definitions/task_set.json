@@ -43,7 +43,8 @@
               "text"
             ],
             "additionalProperties": false
-          }
+          },
+          "description": "任务步骤列表（非空）；每项 text 必填，可带 status、expectedEffect、verification；item id 由 Runtime 分配。"
         }
       },
       "required": [

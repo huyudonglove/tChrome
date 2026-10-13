@@ -18,7 +18,8 @@
           "description": "删除 cookie 的站点 URL"
         },
         "domain": {
-          "type": "string"
+          "type": "string",
+          "description": "Cookie 的 domain，与 url/path 一起定位要删除的 Cookie。"
         },
         "path": {
           "type": "string",

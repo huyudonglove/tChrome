@@ -10,13 +10,15 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 4000,
-          "pattern": "\\S"
+          "pattern": "\\S",
+          "description": "搜索词。"
         },
         "maxResults": {
           "type": "integer",
           "minimum": 1,
           "maximum": 10,
-          "default": 5
+          "default": 5,
+          "description": "返回结果条数，1-10，默认 5。"
         },
         "heartbeatSec": {
           "type": "integer",

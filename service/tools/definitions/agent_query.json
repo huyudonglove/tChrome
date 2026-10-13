@@ -16,17 +16,20 @@
             "runtime",
             "helm",
             "summaries"
-          ]
+          ],
+          "description": "历史回查的来源模块：loops、runtime、helm 或 summaries；按 sumId/loopId 回查时必填。"
         },
         "sumId": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 100
+          "maxLength": 100,
+          "description": "要回查的摘要编号（sum_）；与 loopId、taskId 三者只能提供一个。"
         },
         "intent": {
           "type": "string",
           "minLength": 1,
-          "maxLength": {{intentMaxChars}}
+          "maxLength": {{intentMaxChars}},
+          "description": "回查目的，说明想从历史记录中获取什么；按 sumId/loopId 回查时必填。"
         },
         "file": {
           "type": "string",
@@ -36,11 +39,13 @@
         },
         "loopId": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "要回查的交互编号（loop_）；与 sumId、taskId 三者只能提供一个。"
         },
         "taskId": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "要读取的任务编号（task_）；直接读取当前会话任务记录，不需要 module 与 intent。"
         }
       },
       "required": [
@@ -62,7 +67,9 @@
                 ],
                 "type": "object",
                 "properties": {
-                  "loopId": {}
+                  "loopId": {
+                    "description": "要回查的交互编号（loop_）；与 sumId、taskId 三者只能提供一个。"
+                  }
                 }
               },
               {
@@ -71,16 +78,24 @@
                 ],
                 "type": "object",
                 "properties": {
-                  "taskId": {}
+                  "taskId": {
+                    "description": "要读取的任务编号（task_）；直接读取当前会话任务记录，不需要 module 与 intent。"
+                  }
                 }
               }
             ]
           },
           "type": "object",
           "properties": {
-            "sumId": {},
-            "module": {},
-            "intent": {}
+            "sumId": {
+              "description": "要回查的摘要编号（sum_）；与 loopId、taskId 三者只能提供一个。"
+            },
+            "module": {
+              "description": "历史回查的来源模块：loops、runtime、helm 或 summaries；按 sumId/loopId 回查时必填。"
+            },
+            "intent": {
+              "description": "回查目的，说明想从历史记录中获取什么；按 sumId/loopId 回查时必填。"
+            }
           }
         },
         {
@@ -97,7 +112,9 @@
                 ],
                 "type": "object",
                 "properties": {
-                  "sumId": {}
+                  "sumId": {
+                    "description": "要回查的摘要编号（sum_）；与 loopId、taskId 三者只能提供一个。"
+                  }
                 }
               },
               {
@@ -106,16 +123,24 @@
                 ],
                 "type": "object",
                 "properties": {
-                  "taskId": {}
+                  "taskId": {
+                    "description": "要读取的任务编号（task_）；直接读取当前会话任务记录，不需要 module 与 intent。"
+                  }
                 }
               }
             ]
           },
           "type": "object",
           "properties": {
-            "loopId": {},
-            "module": {},
-            "intent": {}
+            "loopId": {
+              "description": "要回查的交互编号（loop_）；与 sumId、taskId 三者只能提供一个。"
+            },
+            "module": {
+              "description": "历史回查的来源模块：loops、runtime、helm 或 summaries；按 sumId/loopId 回查时必填。"
+            },
+            "intent": {
+              "description": "回查目的，说明想从历史记录中获取什么；按 sumId/loopId 回查时必填。"
+            }
           }
         },
         {
@@ -130,7 +155,9 @@
                 ],
                 "type": "object",
                 "properties": {
-                  "sumId": {}
+                  "sumId": {
+                    "description": "要回查的摘要编号（sum_）；与 loopId、taskId 三者只能提供一个。"
+                  }
                 }
               },
               {
@@ -139,14 +166,18 @@
                 ],
                 "type": "object",
                 "properties": {
-                  "loopId": {}
+                  "loopId": {
+                    "description": "要回查的交互编号（loop_）；与 sumId、taskId 三者只能提供一个。"
+                  }
                 }
               }
             ]
           },
           "type": "object",
           "properties": {
-            "taskId": {}
+            "taskId": {
+              "description": "要读取的任务编号（task_）；直接读取当前会话任务记录，不需要 module 与 intent。"
+            }
           }
         }
       ]

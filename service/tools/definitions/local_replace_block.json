@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local_replace_block",
-    "description": "在指定文件中精准查找并替换目标文本块。默认要求必须恰好唯一匹配一次（expectedMatches=1），匹配次数不符合时直接报错不修改，防止误伤代码。",
+    "description": "在指定文件中精准查找并替换目标文本块。默认要求必须恰好唯一匹配一次（expectedMatches=1），匹配次数不符合时直接报错不修改，防止误伤代码。\n返回：ok、path、matches（实际匹配替换次数）、bytesWritten（写入字节数）。",
     "parameters": {
       "type": "object",
       "properties": {

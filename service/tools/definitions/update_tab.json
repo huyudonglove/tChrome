@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "update_tab",
-    "description": "固定或静音标签。\n参数：必填 tabId（目标标签编号）；pinned（是否固定）和 muted（是否静音）至少提供一个，未提供的状态保持原状。\n返回：ok。",
+    "description": "固定或静音标签。\n参数：必填 tabId（目标标签编号）；pinned（是否固定）和 muted（是否静音）至少提供一个，未提供的状态保持原状。\n返回：ok；标签的固定与静音由 Chrome 直接生效，本工具不回带状态，需要核实时用 tabs_current 查看。",
     "parameters": {
       "type": "object",
       "properties": {

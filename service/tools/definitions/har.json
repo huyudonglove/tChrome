@@ -10,7 +10,8 @@
           "type": "string"
         },
         "tabId": {
-          "type": "integer"
+          "type": "integer",
+          "description": "目标标签编号（必填；从 tabs_current 等返回取得，不随前台切换）。"
         },
         "action": {
           "type": "string",
@@ -18,7 +19,8 @@
             "start",
             "stop",
             "read"
-          ]
+          ],
+          "description": "操作类型：start 开始录制、stop 停止并返回 HAR、read 查看是否在录。"
         }
       },
       "required": [

@@ -10,20 +10,24 @@
           "type": "string"
         },
         "tabId": {
-          "type": "integer"
+          "type": "integer",
+          "description": "目标标签编号（必填；从 tabs_current 等返回取得，不随前台切换）。"
         },
         "urlContains": {
           "type": "string",
           "description": "响应 URL 需包含的子串"
         },
         "keyword": {
-          "type": "string"
+          "type": "string",
+          "description": "要在响应体中检索的关键字。"
         },
         "status": {
-          "type": "integer"
+          "type": "integer",
+          "description": "可选 HTTP 状态码。"
         },
         "contextChars": {
-          "type": "integer"
+          "type": "integer",
+          "description": "命中片段前后保留的字符数，默认 400。"
         },
         "timeoutMs": {
           "type": "integer",

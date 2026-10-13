@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local_fs_copy",
-    "description": "复制文件或目录，保留符号链接。默认拒绝已存在目标，overwrite=true允许覆盖。",
+    "description": "复制文件或目录，保留符号链接。默认拒绝已存在目标，overwrite=true允许覆盖。\n返回：source 与 destination。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -15,7 +15,8 @@
           "description": "绝对路径"
         },
         "overwrite": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "true 时允许覆盖已存在的目标"
         },
         "reason": {
           "type": "string"

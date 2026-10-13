@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page_recheck",
-    "description": "轻量只读复验（不作为断言）。条件：text / urlContains / titleContains / id / selector / role±name±states。states 见 wait（enabled/checked/selected/expanded/invalid…）。多匹配 role/name 且未给 matchIndex 时不通过。成功验收用 page_assert。 role/name 检查会与同传的 id、selector、states 取交集，必须匹配同一元素；不同控件请拆成独立调用。仅传 id 和 selector 时分别检查存在性；selector+states 检查所选节点状态。text、urlContains、titleContains 是页面级检查。",
+    "description": "轻量只读复验（不作为断言）。条件：text / urlContains / titleContains / id / selector / role±name±states。states 见 wait（enabled/checked/selected/expanded/invalid…）。多匹配 role/name 且未给 matchIndex 时不通过。成功验收用 page_assert。 role/name 检查会与同传的 id、selector、states 取交集，必须匹配同一元素；不同控件请拆成独立调用。仅传 id 和 selector 时分别检查存在性；selector+states 检查所选节点状态。text、urlContains、titleContains 是页面级检查。\n返回：ok 与 checks[]（每项 name、ok）；不通过时 ok=false、faultCode=recheck_failed，并附 error。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "string"
         },
         "tabId": {
-          "type": "integer"
+          "type": "integer",
+          "description": "目标标签编号；页面级检查（text/urlContains/titleContains）需要它。"
         },
         "frameId": {
           "type": "integer",
@@ -33,7 +34,8 @@
           "description": "当前页面 URL 需包含的子串（不检查网络响应 URL）。"
         },
         "titleContains": {
-          "type": "string"
+          "type": "string",
+          "description": "页面标题需包含的子串。"
         },
         "role": {
           "type": "string",
@@ -68,7 +70,8 @@
               "type": "boolean"
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "description": "要求目标元素具备的 A11y 状态，如 {enabled:true}、{checked:true}；多匹配时配合 matchIndex。"
         },
         "matchIndex": {
           "type": "integer",

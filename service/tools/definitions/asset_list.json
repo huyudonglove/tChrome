@@ -16,7 +16,8 @@
             "text",
             "binary",
             "dom"
-          ]
+          ],
+          "description": "按资产类型过滤：image、text、binary 或 dom。"
         },
         "name": {
           "type": "string",

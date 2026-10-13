@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "update_window",
-    "description": "改变指定窗口状态。\n参数：必填 windowId；可选 state（窗口状态，省略时 normal）。\n返回：ok。",
+    "description": "改变指定窗口状态。\n参数：必填 windowId；可选 state（窗口状态，省略时 normal）。\n返回：ok；windowId 非法（非整数或负数）时抛错失败。",
     "parameters": {
       "type": "object",
       "properties": {

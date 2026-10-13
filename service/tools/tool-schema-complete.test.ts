@@ -101,3 +101,22 @@ test("shared focus parameters must declare descriptions", () => {
   expect(issues).toEqual([]);
 });
 
+// 工具描述必须说明返回内容，否则模型无从知道调用后能读到什么。
+// 判定前先剥掉 registry 注入的「执行调度：…（Runtime 固定，不必返回）。」——
+// 这段注入文本本身含「返回」二字，不剥则断言恒真、形同虚设。
+// 中文「返回」与英文 return/returns 都算已说明（部分工具描述沿用英文）。
+const RETURN_NOTE_PATTERN = /返回|returns?\b/i;
+
+function ownToolDescription(description: string | undefined): string {
+  return (description ?? "").replace(/\n?执行调度：[^\n]*?。/g, "").trim();
+}
+
+test("every tool description must state what it returns", () => {
+  const issues: string[] = [];
+  for (const tool of toolSchemas(registry, Object.keys(registry.tools))) {
+    const own = ownToolDescription(tool.function?.description);
+    if (!RETURN_NOTE_PATTERN.test(own)) issues.push(`${tool.function.name} 的描述未说明返回`);
+  }
+  expect(issues).toEqual([]);
+});
+

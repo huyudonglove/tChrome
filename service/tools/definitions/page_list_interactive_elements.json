@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page_list_interactive_elements",
-    "description": "列视口内可交互元素（A11y 投影）。每条：id（e_，可直接 click/wait）、role（标准化）、name、states{enabled,checked,selected,expanded,invalid,…}、tag、inView、regionId。role 含 div/span 模拟控件（有 role 或可访问名时）。可按 regionId 收窄。必填 tabId。",
+    "description": "列视口内可交互元素（A11y 投影）。每条：id（e_，可直接 click/wait）、role（标准化）、name、states{enabled,checked,selected,expanded,invalid,…}、tag、inView、regionId。role 含 div/span 模拟控件（有 role 或可访问名时）。可按 regionId 收窄。必填 tabId。\n返回：elements[]（每项 id、role、name、states、tag、inView、regionId）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,14 +10,16 @@
           "type": "string"
         },
         "tabId": {
-          "type": "integer"
+          "type": "integer",
+          "description": "目标标签编号（必填；从 tabs_current 等返回取得，不随前台切换）。"
         },
         "frameId": {
           "type": "integer",
           "description": "内嵌文档编号，从 frame_list 取得；不传则作用于主文档。"
         },
         "regionId": {
-          "type": "string"
+          "type": "string",
+          "description": "按区域编号收窄，只列该区域内的可交互元素。"
         }
       },
       "required": [

@@ -10,7 +10,8 @@
           "type": "string"
         },
         "tabId": {
-          "type": "integer"
+          "type": "integer",
+          "description": "目标标签编号（必填；从 tabs_current 等返回取得，不随前台切换）。"
         },
         "action": {
           "type": "string",
@@ -18,17 +19,20 @@
             "start",
             "stop",
             "status"
-          ]
+          ],
+          "description": "操作类型：start 开始录制、stop 停止并返回帧、status 查看状态。"
         },
         "fps": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 5
+          "maximum": 5,
+          "description": "每秒帧数，1-5，默认 2。"
         },
         "maxFrames": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 60
+          "maximum": 60,
+          "description": "最多录制帧数，1-60，默认 30。"
         }
       },
       "required": [

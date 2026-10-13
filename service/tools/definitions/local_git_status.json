@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local_git_status",
-    "description": "查看指定 Git 仓库的当前工作区与暂存区状态（分支、是否有未提交改动、暂存/未暂存/未跟踪文件列表及概要）。",
+    "description": "查看指定 Git 仓库的当前工作区与暂存区状态（分支、是否有未提交改动、暂存/未暂存/未跟踪文件列表及概要）。\n返回：branch、clean、staged[]、unstaged[]、untracked[]、summary。",
     "parameters": {
       "type": "object",
       "properties": {

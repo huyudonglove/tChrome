@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "close_window",
-    "description": "关闭指定窗口。\n参数：必填 windowId。\n返回：ok。",
+    "description": "关闭指定窗口。\n参数：必填 windowId。\n返回：ok；windowId 非法（非整数或负数）时抛错失败。",
     "parameters": {
       "type": "object",
       "properties": {

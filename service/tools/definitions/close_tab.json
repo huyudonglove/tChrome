@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "close_tab",
-    "description": "关闭标签。\n参数：必填 tabId（目标标签编号）。\n返回：ok。",
+    "description": "关闭标签。\n参数：必填 tabId（目标标签编号）。\n返回：ok；标签不存在时返回 ok=false 并附 error。",
     "parameters": {
       "type": "object",
       "properties": {

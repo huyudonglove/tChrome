@@ -10,7 +10,8 @@
           "type": "string"
         },
         "tabId": {
-          "type": "integer"
+          "type": "integer",
+          "description": "目标标签编号（必填；从 tabs_current 等返回取得，不随前台切换）。"
         },
         "frameId": {
           "type": "integer",
@@ -33,13 +34,16 @@
           "description": "find_on_page 的 limit"
         },
         "waitText": {
-          "type": "string"
+          "type": "string",
+          "description": "点击后等待页面出现该文本。"
         },
         "waitUrlContains": {
-          "type": "string"
+          "type": "string",
+          "description": "点击后等待 URL 含该子串的响应。"
         },
         "status": {
-          "type": "integer"
+          "type": "integer",
+          "description": "waitUrlContains 时可选的 HTTP 状态码。"
         },
         "timeoutMs": {
           "type": "integer",

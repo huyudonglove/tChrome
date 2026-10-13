@@ -7,14 +7,16 @@
       "type": "object",
       "properties": {
         "host": {
-          "type": "string"
+          "type": "string",
+          "description": "要解析的域名；与 url 二选一。"
         },
         "url": {
           "type": "string",
           "description": "要解析的主机名或 URL"
         },
         "port": {
-          "type": "number"
+          "type": "number",
+          "description": "端口；probe_dns 仅解析主机名，不使用该字段。"
         },
         "reason": {
           "type": "string"

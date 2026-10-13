@@ -10,19 +10,22 @@
           "type": "string"
         },
         "scope": {
-          "type": "string"
+          "type": "string",
+          "description": "本批记忆所属的项目目录名。"
         },
         "summary": {
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "与 projectMemory 等长的一句话摘要数组，供未注入正文的目录展示。"
         },
         "projectMemory": {
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "要追加的长期记忆正文，字符串数组。"
         },
         "expiresWhen": {
           "type": "array",
@@ -52,7 +55,8 @@
               "on"
             ],
             "additionalProperties": false
-          }
+          },
+          "description": "与 projectMemory 等长的过期条件数组；第 i 项形如 {taskId,itemId?,on}，null 表示不设。"
         }
       },
       "required": [

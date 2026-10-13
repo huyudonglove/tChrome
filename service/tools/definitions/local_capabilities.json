@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local_capabilities",
-    "description": "Report local platform, home directory, supported script extensions, timeout and output limits. Save scripts under scripts/ (script_patch, script_write or local_fs_write) before executing by filename.",
+    "description": "Report local platform, home directory, supported script extensions, timeout and output limits. Save scripts under scripts/ (script_patch, script_write or local_fs_write) before executing by filename.\n返回：platform、home、scriptExtensions、scriptExecution、outputRetention、processLifetime、heartbeatNote。",
     "parameters": {
       "type": "object",
       "properties": {

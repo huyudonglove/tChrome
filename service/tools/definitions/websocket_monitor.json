@@ -19,7 +19,8 @@
             "start",
             "stop",
             "read"
-          ]
+          ],
+          "description": "操作类型：start 开始监控、stop 返回记录并清空缓冲、read 查看状态与最近帧。"
         }
       },
       "required": [

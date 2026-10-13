@@ -8,7 +8,8 @@
       "properties": {
         "downloadId": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "description": "要等待的下载编号，来自 download、export_data 或 list_downloads。"
         },
         "timeoutMs": {
           "type": "integer",

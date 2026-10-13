@@ -32,25 +32,29 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 5000,
-          "default": 5000
+          "default": 5000,
+          "description": "最多扫描的文件数，默认 5000"
         },
         "maxFileBytes": {
           "type": "integer",
           "minimum": 1,
           "maximum": 1048576,
-          "default": 1048576
+          "default": 1048576,
+          "description": "单文件读取上限字节数，默认 1048576"
         },
         "maxEntries": {
           "type": "integer",
           "minimum": 1,
           "maximum": 100000,
-          "default": 10000
+          "default": 10000,
+          "description": "最多扫描的目录项数，默认 10000"
         },
         "contextChars": {
           "type": "integer",
           "minimum": 0,
           "maximum": 200,
-          "default": 80
+          "default": 80,
+          "description": "命中片段前后保留的字符数，默认 80"
         },
         "contextLines": {
           "type": "integer",

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "reflect_delete",
-    "description": "按 id 删除当前 turn 的一条反思记录（rf_ 编号，来自 <reflection>）。\n参数：必填 id。",
+    "description": "按 id 删除当前 turn 的一条反思记录（rf_ 编号，来自 <reflection>）。\n参数：必填 id。\n返回：ok、id 与 deleted。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -15,7 +15,8 @@
         },
         "filename": {
           "type": "string",
-          "maxLength": 240
+          "maxLength": 240,
+          "description": "下载目录内的相对文件名（.pdf），省略时自动命名，重名自动改名。"
         },
         "timeoutMs": {
           "type": "integer",

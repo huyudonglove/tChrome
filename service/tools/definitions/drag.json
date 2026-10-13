@@ -12,7 +12,8 @@
           "maxItems": 2,
           "items": {
             "type": "number"
-          }
+          },
+          "description": "起点坐标 [x,y]（视口 CSS 像素）。"
         },
         "point2": {
           "type": "array",
@@ -20,19 +21,24 @@
           "maxItems": 2,
           "items": {
             "type": "number"
-          }
+          },
+          "description": "终点坐标 [x,y]（视口 CSS 像素）。"
         },
         "x1": {
-          "type": "number"
+          "type": "number",
+          "description": "起点 x 坐标（point1=[x,y] 的别名）。"
         },
         "y1": {
-          "type": "number"
+          "type": "number",
+          "description": "起点 y 坐标（point1=[x,y] 的别名）。"
         },
         "x2": {
-          "type": "number"
+          "type": "number",
+          "description": "终点 x 坐标（point2=[x,y] 的别名）。"
         },
         "y2": {
-          "type": "number"
+          "type": "number",
+          "description": "终点 y 坐标（point2=[x,y] 的别名）。"
         },
         "tabId": {
           "type": "integer",

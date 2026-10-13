@@ -20,7 +20,8 @@
             "write",
             "delete",
             "list"
-          ]
+          ],
+          "description": "操作类型：read 读取、write 写入、delete 删除、list 列出缓存名。"
         },
         "cache": {
           "type": "string",

@@ -7,14 +7,16 @@
       "type": "object",
       "properties": {
         "host": {
-          "type": "string"
+          "type": "string",
+          "description": "要检测的主机名；与 url 二选一。"
         },
         "url": {
           "type": "string",
           "description": "要检测的 URL 或主机名"
         },
         "port": {
-          "type": "number"
+          "type": "number",
+          "description": "端口，默认 443。"
         },
         "reason": {
           "type": "string"

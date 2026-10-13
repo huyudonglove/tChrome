@@ -15,7 +15,8 @@
           "description": "要写入进程 stdin 的文本"
         },
         "end": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "true 表示写入后关闭进程的标准输入（EOF）。"
         },
         "reason": {
           "type": "string",

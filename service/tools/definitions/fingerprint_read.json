@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "fingerprint_read",
-    "description": "读取当前页面可见的浏览器指纹/环境信息：UA、语言、时区、屏幕、viewport、hardwareConcurrency 等。",
+    "description": "读取当前页面可见的浏览器指纹/环境信息：UA、语言、时区、屏幕、viewport、hardwareConcurrency 等。\n返回：userAgent、platform、language、languages、timezone、时区偏移、屏幕与 viewport 尺寸、hardwareConcurrency 等字段。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "string"
         },
         "tabId": {
-          "type": "integer"
+          "type": "integer",
+          "description": "目标标签编号（必填；从 tabs_current 等返回取得，不随前台切换）。"
         }
       },
       "required": [

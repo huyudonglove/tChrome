@@ -13,7 +13,8 @@
             "get",
             "save",
             "delete"
-          ]
+          ],
+          "description": "操作类型：list 列出、get 读取、save 保存、delete 删除。"
         },
         "id": {
           "type": "string",
@@ -29,30 +30,36 @@
             "website",
             "account",
             "note"
-          ]
+          ],
+          "description": "资料类型：website、account 或 note；save 新建时必填。"
         },
         "title": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "资料标题；save 新建时必填。"
         },
         "url": {
           "type": "string",
           "description": "库条目的资源 URL"
         },
         "username": {
-          "type": "string"
+          "type": "string",
+          "description": "账号用户名（account 类型使用）。"
         },
         "password": {
-          "type": "string"
+          "type": "string",
+          "description": "账号密码（account 类型使用）。"
         },
         "content": {
-          "type": "string"
+          "type": "string",
+          "description": "备注或正文（note 类型使用）。"
         },
         "tags": {
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "标签数组，用于分类与检索。"
         },
         "reason": {
           "type": "string"

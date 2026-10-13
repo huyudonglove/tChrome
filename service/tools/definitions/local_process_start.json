@@ -21,13 +21,15 @@
         },
         "filename": {
           "type": "string",
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*\\.(?:js|mjs|cjs|sh|py)$"
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*\\.(?:js|mjs|cjs|sh|py)$",
+          "description": "scripts/ 下的脚本文件名；扩展名决定解释器（.sh 用系统 shell，.py 用 python3，.js/.mjs/.cjs 用 Bun）。"
         },
         "args": {
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "传给脚本的字面字符串参数数组。"
         }
       },
       "required": [

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "dialog_wait",
-    "description": "等待原生 JavaScript 弹窗（alert/confirm/prompt）出现。出现后用 handle_dialog 处理。",
+    "description": "等待原生 JavaScript 弹窗（alert/confirm/prompt）出现。出现后用 handle_dialog 处理。\n返回：ok、tabId 与 dialog（弹窗信息）；超时未出现时 ok=false 并附 error。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -10,7 +10,8 @@
           "type": "string"
         },
         "tabId": {
-          "type": "integer"
+          "type": "integer",
+          "description": "要监听的标签编号。"
         },
         "timeoutMs": {
           "type": "integer",

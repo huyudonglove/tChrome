@@ -22,14 +22,16 @@
           "description": "完整网址；可省略并改用 domain/path"
         },
         "domain": {
-          "type": "string"
+          "type": "string",
+          "description": "Cookie 的 domain 属性；省略 url 时用它定位站点。"
         },
         "path": {
           "type": "string",
           "description": "Cookie 的 path 属性，省略表示默认路径"
         },
         "secure": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "是否仅通过 HTTPS 发送。"
         },
         "sameSite": {
           "type": "string",
@@ -37,7 +39,8 @@
             "lax",
             "strict",
             "none"
-          ]
+          ],
+          "description": "SameSite 策略：lax、strict 或 none。"
         },
         "expires": {
           "type": "number",

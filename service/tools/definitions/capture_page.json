@@ -21,16 +21,19 @@
             "element",
             "rect",
             "som"
-          ]
+          ],
+          "description": "截图模式：viewport 视口、full_page 整页、element 单元素、rect 矩形裁切、som Set-of-Marks。"
         },
         "ref": {
           "type": "string",
           "pattern": "^(?:e|r)_[0-9]{2,}$",
-          "minLength": 1
+          "minLength": 1,
+          "description": "mode=element 时的元素编号（e_/r_）；与 selector 二选一。"
         },
         "selector": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "mode=element 时的 CSS 选择器；与 ref 二选一。"
         },
         "x": {
           "type": "number",

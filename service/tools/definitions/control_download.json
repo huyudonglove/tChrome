@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "control_download",
-    "description": "暂停、继续或取消下载。\n参数：必填 downloadId；action=pause|resume|cancel（默认 resume）。\n返回：ok。",
+    "description": "暂停、继续或取消下载。\n参数：必填 downloadId；action=pause|resume|cancel（默认 resume）。\n返回：ok；缺 downloadId 时返回 ok=false 并附 error，下载最新状态可用 list_downloads 查看。",
     "parameters": {
       "type": "object",
       "properties": {

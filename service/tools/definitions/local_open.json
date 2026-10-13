@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local_open",
-    "description": "使用系统默认应用打开本机绝对路径。成功表示启动请求成功，不代表已验证应用显示内容。",
+    "description": "使用系统默认应用打开本机绝对路径。成功表示启动请求成功，不代表已验证应用显示内容。\n返回：ok、processId、path、args、cwd、status、exitCode 与 stdout/stderr 路径等进程快照字段。",
     "parameters": {
       "type": "object",
       "properties": {

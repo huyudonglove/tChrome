@@ -53,7 +53,8 @@
               "id"
             ],
             "additionalProperties": false
-          }
+          },
+          "description": "要更新的步骤列表（至少一项）；每项 id 必填，可带 status、text、expectedEffect、verification、blockedReason、outcome。"
         }
       },
       "required": [

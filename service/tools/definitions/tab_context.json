@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "tab_context",
-    "description": "设置/读取/清除默认 tabId（唯一「记住标签」的工具）。set 后，后续未显式传 tabId 的浏览器工具自动使用该标签；clear 或新的 set 覆盖。\nbind_tab 只校验标签，不绑定。\n参数：action=set|get|clear；set 时必填 tabId。",
+    "description": "设置/读取/清除默认 tabId（唯一「记住标签」的工具）。set 后，后续未显式传 tabId 的浏览器工具自动使用该标签；clear 或新的 set 覆盖。\nbind_tab 只校验标签，不绑定。\n参数：action=set|get|clear；set 时必填 tabId。\n返回：action=get 时回带当前默认 tabId（未设置则为 null）；set 与 clear 回带 action（set 另带 tabId）。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -15,10 +15,12 @@
             "set",
             "get",
             "clear"
-          ]
+          ],
+          "description": "操作类型：set 设置默认标签、get 读取当前默认标签、clear 清除绑定。"
         },
         "tabId": {
-          "type": "integer"
+          "type": "integer",
+          "description": "action=set 时必填，要绑定的标签编号。"
         }
       },
       "required": [
