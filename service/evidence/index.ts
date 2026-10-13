@@ -89,7 +89,11 @@ function expandDirectory(index: BlockIndex, node: BlockNode, nodes: Map<string, 
   let level = node.children.map((id) => nodes.get(id)!);
   while (level.length && levels.length < MAX_EXPAND_DEPTH) {
     levels.push(level);
-    level = level.flatMap((item) => item.children.map((id) => nodes.get(id)!));
+    if (level.every((item) => !item.children.length)) break;
+    // 每层都是覆盖全部分支的前沿：叶子保留，只有目录继续下探。
+    // 否则较浅的源码叶子会在展开较深的原始结果包装时消失。
+    level = level.flatMap((item) => item.children.length
+      ? item.children.map((id) => nodes.get(id)!) : [item]);
   }
   for (let depth = levels.length - 1; depth >= 0; depth--) {
     const children = levels[depth]!.map((item) => summarize(index, item));

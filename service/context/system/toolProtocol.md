@@ -8,7 +8,7 @@
 
 调用及其结果由 Runtime 自动记录，保留至所属 loop 压缩；完整原始调用始终落盘可回查。存储、压缩和取证细节见 <runtimeProtocol>，记录分工见 <output>。
 
-参数已确定且互不依赖的调用放在同一批；需要根据前一步结果决定参数时，等待返回后再调用。工具支持数组时优先合并目标。证据足够就执行或验证，不为凑批次继续读取，也不设每批最低调用数量。
+参数已确定且互不依赖的调用放在同一批；需要根据前一步结果决定参数时，等待返回后再调用。工具支持数组时优先合并目标，不设每批最低调用数量；是否继续读取按 <execution> 决定。
 
 [硬] 工具字段 execution（与 <execution> 模块无关）是固定调度属性，不能通过参数修改：parallel 可与同批其他 parallel 并发；serial 等执行队列清空后独占执行。结果按 tool_calls 数组顺序记录。有先后依赖的同页面动作，例如填写后提交，应分批或保持 serial 顺序，不能放进同一 parallel 并发组。
 
@@ -49,6 +49,8 @@ effects 是可选证据，不会自动改写 ok；缺少字段只说明没捕获
 ## 脚本与长任务
 
 短命令可以用 local_run(command) 一次执行。多行、复杂引用或需要复用时，先用 script_write、script_patch 或本地写工具保存到 scripts/，[硬] 收到保存成功后再执行。[硬] command 与 filename 互斥。
+
+自己刚生成并成功保存的脚本直接执行，不默认全文读回；只有保存结果异常、脚本被其他操作修改，或执行失败需要定位时，才读取相关内容。
 
 [硬] script_patch 与 execute_javascript、local_run、local_process_start 必须分批。script_patch 使用 git apply --recount 计算补丁行数；补丁失败时根据错误和文件内容修正，不猜测上下文。
 

@@ -1,5 +1,29 @@
 import { describe, expect, test } from "bun:test";
-import { buildBlockIndex, readBlock, searchBlocks, type BlockIndex } from "./index.ts";
+import { buildBlockIndex, expandBlock, readBlock, searchBlocks, type BlockIndex } from "./index.ts";
+
+test("expanded directories retain leaves at every depth without duplicates", () => {
+  const index: BlockIndex = {
+    rootId: "root",
+    sources: [{ id: "source", text: "abc", path: "/repo/code.ts", startLine: 15, representation: "fileContent" }],
+    nodes: [
+      { id: "root", title: "Root", start: 0, end: 3, children: ["a", "branch"] },
+      { id: "a", parentId: "root", sourceId: "source", title: "a", start: 0, end: 1, children: [] },
+      { id: "branch", parentId: "root", title: "Branch", start: 1, end: 3, children: ["b", "deep"] },
+      { id: "b", parentId: "branch", sourceId: "source", title: "b", start: 1, end: 2, children: [] },
+      { id: "deep", parentId: "branch", title: "Deep", start: 2, end: 3, children: ["c"] },
+      { id: "c", parentId: "deep", sourceId: "source", title: "c", start: 2, end: 3, children: [] },
+    ],
+  };
+  const result = expandBlock(index, index.rootId)!;
+  if (result.kind !== "directory") throw new Error("Expected directory");
+  expect(result.children.map(child => child.blockId)).toEqual(["a", "b", "c"]);
+  for (const child of result.children) {
+    expect(child.source).toMatchObject({ path: "/repo/code.ts", startLine: 15, representation: "fileContent" });
+    expect(child.parentBlockId).toBe(index.nodes.find(node => node.id === child.blockId)!.parentId);
+  }
+  expect(result.children.map(child => readBlock(index, child.blockId)))
+    .toEqual(["a", "b", "c"].map(id => readBlock(index, id)));
+});
 
 function assertCoverage(index: BlockIndex, maxChars: number): void {
   const reachable = new Set<string>();

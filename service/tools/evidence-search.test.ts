@@ -21,6 +21,37 @@ const query = async (dataDir: string, windows: unknown) => {
   return { execution, ...JSON.parse(execution.text) };
 };
 
+test("multi-file source leaves remain reachable through expanded evidence directories", () => fixture(async dataDir => {
+  const files = [
+    { path: "/repo/small.ts", startLine: 15, content: 'export const small = "complete source";\n' },
+    { path: "/repo/large.ts", content: Array.from({ length: 90 }, (_, i) => `export const item${i} = "${"x".repeat(100)}";\n`).join("") },
+  ];
+  const full = JSON.stringify({ ok: true, results: files });
+  const index = buildBlockIndex(full, { maxChars: 1400 });
+  saveFullReturn(dataDir, "cv_01", "call_01", full);
+  saveReturnBlockIndex(dataDir, "cv_01", "call_01", index);
+  const leaves = new Set<string>();
+  const decoded = new Map<string, string>();
+  const visit = async (blockId: string): Promise<void> => {
+    const { results, execution } = await query(dataDir, [{ callId: "call_01", blockId }]);
+    expect(execution.admitted).toBe(true);
+    const row = results[0];
+    if (row.kind === "directory") {
+      for (const child of row.children) await visit(child.blockId);
+    } else {
+      expect(leaves.has(row.blockId)).toBe(false);
+      leaves.add(row.blockId);
+      if (row.location.representation === "fileContent") {
+        decoded.set(row.location.path, (decoded.get(row.location.path) ?? "") + row.content);
+        if (row.location.path === files[0]!.path) expect(row.location.startLine).toBe(15);
+      }
+    }
+  };
+  await visit(index.rootId);
+  expect(leaves.size).toBe(index.nodes.filter(node => !node.children.length).length);
+  for (const file of files) expect(decoded.get(file.path)).toBe(file.content);
+}));
+
 test("root directory navigates to complete source blocks without re-externalization", () => fixture(async dataDir => {
   const full = Array.from({ length: 40 }, (_, i) => `function task${i}() { return "${"x".repeat(100)}"; }\n`).join("");
   saveFullReturn(dataDir, "cv_01", "call_01", full);
