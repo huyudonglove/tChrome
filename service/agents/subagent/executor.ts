@@ -48,6 +48,9 @@ const evidenceContract =
 /** 结果格式自修复的尝试次数（含首次）；它不占用 maxSteps 的工具步预算。 */
 const RESULT_FORMAT_ATTEMPTS = 2;
 
+/** maxSteps 的上界：单次委派的模型步数超过它，只会在失败前多烧 provider 配额。 */
+export const MAX_SUBAGENT_STEPS = 24;
+
 const DEFAULT_SYSTEM_PROMPT = [
   "你是受限的 Subagent，只完成 <subagentTask> 中的目标。",
   "你不能扩大权限、改变任务边界或替主 Agent 宣布未验证的结论。",
@@ -125,7 +128,7 @@ export async function executeSubagent(
       { role: "system", content: options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT },
       { role: "user", content: buildTaskPrompt(packet, dependencyResults) },
     ];
-    const maxSteps = Math.max(1, Math.floor(options.maxSteps ?? 8));
+    const maxSteps = Math.min(Math.max(1, Math.floor(options.maxSteps ?? 8)), MAX_SUBAGENT_STEPS);
     const evidence: SubagentEvidence[] = [];
 
     for (let step = 0; step < maxSteps; step += 1) {

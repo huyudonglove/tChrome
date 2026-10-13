@@ -401,7 +401,8 @@ const runQueue = async (input: {
               unusedTools: dynamicToolIds(toolRegistry)
                 .filter((id) => !turn.assembled.toolIds.includes(id) && !toolRegistry.toolGroups.baseToolsIds.includes(id))
                 .map((id) => ({ id, purpose: toolRegistry.capabilities.find((row) => row.kind === "tool" && row.id === id)?.purpose ?? "" })),
-              protectedTools: toolRegistry.toolGroups.baseToolsIds,
+              // core 工具每轮被 assemble 无条件并回，remove 实际无效；这里如实把它们当常驻，回执才不骗人。
+              protectedTools: [...toolRegistry.toolGroups.baseToolsIds, ...coreToolIds(toolRegistry)],
               categories: toolRegistry.categories,
             },
           });

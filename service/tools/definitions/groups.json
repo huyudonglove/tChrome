@@ -58,6 +58,7 @@
     "video_record",
     "fingerprint_read",
     "fingerprint_apply",
-    "web_search"
+    "web_search",
+    "delegate_subagent"
   ]
 }

@@ -263,7 +263,7 @@
     {
       "id": "memory-skill-session",
       "label": "记忆·技能·会话",
-      "purpose": "管理记忆与技能、清理观察、查询会话、子代理与任务停止",
+      "purpose": "管理记忆与技能、清理观察、查询会话与任务停止",
       "tools": [
         "memory_update",
         "memory_delete",
@@ -271,8 +271,7 @@
         "skill_load",
         "reflect_delete",
         "job_stop",
-        "session_query",
-        "delegate_subagent"
+        "session_query"
       ]
     }
   ]

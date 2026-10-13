@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { createTaskPacket, executeSubagent } from "./index.ts";
-import type { CompletionResult, Provider } from "../../types.ts";
+import { MAX_SUBAGENT_STEPS } from "./executor.ts";
+import type { ChatTool, CompletionResult, Provider } from "../../types.ts";
 
 const completion = (partial: Partial<CompletionResult>): CompletionResult => ({
   finish: "stop",
@@ -75,4 +76,26 @@ test("两次都不合规才判失败，errors 保留具体字段", async () => {
   expect(result.status).toBe("failed");
   expect(result.summary).toBe("Subagent 输出或执行协议无效");
   expect(result.errors?.[0]).toContain("evidence[0].summary");
+});
+
+// D 项：maxSteps 上界。传超大值不再照单全收，按上界截断后报超步数。
+test("maxSteps 超过上界时按上界截断", async () => {
+  let calls = 0;
+  const provider: Provider = {
+    complete: async () => {
+      calls += 1;
+      return completion({ finish: "tool_calls", toolCalls: [{ id: `t${calls}`, name: "read", arguments: {} }] });
+    },
+  };
+  const readTool = {
+    type: "function",
+    function: { name: "read", description: "读取", parameters: { type: "object", properties: {} } },
+  } as unknown as ChatTool;
+  const result = await executeSubagent(
+    { packet, dependencyResults: [] },
+    { provider, tools: [readTool], toolCapabilities: { read: ["read"] }, executeTool: async () => ({ text: "ok" }), maxSteps: 1000 },
+  );
+  expect(result.status).toBe("failed");
+  expect(result.summary).toContain(`${MAX_SUBAGENT_STEPS}`);
+  expect(calls).toBe(MAX_SUBAGENT_STEPS);
 });

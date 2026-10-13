@@ -54,6 +54,35 @@ const definitionNames = (): Set<string> => {
   return names;
 };
 
+/**
+ * Object schemas that declare `properties` must also declare `additionalProperties`;
+ * without it Ajv silently accepts unknown fields (typos, or fields borrowed from another tool).
+ * Combinator branches (anyOf/oneOf/allOf, if/then/else) are skipped on purpose: an
+ * `additionalProperties:false` written inside a branch only sees that branch's own properties, so
+ * requiring it there would reject sibling fields the outer schema allows.
+ */
+const openObjectSchemas = (): string[] => {
+  const rows: string[] = [];
+  const walk = (node: any, path: string): void => {
+    if (!node || typeof node !== "object") return;
+    if (node.properties && typeof node.properties === "object" && !("additionalProperties" in node)) {
+      rows.push(path);
+    }
+    for (const [key, child] of Object.entries(node.properties ?? {})) walk(child, `${path}.${key}`);
+    const items = node.items;
+    if (!items) return;
+    for (const [index, child] of (Array.isArray(items) ? items : [items]).entries()) {
+      walk(child, Array.isArray(items) ? `${path}.items[${index}]` : `${path}.items`);
+    }
+  };
+  for (const file of readdirSync(defsDir)) {
+    if (!file.endsWith(".json") || file === "index.json" || file === "groups.json") continue;
+    const parameters = (readJson(join(defsDir, file)) as { function?: { parameters?: unknown } }).function?.parameters;
+    if (parameters) walk(parameters, file.replace(/\.json$/, ""));
+  }
+  return rows.sort();
+};
+
 const wired = new Set<string>([
   ...inlineDispatched(),
   ...browserDispatched(),
@@ -72,6 +101,7 @@ const declared = new Set<string>([
   ...groups.coreToolIds,
 ]);
 const schemas = definitionNames();
+const openObjects = openObjectSchemas();
 
 const unwired = [...declared].filter((name) => !wired.has(name)).sort();
 const missingSchema = [...declared].filter((name) => !schemas.has(name)).sort();
@@ -90,8 +120,9 @@ const report = (title: string, rows: string[]) => {
 report("declared but never dispatched", unwired);
 report("declared but no schema file", missingSchema);
 report("schema file not declared anywhere", orphanSchema);
+report("object schema without additionalProperties", openObjects);
 
-const blocking = unwired.length + missingSchema.length + orphanSchema.length;
+const blocking = unwired.length + missingSchema.length + orphanSchema.length + openObjects.length;
 if (blocking) {
   console.log(`\nFAIL: ${blocking} wiring problem(s) found.`);
   process.exit(1);

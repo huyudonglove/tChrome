@@ -8,6 +8,9 @@ import { assertValidTaskPacket } from "./validator.ts";
 
 export type SchedulerOptions = { maxParallel?: number };
 
+/** maxParallel 的上界：并发子代理会同时占用同一个 provider，超过该值只是放大失败面。 */
+export const MAX_SUBAGENT_PARALLEL = 8;
+
 const failure = (taskId: string, summary: string, error?: string): SubagentResult => ({
   taskId,
   status: "failed",
@@ -58,10 +61,11 @@ export async function runSubagentDag(
   options: SchedulerOptions = {},
 ): Promise<DagRunResult> {
   if (!packets.length) return { results: {}, executionOrder: [] };
-  const maxParallel = options.maxParallel ?? 4;
-  if (!Number.isSafeInteger(maxParallel) || maxParallel < 1) {
+  const requested = options.maxParallel ?? 4;
+  if (!Number.isSafeInteger(requested) || requested < 1) {
     throw new Error("maxParallel 必须是大于 0 的整数");
   }
+  const maxParallel = Math.min(requested, MAX_SUBAGENT_PARALLEL);
   const byId = assertDag(packets);
   const pending = new Set(packets.map((packet) => packet.id));
   const results: Record<string, SubagentResult> = {};

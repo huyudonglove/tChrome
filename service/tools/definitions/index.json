@@ -123,7 +123,6 @@
     "wait_response"
   ],
   "service": [
-    "delegate_subagent",
     "send_http",
     "send_http_batch",
     "web_search",

@@ -99,7 +99,8 @@
           },
           "required": [
             "urlPattern"
-          ]
+          ],
+          "additionalProperties": false
         }
       },
       "required": [

@@ -7,6 +7,7 @@ import {
   runSubagentDag,
   type SubagentResult,
 } from "./index.ts";
+import { MAX_SUBAGENT_PARALLEL } from "./scheduler.ts";
 
 const packet = (id: string, dependencies: string[] = []) => createTaskPacket({
   id,
@@ -88,4 +89,20 @@ test("structured result validation rejects wrong task ids and empty evidence fie
     summary: "有结果",
     evidence: [{ kind: "test", summary: "" }],
   }, "expected")).toThrow("evidence[0].summary");
+});
+
+// D 项：maxParallel 上界。超过上界的值不再照单全收，波次按上界收窄。
+test("maxParallel 超过上界时被钳制，波次不会一次性铺开全部任务", async () => {
+  const packets = Array.from({ length: MAX_SUBAGENT_PARALLEL + 6 }, (_, index) => packet(`t${index}`));
+  let running = 0;
+  let peak = 0;
+  const result = await runSubagentDag(packets, async ({ packet: task }) => {
+    running += 1;
+    peak = Math.max(peak, running);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    running -= 1;
+    return success(task.id);
+  }, { maxParallel: 1000 });
+  expect(result.executionOrder).toHaveLength(packets.length);
+  expect(peak).toBe(MAX_SUBAGENT_PARALLEL);
 });

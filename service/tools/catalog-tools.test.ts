@@ -231,3 +231,23 @@ test("service 数组不含已由浏览器通道实现的工具名", () => {
   expect(misplaced).toEqual([]);
 });
 
+
+// B 项：delegate_subagent 此前是定义里唯一未声明 additionalProperties 的，顶层与 packets 元素
+// 两层都会静默放过多余字段。补声明后两层都应被 Ajv 拒掉。
+test("delegate_subagent rejects unknown fields on the packet envelope and each packet", () => {
+  const registry = loadToolRegistry(repoRoot);
+  const tools = toolSchemas(registry, ["delegate_subagent"]);
+  const packet = { id: "a", role: "researcher", objective: "查证", facts: [], constraints: [], acceptanceCriteria: [], dependencies: [] };
+  const check = (arguments_: Record<string, unknown>) => checkToolCalls(
+    [{ id: "call_01", name: "delegate_subagent", arguments: { reason: "委派", ...arguments_ } }], tools, [], ["delegate_subagent"],
+  );
+  expect(check({ packets: [packet] }).schemaOk).toBe(true);
+
+  const top = check({ packets: [packet], mode: "add" });
+  expect(top.schemaOk).toBe(false);
+  expect(top.faultCode).toBe("wrong_type");
+
+  const nested = check({ packets: [{ ...packet, extra: 1 }] });
+  expect(nested.schemaOk).toBe(false);
+  expect(nested.faultCode).toBe("wrong_type");
+});
