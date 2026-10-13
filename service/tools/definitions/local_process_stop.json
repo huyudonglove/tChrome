@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "local_process_stop",
-    "description": "终止本会话指定进程及其进程组。返回进程状态。",
+    "description": "终止本会话指定进程及其进程组。返回进程快照：ok、processId、status、exitCode、signal、stdout/stderr 及其持久化路径 stdoutPath/stderrPath；失败时返回 ok=false、faultCode 与 error。",
     "parameters": {
       "type": "object",
       "properties": {

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "clipboard_page_write",
-    "description": "向页面剪贴板写入文本（navigator.clipboard.writeText）。受页面权限与用户手势限制，失败时返回原因。",
+    "description": "向页面剪贴板写入文本（经扩展 offscreen 文档，不要求页面聚焦）。返回 ok 与 bytes（写入文本长度）；失败时 ok=false 并附 error。",
     "parameters": {
       "type": "object",
       "properties": {
