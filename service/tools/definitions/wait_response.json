@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "wait_response",
-    "description": "等待匹配的网络响应（CDP Network.responseReceived）。在点击/提交等触发 Ajax 前调用可避免过早判定。\n参数：必填 urlContains（URL 子串）、tabId；可选 status（HTTP 状态码）、timeoutMs（超时，默认 8 秒，上限 12 秒）。\n返回：ok、requestId、url、status、mimeType；超时 ok=false。",
+    "description": "等待匹配的网络响应（CDP Network.responseReceived）。在点击/提交等触发 Ajax 前调用可避免过早判定。\n参数：必填 urlContains（URL 子串）、tabId；可选 status（HTTP 状态码）、timeoutMs（超时，默认 8 秒，上限 12 秒）。\n返回：ok、requestId、url、status、mimeType；超时 ok=false。 可选 includeBody=true：等待加载完成并返回脱敏JSON body（过大截断为bodyPreview，无法取得时bodyUnavailable）；HTTP成功不等于业务成功。",
     "parameters": {
       "type": "object",
       "properties": {
@@ -27,6 +27,10 @@
           "default": 8000,
           "minimum": 500,
           "maximum": 12000
+        },
+        "includeBody": {
+          "type": "boolean",
+          "description": "为 true 时等 loadingFinished 后返回脱敏 JSON 正文；默认仅等待响应头。正文不可读或非 JSON 时返回 bodyUnavailable。"
         }
       },
       "required": [

@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "page_submit_wait",
-    "description": "复合：按元素 id 点击提交，并等待匹配网络响应（urlContains）。用于表单提交等「点击后要等接口」的链路，一次 tool_call 完成。\n参数：必填 tabId、id（page.* e_ 编号）、urlContains；可选 status、timeoutMs。\n点击失败则不把 wait 结果当作成功。返回：ok、id、clicked、wait{ok,url,status}。",
+    "description": "复合：按元素 id 提交，先完成网络监听再点击，并等待匹配响应加载完成。必填 tabId、id、urlContains；可选 status、timeoutMs。返回 clicked、wait（URL/HTTP状态及脱敏JSON body，过大时 bodyPreview/bodyTruncated，无法读取时 bodyUnavailable）、pageFeedback（等待期间提示/当前无效字段）及 effects。ok 仅表示操作与等待成功，不代表业务成功；点击失败、超时分别保留证据，不自动重试。",
     "parameters": {
       "type": "object",
       "properties": {

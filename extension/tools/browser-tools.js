@@ -6,6 +6,7 @@ import { waitForDownload } from './downloads.js';
 import { withDebugger, monitorDialogs, dialogState, watchDialog, handleDialog, detachDebugger } from './dialogs.js';
 import { streamCapture, streamReceive, imageShrink } from './stream-pipe.js';
 import { observeAction, initActionObserver } from './action-observer.js';
+import { waitForResponse, startPageFeedback, finishPageFeedback } from './response-wait.js';
 export const BROWSER_TOOL_NAMES = [
   'page_eval_expr',
   'page_get_summary', 'page_list_regions', 'page_list_interactive_elements',
@@ -290,18 +291,24 @@ const getTab = async (tabId) => {
 };
 
 const waitTabComplete = (tabId) => new Promise((resolve) => {
+  const tabs = chrome.tabs;
+  let finished = false;
+  let timer;
   const finish = () => {
-    chrome.tabs.onUpdated.removeListener(onUpdated);
+    if (finished) return;
+    finished = true;
+    clearTimeout(timer);
+    tabs.onUpdated.removeListener(onUpdated);
     resolve();
   };
   const onUpdated = (id, info) => {
     if (id === tabId && info.status === 'complete') finish();
   };
-  chrome.tabs.onUpdated.addListener(onUpdated);
-  chrome.tabs.get(tabId).then((tab) => {
+  timer = setTimeout(finish, 8000);
+  tabs.onUpdated.addListener(onUpdated);
+  tabs.get(tabId).then((tab) => {
     if (tab.status === 'complete') finish();
   }).catch(finish);
-  setTimeout(finish, 8000);
 });
 
 const cdpMouse = async (tabId, type, x, y, options = {}) => {
@@ -2011,53 +2018,22 @@ const executeBrowserTool = async (name, input = {}) => {
   if (name === 'wait_response') {
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, tabId, error: '没有可监听的普通网页标签'};
-    const urlPart = String(input.urlContains || input.url || '').trim();
-    if (!urlPart) return {ok: false, tabId, error: 'wait_response 需要 urlContains'};
-    const wantStatus = input.status === undefined || input.status === null || input.status === '' ? null : Number(input.status);
-    const timeoutMs = Math.min(Math.max(Number(input.timeoutMs ?? input.ms) || 8000, 500), 12000);
-    const events = chrome.debugger.onEvent;
-    const detached = chrome.debugger.onDetach;
-    let matched = null;
-    let failure;
-    let cleanup = () => {};
-    const found = await new Promise((resolve) => {
-      const onEvent = (source, method, params) => {
-        if (source.tabId !== tab.id || method !== 'Network.responseReceived') return;
-        const url = String(params.response?.url || '');
-        const status = Number(params.response?.status || 0);
-        if (!url.includes(urlPart)) return;
-        if (wantStatus !== null && status !== wantStatus) return;
-        matched = { requestId: params.requestId, url, status, mimeType: params.response?.mimeType, time: Date.now() };
-        cleanup();
-        resolve(true);
-      };
-      const onDetach = (source, reason) => {
-        if (source.tabId !== tab.id) return;
-        failure = {faultCode: 'tool_execution_failed', failureStage: 'detached', detachReason: reason,
-          error: `浏览器调试连接已断开${reason ? `：${reason}` : ''}`};
-        cleanup();
-        resolve(false);
-      };
-      cleanup = () => {
-        events.removeListener(onEvent);
-        detached.removeListener(onDetach);
-      };
-      events.addListener(onEvent);
-      detached.addListener(onDetach);
-      withDebugger(tab.id, () => chrome.debugger.sendCommand({tabId: tab.id}, 'Network.enable', {}))
-        .catch((error) => {
-          failure = {faultCode: 'tool_execution_failed', failureStage: 'initialize',
-            error: error instanceof Error ? error.message : String(error)};
-          cleanup();
-          resolve(false);
-        });
-      setTimeout(() => { cleanup(); resolve(Boolean(matched)); }, timeoutMs);
+    if (!input.clickId) return waitForResponse(tab.id, input);
+    return observeAction(tab.id, async () => {
+      const feedback = await startPageFeedback(tab.id, input.frameId);
+      let result;
+      try {
+        result = await waitForResponse(tab.id, input, () => runPageTool('page_click', {
+          tabId: tab.id, id: input.clickId, frameId: input.frameId,
+        }));
+      } finally {
+        const pageFeedback = result?.dialogOpen
+          ? { unavailable: 'native_dialog_open' }
+          : await finishPageFeedback(tab.id, feedback, input.frameId);
+        result = { ...result, pageFeedback };
+      }
+      return result;
     });
-    if (!found || !matched) {
-      return {ok: false, tabId: tab.id, urlContains: urlPart, status: wantStatus, timeoutMs,
-        ...(failure ?? {error: '未等到匹配的网络响应'})};
-    }
-    return {ok: true, tabId: tab.id, urlContains: urlPart, ...matched};
   }
   if (name === 'click_xy') {
     const point = asPoint(input);

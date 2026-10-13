@@ -198,6 +198,8 @@ export async function beginActionObserve(tabId) {
 
 export async function endActionObserve(session, result, extras = {}) {
   if (!session || session.disabled || !result || typeof result !== "object") return result;
+  // Native dialogs block page scripts; return protocol evidence without another DOM probe.
+  if (result.dialogOpen) return result;
   const buf = buffers.get(session.tabId);
   const fresh = buf ? buf.events.filter((e) => e.seq > session.mark) : [];
 

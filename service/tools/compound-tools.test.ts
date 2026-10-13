@@ -52,7 +52,7 @@ test("page_fill_submit fills fields then submits and waits", async () => {
       }
       if (name === "page_type") { typed.push(String(args.text)); return { ok: true, value: args.text }; }
       if (name === "page_click") return { ok: true, clicked: true, id: args.id };
-      if (name === "wait_response") return { ok: true, url: "https://x/api/reg", status: 200 };
+      if (name === "wait_response") return { ok: true, clicked: true, click: { ok: true }, url: "https://x/api/reg", status: 200 };
       return { ok: false };
     },
   } as unknown as BrowserHost;
@@ -76,7 +76,7 @@ test("page_click_role locates, clicks, and optionally waits without silent pick"
       calls.push({ name, args });
       if (name === "page_get_by_role") return { ok: true, tabId: 1, total: 2, elements: [{ id: "e_01", role: "button", name: "提交" }, { id: "e_02", role: "button", name: "提交草稿" }] };
       if (name === "page_click") return { ok: true, clicked: true, id: args.id };
-      if (name === "wait_response") return { ok: true, url: "https://x/api/save", status: 200, requestId: "r1" };
+      if (name === "wait_response") return { ok: true, clicked: true, click: { ok: true }, url: "https://x/api/save", status: 200, requestId: "r1" };
       return { ok: false, error: "unexpected" };
     },
   } as unknown as BrowserHost;
@@ -87,7 +87,8 @@ test("page_click_role locates, clicks, and optionally waits without silent pick"
 
   const done = await runCompoundTool("page_click_role", { tabId: 1, role: "button", name: "提交", matchIndex: 0, waitUrlContains: "/api/save", reason: "x" }, host);
   expect(done).toMatchObject({ ok: true, id: "e_01", clicked: true });
-  expect(calls.filter(c => c.name === "page_click")).toHaveLength(1);
+  expect(calls.filter(c => c.name === "page_click")).toHaveLength(0);
+  expect(calls.at(-1)).toMatchObject({ name: "wait_response", args: { clickId: "e_01" } });
 });
 
 test("page_fill_role types after locate; page_submit_wait clicks then reports wait", async () => {
@@ -96,7 +97,7 @@ test("page_fill_role types after locate; page_submit_wait clicks then reports wa
       if (name === "page_get_by_role") return { ok: true, total: 1, elements: [{ id: "e_09", role: "textbox", name: "搜索" }] };
       if (name === "page_type") return { ok: true, value: args.text };
       if (name === "page_click") return { ok: true, clicked: true, id: args.id };
-      if (name === "wait_response") return { ok: false, timeout: true, url: args.urlContains };
+      if (name === "wait_response") return { ok: false, clicked: true, click: { ok: true }, timeout: true, url: args.urlContains };
       return { ok: false };
     },
   } as unknown as BrowserHost;
@@ -133,7 +134,7 @@ test("compound tools forward frameId to their page.* sub-calls", async () => {
       if (name === "page_get_by_role") return { ok: true, total: 1, elements: [{ id: "e_41", role: "button", name: "提交" }] };
       if (name === "page_click") return { ok: true, clicked: true, id: args.id };
       if (name === "page_type") return { ok: true, value: args.text };
-      if (name === "wait_response") return { ok: true, url: "https://x/api/save", status: 200, requestId: "r1" };
+      if (name === "wait_response") return { ok: true, clicked: true, click: { ok: true }, url: "https://x/api/save", status: 200, requestId: "r1" };
       return { ok: false };
     },
   } as unknown as BrowserHost;
@@ -149,7 +150,7 @@ test("compound tools forward frameId to their page.* sub-calls", async () => {
 
   const submitted = await runCompoundTool("page_submit_wait", { tabId: 7, id: "e_41", urlContains: "/api/save", frameId: 762, reason: "f" }, host);
   expect(submitted.ok).toBe(true);
-  expect(calls.filter(c => c.name === "page_click").at(-1)?.args.frameId).toBe(762);
+  expect(calls.filter(c => c.name === "wait_response").at(-1)?.args).toMatchObject({ frameId: 762, clickId: "e_41" });
 });
 
 test("compound tools omit frameId when the caller does not pass one", async () => {

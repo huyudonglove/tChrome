@@ -53,7 +53,7 @@ async function optionalWait(
   timeoutMs: number | undefined,
 ): Promise<HostResult | null> {
   if (typeof args.waitText === "string" && args.waitText.trim()) {
-    return await host.execute("wait", { tabId, text: args.waitText, ...(timeoutMs !== undefined ? { timeoutMs } : {}), reason }) as HostResult;
+    return await host.execute("wait", { tabId, text: args.waitText, ...(typeof args.frameId === "number" ? { frameId: args.frameId } : {}), ...(timeoutMs !== undefined ? { timeoutMs } : {}), reason }) as HostResult;
   }
   if (typeof args.waitUrlContains === "string" && args.waitUrlContains.trim()) {
     return await host.execute("wait_response", {
@@ -65,6 +65,25 @@ async function optionalWait(
     }) as HostResult;
   }
   return null;
+}
+
+/** The extension arms the listener and enables Network before executing the click. */
+async function clickAndWait(host: BrowserHost, tabId: unknown, id: string, args: Record<string, unknown>, reason: string, frame: Record<string, unknown>) {
+  const result = await host.execute("wait_response", {
+    tabId, clickId: id, urlContains: args.waitUrlContains ?? args.urlContains,
+    ...(typeof args.status === "number" ? { status: args.status } : {}),
+    ...(typeof args.timeoutMs === "number" ? { timeoutMs: args.timeoutMs } : {}),
+    ...frame, reason,
+  }) as HostResult;
+  const { click, clicked, effects, pageFeedback, ...wait } = result;
+  const clickResult = click && typeof click === "object" ? click as HostResult : {};
+  return {
+    ...(!result.ok ? wait : {}), ok: result.ok === true && clicked === true, tabId, id,
+    clicked: clicked === true, wait,
+    ...(!result.ok ? { step: result.failureStage === "click" ? "page_click" : "wait_response" } : {}),
+    ...(effects || clickResult.effects ? { effects: effects ?? clickResult.effects } : {}),
+    ...(pageFeedback ? { pageFeedback } : {}),
+  };
 }
 
 async function resolveByRole(host: BrowserHost, tabId: unknown, reason: string, role: string, a11yName: string | undefined, matchIndex: number | undefined, frame: Record<string, unknown> = {}) {
@@ -103,11 +122,14 @@ export async function runCompoundTool(
     if (located.error) return { ...located.error, tabId, role, name: a11yName, step: "page_get_by_role" };
     if (!located.found?.ok) return { ...located.found, step: "page_get_by_role", tabId };
     const id = located.id!;
+    if (typeof args.waitUrlContains === "string" && args.waitUrlContains.trim() && !args.waitText) {
+      return { ...await clickAndWait(host, tabId, id, args, reason, withFrame), role, name: a11yName ?? null, matchIndex: located.index };
+    }
     const clicked = await host.execute("page_click", { tabId, id, reason, ...withFrame }) as HostResult;
     if (!clicked?.ok) return { ...clicked, step: "page_click", tabId, id };
     const wait = await optionalWait(host, tabId, args, reason, timeoutMs);
-    if (wait && !wait.ok) return { ...wait, step: "wait", tabId, id, clicked: true };
-    return { ok: true, tabId, id, role, name: a11yName ?? null, matchIndex: located.index, clicked: true, wait: wait ?? null };
+    if (wait && !wait.ok) return { ...wait, step: "wait", tabId, id, clicked: true, ...(clicked.effects ? { effects: clicked.effects } : {}) };
+    return { ok: true, tabId, id, role, name: a11yName ?? null, matchIndex: located.index, clicked: true, wait: wait ?? null, ...(clicked.effects ? { effects: clicked.effects } : {}) };
   }
 
   if (name === "page_fill_role") {
@@ -132,23 +154,7 @@ export async function runCompoundTool(
   }
 
   if (name === "page_submit_wait") {
-    const id = String(args.id ?? "");
-    const urlContains = String(args.urlContains ?? "");
-    const waiting = host.execute("wait_response", {
-      tabId,
-      urlContains,
-      ...(typeof args.status === "number" ? { status: args.status } : {}),
-      ...(timeoutMs !== undefined ? { timeoutMs } : {}),
-      reason,
-    });
-    const clicked = await host.execute("page_click", { tabId, id, reason, ...withFrame }) as HostResult;
-    if (!clicked?.ok) {
-      await Promise.resolve(waiting).catch(() => undefined);
-      return { ...clicked, step: "page_click", tabId, id };
-    }
-    const wait = (await waiting) as HostResult;
-    if (!wait?.ok) return { ...wait, step: "wait_response", tabId, id, clicked: true };
-    return { ok: true, tabId, id, clicked: true, wait: { ok: true, url: wait.url, status: wait.status, requestId: wait.requestId } };
+    return clickAndWait(host, tabId, String(args.id ?? ""), args, reason, withFrame);
   }
 
   if (name === "page_select_role") {
@@ -171,11 +177,14 @@ export async function runCompoundTool(
     const picked = pickElement(found, matchIndex, "find_on_page");
     if ("error" in picked) return { ...picked.error, tabId, text, step: "find_on_page" };
     const id = picked.element.id!;
+    if (typeof args.waitUrlContains === "string" && args.waitUrlContains.trim() && !args.waitText) {
+      return { ...await clickAndWait(host, tabId, id, args, reason, withFrame), text, matchIndex: picked.index };
+    }
     const clicked = await host.execute("page_click", { tabId, id, reason, ...withFrame }) as HostResult;
     if (!clicked?.ok) return { ...clicked, step: "page_click", tabId, id };
     const wait = await optionalWait(host, tabId, args, reason, timeoutMs);
-    if (wait && !wait.ok) return { ...wait, step: "wait", tabId, id, clicked: true };
-    return { ok: true, tabId, id, text, matchIndex: picked.index, clicked: true, wait: wait ?? null };
+    if (wait && !wait.ok) return { ...wait, step: "wait", tabId, id, clicked: true, ...(clicked.effects ? { effects: clicked.effects } : {}) };
+    return { ok: true, tabId, id, text, matchIndex: picked.index, clicked: true, wait: wait ?? null, ...(clicked.effects ? { effects: clicked.effects } : {}) };
   }
 
   if (name === "page_fill_submit") {
@@ -187,7 +196,7 @@ export async function runCompoundTool(
       const role = String(field.role ?? "");
       const a11yName = typeof field.name === "string" ? field.name : undefined;
       const text = String(field.text ?? "");
-      const located = await resolveByRole(host, tabId, reason, role, a11yName, typeof field.matchIndex === "number" ? field.matchIndex : undefined);
+      const located = await resolveByRole(host, tabId, reason, role, a11yName, typeof field.matchIndex === "number" ? field.matchIndex : undefined, withFrame);
       if (located.error) return { ...located.error, tabId, step: "page_get_by_role", fieldIndex: i, role, name: a11yName };
       if (!located.found?.ok) return { ...located.found, tabId, step: "page_get_by_role", fieldIndex: i, role, name: a11yName };
       const typed = await host.execute("page_type", {
@@ -227,33 +236,21 @@ export async function runCompoundTool(
     const waitArgs: Record<string, unknown> = {};
     if (typeof submit.waitUrlContains === "string" && submit.waitUrlContains.trim()) waitArgs.waitUrlContains = submit.waitUrlContains.trim();
     if (typeof submit.waitText === "string" && submit.waitText.trim()) waitArgs.waitText = submit.waitText.trim();
+    if (typeof args.frameId === "number") waitArgs.frameId = args.frameId;
     if (typeof submit.status === "number") waitArgs.status = submit.status;
     if (typeof submit.timeoutMs === "number") waitArgs.timeoutMs = submit.timeoutMs;
     const hasWait = typeof waitArgs.waitUrlContains === "string" || typeof waitArgs.waitText === "string";
 
     if (typeof waitArgs.waitUrlContains === "string") {
-      const waiting = host.execute("wait_response", {
-        tabId,
-        urlContains: waitArgs.waitUrlContains,
-        ...(typeof waitArgs.status === "number" ? { status: waitArgs.status } : {}),
-        ...(typeof waitArgs.timeoutMs === "number" ? { timeoutMs: waitArgs.timeoutMs } : {}),
-        reason,
-      });
-      const clicked = await host.execute("page_click", { tabId, id: submitId, reason, ...withFrame }) as HostResult;
-      if (!clicked?.ok) {
-        await Promise.resolve(waiting).catch(() => undefined);
-        return { ...clicked, step: "page_click", tabId, id: submitId, filled };
-      }
-      const wait = (await waiting) as HostResult;
-      if (!wait?.ok) return { ...wait, step: "wait_response", tabId, id: submitId, filled, clicked: true };
-      return { ok: true, tabId, filled, submit: { id: submitId, clicked: true }, wait: { ok: true, url: wait.url, status: wait.status, requestId: wait.requestId } };
+      const result = await clickAndWait(host, tabId, submitId, waitArgs, reason, withFrame);
+      return { ...result, filled, submit: { id: submitId, clicked: result.clicked } };
     }
 
     const clicked = await host.execute("page_click", { tabId, id: submitId, reason, ...withFrame }) as HostResult;
     if (!clicked?.ok) return { ...clicked, step: "page_click", tabId, id: submitId, filled };
     const wait = hasWait ? await optionalWait(host, tabId, waitArgs, reason, timeoutMs) : null;
-    if (wait && !wait.ok) return { ...wait, step: "wait", tabId, id: submitId, filled, clicked: true };
-    return { ok: true, tabId, filled, submit: { id: submitId, clicked: true }, wait: wait ?? null };
+    if (wait && !wait.ok) return { ...wait, step: "wait", tabId, id: submitId, filled, clicked: true, ...(clicked.effects ? { effects: clicked.effects } : {}) };
+    return { ok: true, tabId, filled, submit: { id: submitId, clicked: true }, wait: wait ?? null, ...(clicked.effects ? { effects: clicked.effects } : {}) };
   }
 
   return fail(tabId, "unknown_tool", `未知复合工具 ${name}`);
