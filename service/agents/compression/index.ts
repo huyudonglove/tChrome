@@ -1,7 +1,7 @@
 import { allocateRecordId } from "../../runtime/ids.ts";
 import { runtimeConfig } from "../../config/runtime.ts";
 import type { LoopRecord, Provider } from "../../types.ts";
-import { requestLoopFold, requestLoopSummaries } from "./protocol.ts";
+import { requestLoopFold, requestLoopSummaries, type LoopSummary } from "./protocol.ts";
 import { commitArchive, loadIndex } from "../../context-archive/store.ts";
 import type { CompressionModule, CompressionRecord, SourceRecord } from "../../context-archive/types.ts";
 
@@ -61,6 +61,27 @@ export function partitionLoops(records: SourceRecord[]): SourceRecord[][] {
   flush();
   return batches;
 }
+
+/** One batch archives one record: when the model splits a batch into several parallel summaries,
+ * consolidate them here so the same batch never stacks duplicate rows. Text fields join by line,
+ * list fields keep their order with duplicates removed; no extra provider call is made. */
+export function mergeBatchSummaries(summaries: LoopSummary[]): LoopSummary {
+  const [first, ...rest] = summaries;
+  if (!first) throw new Error("Missing compression summary");
+  if (!rest.length) return first;
+  const unique = (values: string[]) => [...new Set(values)];
+  const text = (pick: (row: LoopSummary) => string) => unique(summaries.map(pick)).join("\n");
+  const list = (pick: (row: LoopSummary) => string[]) => unique(summaries.flatMap(pick));
+  return {
+    userRequest: text(row => row.userRequest),
+    state: text(row => row.state),
+    constraints: list(row => row.constraints),
+    pending: list(row => row.pending),
+    decisions: list(row => row.decisions),
+    loopIds: [...first.loopIds],
+  };
+}
+
 export async function compressRecords(input: Input): Promise<CompressOutcome> {
   const lock = JSON.stringify([input.dataDir, input.conversationId, input.module]);
   const previous = running.get(lock);
@@ -91,7 +112,7 @@ async function compress(input: Input): Promise<CompressOutcome> {
   for (const sources of batches) {
     check();
     const loopIds = sources.map(source => source.id);
-    let summaries;
+    let summaries: LoopSummary[];
     try { summaries = await requestBatchWithRetry(input, sources); }
     catch (error) {
       if (input.isCancelled?.() || (error instanceof Error && /cancel/i.test(error.message))) throw error;
@@ -100,12 +121,12 @@ async function compress(input: Input): Promise<CompressOutcome> {
         failure: { loopIds, reason: error instanceof Error ? error.message : String(error) }, totalLoops };
     }
     check();
-    const records: CompressionRecord[] = summaries.map(summary => ({ ...summary, id: allocateRecordId(input.dataDir, input.conversationId, "sum"), module: input.module, level: 1, sourceIds: [...loopIds], createdAt: new Date().toISOString() }));
-    index.entries.push(...records);
-    index.activeIds.push(...records.map(record => record.id));
+    const record: CompressionRecord = { ...mergeBatchSummaries(summaries), id: allocateRecordId(input.dataDir, input.conversationId, "sum"), module: input.module, level: 1, sourceIds: [...loopIds], createdAt: new Date().toISOString() };
+    index.entries.push(record);
+    index.activeIds.push(record.id);
     loopIds.forEach(id => covered.add(id));
     index.coveredSourceIds = [...covered];
-    commitArchive(input.dataDir, input.conversationId, index, sources, records);
+    commitArchive(input.dataDir, input.conversationId, index, sources, [record]);
     committedLoopIds.push(...loopIds);
     completed++;
     input.onProgress?.({ type: "batch", completed, total: batches.length, loopIds });

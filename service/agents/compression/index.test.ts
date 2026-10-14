@@ -32,12 +32,26 @@ test("unanchored loops sent as two complete batches with exact archive provenanc
  expect(index.entries.map(row => row.loopIds)).toEqual(requests);
  expect(resolveSources(input.dataDir, input.conversationId, input.module, index.activeIds)).toEqual(records);
 });
-test("multiple valid summaries cover the whole batch atomically", async () => {
+test("multiple valid summaries are merged into one record covering the whole batch", async () => {
  const input = setup();
- await compressRecords({ ...input, records: [source("loop_01", "userInput"), source("loop_02")], provider: model(undefined, 3) });
+ await compressRecords({ ...input, records: [source("loop_01", "userInput"), source("loop_02")], provider: { async complete(request) {
+  const response = await model(undefined, 2).complete(request);
+  response.toolCalls[0]!.arguments = { userRequest: "压缩改进", state: "已完成 runtime 合并", constraints: ["保留用户改动"], pending: [], decisions: ["方案 A"] };
+  response.toolCalls[1]!.arguments = { userRequest: "压缩改进", state: "待跑全量门禁", constraints: ["保留用户改动", "不收紧提交协议"], pending: ["推送"], decisions: [] };
+  return response;
+ } } });
  const index = loadIndex(input.dataDir, input.conversationId, input.module);
- expect(index.entries).toHaveLength(3);
- expect(index.entries.every(row => JSON.stringify(row.loopIds) === '["loop_01","loop_02"]')).toBe(true);
+ expect(index.entries).toHaveLength(1);
+ expect(index.activeIds).toHaveLength(1);
+ expect(index.entries[0]!.loopIds).toEqual(["loop_01", "loop_02"]);
+ expect(index.entries[0]).toMatchObject({
+  userRequest: "压缩改进",
+  state: "已完成 runtime 合并\n待跑全量门禁",
+  constraints: ["保留用户改动", "不收紧提交协议"],
+  pending: ["推送"],
+  decisions: ["方案 A"],
+ });
+ expect(index.coveredSourceIds).toEqual(["loop_01", "loop_02"]);
 });
 test("a malformed batch is retried in place and the walk continues when the retry is valid", async () => {
  const input = setup(); let calls = 0;
