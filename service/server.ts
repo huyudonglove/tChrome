@@ -161,7 +161,7 @@ export function createServer(options: ServeOptions = {}) {
         }
       }
       if (request.method === "GET" && url.pathname === "/tool-request") {
-        return respond({ executorVersion: expectedVersion, requests: bridge.list() });
+        return respond({ executorVersion: expectedVersion, requests: bridge.listForDispatch() });
       }
       if (request.method === "POST" && url.pathname === "/tool-result") {
         const body = (await request.json()) as { id?: string; result?: BrowserResult };

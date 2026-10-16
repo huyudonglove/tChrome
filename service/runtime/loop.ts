@@ -178,7 +178,7 @@ const messagesOf = (contextModules: ContextModules, toolRegistry: ToolRegistry, 
   return [
     { role: "system", content: system },
     { role: "user", content: userText({
-      contextModules, ledger, turn, memories: projectedMemories, skillText, conversationSummaries: summaries, memoryPointers: memoryPointerMap(memories),
+      contextModules, ledger, turn, memories: projectedMemories, skillText, conversationSummaries: summaries, memoryPointers: memoryPointerMap(memories, ledger.conversationId),
       queryHistory: ledger.queryHistory,
       // <tools> 已加载清单下方追加「未加载能力（按类）」索引：让未加载工具在主动扫描前就可见。
       toolGuide: [toolGuideFor(toolRegistry, turn.assembled.toolIds, false), toolCategoryGuide(toolRegistry, turn.assembled.toolIds)].filter(Boolean).join("\n"),

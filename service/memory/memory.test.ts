@@ -72,11 +72,23 @@ test("projection keeps every original memory with identities and without clippin
 test("pointers map each write call to its records and the budget measures the rendered injection", () => {
   const memories: Memories = {
     conversation: [record("mm_01", "conversation", { sourceCallId: "call_09" }), record("mm_02", "conversation", { sourceCallId: "call_09" }), record("mm_03", "conversation", { sourceCallId: "call_10" })],
-    project: [record("mm_04", "project", { sourceCallId: "call_11" })],
+    project: [record("mm_04", "project", { sourceCallId: "call_11", sourceConversationId: "cv_01" })],
   };
-  expect(memoryPointerMap(memories)).toEqual({ call_09: ["mm_01", "mm_02"], call_10: ["mm_03"], call_11: ["mm_04"] });
+  expect(memoryPointerMap(memories, "cv_01")).toEqual({ cv_01: { call_09: ["mm_01", "mm_02"], call_10: ["mm_03"], call_11: ["mm_04"] } });
   const projected = projectMemories(memories);
   expect(memoryBudgetChars(projected)).toBe(projected.conversation.length + projected.project.length);
   expect(memoryBudgetNote(5001, 5000)).toContain("超过记忆预算");
   expect(memoryBudgetNote(5000, 5000)).toBe("");
+});
+
+test("pointers keep same-numbered calls from different conversations apart", () => {
+  const memories: Memories = {
+    conversation: [record("mm_01", "conversation", { sourceCallId: "call_69" })],
+    // 长期记忆来自 cv_32，callId 与当前会话的 call_69 同号，不能互相误挂。
+    project: [
+      record("lm_01", "project", { sourceCallId: "call_69", sourceConversationId: "cv_32" }),
+      record("lm_02", "project", { sourceCallId: "call_95", sourceConversationId: "cv_44" }),
+    ],
+  };
+  expect(memoryPointerMap(memories, "cv_44")).toEqual({ cv_44: { call_69: ["mm_01"], call_95: ["lm_02"] }, cv_32: { call_69: ["lm_01"] } });
 });

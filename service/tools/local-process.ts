@@ -67,8 +67,18 @@ interface Entry {
 const processes = new Map<string, Entry>();
 // An invocation owns its cancellation token before any asynchronous filesystem work.
 const pendingStarts = new Set<{ scope: string; cancelled: boolean }>();
+// zsh/bash 遇到未匹配通配符、未知命令时只把诊断写进 stderr，命令被跳过而整体退出码仍可能是 0。
+// 这类行说明「有命令没跑成」，因此单独暴露，避免只看 exitCode 把失败当成功。
+const SHELL_DIAGNOSTIC_PATTERN = /no matches found:|command not found:/;
+export function shellDiagnosticsOf(stderr: string): string[] {
+  return stderr
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && SHELL_DIAGNOSTIC_PATTERN.test(line));
+}
 function snapshot(entry: Entry): Record<string, unknown> {
-  return { ok: entry.status === "running" || entry.status === "stopped" || (entry.status === "exited" && entry.exitCode === 0), processId: entry.processId, ...(entry.filename ? { filename: entry.filename } : { path: entry.path }), args: entry.args, cwd: entry.cwd, status: entry.status, stdout: entry.stdout, stderr: entry.stderr, stdoutTruncated: false, stderrTruncated: false, stdoutPath: entry.stdoutPath, stderrPath: entry.stderrPath, exitCode: entry.exitCode, signal: entry.signal, ...(entry.error ? { error: entry.error } : {}) };
+  const shellDiagnostics = entry.status === "exited" && entry.exitCode === 0 ? shellDiagnosticsOf(entry.stderr) : [];
+  return { ok: entry.status === "running" || entry.status === "stopped" || (entry.status === "exited" && entry.exitCode === 0 && shellDiagnostics.length === 0), processId: entry.processId, ...(entry.filename ? { filename: entry.filename } : { path: entry.path }), args: entry.args, cwd: entry.cwd, status: entry.status, stdout: entry.stdout, stderr: entry.stderr, stdoutTruncated: false, stderrTruncated: false, stdoutPath: entry.stdoutPath, stderrPath: entry.stderrPath, exitCode: entry.exitCode, signal: entry.signal, ...(shellDiagnostics.length ? { shellDiagnostics } : {}), ...(entry.error ? { error: entry.error } : {}) };
 }
 function requiredString(input: Record<string, unknown>, key: string): string {
   const value = input[key];

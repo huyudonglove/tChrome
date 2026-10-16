@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { WIDGET_FIT_SCRIPT } from "../../shared/widget-bridge.ts";
 
 const MAX_HTML_BYTES = 200_000;
 const MAX_WIDGETS = 200;
@@ -48,5 +49,11 @@ export function readWidgetPage(dataDir: string, id: string): string | null {
   if (!/^w_[a-f0-9]{8,32}$/i.test(id)) return null;
   const path = join(widgetDir(dataDir), `${id}.html`);
   if (!existsSync(path)) return null;
-  return readFileSync(path, "utf8");
+  const page = readFileSync(path, "utf8");
+  // 读取时补上高度回传脚本：已保存的旧组件页也因此能让侧栏自适应高度。
+  if (page.includes(WIDGET_FIT_SCRIPT)) return page;
+  const closing = page.lastIndexOf("</body>");
+  return closing === -1
+    ? page + WIDGET_FIT_SCRIPT
+    : `${page.slice(0, closing)}${WIDGET_FIT_SCRIPT}\n${page.slice(closing)}`;
 }

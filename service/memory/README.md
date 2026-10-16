@@ -4,7 +4,7 @@
 
 - `types.ts`：记忆记录、层级、ID 索引和分层集合的类型。
 - `store.ts`：单条记忆读写、按会话索引加载会话记忆和按时间加载共享长期记忆。
-- `window.ts`：输出全部可见记忆的对象数组，保留 memoryId、turnId、sourceCallId、sourceConversationId（存在时）和完整 text，保持旧到新。投影不修改本地记录。另导出 memoryPointerMap（callId → memoryId）、memoryBudgetChars / memoryBudgetNote，供窗口指针投影与预算提示使用。
+- `window.ts`：输出全部可见记忆的对象数组，保留 memoryId、turnId、sourceCallId、sourceConversationId（存在时）和完整 text，保持旧到新。投影不修改本地记录。另导出 memoryPointerMap（会话号 → callId → memoryId）、memoryBudgetChars / memoryBudgetNote，供窗口指针投影与预算提示使用。
 
 Runtime 处理 memory_writeConversation / memory_writeProject / memory_update / memory_delete 的 effect，分配或按 mm_/lm_ 修改删除记忆、更新账本索引并记录事件；每次请求模型前读取记忆并调用投影。Context 只接收两层记录数组，模块文件保留用途说明与数据占位。工具 schema 由 tools/definitions/memory.*.json 维护。memory_writeConversation/writeProject/update/delete 同属常驻 baseTools，不是动态 catalog 工具。
 

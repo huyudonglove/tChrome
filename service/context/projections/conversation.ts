@@ -27,8 +27,8 @@ export function conversationPayload(input: {
   ledger: Ledger;
   memories: { conversation: MemoryRecord[] | string };
   conversationSummaries?: LoopSummary[] | string;
-  /** callId → 该调用写入的记忆编号：窗口里写入调用正文只留指针。 */
-  memoryPointers?: Record<string, string[]>;
+  /** 会话号 → callId → 该调用写入的记忆编号：窗口里写入调用正文只留指针。 */
+  memoryPointers?: Record<string, Record<string, string[]>>;
 }): ConversationPayload {
   // provider 传输/协议失败（重试耗尽的空回包、超时、连接错误等）模型无能为力，渲染进窗口只是噪音：
   // 这类 loop 整体不进窗口；模型可自纠的失败（工具参数/schema/缺字段）仍完整渲染。
@@ -52,7 +52,7 @@ export function conversationPayload(input: {
         // 投影只替换送模型的副本：落盘 helm 仍保留完整正文。
         const args = { ...((call.arguments ?? {}) as Record<string, unknown>) };
         let projected = false;
-        const ids = input.memoryPointers?.[call.id];
+        const ids = input.memoryPointers?.[input.ledger.conversationId]?.[call.id];
         if (ids?.length) {
           // memory_update 的 text 同属记忆正文，同样只留指针，避免第二份正文进窗口。
           delete args.conversationMemory; delete args.projectMemory; delete args.summary; delete args.text;

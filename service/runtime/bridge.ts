@@ -13,6 +13,8 @@ export type ToolRequest = {
 export type ToolBridge = BrowserHost & {
   /** All unclaimed requests; the extension may execute several at once. */
   list(): ToolRequest[];
+  /** Requests handed to the extension; every returned request is marked as dispatched. */
+  listForDispatch(): ToolRequest[];
   resolve(id: string, result: BrowserResult): boolean;
   abort(scope?: string): void;
   abortById(id: string): boolean;
@@ -22,6 +24,8 @@ type Pending = {
   request: ToolRequest;
   scope?: string;
   done: (result: BrowserResult) => void;
+  /** True once the extension has been handed this request to execute. */
+  dispatched?: boolean;
 };
 
 export function createToolBridge(dataDir: string): ToolBridge {
@@ -31,12 +35,32 @@ export function createToolBridge(dataDir: string): ToolBridge {
     const request: ToolRequest = { id: allocateRecordId(dataDir, null, "bridge"), name, input };
     return request;
   };
-  const withTimeout = (done: (result: BrowserResult) => void): ((result: BrowserResult) => void) => {
+  const withTimeout = (
+    done: (result: BrowserResult) => void,
+    dispatched: () => boolean,
+  ): ((result: BrowserResult) => void) => {
     let settled = false;
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
-      done({ ok: false, faultCode: "tool_execution_failed", error: `浏览器执行等待超时（${BRIDGE_TIMEOUT_MS}ms）：执行器未返回，可能是标签页挂死或扩展失联` });
+      // A request stays queued until it settles, so "still listed" cannot separate a
+      // request the extension never picked up from one it picked up and never answered.
+      // The dispatch marker is what makes those two cases distinguishable.
+      done(dispatched()
+        ? {
+            ok: false,
+            faultCode: "tool_execution_failed",
+            executionState: "claimed_no_result",
+            recovery: "inspect_state",
+            error: `浏览器执行等待超时（${BRIDGE_TIMEOUT_MS}ms）：扩展已领取该请求但未回传结果，操作可能已经生效、页面可能已经变化。请先核对当前页面与已保存记录，不要直接重放。`,
+          }
+        : {
+            ok: false,
+            faultCode: "tool_execution_failed",
+            executionState: "not_claimed",
+            recovery: "inspect_state",
+            error: `浏览器执行等待超时（${BRIDGE_TIMEOUT_MS}ms）：请求一直未被扩展领取（扩展可能未连接或已失联），页面很可能没有发生变化。`,
+          });
     }, BRIDGE_TIMEOUT_MS);
     return (result) => {
       if (settled) return;
@@ -53,7 +77,7 @@ export function createToolBridge(dataDir: string): ToolBridge {
         const index = queue.indexOf(item);
         if (index >= 0) queue.splice(index, 1);
         done(result);
-      });
+      }, () => item.dispatched === true);
       queue.push(item);
     });
   const execute = (scope: string | undefined, name: string, input: Record<string, unknown>): Promise<BrowserResult> =>
@@ -89,6 +113,10 @@ export function createToolBridge(dataDir: string): ToolBridge {
   return {
     ...scopedHost(undefined),
     list: () => queue.map((item) => item.request),
+    listForDispatch: () => queue.map((item) => {
+      item.dispatched = true;
+      return item.request;
+    }),
     resolve: (id, result) => {
       const index = queue.findIndex((item) => item.request.id === id);
       if (index < 0) return false;

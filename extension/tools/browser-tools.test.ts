@@ -547,6 +547,7 @@ test("tab actions never fall back to the foreground and opening preserves focus"
   globals.chrome = {
     tabs: {get: async () => {throw Error('No tab');},
       query: async () => {throw Error('must not query foreground');},
+      onUpdated: {addListener: () => {}, removeListener: () => {}},
       create: async (options: any) => {created.push(options); return {id: 20, ...options};}},
     windows: {create: async (options: any) => {created.push(options); return {id: 3};}},
   };
@@ -556,6 +557,20 @@ test("tab actions never fall back to the foreground and opening preserves focus"
   expect(await runBrowserTool('open_tab', {windowId: 2, url: 'https://example.com'})).toMatchObject({ok: true, tabId: 20});
   expect(await runBrowserTool('create_window', {url: 'https://example.com'})).toMatchObject({ok: true, windowId: 3});
   expect(created).toEqual([{windowId: 2, url: 'https://example.com', active: false}, {url: 'https://example.com', focused: false}]);
+});
+
+test("open_tab reports the loaded url and title instead of the creation snapshot", async () => {
+  const created: any[] = [];
+  globals.chrome = {
+    tabs: {
+      create: async (options: any) => {created.push(options); return {id: 20, windowId: 2, url: '', title: ''};},
+      get: async () => ({id: 20, windowId: 2, status: 'complete', url: 'https://example.com/', title: 'Example'}),
+      onUpdated: {addListener: () => {}, removeListener: () => {}},
+    },
+  };
+  const result = await runBrowserTool('open_tab', {windowId: 2, url: 'https://example.com'});
+  expect(result).toMatchObject({ok: true, tabId: 20, url: 'https://example.com/', title: 'Example', loadState: 'complete'});
+  expect(created).toEqual([{windowId: 2, url: 'https://example.com', active: false}]);
 });
 
 test("viewport capture targets the requested tab through CDP without activating it or retrying", async () => {
@@ -1123,6 +1138,35 @@ test('HAR distinguishes stored snapshot from active recorder and marks incomplet
   expect(out.har.log.entries[0]).toMatchObject({_responseMissing: true, _timingUnavailable: true, _loadingComplete: false});
   expect(out.har.log.entries[1].request.postData).toMatchObject({_truncated: true, _totalChars: 32001});
   expect(out.har.log.entries[1].response.content._bodyUnavailable).toBe('not_collected');
+});
+
+test('HAR collects response bodies after loading finishes and marks unreadable ones', async () => {
+  for (const mode of ['json', 'unreadable', 'failed']) {
+    const tab = mode === 'json' ? 5130 : mode === 'unreadable' ? 5131 : 5132;
+    const {onEvent} = mockSocketBrowser(tab);
+    globals.chrome.storage = {session: {get: async () => ({}), set: async () => {}, remove: async () => {}}};
+    await runBrowserTool('har', {tabId: tab, action: 'start'});
+    onEvent.emit({tabId: tab}, 'Network.requestWillBeSent', {requestId: 'r', request: {url: 'https://example.com/api', method: 'GET'}});
+    onEvent.emit({tabId: tab}, 'Network.responseReceived', {requestId: 'r', response: {status: 200, mimeType: 'application/json'}});
+    globals.chrome.debugger.sendCommand = async (_: any, command: string) => {
+      if (command !== 'Network.getResponseBody') return {};
+      if (mode === 'failed') throw new Error('body lost');
+      if (mode === 'unreadable') return {body: btoa('not json'), base64Encoded: true};
+      return {body: btoa(JSON.stringify({ok: true, value: 1})), base64Encoded: true};
+    };
+    onEvent.emit({tabId: tab}, 'Network.loadingFinished', {requestId: 'r', encodedDataLength: 12});
+    const out = await runBrowserTool('har', {tabId: tab, action: 'stop'});
+    const content = out.har.log.entries[0].response.content;
+    if (mode === 'json') {
+      expect(out.completeness.responseBodies).toBe('collected');
+      expect(content).toMatchObject({mimeType: 'application/json'});
+      // summarizeResponseBody returns the parsed JSON value, not the raw string.
+      expect(content.body).toEqual({ok: true, value: 1});
+    } else {
+      expect(out.completeness.responseBodies).toBe('not_collected');
+      expect(content._bodyUnavailable).toBe(mode === 'unreadable' ? 'non_json_body_omitted' : 'get_response_body_failed');
+    }
+  }
 });
 
 test('HAR request dates use CDP wallTime rather than the monotonic timestamp', async () => {

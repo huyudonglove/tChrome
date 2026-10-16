@@ -3,6 +3,7 @@ import { renderMarkdown } from "./markdown";
 import { DOWN, requestJSON, errorText, SERVICE } from "./service";
 import { shouldSubmitOnEnter, stopCurrentSession } from "./interactions";
 import { LibraryPanel } from "./LibraryPanel";
+import { resolveWidgetHeight } from "../../shared/widget-bridge.ts";
 
 type Output =
   | { kind: "reply"; text: string }
@@ -102,6 +103,15 @@ const MdContent = ({ text }: { text: string }) => {
     if (!el) return;
     let cancelled = false;
     el.innerHTML = renderMarkdown(text);
+    // 组件页会 postMessage 上报自身高度；父页据此调整 iframe，避免固定 300px 出滚动条。
+    const widgetFrames: HTMLIFrameElement[] = [];
+    const onWidgetMessage = (event: MessageEvent) => {
+      const height = resolveWidgetHeight(event.data);
+      if (height === null) return;
+      const frame = widgetFrames.find((item) => item.contentWindow === event.source);
+      if (frame) frame.style.height = `${height}px`;
+    };
+    window.addEventListener("message", onWidgetMessage);
     const mountWidgets = async () => {
       const nodes = Array.from(el.querySelectorAll("tchrome-widget"));
       for (const node of nodes) {
@@ -119,6 +129,7 @@ const MdContent = ({ text }: { text: string }) => {
           iframe.title = "tchrome-widget";
           iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-modals");
           iframe.style.cssText = "width:100%;min-height:300px;border:1px solid var(--line);border-radius:12px;background:#141422;margin:8px 0;";
+          widgetFrames.push(iframe);
           node.replaceWith(iframe);
         } catch {
           /* keep original node if service is down */
@@ -238,6 +249,7 @@ const MdContent = ({ text }: { text: string }) => {
     el.addEventListener("click", onClick);
     return () => {
       cancelled = true;
+      window.removeEventListener("message", onWidgetMessage);
       el.removeEventListener("click", onClick);
     };
   }, [text]);

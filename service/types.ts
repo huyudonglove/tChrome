@@ -322,6 +322,9 @@ export type BrowserResult = {
   title?: string;
   description?: string;
   text?: string;
+  /** Bridge timeout only: whether the extension had already claimed the request. */
+  executionState?: string;
+  recovery?: string;
 };
 
 export type BrowserHost = {

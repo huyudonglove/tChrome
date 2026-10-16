@@ -112,11 +112,19 @@ export function renderScopeIndex(memories: Memories, activeScopes: readonly stri
 /** 窗口里只留可操作与有信息量的部分：编号（供 memory_update/delete）、正文、过期条件；溯源由写入调用的 memoryPointers 承担。 */
 const memoryView = ({ memoryId, text, expiresWhen }: MemoryRecord) => ({ memoryId, text, ...(expiresWhen ? { expiresWhen } : {}) });
 
-/** callId → 该调用写入的记忆编号；窗口投影据此把写入调用正文换成指针。 */
-export function memoryPointerMap(memories: Memories): Record<string, string[]> {
-  const map: Record<string, string[]> = {};
+/**
+ * 会话号 → callId → 该调用写入的记忆编号；窗口投影据此把写入调用正文换成指针。
+ * callId 每会话从 call_01 重排，所以必须带上写入所在会话：会话记忆属于当前会话，
+ * 长期记忆看记录上的 sourceConversationId（旧记录没有归属信息，不参与指针投影）。
+ */
+export function memoryPointerMap(memories: Memories, conversationId: string): Record<string, Record<string, string[]>> {
+  const map: Record<string, Record<string, string[]>> = {};
   for (const layer of ["conversation", "project"] as const) {
-    for (const record of memories[layer]) (map[record.sourceCallId] ??= []).push(record.memoryId);
+    for (const record of memories[layer]) {
+      const owner = layer === "conversation" ? conversationId : record.sourceConversationId;
+      if (!owner) continue;
+      ((map[owner] ??= {})[record.sourceCallId] ??= []).push(record.memoryId);
+    }
   }
   return map;
 }

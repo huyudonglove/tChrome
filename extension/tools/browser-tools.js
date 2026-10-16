@@ -6,7 +6,7 @@ import { waitForDownload } from './downloads.js';
 import { withDebugger, monitorDialogs, dialogState, watchDialog, handleDialog, detachDebugger } from './dialogs.js';
 import { streamCapture, streamReceive, imageShrink } from './stream-pipe.js';
 import { observeAction, initActionObserver } from './action-observer.js';
-import { decodeResponseBody, waitForResponse, startPageFeedback, finishPageFeedback } from './response-wait.js';
+import { decodeResponseBody, summarizeResponseBody, waitForResponse, startPageFeedback, finishPageFeedback } from './response-wait.js';
 export const BROWSER_TOOL_NAMES = [
   'page_eval_expr',
   'page_get_summary', 'page_list_regions', 'page_list_interactive_elements',
@@ -1733,11 +1733,28 @@ const executeBrowserTool = async (name, input = {}) => {
       const events = chrome.debugger.onEvent;
       const detached = chrome.debugger.onDetach;
       const removed = chrome.tabs.onRemoved;
-      const buffer = {requests, cleanup: null, persist: Promise.resolve()};
+      const buffer = {requests, cleanup: null, persist: Promise.resolve(), bodyTasks: new Set()};
       const persist = () => {
         const rows = [...requests.values()];
         buffer.persist = buffer.persist.then(() => writeSnapshot(rows));
         void buffer.persist.catch(() => {});
+      };
+      // The response body is only readable once loading finished; fetch it here so a
+      // later `stop` can return real content instead of a placeholder.
+      const readResponseBody = async (requestId) => {
+        const row = requests.get(requestId);
+        if (!row?.response) return;
+        const previous = row.response.content || {};
+        try {
+          const result = await chrome.debugger.sendCommand({tabId: tab.id}, 'Network.getResponseBody', {requestId});
+          // summarizeResponseBody reports an unreadable body as `bodyUnavailable`; normalize it to
+          // `_bodyUnavailable` so `stop` does not count a failed read as a collected body.
+          const {bodyUnavailable, ...summary} = summarizeResponseBody(result);
+          row.response.content = {size: Number(previous.size || 0), mimeType: previous.mimeType || row.response.mimeType || '', ...(bodyUnavailable ? {_bodyUnavailable: bodyUnavailable} : summary)};
+        } catch (error) {
+          row.response.content = {size: Number(previous.size || 0), mimeType: previous.mimeType || row.response.mimeType || '', _bodyUnavailable: 'get_response_body_failed', error: String(error?.message || error)};
+        }
+        persist();
       };
       const onEvent = (source, method, params) => {
         if (source.tabId !== tab.id) return;
@@ -1778,6 +1795,9 @@ const executeBrowserTool = async (name, input = {}) => {
           if (row) {
             row.bytes = Number(params.encodedDataLength || 0);
             persist();
+            const task = readResponseBody(params.requestId);
+            buffer.bodyTasks.add(task);
+            void task.finally(() => buffer.bodyTasks.delete(task));
           }
         }
       };
@@ -1806,7 +1826,10 @@ const executeBrowserTool = async (name, input = {}) => {
       const buf = harBuffers.get(tab.id);
       const snapshot = buf ? null : await readSnapshot();
       if (!buf && !snapshot) return {ok: false, tabId: tab.id, error: '尚未 start HAR'};
-      if (buf) await buf.persist;
+      if (buf) {
+        await Promise.all([...buf.bodyTasks]);
+        await buf.persist;
+      }
       const rows = buf ? [...buf.requests.values()] : snapshot.requests;
       const entries = rows.map((row) => ({
         startedDateTime: row.startedDateTime,
@@ -1826,9 +1849,12 @@ const executeBrowserTool = async (name, input = {}) => {
           entries,
         },
       };
+      const responded = rows.filter((row) => row.response);
+      const bodies = responded.filter((row) => row.response.content && !row.response.content._bodyUnavailable);
+      const responseBodies = responded.length === 0 || bodies.length === 0 ? 'not_collected' : bodies.length === responded.length ? 'collected' : 'partial';
       if (buf) await buf.cleanup({clearPersisted: true});
       else await clearSnapshot();
-      return {ok: true, tabId: tab.id, stopped: true, recording: false, completeness: {responseBodies: 'not_collected', timings: 'not_collected', requestBodyLimit: 32000}, entryCount: entries.length, totalChars: JSON.stringify(har).length, har};
+      return {ok: true, tabId: tab.id, stopped: true, recording: false, completeness: {responseBodies, timings: 'not_collected', requestBodyLimit: 32000}, entryCount: entries.length, totalChars: JSON.stringify(har).length, har};
     }
     return {ok: false, tabId: tab.id, error: 'har 需要 action=start|stop|read'};
   }
@@ -2286,7 +2312,16 @@ const executeBrowserTool = async (name, input = {}) => {
   if (name === 'open_tab') {
     if (!Number.isInteger(input.windowId) || input.windowId < 0) throw new Error('必须明确指定 windowId');
     const tab = await chrome.tabs.create({windowId: input.windowId, url: input.url || 'about:blank', active: false});
-    return {ok: true, tabId: tab.id, windowId: tab.windowId, url: tab.url, title: tab.title};
+    // create() 返回的是创建瞬间的快照：后台标签还没加载完时 url/title 会是空串。
+    // 等加载完成再读一次；等待或读取失败就退回创建瞬间的值，不影响标签已经打开这一事实。
+    let loadState = 'unavailable';
+    try {
+      const loaded = await waitTabComplete(tab.id);
+      loadState = loaded?.ok ? 'complete' : String(loaded?.state || 'unavailable');
+    } catch { loadState = 'unavailable'; }
+    const settled = await chrome.tabs.get(tab.id).catch(() => null);
+    return {ok: true, tabId: tab.id, windowId: tab.windowId,
+      url: settled?.url || tab.url || '', title: settled?.title || tab.title || '', loadState};
   }
   if (name === 'close_tab') {
     const tab = await getTab(tabId);

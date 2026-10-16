@@ -26,8 +26,8 @@ export function userText(input: {
   conversationSummaries?: Parameters<typeof conversationPayload>[0]["conversationSummaries"];
   queryHistory?: QueryEvidence[];
   inlineBudget?: { dataDir: string; system: string };
-  /** callId → memoryIds：让窗口投影把记忆写入调用的正文换成指针。 */
-  memoryPointers?: Record<string, string[]>;
+  /** 会话号 → callId → memoryIds：让窗口投影把记忆写入调用的正文换成指针。 */
+  memoryPointers?: Record<string, Record<string, string[]>>;
   /** Data directory for archive callers; projection itself reads ledger loops. */
   dataDir?: string;
 }): string {

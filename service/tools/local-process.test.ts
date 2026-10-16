@@ -65,6 +65,22 @@ test("accepts an inline shell command without saving a script", async () => {
   expect(result).toMatchObject({ ok: true, stdout: "inline", exitCode: 0 });
 });
 
+test("shell diagnostics on stderr mark an otherwise zero exit as failed", async () => {
+  // zsh/bash 跳过未匹配通配符或未知命令时只写 stderr，整体退出码仍是 0；这种「有命令没跑成」必须显形。
+  const skipped = await call("run", { command: "printf ok; printf 'zsh: no matches found: *.ts\\n' >&2; exit 0", cwd });
+  expect(skipped).toMatchObject({ ok: false, exitCode: 0, stdout: "ok" });
+  expect(skipped.shellDiagnostics).toEqual(["zsh: no matches found: *.ts"]);
+
+  const missing = await call("run", { command: "printf 'bash: nonexistent_cmd_xyz: command not found: hi\\n' >&2; exit 0", cwd });
+  expect(missing).toMatchObject({ ok: false, exitCode: 0 });
+  expect(missing.shellDiagnostics).toEqual(["bash: nonexistent_cmd_xyz: command not found: hi"]);
+
+  // 普通 stderr 输出不是 shell 诊断，不能因此把成功判成失败。
+  const clean = await call("run", { command: "printf err >&2; exit 0", cwd });
+  expect(clean).toMatchObject({ ok: true, exitCode: 0, stderr: "err" });
+  expect(clean.shellDiagnostics).toBeUndefined();
+});
+
 test("rejects inline code, missing scripts and invalid arguments", async () => {
   const filename = await script("printf valid");
   for (const input of [{ filename, command: "printf bypass" }, { filename, code: "printf bypass" },

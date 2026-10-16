@@ -66,7 +66,7 @@ test("stale notices only survive in the newest loop", () => {
 test("memory write calls project to pointers while the ledger keeps the original body", () => {
   const ledger = emptyLedger("cv_01");
   ledger.loops = [{ ...loop(1), helm: { finish: "tool_calls", id: "helm_01", content: "write", calls: [{ id: "call_07", name: "memory_writeConversation", arguments: { reason: "r", conversationMemory: ["secret text"] } }] } }];
-  const projected = conversationPayload({ ledger, memories: { conversation: [] }, memoryPointers: { call_07: ["mm_09"] } });
+  const projected = conversationPayload({ ledger, memories: { conversation: [] }, memoryPointers: { cv_01: { call_07: ["mm_09"] } } });
   expect(projected.loops[0]!.helm!.calls[0]!.arguments).toEqual({ reason: "r", memoryPointers: ["mm_09"] });
   expect(JSON.stringify(projected)).not.toContain("secret text");
   expect(ledger.loops[0]!.helm!.calls[0]!.arguments).toEqual({ reason: "r", conversationMemory: ["secret text"] });
@@ -75,10 +75,19 @@ test("memory write calls project to pointers while the ledger keeps the original
 test("memory update calls drop the rewritten body in favour of the pointer", () => {
   const ledger = emptyLedger("cv_01");
   ledger.loops = [{ ...loop(5), helm: { finish: "tool_calls", id: "helm_05", content: "update", calls: [{ id: "call_08", name: "memory_update", arguments: { reason: "r", memoryId: "mm_09", text: "rewritten body" } }] } }];
-  const projected = conversationPayload({ ledger, memories: { conversation: [] }, memoryPointers: { call_08: ["mm_09"] } });
+  const projected = conversationPayload({ ledger, memories: { conversation: [] }, memoryPointers: { cv_01: { call_08: ["mm_09"] } } });
   expect(projected.loops[0]!.helm!.calls[0]!.arguments).toEqual({ reason: "r", memoryId: "mm_09", memoryPointers: ["mm_09"] });
   expect(JSON.stringify(projected)).not.toContain("rewritten body");
   expect(ledger.loops[0]!.helm!.calls[0]!.arguments).toEqual({ reason: "r", memoryId: "mm_09", text: "rewritten body" });
+});
+
+test("pointers from another conversation never rewrite a same-numbered call", () => {
+  const ledger = emptyLedger("cv_44");
+  ledger.loops = [{ ...loop(1), helm: { finish: "tool_calls", id: "helm_01", content: "run", calls: [{ id: "call_69", name: "local_run", arguments: { reason: "r", filename: "probe.sh" } }] } }];
+  // cv_32 的 call_69 写过记忆；同号但不同会话，这条调用必须原样保留。
+  const projected = conversationPayload({ ledger, memories: { conversation: [] }, memoryPointers: { cv_32: { call_69: ["lm_10"] } } });
+  expect(projected.loops[0]!.helm!.calls[0]!.arguments).toEqual({ reason: "r", filename: "probe.sh" });
+  expect(JSON.stringify(projected)).not.toContain("memoryPointers");
 });
 
 test("write-disk calls drop the bulky body once executed while keeping the file pointer", () => {

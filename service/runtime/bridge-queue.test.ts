@@ -89,10 +89,31 @@ test("an unanswered request fails with a timeout instead of hanging the turn", a
     const pending = bridge.execute("capture_page", { tabId: 1 });
     const request = bridge.list()[0]!;
     const result = await pending;
-    expect(result).toMatchObject({ ok: false, faultCode: "tool_execution_failed" });
+    expect(result).toMatchObject({ ok: false, faultCode: "tool_execution_failed", executionState: "not_claimed", recovery: "inspect_state" });
     expect(String((result as { error?: string }).error)).toContain("超时");
+    expect(String((result as { error?: string }).error)).toContain("未被扩展领取");
     // Late results for a timed-out request are ignored.
     expect(bridge.resolve(request.id, { ok: true })).toBe(false);
+  } finally {
+    spy.mockRestore();
+    bridge.abort();
+  }
+});
+
+test("a dispatched request reports that the extension already claimed it", async () => {
+  const dir = root();
+  const realSetTimeout = globalThis.setTimeout;
+  const spy = spyOn(globalThis, "setTimeout").mockImplementation(((callback: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) => {
+    return realSetTimeout(callback, ms === 120_000 ? 0 : ms, ...args);
+  }) as typeof setTimeout);
+  const bridge = createToolBridge(dir);
+  try {
+    const pending = bridge.execute("capture_page", { tabId: 1 });
+    // /tool-request hands requests out through listForDispatch, which is what marks them claimed.
+    expect(bridge.listForDispatch().map((row) => row.name)).toEqual(["capture_page"]);
+    const result = await pending;
+    expect(result).toMatchObject({ ok: false, faultCode: "tool_execution_failed", executionState: "claimed_no_result", recovery: "inspect_state" });
+    expect(String((result as { error?: string }).error)).toContain("已领取");
   } finally {
     spy.mockRestore();
     bridge.abort();
