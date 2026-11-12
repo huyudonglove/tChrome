@@ -308,7 +308,7 @@ export function createServer(options: ServeOptions = {}) {
 const isMain = import.meta.main;
 if (isMain) {
   const hostname = "127.0.0.1";
-  const port = 18788;
+  const port = 18789;
   const server = createServer();
   // 启动即复位上一次被硬杀留下的 running 会话，否则那些会话会永远卡在 busy。
   const recovered = recoverStaleRuns(defaultDataDir());

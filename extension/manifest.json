@@ -9,6 +9,7 @@
     "storage",
     "alarms",
     "tabs",
+    "tabGroups",
     "windows",
     "scripting",
     "activeTab",

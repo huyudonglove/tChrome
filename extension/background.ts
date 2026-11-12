@@ -8,7 +8,7 @@ const allocateBrowserId = createBrowserIdAllocator(chrome.storage.local);
 declare const __TCHROME_EXECUTOR_VERSION__: string;
 const executorVersion = typeof __TCHROME_EXECUTOR_VERSION__ === "string" ? __TCHROME_EXECUTOR_VERSION__ : "unbundled";
 
-const SERVICE = "http://127.0.0.1:18788";
+const SERVICE = "http://127.0.0.1:18789";
 const PUMP_ALARM = "tchrome-tool-pump";
 let pumping = false;
 let active = false;

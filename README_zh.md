@@ -150,7 +150,7 @@ bun install
 bun run build
 bun run service
 ```
-本机服务默认监听 `http://127.0.0.1:18788`，可访问 `http://127.0.0.1:18788/health` 检查服务连通性。
+本机服务默认监听 `http://127.0.0.1:18789`，可访问 `http://127.0.0.1:18789/health` 检查服务连通性。
 
 ### 3. 加载 Chrome 侧栏扩展
 1. 打开 Chrome 访问 `chrome://extensions/`，右上角开启 **“开发者模式”**。

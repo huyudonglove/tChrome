@@ -6,7 +6,7 @@
  *   bun run scripts/restart-service.ts
  *   bun run scripts/restart-service.ts --continue <conversationId> <输入>
  *   bun run scripts/restart-service.ts --delay 20 --continue <conversationId> <输入>
- *   TCHROME_PORT=18788 bun run scripts/restart-service.ts
+ *   TCHROME_PORT=18789 bun run scripts/restart-service.ts
  *
  * 环境变量优先（从别的进程 spawn 调用时更可靠，不经过 bun 的选项解析）：
  *   TCHROME_RESTART_DELAY / TCHROME_RESTART_CONTINUE / TCHROME_RESTART_INPUT
@@ -20,7 +20,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const port = Number(process.env.TCHROME_PORT ?? 18788);
+const port = Number(process.env.TCHROME_PORT ?? 18789);
 const base = `http://127.0.0.1:${port}`;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

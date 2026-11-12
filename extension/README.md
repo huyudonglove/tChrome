@@ -2,7 +2,7 @@
 
 GUI。Side Panel + background。样式对标 telance，组件放 `ui/`。浏览器执行器及测试放在 `tools/`，后台从 `tools/browser-tools.js` 导入；构建仍输出 `dist/background.js`。
 
-面板只请求本机服务 `http://127.0.0.1:18788`：`GET /health`，`POST /turn` `{userInput, submittedAt}`。发送时 `ping` 唤醒 worker。worker 独立每秒拉 `GET /tool-request`，跑完交 `POST /tool-result`；任务运行期间保持 worker 活跃，alarms 用于休眠后恢复。关闭侧栏不影响调度，重新打开后根据服务端 running 状态恢复消息刷新和停止按钮。密钥和落盘不在这里。
+面板只请求本机服务 `http://127.0.0.1:18789`：`GET /health`，`POST /turn` `{userInput, submittedAt}`。发送时 `ping` 唤醒 worker。worker 独立每秒拉 `GET /tool-request`，跑完交 `POST /tool-result`；任务运行期间保持 worker 活跃，alarms 用于休眠后恢复。关闭侧栏不影响调度，重新打开后根据服务端 running 状态恢复消息刷新和停止按钮。密钥和落盘不在这里。
 
 `bun build`（仓库根 `bun run scripts/build-extension.ts`）把扩展打进 `dist/`。Chrome 加载的是 **`dist/`**，不是本目录源码。清单为本目录 `manifest.json`，构建时拷贝为 `dist/manifest.json`；改权限或图标后重新 build，再在 `chrome://extensions` 加载/重载 `dist/`。
 

@@ -46,18 +46,18 @@ test("资料 HTTP API 支持增改查删，返回输入错误和未找到状态"
   const dir = mkdtempSync(join(tmpdir(), "tchrome-library-api-"));
   try {
     const server = createServer({ dataDir: dir });
-    const post = (path: string, body: unknown) => server.fetch(new Request(`http://127.0.0.1:18788${path}`, { method: "POST", body: JSON.stringify(body) }));
+    const post = (path: string, body: unknown) => server.fetch(new Request(`http://127.0.0.1:18789${path}`, { method: "POST", body: JSON.stringify(body) }));
     const response = await post("/library/save", { type: "account", title: "个人", password: "visible" });
     expect(response.status).toBe(200);
     const { item } = await response.json();
     expect(item.password).toBe("visible");
     expect((await (await post("/library/save", { id: item.id, username: "user" })).json()).item.password).toBe("visible");
-    const listed = await server.fetch(new Request("http://127.0.0.1:18788/library?q=user"));
+    const listed = await server.fetch(new Request("http://127.0.0.1:18789/library?q=user"));
     expect((await listed.json()).items).toHaveLength(1);
     expect((await post("/library/save", {})).status).toBe(400);
     expect((await post("/library/save", { id: "lib_99", title: "absent" })).status).toBe(404);
     expect((await post("/library/delete", null)).status).toBe(400);
-    expect((await server.fetch(new Request("http://127.0.0.1:18788/library/save", { method: "POST", body: "{" }))).status).toBe(400);
+    expect((await server.fetch(new Request("http://127.0.0.1:18789/library/save", { method: "POST", body: "{" }))).status).toBe(400);
     expect(await (await post("/library/delete", { id: item.id })).json()).toEqual({ ok: true });
     expect((await post("/library/delete", { id: item.id })).status).toBe(404);
     expect(listItems(dir)).toEqual([]);

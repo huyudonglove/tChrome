@@ -8,7 +8,7 @@ import {
   encodeFrame,
 } from "../../shared/stream-frame.ts";
 
-const SERVICE_STREAM = "ws://127.0.0.1:18788/stream";
+const SERVICE_STREAM = "ws://127.0.0.1:18789/stream";
 
 let socket = null;
 let connecting = null;

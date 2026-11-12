@@ -7,6 +7,7 @@ import { withDebugger, monitorDialogs, dialogState, watchDialog, handleDialog, d
 import { streamCapture, streamReceive, imageShrink } from './stream-pipe.js';
 import { observeAction, initActionObserver } from './action-observer.js';
 import { decodeResponseBody, summarizeResponseBody, waitForResponse, startPageFeedback, finishPageFeedback } from './response-wait.js';
+import { ensureVisualCursor, moveVisualCursor } from './visual-cursor.js';
 export const BROWSER_TOOL_NAMES = [
   'page_eval_expr',
   'page_get_summary', 'page_list_regions', 'page_list_interactive_elements',
@@ -320,6 +321,8 @@ const cdpMouse = async (tabId, type, x, y, options = {}) => {
     clickCount: options.clickCount || (type === 'mousePressed' || type === 'mouseReleased' ? 1 : 0),
     ...options,
   };
+  // 每次按下前确保页面里有可见光标覆盖层；页面自身的鼠标监听器随后会跟着事件移动。
+  if (type === 'mousePressed') await ensureVisualCursor(tabId);
   await withDebugger(tabId, () => chrome.debugger.sendCommand({tabId}, 'Input.dispatchMouseEvent', params));
 };
 
@@ -1111,14 +1114,22 @@ const runPageTool = async (name, input = {}) => {
           const el = findElement(id);
           if (!el) return {ok: false, error: `没有元素 ${id}`};
           if (el.disabled) return {ok: false, error: `${id} 不可点`};
+          const rect = el.node.getBoundingClientRect?.();
+          const cursorPoint = rect && rect.width >= 0
+            ? {x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2), pulse: true}
+            : null;
           el.node.click();
-          return {ok: true, clicked: el.name || id, id};
+          return {ok: true, clicked: el.name || id, id, ...(cursorPoint ? {cursorPoint} : {})};
         }
         if (toolName === 'page_type') {
           if (!id) return {ok: false, error: 'page_type 需要 id'};
           const el = findElement(id);
           if (!el) return {ok: false, error: `没有元素 ${id}`};
           const node = el.node;
+          const typeRect = node.getBoundingClientRect?.();
+          const cursorPoint = typeRect && typeRect.width >= 0
+            ? {x: Math.round(typeRect.left + typeRect.width / 2), y: Math.round(typeRect.top + typeRect.height / 2), pulse: true}
+            : null;
           const value = payload.text;
           if (!node.matches('input,textarea,[contenteditable="true"]') || node.readOnly || el.disabled
             || (node.tagName === 'INPUT' && !['text','search','tel','url','email','password','number','date','datetime-local','month','week','time'].includes(node.type))) return {ok: false, error: '目标不是可编辑输入框'};
@@ -1153,6 +1164,7 @@ const runPageTool = async (name, input = {}) => {
           return {ok: finalValue === value, id, value: finalValue, requestedValue: value, verified: true,
             ...(finalValue !== value ? {error: '页面事件处理后输入值已改变，请核对实际值'} : {}),
             clearBeforeType: payload.clearBeforeType, pressEnter: payload.pressEnter,
+            ...(cursorPoint ? {cursorPoint} : {}),
             ...(ariaInvalid || validationMessage
               ? { delta: { ariaInvalid, validationMessage: validationMessage.slice(0, 150) } }
               : {})};
@@ -1288,6 +1300,10 @@ const runPageTool = async (name, input = {}) => {
           if (!el) return {ok: false, error: `没有元素 ${id}`};
           const node = el.node;
           if (node.tagName !== 'SELECT') return {ok: false, error: '目标不是下拉框'};
+          const selectRect = node.getBoundingClientRect?.();
+          const cursorPoint = selectRect && selectRect.width >= 0
+            ? {x: Math.round(selectRect.left + selectRect.width / 2), y: Math.round(selectRect.top + selectRect.height / 2), pulse: true}
+            : null;
           const raw = payload.value;
           const options = [...node.options];
           const hit = options.find((opt) => opt.value === raw)
@@ -1298,13 +1314,17 @@ const runPageTool = async (name, input = {}) => {
           node.value = hit.value;
           node.dispatchEvent(new Event('input', {bubbles: true}));
           node.dispatchEvent(new Event('change', {bubbles: true}));
-          return {ok: true, id, value: node.value, text: hit.text};
+          return {ok: true, id, value: node.value, text: hit.text, ...(cursorPoint ? {cursorPoint} : {})};
         }
         if (toolName === 'date_select') {
           const el = findElement(id);
           if (!el) return {ok: false, error: `没有元素 ${id}`};
           const node = el.node;
           if (!(node.tagName === 'INPUT')) return {ok: false, error: '目标不是输入框'};
+          const dateRect = node.getBoundingClientRect?.();
+          const cursorPoint = dateRect && dateRect.width >= 0
+            ? {x: Math.round(dateRect.left + dateRect.width / 2), y: Math.round(dateRect.top + dateRect.height / 2), pulse: true}
+            : null;
           const raw = payload.value;
           if (!/^\d{4}-\d{2}-\d{2}/.test(raw) && !/^\d{4}-\d{2}$/.test(raw) && !/^\d{2}:\d{2}/.test(raw)) {
             return {ok: false, error: 'value 格式无效，请用 YYYY-MM-DD / YYYY-MM / HH:mm'};
@@ -1315,12 +1335,16 @@ const runPageTool = async (name, input = {}) => {
           if (setter) setter.call(node, raw); else node.value = raw;
           node.dispatchEvent(new Event('input', {bubbles: true}));
           node.dispatchEvent(new Event('change', {bubbles: true}));
-          return {ok: true, id, value: node.value, type: node.type};
+          return {ok: true, id, value: node.value, type: node.type, ...(cursorPoint ? {cursorPoint} : {})};
         }
         return {ok: false, error: `${toolName} 未接`};
       },
     });
-    const out = {tabId: tab.tabId, title: tab.title, url: tab.url, ...result};
+    // page_click 走的是元素合成点击（不产生真实鼠标事件），页面主世界因此没有光标位置；
+    // executeScript 跑在扩展隔离世界读不到光标 API，这里用带回的元素中心坐标在主世界移动。
+    const {cursorPoint, ...rest} = result || {};
+    const out = {tabId: tab.tabId, title: tab.title, url: tab.url, ...rest};
+    if (out.ok && cursorPoint) await moveVisualCursor(tab.tabId, cursorPoint);
     if (out.ok && (name === 'page_click' || name === 'page_type' || name === 'page.press' || name === 'page.scroll_to')) out.readiness = await afterPageAction(tabId);
     return out;
   } catch (error) {
@@ -1504,6 +1528,8 @@ const executeBrowserTool = async (name, input = {}) => {
     const tab = await getTab(tabId);
     if (!tab?.id || isBlocked(tab.url)) return {ok: false, error: '没有可操作的普通网页标签'};
     const run = async () => {
+      // 元素级动作走合成事件，不会触发真实鼠标事件；先确保页面里有光标覆盖层，页面内的 moveTo 才有落点。
+      if (['click', 'double_click', 'hover'].includes(name)) await ensureVisualCursor(tab.id);
       const [{result}] = await chrome.scripting.executeScript({
         target: {
           tabId: tab.id,
@@ -1513,7 +1539,11 @@ const executeBrowserTool = async (name, input = {}) => {
         func: elementTool,
         args: [name, input],
       });
-      const out = {tabId: tab.id, ...result};
+      // elementTool 跑在扩展隔离世界，读不到主世界的光标 API；它把元素中心坐标带回来，
+      // 这里再用 Runtime.evaluate 在页面主世界移动可见光标。
+      const {cursorPoint, ...rest} = result || {};
+      const out = {tabId: tab.id, ...rest};
+      if (out.ok && cursorPoint) await moveVisualCursor(tab.id, cursorPoint);
       if (out.ok && ['click', 'double_click', 'type', 'select'].includes(name)) out.readiness = await afterPageAction(tab.id);
       return out;
     };

@@ -44,7 +44,7 @@ agent_query(sumId 或 loopId, module, intent[, file]) 查询 loops、runtime、h
 
 长耗时调用可传 heartbeatSec（正整数秒）：`local_run` 提前返回 processId，用 `local_process_status` / `local_process_stop`；`send_http`、`send_http_batch`、`web_search`、`tavily_search`、`execute_javascript` 提前返回 jobId，用常驻 `job_status` / `job_stop`。任务结束后心跳结束；停止会话/删除会话会取消对应任务。
 
-跨端大数据走 `stream_pull` / `stream_push`：宿主与扩展之间用 `ws://127.0.0.1:18788/stream` 二进制分帧（`shared/stream-frame.ts`），带信用窗背压，不把正文编成 Base64。`stream_pull` 把浏览器侧 http/network/DOM 写入宿主绝对路径；`stream_push` 把宿主文件作为请求体提交到目标 URL。控制面仍是 `/tool-request` 与 `/tool-result`。
+跨端大数据走 `stream_pull` / `stream_push`：宿主与扩展之间用 `ws://127.0.0.1:18789/stream` 二进制分帧（`shared/stream-frame.ts`），带信用窗背压，不把正文编成 Base64。`stream_pull` 把浏览器侧 http/network/DOM 写入宿主绝对路径；`stream_push` 把宿主文件作为请求体提交到目标 URL。控制面仍是 `/tool-request` 与 `/tool-result`。
 
 本机每次执行读取已保存文件并创建私有快照，后续补丁不会改变正在运行的脚本。普通相对文件路径按 cwd 解析；脚本自身路径和相对 import 按快照位置解析，不支持依赖托管目录中相邻脚本的相对导入。服务运行环境需安装 Git，补丁解析、检查与应用统一使用 `git apply --recount`，由 Git 按正文计算 hunk 行数。补丁仍需合法 unified diff 结构、匹配原文上下文及末尾换行；不猜测修复正文。
 

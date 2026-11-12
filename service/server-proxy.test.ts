@@ -24,7 +24,7 @@ for (const variable of ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY"]) {
       Bun.env[variable] = "http://127.0.0.1:19999";
       Bun.env.UUAPI_API_KEY = "local-test-not-a-secret";
       const server = createServer({ dataDir: dir, repoRoot: join(import.meta.dir, ".."), host: { readCurrentTabs: async () => ({ ok: true, windows: [] }), execute: async () => ({ ok: true }) } });
-      const request = (path: string, body: unknown) => server.fetch(new Request(`http://127.0.0.1:18788${path}`, {
+      const request = (path: string, body: unknown) => server.fetch(new Request(`http://127.0.0.1:18789${path}`, {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
       }));
       await request("/turn", { userInput: "你好" });
@@ -62,7 +62,7 @@ for (const [mode, stored, expected] of [
       else Bun.env.TCHROME_PROXY_MODE = mode;
       if (stored !== undefined) writeFileSync(join(dir, "connection.json"), JSON.stringify({ enabled: stored }));
       const server = createServer({ dataDir: dir });
-      const status = await (await server.fetch(new Request("http://127.0.0.1:18788/connection"))).json();
+      const status = await (await server.fetch(new Request("http://127.0.0.1:18789/connection"))).json();
       expect(status).toMatchObject({ enabled: expected });
       expect(server.proxyEnabled).toBe(expected);
     } finally {
@@ -79,7 +79,7 @@ test("connection UI reports the model selected by the provider environment", asy
   try {
     const server = createServer({ dataDir: dir });
     Bun.env.XCODE_MODEL = "gpt-6.1-sol";
-    const response = await server.fetch(new Request("http://127.0.0.1:18788/connection"));
+    const response = await server.fetch(new Request("http://127.0.0.1:18789/connection"));
     const connection = await response.json();
     expect(connection.providers.find((provider: { id: string }) => provider.id === "xcode").model).toBe("gpt-6.1-sol");
   } finally {

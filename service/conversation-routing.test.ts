@@ -6,7 +6,7 @@ import { createServer } from "./server.ts";
 import { newConversation, loadLedger } from "./runtime/store.ts";
 
 const reply = { finish: "tool_calls" as const, content: "", toolCalls: [{ id: "reply", name: "finishTurn", arguments: { text: "完成" } }], attempts: 1, parseOk: true, schemaOk: true, faultCode: null, missing: [] };
-const post = (route: string, body: unknown) => new Request(`http://127.0.0.1:18788${route}`, {
+const post = (route: string, body: unknown) => new Request(`http://127.0.0.1:18789${route}`, {
   method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
 });
 
@@ -42,7 +42,7 @@ test("/session 按查询参数返回对应会话视图", async () => {
     const old = newConversation(dataDir);
     newConversation(dataDir);
     const server = createServer({ dataDir });
-    const requested = await (await server.fetch(new Request(`http://127.0.0.1:18788/session?conversationId=${old.conversationId}`))).json();
+    const requested = await (await server.fetch(new Request(`http://127.0.0.1:18789/session?conversationId=${old.conversationId}`))).json();
     expect(requested.conversationId).toBe(old.conversationId);
   } finally { rmSync(dataDir, { recursive: true, force: true }); }
 });

@@ -150,7 +150,7 @@ bun install
 bun run build
 bun run service
 ```
-The local service listens on `http://127.0.0.1:18788`. Check `http://127.0.0.1:18788/health` to verify connectivity.
+The local service listens on `http://127.0.0.1:18789`. Check `http://127.0.0.1:18789/health` to verify connectivity.
 
 ### 3. Load Chrome Extension
 1. Open Chrome and navigate to `chrome://extensions/`. Enable **"Developer mode"** in the top right.

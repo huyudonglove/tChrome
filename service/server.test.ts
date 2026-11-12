@@ -6,7 +6,7 @@ import { createServer } from "./server.ts";
 import { executorVersion } from "./executor-version.ts";
 import { createToolBridge } from "./runtime/bridge.ts";
 
-const base = "http://127.0.0.1:18788";
+const base = "http://127.0.0.1:18789";
 const extensionOrigin = `chrome-extension://${"a".repeat(32)}`;
 
 test("外部网页在路由执行前被拒绝，包括简单 POST 和预检", async () => {
@@ -43,7 +43,7 @@ test("指定扩展允许预检和请求，其他扩展和 null origin 被拒绝"
 
 test("拒绝 DNS 重绑定地址和无 Origin 跨站请求，保留本机客户端", async () => {
   const server = createServer();
-  expect((await server.fetch(new Request("http://rebind.example:18788/health"))).status).toBe(403);
+  expect((await server.fetch(new Request("http://rebind.example:18789/health"))).status).toBe(403);
   for (const site of ["cross-site", "same-site"]) {
     expect((await server.fetch(new Request(`${base}/health`, {
       headers: { "sec-fetch-site": site },
@@ -209,7 +209,7 @@ test("installed runtime resources stay separate from the model's development wor
             toolCalls: [{ id: "finish", name: "finishTurn", arguments: { text: "done" } }] };
         }
       } });
-      const response = await server.fetch(new Request("http://127.0.0.1:18788/turn", {
+      const response = await server.fetch(new Request("http://127.0.0.1:18789/turn", {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userInput: "check workspace" })
       }));
       const result = await response.json();

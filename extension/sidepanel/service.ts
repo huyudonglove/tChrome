@@ -1,7 +1,7 @@
 import { fetchWithIdleTimeout } from "../../service/network/idle-fetch.ts";
 import { AppError, errorMessage } from "../../shared/errors.ts";
 
-export const SERVICE = "http://127.0.0.1:18788";
+export const SERVICE = "http://127.0.0.1:18789";
 export const DOWN = errorMessage("service_unreachable", "user");
 
 // Control requests share the network inactivity deadline; turns wait for completion.

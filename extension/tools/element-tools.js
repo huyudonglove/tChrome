@@ -93,6 +93,18 @@ export async function elementTool(action, input = {}) {
     hit = hits[0];
   }
   if (hit.disabled || hit.getAttribute('aria-disabled') === 'true') return {ok: false, error: '目标控件不可用'};
+  // 元素级动作走的是合成事件（el.click()/dispatchEvent），不会产生真实鼠标事件。
+  // 本函数运行在扩展的隔离世界，读不到页面主世界的光标 API，所以只把元素中心坐标带回去，
+  // 由扩展侧在主世界移动可见光标（见 browser-tools.js 里对 moveVisualCursor 的调用）。
+  let cursorPoint = null;
+  if (action === 'click' || action === 'double_click' || action === 'hover') {
+    const box = hit.getBoundingClientRect();
+    cursorPoint = {
+      x: Math.round(box.x + box.width / 2),
+      y: Math.round(box.y + box.height / 2),
+      pulse: action !== 'hover',
+    };
+  }
   if (action === 'select') {
     if (hit.tagName !== 'SELECT') return {ok: false, error: 'ref 指向的目标不是下拉框'};
     const option = [...hit.options].find(item => item.value === input.value);
@@ -125,5 +137,5 @@ export async function elementTool(action, input = {}) {
   else if (action === 'focus') hit.focus();
   else if (action === 'hover') hit.dispatchEvent(new MouseEvent('mouseover', {bubbles: true}));
   else hit.click();
-  return {ok: true, clicked: textOf(hit).slice(0, 100)};
+  return {ok: true, clicked: textOf(hit).slice(0, 100), ...(cursorPoint ? {cursorPoint} : {})};
 }

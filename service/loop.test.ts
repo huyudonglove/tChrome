@@ -240,7 +240,7 @@ test("POST /turn 走完 mock 收口", async () => {
     ]),
   });
   const response = await server.fetch(
-    new Request("http://127.0.0.1:18788/turn", {
+    new Request("http://127.0.0.1:18789/turn", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ userInput: "你好", submittedAt: "2026-09-06T00:00:00.000Z" }),
@@ -291,7 +291,7 @@ test("开 Turn 不读页，模型 page_get_summary 后才填 currentPage", async
   const ledger = loadLedger(dir, "cv_01");
   expect(ledger.toolIO[0]?.name).toBe("page_get_summary");
   expect(ledger.toolIO[0]?.turnId).toBe(reply.turnId);
-  const session = await (await createServer({ dataDir: dir, repoRoot, provider: mock([]) }).fetch(new Request("http://127.0.0.1:18788/session"))).json() as { messages: { role: string; name?: string; text: string }[] };
+  const session = await (await createServer({ dataDir: dir, repoRoot, provider: mock([]) }).fetch(new Request("http://127.0.0.1:18789/session"))).json() as { messages: { role: string; name?: string; text: string }[] };
   expect(session.messages.map((row) => row.role)).toEqual(["user", "tool", "assistant"]);
   expect(session.messages[1]?.name).toBe("page_get_summary");
   expect(session.messages[1]?.text).toBe("看当前页");
@@ -390,13 +390,13 @@ test("GET /tool-request 和 POST /tool-result 对上", async () => {
     primeActiveTask(dir);
   const bridge = createToolBridge(dir);
   const server = createServer({ dataDir: dir, repoRoot, provider: mock([]), bridge });
-  const empty = await server.fetch(new Request(`http://127.0.0.1:18788/tool-request?executorVersion=${executorVersion(repoRoot)}`));
+  const empty = await server.fetch(new Request(`http://127.0.0.1:18789/tool-request?executorVersion=${executorVersion(repoRoot)}`));
   expect(await empty.json()).toEqual({ requests: [], executorVersion: executorVersion(repoRoot) });
   const pending = bridge.execute("see_page", {});
-  const listed = await server.fetch(new Request(`http://127.0.0.1:18788/tool-request?executorVersion=${executorVersion(repoRoot)}`));
+  const listed = await server.fetch(new Request(`http://127.0.0.1:18789/tool-request?executorVersion=${executorVersion(repoRoot)}`));
   const body = await listed.json() as { requests: { id: string; name: string }[] };
   expect(body.requests[0]!.name).toBe("see_page");
-  const posted = await server.fetch(new Request(`http://127.0.0.1:18788/tool-result?executorVersion=${executorVersion(repoRoot)}`, {
+  const posted = await server.fetch(new Request(`http://127.0.0.1:18789/tool-result?executorVersion=${executorVersion(repoRoot)}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ id: body.requests[0]!.id, result: { ok: true, tabId: 3, url: "https://example.com", title: "ex" } }),
@@ -416,42 +416,42 @@ test("GET /session 还原消息，切会话改 session.json", async () => {
     }),
   ]);
   const server = createServer({ dataDir: dir, repoRoot, provider, host: { execute: async () => ({ ok: false }) } });
-  await server.fetch(new Request("http://127.0.0.1:18788/turn", {
+  await server.fetch(new Request("http://127.0.0.1:18789/turn", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ userInput: "你好", submittedAt: "2026-09-06T00:00:00.000Z" }),
   }));
-  const session = await (await server.fetch(new Request("http://127.0.0.1:18788/session"))).json();
+  const session = await (await server.fetch(new Request("http://127.0.0.1:18789/session"))).json();
   expect(session.conversationId).toBe("cv_01");
   expect(session.messages).toEqual([
     { turnId: "tn_01", role: "user", text: "你好" },
     { turnId: "tn_01", role: "assistant", text: "你好", durationMs: expect.any(Number) },
   ]);
-  const created = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations/new", { method: "POST" }))).json();
+  const created = await (await server.fetch(new Request("http://127.0.0.1:18789/conversations/new", { method: "POST" }))).json();
   expect(created.conversationId).toBe("cv_02");
   expect(created.messages).toEqual([]);
   expect(JSON.parse(readFileSync(join(dir, "session.json"), "utf8")).conversationId).toBe("cv_02");
-  const opened = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations/open", {
+  const opened = await (await server.fetch(new Request("http://127.0.0.1:18789/conversations/open", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ conversationId: "cv_01" }),
   }))).json();
   expect(opened.conversationId).toBe("cv_01");
   expect(opened.messages[0].text).toBe("你好");
-  const listed = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations"))).json();
+  const listed = await (await server.fetch(new Request("http://127.0.0.1:18789/conversations"))).json();
   expect(listed.items.map((item: { conversationId: string }) => item.conversationId).sort()).toEqual(["cv_01", "cv_02"]);
-  const createdAgain = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations/new", { method: "POST" }))).json();
+  const createdAgain = await (await server.fetch(new Request("http://127.0.0.1:18789/conversations/new", { method: "POST" }))).json();
   expect(createdAgain.conversationId).toBe("cv_03");
-  const listedNew = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations"))).json();
+  const listedNew = await (await server.fetch(new Request("http://127.0.0.1:18789/conversations"))).json();
   expect(listedNew.items[0].conversationId).toBe("cv_03");
   expect(listedNew.items[0].preview).toBe("新会话");
-  const deleted = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations/delete", {
+  const deleted = await (await server.fetch(new Request("http://127.0.0.1:18789/conversations/delete", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ conversationId: "cv_01" }),
   }))).json();
   expect(deleted.conversationId).toBe("cv_03");
-  const after = await (await server.fetch(new Request("http://127.0.0.1:18788/conversations"))).json();
+  const after = await (await server.fetch(new Request("http://127.0.0.1:18789/conversations"))).json();
   expect(after.items.map((item: { conversationId: string }) => item.conversationId)).toEqual(["cv_03", "cv_02"]);
   rmSync(dir, { recursive: true, force: true });
 });
@@ -646,18 +646,18 @@ test("POST /stop 把 running 标成 paused", async () => {
     }),
   ]);
   const server = createServer({ dataDir: dir, repoRoot, provider, host });
-  const pending = server.fetch(new Request("http://127.0.0.1:18788/turn", {
+  const pending = server.fetch(new Request("http://127.0.0.1:18789/turn", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ userInput: "看这页", submittedAt: "2026-09-06T00:00:00.000Z" }),
   }));
   await Bun.sleep(20);
-  const stopped = await (await server.fetch(new Request("http://127.0.0.1:18788/stop", { method: "POST" }))).json() as { status: string };
+  const stopped = await (await server.fetch(new Request("http://127.0.0.1:18789/stop", { method: "POST" }))).json() as { status: string };
   expect(stopped.status).toBe("paused");
   release({ ok: true });
   const reply = await pending.then((response) => response.json()) as { stopReason: { kind: string; faultCode?: string; initiatedBy?: string } };
   expect(reply.stopReason).toEqual({ kind: "interrupted", initiatedBy: "user" });
-  const session = await (await server.fetch(new Request("http://127.0.0.1:18788/session"))).json() as { status: string; messages: { text: string }[] };
+  const session = await (await server.fetch(new Request("http://127.0.0.1:18789/session"))).json() as { status: string; messages: { text: string }[] };
   expect(session.status).toBe("paused");
   expect(session.messages.at(-1)?.text).toBe("已中断（用户）");
   rmSync(dir, { recursive: true, force: true });
