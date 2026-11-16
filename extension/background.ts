@@ -1,6 +1,7 @@
 import { createBrowserIdAllocator } from "./tools/element-ids.js";
 import { initDialogEvents } from "./tools/dialogs.js";
 import { runBrowserTool, readOpenTabs } from "./tools/browser-tools.js";
+import { clearActiveTabMark, TAB_MARK_CLEAR_ALARM } from "./tools/tab-marker.js";
 
 initDialogEvents();
 const allocateBrowserId = createBrowserIdAllocator(chrome.storage.local);
@@ -270,6 +271,8 @@ const tick = () => {
 setInterval(tick, 1000);
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === PUMP_ALARM) tick();
+  // 空闲超时：操作停下来后清掉「Helm 操作中」标识，免得标签一直显示正在操作。
+  if (alarm.name === TAB_MARK_CLEAR_ALARM) void clearActiveTabMark();
 });
 // Recreate the alarm whenever the worker starts (alarms may be cleared on restart).
 chrome.alarms.create(PUMP_ALARM, { periodInMinutes: 0.5 });

@@ -1,6 +1,7 @@
 // 可见光标覆盖层：把代理的鼠标动作显示在页面上，让用户看得到"操作到了哪里"。
-// 覆盖层装在页面上下文里，随页面自身收到的 mousedown/mousemove/click 移动；
-// 元素级合成动作（el.click()、dispatchEvent）不产生真实鼠标事件，由 element-tools.js 显式调用 moveTo。
+// 光标位置只由扩展侧驱动（CDP 派发前用 Runtime.evaluate 显式 moveTo），
+// 不监听页面自身的鼠标事件，所以不会跟随用户自己的光标移动。
+// 每次动作后闲置一小段时间自动淡出并隐藏，用完即消失。
 import { withDebugger } from './dialogs.js';
 
 const CURSOR_ID = 'tchrome-cursor';
@@ -11,9 +12,9 @@ export const installVisualCursor = (cursorId, ns) => {
   const doc = document;
   const prev = window[ns];
   const prevHost = doc.getElementById(cursorId);
-  if (prev && prevHost && typeof prev.moveTo === 'function') {
+  // 只复用版本匹配的覆盖层；旧版带真实鼠标监听，必须重建后由 allow 许可挡住旧监听。
+  if (prev && prevHost && typeof prev.moveTo === 'function' && prev.version >= 2) {
     prev.ensure();
-    prev.show();
     return {installed: false, reused: true, ...prev.pos()};
   }
   // 早前的实验性注入可能残留带缺陷的监听器，先中和掉，避免页面上继续抛错。
@@ -28,7 +29,7 @@ export const installVisualCursor = (cursorId, ns) => {
   host.setAttribute('aria-hidden', 'true');
   host.style.cssText =
     'position:fixed;left:0;top:0;width:0;height:0;z-index:2147483647;pointer-events:none;'
-    + 'transform:translate3d(-120px,-120px,0);transition:transform .12s ease-out;opacity:0;will-change:transform';
+    + 'transform:translate3d(-120px,-120px,0);transition:transform .12s ease-out,opacity .3s ease-out;opacity:0;will-change:transform';
 
   const arrow = doc.createElement('div');
   arrow.style.cssText =
@@ -36,7 +37,7 @@ export const installVisualCursor = (cursorId, ns) => {
     + 'filter:drop-shadow(0 1px 3px rgba(0,0,0,.5));transition:transform .08s ease-out';
   arrow.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24">'
     + '<path d="M5.4 2.6V19.4L10 14.9L13 21.2L16.1 19.7L13.2 13.5L19.6 13.2Z" '
-    + 'fill="#ffffff" stroke="#0f172a" stroke-width="1.3" stroke-linejoin="round"/></svg>';
+    + 'fill="#22d3ee" stroke="#0b1220" stroke-width="1.6" stroke-linejoin="round"/></svg>';
 
   const ripple = doc.createElement('div');
   ripple.style.cssText =
@@ -49,12 +50,16 @@ export const installVisualCursor = (cursorId, ns) => {
   let x = -120;
   let y = -120;
   let fadeTimer = 0;
+  let hideTimer = 0;
+  let allowUntil = 0;
+
   const show = () => {
     host.style.opacity = '1';
     clearTimeout(fadeTimer);
-    fadeTimer = setTimeout(() => {
-      host.style.opacity = '.4';
-    }, 2500);
+    clearTimeout(hideTimer);
+    // 动作停下后先淡出、再完全隐藏：光标只在操作期间可见。
+    fadeTimer = setTimeout(() => { host.style.opacity = '.5'; }, 1400);
+    hideTimer = setTimeout(() => { host.style.opacity = '0'; }, 2400);
   };
   const pulse = () => {
     ripple.animate(
@@ -64,8 +69,14 @@ export const installVisualCursor = (cursorId, ns) => {
     arrow.animate([{transform: 'scale(.82)'}, {transform: 'scale(1)'}], {duration: 180, easing: 'ease-out'});
   };
   const api = {
-    version: 1,
+    version: 2,
+    // 扩展侧移动光标前先声明"这次是我发的"；页面自身的鼠标事件不带这个许可，会被忽略。
+    allow(ms = 400) {
+      allowUntil = Date.now() + ms;
+      return true;
+    },
     moveTo(nx, ny, withPulse = false) {
+      if (Date.now() > allowUntil) return {x, y, ignored: true};
       x = Math.round(nx);
       y = Math.round(ny);
       host.style.transform = `translate3d(${x}px, ${y}px, 0)`;
@@ -76,6 +87,8 @@ export const installVisualCursor = (cursorId, ns) => {
     pulse,
     show,
     hide() {
+      clearTimeout(fadeTimer);
+      clearTimeout(hideTimer);
       host.style.opacity = '0';
     },
     pos() {
@@ -86,28 +99,6 @@ export const installVisualCursor = (cursorId, ns) => {
     },
   };
   window[ns] = api;
-
-  const track = (event) => {
-    const cur = window[ns];
-    if (!cur || typeof cur.moveTo !== 'function') return;
-    if (typeof event.clientX !== 'number' || (event.clientX === 0 && event.clientY === 0)) return;
-    cur.moveTo(event.clientX, event.clientY, false);
-  };
-  const press = (event) => {
-    const cur = window[ns];
-    if (!cur || typeof cur.moveTo !== 'function') return;
-    if (typeof event.clientX !== 'number') return;
-    cur.moveTo(event.clientX, event.clientY, true);
-  };
-  if (!window.__tchromeCursorBound) {
-    window.__tchromeCursorBound = true;
-    window.addEventListener('pointerdown', press, true);
-    window.addEventListener('mousedown', press, true);
-    window.addEventListener('pointermove', track, true);
-    window.addEventListener('mousemove', track, true);
-    window.addEventListener('click', track, true);
-  }
-  show();
   return {installed: true, reused: false, x, y};
 };
 
@@ -152,33 +143,40 @@ export const ensureVisualCursor = async (tabId) => {
 };
 
 /**
- * 把光标移到指定点。元素级动作（el.click()/dispatchEvent）不产生真实鼠标事件，
- * 且 elementTool 跑在扩展隔离世界读不到主世界的光标 API，所以由扩展侧带着坐标调这里，
- * 用 Runtime.evaluate 在主世界执行 moveTo。
+ * 把光标移到指定点。所有动作（CDP 派发的鼠标事件、元素级合成点击、page.* 交互）
+ * 都走这里显式定位，页面自身的鼠标事件不参与，因此光标不会跟随用户自己的鼠标。
  */
 export const moveVisualCursor = async (tabId, point) => {
   if (!Number.isInteger(tabId) || !point) return {ok: false, error: '缺少 tabId 或坐标'};
   const x = Math.round(Number(point.x));
   const y = Math.round(Number(point.y));
   if (!Number.isFinite(x) || !Number.isFinite(y)) return {ok: false, error: '坐标无效'};
-  const installed = await ensureVisualCursor(tabId);
-  if (!installed.ok) return installed;
-  try {
+  const expression = `(() => { const c = window[${JSON.stringify(CURSOR_NS)}];`
+    + ` if (!c || typeof c.moveTo !== 'function') return {moved: false};`
+    + ` if (typeof c.ensure === 'function') c.ensure();`
+    // 旧版（version 1）监听页面真实鼠标，必须升级重建，否则光标还会跟着用户的鼠标跑。
+    + ` if (!(c.version >= 2)) return {moved: false, stale: true};`
+    + ` if (typeof c.allow === 'function') c.allow(600);`
+    + ` const r = c.moveTo(${x}, ${y}, ${point.pulse === false ? 'false' : 'true'});`
+    + ` return {moved: !(r && r.ignored), x: ${x}, y: ${y}}; })()`;
+  const evaluate = async () => {
     const evaluated = await withDebugger(tabId, () => chrome.debugger.sendCommand(
       {tabId},
       'Runtime.evaluate',
-      {
-        expression: `(() => { const c = window[${JSON.stringify(CURSOR_NS)}];`
-          + ` if (!c || typeof c.moveTo !== 'function') return {moved: false};`
-          + ` if (typeof c.ensure === 'function') c.ensure();`
-          + ` return {moved: true, ...c.moveTo(${x}, ${y}, ${point.pulse === false ? 'false' : 'true'})}; })()`,
-        returnByValue: true,
-        allowUnsafeEvalBlockedByCSP: true,
-      },
+      {expression, returnByValue: true, allowUnsafeEvalBlockedByCSP: true},
     ));
-    const remote = evaluated?.result?.value;
-    if (!remote?.moved) return {ok: false, error: '光标未移动', detail: evaluated?.exceptionDetails?.text || ''};
-    return {ok: true, ...remote};
+    return evaluated?.result?.value ?? null;
+  };
+  try {
+    let remote = await evaluate();
+    if (!remote?.moved) {
+      // 页面刚导航或首次安装时覆盖层还不存在，装一次再重试。
+      const installed = await ensureVisualCursor(tabId);
+      if (!installed.ok) return installed;
+      remote = await evaluate();
+    }
+    if (!remote?.moved) return {ok: false, error: '光标未移动'};
+    return {ok: true, x: remote.x, y: remote.y};
   } catch (error) {
     return {ok: false, error: String(error)};
   }

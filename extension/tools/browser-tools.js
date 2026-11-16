@@ -8,6 +8,7 @@ import { streamCapture, streamReceive, imageShrink } from './stream-pipe.js';
 import { observeAction, initActionObserver } from './action-observer.js';
 import { decodeResponseBody, summarizeResponseBody, waitForResponse, startPageFeedback, finishPageFeedback } from './response-wait.js';
 import { ensureVisualCursor, moveVisualCursor } from './visual-cursor.js';
+import { markActiveTab } from './tab-marker.js';
 export const BROWSER_TOOL_NAMES = [
   'page_eval_expr',
   'page_get_summary', 'page_list_regions', 'page_list_interactive_elements',
@@ -280,7 +281,8 @@ export const readOpenTabs = async () => {
   const windows = await chrome.windows.getAll({populate: true, windowTypes: ['normal']});
   return {ok: true, windows: windows.map((window) => ({
     windowId: window.id, focused: window.focused,
-    tabs: (window.tabs || []).map((tab) => ({tabId: tab.id, url: tab.url || '', title: tab.title || '', active: tab.active})),
+    tabs: (window.tabs || []).map((tab) => ({tabId: tab.id, url: tab.url || '', title: tab.title || '', active: tab.active,
+      groupId: Number.isInteger(tab.groupId) ? tab.groupId : -1})),
   }))};
 };
 
@@ -312,6 +314,18 @@ const waitTabComplete = (tabId) => new Promise((resolve) => {
   }).catch(() => finish({ok: false, state: 'unavailable'}));
 });
 
+// 光标位置只由扩展侧驱动：页面自身的鼠标事件不再参与，所以必须在派发前显式定位。
+// 同一坐标连续移动（拖动中的重复 mouseMoved）直接跳过，省掉多余的 Runtime.evaluate。
+const cursorLastPoint = new Map();
+const placeVisualCursor = async (tabId, x, y, pulse) => {
+  const px = Math.round(x);
+  const py = Math.round(y);
+  const last = cursorLastPoint.get(tabId);
+  if (!pulse && last && last.x === px && last.y === py) return;
+  cursorLastPoint.set(tabId, {x: px, y: py});
+  await moveVisualCursor(tabId, {x: px, y: py, pulse});
+};
+
 const cdpMouse = async (tabId, type, x, y, options = {}) => {
   const params = {
     type,
@@ -321,8 +335,9 @@ const cdpMouse = async (tabId, type, x, y, options = {}) => {
     clickCount: options.clickCount || (type === 'mousePressed' || type === 'mouseReleased' ? 1 : 0),
     ...options,
   };
-  // 每次按下前确保页面里有可见光标覆盖层；页面自身的鼠标监听器随后会跟着事件移动。
-  if (type === 'mousePressed') await ensureVisualCursor(tabId);
+  // 按下带点击涟漪，拖动中的移动只跟随；mouseReleased 不动光标（位置已在目标点）。
+  if (type === 'mousePressed') await placeVisualCursor(tabId, params.x, params.y, true);
+  else if (type === 'mouseMoved') await placeVisualCursor(tabId, params.x, params.y, false);
   await withDebugger(tabId, () => chrome.debugger.sendCommand({tabId}, 'Input.dispatchMouseEvent', params));
 };
 
@@ -2968,6 +2983,9 @@ const executeBrowserTool = async (name, input = {}) => {
 
 // A native dialog releases the caller without replaying the blocked operation.
 const browserOnly = new Set(['open_tab', 'duplicate_tab', 'bind_tab', 'list_browser_tools', 'list_tabs', 'list_windows', 'close_tab', 'close_window', 'switch_tab', 'move_tab', 'update_tab', 'create_window', 'update_window', 'group_tabs', 'ungroup_tabs', 'list_downloads', 'download', 'export_data', 'control_download', 'wait_download', 'wait_new_tab', 'profile_vault', 'detach_debugger', 'image_crop_pixels', 'clipboard_page_write', 'clipboard_page_read', 'set_cookie', 'delete_cookie', 'clear_cookies']);
+// 关闭标签、取消分组这类动作标记了也没意义，还会和用户自己的分组操作打架，跳过。
+const TAB_MARK_SKIP = new Set(['close_tab', 'ungroup_tabs']);
+
 export const runBrowserTool = async (name, input = {}) => {
   let unwatch;
   let targetTab;
@@ -2975,6 +2993,9 @@ export const runBrowserTool = async (name, input = {}) => {
     error: '原生对话框阻塞页面，请用 handle_dialog 确认或取消。原操作可能在关闭后继续，请先检查结果，勿重复执行。'});
   try {
     const operation = async () => {
+      // 用户要能一眼看出 Helm 正在动哪个标签：把目标标签标进带颜色和标题的原生分组。
+      // 标记是辅助信息，markActiveTab 内部已吞掉异常，不会影响工具本身。
+      if (Number.isInteger(input.tabId) && !TAB_MARK_SKIP.has(name)) await markActiveTab(input.tabId);
       let dialogOpened;
       if (!browserOnly.has(name) && name !== 'handle_dialog' && name !== 'see_diag' && globalThis.chrome?.debugger?.onEvent) {
         const tab = await getTab(input.tabId);
