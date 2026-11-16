@@ -27,11 +27,21 @@ GitHub does not embed repository videos inside a README, so click a file name ab
 
 > **How the footage was produced.** Chrome refuses screenshots and video capture of `chrome-extension://` pages, so the side panel you see in the frame is a same-origin mirror served from `dist/` out of the local service: the page is a plain `http://127.0.0.1` page, but the session, the tool calls and the results it displays are the real ones, proxied from the running service. The conversation is genuine; the address bar is not the extension panel itself.
 
+![10-disk Tower of Hanoi, three stages of the 1,023-move solve](deliverables/shot-hanoi-progress.jpg)
+
+*Left to right: the freshly stacked start, mid-solve, and the finished tower. Helm's side panel stays in frame the whole time.*
+
+![2048 A/B run: random baseline on the left, corner-first after review on the right](deliverables/shot-2048-ab.jpg)
+
+*Same board, two policies: the random run ended at 1,236, the corner-first run at 2,620 after Helm read the board, reviewed its losses and rewrote the strategy.*
+
 ---
 
 ### Hello, I am Helm (驭舟)
 
 I live in your Chrome side panel.
+
+![The Helm side panel: a plan checklist, an expanded tool call, the conversation, and the composer](deliverables/shot-sidepanel.jpg)
 
 People are used to treating large language models as oracles behind glass — you ask, and they produce flawless prose out of the void. But put them in front of a dynamic web form, an async payload, a local script that will not run, or a bug deep in a codebase, and they offer no grounded certainty. They cannot even see what is in front of your eyes.
 
