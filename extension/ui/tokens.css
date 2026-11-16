@@ -1,53 +1,139 @@
 :root {
-  color-scheme: dark;
-  
-  /* 现代黑曜石深邃奢华底色 (Linear / Raycast / Cursor 现代顶奢 AI 美学) */
-  --canvas: #090a10;
-  --surface: #12131e;
-  --surface-hover: #191b2b;
-  --surface-active: #212438;
-  --surface-elevated: #161726;
-  
-  --text: #f3f5fa;
-  --muted: #8b90a6;
-  --muted-soft: #5e6378;
-  
-  --line: rgba(255, 255, 255, 0.08);
-  --line-strong: rgba(255, 255, 255, 0.14);
-  --line-subtle: rgba(255, 255, 255, 0.04);
-  
-  /* 科技微电光高阶强调色 (Indigo / Violet 微发光) */
-  --accent: #6366f1;
-  --accent-hover: #4f46e5;
-  --accent-soft: rgba(99, 102, 241, 0.14);
-  --accent-glow: rgba(99, 102, 241, 0.28);
-  --accent-text: #818cf8;
-  
-  --danger: #ef4444;
-  --danger-hover: #dc2626;
-  --danger-soft: rgba(239, 68, 68, 0.14);
-  
+  /* 取色自 base44：shadcn zinc 中性色 + 品牌橙；浅色为默认主题 */
+  color-scheme: light;
+
+  --canvas: #fafafa;
+  --surface: #ffffff;
+  --surface-hover: #f4f4f5;
+  --surface-active: #e9e9eb;
+  --surface-elevated: #ffffff;
+
+  --text: #09090b;
+  --muted: #62626b;
+  --muted-soft: #8a8a93;
+
+  --line: rgba(9, 9, 11, 0.10);
+  --line-strong: rgba(9, 9, 11, 0.18);
+  --line-subtle: rgba(9, 9, 11, 0.06);
+
+  /* 主色：base44 的 primary 是近黑（深色主题下翻成近白），橙色只作品牌点色 */
+  --accent: #18181b;
+  --accent-hover: #27272a;
+  --accent-soft: rgba(24, 24, 27, 0.06);
+  --accent-glow: rgba(24, 24, 27, 0.14);
+  --accent-text: #18181b;
+  --on-accent: #fafafa;
+  --on-accent-rgb: 250, 250, 250;
+
+  --brand: #ff6a00;
+  --brand-soft: rgba(255, 106, 0, 0.12);
+
+  /* 叠加层与投影基色：浅色主题用墨黑，深色主题反转为白 */
+  --ink: 9, 9, 11;
+  --shadow: 9, 9, 11;
+  --scrim: rgba(9, 9, 11, 0.32);
+
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --danger-soft: rgba(220, 38, 38, 0.09);
+
   --success: #10b981;
-  --success-soft: rgba(16, 185, 129, 0.14);
-  
-  /* 语义化派生色：原先散落在各处的硬编码色值统一收敛到 token */
-  --accent-deep: #3730a3;
-  --user-avatar-from: #4f46e5;
-  --user-avatar-to: #3730a3;
-  --user-bubble-from: #1c1e33;
-  --user-bubble-to: #151728;
-  --code-bg: #07080d;
-  --code-text: #e2e8f0;
-  --code-accent: #c7d2fe;
-  
+  --success-strong: #059669;
+  --success-soft: rgba(16, 185, 129, 0.12);
+  --success-text: #047857;
+  --warn-text: #b45309;
+  --teal-text: #0f766e;
+
+  /* 语义化派生色 */
+  --accent-deep: #09090b;
+  --user-bubble-from: #f4f4f5;
+  --user-bubble-to: #ededef;
+  --code-bg: #f4f4f5;
+  --code-text: #27272a;
+  --code-accent: #c2410c;
+
+  /* 尺度与动效：圆角 / 控件高 / 间距栅格 / 过渡 */
+  --r-2xs: 4px;
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 10px;
+  --r-lg: 12px;
+  --r-full: 999px;
+
+  --ctl-h: 36px;
+  --ctl-h-sm: 30px;
+  --mark: 32px;
+  --switch-w: 34px;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+
+  --dur-fast: 0.15s;
+  --dur: 0.2s;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, system-ui, 'PingFang SC', sans-serif;
-  
+
   color: var(--text);
   background: var(--canvas);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* 深色主题：base44 实测值 —— body #09090b、卡片 #202020、描边 #3d3c3a、正文 #ebebeb */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: #09090b;
+  --surface: #202020;
+  --surface-hover: #272727;
+  --surface-active: #2e2e2e;
+  --surface-elevated: #202020;
+
+  --text: #ebebeb;
+  --muted: #a1a1a1;
+  --muted-soft: #8a8a94;
+
+  --line: rgba(255, 255, 255, 0.10);
+  --line-strong: rgba(255, 255, 255, 0.18);
+  --line-subtle: rgba(255, 255, 255, 0.06);
+
+  --accent: #fafafa;
+  --accent-hover: #e4e4e7;
+  --accent-soft: rgba(250, 250, 250, 0.10);
+  --accent-glow: rgba(250, 250, 250, 0.14);
+  --accent-text: #fafafa;
+  --on-accent: #09090b;
+  --on-accent-rgb: 9, 9, 11;
+
+  --brand: #ff6a00;
+  --brand-soft: rgba(255, 106, 0, 0.16);
+
+  --ink: 255, 255, 255;
+  --shadow: 0, 0, 0;
+  --scrim: rgba(0, 0, 0, 0.6);
+
+  --danger: #f87171;
+  --danger-hover: #ef4444;
+  --danger-soft: rgba(248, 113, 113, 0.14);
+
+  --success: #34d399;
+  --success-strong: #10b981;
+  --success-soft: rgba(52, 211, 153, 0.14);
+  --success-text: #34d399;
+  --warn-text: #fbbf24;
+  --teal-text: #2dd4bf;
+
+  --accent-deep: #fafafa;
+  --user-bubble-from: #232323;
+  --user-bubble-to: #1c1c1c;
+  --code-bg: #171718;
+  --code-text: #e4e4e7;
+  --code-accent: #ff8a3d;
 }
 
 * {
@@ -82,14 +168,12 @@ button:disabled {
 /* UI 图标统一规范 */
 .icon-button svg,
 button svg,
-.message-avatar svg,
 .quick-actions svg,
 .jump-to-bottom svg,
 .library-icon svg,
 .library-panel svg,
 .session-search svg,
-.brand-logo,
-svg.face {
+.brand-logo {
   width: 16px;
   height: 16px;
   stroke-width: 1.8;
@@ -113,35 +197,33 @@ svg.face {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 5%, transparent) 0%, transparent 70%), var(--canvas);
+  background: var(--canvas);
 }
 
-/* 顶部晶莹毛玻璃导航栏 */
+/* 顶栏：平面发丝分隔，不再用毛玻璃 */
 .app-bar {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+  grid-template-columns: var(--mark) minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
+  gap: var(--sp-2);
+  padding: 6px 12px;
   color: var(--text);
-  background: color-mix(in srgb, var(--canvas) 82%, transparent);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: var(--canvas);
   border-bottom: 1px solid var(--line);
   z-index: 10;
 }
 
 .brand-mark {
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: var(--mark);
+  height: var(--mark);
   place-items: center;
   color: var(--accent-text);
   background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, transparent) 0%, color-mix(in srgb, var(--accent-text) 8%, transparent) 100%);
-  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
   font: 800 13px/1 var(--mono);
-  border-radius: 9px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  border-radius: var(--r-sm);
+  box-shadow: 0 1px 2px rgba(var(--shadow), 0.04);
 }
 
 .app-identity strong {
@@ -175,7 +257,7 @@ svg.face {
 
 /* 连接与网络状态栏 */
 .status {
-  padding: 5px 14px;
+  padding: 6px 12px;
   font-size: 11.5px;
   color: var(--muted);
   background: var(--surface);
@@ -200,7 +282,7 @@ svg.face {
   padding: 12px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--r-md);
 }
 .connection-setting-row {
   display: flex;
@@ -224,14 +306,23 @@ svg.face {
   min-width: 0;
   padding: 5px 8px;
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  border-radius: var(--r-xs);
   background: var(--canvas);
   color: var(--text);
   font-size: 11.5px;
   outline: none;
   cursor: pointer;
-  transition: border-color 0.15s ease;
+  transition: border-color var(--dur-fast) var(--ease);
 }
+.provider-picker select:hover:not(:disabled) {
+  border-color: var(--muted-soft);
+  background: var(--surface-hover);
+}
+
+.provider-picker select:active:not(:disabled) {
+  background: var(--surface-active);
+}
+
 .provider-picker select:focus {
   border-color: var(--accent);
 }
@@ -239,15 +330,20 @@ svg.face {
   display: inline-flex;
   align-items: center;
   cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.connection-switch:active:not(:disabled) {
+  transform: scale(0.96);
 }
 .switch-track {
-  width: 34px;
+  width: var(--switch-w);
   height: 18px;
   background: var(--surface-active);
   border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  border-radius: var(--r-full);
   position: relative;
-  transition: all 0.2s ease;
+  transition: all var(--dur) var(--ease);
 }
 .switch-thumb {
   width: 14px;
@@ -257,7 +353,7 @@ svg.face {
   position: absolute;
   top: 1px;
   left: 2px;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform var(--dur) var(--ease);
 }
 .connection-switch[aria-checked="true"] .switch-track {
   background: var(--accent);
@@ -265,7 +361,7 @@ svg.face {
 }
 .connection-switch[aria-checked="true"] .switch-thumb {
   transform: translateX(15px);
-  background: #fff;
+  background: var(--on-accent);
 }
 
 /* 主对话容器 */
@@ -294,19 +390,6 @@ svg.face {
   flex-direction: column;
   justify-content: center;
 }
-.welcome-mark {
-  display: grid;
-  width: 48px;
-  height: 48px;
-  margin: 0 auto 16px;
-  place-items: center;
-  color: var(--accent-text);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 20%, transparent) 0%, color-mix(in srgb, var(--accent-text) 10%, transparent) 100%);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  border-radius: 14px;
-  font: 800 18px/1 var(--mono);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-}
 .welcome h1 {
   margin: 0 0 8px;
   font-size: 24px;
@@ -332,21 +415,21 @@ svg.face {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: var(--ctl-h-sm);
+  height: var(--ctl-h-sm);
   padding: 0;
-  border-radius: 7px;
+  border-radius: var(--r-sm);
   color: var(--muted);
   background: transparent;
   border: 1px solid transparent;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all var(--dur-fast) var(--ease);
 }
 
 .icon-button:hover:not(:disabled) {
   color: var(--text);
   background: var(--surface-hover);
   border-color: var(--line);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 4px rgba(var(--shadow), 0.05);
 }
 
 .icon-button:active:not(:disabled) {
@@ -360,7 +443,7 @@ svg.face {
   border-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 .icon-button.accent:hover:not(:disabled) {
-  color: #fff;
+  color: var(--on-accent);
   background: var(--accent);
 }
 
@@ -374,10 +457,10 @@ svg.face {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 18px 18px 22px;
+  padding: var(--sp-3) var(--sp-3) var(--sp-4);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--sp-3);
   scroll-behavior: smooth;
 }
 
@@ -388,11 +471,11 @@ svg.face {
   background: transparent;
 }
 .messages::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
+  background: rgba(var(--ink), 0.1);
+  border-radius: var(--r-full);
 }
 .messages::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(var(--ink), 0.2);
 }
 
 /* 消息行结构 */
@@ -404,31 +487,8 @@ svg.face {
   min-width: 0;
 }
 
-.message-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-}
-
 .message-row.user {
   flex-direction: row-reverse;
-}
-
-.message-row.user .message-avatar {
-  background: linear-gradient(135deg, var(--user-avatar-from) 0%, var(--user-avatar-to) 100%);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-}
-
-.message-row.assistant .message-avatar {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent) 0%, color-mix(in srgb, var(--accent-text) 10%, transparent) 100%);
-  color: var(--accent-text);
-  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 .message-content {
@@ -446,8 +506,8 @@ svg.face {
 
 /* 消息气泡：内容定宽、不贴边、超长强制折行；溢出裁在气泡内 */
 .message-body {
-  padding: 10px 14px;
-  border-radius: 12px;
+  padding: var(--sp-3) 14px;
+  border-radius: var(--r-lg);
   font-size: 13.5px;
   line-height: 1.58;
   width: fit-content;
@@ -464,9 +524,9 @@ svg.face {
   max-width: 92%;
   background: linear-gradient(135deg, var(--user-bubble-from) 0%, var(--user-bubble-to) 100%);
   color: var(--text);
-  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  border-top-right-radius: 3px;
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 2px rgba(var(--shadow), 0.04);
+  border-top-right-radius: var(--r-xs);
 }
 
 /* 助手气泡：深邃沉静黑曜石，通透雅致 */
@@ -474,8 +534,8 @@ svg.face {
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--line);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-  border-top-left-radius: 3px;
+  box-shadow: 0 1px 2px rgba(var(--shadow), 0.04);
+  border-top-left-radius: var(--r-xs);
 }
 
 /* 消息元信息底部栏（耗时徽章等） */
@@ -485,7 +545,7 @@ svg.face {
   justify-content: flex-end;
   margin-top: 8px;
   padding-top: 6px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.07);
+  border-top: 1px dashed rgba(var(--ink), 0.07);
 }
 
 .duration-badge {
@@ -496,11 +556,11 @@ svg.face {
   font-size: 11px;
   font-family: var(--mono);
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 999px;
+  background: rgba(var(--ink), 0.04);
+  border: 1px solid rgba(var(--ink), 0.08);
+  border-radius: var(--r-full);
   user-select: none;
-  transition: all 0.15s ease;
+  transition: all var(--dur-fast) var(--ease);
 }
 
 .duration-badge svg {
@@ -509,20 +569,29 @@ svg.face {
 
 .duration-badge:hover {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(var(--ink), 0.08);
+  border-color: rgba(var(--ink), 0.15);
 }
 
 /* 工具执行流 (Tool Step) */
 .message-row.tool {
-  padding: 2px 10px 2px 38px;
+  padding: 0;
 }
 .message-row.tool .message-body {
   max-width: 100%;
-  padding: 6px 10px;
-  background: rgba(18, 19, 30, 0.6);
-  border: 1px solid var(--line-subtle);
-  border-radius: 8px;
+  padding: var(--sp-2) 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+/* 工具聚合抽屉自带卡片外观，外层 message-body 只是容器：
+   不再重复描边与内边距，否则会出现卡片套卡片、且左边缘比消息/计划卡多缩进 11px。 */
+.message-row.tool .message-body:has(> .tool-group-drawer) {
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
 }
 .tool-step {
   margin: 0;
@@ -539,7 +608,7 @@ svg.face {
   font-weight: 600;
 }
 .tool-step.live span {
-  color: #fff;
+  color: var(--accent-text);
 }
 .tool-step.subagent-step {
   display: flex;
@@ -573,17 +642,17 @@ svg.face {
 
 /* 区分主动压缩与 runtime 自动压缩 */
 .compression-status.compression-agent {
-  color: #0f766e;
+  color: var(--teal-text);
   background: rgba(20, 184, 166, 0.14);
 }
 .compression-status.compression-runtime {
-  color: #b45309;
+  color: var(--warn-text);
   background: rgba(245, 158, 11, 0.14);
 }
 .compression-status .compression-source {
   padding: 1px 6px;
   border: 1px solid currentColor;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   color: inherit;
   font-size: 11px;
   white-space: nowrap;
@@ -595,8 +664,8 @@ svg.face {
   padding: 12px;
   background: var(--surface);
   border: 1px solid var(--line-strong);
-  border-radius: 10px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  border-radius: var(--r-md);
+  box-shadow: 0 1px 2px rgba(var(--shadow), 0.04);
 }
 
 /* 等待用户选择/回复的交互卡片 */
@@ -607,7 +676,7 @@ svg.face {
   max-height: 40vh;
   overflow-y: auto;
   border-color: var(--accent);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--accent-soft);
+  box-shadow: 0 10px 30px rgba(var(--shadow), 0.10), 0 0 0 1px var(--line);
 }
 
 .interaction-card > strong {
@@ -631,9 +700,9 @@ svg.face {
   color: var(--text);
   background: var(--surface-hover);
   border: 1px solid var(--line-strong);
-  border-radius: 9px;
+  border-radius: var(--r-sm);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
 }
 
 .interaction-items button strong {
@@ -668,8 +737,8 @@ svg.face {
   margin: 8px 0;
   padding: 10px 12px;
   background: var(--code-bg);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
+  border: 1px solid rgba(var(--ink), 0.08);
+  border-radius: var(--r-sm);
   max-width: 100%;
   overflow-x: auto;
   white-space: pre-wrap;
@@ -685,9 +754,9 @@ svg.face {
   font-family: var(--mono);
   font-size: 0.9em;
   padding: 2px 5px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 4px;
+  background: rgba(var(--ink), 0.06);
+  border: 1px solid rgba(var(--ink), 0.06);
+  border-radius: var(--r-2xs);
   color: var(--code-accent);
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -735,8 +804,8 @@ svg.face {
 .message-body a {
   color: var(--accent-text);
   text-decoration: none;
-  border-bottom: 1px solid rgba(129, 140, 248, 0.3);
-  transition: border-color 0.15s ease;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent-text) 30%, transparent);
+  transition: border-color var(--dur-fast) var(--ease);
 }
 
 .message-body a:hover {
@@ -749,7 +818,7 @@ svg.face {
   align-items: center;
   gap: 3px;
   opacity: 0.75;
-  transition: opacity 0.18s ease;
+  transition: opacity var(--dur-fast) var(--ease);
 }
 
 .message-row:hover .quick-actions {
@@ -759,17 +828,21 @@ svg.face {
 .quick-actions button {
   padding: 3px 8px;
   font-size: 11px;
-  border-radius: 5px;
+  border-radius: var(--r-xs);
   background: var(--surface-hover);
   color: var(--muted);
   border: 1px solid var(--line);
-  transition: all 0.15s ease;
+  transition: all var(--dur-fast) var(--ease);
 }
 
 .quick-actions button:hover {
   color: var(--text);
   background: var(--surface-active);
   border-color: var(--line-strong);
+}
+
+.quick-actions button:active {
+  transform: scale(0.98);
 }
 
 /* 悬浮 Composer 输入岛 (Raycast / Cursor 灵感) */
@@ -780,21 +853,22 @@ svg.face {
   flex-direction: column;
   background: var(--surface-elevated);
   border: 1px solid var(--line-strong);
-  border-radius: 14px;
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.03);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: var(--r-lg);
+  box-shadow: 0 1px 2px rgba(var(--shadow), 0.04);
+  transition: all var(--dur) var(--ease);
   overflow: hidden;
-  padding: 8px 10px;
+  padding: 10px 12px;
+  margin: 0 var(--sp-3) var(--sp-3);
 }
 
 .composer:focus-within {
   border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-  box-shadow: 0 6px 24px -2px rgba(0, 0, 0, 0.5), 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), 0 0 16px -2px var(--accent-glow);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .composer textarea {
   width: 100%;
-  min-height: 48px;
+  min-height: 44px;
   max-height: 180px;
   background: transparent;
   border: none;
@@ -814,9 +888,7 @@ svg.face {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--line-subtle);
+  margin-top: var(--sp-2);
 }
 
 .composer-right {
@@ -831,20 +903,19 @@ svg.face {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
+  width: var(--ctl-h-sm);
+  height: var(--ctl-h-sm);
+  border-radius: var(--r-full);
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 2px 8px var(--accent-soft);
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--on-accent);
+  border: 1px solid rgba(var(--on-accent-rgb), 0.28);
+  box-shadow: none;
+  transition: all var(--dur-fast) var(--ease);
 }
 
 .composer button[type="submit"]:hover:not(:disabled),
 .composer .send-button:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px var(--accent-glow);
+  background: var(--accent-hover);
 }
 
 .composer button[type="submit"]:active:not(:disabled),
@@ -853,8 +924,8 @@ svg.face {
 }
 
 .composer .stop {
-  background: linear-gradient(135deg, var(--danger) 0%, var(--danger-hover) 100%);
-  box-shadow: 0 2px 8px var(--danger-soft);
+  background: var(--danger);
+  box-shadow: none;
 }
 
 /* 回到底部按钮 (微悬浮) */
@@ -862,17 +933,17 @@ svg.face {
   position: absolute;
   right: 20px;
   bottom: 84px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  width: var(--ctl-h-sm);
+  height: var(--ctl-h-sm);
+  border-radius: var(--r-full);
   background: var(--surface-elevated);
   color: var(--text);
   border: 1px solid var(--line-strong);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 14px rgba(var(--shadow), 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all var(--dur) var(--ease);
   z-index: 15;
 }
 
@@ -881,7 +952,7 @@ svg.face {
   background: var(--surface-hover);
   border-color: var(--accent);
   color: var(--accent-text);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 6px 18px rgba(var(--shadow), 0.12);
 }
 
 .jump-to-bottom:active {
@@ -892,10 +963,19 @@ svg.face {
 .drawer-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: var(--scrim);
+  animation: scrim-in var(--dur-fast) var(--ease);
   z-index: 20;
+}
+
+@keyframes scrim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes drawer-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 .history-drawer {
@@ -904,16 +984,17 @@ svg.face {
   left: 0;
   bottom: 0;
   width: 290px;
+  animation: drawer-in var(--dur) var(--ease);
   background: var(--surface);
   border-right: 1px solid var(--line-strong);
-  box-shadow: 6px 0 28px rgba(0, 0, 0, 0.6);
+  box-shadow: 6px 0 28px rgba(var(--shadow), 0.10);
   z-index: 25;
   display: flex;
   flex-direction: column;
 }
 
 .history-drawer .pane-header {
-  padding: 12px 14px;
+  padding: var(--sp-3);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -922,7 +1003,7 @@ svg.face {
 
 
 .session-search {
-  padding: 8px 12px;
+  padding: var(--sp-2) var(--sp-3);
   border-bottom: 1px solid var(--line-subtle);
   display: flex;
   align-items: center;
@@ -935,11 +1016,11 @@ svg.face {
   padding: 6px 10px;
   background: var(--canvas);
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--r-sm);
   color: var(--text);
   font-size: 12.5px;
   outline: none;
-  transition: border-color 0.15s ease;
+  transition: border-color var(--dur-fast) var(--ease);
 }
 
 .session-search input:focus {
@@ -961,12 +1042,12 @@ svg.face {
   justify-content: space-between;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   color: var(--muted);
   font-size: 13px;
   background: transparent;
   border: 1px solid transparent;
-  transition: all 0.15s ease;
+  transition: all var(--dur-fast) var(--ease);
 }
 
 /* 标题按钮必须可压缩并省略，否则长会话名会把删除按钮挤出面板 */
@@ -987,14 +1068,14 @@ svg.face {
 
 .conversation-item.active {
   background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, transparent) 0%, color-mix(in srgb, var(--accent-text) 8%, transparent) 100%);
-  color: #fff;
+  color: var(--text);
   border-color: color-mix(in srgb, var(--accent) 28%, transparent);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 1px 4px rgba(var(--shadow), 0.063);
 }
 
 .conversation-item .delete {
   opacity: 0;
-  transition: opacity 0.15s ease;
+  transition: opacity var(--dur-fast) var(--ease);
 }
 
 .conversation-item:hover .delete {
@@ -1011,18 +1092,16 @@ svg.face {
   padding: 10px 12px;
   max-height: 40vh;
   overflow-y: auto;
-  background: linear-gradient(180deg, rgba(22, 23, 38, 0.95) 0%, rgba(18, 19, 30, 0.98) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  margin: 8px 0;
-  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(12px);
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  margin: var(--sp-2) var(--sp-3);
+  box-shadow: 0 1px 2px rgba(var(--shadow), 0.04);
+  transition: border-color var(--dur) var(--ease);
 }
 
 .plan-panel:hover {
-  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
-  box-shadow: 0 6px 20px -2px rgba(0, 0, 0, 0.5), 0 0 16px -4px var(--accent-glow);
+  border-color: var(--line-strong);
 }
 
 .plan-header {
@@ -1038,11 +1117,11 @@ svg.face {
   color: var(--text);
   font-family: inherit;
   font-size: 12px;
-  transition: color 0.15s ease;
+  transition: color var(--dur-fast) var(--ease);
 }
 
 .plan-header:hover {
-  color: #fff;
+  color: var(--text);
 }
 
 .plan-header-left {
@@ -1060,7 +1139,7 @@ svg.face {
   width: 16px;
   height: 16px;
   color: var(--muted);
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform var(--dur) var(--ease);
 }
 
 .plan-toggle-chevron svg {
@@ -1075,12 +1154,12 @@ svg.face {
 
 .plan-meta {
   font-size: 11px;
-  color: var(--muted-soft);
+  color: var(--muted);
   font-weight: 500;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(var(--ink), 0.04);
   padding: 2px 7px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--r-full);
+  border: 1px solid rgba(var(--ink), 0.05);
 }
 
 .plan-items {
@@ -1090,7 +1169,7 @@ svg.face {
   list-style: none;
   margin: 6px 0 0;
   padding: 6px 0 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid rgba(var(--ink), 0.06);
 }
 
 .plan-item {
@@ -1100,26 +1179,26 @@ svg.face {
   font-size: 12.5px;
   line-height: 1.45;
   padding: 4px 6px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.015);
-  border: 1px solid rgba(255, 255, 255, 0.03);
-  transition: all 0.16s ease;
+  border-radius: var(--r-sm);
+  background: rgba(var(--ink), 0.015);
+  border: 1px solid var(--line-subtle);
+  transition: all var(--dur-fast) var(--ease);
 }
 
 .plan-item:hover {
-  background: rgba(255, 255, 255, 0.035);
-  border-color: rgba(255, 255, 255, 0.07);
+  background: rgba(var(--ink), 0.035);
+  border-color: rgba(var(--ink), 0.07);
 }
 
 .plan-mark {
   width: 16px;
   height: 16px;
-  border-radius: 5px;
+  border-radius: var(--r-xs);
   margin-top: 2px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  transition: all 0.2s ease;
+  transition: all var(--dur) var(--ease);
 }
 
 .plan-mark svg {
@@ -1130,23 +1209,23 @@ svg.face {
 
 /* 状态标记 - 完成态 */
 .plan-mark.status-done {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: #fff;
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
+  background: linear-gradient(135deg, var(--success) 0%, var(--success-strong) 100%);
+  color: var(--on-accent);
+  box-shadow: 0 1px 3px var(--success-soft);
 }
 
 /* 状态标记 - 进行态 */
 .plan-mark.status-doing {
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
-  color: #fff;
+  color: var(--on-accent);
   box-shadow: 0 0 10px var(--accent-soft);
 }
 
 .plan-spinner {
   width: 9px;
   height: 9px;
-  border: 1.8px solid rgba(255, 255, 255, 0.35);
-  border-top-color: #fff;
+  border: 1.8px solid rgba(var(--on-accent-rgb), 0.45);
+  border-top-color: var(--on-accent);
   border-radius: 50%;
   animation: plan-spin 0.8s linear infinite;
 }
@@ -1157,8 +1236,8 @@ svg.face {
 
 /* 状态标记 - 待办态 */
 .plan-mark.status-todo {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(var(--ink), 0.06);
+  border: 1px solid rgba(var(--ink), 0.12);
 }
 
 .plan-dot {
@@ -1182,7 +1261,7 @@ svg.face {
 }
 
 .plan-blocked {
-  color: #f87171;
+  color: var(--danger);
   font-size: 11.5px;
   font-weight: 500;
 }
@@ -1194,10 +1273,10 @@ svg.face {
   gap: 5px;
   font-size: 11.5px;
   line-height: 1.4;
-  color: #6ee7b7;
+  color: var(--success-text);
   background: rgba(16, 185, 129, 0.08);
   border: 1px solid rgba(16, 185, 129, 0.2);
-  border-radius: 6px;
+  border-radius: var(--r-xs);
   padding: 3px 6px;
   margin-top: 2px;
 }
@@ -1207,7 +1286,7 @@ svg.face {
   height: 12px;
   flex-shrink: 0;
   margin-top: 2px;
-  stroke: #10b981;
+  stroke: var(--success);
 }
 
 /* 状态胶囊标签 */
@@ -1215,7 +1294,7 @@ svg.face {
   font-size: 10.5px;
   font-weight: 500;
   padding: 1.5px 6px;
-  border-radius: 4px;
+  border-radius: var(--r-full);
   flex-shrink: 0;
   align-self: flex-start;
   white-space: nowrap;
@@ -1224,7 +1303,7 @@ svg.face {
 
 .plan-status-badge.status-done {
   background: rgba(16, 185, 129, 0.12);
-  color: #34d399;
+  color: var(--success-text);
   border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
@@ -1241,9 +1320,9 @@ svg.face {
 }
 
 .plan-status-badge.status-todo {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(var(--ink), 0.04);
   color: var(--muted);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(var(--ink), 0.06);
 }
 
 /* 按钮与交互标签（回复内交互） */
@@ -1255,13 +1334,13 @@ svg.face {
   gap: 5px;
   padding: 4px 10px;
   margin: 4px 3px;
-  border-radius: 6px;
+  border-radius: var(--r-xs);
   font-size: 12px;
   font-weight: 500;
   background: var(--surface-hover);
   color: var(--text);
   border: 1px solid var(--line-strong);
-  transition: all 0.16s ease;
+  transition: all var(--dur-fast) var(--ease);
 }
 
 .message-body button[data-copy]:hover,
@@ -1269,9 +1348,9 @@ svg.face {
 .message-body button[data-open-url]:hover {
   background: var(--surface-active);
   border-color: var(--accent-text);
-  color: #fff;
+  color: var(--text);
   transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 6px rgba(var(--shadow), 0.075);
 }
 
 .message-body button[data-copy]:active,
@@ -1318,8 +1397,7 @@ svg.face {
 .confirm-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(5px);
+  background: var(--scrim);
   z-index: 0;
 }
 
@@ -1330,9 +1408,9 @@ svg.face {
   max-width: 320px;
   background: var(--surface);
   border: 1px solid var(--line-strong);
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   padding: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 12px 32px rgba(var(--shadow), 0.10), 0 0 0 1px var(--line);
 }
 
 .confirm-card > div {
@@ -1348,8 +1426,8 @@ svg.face {
   color: var(--text);
   background: var(--surface-hover);
   border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  border-radius: var(--r-sm);
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
 }
 
 .confirm-card > div > button:hover:not(:disabled) {
@@ -1361,10 +1439,10 @@ svg.face {
 }
 
 .confirm-card > div > button.danger {
-  color: #fff;
-  background: linear-gradient(135deg, var(--danger) 0%, var(--danger-hover) 100%);
+  color: var(--on-accent);
+  background: var(--danger);
   border-color: transparent;
-  box-shadow: 0 2px 8px var(--danger-soft);
+  box-shadow: none;
 }
 
 .confirm-card > div > button.danger:hover:not(:disabled) {
@@ -1395,12 +1473,6 @@ svg.face {
   position: relative;
 }
 
-.icon-button {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-}
-
 .settings-popover {
   position: absolute;
   top: calc(100% + 6px);
@@ -1411,8 +1483,8 @@ svg.face {
   padding: 12px;
   background: var(--surface-elevated);
   border: 1px solid var(--line-strong);
-  border-radius: 12px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  border-radius: var(--r-lg);
+  box-shadow: 0 10px 28px rgba(var(--shadow), 0.10), 0 0 0 1px var(--line);
 }
 
 .settings-popover > strong {
@@ -1446,14 +1518,9 @@ svg.face {
   margin-left: auto;
 }
 
-.composer .send-button {
-  width: 28px;
-  height: 28px;
-}
-
 .composer .send-button.stop {
-  background: linear-gradient(135deg, var(--danger) 0%, var(--danger-hover) 100%);
-  box-shadow: 0 2px 8px var(--danger-soft);
+  background: var(--danger);
+  box-shadow: none;
 }
 
 /* ============================================================
@@ -1461,15 +1528,15 @@ svg.face {
    ============================================================ */
 @media (max-width: 460px) {
   .app-bar {
-    grid-template-columns: 28px minmax(0, 1fr) auto;
+    grid-template-columns: var(--ctl-h-sm) minmax(0, 1fr) auto;
     gap: 8px;
     padding: 8px 10px;
   }
 
   .brand-mark {
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
+    width: var(--ctl-h-sm);
+    height: var(--ctl-h-sm);
+    border-radius: var(--r-sm);
   }
 
   .app-identity small {
@@ -1486,13 +1553,6 @@ svg.face {
     gap: 8px;
   }
 
-  .message-avatar {
-    width: 24px;
-    height: 24px;
-    font-size: 11px;
-    border-radius: 7px;
-  }
-
   .message-body table {
     font-size: 11.5px;
   }
@@ -1503,7 +1563,7 @@ svg.face {
   }
 
   .composer {
-    border-radius: 12px;
+    border-radius: var(--r-lg);
     padding: 6px 8px;
   }
 
@@ -1533,7 +1593,17 @@ svg.face {
 :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: var(--r-xs);
+}
+
+/* 上面用 :where 是为了不压住各组件的既有样式，代价是特指度为 0：
+   .provider-picker select 与 .session-search input 自身写了 outline: none（类选择器更高），
+   键盘 Tab 到这两个控件时会完全没有焦点提示，这里用同等特指度单独补回。
+   .composer textarea 不在此列——它由 .composer:focus-within 的卡片焦点环统一表达。 */
+.provider-picker select:focus-visible,
+.session-search input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* 尊重系统的减弱动效偏好 */
@@ -1554,11 +1624,11 @@ svg.face {
 .code-block-wrapper {
   position: relative;
   margin: 10px 0;
-  border-radius: 8px;
-  background: rgba(15, 23, 42, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--r-sm);
+  background: var(--code-bg);
+  border: 1px solid rgba(var(--ink), 0.08);
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(var(--shadow), 0.05);
 }
 
 .code-block-header {
@@ -1566,13 +1636,13 @@ svg.face {
   align-items: center;
   justify-content: space-between;
   padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(var(--ink), 0.03);
+  border-bottom: 1px solid rgba(var(--ink), 0.06);
   user-select: none;
 }
 
 .code-lang-label {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--mono);
   font-size: 11px;
   font-weight: 600;
   color: var(--muted);
@@ -1584,24 +1654,24 @@ svg.face {
   align-items: center;
   gap: 4px;
   padding: 3px 8px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--r-2xs);
+  background: rgba(var(--ink), 0.05);
+  border: 1px solid rgba(var(--ink), 0.08);
   color: var(--muted);
   font-size: 11px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--dur-fast) var(--ease);
 }
 
 .code-copy-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(var(--ink), 0.10);
+  color: var(--text);
+  border-color: rgba(var(--ink), 0.2);
 }
 
 .code-copy-btn.copied {
   background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
+  color: var(--success-text);
   border-color: rgba(16, 185, 129, 0.3);
 }
 
@@ -1619,7 +1689,7 @@ svg.face {
   overflow-x: auto;
   border-collapse: collapse;
   margin: 12px 0;
-  border-radius: 6px;
+  border-radius: var(--r-xs);
   border: 1px solid var(--line-subtle);
 }
 
@@ -1632,7 +1702,7 @@ svg.face {
 }
 
 .markdown th {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(var(--ink), 0.04);
   font-weight: 600;
   color: var(--text);
 }
@@ -1641,17 +1711,18 @@ svg.face {
    工具执行步骤流聚合与折叠抽屉 (Tool Step Group Drawer)
    ========================================================================== */
 .tool-group-drawer {
-  margin: 6px 0;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  margin: var(--sp-1) 0;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 2px rgba(var(--shadow), 0.04);
   overflow: hidden;
-  transition: all 0.2s ease;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
 }
 
 .tool-group-drawer:hover {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--line-strong);
+  background: var(--surface-hover);
 }
 
 .tool-group-summary {
@@ -1666,7 +1737,7 @@ svg.face {
   font-size: 12px;
   cursor: pointer;
   text-align: left;
-  transition: color 0.15s ease;
+  transition: color var(--dur-fast) var(--ease);
 }
 
 .tool-group-summary:hover {
@@ -1685,7 +1756,7 @@ svg.face {
 }
 
 .tool-group-chevron {
-  transition: transform 0.2s ease;
+  transition: transform var(--dur) var(--ease);
   color: var(--muted);
 }
 
@@ -1695,7 +1766,7 @@ svg.face {
 
 .tool-group-content {
   padding: 4px 12px 8px 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: 1px solid rgba(var(--ink), 0.04);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1704,6 +1775,5 @@ svg.face {
 .tool-group-content .tool-step {
   margin: 2px 0;
   font-size: 11.5px;
-  opacity: 0.85;
 }
 

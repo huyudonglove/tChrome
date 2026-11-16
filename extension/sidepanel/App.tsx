@@ -3,6 +3,7 @@ import { renderMarkdown } from "./markdown";
 import { DOWN, requestJSON, errorText, SERVICE } from "./service";
 import { shouldSubmitOnEnter, stopCurrentSession } from "./interactions";
 import { LibraryPanel } from "./LibraryPanel";
+import { applyTheme, readThemeMode, writeThemeMode, type ThemeMode } from "./theme";
 import { resolveWidgetHeight } from "../../shared/widget-bridge.ts";
 
 type Output =
@@ -81,19 +82,6 @@ const statusText = (status: string) => ({
 
 const Icon = ({ path }: { path: string }) => (
   <svg viewBox="0 0 24 24"><path d={path} /></svg>
-);
-
-const Avatar = ({ who }: { who: "user" | "assistant" }) => (
-  who === "user"
-    ? (
-      <div className="message-avatar user">
-        <svg className="face" viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="9" r="3.2" />
-          <path d="M6.2 18.6c.7-2.3 2.8-3.6 5.8-3.6s5.1 1.3 5.8 3.6" />
-        </svg>
-      </div>
-    )
-    : <div className="message-avatar"><img className="brand-logo" src="./icons/icon-48.png" alt="Helm" /></div>
 );
 
 const MdContent = ({ text }: { text: string }) => {
@@ -323,6 +311,16 @@ export function App() {
   const [listOpen, setListOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => readThemeMode());
+  useEffect(() => {
+    applyTheme(themeMode);
+    if (themeMode !== "system") return;
+    const media = window.matchMedia?.("(prefers-color-scheme: dark)");
+    if (!media) return;
+    const onChange = () => applyTheme(themeMode);
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, [themeMode]);
   useEffect(() => { if (!listOpen) setSettingsOpen(false); }, [listOpen]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -721,6 +719,20 @@ export function App() {
                   <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
                 </button>
               </div>
+              <label className="provider-picker">
+                <span>主题</span>
+                <select aria-label="主题" value={themeMode}
+                  title="跟随系统时随系统深浅色自动切换，选择会被保存"
+                  onChange={(event) => {
+                    const next = event.target.value as ThemeMode;
+                    setThemeMode(next);
+                    writeThemeMode(next);
+                  }}>
+                  <option value="system">跟随系统</option>
+                  <option value="light">浅色</option>
+                  <option value="dark">深色</option>
+                </select>
+              </label>
             </div>
             {connectionError && !serviceDown ? <div className="status down" role="alert">{connectionError}</div> : null}
           </section>
@@ -747,7 +759,6 @@ export function App() {
         >
           {session.messages.length === 0 && !running ? (
             <div className="welcome">
-              <div className="welcome-mark"><img className="brand-logo" src="./icons/icon-128.png" alt="" /></div>
               <h1>今天想做<em>什么？</em></h1>
               <div className="quick-actions">
                 {SUGGESTIONS.map((item) => (
@@ -817,7 +828,6 @@ export function App() {
                   const index = item.originalIndex;
                   return (
                     <article key={`${message.turnId ?? "local"}-${index}`} className={`message-row ${message.role}`}>
-                      {message.role === "tool" ? null : <Avatar who={message.role === "user" ? "user" : "assistant"} />}
                       <div className="message-body">
                         {message.role === "tool" ? (
                           <p className={`tool-step${message.name === "delegate_subagent" ? " subagent-step" : ""}${message.live ? " live" : ""}`}>
@@ -856,7 +866,6 @@ export function App() {
                 })}
                 {waiting ? (
                   <article className="message-row assistant muted">
-                    <Avatar who="assistant" />
                     <div className="message-body"><div className="waiting-dots" role="status" aria-label="正在处理">
                       <span aria-hidden="true" /><span aria-hidden="true" /><span aria-hidden="true" />
                     </div></div>
