@@ -16,18 +16,12 @@
 
 ## 演示视频
 
-| 文件 | 内容 | 规格 |
+| ▶ 观看 | 内容 | 规格 |
 | --- | --- | --- |
-| [`deliverables/hanoi-10-discs-8x.mp4`](deliverables/hanoi-10-discs-8x.mp4) | 10 层汉诺塔，**1,023 步——理论最优解**——在真实 Chrome 窗口里从头录到尾：左边是游戏站点，右边是 Helm 的实时侧栏。每一步都是真实鼠标点击，并逐步与站点自己的步数计数器核对。整体 8 倍速，未做任何剪辑。 | 1920×1080 · 30fps · 67.7 秒 · 5.3 MB |
-| [`deliverables/helm-intro.mp4`](deliverables/helm-intro.mp4) | 产品介绍片：定位、规模数字、工具分层，然后是一组 2048 的 A/B 实验——随机基线拿 **1,236** 分，读了盘面、复盘并改写策略之后的角落优先拿到 **2,620** 分——最后是架构走查。 | 1920×1080 · 30fps · 91.8 秒 · 8.4 MB |
+| [![10 层汉诺塔，1,023 步](deliverables/hanoi-10-discs-8x-poster.jpg)](https://cdn.jsdelivr.net/gh/huyudonglove/tChrome@main/deliverables/hanoi-10-discs-8x.mp4) | 10 层汉诺塔，**1,023 步——理论最优解**——在真实 Chrome 窗口里从头录到尾：左边是游戏站点，右边是 Helm 的实时侧栏。每一步都是真实鼠标点击，并逐步与站点自己的步数计数器核对。整体 8 倍速，未做任何剪辑。 | 1920×1080 · 30fps · 67.7 秒 · 5.3 MB |
+| [![Helm 产品介绍，2048 A/B](deliverables/helm-intro-poster.jpg)](https://cdn.jsdelivr.net/gh/huyudonglove/tChrome@main/deliverables/helm-intro.mp4) | 产品介绍片：定位、规模数字、工具分层，然后是一组 2048 的 A/B 实验——随机基线拿 **1,236** 分，读了盘面、复盘并改写策略之后的角落优先拿到 **2,620** 分——最后是架构走查。 | 1920×1080 · 30fps · 91.8 秒 · 8.4 MB |
 
-点开封面就能在浏览器里直接播放——视频走 jsDelivr 流式加载，它把文件以 `video/mp4` 返回并支持分段请求，几 MB 的片子一两秒就能起播：
-
-| ▶ 10 层汉诺塔 · 1,023 步 · 8 倍速 | ▶ Helm 产品介绍 · 2048 A/B |
-| --- | --- |
-| [![播放 10 层汉诺塔实录](deliverables/hanoi-10-discs-8x-poster.jpg)](https://cdn.jsdelivr.net/gh/huyudonglove/tChrome@main/deliverables/hanoi-10-discs-8x.mp4) | [![播放 Helm 产品介绍](deliverables/helm-intro-poster.jpg)](https://cdn.jsdelivr.net/gh/huyudonglove/tChrome@main/deliverables/helm-intro.mp4) |
-
-原文件也在 [`deliverables/`](deliverables/) 里，想下载可以直接拿：[`hanoi-10-discs-8x.mp4`](deliverables/hanoi-10-discs-8x.mp4) · [`helm-intro.mp4`](deliverables/helm-intro.mp4)。GitHub 有两件事不做：在 README 里渲染 `<video>` 标签（会被净化掉），以及在文件页预览这个体积的仓库视频——所以才走上面的 jsDelivr。想在 README 内部直接播放，得用已登录的浏览器把片段作为 GitHub 附件上传。
+点封面直接播放：文件由 jsDelivr 以 `video/mp4` 提供，在浏览器里播而不是变成下载。首次打开要等 CDN 从 GitHub 回源，可能要几秒才出画面；想直接下载，原文件在 [`deliverables/`](deliverables/)。GitHub 本身会剥掉 README 里的 `<video>` 标签，也不会在文件页预览这个体积的仓库视频，所以走 CDN。
 
 > **这些画面是怎么录的。** Chrome 拒绝截图与录屏 `chrome-extension://` 页面，所以画面右侧的侧栏是一个同源镜像页：它由本机服务把 `dist/` 里的侧栏页面托管出来，页面地址是普通的 `http://127.0.0.1`，但它显示的会话、工具调用与结果都是真的，来自正在运行的服务。对话内容真实无误，只是地址栏并不是扩展面板本身。
 
