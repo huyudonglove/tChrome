@@ -668,9 +668,7 @@ export function App() {
     <div className="workspace-shell">
       <div className="chrome-top">
         <header className="app-bar">
-          <div className="brand-mark"><img className="brand-logo" src="./icons/icon-48.png" alt="Helm" /></div>
           <div className="app-identity">
-            <strong>Helm · 驭舟</strong>
             <small>{running ? "正在处理" : statusText(session.status)}</small>
           </div>
           <div className="app-actions">
@@ -683,7 +681,7 @@ export function App() {
               onClick={() => setListOpen((open) => !open)}>
               <Icon path="M4 6h16M4 12h16M4 18h10" />
             </button>
-            <button className="icon-button accent" type="button" title="新会话" aria-label="新会话" onClick={() => void startNew()}>
+            <button className="icon-button" type="button" title="新会话" aria-label="新会话" onClick={() => void startNew()}>
               <Icon path="M12 5v14M5 12h14" />
             </button>
             <button className={`icon-button${settingsOpen ? " accent" : ""}`} type="button"
