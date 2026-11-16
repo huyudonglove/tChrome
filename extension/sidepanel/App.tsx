@@ -245,7 +245,8 @@ const MdContent = ({ text }: { text: string }) => {
 };
 
 function ToolGroupDrawer({ messages, startIndex }: { messages: Message[]; startIndex: number }) {
-  const [expanded, setExpanded] = useState(false);
+  // 默认展开：演示与排查时需要直接看到每一步工具调用，不折叠。
+  const [expanded, setExpanded] = useState(true);
   const hasLive = messages.some((m) => m.live);
   const count = messages.length;
   const latestText = messages.at(-1)?.text || "处理步骤";
