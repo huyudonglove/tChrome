@@ -8,8 +8,8 @@ import {
   TAB_MARK_TITLE,
 } from "./tab-marker.js";
 
-// tab-marker 用 chrome.tabs.group / tabGroups.update 给「正在操作的标签」做可见标识。
-// 这里用假 chrome 记录调用序列，验证标识会转移、上一个标签会被放回原分组、空闲后自动清除。
+// tab-marker 用扩展图标角标 + 图标提示表明「正在操作哪个标签」，不再使用标签分组。
+// 这里用假 chrome 记录调用序列：角标要随目标转移、空闲后清除，且全程不能碰标签栏。
 const globals = globalThis as any;
 
 const withChrome = async (fake: any, run: () => Promise<void>) => {
@@ -23,7 +23,7 @@ const withChrome = async (fake: any, run: () => Promise<void>) => {
   }
 };
 
-const makeChrome = (tabs: Record<number, any>, extra: {groups?: any[]; groupTabs?: any[]} = {}) => {
+const makeChrome = (tabs: Record<number, any>) => {
   const calls: string[] = [];
   const fake = {
     tabs: {
@@ -31,21 +31,25 @@ const makeChrome = (tabs: Record<number, any>, extra: {groups?: any[]; groupTabs
         const tab = tabs[id];
         return tab ? { id, ...tab } : null;
       },
-      group: async (options: any) => {
-        calls.push(`group:${JSON.stringify(options)}`);
-        return options.groupId ?? 1000 + options.tabIds[0];
+      // 分组 API 只在旧方案里用；留着记录，一旦被调用测试就能抓到回归。
+      group: async () => {
+        calls.push("tabs.group");
+        return 1;
       },
-      ungroup: async (ids: any) => {
-        calls.push(`ungroup:${JSON.stringify(ids)}`);
+      ungroup: async () => {
+        calls.push("tabs.ungroup");
       },
-      query: async () => extra.groupTabs ?? [],
     },
-    tabGroups: {
-      update: async (groupId: number, props: any) => {
-        calls.push(`update:${groupId}:${props.title}:${props.color}`);
+    action: {
+      setBadgeText: async (props: any) => {
+        calls.push(`badge:${props.text}`);
       },
-      get: async (groupId: number) => ({ id: groupId }),
-      query: async () => extra.groups ?? [],
+      setBadgeBackgroundColor: async (props: any) => {
+        calls.push(`badge-color:${props.color}`);
+      },
+      setTitle: async (props: any) => {
+        calls.push(`title:${props.title}`);
+      },
     },
     alarms: {
       create: async (name: string, info: any) => {
@@ -60,78 +64,87 @@ const makeChrome = (tabs: Record<number, any>, extra: {groups?: any[]; groupTabs
   return { fake, calls };
 };
 
-const groupCalls = (calls: string[]) => calls.filter((call) => /^(group|ungroup):/.test(call));
-
 describe("tab-marker", () => {
-  test("首个目标标签被标成「Helm 操作中」分组并着色", async () => {
-    const { fake, calls } = makeChrome({ 5: { groupId: -1, windowId: 2 } });
+  test("首个目标标签用图标角标标出来，且不动标签栏", async () => {
+    const { fake, calls } = makeChrome({ 5: { title: "示例页" } });
     await withChrome(fake, async () => {
       const result = await markActiveTab(5);
       expect(result.ok).toBe(true);
-      expect(calls[0]).toBe(`group:${JSON.stringify({ tabIds: [5], createProperties: { windowId: 2 } })}`);
-      expect(calls[1]).toBe(`update:1005:${TAB_MARK_TITLE}:${TAB_MARK_COLOR}`);
-      // 标记后必须排上自动清除定时器，否则标识会一直挂着。
+      expect(calls[0]).toBe("badge:•");
+      expect(calls[1]).toBe(`badge-color:${TAB_MARK_COLOR}`);
+      expect(calls[2]).toBe(`title:${TAB_MARK_TITLE}：示例页`);
+      // 标记后必须排上自动清除定时器，否则角标会一直挂着。
       expect(calls.some((call) => call.startsWith(`alarm:${TAB_MARK_CLEAR_ALARM}`))).toBe(true);
-      expect(readActiveTabMark()).toMatchObject({ tabId: 5, groupId: 1005, previousGroupId: -1 });
+      expect(readActiveTabMark()).toMatchObject({ tabId: 5 });
+      // 关键回归点：任何分组调用都会让标签栏重排。
+      expect(calls.filter((call) => call.startsWith("tabs."))).toEqual([]);
     });
   });
 
-  test("切换目标时标识转移，上一个标签被放回它原本的分组", async () => {
+  test("切换目标时角标与提示跟着换，仍然不重组标签", async () => {
     const { fake, calls } = makeChrome({
-      5: { groupId: -1, windowId: 2 },
-      9: { groupId: 77, windowId: 2 },
+      5: { title: "示例页" },
+      9: { title: "另一个页面" },
     });
     await withChrome(fake, async () => {
       await markActiveTab(5);
       calls.length = 0;
       const result = await markActiveTab(9);
       expect(result.ok).toBe(true);
-      // 先还原上一个目标的归属（原本没有分组就 ungroup），再给新目标建组。
-      // chrome.tabs.ungroup 同时接受单个 tabId 与数组，这里只关心目标是谁。
-      expect(calls[0]).toMatch(/^ungroup:(\[)?5(\])?$/);
-      expect(calls[1]).toBe(`group:${JSON.stringify({ tabIds: [9], createProperties: { windowId: 2 } })}`);
-      expect(readActiveTabMark()).toMatchObject({ tabId: 9, groupId: 1009, previousGroupId: 77 });
+      expect(calls).toEqual([
+        "badge:•",
+        `badge-color:${TAB_MARK_COLOR}`,
+        `title:${TAB_MARK_TITLE}：另一个页面`,
+        `alarm:${TAB_MARK_CLEAR_ALARM}:{"delayInMinutes":1}`,
+      ]);
+      expect(readActiveTabMark()).toMatchObject({ tabId: 9 });
     });
   });
 
-  test("同一标签重复标记不再动分组，但会顺延自动清除定时器", async () => {
-    const { fake, calls } = makeChrome({ 5: { groupId: -1, windowId: 2 } });
+  test("同一标签重复标记不再重设角标，但会顺延自动清除定时器", async () => {
+    const { fake, calls } = makeChrome({ 5: { title: "示例页" } });
     await withChrome(fake, async () => {
       await markActiveTab(5);
       calls.length = 0;
       expect(await markActiveTab(5)).toMatchObject({ ok: true, unchanged: true });
-      expect(groupCalls(calls)).toEqual([]);
+      expect(calls.filter((call) => call.startsWith("badge:") || call.startsWith("title:"))).toEqual([]);
       expect(calls.some((call) => call.startsWith(`alarm:${TAB_MARK_CLEAR_ALARM}`))).toBe(true);
     });
   });
 
-  test("空闲超时清除标识并把标签放回原分组", async () => {
-    const { fake, calls } = makeChrome({ 5: { groupId: -1, windowId: 2 } });
+  test("空闲超时清除角标并恢复图标标题", async () => {
+    const { fake, calls } = makeChrome({ 5: { title: "示例页" } });
     await withChrome(fake, async () => {
       await markActiveTab(5);
       calls.length = 0;
       const cleared = await clearActiveTabMark();
       expect(cleared).toMatchObject({ ok: true, cleared: true, tabId: 5 });
-      // clear 先撤掉定时器再还原分组，断言只关心还原目标是谁。
-      const ungrouped = calls.filter((call) => call.startsWith("ungroup:"));
-      expect(ungrouped).toHaveLength(1);
-      expect(ungrouped[0]).toMatch(/^ungroup:(\[)?5(\])?$/);
       expect(calls).toContain(`alarm-clear:${TAB_MARK_CLEAR_ALARM}`);
+      expect(calls).toContain("badge:");
+      expect(calls).toContain("title:Open Helm");
       expect(readActiveTabMark()).toBeNull();
     });
   });
 
-  test("没有内存状态时按标题清掉残留分组（worker 重启兜底）", async () => {
-    const { fake, calls } = makeChrome({}, { groups: [{ id: 900 }], groupTabs: [{ id: 7 }, { id: 8 }] });
+  test("没有内存状态时也能清掉残留角标（worker 重启兜底）", async () => {
+    const { fake, calls } = makeChrome({});
     await withChrome(fake, async () => {
       const cleared = await clearActiveTabMark();
       expect(cleared).toMatchObject({ ok: true, cleared: true });
-      expect(calls).toContain(`ungroup:${JSON.stringify([7, 8])}`);
+      expect(cleared).toMatchObject({ tabId: null });
+      expect(calls).toContain("badge:");
     });
   });
 
-  test("不支持标签分组的环境返回失败但不抛错", async () => {
-    await withChrome({ tabs: {}, tabGroups: {} }, async () => {
+  test("不支持图标角标的环境返回失败但不抛错", async () => {
+    await withChrome({ tabs: {} }, async () => {
+      expect(await markActiveTab(5)).toMatchObject({ ok: false });
+    });
+  });
+
+  test("目标标签不存在时返回失败", async () => {
+    const { fake } = makeChrome({});
+    await withChrome(fake, async () => {
       expect(await markActiveTab(5)).toMatchObject({ ok: false });
     });
   });
