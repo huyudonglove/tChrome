@@ -21,9 +21,13 @@
 | [`deliverables/hanoi-10-discs-8x.mp4`](deliverables/hanoi-10-discs-8x.mp4) | 10-disk Tower of Hanoi solved in **1,023 moves — the provably optimal count** — recorded end to end in a real Chrome window: the game site on the left, Helm's live side panel on the right. Every move was a real mouse click, verified against the site's own move counter. Sped up 8×, nothing cut out. | 1920×1080 · 30 fps · 67.7 s · 5.3 MB |
 | [`deliverables/helm-intro.mp4`](deliverables/helm-intro.mp4) | Product introduction: positioning, scale numbers, tool layering, then a 2048 A/B experiment — a random baseline scoring **1,236** versus a corner-first heuristic scoring **2,620** after reading the board and revising its own strategy — and the architecture walkthrough. | 1920×1080 · 30 fps · 91.8 s · 8.4 MB |
 
-Posters: [`hanoi-10-discs-8x-poster.jpg`](deliverables/hanoi-10-discs-8x-poster.jpg) · [`helm-intro-poster.jpg`](deliverables/helm-intro-poster.jpg)
+Click a poster to play the video straight in your browser — it streams from jsDelivr, which serves the file as `video/mp4` with range requests, so playback starts within a second or two:
 
-GitHub does not embed repository videos inside a README, so click a file name above to open it on its own page, or append `?raw=1` to the URL to stream or download the original file.
+| ▶ 10-disk Tower of Hanoi · 1,023 moves, 8× | ▶ Helm introduction · 2048 A/B |
+| --- | --- |
+| [![Play the 10-disk Tower of Hanoi recording](deliverables/hanoi-10-discs-8x-poster.jpg)](https://cdn.jsdelivr.net/gh/huyudonglove/tChrome@main/deliverables/hanoi-10-discs-8x.mp4) | [![Play the Helm introduction](deliverables/helm-intro-poster.jpg)](https://cdn.jsdelivr.net/gh/huyudonglove/tChrome@main/deliverables/helm-intro.mp4) |
+
+The originals are in [`deliverables/`](deliverables/) too, if you would rather download them: [`hanoi-10-discs-8x.mp4`](deliverables/hanoi-10-discs-8x.mp4) · [`helm-intro.mp4`](deliverables/helm-intro.mp4). Two things GitHub itself will not do: render a `<video>` tag inside a README (its sanitiser strips the element), or preview a repository video of this size on the file page — hence the jsDelivr route above. Inline playback *inside* the README requires uploading the clip as a GitHub attachment from a logged-in browser session.
 
 > **How the footage was produced.** Chrome refuses screenshots and video capture of `chrome-extension://` pages, so the side panel you see in the frame is a same-origin mirror served from `dist/` out of the local service: the page is a plain `http://127.0.0.1` page, but the session, the tool calls and the results it displays are the real ones, proxied from the running service. The conversation is genuine; the address bar is not the extension panel itself.
 
